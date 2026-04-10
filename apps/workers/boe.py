@@ -378,7 +378,7 @@ def log_sync(conn, status: str, bloques: int = 0, articulos: int = 0, error_msg:
 
 
 def _ensure_schema(conn) -> None:
-    """Migrate sync_log schema from items_processed to bloques_processed + articulos_upserted."""
+    """Migrate sync_log schema and create trigram index if missing."""
     col_exists = conn.execute(text(
         """
         SELECT EXISTS (
@@ -395,7 +395,6 @@ def _ensure_schema(conn) -> None:
             ADD COLUMN articulos_upserted INTEGER
             """
         ))
-        # Migrate old data: move items_processed to bloques_processed
         conn.execute(text(
             """
             UPDATE sync_log
@@ -403,6 +402,20 @@ def _ensure_schema(conn) -> None:
                 articulos_upserted = items_processed
             WHERE bloques_processed IS NULL AND items_processed IS NOT NULL
             """
+        ))
+
+    # Create trigram index for full-text search if it doesn't exist
+    idx_exists = conn.execute(text(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = 'idx_version_articulo_texto_trgm'
+        )
+        """
+    )).scalar()
+    if not idx_exists:
+        conn.execute(text(
+            "CREATE INDEX idx_version_articulo_texto_trgm ON version_articulo USING gin (texto gin_trgm_ops)"
         ))
 
 

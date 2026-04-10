@@ -78,6 +78,10 @@ CREATE TABLE IF NOT EXISTS sync_log (
     error_msg TEXT
 );
 
+-- Índice GIN para búsqueda full-text con pg_trgm
+CREATE INDEX IF NOT EXISTS idx_version_articulo_texto_trgm
+    ON version_articulo USING gin (texto gin_trgm_ops);
+
 -- Seed mínimo: solo normas, materias y doctrina.
 -- Los artículos y versiones los ingesta el worker BOE en tiempo de ejecución.
 -- En desarrollo local, el worker rellena articulo y version_articulo tras arrancar.
