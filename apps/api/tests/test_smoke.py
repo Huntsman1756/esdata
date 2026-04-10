@@ -88,3 +88,17 @@ async def test_articulo_inexistente_devuelve_404():
         r = await c.get("/v1/legislacion/LIVA/articulos/9999")
     assert r.status_code == 404
     assert "detail" in r.json()
+
+
+@pytest.mark.asyncio
+async def test_cobertura_muestra_normas():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/cobertura")
+    assert r.status_code == 200
+    data = r.json()
+    assert "normas" in data
+    codigos = [n["codigo"] for n in data["normas"]]
+    assert "LIVA" in codigos
+    liva = next(n for n in data["normas"] if n["codigo"] == "LIVA")
+    assert "articulos" in liva and liva["articulos"] >= 1
+    assert "versiones" in liva and liva["versiones"] >= 1
