@@ -1,0 +1,7 @@
+.pytest_cache/
+.ruff_cache/
+.qwen/
+**/__pycache__/
+*.pyc
+apps/api/tests/test_esdata.sqlite3
+script.py

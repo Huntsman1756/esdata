@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: esdata
+      POSTGRES_PASSWORD: esdata_dev
+      POSTGRES_DB: esdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  redis:
+    image: redis:7-alpine
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
+      REDIS_URL: redis://redis:6379
+      APP_ENV: development
+    depends_on:
+      - postgres
+    volumes:
+      - ./apps/api:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker-boe:
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
+      BOE_API_BASE: https://www.boe.es/datosabiertos/api/legislacion-consolidada
+      BOE_LEGISLACION_NORMAS: LIVA
+      SYNC_INTERVAL_SECONDS: "3600"
+    depends_on:
+      - postgres
+    command: python -m workers.boe
+
+volumes:
+  pgdata:

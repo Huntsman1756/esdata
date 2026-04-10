@@ -1,0 +1,90 @@
+# apps/api/tests/test_smoke.py
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from main import app
+
+
+def _client():
+    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+@pytest.mark.asyncio
+async def test_health():
+    async with _client() as c:
+        r = await c.get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_status_tiene_workers():
+    async with _client() as c:
+        r = await c.get("/status")
+    assert r.status_code == 200
+    data = r.json()
+    assert "workers" in data
+    for w in ["worker-boe", "worker-doctrina", "cron-boe-daily", "cron-doctrina-weekly"]:
+        assert w in data["workers"]
+
+
+@pytest.mark.asyncio
+async def test_liva_articulo_91():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/91")
+    assert r.status_code == 200
+    data = r.json()
+    assert "texto" in data and len(data["texto"]) > 0
+    assert data["confianza"]["nivel"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_liva_articulo_91_vigente_en_fecha():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2020-01-01")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["vigente_desde"] <= "2020-01-01"
+    assert data.get("vigente_hasta") is None or data["vigente_hasta"] >= "2020-01-01"
+
+
+@pytest.mark.asyncio
+async def test_materia_tipo_reducido_iva():
+    async with _client() as c:
+        r = await c.get("/v1/materias/tipo-reducido-iva")
+    assert r.status_code == 200
+    data = r.json()
+    codigos = [a["norma"] + " " + a["numero"] for a in data["articulos"]]
+    assert "LIVA 91" in codigos
+
+
+@pytest.mark.asyncio
+async def test_busqueda_full_text():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["resultados"]) > 0
+    for res in data["resultados"]:
+        assert "confianza" in res
+
+
+@pytest.mark.asyncio
+async def test_doctrina_seed():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/V0000-26")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["confianza"]["nivel"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_articulo_inexistente_devuelve_404():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/9999")
+    assert r.status_code == 404
+    assert "detail" in r.json()

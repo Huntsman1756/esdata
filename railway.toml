@@ -1,0 +1,55 @@
+[build]
+builder = "NIXPACKS"
+
+# --- API principal ---
+[[services]]
+name = "api"
+source = "apps/api"
+
+[services.deploy]
+startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 10
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# --- Workers (healthcheck vía /status, que expone el worker por nombre) ---
+[[services]]
+name = "worker-boe"
+source = "apps/workers"
+
+[services.deploy]
+startCommand = "python -m workers.boe"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+# El worker registra su estado en sync_log; /status de la API lo expone
+
+[[services]]
+name = "worker-doctrina"
+source = "apps/workers"
+
+[services.deploy]
+startCommand = "python -m workers.doctrina"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# --- Cron jobs (--run-once: ejecutan y terminan) ---
+[[services]]
+name = "cron-boe-daily"
+source = "apps/workers"
+
+[services.deploy]
+startCommand = "python -m workers.boe --run-once"
+
+[services.cron]
+schedule = "0 6 * * *"
+
+[[services]]
+name = "cron-doctrina-weekly"
+source = "apps/workers"
+
+[services.deploy]
+startCommand = "python -m workers.doctrina --run-once"
+
+[services.cron]
+schedule = "0 7 * * 1"
