@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -244,6 +245,117 @@ def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
     )
 
 
+def auto_link_materias(conn) -> int:
+    """Link materias to articles based on keyword matching in article text.
+    
+    Each materia has curated keywords. We search for these keywords in the
+    text of all articles and create articulo_materia links with relevance=2
+    (principal) when found.
+    """
+    materias = conn.execute(text(
+        "SELECT slug, etiqueta FROM materia ORDER BY slug"
+    )).mappings()
+    
+    # Curated keyword sets per materia slug
+    keyword_map = {
+        "tipo-reducido-iva": [
+            "tipo reducido", "tipo impositivo reducido", "6 por 100",
+            "10 por 100", "3 por 100", "superreducido",
+        ],
+    }
+    
+    links_created = 0
+    for mat in materias:
+        keywords = keyword_map.get(mat["slug"], [mat["etiqueta"].lower()])
+        for kw in keywords:
+            rows = conn.execute(text(
+                """
+                SELECT DISTINCT a.id, n.codigo
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                JOIN version_articulo va ON va.articulo_id = a.id
+                WHERE LOWER(va.texto) LIKE :kw
+                  AND NOT EXISTS (
+                      SELECT 1 FROM articulo_materia am
+                      WHERE am.articulo_id = a.id AND am.materia_id = (
+                          SELECT id FROM materia WHERE slug = :slug
+                      )
+                  )
+                """
+            ), {"kw": f"%{kw}%", "slug": mat["slug"]}).mappings()
+            
+            for row in rows:
+                conn.execute(text(
+                    """
+                    INSERT INTO articulo_materia (articulo_id, materia_id, relevancia)
+                    SELECT :articulo_id, id, 2
+                    FROM materia
+                    WHERE slug = :slug
+                    ON CONFLICT (articulo_id, materia_id) DO NOTHING
+                    """
+                ), {"articulo_id": row["id"], "slug": mat["slug"]})
+                links_created += 1
+    
+    return links_created
+
+
+def auto_link_doctrina(conn) -> int:
+    """Link doctrine documents to articles by parsing references in doctrine text.
+    
+    Looks for patterns like "LIVA 91", "art. 91", "artículo 91", etc.
+    """
+    docs = conn.execute(text(
+        "SELECT id, referencia, texto FROM documento_interpretativo"
+    )).mappings()
+    
+    # Patterns to find article references in doctrine text
+    ref_patterns = [
+        # "LIVA 91", "LIRPF 10", etc.
+        re.compile(r"\b(LIVA|LIRPF|LIS|LGT)\s+(\d+)\b", re.IGNORECASE),
+        # "artículo 91", "art. 91"
+        re.compile(r"(?:artículo|art\.?)\s+(\d+)\b", re.IGNORECASE),
+    ]
+    
+    links_created = 0
+    for doc in docs:
+        text_lower = doc["texto"]
+        found_refs = set()
+        
+        for pattern in ref_patterns:
+            for match in pattern.finditer(text_lower):
+                groups = match.groups()
+                if len(groups) == 2:
+                    # Has norma code + number
+                    codigo = groups[0].upper()
+                    numero = groups[1]
+                    found_refs.add((codigo, numero))
+                elif len(groups) == 1:
+                    # Just number - try all known normas
+                    numero = groups[0]
+                    for codigo in DEFAULT_NORMAS:
+                        found_refs.add((codigo, numero))
+        
+        for codigo, numero in found_refs:
+            conn.execute(text(
+                """
+                INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
+                SELECT :doc_id, a.id, 'auto_link', 0.70, :nota
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = :codigo AND a.numero = :numero
+                ON CONFLICT (documento_id, articulo_id) DO NOTHING
+                """
+            ), {
+                "doc_id": doc["id"],
+                "codigo": codigo,
+                "numero": numero,
+                "nota": f"Referencia auto-detectada: {codigo} art. {numero}",
+            })
+            links_created += 1
+    
+    return links_created
+
+
 def log_sync(conn, status: str, bloques: int = 0, articulos: int = 0, error_msg: str | None = None) -> None:
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
@@ -265,6 +377,35 @@ def log_sync(conn, status: str, bloques: int = 0, articulos: int = 0, error_msg:
     )
 
 
+def _ensure_schema(conn) -> None:
+    """Migrate sync_log schema from items_processed to bloques_processed + articulos_upserted."""
+    col_exists = conn.execute(text(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'sync_log' AND column_name = 'bloques_processed'
+        )
+        """
+    )).scalar()
+    if not col_exists:
+        conn.execute(text(
+            """
+            ALTER TABLE sync_log
+            ADD COLUMN bloques_processed INTEGER,
+            ADD COLUMN articulos_upserted INTEGER
+            """
+        ))
+        # Migrate old data: move items_processed to bloques_processed
+        conn.execute(text(
+            """
+            UPDATE sync_log
+            SET bloques_processed = items_processed,
+                articulos_upserted = items_processed
+            WHERE bloques_processed IS NULL AND items_processed IS NOT NULL
+            """
+        ))
+
+
 def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
     target_codes = codigos or [code.strip() for code in os.getenv("BOE_LEGISLACION_NORMAS", "LIVA").split(",") if code.strip()]
     only_block_ids = [item.strip() for item in os.getenv("BOE_ONLY_BLOCK_IDS", "").split(",") if item.strip()]
@@ -275,6 +416,7 @@ def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
     try:
         with httpx.Client(timeout=30.0) as client:
             with engine.begin() as conn:
+                _ensure_schema(conn)
                 for codigo in target_codes:
                     boe_id = DEFAULT_NORMAS[codigo]
                     metadata = fetch_metadata(client, codigo, boe_id)
@@ -288,7 +430,12 @@ def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
                         upsert_articulo(conn, codigo, bloque)
                         bloques_fetched += 1
                         articulos_upserted += 1
+
+                # Auto-linking post-ingestion
+                materias_linked = auto_link_materias(conn)
+                doctrina_linked = auto_link_doctrina(conn)
                 log_sync(conn, "ok", bloques=bloques_fetched, articulos=articulos_upserted)
+                print(f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}")
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
         with engine.begin() as conn:
