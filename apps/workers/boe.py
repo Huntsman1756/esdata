@@ -244,13 +244,13 @@ def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
     )
 
 
-def log_sync(conn, status: str, items_processed: int, error_msg: str | None = None) -> None:
+def log_sync(conn, status: str, bloques: int = 0, articulos: int = 0, error_msg: str | None = None) -> None:
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         text(
             """
-            INSERT INTO sync_log (worker, started_at, finished_at, status, items_processed, error_msg)
-            VALUES (:worker, :started_at, :finished_at, :status, :items_processed, :error_msg)
+            INSERT INTO sync_log (worker, started_at, finished_at, status, bloques_processed, articulos_upserted, error_msg)
+            VALUES (:worker, :started_at, :finished_at, :status, :bloques_processed, :articulos_upserted, :error_msg)
             """
         ),
         {
@@ -258,17 +258,19 @@ def log_sync(conn, status: str, items_processed: int, error_msg: str | None = No
             "started_at": now,
             "finished_at": now,
             "status": status,
-            "items_processed": items_processed,
+            "bloques_processed": bloques,
+            "articulos_upserted": articulos,
             "error_msg": error_msg,
         },
     )
 
 
-def run_sync(codigos: list[str] | None = None) -> int:
+def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
     target_codes = codigos or [code.strip() for code in os.getenv("BOE_LEGISLACION_NORMAS", "LIVA").split(",") if code.strip()]
     only_block_ids = [item.strip() for item in os.getenv("BOE_ONLY_BLOCK_IDS", "").split(",") if item.strip()]
     engine = create_engine(DATABASE_URL, future=True)
-    processed = 0
+    bloques_fetched = 0
+    articulos_upserted = 0
 
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -284,12 +286,13 @@ def run_sync(codigos: list[str] | None = None) -> int:
                             continue
                         bloque = fetch_block(client, boe_id, item.id)
                         upsert_articulo(conn, codigo, bloque)
-                        processed += 1
-                log_sync(conn, "ok", processed)
-        return processed
+                        bloques_fetched += 1
+                        articulos_upserted += 1
+                log_sync(conn, "ok", bloques=bloques_fetched, articulos=articulos_upserted)
+        return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
         with engine.begin() as conn:
-            log_sync(conn, "error", processed, str(exc))
+            log_sync(conn, "error", bloques=bloques_fetched, articulos=articulos_upserted, error_msg=str(exc))
         raise
 
 
@@ -342,11 +345,11 @@ if __name__ == "__main__":
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 
     if args.run_once:
-        total = run_sync()
-        print(f"[run-once] Synced {total} bloques from BOE")
+        result = run_sync()
+        print(f"[run-once] Bloques: {result['bloques']}, Artículos: {result['articulos']}")
     else:
         print(f"Starting BOE worker in continuous mode (interval={interval}s)")
         while True:
-            total = run_sync()
-            print(f"Synced {total} bloques from BOE at {datetime.now(timezone.utc).isoformat()}")
+            result = run_sync()
+            print(f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}")
             time.sleep(interval)

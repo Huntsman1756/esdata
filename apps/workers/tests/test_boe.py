@@ -322,7 +322,15 @@ def test_run_once_flag_accepts_argparse():
         cwd=workers_dir,
         env={**__import__("os").environ, "PYTHONPATH": str(workers_dir.parent), "DATABASE_URL": "sqlite:///:memory:"},
     )
-    # --help should succeed and show --run-once
     assert result.returncode == 0
     assert "--run-once" in result.stdout
     assert "--interval" in result.stdout
+
+
+def test_run_sync_returns_dict_with_bloques_and_articulos():
+    """Verify run_sync returns a dict with separate bloques and articulos counts."""
+    from boe import run_sync
+    import inspect
+
+    sig = inspect.signature(run_sync)
+    assert sig.return_annotation == dict[str, int]

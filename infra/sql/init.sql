@@ -73,7 +73,8 @@ CREATE TABLE IF NOT EXISTS sync_log (
     started_at TIMESTAMPTZ NOT NULL,
     finished_at TIMESTAMPTZ,
     status TEXT NOT NULL,
-    items_processed INTEGER,
+    bloques_processed INTEGER,
+    articulos_upserted INTEGER,
     error_msg TEXT
 );
 

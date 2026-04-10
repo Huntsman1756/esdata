@@ -98,7 +98,8 @@ STATEMENTS = [
         started_at TEXT NOT NULL,
         finished_at TEXT,
         status TEXT NOT NULL,
-        items_processed INTEGER,
+        bloques_processed INTEGER,
+        articulos_upserted INTEGER,
         error_msg TEXT
     )
     """,

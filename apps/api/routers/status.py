@@ -27,7 +27,7 @@ async def status():
 
     for worker in WORKERS:
         row = db.execute(text("""
-            SELECT started_at, finished_at, status, items_processed, error_msg
+            SELECT started_at, finished_at, status, bloques_processed, articulos_upserted, error_msg
             FROM sync_log
             WHERE worker = :worker
             ORDER BY started_at DESC
@@ -39,7 +39,8 @@ async def status():
                 "last_run": row.started_at.isoformat() if row.started_at else None,
                 "finished_at": row.finished_at.isoformat() if row.finished_at else None,
                 "status": row.status,
-                "items_processed": row.items_processed,
+                "bloques_processed": row.bloques_processed,
+                "articulos_upserted": row.articulos_upserted,
                 "error": row.error_msg,
                 "stale": _is_stale(worker, row.finished_at),
             }

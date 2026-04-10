@@ -37,7 +37,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       BOE_API_BASE: https://www.boe.es/datosabiertos/api/legislacion-consolidada
-      BOE_LEGISLACION_NORMAS: LIVA
+      BOE_LEGISLACION_NORMAS: LIVA,LIRPF,LIS,LGT
       SYNC_INTERVAL_SECONDS: "3600"
     depends_on:
       - postgres

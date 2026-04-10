@@ -111,3 +111,38 @@ async def get_articulo_historial(codigo: str, numero: str):
     if not historial:
         raise HTTPException(status_code=404, detail={"error": "Articulo no encontrado"})
     return {"norma": codigo, "numero": numero, "historial": historial}
+
+
+@router.get("/cobertura")
+async def get_cobertura():
+    """Recuento de artículos y versiones por norma para verificar ingesta."""
+    db = next(get_db())
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                n.codigo,
+                n.titulo,
+                COUNT(DISTINCT a.id) AS articulos,
+                COUNT(va.id) AS versiones,
+                MAX(va.vigente_desde) AS ultima_version
+            FROM norma n
+            LEFT JOIN articulo a ON a.norma_id = n.id
+            LEFT JOIN version_articulo va ON va.articulo_id = a.id
+            GROUP BY n.id, n.codigo, n.titulo
+            ORDER BY n.codigo
+            """
+        )
+    ).mappings()
+    return {
+        "normas": [
+            {
+                "codigo": row["codigo"],
+                "titulo": row["titulo"],
+                "articulos": row["articulos"],
+                "versiones": row["versiones"],
+                "ultima_version": str(row["ultima_version"]) if row["ultima_version"] else None,
+            }
+            for row in rows
+        ]
+    }
