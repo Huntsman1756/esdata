@@ -1,4 +1,5 @@
 import sys
+import subprocess
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
@@ -309,3 +310,19 @@ def test_upsert_articulo_replaces_seed_same_vigencia():
         rows = conn.execute(text("SELECT boe_bloque_id, texto FROM version_articulo")).fetchall()
 
     assert rows == [("a91", "Texto BOE real")]
+
+
+def test_run_once_flag_accepts_argparse():
+    """Verify --run-once flag is accepted by the worker CLI without error."""
+    workers_dir = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-m", "workers.boe", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=workers_dir,
+        env={**__import__("os").environ, "PYTHONPATH": str(workers_dir.parent), "DATABASE_URL": "sqlite:///:memory:"},
+    )
+    # --help should succeed and show --run-once
+    assert result.returncode == 0
+    assert "--run-once" in result.stdout
+    assert "--interval" in result.stdout

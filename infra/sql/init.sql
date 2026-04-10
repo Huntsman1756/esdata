@@ -77,11 +77,11 @@ CREATE TABLE IF NOT EXISTS sync_log (
     error_msg TEXT
 );
 
--- Seed mínimo para desarrollo local.
--- Solo LIVA 91 tiene texto seed; las demás normas se ingestan vía worker BOE.
--- En producción el worker BOE reemplaza el texto seed con datos reales.
+-- Seed mínimo: solo normas, materias y doctrina.
+-- Los artículos y versiones los ingesta el worker BOE en tiempo de ejecución.
+-- En desarrollo local, el worker rellena articulo y version_articulo tras arrancar.
 
--- Normas
+-- Normas (metadatos de referencia)
 INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
 VALUES
     ('LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740', 'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe', 'fiscal', '1993-01-01'),
@@ -90,40 +90,12 @@ VALUES
     ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', 'https://www.boe.es/eli/es/l/2003/12/17/58', 'es', 'boe', 'fiscal', '2004-01-01')
 ON CONFLICT (codigo) DO NOTHING;
 
--- LIVA 91: placeholder mínimo para desarrollo y tests.
--- El worker BOE reemplaza el texto con datos reales al hacer sync.
-INSERT INTO articulo (norma_id, numero, titulo, tipo)
-SELECT id, '91', 'Tipos reducidos', 'articulo'
-FROM norma
-WHERE codigo = 'LIVA'
-ON CONFLICT (norma_id, numero) DO NOTHING;
-
-INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-SELECT a.id, 'Texto seed del articulo 91 de la LIVA para entorno local con referencia a tipo reducido.', '1993-01-01', NULL, 'seed-liva-91'
-FROM articulo a
-JOIN norma n ON n.id = a.norma_id
-WHERE n.codigo = 'LIVA'
-  AND a.numero = '91'
-  AND NOT EXISTS (
-      SELECT 1
-      FROM version_articulo va
-      WHERE va.articulo_id = a.id
-        AND va.vigente_desde = DATE '1993-01-01'
-  );
-
--- Materias, doctrina y enlaces seed (solo para tests locales)
+-- Materias (taxonomía curada — no las genera el worker)
 INSERT INTO materia (slug, etiqueta)
 VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')
 ON CONFLICT (slug) DO NOTHING;
 
-INSERT INTO articulo_materia (articulo_id, materia_id, relevancia)
-SELECT a.id, m.id, 3
-FROM articulo a
-JOIN norma n ON n.id = a.norma_id
-JOIN materia m ON m.slug = 'tipo-reducido-iva'
-WHERE n.codigo = 'LIVA' AND a.numero = '91'
-ON CONFLICT (articulo_id, materia_id) DO NOTHING;
-
+-- Doctrina interpretativa de referencia (seed local para desarrollo)
 INSERT INTO documento_interpretativo (
     tipo_documento,
     organismo_emisor,
@@ -144,17 +116,11 @@ VALUES (
     'fiscal',
     'V0000-26',
     '2026-01-15',
-    'Seed DGT',
-    'Documento interpretativo seed relacionado con LIVA 91.',
+    'Consulta DGT sobre tipo reducido',
+    'Documento de referencia para desarrollo local.',
     'https://example.invalid/dgt/V0000-26'
 )
 ON CONFLICT (referencia) DO NOTHING;
 
-INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
-SELECT d.id, a.id, 'manual', 1.00, 'Seed local'
-FROM documento_interpretativo d
-JOIN articulo a ON a.numero = '91'
-JOIN norma n ON n.id = a.norma_id
-WHERE d.referencia = 'V0000-26'
-  AND n.codigo = 'LIVA'
-ON CONFLICT (documento_id, articulo_id) DO NOTHING;
+-- Los enlaces articulo<->materia y documento<->articulo se crean
+-- tras la ingesta del worker, cuando los artículos existen en BD.

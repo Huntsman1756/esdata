@@ -102,25 +102,35 @@ STATEMENTS = [
         error_msg TEXT
     )
     """,
+    # --- Normas (metadatos de referencia) ---
     """
     INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
     VALUES ('LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740', 'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe', 'fiscal', '1993-01-01')
     """,
+    # --- LIVA 91: fixture de test con texto realista del BOE ---
+    # Este no es un placeholder de producción; el worker BOE ingesta el texto real.
+    # Aquí usamos un extracto representativo para que los tests verifiquen búsqueda y estructura.
     """
     INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'
+    SELECT id, '91', 'Tipos impositivos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'
     """,
     """
     INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Texto seed del articulo 91 de la LIVA para entorno local con referencia a tipo reducido.', '1993-01-01', NULL, 'seed-liva-91'
+    SELECT a.id, 'Artículo 91. Tipos impositivos reducidos.
+Uno. Se aplicará el tipo reducido a las siguientes operaciones:
+1. Las entregas de bienes de primera necesidad.
+2. Los servicios de hostelería y restaurante.
+Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', NULL, 'a91'
     FROM articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE n.codigo = 'LIVA' AND a.numero = '91'
     """,
+    # --- Materias (taxonomía curada) ---
     """
     INSERT INTO materia (slug, etiqueta)
     VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')
     """,
+    # --- Enlace materia <-> artículo (requiere que LIVA 91 exista) ---
     """
     INSERT INTO articulo_materia (articulo_id, materia_id, relevancia)
     SELECT a.id, m.id, 3
@@ -129,17 +139,19 @@ STATEMENTS = [
     JOIN materia m ON m.slug = 'tipo-reducido-iva'
     WHERE n.codigo = 'LIVA' AND a.numero = '91'
     """,
+    # --- Doctrina de referencia ---
     """
     INSERT INTO documento_interpretativo (
         tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
     )
     VALUES (
-        'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Seed DGT', 'Documento interpretativo seed relacionado con LIVA 91.', 'https://example.invalid/dgt/V0000-26'
+        'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Consulta DGT sobre tipo reducido', 'Documento de referencia relacionado con LIVA 91.', 'https://example.invalid/dgt/V0000-26'
     )
     """,
+    # --- Enlace doctrina <-> artículo ---
     """
     INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
-    SELECT d.id, a.id, 'manual', 1.00, 'Seed local'
+    SELECT d.id, a.id, 'manual', 1.00, 'Test fixture'
     FROM documento_interpretativo d
     JOIN articulo a ON a.numero = '91'
     JOIN norma n ON n.id = a.norma_id
