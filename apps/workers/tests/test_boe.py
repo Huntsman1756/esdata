@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from boe import (
     BloqueTexto,
     NormaMetadata,
+    _ensure_schema,
     auto_link_doctrina,
     auto_link_materias,
     parse_block_xml,
@@ -90,8 +91,16 @@ def test_parse_index_returns_blocks():
         "data": [
             {
                 "bloque": [
-                    {"id": "a91", "titulo": "Artículo 91", "fecha_actualizacion": "20241221"},
-                    {"id": "ti", "titulo": "Título I", "fecha_actualizacion": "19921229"},
+                    {
+                        "id": "a91",
+                        "titulo": "Artículo 91",
+                        "fecha_actualizacion": "20241221",
+                    },
+                    {
+                        "id": "ti",
+                        "titulo": "Título I",
+                        "fecha_actualizacion": "19921229",
+                    },
                 ]
             }
         ]
@@ -208,7 +217,9 @@ def test_upsert_articulo_inserts_article_and_version():
         )
 
         articulo = conn.execute(text("SELECT numero, tipo FROM articulo")).fetchone()
-        version = conn.execute(text("SELECT boe_bloque_id, texto FROM version_articulo")).fetchone()
+        version = conn.execute(
+            text("SELECT boe_bloque_id, texto FROM version_articulo")
+        ).fetchone()
 
     assert articulo == ("91", "articulo")
     assert version == ("a91", "Texto real")
@@ -309,7 +320,9 @@ def test_upsert_articulo_replaces_seed_same_vigencia():
             ),
         )
 
-        rows = conn.execute(text("SELECT boe_bloque_id, texto FROM version_articulo")).fetchall()
+        rows = conn.execute(
+            text("SELECT boe_bloque_id, texto FROM version_articulo")
+        ).fetchall()
 
     assert rows == [("a91", "Texto BOE real")]
 
@@ -342,7 +355,8 @@ def _setup_link_test_db():
     """Create tables and seed minimal data for auto-linking tests."""
     eng = create_engine("sqlite:///:memory:", future=True)
     with eng.begin() as c:
-        c.execute(text("""
+        c.execute(
+            text("""
             CREATE TABLE norma (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 codigo TEXT UNIQUE NOT NULL, titulo TEXT NOT NULL,
@@ -350,36 +364,46 @@ def _setup_link_test_db():
                 jurisdiccion TEXT NOT NULL, tipo_fuente TEXT NOT NULL,
                 ambito TEXT NOT NULL, vigente_desde TEXT NOT NULL
             )
-        """))
-        c.execute(text("""
+        """)
+        )
+        c.execute(
+            text("""
             CREATE TABLE articulo (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, norma_id INTEGER NOT NULL,
                 numero TEXT NOT NULL, titulo TEXT, tipo TEXT NOT NULL,
                 UNIQUE (norma_id, numero)
             )
-        """))
-        c.execute(text("""
+        """)
+        )
+        c.execute(
+            text("""
             CREATE TABLE version_articulo (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, articulo_id INTEGER NOT NULL,
                 texto TEXT NOT NULL, vigente_desde TEXT NOT NULL,
                 vigente_hasta TEXT, boe_bloque_id TEXT
             )
-        """))
-        c.execute(text("""
+        """)
+        )
+        c.execute(
+            text("""
             CREATE TABLE materia (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE NOT NULL,
                 etiqueta TEXT NOT NULL
             )
-        """))
-        c.execute(text("""
+        """)
+        )
+        c.execute(
+            text("""
             CREATE TABLE articulo_materia (
                 articulo_id INTEGER NOT NULL REFERENCES articulo(id),
                 materia_id INTEGER NOT NULL REFERENCES materia(id),
                 relevancia INTEGER NOT NULL DEFAULT 1,
                 PRIMARY KEY (articulo_id, materia_id)
             )
-        """))
-        c.execute(text("""
+        """)
+        )
+        c.execute(
+            text("""
             CREATE TABLE documento_interpretativo (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, tipo_documento TEXT NOT NULL,
                 organismo_emisor TEXT NOT NULL, jurisdiccion TEXT NOT NULL,
@@ -387,29 +411,41 @@ def _setup_link_test_db():
                 referencia TEXT UNIQUE NOT NULL, fecha TEXT NOT NULL,
                 titulo TEXT, texto TEXT NOT NULL, url_fuente TEXT
             )
-        """))
-        c.execute(text("""
+        """)
+        )
+        c.execute(
+            text("""
             CREATE TABLE documento_articulo (
                 documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
                 articulo_id INTEGER NOT NULL REFERENCES articulo(id),
                 metodo_enlace TEXT NOT NULL, confianza_enlace REAL NOT NULL,
                 nota TEXT, PRIMARY KEY (documento_id, articulo_id)
             )
-        """))
+        """)
+        )
         # Seed norma + article
-        c.execute(text(
-            "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde) "
-            "VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')"
-        ))
-        c.execute(text(
-            "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
-            "SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'"
-        ))
-        c.execute(text(
-            "INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id) "
-            "SELECT a.id, :texto, '1993-01-01', NULL, 'a91' "
-            "FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIVA' AND a.numero = '91'"
-        ), {"texto": "Artículo 91. Tipos impositivos reducidos.\nUno. Se aplicará el tipo del 6 por 100."})
+        c.execute(
+            text(
+                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde) "
+                "VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
+                "SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id) "
+                "SELECT a.id, :texto, '1993-01-01', NULL, 'a91' "
+                "FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIVA' AND a.numero = '91'"
+            ),
+            {
+                "texto": "Artículo 91. Tipos impositivos reducidos.\nUno. Se aplicará el tipo del 6 por 100."
+            },
+        )
     return eng
 
 
@@ -417,13 +453,17 @@ def test_auto_link_materias_creates_link():
     """Verify auto_link_materias links articles to materias when keywords match."""
     eng = _setup_link_test_db()
     with eng.begin() as c:
-        c.execute(text(
-            "INSERT INTO materia (slug, etiqueta) VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')"
-        ))
+        c.execute(
+            text(
+                "INSERT INTO materia (slug, etiqueta) VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')"
+            )
+        )
         links = auto_link_materias(c)
-        row = c.execute(text(
-            "SELECT am.relevancia, m.slug FROM articulo_materia am JOIN materia m ON m.id = am.materia_id"
-        )).fetchone()
+        row = c.execute(
+            text(
+                "SELECT am.relevancia, m.slug FROM articulo_materia am JOIN materia m ON m.id = am.materia_id"
+            )
+        ).fetchone()
 
     assert links >= 1
     assert row == (2, "tipo-reducido-iva")
@@ -433,17 +473,74 @@ def test_auto_link_doctrina_creates_link():
     """Verify auto_link_doctrina parses 'LIVA 91' references and creates links."""
     eng = _setup_link_test_db()
     with eng.begin() as c:
-        c.execute(text(
-            "INSERT INTO documento_interpretativo "
-            "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
-            "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Test', "
-            "'Consulta sobre LIVA 91 y tipo reducido.', NULL)"
-        ))
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Test', "
+                "'Consulta sobre LIVA 91 y tipo reducido.', NULL)"
+            )
+        )
         links = auto_link_doctrina(c)
-        row = c.execute(text(
-            "SELECT da.metodo_enlace, da.confianza_enlace, a.numero "
-            "FROM documento_articulo da JOIN articulo a ON a.id = da.articulo_id"
-        )).fetchone()
+        row = c.execute(
+            text(
+                "SELECT da.metodo_enlace, da.confianza_enlace, a.numero "
+                "FROM documento_articulo da JOIN articulo a ON a.id = da.articulo_id"
+            )
+        ).fetchone()
 
     assert links >= 1
     assert row == ("auto_link", 0.70, "91")
+
+
+def test_ensure_schema_creates_sync_log_when_missing():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE version_articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    articulo_id INTEGER NOT NULL,
+                    texto TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL,
+                    vigente_hasta TEXT,
+                    boe_bloque_id TEXT
+                )
+                """
+            )
+        )
+
+        _ensure_schema(conn)
+
+        row = conn.execute(
+            text(
+                """
+                SELECT name FROM sqlite_master
+                WHERE type = 'table' AND name = 'sync_log'
+                """
+            )
+        ).fetchone()
+
+    assert row == ("sync_log",)
+
+
+def test_ensure_schema_creates_core_tables_on_empty_db():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        _ensure_schema(conn)
+
+        rows = conn.execute(
+            text(
+                """
+                SELECT name FROM sqlite_master
+                WHERE type = 'table'
+                ORDER BY name
+                """
+            )
+        ).fetchall()
+
+    table_names = {row[0] for row in rows}
+    assert {"norma", "articulo", "version_articulo", "sync_log"} <= table_names

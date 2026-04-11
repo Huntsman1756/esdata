@@ -27,6 +27,111 @@ DEFAULT_NORMAS = {
 }
 
 
+SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS norma (
+        id INTEGER PRIMARY KEY,
+        codigo TEXT UNIQUE NOT NULL,
+        titulo TEXT NOT NULL,
+        boe_id TEXT UNIQUE NOT NULL,
+        eli_uri TEXT UNIQUE,
+        jurisdiccion TEXT NOT NULL,
+        tipo_fuente TEXT NOT NULL,
+        ambito TEXT NOT NULL,
+        vigente_desde DATE NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS articulo (
+        id INTEGER PRIMARY KEY,
+        norma_id INTEGER NOT NULL REFERENCES norma(id),
+        numero TEXT NOT NULL,
+        titulo TEXT,
+        tipo TEXT NOT NULL,
+        UNIQUE (norma_id, numero)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS version_articulo (
+        id INTEGER PRIMARY KEY,
+        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
+        texto TEXT NOT NULL,
+        vigente_desde DATE NOT NULL,
+        vigente_hasta DATE,
+        boe_bloque_id TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS documento_interpretativo (
+        id INTEGER PRIMARY KEY,
+        tipo_documento TEXT NOT NULL,
+        organismo_emisor TEXT NOT NULL,
+        jurisdiccion TEXT NOT NULL,
+        tipo_fuente TEXT NOT NULL,
+        ambito TEXT NOT NULL,
+        referencia TEXT UNIQUE NOT NULL,
+        fecha DATE NOT NULL,
+        titulo TEXT,
+        texto TEXT NOT NULL,
+        url_fuente TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS documento_articulo (
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
+        metodo_enlace TEXT NOT NULL,
+        confianza_enlace NUMERIC(3,2) NOT NULL,
+        nota TEXT,
+        PRIMARY KEY (documento_id, articulo_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS materia (
+        id INTEGER PRIMARY KEY,
+        slug TEXT UNIQUE NOT NULL,
+        etiqueta TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS articulo_materia (
+        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
+        materia_id INTEGER NOT NULL REFERENCES materia(id),
+        relevancia SMALLINT NOT NULL DEFAULT 1,
+        PRIMARY KEY (articulo_id, materia_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sync_log (
+        id INTEGER PRIMARY KEY,
+        worker TEXT NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL,
+        finished_at TIMESTAMPTZ,
+        status TEXT NOT NULL,
+        bloques_processed INTEGER,
+        articulos_upserted INTEGER,
+        error_msg TEXT
+    )
+    """,
+]
+
+
+def _create_base_schema(conn) -> None:
+    for statement in SCHEMA_STATEMENTS:
+        conn.execute(text(statement))
+
+    conn.execute(
+        text(
+            """
+            INSERT INTO materia (slug, etiqueta)
+            VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')
+            ON CONFLICT (slug) DO NOTHING
+            """
+        )
+    )
+
+
 @dataclass
 class NormaMetadata:
     codigo: str
@@ -84,7 +189,10 @@ def parse_index(payload: dict) -> list[BloqueIndex]:
 
 
 def fetch_index(client: httpx.Client, boe_id: str) -> list[BloqueIndex]:
-    response = client.get(f"{BOE_API_BASE}/id/{boe_id}/texto/indice", headers={"Accept": "application/json"})
+    response = client.get(
+        f"{BOE_API_BASE}/id/{boe_id}/texto/indice",
+        headers={"Accept": "application/json"},
+    )
     response.raise_for_status()
     return parse_index(response.json())
 
@@ -125,7 +233,9 @@ def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto
 
 
 def fetch_metadata(client: httpx.Client, codigo: str, boe_id: str) -> NormaMetadata:
-    response = client.get(f"{BOE_API_BASE}/id/{boe_id}/metadatos", headers={"Accept": "application/json"})
+    response = client.get(
+        f"{BOE_API_BASE}/id/{boe_id}/metadatos", headers={"Accept": "application/json"}
+    )
     response.raise_for_status()
     return parse_metadata(codigo, boe_id, response.json())
 
@@ -187,7 +297,11 @@ def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
             )
             """
         ),
-        {"codigo": codigo, "numero": bloque.numero, "vigente_desde": bloque.vigente_desde},
+        {
+            "codigo": codigo,
+            "numero": bloque.numero,
+            "vigente_desde": bloque.vigente_desde,
+        },
     )
 
     updated = conn.execute(
@@ -247,29 +361,34 @@ def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
 
 def auto_link_materias(conn) -> int:
     """Link materias to articles based on keyword matching in article text.
-    
+
     Each materia has curated keywords. We search for these keywords in the
     text of all articles and create articulo_materia links with relevance=2
     (principal) when found.
     """
-    materias = conn.execute(text(
-        "SELECT slug, etiqueta FROM materia ORDER BY slug"
-    )).mappings()
-    
+    materias = conn.execute(
+        text("SELECT slug, etiqueta FROM materia ORDER BY slug")
+    ).mappings()
+
     # Curated keyword sets per materia slug
     keyword_map = {
         "tipo-reducido-iva": [
-            "tipo reducido", "tipo impositivo reducido", "6 por 100",
-            "10 por 100", "3 por 100", "superreducido",
+            "tipo reducido",
+            "tipo impositivo reducido",
+            "6 por 100",
+            "10 por 100",
+            "3 por 100",
+            "superreducido",
         ],
     }
-    
+
     links_created = 0
     for mat in materias:
         keywords = keyword_map.get(mat["slug"], [mat["etiqueta"].lower()])
         for kw in keywords:
-            rows = conn.execute(text(
-                """
+            rows = conn.execute(
+                text(
+                    """
                 SELECT DISTINCT a.id, n.codigo
                 FROM articulo a
                 JOIN norma n ON n.id = a.norma_id
@@ -282,32 +401,37 @@ def auto_link_materias(conn) -> int:
                       )
                   )
                 """
-            ), {"kw": f"%{kw}%", "slug": mat["slug"]}).mappings()
-            
+                ),
+                {"kw": f"%{kw}%", "slug": mat["slug"]},
+            ).mappings()
+
             for row in rows:
-                conn.execute(text(
-                    """
+                conn.execute(
+                    text(
+                        """
                     INSERT INTO articulo_materia (articulo_id, materia_id, relevancia)
                     SELECT :articulo_id, id, 2
                     FROM materia
                     WHERE slug = :slug
                     ON CONFLICT (articulo_id, materia_id) DO NOTHING
                     """
-                ), {"articulo_id": row["id"], "slug": mat["slug"]})
+                    ),
+                    {"articulo_id": row["id"], "slug": mat["slug"]},
+                )
                 links_created += 1
-    
+
     return links_created
 
 
 def auto_link_doctrina(conn) -> int:
     """Link doctrine documents to articles by parsing references in doctrine text.
-    
+
     Looks for patterns like "LIVA 91", "art. 91", "artículo 91", etc.
     """
-    docs = conn.execute(text(
-        "SELECT id, referencia, texto FROM documento_interpretativo"
-    )).mappings()
-    
+    docs = conn.execute(
+        text("SELECT id, referencia, texto FROM documento_interpretativo")
+    ).mappings()
+
     # Patterns to find article references in doctrine text
     ref_patterns = [
         # "LIVA 91", "LIRPF 10", etc.
@@ -315,12 +439,12 @@ def auto_link_doctrina(conn) -> int:
         # "artículo 91", "art. 91"
         re.compile(r"(?:artículo|art\.?)\s+(\d+)\b", re.IGNORECASE),
     ]
-    
+
     links_created = 0
     for doc in docs:
         text_lower = doc["texto"]
         found_refs = set()
-        
+
         for pattern in ref_patterns:
             for match in pattern.finditer(text_lower):
                 groups = match.groups()
@@ -334,10 +458,11 @@ def auto_link_doctrina(conn) -> int:
                     numero = groups[0]
                     for codigo in DEFAULT_NORMAS:
                         found_refs.add((codigo, numero))
-        
+
         for codigo, numero in found_refs:
-            conn.execute(text(
-                """
+            conn.execute(
+                text(
+                    """
                 INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
                 SELECT :doc_id, a.id, 'auto_link', 0.70, :nota
                 FROM articulo a
@@ -345,18 +470,26 @@ def auto_link_doctrina(conn) -> int:
                 WHERE n.codigo = :codigo AND a.numero = :numero
                 ON CONFLICT (documento_id, articulo_id) DO NOTHING
                 """
-            ), {
-                "doc_id": doc["id"],
-                "codigo": codigo,
-                "numero": numero,
-                "nota": f"Referencia auto-detectada: {codigo} art. {numero}",
-            })
+                ),
+                {
+                    "doc_id": doc["id"],
+                    "codigo": codigo,
+                    "numero": numero,
+                    "nota": f"Referencia auto-detectada: {codigo} art. {numero}",
+                },
+            )
             links_created += 1
-    
+
     return links_created
 
 
-def log_sync(conn, status: str, bloques: int = 0, articulos: int = 0, error_msg: str | None = None) -> None:
+def log_sync(
+    conn,
+    status: str,
+    bloques: int = 0,
+    articulos: int = 0,
+    error_msg: str | None = None,
+) -> None:
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         text(
@@ -378,50 +511,81 @@ def log_sync(conn, status: str, bloques: int = 0, articulos: int = 0, error_msg:
 
 
 def _ensure_schema(conn) -> None:
-    """Migrate sync_log schema and create trigram index if missing."""
-    col_exists = conn.execute(text(
-        """
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'sync_log' AND column_name = 'bloques_processed'
-        )
-        """
-    )).scalar()
-    if not col_exists:
-        conn.execute(text(
+    """Ensure worker-owned schema objects exist before syncing."""
+    dialect = conn.engine.dialect.name
+
+    _create_base_schema(conn)
+
+    if dialect == "sqlite":
+        columns = conn.execute(text("PRAGMA table_info(sync_log)")).fetchall()
+        col_exists = any(column[1] == "bloques_processed" for column in columns)
+    else:
+        col_exists = conn.execute(
+            text(
+                """
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'sync_log' AND column_name = 'bloques_processed'
+            )
             """
+            )
+        ).scalar()
+
+    if not col_exists:
+        conn.execute(
+            text(
+                """
             ALTER TABLE sync_log
             ADD COLUMN bloques_processed INTEGER,
             ADD COLUMN articulos_upserted INTEGER
             """
-        ))
-        conn.execute(text(
-            """
+            )
+        )
+        conn.execute(
+            text(
+                """
             UPDATE sync_log
             SET bloques_processed = items_processed,
                 articulos_upserted = items_processed
             WHERE bloques_processed IS NULL AND items_processed IS NOT NULL
             """
-        ))
+            )
+        )
 
     # Create trigram index for full-text search if it doesn't exist
-    idx_exists = conn.execute(text(
-        """
-        SELECT EXISTS (
-            SELECT 1 FROM pg_indexes
-            WHERE indexname = 'idx_version_articulo_texto_trgm'
-        )
-        """
-    )).scalar()
+    if dialect == "postgresql":
+        idx_exists = conn.execute(
+            text(
+                """
+            SELECT EXISTS (
+                SELECT 1 FROM pg_indexes
+                WHERE indexname = 'idx_version_articulo_texto_trgm'
+            )
+            """
+            )
+        ).scalar()
+    else:
+        idx_exists = True
+
     if not idx_exists:
-        conn.execute(text(
-            "CREATE INDEX idx_version_articulo_texto_trgm ON version_articulo USING gin (texto gin_trgm_ops)"
-        ))
+        conn.execute(
+            text(
+                "CREATE INDEX idx_version_articulo_texto_trgm ON version_articulo USING gin (texto gin_trgm_ops)"
+            )
+        )
 
 
 def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
-    target_codes = codigos or [code.strip() for code in os.getenv("BOE_LEGISLACION_NORMAS", "LIVA").split(",") if code.strip()]
-    only_block_ids = [item.strip() for item in os.getenv("BOE_ONLY_BLOCK_IDS", "").split(",") if item.strip()]
+    target_codes = codigos or [
+        code.strip()
+        for code in os.getenv("BOE_LEGISLACION_NORMAS", "LIVA").split(",")
+        if code.strip()
+    ]
+    only_block_ids = [
+        item.strip()
+        for item in os.getenv("BOE_ONLY_BLOCK_IDS", "").split(",")
+        if item.strip()
+    ]
     engine = create_engine(DATABASE_URL, future=True)
     bloques_fetched = 0
     articulos_upserted = 0
@@ -447,12 +611,22 @@ def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
                 # Auto-linking post-ingestion
                 materias_linked = auto_link_materias(conn)
                 doctrina_linked = auto_link_doctrina(conn)
-                log_sync(conn, "ok", bloques=bloques_fetched, articulos=articulos_upserted)
-                print(f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}")
+                log_sync(
+                    conn, "ok", bloques=bloques_fetched, articulos=articulos_upserted
+                )
+                print(
+                    f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}"
+                )
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
         with engine.begin() as conn:
-            log_sync(conn, "error", bloques=bloques_fetched, articulos=articulos_upserted, error_msg=str(exc))
+            log_sync(
+                conn,
+                "error",
+                bloques=bloques_fetched,
+                articulos=articulos_upserted,
+                error_msg=str(exc),
+            )
         raise
 
 
@@ -492,8 +666,12 @@ def _is_supported_block(titulo: str) -> bool:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="BOE worker: sync consolidated legislation from BOE API")
-    parser.add_argument("--run-once", action="store_true", help="Run a single sync cycle and exit")
+    parser = argparse.ArgumentParser(
+        description="BOE worker: sync consolidated legislation from BOE API"
+    )
+    parser.add_argument(
+        "--run-once", action="store_true", help="Run a single sync cycle and exit"
+    )
     parser.add_argument(
         "--interval",
         type=int,
@@ -506,10 +684,14 @@ if __name__ == "__main__":
 
     if args.run_once:
         result = run_sync()
-        print(f"[run-once] Bloques: {result['bloques']}, Artículos: {result['articulos']}")
+        print(
+            f"[run-once] Bloques: {result['bloques']}, Artículos: {result['articulos']}"
+        )
     else:
         print(f"Starting BOE worker in continuous mode (interval={interval}s)")
         while True:
             result = run_sync()
-            print(f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}")
+            print(
+                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}"
+            )
             time.sleep(interval)
