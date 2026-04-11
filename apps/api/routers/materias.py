@@ -6,7 +6,24 @@ from db import get_db
 router = APIRouter(prefix="/v1/materias", tags=["materias"])
 
 
-@router.get("/{slug}")
+@router.get("", operation_id="list_materias")
+async def list_materias():
+    db = next(get_db())
+    rows = db.execute(
+        text(
+            """
+            SELECT m.slug, m.etiqueta, COUNT(am.articulo_id) AS articulos_count
+            FROM materia m
+            LEFT JOIN articulo_materia am ON am.materia_id = m.id
+            GROUP BY m.id, m.slug, m.etiqueta
+            ORDER BY m.slug
+            """
+        )
+    ).mappings()
+    return {"materias": list(rows)}
+
+
+@router.get("/{slug}", operation_id="get_materia")
 async def get_materia(slug: str):
     db = next(get_db())
     rows = list(

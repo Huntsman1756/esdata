@@ -6,7 +6,7 @@ from db import get_db
 router = APIRouter(prefix="/v1/legislacion", tags=["legislacion"])
 
 
-@router.get("")
+@router.get("", operation_id="list_legislacion")
 async def list_legislacion():
     db = next(get_db())
     rows = db.execute(
@@ -49,32 +49,74 @@ async def get_cobertura():
                 "titulo": row["titulo"],
                 "articulos": row["articulos"],
                 "versiones": row["versiones"],
-                "ultima_version": str(row["ultima_version"]) if row["ultima_version"] else None,
+                "ultima_version": str(row["ultima_version"])
+                if row["ultima_version"]
+                else None,
             }
             for row in rows
         ]
     }
 
 
-@router.get("/{codigo}")
+@router.get("/{codigo}", operation_id="get_norma")
 async def get_norma(codigo: str):
     db = next(get_db())
-    row = db.execute(
-        text(
-            """
+    row = (
+        db.execute(
+            text(
+                """
             SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito
             FROM norma
             WHERE codigo = :codigo
             """
-        ),
-        {"codigo": codigo},
-    ).mappings().first()
+            ),
+            {"codigo": codigo},
+        )
+        .mappings()
+        .first()
+    )
     if not row:
         raise HTTPException(status_code=404, detail={"error": "Norma no encontrada"})
     return dict(row)
 
 
-@router.get("/{codigo}/articulos/{numero}")
+@router.get("/{codigo}/articulos", operation_id="list_articulos")
+async def list_articulos(codigo: str, tipo: str | None = None):
+    db = next(get_db())
+    filters = ["n.codigo = :codigo"]
+    params = {"codigo": codigo}
+
+    if tipo is not None:
+        filters.append("a.tipo = :tipo")
+        params["tipo"] = tipo
+
+    rows = list(
+        db.execute(
+            text(
+                """
+                SELECT a.numero, a.titulo, a.tipo
+                FROM norma n
+                JOIN articulo a ON a.norma_id = n.id
+                WHERE {where_clause}
+                ORDER BY a.numero
+                """.format(where_clause=" AND ".join(filters))
+            ),
+            params,
+        ).mappings()
+    )
+    if not rows:
+        existe_norma = db.execute(
+            text("SELECT 1 FROM norma WHERE codigo = :codigo"),
+            {"codigo": codigo},
+        ).first()
+        if not existe_norma:
+            raise HTTPException(
+                status_code=404, detail={"error": "Norma no encontrada"}
+            )
+    return {"norma": codigo, "articulos": rows}
+
+
+@router.get("/{codigo}/articulos/{numero}", operation_id="get_articulo")
 async def get_articulo(codigo: str, numero: str, vigente_en: str | None = None):
     db = next(get_db())
     filters = ["n.codigo = :codigo", "a.numero = :numero"]
@@ -89,9 +131,10 @@ async def get_articulo(codigo: str, numero: str, vigente_en: str | None = None):
         )
         params["vigente_en"] = vigente_en
 
-    row = db.execute(
-        text(
-            """
+    row = (
+        db.execute(
+            text(
+                """
             SELECT n.codigo, a.numero, va.texto, va.vigente_desde, va.vigente_hasta
             FROM norma n
             JOIN articulo a ON a.norma_id = n.id
@@ -100,9 +143,12 @@ async def get_articulo(codigo: str, numero: str, vigente_en: str | None = None):
             ORDER BY va.vigente_desde DESC
             LIMIT 1
             """.format(where_clause=" AND ".join(filters))
-        ),
-        params,
-    ).mappings().first()
+            ),
+            params,
+        )
+        .mappings()
+        .first()
+    )
     if not row:
         raise HTTPException(status_code=404, detail={"error": "Articulo no encontrado"})
     return {
@@ -113,13 +159,15 @@ async def get_articulo(codigo: str, numero: str, vigente_en: str | None = None):
         "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
         "confianza": {
             "nivel": 1,
-            "fuentes": [f'{row["codigo"]} art. {row["numero"]}'],
+            "fuentes": [f"{row['codigo']} art. {row['numero']}"],
             "aviso": None,
         },
     }
 
 
-@router.get("/{codigo}/articulos/{numero}/historial")
+@router.get(
+    "/{codigo}/articulos/{numero}/historial", operation_id="get_articulo_historial"
+)
 async def get_articulo_historial(codigo: str, numero: str):
     db = next(get_db())
     rows = db.execute(
@@ -139,7 +187,9 @@ async def get_articulo_historial(codigo: str, numero: str):
         {
             "texto": row["texto"],
             "vigente_desde": str(row["vigente_desde"]),
-            "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+            "vigente_hasta": str(row["vigente_hasta"])
+            if row["vigente_hasta"]
+            else None,
         }
         for row in rows
     ]

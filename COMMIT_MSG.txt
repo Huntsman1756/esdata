@@ -1,0 +1,28 @@
+feat(sprint-2): full-text search, endpoints faltantes y MCP
+
+Migración
+- 002_fulltext_search.sql: search_vector + GIN en version_articulo
+- backfill de datos existentes, trigger para inserts/updates
+- pg_trgm sobre articulo.titulo
+
+Búsqueda
+- services/search.py: ts_rank + ts_headline con fragmentos <mark>
+- _to_tsquery: filtra tokens < 3 chars
+- fallback ILIKE para SQLite en tests
+- confianza base centralizada en la capa de servicio
+
+Endpoints
+- GET /v1/materias
+- GET /v1/legislacion/{codigo}/articulos (?tipo=)
+- GET /v1/doctrina/buscar (ILIKE por ahora, TODO tsvector)
+- routers de busqueda actualizados para usar el nuevo servicio
+
+MCP
+- mcp_server.py: FastApiMCP en /mcp
+- include_operations limitado a endpoints útiles
+- fastapi-mcp añadido a requirements.txt
+
+Tests: 14 passed
+
+PENDIENTE antes de deploy:
+  psql $DATABASE_URL -f infra/sql/002_fulltext_search.sql

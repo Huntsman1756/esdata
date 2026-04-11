@@ -63,6 +63,36 @@ async def test_materia_tipo_reducido_iva():
 
 
 @pytest.mark.asyncio
+async def test_materias_lista():
+    async with _client() as c:
+        r = await c.get("/v1/materias")
+    assert r.status_code == 200
+    data = r.json()
+    assert "materias" in data
+    assert any(m["slug"] == "tipo-reducido-iva" for m in data["materias"])
+
+
+@pytest.mark.asyncio
+async def test_legislacion_lista_articulos_por_norma():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["norma"] == "LIVA"
+    assert any(a["numero"] == "91" for a in data["articulos"])
+
+
+@pytest.mark.asyncio
+async def test_legislacion_lista_articulos_filtra_por_tipo():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos?tipo=articulo")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["articulos"]) >= 1
+    assert all(a["tipo"] == "articulo" for a in data["articulos"])
+
+
+@pytest.mark.asyncio
 async def test_busqueda_full_text():
     async with _client() as c:
         r = await c.get("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA")
@@ -71,6 +101,29 @@ async def test_busqueda_full_text():
     assert len(data["resultados"]) > 0
     for res in data["resultados"]:
         assert "confianza" in res
+        assert "fragmento" in res
+
+
+@pytest.mark.asyncio
+async def test_doctrina_buscar_por_texto():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=tipo+reducido")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["resultados"]) >= 1
+    assert any(item["referencia"] == "V0000-26" for item in data["resultados"])
+
+
+@pytest.mark.asyncio
+async def test_doctrina_buscar_filtra_por_tipo():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=tipo+reducido&tipo=consulta_vinculante")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["resultados"]) >= 1
+    assert all(
+        item["tipo_documento"] == "consulta_vinculante" for item in data["resultados"]
+    )
 
 
 @pytest.mark.asyncio
