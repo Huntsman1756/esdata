@@ -9,7 +9,7 @@ import httpx
 from sqlalchemy import create_engine
 from sqlalchemy import text
 
-from boe import auto_link_doctrina
+from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
 
 
 SEED_URLS = [
@@ -227,42 +227,67 @@ def run_sync(seed_urls: list[str] | None = None) -> dict[str, int]:
     urls = seed_urls or SEED_URLS
     processed = 0
     stored = 0
+    links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
 
-    with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
-        start_session(client)
-        with engine.begin() as conn:
-            for url in urls:
-                num_consulta = _extract_num_consulta(url)
-                search_html = fetch_search_html(client, num_consulta)
-                results = parse_search_results(search_html)
-                if not results:
-                    continue
+    try:
+        with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+            start_session(client)
+            with engine.begin() as conn:
+                _ensure_sync_log_table(conn)
+                for url in urls:
+                    num_consulta = _extract_num_consulta(url)
+                    search_html = fetch_search_html(client, num_consulta)
+                    results = parse_search_results(search_html)
+                    if not results:
+                        continue
 
-                query, order, doc_id = _build_document_payload(results[0])
-                document_html = fetch_document_html(client, query, order, doc_id)
-                document = parse_document_html(document_html)
-                processed += 1
+                    query, order, doc_id = _build_document_payload(results[0])
+                    document_html = fetch_document_html(client, query, order, doc_id)
+                    document = parse_document_html(document_html)
+                    processed += 1
 
-                if not document["normas_objetivo"]:
-                    continue
+                    if not document["normas_objetivo"]:
+                        continue
 
-                upsert_documento_interpretativo(
+                    upsert_documento_interpretativo(
+                        conn,
+                        {
+                            "referencia": document["referencia"],
+                            "fecha": document["fecha"],
+                            "titulo": _build_titulo(document),
+                            "texto": document["texto"],
+                            "url_fuente": url,
+                        },
+                    )
+                    stored += 1
+
+                if stored:
+                    links_created = auto_link_doctrina(conn)
+
+                log_sync(
                     conn,
-                    {
-                        "referencia": document["referencia"],
-                        "fecha": document["fecha"],
-                        "titulo": _build_titulo(document),
-                        "texto": document["texto"],
-                        "url_fuente": url,
-                    },
+                    "worker-dgt",
+                    "ok",
+                    documentos_processed=processed,
+                    documentos_upserted=stored,
+                    doctrina_links_created=links_created,
                 )
-                stored += 1
 
-            if stored:
-                auto_link_doctrina(conn)
-
-    return {"processed": processed, "stored": stored}
+        return {"processed": processed, "stored": stored}
+    except Exception as exc:
+        with engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            log_sync(
+                conn,
+                "worker-dgt",
+                "error",
+                documentos_processed=processed,
+                documentos_upserted=stored,
+                doctrina_links_created=links_created,
+                error_msg=str(exc),
+            )
+        raise
 
 
 if __name__ == "__main__":
