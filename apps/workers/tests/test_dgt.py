@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 
 import httpx
+import pytest
 from sqlalchemy import create_engine, text
 
 
@@ -540,3 +541,37 @@ def test_dgt_run_once_flag_accepts_argparse():
     assert result.returncode == 0
     assert "--run-once" in result.stdout
     assert "--interval" in result.stdout
+
+
+def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
+    captured = {}
+
+    def fake_client(*args, **kwargs):
+        captured["verify"] = kwargs.get("verify")
+        raise RuntimeError("stop after client init")
+
+    class FakeConnection:
+        def execute(self, *args, **kwargs):
+            return None
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        def begin(self):
+            return FakeBegin()
+
+    monkeypatch.setattr("dgt.httpx.Client", fake_client)
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dgt.DGT_SSL_VERIFY", False)
+
+    with pytest.raises(RuntimeError, match="stop after client init"):
+        run_sync(seed_urls=[])
+
+    assert captured["verify"] is False
