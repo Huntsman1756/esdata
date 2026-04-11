@@ -8,6 +8,7 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - API publica en `https://esdata-production.up.railway.app`.
 - Ingesta BOE activa con cobertura real para `LGT`, `LIRPF`, `LIS` y `LIVA`.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
+- Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
 - Busqueda full-text activa en produccion con `ts_rank`, `ts_headline` y fragmentos con `<mark>`.
 
 ## Servicios desplegados
@@ -17,6 +18,8 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - `cron-boe-daily`: ejecucion diaria `python boe.py --run-once`.
 - `worker-dgt`: worker continuo que sincroniza doctrina DGT y ejecuta auto-linking a articulos.
 - `cron-dgt-weekly`: ejecucion semanal `python dgt.py --run-once`.
+- `worker-teac`: worker continuo que sincroniza doctrina TEAC desde DYCTEA y ejecuta auto-linking a articulos.
+- `cron-teac-weekly`: ejecucion semanal `python teac.py --run-once`.
 - `Postgres`: base de datos principal.
 
 ## Estructura real del repo
@@ -28,8 +31,10 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - `apps/api/db.py`: conexion SQLAlchemy.
 - `apps/workers/boe.py`: ingesta BOE, bootstrap de esquema y auto-linking.
 - `apps/workers/dgt.py`: scraping DGT via sesion/AJAX, persistencia y relinking de doctrina.
+- `apps/workers/teac.py`: scraping TEAC via DYCTEA, persistencia y relinking de doctrina.
 - `apps/workers/tests/test_boe.py`: tests del worker.
 - `apps/workers/tests/test_dgt.py`: tests del worker DGT.
+- `apps/workers/tests/test_teac.py`: tests del worker TEAC.
 - `infra/sql/init.sql`: esquema base.
 - `infra/sql/002_fulltext_search.sql`: migracion de `search_vector`, indices y trigger.
 - `railway.toml`: configuracion monorepo para Railway.
@@ -65,6 +70,7 @@ Worker:
 ```bash
 pytest apps/workers/tests/test_boe.py -q
 pytest apps/workers/tests/test_dgt.py -q
+pytest apps/workers/tests/test_teac.py -q
 ```
 
 ## Produccion
@@ -75,6 +81,8 @@ pytest apps/workers/tests/test_dgt.py -q
 - `BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada`
 - `APP_ENV=production`
 - `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT`
+- `DGT_SSL_VERIFY=false` para el worker DGT si Petete falla por SSL en produccion.
+- `TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...,...` para el worker TEAC.
 - `SYNC_INTERVAL_SECONDS=604800` para `worker-dgt` si se quiere ajustar la cadencia del loop continuo.
 
 ### Verificaciones utiles
@@ -82,6 +90,8 @@ pytest apps/workers/tests/test_dgt.py -q
 - Health API: `https://esdata-production.up.railway.app/health`
 - Estado agregado: `https://esdata-production.up.railway.app/status`
 - Doctrina DGT: `https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=DGT`
+- Doctrina TEAC: `https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=TEAC`
+- Detalle TEAC enlazado: `https://esdata-production.up.railway.app/v1/doctrina/00/01362/2024/00/00`
 - Normas: `https://esdata-production.up.railway.app/v1/legislacion`
 - Cobertura: `https://esdata-production.up.railway.app/v1/legislacion/cobertura`
 - Busqueda: `https://esdata-production.up.railway.app/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA`
@@ -102,4 +112,5 @@ FROM version_articulo;
 
 - `DEPLOY_CHECKLIST.md`: pasos de despliegue y smoke tests.
 - `STRUCTURE.md`: mapa actualizado del repo.
+- `docs/production-status-2026-04-11.md`: estado operativo real, verificacion y siguientes pasos.
 - `docs/postmortem-sprint-2.md`: incidencias, diagnostico y resolucion del sprint.
