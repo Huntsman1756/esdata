@@ -46,6 +46,24 @@ jobs:
             railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
+      - name: Deploy TEAC worker a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service worker-teac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service worker-teac --json
+            railway up apps/workers --path-as-root --service worker-teac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
+      - name: Deploy TEAC weekly cron a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service cron-teac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service cron-teac-weekly --json
+            railway up apps/workers --path-as-root --service cron-teac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
       - name: Espera breve tras deploy
         run: sleep 20
 

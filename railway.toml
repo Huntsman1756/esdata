@@ -54,3 +54,24 @@ startCommand = "python dgt.py --run-once"
 
 [services.cron]
 schedule = "0 7 * * 1"
+
+# --- TEAC Worker (long-running) ---
+[[services]]
+name = "worker-teac"
+rootDirectory = "apps/workers"
+
+[services.deploy]
+startCommand = "python teac.py"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# --- Cron: TEAC weekly ---
+[[services]]
+name = "cron-teac-weekly"
+rootDirectory = "apps/workers"
+
+[services.deploy]
+startCommand = "python teac.py --run-once"
+
+[services.cron]
+schedule = "0 8 * * 1"
