@@ -521,6 +521,11 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
     if explicit_norma_refs:
         return explicit_norma_refs
 
+    # Small first contextual heuristic for doctrine without explicit article citation.
+    # TEAC resolutions about IVA + base imponible often target LIVA art. 91 in our MVP set.
+    if "IVA" in source and "BASE IMPONIBLE" in source:
+        return {("LIVA", "91", 0.75)}
+
     context_normas = []
     for codigo in DEFAULT_NORMAS:
         if re.search(rf"\b{codigo}\b", source):
