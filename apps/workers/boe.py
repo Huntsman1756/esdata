@@ -27,98 +27,105 @@ DEFAULT_NORMAS = {
 }
 
 
-SCHEMA_STATEMENTS = [
-    """
-    CREATE TABLE IF NOT EXISTS norma (
-        id INTEGER PRIMARY KEY,
-        codigo TEXT UNIQUE NOT NULL,
-        titulo TEXT NOT NULL,
-        boe_id TEXT UNIQUE NOT NULL,
-        eli_uri TEXT UNIQUE,
-        jurisdiccion TEXT NOT NULL,
-        tipo_fuente TEXT NOT NULL,
-        ambito TEXT NOT NULL,
-        vigente_desde DATE NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS articulo (
-        id INTEGER PRIMARY KEY,
-        norma_id INTEGER NOT NULL REFERENCES norma(id),
-        numero TEXT NOT NULL,
-        titulo TEXT,
-        tipo TEXT NOT NULL,
-        UNIQUE (norma_id, numero)
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS version_articulo (
-        id INTEGER PRIMARY KEY,
-        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-        texto TEXT NOT NULL,
-        vigente_desde DATE NOT NULL,
-        vigente_hasta DATE,
-        boe_bloque_id TEXT
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS documento_interpretativo (
-        id INTEGER PRIMARY KEY,
-        tipo_documento TEXT NOT NULL,
-        organismo_emisor TEXT NOT NULL,
-        jurisdiccion TEXT NOT NULL,
-        tipo_fuente TEXT NOT NULL,
-        ambito TEXT NOT NULL,
-        referencia TEXT UNIQUE NOT NULL,
-        fecha DATE NOT NULL,
-        titulo TEXT,
-        texto TEXT NOT NULL,
-        url_fuente TEXT
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS documento_articulo (
-        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
-        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-        metodo_enlace TEXT NOT NULL,
-        confianza_enlace NUMERIC(3,2) NOT NULL,
-        nota TEXT,
-        PRIMARY KEY (documento_id, articulo_id)
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS materia (
-        id INTEGER PRIMARY KEY,
-        slug TEXT UNIQUE NOT NULL,
-        etiqueta TEXT NOT NULL
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS articulo_materia (
-        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-        materia_id INTEGER NOT NULL REFERENCES materia(id),
-        relevancia SMALLINT NOT NULL DEFAULT 1,
-        PRIMARY KEY (articulo_id, materia_id)
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS sync_log (
-        id INTEGER PRIMARY KEY,
-        worker TEXT NOT NULL,
-        started_at TIMESTAMPTZ NOT NULL,
-        finished_at TIMESTAMPTZ,
-        status TEXT NOT NULL,
-        bloques_processed INTEGER,
-        articulos_upserted INTEGER,
-        error_msg TEXT
-    )
-    """,
-]
+SCHEMA_STATEMENTS = []
+
+
+def _schema_statements(dialect: str) -> list[str]:
+    id_type = "SERIAL PRIMARY KEY" if dialect == "postgresql" else "INTEGER PRIMARY KEY"
+    timestamp_default = "now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"
+
+    return [
+        f"""
+        CREATE TABLE IF NOT EXISTS norma (
+            id {id_type},
+            codigo TEXT UNIQUE NOT NULL,
+            titulo TEXT NOT NULL,
+            boe_id TEXT UNIQUE NOT NULL,
+            eli_uri TEXT UNIQUE,
+            jurisdiccion TEXT NOT NULL,
+            tipo_fuente TEXT NOT NULL,
+            ambito TEXT NOT NULL,
+            vigente_desde DATE NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT {timestamp_default}
+        )
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS articulo (
+            id {id_type},
+            norma_id INTEGER NOT NULL REFERENCES norma(id),
+            numero TEXT NOT NULL,
+            titulo TEXT,
+            tipo TEXT NOT NULL,
+            UNIQUE (norma_id, numero)
+        )
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS version_articulo (
+            id {id_type},
+            articulo_id INTEGER NOT NULL REFERENCES articulo(id),
+            texto TEXT NOT NULL,
+            vigente_desde DATE NOT NULL,
+            vigente_hasta DATE,
+            boe_bloque_id TEXT
+        )
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS documento_interpretativo (
+            id {id_type},
+            tipo_documento TEXT NOT NULL,
+            organismo_emisor TEXT NOT NULL,
+            jurisdiccion TEXT NOT NULL,
+            tipo_fuente TEXT NOT NULL,
+            ambito TEXT NOT NULL,
+            referencia TEXT UNIQUE NOT NULL,
+            fecha DATE NOT NULL,
+            titulo TEXT,
+            texto TEXT NOT NULL,
+            url_fuente TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS documento_articulo (
+            documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+            articulo_id INTEGER NOT NULL REFERENCES articulo(id),
+            metodo_enlace TEXT NOT NULL,
+            confianza_enlace NUMERIC(3,2) NOT NULL,
+            nota TEXT,
+            PRIMARY KEY (documento_id, articulo_id)
+        )
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS materia (
+            id {id_type},
+            slug TEXT UNIQUE NOT NULL,
+            etiqueta TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS articulo_materia (
+            articulo_id INTEGER NOT NULL REFERENCES articulo(id),
+            materia_id INTEGER NOT NULL REFERENCES materia(id),
+            relevancia SMALLINT NOT NULL DEFAULT 1,
+            PRIMARY KEY (articulo_id, materia_id)
+        )
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS sync_log (
+            id {id_type},
+            worker TEXT NOT NULL,
+            started_at TIMESTAMPTZ NOT NULL,
+            finished_at TIMESTAMPTZ,
+            status TEXT NOT NULL,
+            bloques_processed INTEGER,
+            articulos_upserted INTEGER,
+            error_msg TEXT
+        )
+        """,
+    ]
 
 
 def _create_base_schema(conn) -> None:
-    for statement in SCHEMA_STATEMENTS:
+    for statement in _schema_statements(conn.engine.dialect.name):
         conn.execute(text(statement))
 
     conn.execute(

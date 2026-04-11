@@ -10,6 +10,7 @@ from boe import (
     BloqueTexto,
     NormaMetadata,
     _ensure_schema,
+    _schema_statements,
     auto_link_doctrina,
     auto_link_materias,
     parse_block_xml,
@@ -544,3 +545,15 @@ def test_ensure_schema_creates_core_tables_on_empty_db():
 
     table_names = {row[0] for row in rows}
     assert {"norma", "articulo", "version_articulo", "sync_log"} <= table_names
+
+
+def test_schema_statements_use_serial_ids_on_postgres():
+    statements = _schema_statements("postgresql")
+    assert "id SERIAL PRIMARY KEY" in statements[0]
+    assert "id SERIAL PRIMARY KEY" in statements[-1]
+
+
+def test_schema_statements_use_integer_ids_on_sqlite():
+    statements = _schema_statements("sqlite")
+    assert "id INTEGER PRIMARY KEY" in statements[0]
+    assert "id INTEGER PRIMARY KEY" in statements[-1]
