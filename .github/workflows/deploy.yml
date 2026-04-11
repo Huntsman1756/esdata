@@ -19,30 +19,30 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy API a Railway
-        run: railway up --service esdata --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+        run: railway up --service esdata --project $RAILWAY_PROJECT_ID
 
       - name: Deploy BOE worker a Railway
-        run: railway up --service worker-boe --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+        run: railway up --service worker-boe --project $RAILWAY_PROJECT_ID
 
       - name: Deploy BOE daily cron a Railway
-        run: railway up --service cron-boe-daily --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+        run: railway up --service cron-boe-daily --project $RAILWAY_PROJECT_ID
 
       - name: Deploy DGT worker a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up --service worker-dgt --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN; then
+          if ! railway up --service worker-dgt --project $RAILWAY_PROJECT_ID; then
             railway add --service worker-dgt --json
-            railway up --service worker-dgt --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+            railway up --service worker-dgt --project $RAILWAY_PROJECT_ID
           fi
 
       - name: Deploy DGT weekly cron a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN; then
+          if ! railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID; then
             railway add --service cron-dgt-weekly --json
-            railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+            railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID
           fi
 
       - name: Smoke tests funcionales
