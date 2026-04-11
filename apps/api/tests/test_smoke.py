@@ -29,7 +29,14 @@ async def test_status_tiene_workers():
     assert r.status_code == 200
     data = r.json()
     assert "workers" in data
-    for w in ["worker-boe", "cron-boe-daily", "worker-dgt", "cron-dgt-weekly"]:
+    for w in [
+        "worker-boe",
+        "cron-boe-daily",
+        "worker-dgt",
+        "cron-dgt-weekly",
+        "worker-teac",
+        "cron-teac-weekly",
+    ]:
         assert w in data["workers"]
 
 
@@ -176,6 +183,42 @@ async def test_doctrina_buscar_filtra_por_organismo_y_expone_senal_de_enlace():
     assert item["nivel_enlace"] == 1.0
     assert item["norma"] == "LIVA"
     assert item["numero"] == "91"
+
+
+@pytest.mark.asyncio
+async def test_doctrina_buscar_filtra_teac():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente,
+                    ambito, referencia, fecha, titulo, texto, url_fuente
+                )
+                VALUES (
+                    'resolucion_teac', 'TEAC', 'es', 'teac',
+                    'fiscal', '00/1234/2024', '2024-03-15',
+                    'IVA. Base imponible en operaciones vinculadas.',
+                    'Se fija criterio TEAC sobre la base imponible del IVA.',
+                    'https://serviciostelematicosext.hacienda.gob.es/TEAC/00-1234-2024'
+                )
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=criterio&organismo_emisor=TEAC")
+    assert r.status_code == 200
+    data = r.json()
+    item = next(
+        result
+        for result in data["resultados"]
+        if result["referencia"] == "00/1234/2024"
+    )
+    assert item["organismo_emisor"] == "TEAC"
+    assert item["tipo_documento"] == "resolucion_teac"
 
 
 @pytest.mark.asyncio
