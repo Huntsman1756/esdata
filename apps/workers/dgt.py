@@ -2,7 +2,6 @@ import argparse
 from datetime import datetime
 from html import unescape
 import os
-from pathlib import Path
 import re
 import time
 
