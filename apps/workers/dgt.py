@@ -31,6 +31,11 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
 )
+DGT_SSL_VERIFY = os.getenv("DGT_SSL_VERIFY", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 SYNC_INTERVAL_SECONDS = int(os.getenv("SYNC_INTERVAL_SECONDS", "604800"))
 
 
@@ -231,7 +236,9 @@ def run_sync(seed_urls: list[str] | None = None) -> dict[str, int]:
     engine = create_engine(DATABASE_URL, future=True)
 
     try:
-        with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+        with httpx.Client(
+            base_url=BASE_URL, timeout=30.0, verify=DGT_SSL_VERIFY
+        ) as client:
             start_session(client)
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
