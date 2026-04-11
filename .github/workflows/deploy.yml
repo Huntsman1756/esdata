@@ -54,10 +54,12 @@ jobs:
           API_BASE: https://esdata-production.up.railway.app
         run: |
           python - <<'EOF'
+          import json
           import os
           import sys
-
-          import httpx
+          import time
+          import urllib.error
+          import urllib.request
 
           base = os.environ["API_BASE"]
           checks = [
@@ -74,20 +76,24 @@ jobs:
               last_error = None
               for _ in range(10):
                   try:
-                      r = httpx.get(f"{base}{path}", timeout=10)
-                      if r.status_code == expected_status and (
-                          not expected_key or expected_key in r.json()
+                      with urllib.request.urlopen(f"{base}{path}", timeout=10) as response:
+                          status_code = response.getcode()
+                          payload = json.loads(response.read().decode("utf-8"))
+
+                      if status_code == expected_status and (
+                          not expected_key or expected_key in payload
                       ):
                           last_error = None
                           break
                       last_error = (
-                          f"status {r.status_code} (esperado {expected_status})"
-                          if r.status_code != expected_status
+                          f"status {status_code} (esperado {expected_status})"
+                          if status_code != expected_status
                           else f"clave '{expected_key}' ausente en respuesta"
                       )
+                  except urllib.error.HTTPError as exc:
+                      last_error = f"status {exc.code} (esperado {expected_status})"
                   except Exception as exc:
                       last_error = str(exc)
-                  import time
                   time.sleep(5)
 
               if last_error is not None:
