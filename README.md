@@ -7,6 +7,7 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - Produccion operativa en Railway.
 - API publica en `https://esdata-production.up.railway.app`.
 - Ingesta BOE activa con cobertura real para `LGT`, `LIRPF`, `LIS` y `LIVA`.
+- Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Busqueda full-text activa en produccion con `ts_rank`, `ts_headline` y fragmentos con `<mark>`.
 
 ## Servicios desplegados
@@ -14,6 +15,8 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - `esdata`: API FastAPI publica.
 - `worker-boe`: worker continuo que ingiere articulos desde BOE.
 - `cron-boe-daily`: ejecucion diaria `python boe.py --run-once`.
+- `worker-dgt`: worker continuo que sincroniza doctrina DGT y ejecuta auto-linking a articulos.
+- `cron-dgt-weekly`: ejecucion semanal `python dgt.py --run-once`.
 - `Postgres`: base de datos principal.
 
 ## Estructura real del repo
@@ -24,7 +27,9 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - `apps/api/mcp_server.py`: monta MCP sobre la API.
 - `apps/api/db.py`: conexion SQLAlchemy.
 - `apps/workers/boe.py`: ingesta BOE, bootstrap de esquema y auto-linking.
+- `apps/workers/dgt.py`: scraping DGT via sesion/AJAX, persistencia y relinking de doctrina.
 - `apps/workers/tests/test_boe.py`: tests del worker.
+- `apps/workers/tests/test_dgt.py`: tests del worker DGT.
 - `infra/sql/init.sql`: esquema base.
 - `infra/sql/002_fulltext_search.sql`: migracion de `search_vector`, indices y trigger.
 - `railway.toml`: configuracion monorepo para Railway.
@@ -59,6 +64,7 @@ Worker:
 
 ```bash
 pytest apps/workers/tests/test_boe.py -q
+pytest apps/workers/tests/test_dgt.py -q
 ```
 
 ## Produccion
@@ -69,11 +75,13 @@ pytest apps/workers/tests/test_boe.py -q
 - `BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada`
 - `APP_ENV=production`
 - `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT`
+- `SYNC_INTERVAL_SECONDS=604800` para `worker-dgt` si se quiere ajustar la cadencia del loop continuo.
 
 ### Verificaciones utiles
 
 - Health API: `https://esdata-production.up.railway.app/health`
 - Estado agregado: `https://esdata-production.up.railway.app/status`
+- Doctrina DGT: `https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=DGT`
 - Normas: `https://esdata-production.up.railway.app/v1/legislacion`
 - Cobertura: `https://esdata-production.up.railway.app/v1/legislacion/cobertura`
 - Busqueda: `https://esdata-production.up.railway.app/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA`
