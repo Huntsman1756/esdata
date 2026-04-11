@@ -76,7 +76,7 @@ async def buscar_doctrina(
     }
 
 
-@router.get("/{referencia}", operation_id="get_doctrina")
+@router.get("/{referencia:path}", operation_id="get_doctrina")
 async def get_doctrina(referencia: str):
     db = next(get_db())
     row = (

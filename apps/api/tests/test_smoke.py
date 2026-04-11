@@ -272,6 +272,37 @@ async def test_doctrina_buscar_expone_teac_con_enlace():
 
 
 @pytest.mark.asyncio
+async def test_doctrina_detalle_teac_acepta_referencia_con_slash():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente,
+                    ambito, referencia, fecha, titulo, texto, url_fuente
+                )
+                VALUES (
+                    'resolucion_teac', 'TEAC', 'es', 'teac',
+                    'fiscal', '00/5678/2025', '2024-03-15',
+                    'IVA. Deducciones.',
+                    'Resolucion TEAC con referencia que contiene slash.',
+                    'https://serviciostelematicosext.hacienda.gob.es/TEAC/00-5678-2025'
+                )
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/00/5678/2025")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["referencia"] == "00/5678/2025"
+    assert data["organismo_emisor"] == "TEAC"
+
+
+@pytest.mark.asyncio
 async def test_doctrina_seed():
     async with _client() as c:
         r = await c.get("/v1/doctrina/V0000-26")
