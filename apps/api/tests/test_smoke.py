@@ -353,6 +353,56 @@ async def test_doctrina_buscar_expone_teac_con_enlace_contextual():
 
 
 @pytest.mark.asyncio
+async def test_doctrina_buscar_expone_teac_con_enlace_regimen_especial():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente,
+                    ambito, referencia, fecha, titulo, texto, url_fuente
+                )
+                VALUES (
+                    'resolucion_teac', 'TEAC', 'es', 'teac',
+                    'fiscal', '00/2468/2024', '2024-09-10',
+                    'IVA. Regimen especial aplicable.',
+                    'Se fija criterio sobre el regimen especial del IVA en determinadas operaciones.',
+                    'https://serviciostelematicosext.hacienda.gob.es/TEAC/00-2468-2024'
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
+                SELECT d.id, a.id, 'auto_link', 0.75, 'TEAC regimen fixture'
+                FROM documento_interpretativo d
+                JOIN articulo a ON a.numero = '91'
+                JOIN norma n ON n.id = a.norma_id
+                WHERE d.referencia = '00/2468/2024' AND n.codigo = 'LIVA'
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=regimen+especial&organismo_emisor=TEAC")
+    assert r.status_code == 200
+    data = r.json()
+    item = next(
+        result
+        for result in data["resultados"]
+        if result["referencia"] == "00/2468/2024"
+    )
+    assert item["organismo_emisor"] == "TEAC"
+    assert item["norma"] == "LIVA"
+    assert item["numero"] == "91"
+    assert item["nivel_enlace"] == 0.75
+
+
+@pytest.mark.asyncio
 async def test_doctrina_seed():
     async with _client() as c:
         r = await c.get("/v1/doctrina/V0000-26")
