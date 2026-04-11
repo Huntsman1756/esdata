@@ -434,8 +434,20 @@ def _setup_link_test_db():
         )
         c.execute(
             text(
+                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde) "
+                "VALUES ('LIS', 'Ley IS', 'BOE-A-2014-12328', NULL, 'es', 'boe', 'fiscal', '2015-01-01')"
+            )
+        )
+        c.execute(
+            text(
                 "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
                 "SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
+                "SELECT id, '15', 'Reglas de valoracion', 'articulo' FROM norma WHERE codigo = 'LIS'"
             )
         )
         c.execute(
@@ -447,6 +459,14 @@ def _setup_link_test_db():
             {
                 "texto": "Artículo 91. Tipos impositivos reducidos.\nUno. Se aplicará el tipo del 6 por 100."
             },
+        )
+        c.execute(
+            text(
+                "INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id) "
+                "SELECT a.id, :texto, '2015-01-01', NULL, 'a15' "
+                "FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIS' AND a.numero = '15'"
+            ),
+            {"texto": "Artículo 15. Reglas de valoracion en operaciones societarias."},
         )
     return eng
 
@@ -471,8 +491,7 @@ def test_auto_link_materias_creates_link():
     assert row == (2, "tipo-reducido-iva")
 
 
-def test_auto_link_doctrina_creates_link():
-    """Verify auto_link_doctrina parses 'LIVA 91' references and creates links."""
+def test_auto_link_doctrina_creates_strong_links_for_explicit_norma_and_article():
     eng = _setup_link_test_db()
     with eng.begin() as c:
         c.execute(
@@ -480,19 +499,66 @@ def test_auto_link_doctrina_creates_link():
                 "INSERT INTO documento_interpretativo "
                 "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
                 "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Test', "
-                "'Consulta sobre LIVA 91 y tipo reducido.', NULL)"
+                "'Consulta sobre LIVA 91 y sobre el articulo 15 de la LIS.', NULL)"
+            )
+        )
+        links = auto_link_doctrina(c)
+        rows = c.execute(
+            text(
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "ORDER BY n.codigo, a.numero"
+            )
+        ).fetchall()
+
+    assert links == 2
+    assert rows == [("LIS", "15", 1.0), ("LIVA", "91", 1.0)]
+
+
+def test_auto_link_doctrina_uses_single_norma_context_for_article_reference():
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0001-26', '2026-01-15', 'Test', "
+                "'Consulta sobre el IVA. De acuerdo con el articulo 91, procede aplicar el tipo reducido.', NULL)"
             )
         )
         links = auto_link_doctrina(c)
         row = c.execute(
             text(
-                "SELECT da.metodo_enlace, da.confianza_enlace, a.numero "
-                "FROM documento_articulo da JOIN articulo a ON a.id = da.articulo_id"
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "WHERE da.documento_id = (SELECT id FROM documento_interpretativo WHERE referencia = 'V0001-26')"
             )
         ).fetchone()
 
-    assert links >= 1
-    assert row == ("auto_link", 0.70, "91")
+    assert links == 1
+    assert row == ("LIVA", "91", 0.85)
+
+
+def test_auto_link_doctrina_skips_ambiguous_article_reference():
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0002-26', '2026-01-15', 'Test', "
+                "'De acuerdo con el articulo 91, la operacion debe analizarse segun sus hechos.', NULL)"
+            )
+        )
+        links = auto_link_doctrina(c)
+        count = c.execute(text("SELECT COUNT(*) FROM documento_articulo")).scalar_one()
+
+    assert links == 0
+    assert count == 0
 
 
 def test_ensure_schema_creates_sync_log_when_missing():

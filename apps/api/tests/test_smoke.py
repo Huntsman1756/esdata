@@ -28,7 +28,7 @@ async def test_status_tiene_workers():
     assert r.status_code == 200
     data = r.json()
     assert "workers" in data
-    for w in ["worker-boe", "cron-boe-daily"]:
+    for w in ["worker-boe", "cron-boe-daily", "worker-dgt", "cron-dgt-weekly"]:
         assert w in data["workers"]
 
 
@@ -127,12 +127,44 @@ async def test_doctrina_buscar_filtra_por_tipo():
 
 
 @pytest.mark.asyncio
+async def test_doctrina_buscar_filtra_por_organismo_y_expone_senal_de_enlace():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=tipo+reducido&organismo_emisor=DGT")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["resultados"]) >= 1
+    item = next(
+        result for result in data["resultados"] if result["referencia"] == "V0000-26"
+    )
+    assert item["organismo_emisor"] == "DGT"
+    assert item["nivel_enlace"] == 1.0
+    assert item["norma"] == "LIVA"
+    assert item["numero"] == "91"
+
+
+@pytest.mark.asyncio
 async def test_doctrina_seed():
     async with _client() as c:
         r = await c.get("/v1/doctrina/V0000-26")
     assert r.status_code == 200
     data = r.json()
     assert data["confianza"]["nivel"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_doctrina_detalle_expone_articulos_relacionados():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/V0000-26")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["articulos_relacionados"] == [
+        {
+            "norma": "LIVA",
+            "numero": "91",
+            "metodo_enlace": "manual",
+            "confianza_enlace": 1.0,
+        }
+    ]
 
 
 @pytest.mark.asyncio

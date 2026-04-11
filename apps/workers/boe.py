@@ -26,6 +26,13 @@ DEFAULT_NORMAS = {
     "LGT": "BOE-A-2003-23186",
 }
 
+LAW_TO_NORMA = {
+    "37/1992": "LIVA",
+    "27/2014": "LIS",
+    "35/2006": "LIRPF",
+    "58/2003": "LGT",
+}
+
 
 SCHEMA_STATEMENTS = []
 
@@ -443,39 +450,16 @@ def auto_link_doctrina(conn) -> int:
         text("SELECT id, referencia, texto FROM documento_interpretativo")
     ).mappings()
 
-    # Patterns to find article references in doctrine text
-    ref_patterns = [
-        # "LIVA 91", "LIRPF 10", etc.
-        re.compile(r"\b(LIVA|LIRPF|LIS|LGT)\s+(\d+)\b", re.IGNORECASE),
-        # "artículo 91", "art. 91"
-        re.compile(r"(?:artículo|art\.?)\s+(\d+)\b", re.IGNORECASE),
-    ]
-
     links_created = 0
     for doc in docs:
-        text_lower = doc["texto"]
-        found_refs = set()
+        found_refs = _extract_doctrina_refs(doc["texto"])
 
-        for pattern in ref_patterns:
-            for match in pattern.finditer(text_lower):
-                groups = match.groups()
-                if len(groups) == 2:
-                    # Has norma code + number
-                    codigo = groups[0].upper()
-                    numero = groups[1]
-                    found_refs.add((codigo, numero))
-                elif len(groups) == 1:
-                    # Just number - try all known normas
-                    numero = groups[0]
-                    for codigo in DEFAULT_NORMAS:
-                        found_refs.add((codigo, numero))
-
-        for codigo, numero in found_refs:
+        for codigo, numero, confianza in found_refs:
             conn.execute(
                 text(
                     """
                 INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
-                SELECT :doc_id, a.id, 'auto_link', 0.70, :nota
+                SELECT :doc_id, a.id, 'auto_link', :confianza_enlace, :nota
                 FROM articulo a
                 JOIN norma n ON n.id = a.norma_id
                 WHERE n.codigo = :codigo AND a.numero = :numero
@@ -486,12 +470,74 @@ def auto_link_doctrina(conn) -> int:
                     "doc_id": doc["id"],
                     "codigo": codigo,
                     "numero": numero,
+                    "confianza_enlace": confianza,
                     "nota": f"Referencia auto-detectada: {codigo} art. {numero}",
                 },
             )
             links_created += 1
 
     return links_created
+
+
+def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
+    explicit_norma_refs = set()
+    source = text_value.upper()
+
+    explicit_patterns = [
+        re.compile(r"\b(LIVA|LIRPF|LIS|LGT)\s+(\d+)\b", re.IGNORECASE),
+        re.compile(r"\b(LIVA|LIRPF|LIS|LGT)\s+ART\.?\s*(\d+)\b", re.IGNORECASE),
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)\s+DE\s+LA\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE
+        ),
+        re.compile(r"ART\.?\s*(\d+)\s+DE\s+LA\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE),
+    ]
+
+    for pattern in explicit_patterns:
+        for match in pattern.finditer(source):
+            first, second = match.groups()
+            if first.isdigit():
+                numero, codigo = first, second
+            else:
+                codigo, numero = first, second
+            explicit_norma_refs.add((codigo.upper(), numero, 1.00))
+
+    law_patterns = [
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b", re.IGNORECASE
+        ),
+        re.compile(r"ART\.?\s*(\d+)\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b", re.IGNORECASE),
+    ]
+
+    for pattern in law_patterns:
+        for match in pattern.finditer(source):
+            numero, ley = match.groups()
+            codigo = LAW_TO_NORMA.get(ley)
+            if codigo:
+                explicit_norma_refs.add((codigo, numero, 1.00))
+
+    if explicit_norma_refs:
+        return explicit_norma_refs
+
+    context_normas = []
+    for codigo in DEFAULT_NORMAS:
+        if re.search(rf"\b{codigo}\b", source):
+            context_normas.append(codigo)
+
+    if "IVA" in source and "LIVA" not in context_normas:
+        context_normas.append("LIVA")
+    if "SOCIEDADES" in source and "LIS" not in context_normas:
+        context_normas.append("LIS")
+    if "IRPF" in source and "LIRPF" not in context_normas:
+        context_normas.append("LIRPF")
+
+    if len(context_normas) != 1:
+        return set()
+
+    contextual_refs = set()
+    for match in re.finditer(r"(?:ART[ÍI]?CULO|ART\.?)\s+(\d+)\b", source):
+        contextual_refs.add((context_normas[0], match.group(1), 0.85))
+
+    return contextual_refs
 
 
 def log_sync(

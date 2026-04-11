@@ -1,6 +1,6 @@
 # Estructura actual del repo
 
-Estado actualizado a la version desplegada en produccion tras el cierre del sprint 2.
+Estado actualizado tras la incorporacion del worker DGT y la mejora de doctrina enlazada.
 
 ```text
 esdata/
@@ -32,8 +32,10 @@ esdata/
 |       |-- __init__.py
 |       |-- Dockerfile
 |       |-- boe.py
+|       |-- dgt.py
 |       |-- requirements.txt
 |       `-- tests/
+|           |-- test_dgt.py
 |           `-- test_boe.py
 |
 |-- docs/
@@ -60,7 +62,7 @@ esdata/
 ## Notas
 
 - No existen hoy `models/`, `schemas/`, `alembic/` ni `libs/common/`.
-- El unico worker implementado es `boe.py`.
-- La doctrina real se expone por API, pero todavia no hay workers dedicados para DGT o TEAC.
+- Hay dos workers implementados: `boe.py` para legislacion y `dgt.py` para doctrina DGT.
+- La doctrina real DGT se ingiere desde Petete y se enlaza con articulos via `documento_articulo`.
 - La busqueda full-text depende de `infra/sql/002_fulltext_search.sql`, ya aplicada en produccion.
-- Railway despliega cuatro servicios efectivos: `esdata`, `worker-boe`, `cron-boe-daily` y `Postgres`.
+- Railway queda configurado para cinco servicios de aplicacion: `esdata`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, ademas de `Postgres`.

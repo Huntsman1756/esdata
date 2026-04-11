@@ -29,6 +29,16 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: railway up --service cron-boe-daily
 
+      - name: Deploy DGT worker a Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service worker-dgt
+
+      - name: Deploy DGT weekly cron a Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service cron-dgt-weekly
+
       - name: Smoke tests funcionales
         env:
           API_BASE: https://esdata-production.up.railway.app

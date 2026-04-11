@@ -33,3 +33,24 @@ startCommand = "python boe.py --run-once"
 
 [services.cron]
 schedule = "0 6 * * *"
+
+# --- DGT Worker (long-running) ---
+[[services]]
+name = "worker-dgt"
+rootDirectory = "apps/workers"
+
+[services.deploy]
+startCommand = "python dgt.py"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# --- Cron: DGT weekly ---
+[[services]]
+name = "cron-dgt-weekly"
+rootDirectory = "apps/workers"
+
+[services.deploy]
+startCommand = "python dgt.py --run-once"
+
+[services.cron]
+schedule = "0 7 * * 1"
