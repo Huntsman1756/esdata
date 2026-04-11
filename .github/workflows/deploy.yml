@@ -19,28 +19,34 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: railway up --service api
 
-      # Railway resuelve DATABASE_URL internamente — no necesitamos el secret aquí
-      - name: Run DB migrations (dentro del entorno Railway)
+      - name: Deploy BOE worker a Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway run --service api python -m alembic upgrade head
+        run: railway up --service worker-boe
 
-      # --- Ajuste 6: smoke tests jurídicos post-deploy ---
+      - name: Deploy BOE daily cron a Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service cron-boe-daily
+
       - name: Smoke tests funcionales
         env:
           API_BASE: https://api.esdata.org
         run: |
           python - <<'EOF'
-          import httpx, sys
+          import os
+          import sys
 
-          base = "$API_BASE"
+          import httpx
+
+          base = os.environ["API_BASE"]
           checks = [
-              ("/health",                                          200, None),
-              ("/v1/legislacion",                                  200, None),
-              ("/v1/legislacion/LIVA/articulos/91",                200, "texto"),
-              ("/v1/materias/tipo-reducido-iva",                   200, "articulos"),
-              ("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA",200, "resultados"),
-              ("/status",                                          200, "workers"),
+              ("/health", 200, None),
+              ("/v1/legislacion/LIVA/articulos/91", 200, "texto"),
+              ("/v1/materias/tipo-reducido-iva", 200, "articulos"),
+              ("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA", 200, "resultados"),
+              ("/v1/legislacion/cobertura", 200, "normas"),
+              ("/status", 200, "workers"),
           ]
 
           failed = []
@@ -58,8 +64,7 @@ jobs:
           print(f"Smoke tests OK ({len(checks)} checks)")
           EOF
 
-      # --- Ajuste 4: purge solo en paths deterministas (no /buscar) ---
-      - name: Purge Cloudflare caché (solo paths deterministas)
+      - name: Purge Cloudflare cache (solo paths deterministas)
         if: success()
         env:
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
@@ -69,5 +74,3 @@ jobs:
             -H "Authorization: Bearer $CF_API_TOKEN" \
             -H "Content-Type: application/json" \
             --data '{"prefixes":["api.esdata.org/v1/legislacion/","api.esdata.org/v1/materias/"]}'
-          # Nota: /v1/legislacion/buscar se excluye — las búsquedas con
-          # vigente_en, filtros o confianza dinámica no son deterministas.

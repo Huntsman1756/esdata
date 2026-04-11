@@ -318,11 +318,11 @@ def test_run_once_flag_accepts_argparse():
     """Verify --run-once flag is accepted by the worker CLI without error."""
     workers_dir = Path(__file__).resolve().parents[1]
     result = subprocess.run(
-        [sys.executable, "-m", "workers.boe", "--help"],
+        [sys.executable, "boe.py", "--help"],
         capture_output=True,
         text=True,
         cwd=workers_dir,
-        env={**__import__("os").environ, "PYTHONPATH": str(workers_dir.parent), "DATABASE_URL": "sqlite:///:memory:"},
+        env={**__import__("os").environ, "DATABASE_URL": "sqlite:///:memory:"},
     )
     assert result.returncode == 0
     assert "--run-once" in result.stdout

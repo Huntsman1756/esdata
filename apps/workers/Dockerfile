@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY . /app
 
-CMD ["python", "-m", "workers.boe"]
+CMD ["python", "boe.py"]

@@ -28,7 +28,7 @@ async def test_status_tiene_workers():
     assert r.status_code == 200
     data = r.json()
     assert "workers" in data
-    for w in ["worker-boe", "worker-doctrina", "cron-boe-daily", "cron-doctrina-weekly"]:
+    for w in ["worker-boe", "cron-boe-daily"]:
         assert w in data["workers"]
 
 

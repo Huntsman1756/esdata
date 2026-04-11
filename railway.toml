@@ -19,17 +19,7 @@ name = "worker-boe"
 rootDirectory = "apps/workers"
 
 [services.deploy]
-startCommand = "python -m workers.boe"
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
-
-# --- Doctrina Worker (long-running) ---
-[[services]]
-name = "worker-doctrina"
-rootDirectory = "apps/workers"
-
-[services.deploy]
-startCommand = "python -m workers.doctrina"
+startCommand = "python boe.py"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
@@ -39,18 +29,7 @@ name = "cron-boe-daily"
 rootDirectory = "apps/workers"
 
 [services.deploy]
-startCommand = "python -m workers.boe --run-once"
+startCommand = "python boe.py --run-once"
 
 [services.cron]
 schedule = "0 6 * * *"
-
-# --- Cron: Doctrina weekly ---
-[[services]]
-name = "cron-doctrina-weekly"
-rootDirectory = "apps/workers"
-
-[services.deploy]
-startCommand = "python -m workers.doctrina --run-once"
-
-[services.cron]
-schedule = "0 7 * * 1"
