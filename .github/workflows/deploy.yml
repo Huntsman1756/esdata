@@ -18,21 +18,6 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Link Railway project
-        run: railway link --project $RAILWAY_PROJECT_ID
-
-      - name: Ensure DGT services exist in Railway
-        shell: bash
-        run: |
-          set -euo pipefail
-          status_json="$(railway status --json)"
-          if ! printf '%s' "$status_json" | grep -q '"worker-dgt"'; then
-            railway add --service worker-dgt
-          fi
-          if ! printf '%s' "$status_json" | grep -q '"cron-dgt-weekly"'; then
-            railway add --service cron-dgt-weekly
-          fi
-
       - name: Deploy API a Railway
         run: railway up --service esdata --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
 
@@ -43,10 +28,22 @@ jobs:
         run: railway up --service cron-boe-daily --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
 
       - name: Deploy DGT worker a Railway
-        run: railway up --service worker-dgt --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up --service worker-dgt --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN; then
+            railway add --service worker-dgt --json
+            railway up --service worker-dgt --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+          fi
 
       - name: Deploy DGT weekly cron a Railway
-        run: railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN; then
+            railway add --service cron-dgt-weekly --json
+            railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --token $RAILWAY_TOKEN
+          fi
 
       - name: Smoke tests funcionales
         env:
