@@ -2,20 +2,50 @@
 
 API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, con versionado por articulo, busqueda full-text y superficies pensadas para consumo por aplicaciones y agentes.
 
-## Servicios
+## Estado actual
+
+- Produccion operativa en Railway.
+- API publica en `https://esdata-production.up.railway.app`.
+- Ingesta BOE activa con cobertura real para `LGT`, `LIRPF`, `LIS` y `LIVA`.
+- Busqueda full-text activa en produccion con `ts_rank`, `ts_headline` y fragmentos con `<mark>`.
+
+## Servicios desplegados
 
 - `esdata`: API FastAPI publica.
 - `worker-boe`: worker continuo que ingiere articulos desde BOE.
-- `cron-boe-daily`: ejecucion diaria `--run-once` del mismo worker.
+- `cron-boe-daily`: ejecucion diaria `python boe.py --run-once`.
 - `Postgres`: base de datos principal.
 
-## Estructura
+## Estructura real del repo
 
 - `apps/api`: API FastAPI.
-- `apps/workers`: ingesta BOE y auto-linking.
-- `infra/sql/init.sql`: esquema inicial de base de datos.
-- `infra/sql/002_fulltext_search.sql`: migracion de `search_vector` e indices full-text.
-- `railway.toml`: configuracion de despliegue monorepo en Railway.
+- `apps/api/routers`: endpoints HTTP (`status`, `buscar`, `legislacion`, `materias`, `doctrina`).
+- `apps/api/services/search.py`: logica de busqueda full-text.
+- `apps/api/mcp_server.py`: monta MCP sobre la API.
+- `apps/api/db.py`: conexion SQLAlchemy.
+- `apps/workers/boe.py`: ingesta BOE, bootstrap de esquema y auto-linking.
+- `apps/workers/tests/test_boe.py`: tests del worker.
+- `infra/sql/init.sql`: esquema base.
+- `infra/sql/002_fulltext_search.sql`: migracion de `search_vector`, indices y trigger.
+- `railway.toml`: configuracion monorepo para Railway.
+
+## Endpoints principales
+
+- `GET /health`
+- `GET /status`
+- `GET /v1/buscar`
+- `GET /v1/legislacion/buscar`
+- `GET /v1/legislacion`
+- `GET /v1/legislacion/cobertura`
+- `GET /v1/legislacion/{codigo}`
+- `GET /v1/legislacion/{codigo}/articulos`
+- `GET /v1/legislacion/{codigo}/articulos/{numero}`
+- `GET /v1/legislacion/{codigo}/articulos/{numero}/historial`
+- `GET /v1/materias`
+- `GET /v1/materias/{slug}`
+- `GET /v1/doctrina/buscar`
+- `GET /v1/doctrina/{referencia}`
+- `GET /mcp`
 
 ## Desarrollo local
 
@@ -44,17 +74,13 @@ pytest apps/workers/tests/test_boe.py -q
 
 - Health API: `https://esdata-production.up.railway.app/health`
 - Estado agregado: `https://esdata-production.up.railway.app/status`
+- Normas: `https://esdata-production.up.railway.app/v1/legislacion`
 - Cobertura: `https://esdata-production.up.railway.app/v1/legislacion/cobertura`
+- Busqueda: `https://esdata-production.up.railway.app/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA`
 
-### Mantenimiento operativo
+### Verificacion full-text
 
-Antes de dar por cerrada la busqueda full-text en produccion hay que ejecutar:
-
-```bash
-psql $DATABASE_URL -f infra/sql/002_fulltext_search.sql
-```
-
-Luego verificar:
+La migracion `infra/sql/002_fulltext_search.sql` ya fue aplicada en produccion. Para revalidarla:
 
 ```sql
 SELECT COUNT(*) FILTER (WHERE search_vector IS NOT NULL) AS con_vector,
@@ -62,4 +88,10 @@ SELECT COUNT(*) FILTER (WHERE search_vector IS NOT NULL) AS con_vector,
 FROM version_articulo;
 ```
 
-Si `con_vector != total`, la migracion no ha quedado aplicada correctamente.
+`con_vector` debe coincidir con `total`.
+
+## Documentacion adicional
+
+- `DEPLOY_CHECKLIST.md`: pasos de despliegue y smoke tests.
+- `STRUCTURE.md`: mapa actualizado del repo.
+- `docs/postmortem-sprint-2.md`: incidencias, diagnostico y resolucion del sprint.

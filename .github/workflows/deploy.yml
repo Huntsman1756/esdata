@@ -17,7 +17,7 @@ jobs:
       - name: Deploy API a Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service api
+        run: railway up --service esdata
 
       - name: Deploy BOE worker a Railway
         env:
@@ -31,7 +31,7 @@ jobs:
 
       - name: Smoke tests funcionales
         env:
-          API_BASE: https://api.esdata.org
+          API_BASE: https://esdata-production.up.railway.app
         run: |
           python - <<'EOF'
           import os
