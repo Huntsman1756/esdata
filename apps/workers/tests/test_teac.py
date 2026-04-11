@@ -22,7 +22,7 @@ def test_parse_resolution_html_extracts_core_fields():
         "fecha": "2024-03-15",
         "organo": "Tribunal Economico-Administrativo Central",
         "titulo": "IVA. Base imponible en operaciones vinculadas.",
-        "texto": "Se estima parcialmente la reclamacion y se fija criterio sobre la base imponible del IVA. La resolucion analiza la Ley 37/1992 y su aplicacion al caso.",
+        "texto": "Se estima parcialmente la reclamacion y se fija criterio sobre la base imponible del IVA. La resolucion analiza el articulo 91 de la Ley 37/1992 y su aplicacion al caso.",
     }
 
 
@@ -30,6 +30,37 @@ def test_run_sync_persists_teac_document_and_metrics(monkeypatch):
     engine = create_engine("sqlite:///:memory:", future=True)
 
     with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER NOT NULL,
+                    numero TEXT NOT NULL,
+                    titulo TEXT,
+                    tipo TEXT NOT NULL,
+                    UNIQUE (norma_id, numero)
+                )
+                """
+            )
+        )
         conn.execute(
             text(
                 """
@@ -52,6 +83,20 @@ def test_run_sync_persists_teac_document_and_metrics(monkeypatch):
         conn.execute(
             text(
                 """
+                CREATE TABLE documento_articulo (
+                    documento_id INTEGER NOT NULL,
+                    articulo_id INTEGER NOT NULL,
+                    metodo_enlace TEXT NOT NULL,
+                    confianza_enlace REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, articulo_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
                 CREATE TABLE sync_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     worker TEXT NOT NULL,
@@ -65,6 +110,22 @@ def test_run_sync_persists_teac_document_and_metrics(monkeypatch):
                     doctrina_links_created INTEGER,
                     error_msg TEXT
                 )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'
                 """
             )
         )
@@ -89,10 +150,19 @@ def test_run_sync_persists_teac_document_and_metrics(monkeypatch):
                 "SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log"
             )
         ).fetchone()
+        link_row = conn.execute(
+            text(
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id"
+            )
+        ).fetchone()
 
     assert result == {"processed": 1, "stored": 1}
     assert row == ("00/1234/2024", "resolucion_teac", "TEAC", "teac")
     assert sync_row == ("worker-teac", "ok", 1, 1)
+    assert link_row == ("LIVA", "91", 1.0)
 
 
 def test_teac_run_once_flag_accepts_argparse():
