@@ -139,6 +139,10 @@ def _create_base_schema(conn) -> None:
     )
 
 
+def _ensure_sync_log_table(conn) -> None:
+    conn.execute(text(_schema_statements(conn.engine.dialect.name)[-1]))
+
+
 @dataclass
 class NormaMetadata:
     codigo: str
@@ -498,6 +502,7 @@ def log_sync(
     error_msg: str | None = None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
+    _ensure_sync_log_table(conn)
     conn.execute(
         text(
             """
@@ -520,6 +525,9 @@ def log_sync(
 def _ensure_schema(conn) -> None:
     """Ensure worker-owned schema objects exist before syncing."""
     dialect = conn.engine.dialect.name
+
+    if dialect == "postgresql":
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
 
     _create_base_schema(conn)
 

@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from boe import (
     BloqueTexto,
     NormaMetadata,
+    _ensure_sync_log_table,
     _ensure_schema,
     _schema_statements,
     auto_link_doctrina,
@@ -557,3 +558,20 @@ def test_schema_statements_use_integer_ids_on_sqlite():
     statements = _schema_statements("sqlite")
     assert "id INTEGER PRIMARY KEY" in statements[0]
     assert "id INTEGER PRIMARY KEY" in statements[-1]
+
+
+def test_ensure_sync_log_table_creates_log_table_independently():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        _ensure_sync_log_table(conn)
+        row = conn.execute(
+            text(
+                """
+                SELECT name FROM sqlite_master
+                WHERE type = 'table' AND name = 'sync_log'
+                """
+            )
+        ).fetchone()
+
+    assert row == ("sync_log",)
