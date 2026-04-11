@@ -8,7 +8,7 @@ import time
 import httpx
 from sqlalchemy import create_engine, text
 
-from boe import _ensure_sync_log_table, log_sync
+from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
 
 
 DATABASE_URL = os.getenv(
@@ -95,6 +95,7 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
 def run_sync(seed_urls: list[str]) -> dict[str, int]:
     processed = 0
     stored = 0
+    links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
 
     with engine.begin() as conn:
@@ -115,12 +116,16 @@ def run_sync(seed_urls: list[str]) -> dict[str, int]:
             )
             stored += 1
 
+        if stored:
+            links_created = auto_link_doctrina(conn)
+
         log_sync(
             conn,
             "worker-teac",
             "ok",
             documentos_processed=processed,
             documentos_upserted=stored,
+            doctrina_links_created=links_created,
         )
 
     return {"processed": processed, "stored": stored}

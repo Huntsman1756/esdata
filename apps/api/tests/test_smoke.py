@@ -222,6 +222,56 @@ async def test_doctrina_buscar_filtra_teac():
 
 
 @pytest.mark.asyncio
+async def test_doctrina_buscar_expone_teac_con_enlace():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente,
+                    ambito, referencia, fecha, titulo, texto, url_fuente
+                )
+                VALUES (
+                    'resolucion_teac', 'TEAC', 'es', 'teac',
+                    'fiscal', '00/1234/2025', '2024-03-15',
+                    'IVA. Base imponible en operaciones vinculadas.',
+                    'Se analiza el articulo 91 de la Ley 37/1992.',
+                    'https://serviciostelematicosext.hacienda.gob.es/TEAC/00-1234-2025'
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
+                SELECT d.id, a.id, 'auto_link', 1.00, 'TEAC fixture'
+                FROM documento_interpretativo d
+                JOIN articulo a ON a.numero = '91'
+                JOIN norma n ON n.id = a.norma_id
+                WHERE d.referencia = '00/1234/2025' AND n.codigo = 'LIVA'
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=Ley+37%2F1992&organismo_emisor=TEAC")
+    assert r.status_code == 200
+    data = r.json()
+    item = next(
+        result
+        for result in data["resultados"]
+        if result["referencia"] == "00/1234/2025"
+    )
+    assert item["organismo_emisor"] == "TEAC"
+    assert item["norma"] == "LIVA"
+    assert item["numero"] == "91"
+    assert item["nivel_enlace"] == 1.0
+
+
+@pytest.mark.asyncio
 async def test_doctrina_seed():
     async with _client() as c:
         r = await c.get("/v1/doctrina/V0000-26")
