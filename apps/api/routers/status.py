@@ -29,7 +29,16 @@ async def status():
         row = db.execute(
             text(
                 """
-                SELECT started_at, finished_at, status, bloques_processed, articulos_upserted, error_msg
+                SELECT
+                    started_at,
+                    finished_at,
+                    status,
+                    bloques_processed,
+                    articulos_upserted,
+                    documentos_processed,
+                    documentos_upserted,
+                    doctrina_links_created,
+                    error_msg
                 FROM sync_log
                 WHERE worker = :worker
                 ORDER BY started_at DESC
@@ -41,11 +50,14 @@ async def status():
 
         if row:
             result["workers"][worker] = {
-                "last_run": row.started_at.isoformat() if row.started_at else None,
-                "finished_at": row.finished_at.isoformat() if row.finished_at else None,
+                "last_run": _serialize_datetime(row.started_at),
+                "finished_at": _serialize_datetime(row.finished_at),
                 "status": row.status,
                 "bloques_processed": row.bloques_processed,
                 "articulos_upserted": row.articulos_upserted,
+                "documentos_processed": row.documentos_processed,
+                "documentos_upserted": row.documentos_upserted,
+                "doctrina_links_created": row.doctrina_links_created,
                 "error": row.error_msg,
                 "stale": _is_stale(worker, row.finished_at),
             }
@@ -55,13 +67,30 @@ async def status():
     return result
 
 
+def _serialize_datetime(value):
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _coerce_datetime(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    return value
+
+
 def _is_stale(worker: str, finished_at) -> bool:
     """Un worker se considera stale si lleva mas tiempo del esperado sin completar."""
-    if not finished_at:
+    finished_at_dt = _coerce_datetime(finished_at)
+    if not finished_at_dt:
         return True
 
     now = datetime.now(timezone.utc)
-    age_hours = (now - finished_at).total_seconds() / 3600
+    age_hours = (now - finished_at_dt).total_seconds() / 3600
     thresholds = {
         "worker-boe": 25,
         "cron-boe-daily": 25,

@@ -125,6 +125,9 @@ def _schema_statements(dialect: str) -> list[str]:
             status TEXT NOT NULL,
             bloques_processed INTEGER,
             articulos_upserted INTEGER,
+            documentos_processed INTEGER,
+            documentos_upserted INTEGER,
+            doctrina_links_created INTEGER,
             error_msg TEXT
         )
         """,
@@ -542,9 +545,13 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
 
 def log_sync(
     conn,
+    worker: str,
     status: str,
     bloques: int = 0,
     articulos: int = 0,
+    documentos_processed: int = 0,
+    documentos_upserted: int = 0,
+    doctrina_links_created: int = 0,
     error_msg: str | None = None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
@@ -552,17 +559,42 @@ def log_sync(
     conn.execute(
         text(
             """
-            INSERT INTO sync_log (worker, started_at, finished_at, status, bloques_processed, articulos_upserted, error_msg)
-            VALUES (:worker, :started_at, :finished_at, :status, :bloques_processed, :articulos_upserted, :error_msg)
+            INSERT INTO sync_log (
+                worker,
+                started_at,
+                finished_at,
+                status,
+                bloques_processed,
+                articulos_upserted,
+                documentos_processed,
+                documentos_upserted,
+                doctrina_links_created,
+                error_msg
+            )
+            VALUES (
+                :worker,
+                :started_at,
+                :finished_at,
+                :status,
+                :bloques_processed,
+                :articulos_upserted,
+                :documentos_processed,
+                :documentos_upserted,
+                :doctrina_links_created,
+                :error_msg
+            )
             """
         ),
         {
-            "worker": "worker-boe",
+            "worker": worker,
             "started_at": now,
             "finished_at": now,
             "status": status,
             "bloques_processed": bloques,
             "articulos_upserted": articulos,
+            "documentos_processed": documentos_processed,
+            "documentos_upserted": documentos_upserted,
+            "doctrina_links_created": doctrina_links_created,
             "error_msg": error_msg,
         },
     )
@@ -579,20 +611,22 @@ def _ensure_schema(conn) -> None:
 
     if dialect == "sqlite":
         columns = conn.execute(text("PRAGMA table_info(sync_log)")).fetchall()
-        col_exists = any(column[1] == "bloques_processed" for column in columns)
+        column_names = {column[1] for column in columns}
     else:
-        col_exists = conn.execute(
-            text(
-                """
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'sync_log' AND column_name = 'bloques_processed'
-            )
-            """
-            )
-        ).scalar()
+        column_names = {
+            row[0]
+            for row in conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'sync_log'
+                    """
+                )
+            ).fetchall()
+        }
 
-    if not col_exists:
+    if "bloques_processed" not in column_names:
         conn.execute(
             text(
                 """
@@ -612,6 +646,20 @@ def _ensure_schema(conn) -> None:
             """
             )
         )
+        column_names |= {"bloques_processed", "articulos_upserted"}
+
+    missing_metric_columns = [
+        column
+        for column in (
+            "documentos_processed",
+            "documentos_upserted",
+            "doctrina_links_created",
+        )
+        if column not in column_names
+    ]
+
+    for column in missing_metric_columns:
+        conn.execute(text(f"ALTER TABLE sync_log ADD COLUMN {column} INTEGER"))
 
     # Create trigram index for full-text search if it doesn't exist
     if dialect == "postgresql":
@@ -673,7 +721,11 @@ def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
                 materias_linked = auto_link_materias(conn)
                 doctrina_linked = auto_link_doctrina(conn)
                 log_sync(
-                    conn, "ok", bloques=bloques_fetched, articulos=articulos_upserted
+                    conn,
+                    "worker-boe",
+                    "ok",
+                    bloques=bloques_fetched,
+                    articulos=articulos_upserted,
                 )
                 print(
                     f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}"
@@ -683,6 +735,7 @@ def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
         with engine.begin() as conn:
             log_sync(
                 conn,
+                "worker-boe",
                 "error",
                 bloques=bloques_fetched,
                 articulos=articulos_upserted,

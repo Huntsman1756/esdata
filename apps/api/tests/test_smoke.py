@@ -3,6 +3,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 from pathlib import Path
+from sqlalchemy import text
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -30,6 +31,41 @@ async def test_status_tiene_workers():
     assert "workers" in data
     for w in ["worker-boe", "cron-boe-daily", "worker-dgt", "cron-dgt-weekly"]:
         assert w in data["workers"]
+
+
+@pytest.mark.asyncio
+async def test_status_expone_metricas_dgt_si_existen():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM sync_log WHERE worker = 'worker-dgt'"))
+        conn.execute(
+            text(
+                """
+                INSERT INTO sync_log (
+                    worker, started_at, finished_at, status,
+                    bloques_processed, articulos_upserted,
+                    documentos_processed, documentos_upserted, doctrina_links_created,
+                    error_msg
+                )
+                VALUES (
+                    'worker-dgt', '2026-04-11T10:00:00+00:00', '2026-04-11T10:05:00+00:00', 'ok',
+                    0, 0,
+                    12, 9, 7,
+                    NULL
+                )
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/status")
+    assert r.status_code == 200
+    data = r.json()
+    worker = data["workers"]["worker-dgt"]
+    assert worker["documentos_processed"] == 12
+    assert worker["documentos_upserted"] == 9
+    assert worker["doctrina_links_created"] == 7
 
 
 @pytest.mark.asyncio

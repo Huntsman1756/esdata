@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS sync_log (
     status TEXT NOT NULL,
     bloques_processed INTEGER,
     articulos_upserted INTEGER,
+    documentos_processed INTEGER,
+    documentos_upserted INTEGER,
+    doctrina_links_created INTEGER,
     error_msg TEXT
 );
 

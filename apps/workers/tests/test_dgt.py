@@ -264,6 +264,25 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
         conn.execute(
             text(
                 """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
                 INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
                 VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')
                 """
@@ -336,10 +355,17 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
                 "JOIN norma n ON n.id = a.norma_id"
             )
         ).fetchone()
+        sync_row = conn.execute(
+            text(
+                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created "
+                "FROM sync_log"
+            )
+        ).fetchone()
 
     assert result == {"processed": 1, "stored": 1}
     assert row == ("V2274-22", "dgt", "DGT")
     assert linked_row == ("LIVA", "4", 1.0)
+    assert sync_row == ("worker-dgt", "ok", 1, 1, 1)
 
 
 def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
@@ -411,6 +437,25 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
                 """
             )
         )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
 
     search_html = """
     <table>
@@ -470,10 +515,17 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
         link_count = conn.execute(
             text("SELECT COUNT(*) FROM documento_articulo")
         ).scalar_one()
+        sync_row = conn.execute(
+            text(
+                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created "
+                "FROM sync_log"
+            )
+        ).fetchone()
 
     assert result == {"processed": 1, "stored": 0}
     assert count == 0
     assert link_count == 0
+    assert sync_row == ("worker-dgt", "ok", 1, 0, 0)
 
 
 def test_dgt_run_once_flag_accepts_argparse():
