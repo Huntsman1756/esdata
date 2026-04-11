@@ -20,31 +20,34 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy API a Railway
-        run: railway up apps/api --path-as-root --service esdata --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
+        run: railway up apps/api --path-as-root --service esdata --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
 
       - name: Deploy BOE worker a Railway
-        run: railway up apps/workers --path-as-root --service worker-boe --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
+        run: railway up apps/workers --path-as-root --service worker-boe --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
 
       - name: Deploy BOE daily cron a Railway
-        run: railway up apps/workers --path-as-root --service cron-boe-daily --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
+        run: railway up apps/workers --path-as-root --service cron-boe-daily --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
 
       - name: Deploy DGT worker a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT; then
+          if ! railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
             railway add --service worker-dgt --json
-            railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
+            railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
       - name: Deploy DGT weekly cron a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT; then
+          if ! railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
             railway add --service cron-dgt-weekly --json
-            railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
+            railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
+
+      - name: Espera breve tras deploy
+        run: sleep 20
 
       - name: Smoke tests funcionales
         env:
@@ -68,12 +71,27 @@ jobs:
 
           failed = []
           for path, expected_status, expected_key in checks:
-              r = httpx.get(f"{base}{path}", timeout=10)
-              if r.status_code != expected_status:
-                  failed.append(f"FAIL {path}: status {r.status_code} (esperado {expected_status})")
-                  continue
-              if expected_key and expected_key not in r.json():
-                  failed.append(f"FAIL {path}: clave '{expected_key}' ausente en respuesta")
+              last_error = None
+              for _ in range(10):
+                  try:
+                      r = httpx.get(f"{base}{path}", timeout=10)
+                      if r.status_code == expected_status and (
+                          not expected_key or expected_key in r.json()
+                      ):
+                          last_error = None
+                          break
+                      last_error = (
+                          f"status {r.status_code} (esperado {expected_status})"
+                          if r.status_code != expected_status
+                          else f"clave '{expected_key}' ausente en respuesta"
+                      )
+                  except Exception as exc:
+                      last_error = str(exc)
+                  import time
+                  time.sleep(5)
+
+              if last_error is not None:
+                  failed.append(f"FAIL {path}: {last_error}")
 
           if failed:
               print("\n".join(failed))
