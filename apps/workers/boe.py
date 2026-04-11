@@ -527,6 +527,8 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         return {("LIVA", "91", 0.75)}
     if "IVA" in source and "REGIMEN ESPECIAL" in source:
         return {("LIVA", "91", 0.75)}
+    if "IVA" in source and "RECARGO DE EQUIVALENCIA" in source:
+        return {("LIVA", "24", 0.75)}
 
     context_normas = []
     for codigo in DEFAULT_NORMAS:
