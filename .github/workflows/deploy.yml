@@ -7,6 +7,7 @@ on:
 env:
   RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
   RAILWAY_PROJECT_ID: 41c53da7-ba65-4308-9713-8c3a5e4e7706
+  RAILWAY_ENVIRONMENT: production
 
 jobs:
   deploy:
@@ -19,30 +20,30 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy API a Railway
-        run: railway up --service esdata --project $RAILWAY_PROJECT_ID
+        run: railway up apps/api --path-as-root --service esdata --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
 
       - name: Deploy BOE worker a Railway
-        run: railway up --service worker-boe --project $RAILWAY_PROJECT_ID
+        run: railway up apps/workers --path-as-root --service worker-boe --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
 
       - name: Deploy BOE daily cron a Railway
-        run: railway up --service cron-boe-daily --project $RAILWAY_PROJECT_ID
+        run: railway up apps/workers --path-as-root --service cron-boe-daily --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
 
       - name: Deploy DGT worker a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up --service worker-dgt --project $RAILWAY_PROJECT_ID; then
+          if ! railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT; then
             railway add --service worker-dgt --json
-            railway up --service worker-dgt --project $RAILWAY_PROJECT_ID
+            railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
           fi
 
       - name: Deploy DGT weekly cron a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID; then
+          if ! railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT; then
             railway add --service cron-dgt-weekly --json
-            railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID
+            railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT
           fi
 
       - name: Smoke tests funcionales
