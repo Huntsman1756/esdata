@@ -3,6 +3,9 @@
 ## Antes del deploy (una sola vez, en producción)
 
 [ ] Ejecutar migracion contra el Postgres real:
+    psql $DATABASE_URL -f infra/sql/004_norma_classification.sql
+
+[ ] Ejecutar migracion contra el Postgres real:
     psql $DATABASE_URL -f infra/sql/002_fulltext_search.sql
 
 [ ] Verificar que backfill completo:
@@ -53,6 +56,15 @@
 
 [ ] curl "https://esdata-production.up.railway.app/v1/legislacion/LIVA/articulos/91"
     → texto + confianza.nivel >= 1
+
+[ ] curl "https://esdata-production.up.railway.app/v1/legislacion/ITPAJD"
+    → devuelve `tipo_documento=real_decreto_legislativo` y `estado_cobertura=ingestada`
+
+[ ] curl "https://esdata-production.up.railway.app/v1/legislacion/ITPAJD/articulos"
+    → devuelve al menos un articulo de `ITPAJD`
+
+[ ] curl "https://esdata-production.up.railway.app/v1/buscar?q=transmisiones&norma=ITPAJD"
+    → devuelve al menos un resultado de legislacion para `ITPAJD`
 
 [ ] curl "https://esdata-production.up.railway.app/v1/doctrina/buscar?q=deduccion"
     → responde (aunque sea vacío si no hay doctrina aún)

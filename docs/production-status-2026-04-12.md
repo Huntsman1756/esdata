@@ -14,6 +14,13 @@
 
 ## Lo hecho en esta sesion
 
+### Slice ITPAJD pendiente de verificacion desplegada
+
+- `apps/web/lib/types.ts`: `Norma` alineada con `tipo_documento` y `estado_cobertura`.
+- `apps/web/app/page.tsx`: home actualizada para reflejar el soporte actual del slice con `ITPAJD` y sacar `ITP y AJD` de la lista de trabajo futuro.
+- `README.md`: cobertura del slice actualizada para incluir `ITPAJD`, dejando explicito que la verificacion desplegada sigue pendiente.
+- Estado actual: cambios alineados en tipos, copy y configuracion del slice; falta ejecutar el smoke de Task 5 en Railway antes de marcar `ITPAJD` como verificado en produccion.
+
 ### Capa Modelos AEAT — Fase 1
 
 **Batch A: Schema + Seed**

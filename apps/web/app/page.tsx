@@ -20,6 +20,12 @@ export default function Home() {
         <p className="mt-3 text-base leading-relaxed text-stone-600 sm:text-lg">
           Consulta legislacion vigente y doctrina DGT o TEAC enlazada con articulos concretos para entender que aplica realmente.
         </p>
+        <p className="mt-1 text-sm leading-relaxed text-stone-600 sm:text-base">
+          Hoy muestra soporte para LGT, LIRPF, LIS, LIVA e ITPAJD. La verificacion desplegada de ITPAJD sigue pendiente.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-stone-500 sm:text-base">
+          Lo siguiente sigue en cola por separado: Ley 38/1992, RDL 2/2004, DAC6 y UNE 19602.
+        </p>
       </section>
 
       {/* Search */}

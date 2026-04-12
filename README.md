@@ -7,7 +7,7 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - Produccion operativa en Railway.
 - API publica en `https://esdata-production.up.railway.app`.
 - Frontend publico en `https://web-production-ecb5.up.railway.app`.
-- Ingesta BOE activa con cobertura real para `LGT`, `LIRPF`, `LIS` y `LIVA`.
+- Ingesta BOE con soporte de codigo y configuracion para `LGT`, `LIRPF`, `LIS`, `LIVA` e `ITPAJD`; la verificacion desplegada de `ITPAJD` sigue pendiente hasta ejecutar el smoke en produccion.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
 - Busqueda full-text activa en produccion con `ts_rank`, `ts_headline` y fragmentos con `<mark>`.
@@ -125,7 +125,7 @@ npm --prefix apps/web run build
 - `DATABASE_URL=postgresql+psycopg://...`
 - `BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada`
 - `APP_ENV=production`
-- `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT`
+- `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT,ITPAJD`
 - `DGT_SSL_VERIFY=false` para el worker DGT si Petete falla por SSL en produccion.
 - `TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...,...` para el worker TEAC.
 - `SYNC_INTERVAL_SECONDS=604800` para `worker-dgt` si se quiere ajustar la cadencia del loop continuo.
