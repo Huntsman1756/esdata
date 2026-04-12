@@ -545,7 +545,7 @@ def test_auto_link_doctrina_upgrades_confidence_when_better_match_found():
             )
         )
         # Now run auto_link_doctrina which should detect LIVA 91 at 1.0
-        links = auto_link_doctrina(c)
+        auto_link_doctrina(c)
         row = c.execute(
             text(
                 "SELECT da.confianza_enlace, da.metodo_enlace, da.nota "
