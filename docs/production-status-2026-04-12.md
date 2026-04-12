@@ -6,11 +6,14 @@
 - BOE, DGT y TEAC activos en produccion.
 - Frontend Next.js operativo en `https://web-production-ecb5.up.railway.app`.
 - Nueva capa **Modelos AEAT** desplegada:
-  - 8 modelos: 100, 111, 115, 130, 190, 196, 303, 390
-  - 22 relaciones modelo-articulo con fuente oficial verificable
+  - 11 modelos: 100, 111, 115, 130, 180, 187, 190, 193, 196, 303, 390
+  - 27 relaciones modelo-articulo con fuente oficial verificable
   - 3 nuevos endpoints API: `GET /v1/modelos`, `GET /v1/modelos/{codigo}`, `GET /v1/modelos/{codigo}/articulos`
   - Sidebars "Modelos AEAT relacionados" en detalle de articulo y doctrina
   - Pagina de detalle de modelo: `/modelo/[codigo]`
+- Validacion manual post-despliegue repetida sin regresiones:
+  - DGT: 21 links, 0 low confidence
+  - TEAC: 4 links, 0 low confidence
 
 ## Lo hecho en esta sesion
 
@@ -45,12 +48,20 @@
 - `DoctrinaModelos` en sidebar de detalle de doctrina (derivado de articulos enlazados, dedupeado por codigo)
 - `modelo-badge.tsx`: componente compacto con link a `/modelo/{codigo}`
 
-**Batch D: Frontend — Detalle modelo**
+**Batch D: Frontend - Detalle modelo**
 - `/modelo/[codigo]`: pagina completa
   - Identidad: badge AEAT, codigo, impuesto, periodo
   - Link "Ver en sede AEAT"
   - Lista de articulos con casilla, nota, fuente y link a fuente
   - Sidebar con doctrina relacionada
+
+**Expansion posterior de Modelos AEAT**
+- Se ampliaron modelos verificables hasta cubrir 11 codigos:
+  - `180`, `187`, `190`, `193`, `196` anadidos sobre la base inicial
+- Estado consolidado actual:
+  - 11 modelos en `aeat_modelo`
+  - 27 relaciones en `modelo_articulo`
+  - Excluidos documentados por falta de encaje o fuente clara: `198`, `216`, `289`, `290`, `296`
 
 ### UX Polish anterior (sesiones previas)
 
@@ -67,6 +78,10 @@
 - `worker-boe`: ok
 - `worker-dgt`: ok
 - `worker-teac`: ok
+- Ultima comprobacion manual en `/status`:
+  - `worker-boe.last_run`: `2026-04-12T15:00:58.214957+00:00`
+  - `worker-dgt.last_run`: `2026-04-12T14:57:50.679063+00:00`
+  - `worker-teac.last_run`: `2026-04-12T14:57:01.122307+00:00`
 - `cron-boe-daily`: `never_run`
 - `cron-dgt-weekly`: `never_run`
 - `cron-teac-weekly`: `never_run`
@@ -86,11 +101,15 @@
   - LIVA: 228 articulos
   - Total: 901 articulos, 941 versiones
 - Modelos AEAT:
-  - 8 modelos en `aeat_modelo`
-  - 22 relaciones en `modelo_articulo` (todas con fuente)
+  - 11 modelos en `aeat_modelo`
+  - 27 relaciones en `modelo_articulo` (todas con fuente)
 - Baseline de enlazado pre-cron:
   - DGT: 21 links, 0 low confidence
   - TEAC: 4 links, 0 low confidence
+- Revalidacion manual `scripts/validate-cron-run.py --after 2026-04-12`:
+  - DGT: 21 links, 0 low confidence
+  - TEAC: 4 links, 0 low confidence
+  - Documentos recientes desde `2026-04-12`: 0
 
 ## Estado de commits
 
@@ -107,7 +126,12 @@
 ### Operativo (plan original)
 1. Esperar la primera ejecucion real de `cron-teac-weekly`
 2. Esperar la primera ejecucion real de `cron-dgt-weekly`
-3. Confirmar via `/status` y `scripts/validate-cron-run.py` que esas corridas no introducen regresiones
+3. Repetir validacion via `/status` y `scripts/validate-cron-run.py` cuando esos cron dejen de estar en `never_run`
+
+### Verificado en esta sesion
+1. `/status` sigue mostrando `cron-dgt-weekly` y `cron-teac-weekly` en `never_run`
+2. Los workers manuales si muestran ejecuciones recientes y estado `ok`
+3. `scripts/validate-cron-run.py --after 2026-04-12` sigue limpio, sin regresiones ni low confidence
 
 ### Proximo ciclo de mejora TEAC/DGT
 1. Consultar casos con `confianza_enlace < 1.0` post-cron

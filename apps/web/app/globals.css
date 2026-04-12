@@ -3,8 +3,11 @@
 @tailwind utilities;
 
 /* Editorial baseline */
-body {
-  @apply bg-stone-50 text-stone-900 antialiased;
+@layer base {
+  body {
+    @apply bg-stone-50 text-stone-900 antialiased selection:bg-stone-200 selection:text-stone-900;
+    scroll-behavior: smooth;
+  }
 }
 
 mark {
