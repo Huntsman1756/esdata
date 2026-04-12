@@ -76,6 +76,36 @@ Estado: `3/3` casos reales corregidos y confirmados en produccion.
 - `cron-dgt-weekly`: sigue `never_run`.
 - `cron-teac-weekly`: sigue `never_run`.
 
+### Baseline pre-cron validado despues del handoff
+
+- Se valido acceso a la base de produccion usando `DATABASE_PUBLIC_URL` publica.
+- Se ejecuto `python scripts/validate-cron-run.py --after 2026-04-12` ya con el script corregido.
+- Baseline agregado previo a la primera corrida real de cron:
+
+| Organismo | Total links | Low confidence | Full confidence | % full |
+| --- | --- | --- | --- | --- |
+| `DGT` | `21` | `0` | `21` | `100.00` |
+| `TEAC` | `4` | `0` | `4` | `100.00` |
+
+- Resultado adicional:
+  - `TEAC` con `confianza_enlace < 1.0`: `0` casos.
+  - `DGT` con `confianza_enlace < 1.0`: `0` casos.
+  - Documentos recientes desde `2026-04-12`: `0` filas.
+
+### Fix util para no repetir el bloqueo
+
+- `scripts/validate-cron-run.py` se ajusto para:
+  - normalizar DSNs tipo SQLAlchemy (`postgresql+psycopg://...`) antes de conectar con `psycopg2`.
+  - evitar el uso de `COUNT(da.id)` en `RECENT_DOCUMENTS`, porque `documento_articulo` no tiene columna `id` en el schema real.
+- Se anadieron pruebas de regresion en `scripts/test_validate_cron_run.py`.
+- Verificacion local del fix:
+
+```bash
+pytest scripts/test_validate_cron_run.py -q
+```
+
+Resultado verificado: `3 passed`.
+
 ### Direccion del producto
 
 - `legalize-es` se reviso como corpus/versionado de legislacion: complementario, no sustituto de `esdata`.
