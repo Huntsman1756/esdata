@@ -1,0 +1,63 @@
+name: Deploy Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+
+env:
+  RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  RAILWAY_PROJECT_ID: 41c53da7-ba65-4308-9713-8c3a5e4e7706
+  RAILWAY_ENVIRONMENT: production
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run test
+      - run: npm run build
+
+  deploy-web:
+    runs-on: ubuntu-latest
+    needs: [test-and-build, lint-and-test-api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy web a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/web --path-as-root --service web --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service web --json
+            railway up apps/web --path-as-root --service web --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
+  lint-and-test-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r apps/api/requirements.txt
+      - run: pytest apps/api/tests/test_smoke.py -q

@@ -75,3 +75,15 @@ startCommand = "python teac.py --run-once"
 
 [services.cron]
 schedule = "0 8 * * 1"
+
+# --- Web (Next.js frontend) ---
+[[services]]
+name = "web"
+rootDirectory = "apps/web"
+
+[services.deploy]
+startCommand = "npm run build && npm start"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

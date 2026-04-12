@@ -7,7 +7,8 @@ esdata/
 |-- .github/
 |   `-- workflows/
 |       |-- ci.yml
-|       `-- deploy.yml
+|       |-- deploy.yml
+|       `-- deploy-web.yml
 |
 |-- apps/
 |   |-- api/
@@ -28,17 +29,50 @@ esdata/
 |   |       |-- conftest.py
 |   |       `-- test_smoke.py
 |   |
-|   `-- workers/
-|       |-- __init__.py
+|   |-- workers/
+|   |   |-- __init__.py
+|   |   |-- Dockerfile
+|   |   |-- boe.py
+|   |   |-- dgt.py
+|   |   |-- teac.py
+|   |   |-- requirements.txt
+|   |   `-- tests/
+|   |       |-- test_teac.py
+|   |       |-- test_dgt.py
+|   |       `-- test_boe.py
+|   |
+|   `-- web/
 |       |-- Dockerfile
-|       |-- boe.py
-|       |-- dgt.py
-|       |-- teac.py
-|       |-- requirements.txt
-|       `-- tests/
-|           |-- test_teac.py
-|           |-- test_dgt.py
-|           `-- test_boe.py
+|       |-- app/
+|       |   |-- layout.tsx
+|       |   |-- page.tsx
+|       |   |-- globals.css
+|       |   |-- buscar/
+|       |   |   `-- page.tsx
+|       |   `-- doctrina/
+|       |       `-- [...referencia]/
+|       |           `-- page.tsx
+|       |-- components/
+|       |   |-- header.tsx
+|       |   |-- tabs.tsx
+|       |   |-- search-box.tsx
+|       |   |-- coverage.tsx
+|       |   |-- operational-status.tsx
+|       |   |-- legislacion-card.tsx
+|       |   |-- doctrina-card.tsx
+|       |   |-- confidence-badge.tsx
+|       |   |-- organism-badge.tsx
+|       |   `-- filters-panel.tsx
+|       |-- lib/
+|       |   |-- api.ts
+|       |   |-- types.ts
+|       |   `-- tests/
+|       |       `-- api.test.ts
+|       |-- package.json
+|       |-- tsconfig.json
+|       |-- tailwind.config.ts
+|       |-- postcss.config.js
+|       `-- next.config.ts
 |
 |-- docs/
 |   |-- postmortem-sprint-2.md
@@ -68,4 +102,5 @@ esdata/
 - La doctrina real DGT se ingiere desde Petete y se enlaza con articulos via `documento_articulo`.
 - La doctrina real TEAC se ingiere desde DYCTEA y se enlaza con articulos via `documento_articulo`.
 - La busqueda full-text depende de `infra/sql/002_fulltext_search.sql`, ya aplicada en produccion.
-- Railway queda configurado para siete servicios de aplicacion: `esdata`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, ademas de `Postgres`.
+- Railway queda configurado para ocho servicios de aplicacion: `api`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, `web`. Ademas de `Postgres`.
+- `apps/web` es el frontend Next.js 15 con buscador, resultados y detalle de doctrina (Fase 1).
