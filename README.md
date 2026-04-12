@@ -63,7 +63,6 @@ Rutas frontend utiles:
 - `apps/workers/tests/test_boe.py`: tests del worker.
 - `apps/workers/tests/test_dgt.py`: tests del worker DGT.
 - `apps/workers/tests/test_teac.py`: tests del worker TEAC.
-- `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina y detalle de articulo.
 - `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina, detalle de articulo y detalle de modelo AEAT.
 - `apps/api/routers/modelos.py`: endpoints `/v1/modelos` para la capa de modelos AEAT.
 - `scripts/seed-modelos.py`: seed idempotente de metadata y relaciones `modelo_articulo` con fuente verificable.

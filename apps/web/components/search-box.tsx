@@ -33,7 +33,11 @@ export default function SearchBox() {
       <noscript>
         <form action="/buscar" method="GET" className="mb-4 flex gap-2">
           <input type="hidden" name="tab" value="legislacion" />
+          <label htmlFor="noscript-search" className="sr-only">
+            Buscar contenido fiscal
+          </label>
           <input
+            id="noscript-search"
             type="text"
             name="q"
             placeholder="Conceptos fiscales, art\u00edculos, doctrina..."
