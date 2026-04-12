@@ -1,6 +1,6 @@
 # Estructura actual del repo
 
-Estado actualizado tras la incorporacion de TEAC en produccion y la mejora de doctrina enlazada.
+Estado actualizado tras la incorporacion de TEAC, del frontend publico y de la capa `Modelos AEAT`.
 
 ```text
 esdata/
@@ -22,6 +22,7 @@ esdata/
 |   |   |   |-- doctrina.py
 |   |   |   |-- legislacion.py
 |   |   |   |-- materias.py
+|   |   |   |-- modelos.py
 |   |   |   `-- status.py
 |   |   |-- services/
 |   |   |   `-- search.py
@@ -54,6 +55,9 @@ esdata/
 |       |   |           `-- page.tsx
 |       |   |-- buscar/
 |       |   |   `-- page.tsx
+|       |   |-- modelo/
+|       |   |   `-- [codigo]/
+|       |   |       `-- page.tsx
 |       |   `-- doctrina/
 |       |       `-- [...referencia]/
 |       |           `-- page.tsx
@@ -66,6 +70,8 @@ esdata/
 |       |   |-- legislacion-card.tsx
 |       |   |-- doctrina-card.tsx
 |       |   |-- confidence-badge.tsx
+|       |   |-- modelo-badge.tsx
+|       |   |-- modelo-list.tsx
 |       |   |-- organism-badge.tsx
 |       |   `-- filters-panel.tsx
 |       |-- lib/
@@ -77,7 +83,7 @@ esdata/
 |       |-- package.json
 |       |-- tsconfig.json
 |       |-- tailwind.config.ts
-|       |-- postcss.config.js
+|       |-- postcss.config.mjs
 |       `-- next.config.ts
 |
 |-- docs/
@@ -89,6 +95,7 @@ esdata/
 |-- infra/
 |   `-- sql/
 |       |-- 002_fulltext_search.sql
+|       |-- 003_modelos_aeat.sql
 |       `-- init.sql
 |
 |-- COMMIT_MSG.txt
@@ -110,6 +117,8 @@ esdata/
 - La busqueda full-text depende de `infra/sql/002_fulltext_search.sql`, ya aplicada en produccion.
 - Railway queda configurado para ocho servicios de aplicacion: `api`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, `web`. Ademas de `Postgres`.
 - `apps/web` es el frontend Next.js 15 con buscador, resultados y detalle de doctrina (Fase 1).
+- `apps/api/routers/modelos.py` expone la capa `Modelos AEAT` sobre `aeat_modelo` y `modelo_articulo`.
+- `apps/web/app/modelo/[codigo]/page.tsx` ya esta implementada y publicada.
 - El frontend publicado vive en el servicio Railway `web` y hoy responde en `https://web-production-ecb5.up.railway.app`.
 - `app/articulo/[norma]/[numero]/page.tsx` ya esta implementada y publicada.
 - La home `app/page.tsx` se fuerza a dinamica para no congelar cobertura/status con un prerender erroneo.

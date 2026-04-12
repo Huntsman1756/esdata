@@ -50,7 +50,11 @@ Rutas frontend utiles:
 - `apps/workers/tests/test_dgt.py`: tests del worker DGT.
 - `apps/workers/tests/test_teac.py`: tests del worker TEAC.
 - `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina y detalle de articulo.
+- `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina, detalle de articulo y detalle de modelo AEAT.
+- `apps/api/routers/modelos.py`: endpoints `/v1/modelos` para la capa de modelos AEAT.
+- `scripts/seed-modelos.py`: seed idempotente de metadata y relaciones `modelo_articulo` con fuente verificable.
 - `infra/sql/init.sql`: esquema base.
+- `infra/sql/003_modelos_aeat.sql`: tablas `aeat_modelo` y `modelo_articulo`.
 - `infra/sql/002_fulltext_search.sql`: migracion de `search_vector`, indices y trigger.
 - `railway.toml`: configuracion monorepo para Railway.
 
@@ -70,6 +74,9 @@ Rutas frontend utiles:
 - `GET /v1/materias/{slug}`
 - `GET /v1/doctrina/buscar`
 - `GET /v1/doctrina/{referencia}`
+- `GET /v1/modelos`
+- `GET /v1/modelos/{codigo}`
+- `GET /v1/modelos/{codigo}/articulos`
 - `GET /mcp`
 
 Rutas frontend:
@@ -78,6 +85,7 @@ Rutas frontend:
 - `GET /buscar`
 - `GET /doctrina/[...referencia]`
 - `GET /articulo/[norma]/[numero]`
+- `GET /modelo/[codigo]`
 
 ## Desarrollo local
 
@@ -131,8 +139,10 @@ npm --prefix apps/web run build
 - Frontend busqueda: `https://web-production-ecb5.up.railway.app/buscar?q=iva&tab=legislacion`
 - Frontend detalle doctrina: `https://web-production-ecb5.up.railway.app/doctrina/00/01454/2023/00/00`
 - Frontend detalle articulo: `https://web-production-ecb5.up.railway.app/articulo/LIVA/104`
+- Frontend detalle modelo: `https://web-production-ecb5.up.railway.app/modelo/100`
 - Doctrina DGT: `https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=DGT`
 - Doctrina TEAC: `https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=TEAC`
+- Modelos AEAT: `https://esdata-production.up.railway.app/v1/modelos`
 - Detalle TEAC enlazado: `https://esdata-production.up.railway.app/v1/doctrina/00/01362/2024/00/00`
 - Normas: `https://esdata-production.up.railway.app/v1/legislacion`
 - Cobertura: `https://esdata-production.up.railway.app/v1/legislacion/cobertura`

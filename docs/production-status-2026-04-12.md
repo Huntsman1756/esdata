@@ -69,7 +69,7 @@
 - /buscar: ok (resultados legislacion y doctrina)
 - /articulo/[norma]/[numero]: ok (detalle + historial + modelos AEAT)
 - /doctrina/[...referencia]: ok (detalle + articulos + modelos AEAT)
-- /modelo/[codigo]: **pendiente de verificar deploy**
+- /modelo/[codigo]: ok (detalle de modelo + articulos + doctrina derivada)
 
 ### Datos
 - Cobertura legislativa:
@@ -95,10 +95,6 @@
 | 37a2f3e | feat(web): Batch D — modelo detail page |
 
 ## Pendiente para la proxima sesion
-
-### Verificacion de deploy web
-- Confirmar que `/modelo/100` responde en produccion
-- Confirmar que sidebars "Modelos AEAT relacionados" aparecen en articulo y doctrina
 
 ### Operativo (plan original)
 1. Esperar la primera ejecucion real de `cron-teac-weekly`
