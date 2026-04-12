@@ -3,8 +3,10 @@ import Link from "next/link";
 import Header from "@/components/header";
 import OrganismBadge from "@/components/organism-badge";
 import ConfidenceBadge from "@/components/confidence-badge";
+import ModeloBadge from "@/components/modelo-badge";
 import { getDoctrina } from "@/lib/api";
 import { formatDocumentType, formatLinkMethod } from "@/lib/labels";
+import { getModelos } from "@/lib/api";
 
 export default async function DoctrinaPage({
   params,
@@ -113,10 +115,72 @@ export default async function DoctrinaPage({
                   )}
                 </div>
               )}
+
+              {/* Modelos AEAT relacionados - derived from linked articles */}
+              <DoctrinaModelos articulos={data.articulos_relacionados} />
             </div>
           </aside>
         </div>
       </main>
     </div>
+  );
+}
+
+async function DoctrinaModelos({
+  articulos,
+}: {
+  articulos: Array<{ norma: string; numero: string }>;
+}) {
+  if (articulos.length === 0) return null;
+
+  let modelosRelacionados: Set<{ codigo: string; nombre: string; periodo: string | null }> = new Set();
+
+  try {
+    const data = await getModelos();
+    for (const m of data.modelos) {
+      try {
+        const res = await fetch(
+          `${process.env.ESDATA_API_BASE_URL || "http://localhost:8000"}/v1/modelos/${m.codigo}/articulos`,
+          { next: { revalidate: 3600 } }
+        );
+        if (!res.ok) continue;
+        const json = await res.json();
+        const hasMatch = json.articulos.some(
+          (a: { norma: string; numero: string }) =>
+            articulos.some(
+              (art) => art.norma === a.norma && art.numero === a.numero
+            )
+        );
+        if (hasMatch) {
+          modelosRelacionados.add(m);
+        }
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  if (modelosRelacionados.size === 0) return null;
+
+  return (
+    <section className="mt-4 pt-4 border-t border-stone-100">
+      <h3 className="mb-2 text-xs font-semibold text-stone-500 uppercase tracking-wide">
+        Modelos AEAT relacionados
+      </h3>
+      <ul className="space-y-2">
+        {[...modelosRelacionados].map((m) => (
+          <li key={m.codigo}>
+            <ModeloBadge
+              codigo={m.codigo}
+              nombre={m.nombre}
+              periodo={m.periodo}
+              href={`/modelo/${m.codigo}`}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

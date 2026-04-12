@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/header";
+import ModeloList from "@/components/modelo-list";
 import { getArticulo, getArticuloHistorial } from "@/lib/api";
 
 export default async function ArticuloPage({
@@ -96,6 +97,7 @@ export default async function ArticuloPage({
                   })}
                 </ul>
               )}
+              <ModeloList articuloNorma={norma} articuloNumero={numero} />
             </div>
           </aside>
         </div>

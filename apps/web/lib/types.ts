@@ -161,3 +161,53 @@ export interface MateriaDetail {
   etiqueta: string;
   articulos: MateriaArticulo[];
 }
+
+// --- Modelos AEAT ---
+export interface ModeloSummary {
+  codigo: string;
+  nombre: string;
+  periodo: string | null;
+  impuesto: string | null;
+  articulos_count: number;
+}
+
+export interface ModelosListResponse {
+  modelos: ModeloSummary[];
+}
+
+export interface ModeloArticulo {
+  norma: string;
+  numero: string;
+  titulo: string | null;
+  casilla: string | null;
+  nota: string | null;
+  fuente: string;
+  url_fuente: string | null;
+}
+
+export interface DoctrinaViaArticulo {
+  norma: string;
+  numero: string;
+}
+
+export interface DoctrinaRelacionada {
+  referencia: string;
+  organismo_emisor: string;
+  fecha: string | null;
+  via_articulos: DoctrinaViaArticulo[];
+}
+
+export interface ModeloDetail {
+  codigo: string;
+  nombre: string;
+  periodo: string | null;
+  impuesto: string | null;
+  url_info: string | null;
+  articulos: ModeloArticulo[];
+  doctrina_relacionada: DoctrinaRelacionada[];
+}
+
+export interface ModeloArticulosResponse {
+  codigo: string;
+  articulos: ModeloArticulo[];
+}

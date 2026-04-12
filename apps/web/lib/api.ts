@@ -7,6 +7,9 @@ import type {
   DoctrinaDetail,
   ArticuloDetail,
   ArticuloHistorial,
+  ModelosListResponse,
+  ModeloDetail,
+  ModeloArticulosResponse,
 } from "./types";
 
 // The API base is a server-side-only env var.
@@ -102,4 +105,19 @@ export async function searchDoctrina(
 
 export async function getDoctrina(referencia: string): Promise<DoctrinaDetail> {
   return fetchApi<DoctrinaDetail>(`/v1/doctrina/${referencia}`);
+}
+
+// --- Modelos AEAT ---
+export async function getModelos(): Promise<ModelosListResponse> {
+  return fetchApi<ModelosListResponse>("/v1/modelos");
+}
+
+export async function getModelo(codigo: string): Promise<ModeloDetail> {
+  return fetchApi<ModeloDetail>(`/v1/modelos/${codigo}`);
+}
+
+export async function getModeloArticulos(
+  codigo: string
+): Promise<ModeloArticulosResponse> {
+  return fetchApi<ModeloArticulosResponse>(`/v1/modelos/${codigo}/articulos`);
 }
