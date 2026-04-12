@@ -17,12 +17,35 @@
 
 ## Lo hecho en esta sesion
 
+### Cierre de PRs y rollout parcial del slice `ITPAJD`
+
+- Mergeadas en `main` las PRs:
+  - `#21` `fix/cron-worker-observability`
+  - `#22` `feat/itpajd-classification`
+  - `#23` `feat/web-ui-refresh`
+- La migracion `infra/sql/004_norma_classification.sql` quedo aplicada en Postgres real.
+- El smoke posterior confirmo que la clasificacion de `norma` funciona, pero `ITPAJD` sigue sin estar ingerida en produccion.
+- Se comprobo en Railway que el problema no era ya la variable de entorno sino el fetch de metadata contra BOE para `ITPAJD`.
+
+### Bloqueador activo de produccion: `ITPAJD`
+
+- `worker-boe` se probo temporalmente con `BOE_LEGISLACION_NORMAS=ITPAJD` para aislar el slice.
+- El servicio fallo con:
+
+```text
+httpx.HTTPStatusError: Client error '404 Not Found' for url 'https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-1993-253/metadatos'
+```
+
+- Se restauro la configuracion estable del worker en Railway a:
+  - `BOE_LEGISLACION_NORMAS=LIVA,LIRPF,LIS,LGT`
+- Con esto, la produccion queda estable, pero `ITPAJD` no debe considerarse verificada todavia.
+
 ### Slice ITPAJD pendiente de verificacion desplegada
 
 - `apps/web/lib/types.ts`: `Norma` alineada con `tipo_documento` y `estado_cobertura`.
 - `apps/web/app/page.tsx`: home actualizada para reflejar el soporte actual del slice con `ITPAJD` y sacar `ITP y AJD` de la lista de trabajo futuro.
 - `README.md`: cobertura del slice actualizada para incluir `ITPAJD`, dejando explicito que la verificacion desplegada sigue pendiente.
-- Estado actual: cambios alineados en tipos, copy y configuracion del slice; falta ejecutar el smoke de Task 5 en Railway antes de marcar `ITPAJD` como verificado en produccion.
+- Estado actual: cambios alineados en tipos, copy y configuracion del slice; el bloqueo real esta en la API BOE de metadata para `BOE-A-1993-253`, no en Railway ni en la migracion SQL.
 
 ### Capa Modelos AEAT — Fase 1
 
@@ -85,6 +108,8 @@
 - `cron-boe-daily`: `never_run`
 - `cron-dgt-weekly`: `never_run`
 - `cron-teac-weekly`: `never_run`
+- Configuracion estable actual de `worker-boe` en Railway:
+  - `BOE_LEGISLACION_NORMAS=LIVA,LIRPF,LIS,LGT`
 
 ### Frontend
 - Home: ok (cobertura + estado + busqueda)
@@ -100,6 +125,7 @@
   - LIS: 180 articulos
   - LIVA: 228 articulos
   - Total: 901 articulos, 941 versiones
+- `ITPAJD`: no disponible aun en produccion por `404` del endpoint de metadata BOE para `BOE-A-1993-253`
 - Modelos AEAT:
   - 11 modelos en `aeat_modelo`
   - 27 relaciones en `modelo_articulo` (todas con fuente)
@@ -122,6 +148,12 @@
 | 9964414 | feat(aeat-modelos): add models 190 and 196 with verified sources |
 
 ## Pendiente para la proxima sesion
+
+### Prioridad inmediata
+1. Corregir el ingestion path de `ITPAJD` en `apps/workers/boe.py`
+2. Revalidar localmente con tests del worker y smoke API
+3. Rehabilitar `ITPAJD` en `BOE_LEGISLACION_NORMAS` en Railway
+4. Ejecutar smoke final de produccion para `ITPAJD`
 
 ### Operativo (plan original)
 1. Esperar la primera ejecucion real de `cron-teac-weekly`
