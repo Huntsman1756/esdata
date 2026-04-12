@@ -100,15 +100,15 @@ export default async function DoctrinaPage({
                 <div className="mt-4 border-t border-stone-100 pt-3">
                   {data.articulos_relacionados.some((a) => a.confianza_enlace >= 1.0) ? (
                     <p className="text-xs text-green-700">
-                      Enlace de confianza máxima
+                      Todos los artículos vinculados tienen enlace de confianza máxima.
                     </p>
                   ) : data.articulos_relacionados.some((a) => a.confianza_enlace >= 0.85) ? (
                     <p className="text-xs text-amber-700">
-                      Enlace probable
+                      Los artículos vinculados se han enlazado con confianza probable.
                     </p>
                   ) : (
                     <p className="text-xs text-stone-500">
-                      Enlace por revisar
+                      Los artículos vinculados requieren revisión manual.
                     </p>
                   )}
                 </div>

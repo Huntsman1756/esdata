@@ -43,10 +43,15 @@ esdata/
 |   |
 |   `-- web/
 |       |-- Dockerfile
+|       |-- .env.example
 |       |-- app/
 |       |   |-- layout.tsx
 |       |   |-- page.tsx
 |       |   |-- globals.css
+|       |   |-- articulo/
+|       |   |   `-- [norma]/
+|       |   |       `-- [numero]/
+|       |   |           `-- page.tsx
 |       |   |-- buscar/
 |       |   |   `-- page.tsx
 |       |   `-- doctrina/
@@ -65,6 +70,7 @@ esdata/
 |       |   `-- filters-panel.tsx
 |       |-- lib/
 |       |   |-- api.ts
+|       |   |-- labels.ts
 |       |   |-- types.ts
 |       |   `-- tests/
 |       |       `-- api.test.ts
@@ -104,3 +110,6 @@ esdata/
 - La busqueda full-text depende de `infra/sql/002_fulltext_search.sql`, ya aplicada en produccion.
 - Railway queda configurado para ocho servicios de aplicacion: `api`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, `web`. Ademas de `Postgres`.
 - `apps/web` es el frontend Next.js 15 con buscador, resultados y detalle de doctrina (Fase 1).
+- El frontend publicado vive en el servicio Railway `web` y hoy responde en `https://web-production-ecb5.up.railway.app`.
+- `app/articulo/[norma]/[numero]/page.tsx` ya esta implementada y publicada.
+- La home `app/page.tsx` se fuerza a dinamica para no congelar cobertura/status con un prerender erroneo.

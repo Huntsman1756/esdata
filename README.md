@@ -6,6 +6,7 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 
 - Produccion operativa en Railway.
 - API publica en `https://esdata-production.up.railway.app`.
+- Frontend publico en `https://web-production-ecb5.up.railway.app`.
 - Ingesta BOE activa con cobertura real para `LGT`, `LIRPF`, `LIS` y `LIVA`.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
@@ -23,6 +24,18 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - `web`: Frontend Next.js 15 con buscador fiscal, resultados y detalle de doctrina (Fase 1).
 - `Postgres`: base de datos principal.
 
+## Superficies publicas
+
+- Frontend: `https://web-production-ecb5.up.railway.app`
+- API: `https://esdata-production.up.railway.app`
+
+Rutas frontend utiles:
+
+- `GET /`
+- `GET /buscar?q=iva&tab=legislacion`
+- `GET /doctrina/00/01454/2023/00/00`
+- `GET /articulo/LIVA/104`
+
 ## Estructura real del repo
 
 - `apps/api`: API FastAPI.
@@ -36,6 +49,7 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - `apps/workers/tests/test_boe.py`: tests del worker.
 - `apps/workers/tests/test_dgt.py`: tests del worker DGT.
 - `apps/workers/tests/test_teac.py`: tests del worker TEAC.
+- `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina y detalle de articulo.
 - `infra/sql/init.sql`: esquema base.
 - `infra/sql/002_fulltext_search.sql`: migracion de `search_vector`, indices y trigger.
 - `railway.toml`: configuracion monorepo para Railway.
@@ -57,6 +71,13 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - `GET /v1/doctrina/buscar`
 - `GET /v1/doctrina/{referencia}`
 - `GET /mcp`
+
+Rutas frontend:
+
+- `GET /`
+- `GET /buscar`
+- `GET /doctrina/[...referencia]`
+- `GET /articulo/[norma]/[numero]`
 
 ## Desarrollo local
 
@@ -83,6 +104,12 @@ npm --prefix apps/web run test
 npm --prefix apps/web run build
 ```
 
+## Deploy automatico
+
+- `.github/workflows/deploy.yml`: despliega API, workers y cron.
+- `.github/workflows/deploy-web.yml`: valida y despliega `apps/web` al servicio `web` de Railway.
+- `railway.toml`: define la topologia monorepo de servicios.
+
 ## Produccion
 
 ### Variables importantes
@@ -100,6 +127,10 @@ npm --prefix apps/web run build
 
 - Health API: `https://esdata-production.up.railway.app/health`
 - Estado agregado: `https://esdata-production.up.railway.app/status`
+- Frontend home: `https://web-production-ecb5.up.railway.app`
+- Frontend busqueda: `https://web-production-ecb5.up.railway.app/buscar?q=iva&tab=legislacion`
+- Frontend detalle doctrina: `https://web-production-ecb5.up.railway.app/doctrina/00/01454/2023/00/00`
+- Frontend detalle articulo: `https://web-production-ecb5.up.railway.app/articulo/LIVA/104`
 - Doctrina DGT: `https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=DGT`
 - Doctrina TEAC: `https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=TEAC`
 - Detalle TEAC enlazado: `https://esdata-production.up.railway.app/v1/doctrina/00/01362/2024/00/00`
