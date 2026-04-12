@@ -137,7 +137,10 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     )
 
 
-def run_sync(seed_urls: list[str] | None = None) -> dict[str, int]:
+def run_sync(
+    seed_urls: list[str] | None = None,
+    worker_name: str = "worker-teac",
+) -> dict[str, int]:
     urls = seed_urls or SEED_URLS
     processed = 0
     stored = 0
@@ -167,7 +170,7 @@ def run_sync(seed_urls: list[str] | None = None) -> dict[str, int]:
 
         log_sync(
             conn,
-            "worker-teac",
+            worker_name,
             "ok",
             documentos_processed=processed,
             documentos_upserted=stored,
@@ -195,7 +198,7 @@ if __name__ == "__main__":
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 
     if args.run_once:
-        result = run_sync()
+        result = run_sync(worker_name="cron-teac-weekly")
         print(
             f"[run-once] Documentos procesados: {result['processed']}, almacenados: {result['stored']}"
         )

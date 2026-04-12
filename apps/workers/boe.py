@@ -733,7 +733,10 @@ def _ensure_schema(conn) -> None:
         )
 
 
-def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
+def run_sync(
+    codigos: list[str] | None = None,
+    worker_name: str = "worker-boe",
+) -> dict[str, int]:
     target_codes = codigos or [
         code.strip()
         for code in os.getenv("BOE_LEGISLACION_NORMAS", "LIVA").split(",")
@@ -771,7 +774,7 @@ def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
                 doctrina_linked = auto_link_doctrina(conn)
                 log_sync(
                     conn,
-                    "worker-boe",
+                    worker_name,
                     "ok",
                     bloques=bloques_fetched,
                     articulos=articulos_upserted,
@@ -784,7 +787,7 @@ def run_sync(codigos: list[str] | None = None) -> dict[str, int]:
         with engine.begin() as conn:
             log_sync(
                 conn,
-                "worker-boe",
+                worker_name,
                 "error",
                 bloques=bloques_fetched,
                 articulos=articulos_upserted,
@@ -846,7 +849,7 @@ if __name__ == "__main__":
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 
     if args.run_once:
-        result = run_sync()
+        result = run_sync(worker_name="cron-boe-daily")
         print(
             f"[run-once] Bloques: {result['bloques']}, Artículos: {result['articulos']}"
         )
