@@ -3,6 +3,8 @@ import SearchBox from "@/components/search-box";
 import Coverage from "@/components/coverage";
 import OperationalStatus from "@/components/operational-status";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-16">
