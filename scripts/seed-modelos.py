@@ -75,6 +75,20 @@ MODELOS = [
         "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-valor-anadido-iva/modelo-303/index.shtml",
     },
     {
+        "codigo": "190",
+        "nombre": "IRPF Retenciones — rendimientos trabajo y actividades",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-190.html",
+    },
+    {
+        "codigo": "196",
+        "nombre": "IRPF Resumen anual retenciones capital mobiliario",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-196.html",
+    },
+    {
         "codigo": "390",
         "nombre": "IVA Resumen anual",
         "periodo": "anual",
@@ -218,7 +232,71 @@ MODELO_ARTICULO_DATA = [
         "Instrucciones Modelo 390 2025",
         "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-valor-anadido-iva/modelo-390/instrucciones/index.shtml",
     ),
+
+    # ------------------------------------------------------------------
+    # Modelo 190 — IRPF Retenciones rendimientos trabajo y actividades
+    # Fuente: Instrucciones Modelo 190 (PDF AEAT)
+    # ------------------------------------------------------------------
+    (
+        "190", "LIRPF", "99",
+        None, "Obligación de retener rendimientos trabajo",
+        "Instrucciones Modelo 190 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-190/instrucciones/index.shtml",
+    ),
+    (
+        "190", "LIRPF", "100",
+        None, "Ingresos a cuenta",
+        "Instrucciones Modelo 190 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-190/instrucciones/index.shtml",
+    ),
+    (
+        "190", "LIRPF", "101",
+        None, "Retenciones actividades económicas",
+        "Instrucciones Modelo 190 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-190/instrucciones/index.shtml",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 196 — IRPF Resumen anual retenciones capital mobiliario
+    # Fuente: Instrucciones Modelo 196 (PDF AEAT)
+    # ------------------------------------------------------------------
+    (
+        "196", "LIRPF", "22",
+        None, "Retenciones rendimientos capital mobiliario",
+        "Instrucciones Modelo 196 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-196/instrucciones/index.shtml",
+    ),
+    (
+        "196", "LIRPF", "23",
+        None, "Retenciones dividendos y participaciones",
+        "Instrucciones Modelo 196 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-196/instrucciones/index.shtml",
+    ),
+    (
+        "196", "LIRPF", "25",
+        None, "Retenciones ganancias patrimoniales mobiliario",
+        "Instrucciones Modelo 196 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-196/instrucciones/index.shtml",
+    ),
 ]
+
+# ---------------------------------------------------------------------------
+# Modelos excluidos de Fase 1 (documentación para no perder contexto)
+#
+# 198: Declaración anual operaciones con activos financieros
+#      Existe, pero relación con artículos LIRPF menos directa.
+#      Aparcado hasta Fase 2.
+#
+# 289: Declaración informativa cuentas financieras asistencia mutua
+#      Intercambio de información entre jurisdicciones, no encaja en
+#      la vertical fiscal IRPF/IVA de esta fase.
+#
+# 290: No verificado como modelo independiente en la sede AEAT.
+#      Aparcado hasta confirmar existencia y número exacto.
+#
+# 296: Retenciones IRNR (Impuesto Renta No Residentes)
+#      Otro impuesto (IRNR), fuera de foco por ahora.
+# ---------------------------------------------------------------------------
 
 
 def get_db_url(args_db_url: str | None) -> str:
