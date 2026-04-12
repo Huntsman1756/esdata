@@ -26,7 +26,9 @@ STATEMENTS = [
         eli_uri TEXT UNIQUE,
         jurisdiccion TEXT NOT NULL,
         tipo_fuente TEXT NOT NULL,
+        tipo_documento TEXT NOT NULL,
         ambito TEXT NOT NULL,
+        estado_cobertura TEXT NOT NULL,
         vigente_desde TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
@@ -108,8 +110,33 @@ STATEMENTS = [
     """,
     # --- Normas (metadatos de referencia) ---
     """
-    INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
-    VALUES ('LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740', 'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe', 'fiscal', '1993-01-01')
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740',
+        'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe',
+        'ley', 'tributario', 'ingestada', '1993-01-01'
+    )
+    """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'ITPAJD',
+        'Texto refundido del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados',
+        'BOE-A-1993-253',
+        'https://www.boe.es/eli/es/rdlg/1993/09/24/1/con',
+        'es',
+        'boe',
+        'real_decreto_legislativo',
+        'tributario',
+        'ingestada',
+        '1993-09-25'
+    )
     """,
     # --- LIVA 91: fixture de test con texto realista del BOE ---
     # Este no es un placeholder de producción; el worker BOE ingesta el texto real.
@@ -128,6 +155,22 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE n.codigo = 'LIVA' AND a.numero = '91'
+    """,
+    # --- ITPAJD 7: fixture para validar la nueva cobertura ---
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '7', 'Transmisiones patrimoniales sujetas', 'articulo'
+    FROM norma WHERE codigo = 'ITPAJD'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 7. Son transmisiones patrimoniales sujetas:
+1. Las transmisiones onerosas por actos inter vivos de toda clase de bienes y derechos.
+2. La constitucion de derechos reales, prestamos, fianzas, arrendamientos y pensiones.',
+    '1993-09-25', NULL, 'itpajd-a7'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'ITPAJD' AND a.numero = '7'
     """,
     # --- Materias (taxonomía curada) ---
     """

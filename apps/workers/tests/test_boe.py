@@ -2,8 +2,9 @@ import sys
 import subprocess
 from pathlib import Path
 import httpx
+from unittest.mock import patch
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -43,8 +44,166 @@ def test_parse_metadata_maps_boe_payload():
         eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
         jurisdiccion="es",
         tipo_fuente="boe",
-        ambito="fiscal",
+        tipo_documento="ley",
+        ambito="tributario",
+        estado_cobertura="ingestada",
         vigente_desde="1993-01-01",
+    )
+
+
+def test_parse_metadata_uses_per_code_classification_for_itpajd():
+    payload = {
+        "data": [
+            {
+                "titulo": "Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
+                "fecha_vigencia": "19930925",
+                "url_eli": "https://www.boe.es/eli/es/rdlg/1993/09/24/1",
+            }
+        ]
+    }
+
+    metadata = parse_metadata("ITPAJD", "BOE-A-1993-253", payload)
+
+    assert metadata == NormaMetadata(
+        codigo="ITPAJD",
+        boe_id="BOE-A-1993-253",
+        titulo="Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
+        eli_uri="https://www.boe.es/eli/es/rdlg/1993/09/24/1",
+        jurisdiccion="es",
+        tipo_fuente="boe",
+        tipo_documento="real_decreto_legislativo",
+        ambito="tributario",
+        estado_cobertura="ingestada",
+        vigente_desde="1993-09-25",
+    )
+
+
+def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
+    payload = {
+        "data": [
+            {
+                "titulo": "Ley 58/2003, de 17 de diciembre, General Tributaria.",
+                "fecha_vigencia": "20040701",
+                "url_eli": "https://www.boe.es/eli/es/l/2003/12/17/58",
+            }
+        ]
+    }
+
+    metadata = parse_metadata("LGT", "BOE-A-2003-23186", payload)
+
+    assert metadata.ambito == "tributario"
+    assert metadata.tipo_documento == "ley"
+
+
+def test_default_normas_include_itpajd():
+    from boe import DEFAULT_NORMAS
+
+    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-253"
+
+
+def test_run_sync_ingests_itpajd_article_and_version():
+    from boe import run_sync
+
+    class FakeResponse:
+        def __init__(self, *, json_data=None, text_data=""):
+            self._json_data = json_data
+            self.text = text_data
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._json_data
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, headers=None):
+            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+                return FakeResponse(
+                    json_data={
+                        "data": [
+                            {
+                                "titulo": "Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
+                                "fecha_vigencia": "19930925",
+                                "url_eli": "https://www.boe.es/eli/es/rdlg/1993/09/24/1",
+                            }
+                        ]
+                    }
+                )
+            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
+                return FakeResponse(
+                    json_data={
+                        "data": [
+                            {
+                                "bloque": [
+                                    {
+                                        "id": "a7",
+                                        "titulo": "Artículo 7",
+                                        "fecha_actualizacion": "20240101",
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                )
+            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
+                return FakeResponse(
+                    text_data="""
+                    <response>
+                      <data>
+                        <bloque id="a7" tipo="precepto" titulo="Artículo 7">
+                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                            <p class="articulo">Artículo 7. Operaciones societarias.</p>
+                            <p class="parrafo">Uno. Son operaciones societarias sujetas las previstas en esta norma.</p>
+                          </version>
+                        </bloque>
+                      </data>
+                    </response>
+                    """
+                )
+            raise AssertionError(f"Unexpected URL requested: {url}")
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with patch("boe.httpx.Client", return_value=FakeClient()):
+        with patch("boe.create_engine", return_value=engine):
+            result = run_sync(["ITPAJD"])
+
+    assert result == {"bloques": 1, "articulos": 1}
+
+    with engine.begin() as conn:
+        norma = conn.execute(
+            text(
+                "SELECT codigo, boe_id, tipo_documento, ambito, estado_cobertura FROM norma WHERE codigo = 'ITPAJD'"
+            )
+        ).fetchone()
+        articulo = conn.execute(
+            text(
+                "SELECT a.numero, a.tipo FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'ITPAJD'"
+            )
+        ).fetchone()
+        version = conn.execute(
+            text(
+                "SELECT va.boe_bloque_id, va.texto FROM version_articulo va JOIN articulo a ON a.id = va.articulo_id JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'ITPAJD'"
+            )
+        ).fetchone()
+
+    assert norma == (
+        "ITPAJD",
+        "BOE-A-1993-253",
+        "real_decreto_legislativo",
+        "tributario",
+        "ingestada",
+    )
+    assert articulo == ("7", "articulo")
+    assert version == (
+        "a7",
+        "Artículo 7. Operaciones societarias.\nUno. Son operaciones societarias sujetas las previstas en esta norma.",
     )
 
 
@@ -63,7 +222,9 @@ def test_upsert_norma_inserts_record():
                     eli_uri TEXT UNIQUE,
                     jurisdiccion TEXT NOT NULL,
                     tipo_fuente TEXT NOT NULL,
+                    tipo_documento TEXT NOT NULL,
                     ambito TEXT NOT NULL,
+                    estado_cobertura TEXT NOT NULL,
                     vigente_desde TEXT NOT NULL
                 )
                 """
@@ -79,14 +240,45 @@ def test_upsert_norma_inserts_record():
                 eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
                 jurisdiccion="es",
                 tipo_fuente="boe",
-                ambito="fiscal",
+                tipo_documento="ley",
+                ambito="tributario",
+                estado_cobertura="ingestada",
                 vigente_desde="1993-01-01",
             ),
         )
 
-        row = conn.execute(text("SELECT codigo, boe_id, ambito FROM norma")).fetchone()
+        row = conn.execute(
+            text(
+                "SELECT codigo, boe_id, tipo_documento, ambito, estado_cobertura FROM norma"
+            )
+        ).fetchone()
 
-    assert row == ("LIVA", "BOE-A-1992-28740", "fiscal")
+    assert row == ("LIVA", "BOE-A-1992-28740", "ley", "tributario", "ingestada")
+
+
+def test_ensure_schema_and_upsert_norma_write_classification_fields():
+    engine = create_engine("sqlite:///:memory:", future=True)
+    payload = {
+        "data": [
+            {
+                "titulo": "Ley 37/1992, de 28 de diciembre, del Impuesto sobre el Valor Anadido.",
+                "fecha_vigencia": "19930101",
+                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
+            }
+        ]
+    }
+
+    with engine.begin() as conn:
+        _ensure_schema(conn)
+        upsert_norma(conn, parse_metadata("LIVA", "BOE-A-1992-28740", payload))
+
+        row = conn.execute(
+            text(
+                "SELECT codigo, tipo_documento, ambito, estado_cobertura FROM norma WHERE codigo = 'LIVA'"
+            )
+        ).fetchone()
+
+    assert row == ("LIVA", "ley", "tributario", "ingestada")
 
 
 def test_parse_index_returns_blocks():
@@ -157,7 +349,9 @@ def test_upsert_articulo_inserts_article_and_version():
                     eli_uri TEXT UNIQUE,
                     jurisdiccion TEXT NOT NULL,
                     tipo_fuente TEXT NOT NULL,
+                    tipo_documento TEXT NOT NULL,
                     ambito TEXT NOT NULL,
+                    estado_cobertura TEXT NOT NULL,
                     vigente_desde TEXT NOT NULL
                 )
                 """
@@ -201,7 +395,9 @@ def test_upsert_articulo_inserts_article_and_version():
                 eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
                 jurisdiccion="es",
                 tipo_fuente="boe",
-                ambito="fiscal",
+                tipo_documento="ley",
+                ambito="tributario",
+                estado_cobertura="ingestada",
                 vigente_desde="1993-01-01",
             ),
         )
@@ -243,7 +439,9 @@ def test_upsert_articulo_replaces_seed_same_vigencia():
                     eli_uri TEXT UNIQUE,
                     jurisdiccion TEXT NOT NULL,
                     tipo_fuente TEXT NOT NULL,
+                    tipo_documento TEXT NOT NULL,
                     ambito TEXT NOT NULL,
+                    estado_cobertura TEXT NOT NULL,
                     vigente_desde TEXT NOT NULL
                 )
                 """
@@ -287,7 +485,9 @@ def test_upsert_articulo_replaces_seed_same_vigencia():
                 eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
                 jurisdiccion="es",
                 tipo_fuente="boe",
-                ambito="fiscal",
+                tipo_documento="ley",
+                ambito="tributario",
+                estado_cobertura="ingestada",
                 vigente_desde="1993-01-01",
             ),
         )
@@ -365,7 +565,8 @@ def _setup_link_test_db():
                 codigo TEXT UNIQUE NOT NULL, titulo TEXT NOT NULL,
                 boe_id TEXT UNIQUE NOT NULL, eli_uri TEXT UNIQUE,
                 jurisdiccion TEXT NOT NULL, tipo_fuente TEXT NOT NULL,
-                ambito TEXT NOT NULL, vigente_desde TEXT NOT NULL
+                tipo_documento TEXT NOT NULL, ambito TEXT NOT NULL,
+                estado_cobertura TEXT NOT NULL, vigente_desde TEXT NOT NULL
             )
         """)
         )
@@ -429,20 +630,20 @@ def _setup_link_test_db():
         # Seed norma + article
         c.execute(
             text(
-                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde) "
-                "VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')"
+                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde) "
+                "VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01')"
             )
         )
         c.execute(
             text(
-                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde) "
-                "VALUES ('LIS', 'Ley IS', 'BOE-A-2014-12328', NULL, 'es', 'boe', 'fiscal', '2015-01-01')"
+                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde) "
+                "VALUES ('LIS', 'Ley IS', 'BOE-A-2014-12328', NULL, 'es', 'boe', 'ley', 'tributario', 'ingestada', '2015-01-01')"
             )
         )
         c.execute(
             text(
-                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde) "
-                "VALUES ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', NULL, 'es', 'boe', 'fiscal', '2004-01-01')"
+                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde) "
+                "VALUES ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', NULL, 'es', 'boe', 'ley', 'tributario', 'ingestada', '2004-01-01')"
             )
         )
         c.execute(
@@ -838,6 +1039,160 @@ def test_ensure_schema_creates_core_tables_on_empty_db():
     assert {"norma", "articulo", "version_articulo", "sync_log"} <= table_names
 
 
+def test_ensure_schema_upgrades_legacy_norma_before_upsert():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE version_articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    articulo_id INTEGER NOT NULL,
+                    texto TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL,
+                    vigente_hasta TEXT,
+                    boe_bloque_id TEXT
+                )
+                """
+            )
+        )
+
+        _ensure_schema(conn)
+        upsert_norma(
+            conn,
+            NormaMetadata(
+                codigo="LIVA",
+                boe_id="BOE-A-1992-28740",
+                titulo="Ley 37/1992",
+                eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
+                jurisdiccion="es",
+                tipo_fuente="boe",
+                tipo_documento="ley",
+                ambito="tributario",
+                estado_cobertura="ingestada",
+                vigente_desde="1993-01-01",
+            ),
+        )
+
+        row = conn.execute(
+            text(
+                "SELECT codigo, tipo_documento, ambito, estado_cobertura FROM norma WHERE codigo = 'LIVA'"
+            )
+        ).fetchone()
+
+    assert row == ("LIVA", "ley", "tributario", "ingestada")
+
+
+def test_ensure_schema_backfills_existing_legacy_norma_rows():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LGT', 'Ley 58/2003', 'BOE-A-2003-23186', NULL, 'es', 'boe', 'fiscal', '2004-01-01')
+                """
+            )
+        )
+
+        _ensure_schema(conn)
+
+        row = conn.execute(
+            text(
+                """
+                SELECT codigo, tipo_documento, ambito, estado_cobertura
+                FROM norma
+                WHERE codigo = 'LGT'
+                """
+            )
+        ).fetchone()
+
+    assert row == ("LGT", "ley", "tributario", "ingestada")
+
+
+def test_ensure_schema_skips_norma_backfill_after_initial_upgrade():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LGT', 'Ley 58/2003', 'BOE-A-2003-23186', NULL, 'es', 'boe', 'fiscal', '2004-01-01')
+                """
+            )
+        )
+
+        _ensure_schema(conn)
+
+        statements: list[str] = []
+
+        def capture_sql(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", capture_sql)
+        try:
+            _ensure_schema(conn)
+        finally:
+            event.remove(engine, "before_cursor_execute", capture_sql)
+
+    normalized = [statement.lower().strip() for statement in statements]
+    assert not any(statement.startswith("update norma") for statement in normalized)
+
+
 def test_schema_statements_use_serial_ids_on_postgres():
     statements = _schema_statements("postgresql")
     assert "id SERIAL PRIMARY KEY" in statements[0]
@@ -848,6 +1203,13 @@ def test_schema_statements_use_integer_ids_on_sqlite():
     statements = _schema_statements("sqlite")
     assert "id INTEGER PRIMARY KEY" in statements[0]
     assert "id INTEGER PRIMARY KEY" in statements[-1]
+
+
+def test_schema_statements_include_norma_classification_columns():
+    norma_stmt = _schema_statements("sqlite")[0]
+
+    assert "tipo_documento TEXT NOT NULL" in norma_stmt
+    assert "estado_cobertura TEXT NOT NULL" in norma_stmt
 
 
 def test_ensure_sync_log_table_creates_log_table_independently():

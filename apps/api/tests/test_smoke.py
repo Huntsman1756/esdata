@@ -126,6 +126,27 @@ async def test_legislacion_lista_articulos_por_norma():
 
 
 @pytest.mark.asyncio
+async def test_legislacion_expone_itpajd_con_clasificacion():
+    async with _client() as c:
+        lista = await c.get("/v1/legislacion")
+        detalle = await c.get("/v1/legislacion/ITPAJD")
+        articulo = await c.get("/v1/legislacion/ITPAJD/articulos/7")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert articulo.status_code == 200
+
+    norma = next(item for item in lista.json()["normas"] if item["codigo"] == "ITPAJD")
+    assert norma["tipo_documento"] == "real_decreto_legislativo"
+    assert norma["ambito"] == "tributario"
+    assert norma["estado_cobertura"] == "ingestada"
+
+    assert detalle.json()["tipo_documento"] == "real_decreto_legislativo"
+    assert detalle.json()["estado_cobertura"] == "ingestada"
+    assert "transmisiones" in articulo.json()["texto"].lower()
+
+
+@pytest.mark.asyncio
 async def test_legislacion_lista_articulos_filtra_por_tipo():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos?tipo=articulo")

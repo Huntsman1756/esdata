@@ -12,7 +12,7 @@ async def list_legislacion():
     rows = db.execute(
         text(
             """
-            SELECT codigo, titulo, jurisdiccion, tipo_fuente, ambito
+            SELECT codigo, titulo, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura
             FROM norma
             ORDER BY codigo
             """
@@ -65,7 +65,7 @@ async def get_norma(codigo: str):
         db.execute(
             text(
                 """
-            SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito
+            SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura
             FROM norma
             WHERE codigo = :codigo
             """

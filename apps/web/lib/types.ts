@@ -41,7 +41,9 @@ export interface Norma {
   titulo: string;
   jurisdiccion: string;
   tipo_fuente: string;
+  tipo_documento: string;
   ambito: string;
+  estado_cobertura: string;
 }
 
 export interface NormasResponse {

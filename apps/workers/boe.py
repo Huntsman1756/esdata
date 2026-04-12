@@ -24,6 +24,18 @@ DEFAULT_NORMAS = {
     "LIRPF": "BOE-A-2006-20764",
     "LIS": "BOE-A-2014-12328",
     "LGT": "BOE-A-2003-23186",
+    "ITPAJD": "BOE-A-1993-253",
+}
+
+NORMA_CLASSIFICATIONS = {
+    "LIVA": {"tipo_documento": "ley", "ambito": "tributario"},
+    "LIRPF": {"tipo_documento": "ley", "ambito": "tributario"},
+    "LIS": {"tipo_documento": "ley", "ambito": "tributario"},
+    "LGT": {"tipo_documento": "ley", "ambito": "tributario"},
+    "ITPAJD": {
+        "tipo_documento": "real_decreto_legislativo",
+        "ambito": "tributario",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -51,7 +63,9 @@ def _schema_statements(dialect: str) -> list[str]:
             eli_uri TEXT UNIQUE,
             jurisdiccion TEXT NOT NULL,
             tipo_fuente TEXT NOT NULL,
+            tipo_documento TEXT NOT NULL,
             ambito TEXT NOT NULL,
+            estado_cobertura TEXT NOT NULL,
             vigente_desde DATE NOT NULL,
             created_at TIMESTAMPTZ DEFAULT {timestamp_default}
         )
@@ -161,7 +175,9 @@ class NormaMetadata:
     eli_uri: str | None
     jurisdiccion: str
     tipo_fuente: str
+    tipo_documento: str
     ambito: str
+    estado_cobertura: str
     vigente_desde: str
 
 
@@ -185,6 +201,7 @@ class BloqueTexto:
 
 def parse_metadata(codigo: str, boe_id: str, payload: dict) -> NormaMetadata:
     item = payload["data"][0]
+    classification = NORMA_CLASSIFICATIONS[codigo]
     return NormaMetadata(
         codigo=codigo,
         boe_id=boe_id,
@@ -192,7 +209,9 @@ def parse_metadata(codigo: str, boe_id: str, payload: dict) -> NormaMetadata:
         eli_uri=item.get("url_eli"),
         jurisdiccion="es",
         tipo_fuente="boe",
-        ambito="fiscal",
+        tipo_documento=classification["tipo_documento"],
+        ambito=classification["ambito"],
+        estado_cobertura="ingestada",
         vigente_desde=_yyyymmdd_to_iso(item["fecha_vigencia"]),
     )
 
@@ -265,15 +284,23 @@ def upsert_norma(conn, metadata: NormaMetadata) -> None:
     conn.execute(
         text(
             """
-            INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
-            VALUES (:codigo, :titulo, :boe_id, :eli_uri, :jurisdiccion, :tipo_fuente, :ambito, :vigente_desde)
+            INSERT INTO norma (
+                codigo, titulo, boe_id, eli_uri, jurisdiccion,
+                tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde
+            )
+            VALUES (
+                :codigo, :titulo, :boe_id, :eli_uri, :jurisdiccion,
+                :tipo_fuente, :tipo_documento, :ambito, :estado_cobertura, :vigente_desde
+            )
             ON CONFLICT (codigo) DO UPDATE SET
                 titulo = EXCLUDED.titulo,
                 boe_id = EXCLUDED.boe_id,
                 eli_uri = EXCLUDED.eli_uri,
                 jurisdiccion = EXCLUDED.jurisdiccion,
                 tipo_fuente = EXCLUDED.tipo_fuente,
+                tipo_documento = EXCLUDED.tipo_documento,
                 ambito = EXCLUDED.ambito,
+                estado_cobertura = EXCLUDED.estado_cobertura,
                 vigente_desde = EXCLUDED.vigente_desde
             """
         ),
@@ -652,6 +679,60 @@ def log_sync(
 def _ensure_schema(conn) -> None:
     """Ensure worker-owned schema objects exist before syncing."""
     dialect = conn.engine.dialect.name
+
+    if dialect == "sqlite":
+        norma_columns = conn.execute(text("PRAGMA table_info(norma)")).fetchall()
+        norma_column_names = {column[1] for column in norma_columns}
+    else:
+        norma_column_names = {
+            row[0]
+            for row in conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'norma'
+                    """
+                )
+            ).fetchall()
+        }
+
+    added_norma_columns = set()
+
+    if norma_column_names and "tipo_documento" not in norma_column_names:
+        conn.execute(text("ALTER TABLE norma ADD COLUMN tipo_documento TEXT"))
+        added_norma_columns.add("tipo_documento")
+    if norma_column_names and "estado_cobertura" not in norma_column_names:
+        conn.execute(text("ALTER TABLE norma ADD COLUMN estado_cobertura TEXT"))
+        added_norma_columns.add("estado_cobertura")
+    if added_norma_columns:
+        conn.execute(
+            text(
+                """
+                UPDATE norma
+                SET tipo_documento = 'ley'
+                WHERE tipo_documento IS NULL
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                UPDATE norma
+                SET ambito = 'tributario'
+                WHERE ambito = 'fiscal'
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                UPDATE norma
+                SET estado_cobertura = 'ingestada'
+                WHERE estado_cobertura IS NULL
+                """
+            )
+        )
 
     if dialect == "postgresql":
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
