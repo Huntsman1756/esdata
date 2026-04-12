@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS norma (
     eli_uri TEXT UNIQUE,
     jurisdiccion TEXT NOT NULL,
     tipo_fuente TEXT NOT NULL,
+    tipo_documento TEXT NOT NULL,
     ambito TEXT NOT NULL,
+    estado_cobertura TEXT NOT NULL,
     vigente_desde DATE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -90,12 +92,12 @@ CREATE INDEX IF NOT EXISTS idx_version_articulo_texto_trgm
 -- En desarrollo local, el worker rellena articulo y version_articulo tras arrancar.
 
 -- Normas (metadatos de referencia)
-INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde)
 VALUES
-    ('LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740', 'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe', 'fiscal', '1993-01-01'),
-    ('LIRPF', 'Ley del Impuesto sobre la Renta de las Personas Físicas', 'BOE-A-2006-20764', 'https://www.boe.es/eli/es/l/2006/11/23/35', 'es', 'boe', 'fiscal', '2007-01-01'),
-    ('LIS', 'Ley del Impuesto sobre Sociedades', 'BOE-A-2014-12328', 'https://www.boe.es/eli/es/l/2014/11/27/27', 'es', 'boe', 'fiscal', '2015-01-01'),
-    ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', 'https://www.boe.es/eli/es/l/2003/12/17/58', 'es', 'boe', 'fiscal', '2004-01-01')
+    ('LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740', 'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01'),
+    ('LIRPF', 'Ley del Impuesto sobre la Renta de las Personas Físicas', 'BOE-A-2006-20764', 'https://www.boe.es/eli/es/l/2006/11/23/35', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2007-01-01'),
+    ('LIS', 'Ley del Impuesto sobre Sociedades', 'BOE-A-2014-12328', 'https://www.boe.es/eli/es/l/2014/11/27/27', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2015-01-01'),
+    ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', 'https://www.boe.es/eli/es/l/2003/12/17/58', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2004-01-01')
 ON CONFLICT (codigo) DO NOTHING;
 
 -- Materias (taxonomía curada — no las genera el worker)
