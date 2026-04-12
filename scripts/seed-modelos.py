@@ -89,6 +89,27 @@ MODELOS = [
         "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-196.html",
     },
     {
+        "codigo": "180",
+        "nombre": "IRPF Resumen anual retenciones arrendamientos inmuebles",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-180.html",
+    },
+    {
+        "codigo": "193",
+        "nombre": "IRPF Retenciones capital mobiliario",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-193.html",
+    },
+    {
+        "codigo": "187",
+        "nombre": "IRPF Acciones y participaciones IIC",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-187.html",
+    },
+    {
         "codigo": "390",
         "nombre": "IVA Resumen anual",
         "periodo": "anual",
@@ -278,6 +299,51 @@ MODELO_ARTICULO_DATA = [
         "Instrucciones Modelo 196 2025",
         "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-196/instrucciones/index.shtml",
     ),
+
+    # ------------------------------------------------------------------
+    # Modelo 180 — IRPF Resumen anual retenciones arrendamientos
+    # Fuente: Instrucciones Modelo 180 (PDF AEAT)
+    # ------------------------------------------------------------------
+    (
+        "180", "LIRPF", "24",
+        None, "Retenciones rendimientos capital inmobiliario (arrendamientos)",
+        "Instrucciones Modelo 180 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-180/instrucciones/index.shtml",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 193 — IRPF Retenciones capital mobiliario
+    # Fuente: Instrucciones Modelo 193 (PDF AEAT)
+    # ------------------------------------------------------------------
+    (
+        "193", "LIRPF", "22",
+        None, "Retenciones rendimientos capital mobiliario",
+        "Instrucciones Modelo 193 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-193/instrucciones/index.shtml",
+    ),
+    (
+        "193", "LIRPF", "23",
+        None, "Retenciones dividendos y participaciones",
+        "Instrucciones Modelo 193 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-193/instrucciones/index.shtml",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 187 — IRPF Acciones y participaciones IIC
+    # Fuente: Instrucciones Modelo 187 (PDF AEAT)
+    # ------------------------------------------------------------------
+    (
+        "187", "LIRPF", "94",
+        None, "Ganancias patrimoniales acciones/participaciones",
+        "Instrucciones Modelo 187 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-187/instrucciones/index.shtml",
+    ),
+    (
+        "187", "LIRPF", "95",
+        None, "Reembolso de acciones/participaciones IIC",
+        "Instrucciones Modelo 187 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-187/instrucciones/index.shtml",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -296,6 +362,10 @@ MODELO_ARTICULO_DATA = [
 #
 # 296: Retenciones IRNR (Impuesto Renta No Residentes)
 #      Otro impuesto (IRNR), fuera de foco por ahora.
+#
+# 216: Retenciones IRNR rentas sin establecimiento permanente
+#      Otro impuesto (IRNR), fuera de foco por ahora.
+#      Verificado en tanda 2 pero excluido por coherencia fiscal.
 # ---------------------------------------------------------------------------
 
 
