@@ -509,3 +509,65 @@ async def test_cobertura_muestra_normas():
     liva = next(n for n in data["normas"] if n["codigo"] == "LIVA")
     assert "articulos" in liva and liva["articulos"] >= 1
     assert "versiones" in liva and liva["versiones"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_modelos_lista():
+    async with _client() as c:
+        r = await c.get("/v1/modelos")
+    assert r.status_code == 200
+    data = r.json()
+    assert "modelos" in data
+    assert len(data["modelos"]) == 2  # 100, 303 in test fixture
+    codigos = [m["codigo"] for m in data["modelos"]]
+    assert "100" in codigos
+    assert "303" in codigos
+
+
+@pytest.mark.asyncio
+async def test_modelo_detalle_con_fuente():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["codigo"] == "100"
+    assert data["impuesto"] == "IRPF"
+    assert len(data["articulos"]) >= 1
+    art = data["articulos"][0]
+    assert "norma" in art
+    assert "numero" in art
+    assert "fuente" in art and art["fuente"] is not None
+    assert "url_fuente" in art
+
+
+@pytest.mark.asyncio
+async def test_modelo_detalle_doctrina_derivada():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100")
+    assert r.status_code == 200
+    data = r.json()
+    # LIVA 91 is linked to model 100 AND to doctrine V0000-26
+    # so doctrina_relacionada should include V0000-26
+    refs = [d["referencia"] for d in data["doctrina_relacionada"]]
+    assert "V0000-26" in refs
+    doc = next(d for d in data["doctrina_relacionada"] if d["referencia"] == "V0000-26")
+    assert doc["organismo_emisor"] == "DGT"
+    assert len(doc["via_articulos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_modelo_articulos_endpoint():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/303/articulos")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["codigo"] == "303"
+    assert len(data["articulos"]) == 0  # no articles seeded for 303 in tests
+
+
+@pytest.mark.asyncio
+async def test_modelo_inexistente_404():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/999")
+    assert r.status_code == 404
+    assert "detail" in r.json()

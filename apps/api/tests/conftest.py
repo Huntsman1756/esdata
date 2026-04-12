@@ -161,6 +161,42 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     JOIN norma n ON n.id = a.norma_id
     WHERE d.referencia = 'V0000-26' AND n.codigo = 'LIVA'
     """,
+    # --- Modelos AEAT ---
+    """
+    CREATE TABLE aeat_modelo (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL,
+        periodo TEXT,
+        impuesto TEXT,
+        url_info TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE modelo_articulo (
+        modelo_id INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
+        articulo_id INTEGER NOT NULL REFERENCES articulo(id) ON DELETE CASCADE,
+        casilla TEXT,
+        nota TEXT,
+        fuente TEXT NOT NULL,
+        url_fuente TEXT,
+        PRIMARY KEY (modelo_id, articulo_id)
+    )
+    """,
+    # --- Seed: Modelo 100 linked to LIVA 91 (for testing doctrina derivada) ---
+    """
+    INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info)
+    VALUES ('100', 'IRPF Declaración anual', 'anual', 'IRPF', 'https://sede.agenciatributaria.gob.es/modelo-100'),
+           ('303', 'IVA Autoliquidación', 'trimestral', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-303')
+    """,
+    """
+    INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
+    SELECT m.id, a.id, '0002', 'Rendimientos trabajo', 'Instrucciones Modelo 100 2025', 'https://sede.agenciatributaria.gob.es'
+    FROM aeat_modelo m, articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE m.codigo = '100' AND n.codigo = 'LIVA' AND a.numero = '91'
+    """,
 ]
 
 with engine.begin() as conn:
