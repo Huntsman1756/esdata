@@ -3,10 +3,12 @@
 import { useState, type FormEvent } from "react";
 
 const EXAMPLES: { label: string; q: string; tab: string; extra?: Record<string, string> }[] = [
-  { label: "deducciones inversi\u00f3n", q: "deducciones inversion", tab: "legislacion", extra: { norma: "LIS" } },
+  { label: "ganancias patrimoniales acciones", q: "ganancias patrimoniales acciones", tab: "legislacion", extra: { norma: "LIRPF" } },
+  { label: "mercado regulado IRPF", q: "mercado regulado", tab: "legislacion", extra: { norma: "LIRPF" } },
+  { label: "deducciones inversi\u00f3n LIS", q: "deducciones inversion", tab: "legislacion", extra: { norma: "LIS" } },
   { label: "entregas inmuebles IVA", q: "entregas inmuebles IVA", tab: "dgt" },
-  { label: "prorrata general", q: "prorrata general", tab: "legislacion" },
-  { label: "criterio IRPF teletrabajo", q: "teletrabajo IRPF", tab: "teac" },
+  { label: "prorrata LIVA", q: "prorrata", tab: "legislacion", extra: { norma: "LIVA" } },
+  { label: "criterio TEAC art. 111 LGT", q: "recargo", tab: "teac" },
 ];
 
 export default function SearchBox() {
@@ -33,7 +35,7 @@ export default function SearchBox() {
           <input
             type="text"
             name="q"
-            placeholder="Buscar legislación, doctrina, criterios..."
+            placeholder="Conceptos fiscales, articulos, doctrina..."
             className="w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-base text-stone-900"
           />
           <button type="submit" className="rounded-md bg-stone-900 px-4 py-3 text-sm font-medium text-white">
@@ -65,13 +67,16 @@ export default function SearchBox() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar legislaci\u00f3n, doctrina, criterios..."
+            placeholder="Conceptos fiscales, articulos, doctrina..."
             className="w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-base
                        text-stone-900 placeholder:text-stone-400 shadow-sm
                        focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-500"
             autoFocus
           />
         </div>
+        <p className="mt-2 text-xs text-stone-400">
+          Prueba con conceptos fiscales, art\u00edculos o referencias DGT/TEAC, no con preguntas en lenguaje natural.
+        </p>
       </form>
 
       {/* Examples */}
