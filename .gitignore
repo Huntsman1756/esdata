@@ -6,3 +6,4 @@
 apps/api/tests/test_esdata.sqlite3
 script.py
 .env
+.worktrees/
