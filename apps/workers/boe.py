@@ -466,7 +466,12 @@ def auto_link_doctrina(conn) -> int:
                 FROM articulo a
                 JOIN norma n ON n.id = a.norma_id
                 WHERE n.codigo = :codigo AND a.numero = :numero
-                ON CONFLICT (documento_id, articulo_id) DO NOTHING
+                ON CONFLICT (documento_id, articulo_id)
+                DO UPDATE SET
+                    metodo_enlace = EXCLUDED.metodo_enlace,
+                    confianza_enlace = EXCLUDED.confianza_enlace,
+                    nota = EXCLUDED.nota
+                WHERE EXCLUDED.confianza_enlace > documento_articulo.confianza_enlace
                 """
                 ),
                 {
