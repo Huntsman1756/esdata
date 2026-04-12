@@ -13,13 +13,14 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 
 ## Servicios desplegados
 
-- `esdata`: API FastAPI publica.
+- `api`: API FastAPI publica.
 - `worker-boe`: worker continuo que ingiere articulos desde BOE.
 - `cron-boe-daily`: ejecucion diaria `python boe.py --run-once`.
 - `worker-dgt`: worker continuo que sincroniza doctrina DGT y ejecuta auto-linking a articulos.
 - `cron-dgt-weekly`: ejecucion semanal `python dgt.py --run-once`.
 - `worker-teac`: worker continuo que sincroniza doctrina TEAC desde DYCTEA y ejecuta auto-linking a articulos.
 - `cron-teac-weekly`: ejecucion semanal `python teac.py --run-once`.
+- `web`: Frontend Next.js 15 con buscador fiscal, resultados y detalle de doctrina (Fase 1).
 - `Postgres`: base de datos principal.
 
 ## Estructura real del repo
@@ -71,6 +72,15 @@ Worker:
 pytest apps/workers/tests/test_boe.py -q
 pytest apps/workers/tests/test_dgt.py -q
 pytest apps/workers/tests/test_teac.py -q
+```
+
+Web:
+
+```bash
+npm --prefix apps/web install
+npm --prefix apps/web run dev       # http://localhost:3000
+npm --prefix apps/web run test
+npm --prefix apps/web run build
 ```
 
 ## Produccion
