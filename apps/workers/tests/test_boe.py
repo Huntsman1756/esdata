@@ -1,6 +1,7 @@
 import sys
 import subprocess
 from pathlib import Path
+import httpx
 
 from sqlalchemy import create_engine, text
 
@@ -864,3 +865,149 @@ def test_ensure_sync_log_table_creates_log_table_independently():
         ).fetchone()
 
     assert row == ("sync_log",)
+
+
+def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch):
+    """Verify BOE sync_log uses the provided worker_name, not a hardcoded one."""
+    from boe import run_sync
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+    original_client = httpx.Client
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER NOT NULL,
+                    numero TEXT NOT NULL,
+                    titulo TEXT,
+                    tipo TEXT NOT NULL,
+                    UNIQUE (norma_id, numero)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE version_articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    articulo_id INTEGER NOT NULL,
+                    texto TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL,
+                    vigente_hasta TEXT,
+                    boe_bloque_id TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_articulo (
+                    documento_id INTEGER NOT NULL,
+                    articulo_id INTEGER NOT NULL,
+                    metodo_enlace TEXT NOT NULL,
+                    confianza_enlace REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, articulo_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "/metadatos" in str(request.url):
+            return httpx.Response(
+                200,
+                json={
+                    "data": [
+                        {
+                            "titulo": "Ley 37/1992",
+                            "fecha_vigencia": "19930101",
+                            "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
+                        }
+                    ]
+                },
+            )
+        if "/texto/indice" in str(request.url):
+            return httpx.Response(200, json={"data": [{"bloque": []}]})
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    monkeypatch.setattr("boe.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "boe.httpx.Client",
+        lambda *args, **kwargs: original_client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://www.boe.es",
+        ),
+    )
+    monkeypatch.setattr("boe.DEFAULT_NORMAS", {"LIVA": "BOE-A-1992-28740"})
+    monkeypatch.setattr("boe.BOE_API_BASE", "https://www.boe.es")
+
+    run_sync(codigos=["LIVA"])
+    run_sync(codigos=["LIVA"], worker_name="cron-boe-daily")
+
+    with engine.begin() as conn:
+        workers = conn.execute(
+            text("SELECT worker FROM sync_log ORDER BY id")
+        ).fetchall()
+
+    assert [w[0] for w in workers] == ["worker-boe", "cron-boe-daily"]

@@ -575,3 +575,144 @@ def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
         run_sync(seed_urls=[])
 
     assert captured["verify"] is False
+
+
+def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch):
+    """Verify DGT sync_log uses the provided worker_name, not a hardcoded one."""
+    engine = create_engine("sqlite:///:memory:", future=True)
+    original_client = httpx.Client
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER NOT NULL,
+                    numero TEXT NOT NULL,
+                    titulo TEXT,
+                    tipo TEXT NOT NULL,
+                    UNIQUE (norma_id, numero)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_articulo (
+                    documento_id INTEGER NOT NULL,
+                    articulo_id INTEGER NOT NULL,
+                    metodo_enlace TEXT NOT NULL,
+                    confianza_enlace REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, articulo_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '4', 'Hecho imponible', 'articulo' FROM norma WHERE codigo = 'LIVA'
+                """
+            )
+        )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/consultas/":
+            return httpx.Response(
+                200,
+                text="<html></html>",
+                headers={"set-cookie": "JSESSIONID=abc123; Path=/consultas; HttpOnly"},
+            )
+        if request.url.path == "/consultas/do/search":
+            return httpx.Response(200, text="<table></table>")
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    monkeypatch.setattr(
+        "dgt.SEED_URLS",
+        ["https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V2274-22"],
+    )
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "dgt.httpx.Client",
+        lambda *args, **kwargs: original_client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://petete.tributos.hacienda.gob.es",
+        ),
+    )
+
+    run_sync()
+    run_sync(seed_urls=[], worker_name="cron-dgt-weekly")
+
+    with engine.begin() as conn:
+        workers = conn.execute(
+            text("SELECT worker FROM sync_log ORDER BY id")
+        ).fetchall()
+
+    assert [w[0] for w in workers] == ["worker-dgt", "cron-dgt-weekly"]
