@@ -493,6 +493,18 @@ def _setup_link_test_db():
         c.execute(
             text(
                 "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
+                "SELECT id, '104', 'Exenciones', 'articulo' FROM norma WHERE codigo = 'LIVA'"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
+                "SELECT id, '8', 'Hechos imponibles', 'articulo' FROM norma WHERE codigo = 'LIVA'"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
                 "SELECT id, '111', 'Infracciones tributarias', 'articulo' FROM norma WHERE codigo = 'LGT'"
             )
         )
@@ -665,6 +677,68 @@ def test_auto_link_doctrina_art_norma_variants():
 
     refs = _extract_doctrina_refs("Aplicable el ART 50 LGT al presente caso.")
     assert ("LGT", "50", 1.0) in refs
+
+
+def test_auto_link_doctrina_matches_articulo_ley_del_iva():
+    """Pattern: artículo <numero>.<apartado> de la Ley del IVA -> 1.0.
+
+    Real production case: 'artículo 104.Tres.4º de la Ley del IVA' in
+    TEAC resolution 00/01454/2023/00/00.
+    """
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('resolucion_teac', 'TEAC', 'es', 'teac', 'fiscal', '00/01454/2023/00/00', '2026-02-27', 'Test', "
+                "'Aplicacion del articulo 104.Tres.4º de la Ley del IVA a las operaciones descritas.', NULL)"
+            )
+        )
+        links = auto_link_doctrina(c)
+        row = c.execute(
+            text(
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "WHERE da.documento_id = (SELECT id FROM documento_interpretativo WHERE referencia = '00/01454/2023/00/00')"
+            )
+        ).fetchone()
+
+    assert links == 1
+    assert row == ("LIVA", "104", 1.0)
+
+
+def test_auto_link_doctrina_matches_ley_del_iva_separate_article():
+    """Pattern: Ley del IVA mentioned separately from article reference -> 1.0.
+
+    Real production case: 'a efectos de la Ley del IVA ... artículo 8.Dos.3º'
+    in TEAC resolution 00/01454/2023/00/00.
+    """
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('resolucion_teac', 'TEAC', 'es', 'teac', 'fiscal', '00/01454/2023/00/01', '2026-02-27', 'Test', "
+                "'A efectos de la Ley del IVA, lo dispuesto en el articulo 8.Dos.3º resulta aplicable.', NULL)"
+            )
+        )
+        links = auto_link_doctrina(c)
+        row = c.execute(
+            text(
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "WHERE da.documento_id = (SELECT id FROM documento_interpretativo WHERE referencia = '00/01454/2023/00/01')"
+            )
+        ).fetchone()
+
+    assert links == 1
+    assert row == ("LIVA", "8", 1.0)
 
 
 def test_ensure_schema_creates_sync_log_when_missing():

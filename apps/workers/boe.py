@@ -523,8 +523,38 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
             if codigo:
                 explicit_norma_refs.add((codigo, numero, 1.00))
 
+    # Named law alias: "de la Ley del IVA" -> LIVA
+    for pattern in [
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+DEL\s+IVA\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART\.?\s*(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+DEL\s+IVA\b",
+            re.IGNORECASE,
+        ),
+    ]:
+        for match in pattern.finditer(source):
+            explicit_norma_refs.add(("LIVA", match.group(1), 1.00))
+
     if explicit_norma_refs:
         return explicit_norma_refs
+
+    # Explicit law name mention (no article attached): e.g. "a efectos de la Ley del IVA"
+    # If only one explicit law name is mentioned, resolve standalone article refs to it.
+    explicit_law_normas = set()
+    if re.search(r"\bLEY\s+DEL\s+IVA\b", source):
+        explicit_law_normas.add("LIVA")
+    if re.search(r"\bLEY\s+GENERAL\s+TRIBUTARIA\b", source):
+        explicit_law_normas.add("LGT")
+
+    if len(explicit_law_normas) == 1:
+        sola_norma = explicit_law_normas.pop()
+        article_refs = set()
+        for match in re.finditer(r"(?:ART[ÍI]?CULO|ART\.?)\s+(\d+)\b", source):
+            article_refs.add((sola_norma, match.group(1), 1.00))
+        if article_refs:
+            return article_refs
 
     # Small first contextual heuristic for doctrine without explicit article citation.
     # TEAC resolutions about IVA + base imponible often target LIVA art. 91 in our MVP set.
