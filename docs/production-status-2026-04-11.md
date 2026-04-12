@@ -1,5 +1,7 @@
 # Estado operativo a 2026-04-11
 
+> Nota: este snapshot ha quedado superado por `docs/production-status-2026-04-12.md`, que recoge el cierre de la tanda de linking TEAC y el handoff para la proxima sesion.
+
 ## Resumen
 
 - Produccion Railway operativa en `https://esdata-production.up.railway.app`.
