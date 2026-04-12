@@ -4,7 +4,7 @@ from pathlib import Path
 import httpx
 from unittest.mock import patch
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -1099,6 +1099,98 @@ def test_ensure_schema_upgrades_legacy_norma_before_upsert():
         ).fetchone()
 
     assert row == ("LIVA", "ley", "tributario", "ingestada")
+
+
+def test_ensure_schema_backfills_existing_legacy_norma_rows():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LGT', 'Ley 58/2003', 'BOE-A-2003-23186', NULL, 'es', 'boe', 'fiscal', '2004-01-01')
+                """
+            )
+        )
+
+        _ensure_schema(conn)
+
+        row = conn.execute(
+            text(
+                """
+                SELECT codigo, tipo_documento, ambito, estado_cobertura
+                FROM norma
+                WHERE codigo = 'LGT'
+                """
+            )
+        ).fetchone()
+
+    assert row == ("LGT", "ley", "tributario", "ingestada")
+
+
+def test_ensure_schema_skips_norma_backfill_after_initial_upgrade():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LGT', 'Ley 58/2003', 'BOE-A-2003-23186', NULL, 'es', 'boe', 'fiscal', '2004-01-01')
+                """
+            )
+        )
+
+        _ensure_schema(conn)
+
+        statements: list[str] = []
+
+        def capture_sql(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", capture_sql)
+        try:
+            _ensure_schema(conn)
+        finally:
+            event.remove(engine, "before_cursor_execute", capture_sql)
+
+    normalized = [statement.lower().strip() for statement in statements]
+    assert not any(statement.startswith("update norma") for statement in normalized)
 
 
 def test_schema_statements_use_serial_ids_on_postgres():

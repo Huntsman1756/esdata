@@ -201,10 +201,7 @@ class BloqueTexto:
 
 def parse_metadata(codigo: str, boe_id: str, payload: dict) -> NormaMetadata:
     item = payload["data"][0]
-    classification = NORMA_CLASSIFICATIONS.get(
-        codigo,
-        {"tipo_documento": "ley", "ambito": "tributario"},
-    )
+    classification = NORMA_CLASSIFICATIONS[codigo]
     return NormaMetadata(
         codigo=codigo,
         boe_id=boe_id,
@@ -700,11 +697,15 @@ def _ensure_schema(conn) -> None:
             ).fetchall()
         }
 
+    added_norma_columns = set()
+
     if norma_column_names and "tipo_documento" not in norma_column_names:
         conn.execute(text("ALTER TABLE norma ADD COLUMN tipo_documento TEXT"))
+        added_norma_columns.add("tipo_documento")
     if norma_column_names and "estado_cobertura" not in norma_column_names:
         conn.execute(text("ALTER TABLE norma ADD COLUMN estado_cobertura TEXT"))
-    if norma_column_names:
+        added_norma_columns.add("estado_cobertura")
+    if added_norma_columns:
         conn.execute(
             text(
                 """
@@ -718,10 +719,8 @@ def _ensure_schema(conn) -> None:
             text(
                 """
                 UPDATE norma
-                SET ambito = CASE
-                    WHEN ambito = 'fiscal' THEN 'tributario'
-                    ELSE ambito
-                END
+                SET ambito = 'tributario'
+                WHERE ambito = 'fiscal'
                 """
             )
         )
