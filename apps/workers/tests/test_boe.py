@@ -440,6 +440,12 @@ def _setup_link_test_db():
         )
         c.execute(
             text(
+                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde) "
+                "VALUES ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', NULL, 'es', 'boe', 'fiscal', '2004-01-01')"
+            )
+        )
+        c.execute(
+            text(
                 "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
                 "SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'"
             )
@@ -483,6 +489,20 @@ def _setup_link_test_db():
                 "FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIS' AND a.numero = '15'"
             ),
             {"texto": "Artículo 15. Reglas de valoracion en operaciones societarias."},
+        )
+        c.execute(
+            text(
+                "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
+                "SELECT id, '111', 'Infracciones tributarias', 'articulo' FROM norma WHERE codigo = 'LGT'"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id) "
+                "SELECT a.id, :texto, '2004-01-01', NULL, 'a111' "
+                "FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LGT' AND a.numero = '111'"
+            ),
+            {"texto": "Artículo 111. Infracciones tributarias."},
         )
     return eng
 
@@ -601,6 +621,50 @@ def test_auto_link_doctrina_matches_law_reference_with_subarticle_suffix():
 
     assert links == 1
     assert row == ("LIVA", "89", 1.0)
+
+
+def test_auto_link_doctrina_matches_art_norma_without_de_la():
+    """Pattern: art. <numero> <NORMA> should resolve with confidence 1.0.
+
+    Real production case: 'art. 111 LGT' in TEAC resolution 00/05861/2025/00/00.
+    """
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('resolucion_teac', 'TEAC', 'es', 'teac', 'fiscal', '00/05861/2025/00/00', '2026-02-27', 'Test', "
+                "'Resolucion sobre el art. 111 LGT en materia de sanciones.', NULL)"
+            )
+        )
+        links = auto_link_doctrina(c)
+        row = c.execute(
+            text(
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "WHERE da.documento_id = (SELECT id FROM documento_interpretativo WHERE referencia = '00/05861/2025/00/00')"
+            )
+        ).fetchone()
+
+    assert links == 1
+    assert row == ("LGT", "111", 1.0)
+
+
+def test_auto_link_doctrina_art_norma_variants():
+    """Verify art. 91 LIVA, Art. 91 LIVA, ART 91 LGT all resolve to 1.0."""
+    from boe import _extract_doctrina_refs
+
+    refs = _extract_doctrina_refs("Resolucion sobre art. 91 LIVA en materia de IVA.")
+    assert ("LIVA", "91", 1.0) in refs
+
+    refs = _extract_doctrina_refs("Conforme Art. 15 LIS se determina la base.")
+    assert ("LIS", "15", 1.0) in refs
+
+    refs = _extract_doctrina_refs("Aplicable el ART 50 LGT al presente caso.")
+    assert ("LGT", "50", 1.0) in refs
 
 
 def test_ensure_schema_creates_sync_log_when_missing():

@@ -493,6 +493,7 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
             r"ART[ÍI]?CULO\s+(\d+)\s+DE\s+LA\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE
         ),
         re.compile(r"ART\.?\s*(\d+)\s+DE\s+LA\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE),
+        re.compile(r"\bART\.?\s+(\d+)\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE),
     ]
 
     for pattern in explicit_patterns:
