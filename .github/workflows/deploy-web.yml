@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           if ! railway up apps/web --path-as-root --service web --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
-            railway add --service web --json
+            railway add --service web --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --json
             railway up apps/web --path-as-root --service web --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
