@@ -4,176 +4,115 @@
 
 - Produccion Railway operativa en `https://esdata-production.up.railway.app`.
 - BOE, DGT y TEAC activos en produccion.
-- `main` alineada con los fixes TEAC mergeados hoy.
-- La tanda de linking TEAC guiada por datos reales de produccion queda cerrada.
+- Frontend Next.js operativo en `https://web-production-ecb5.up.railway.app`.
+- Nueva capa **Modelos AEAT** desplegada:
+  - 6 modelos: 100, 111, 115, 130, 303, 390
+  - 16 relaciones modelo-articulo con fuente oficial verificable
+  - 3 nuevos endpoints API: `GET /v1/modelos`, `GET /v1/modelos/{codigo}`, `GET /v1/modelos/{codigo}/articulos`
+  - Sidebars "Modelos AEAT relacionados" en detalle de articulo y doctrina
+  - Pagina de detalle de modelo: `/modelo/[codigo]`
 
 ## Lo hecho en esta sesion
 
-### GitHub / ramas / PRs
+### Capa Modelos AEAT — Fase 1
 
-- Se detecto que la branch `feat/teac-recargo-linking` ya estaba pusheada y su PR ya existia.
-- Se verifico y mergeo la PR `#17`.
-- Se abrieron, revisaron y mergearon estas PRs adicionales en `main`:
-  - `#18` `feat(teac): recognize explicit art. <numero> <NORMA> references`
-  - `#19` `feat(teac): resolve 'Ley del IVA' references as explicit LIVA links`
-  - `#20` `fix(teac): upgrade existing doctrine links when confidence improves`
-- `main` quedo actualizada hasta `50d8168` tras el merge de `#20`.
+**Batch A: Schema + Seed**
+- `infra/sql/003_modelos_aeat.sql`: tablas `aeat_modelo` y `modelo_articulo`
+  - Cada relacion requiere `fuente` y `url_fuente` (no hay relaciones sin fuente)
+- `scripts/seed-modelos.py`: carga idempotente con modo `--dry-run`
+  - 6 modelos con metadata de paginas AEAT oficiales
+  - 16 relaciones verificables con instrucciones oficiales de modelos
+- Migracion aplicada en produccion, seed ejecutado
 
-### Railway / produccion
+**Batch B: API**
+- `apps/api/routers/modelos.py`: 3 endpoints
+  - `GET /v1/modelos` — lista con conteo de articulos
+  - `GET /v1/modelos/{codigo}` — detalle con articulos + doctrina derivada
+  - `GET /v1/modelos/{codigo}/articulos` — solo articulos
+- Cada articulo devuelve: norma, numero, titulo, casilla, nota, **fuente**, **url_fuente**
+- `doctrina_relacionada` derivada solo por join real: modelo → articulo → doctrina
+- 5 nuevos tests en `test_smoke.py` (28 passing total)
 
-- Se verifico acceso operativo a Railway desde CLI.
-- Se consulto la base de datos de produccion usando `DATABASE_PUBLIC_URL` del servicio `Postgres`.
-- Se confirmo que `worker-teac` desplego y corrio despues de los merges relevantes.
-- Se uso `/status` y consultas SQL directas para validar resultados reales en produccion.
+**Batch C: Frontend — Sidebars**
+- `ModeloList` en sidebar de detalle de articulo
+- `DoctrinaModelos` en sidebar de detalle de doctrina (derivado de articulos enlazados, dedupeado por codigo)
+- `modelo-badge.tsx`: componente compacto con link a `/modelo/{codigo}`
 
-### Linking TEAC guiado por produccion
+**Batch D: Frontend — Detalle modelo**
+- `/modelo/[codigo]`: pagina completa
+  - Identidad: badge AEAT, codigo, impuesto, periodo
+  - Link "Ver en sede AEAT"
+  - Lista de articulos con casilla, nota, fuente y link a fuente
+  - Sidebar con doctrina relacionada
 
-Se partio de casos reales con `confianza_enlace < 1.0` y se hizo una tanda de slices pequenos:
+### UX Polish anterior (sesiones previas)
 
-1. PR `#18`
-   - Patron explicito `art. <numero> <NORMA>`.
-   - Caso objetivo real: `00/05861/2025/00/00 -> LGT 111`.
-
-2. PR `#19`
-   - Alias `Ley del IVA -> LIVA` para matching explicito.
-   - Casos objetivo reales: `00/01454/2023/00/00 -> LIVA 8` y `LIVA 104`.
-
-3. PR `#20`
-   - Fix de produccion: `ON CONFLICT DO NOTHING` impedia upgrades de `0.85 -> 1.0`.
-   - Cambio aplicado: `DO UPDATE ... WHERE EXCLUDED.confianza_enlace > documento_articulo.confianza_enlace`.
-   - Esto desbloqueo la mejora de enlaces ya persistidos cuando aparece un matcher mejor.
-
-## Verificacion final en produccion
-
-Tras desplegar `worker-teac` con los cambios y ejecutar una nueva corrida, se verifico en produccion:
-
-| Referencia | Norma | Articulo | Confianza |
-| --- | --- | --- | --- |
-| `00/01454/2023/00/00` | `LIVA` | `104` | `1.00` |
-| `00/01454/2023/00/00` | `LIVA` | `8` | `1.00` |
-| `00/05861/2025/00/00` | `LGT` | `111` | `1.00` |
-
-Estado: `3/3` casos reales corregidos y confirmados en produccion.
-
-## Diagnostico relevante que no olvidar
-
-- El problema no era solo anadir nuevos patrones.
-- El bug real de produccion estaba en la persistencia del linking:
-  - antes: `ON CONFLICT DO NOTHING`
-  - efecto: un enlace ya insertado a `0.85` nunca podia subir a `1.0`
-  - despues: update condicionado cuando la nueva confianza es mayor
-- Aprendizaje: cualquier mejora futura de matching debe comprobar tambien si la ruta de upgrade de enlaces existentes sigue funcionando.
+- Home con posicionamiento: "Encuentra criterio fiscal aplicable, no solo texto legal."
+- Search UX ajustada: placeholder "Conceptos fiscales, articulos, doctrina..." + helper text
+- Ejemplos de busqueda con resultados reales
+- Confidence badge textual (no numeros crudos)
+- Deduplicacion de resultados de busqueda (`DISTINCT ON`)
 
 ## Estado actual verificado
 
 ### API / workers
+- `api`: ok
+- `worker-boe`: ok
+- `worker-dgt`: ok
+- `worker-teac`: ok
+- `cron-boe-daily`: `never_run`
+- `cron-dgt-weekly`: `never_run`
+- `cron-teac-weekly`: `never_run`
 
-- `GET /status` responde `api=ok`.
-- `worker-boe`: operativo.
-- `worker-dgt`: operativo.
-- `worker-teac`: operativo.
-- `cron-boe-daily`: sigue figurando creado pero no era el foco de esta sesion.
-- `cron-dgt-weekly`: sigue `never_run`.
-- `cron-teac-weekly`: sigue `never_run`.
+### Frontend
+- Home: ok (cobertura + estado + busqueda)
+- /buscar: ok (resultados legislacion y doctrina)
+- /articulo/[norma]/[numero]: ok (detalle + historial + modelos AEAT)
+- /doctrina/[...referencia]: ok (detalle + articulos + modelos AEAT)
+- /modelo/[codigo]: **pendiente de verificar deploy**
 
-### Baseline pre-cron validado despues del handoff
+### Datos
+- Cobertura legislativa:
+  - LGT: 319 articulos
+  - LIRPF: 174 articulos
+  - LIS: 180 articulos
+  - LIVA: 228 articulos
+  - Total: 901 articulos, 941 versiones
+- Modelos AEAT:
+  - 6 modelos en `aeat_modelo`
+  - 16 relaciones en `modelo_articulo` (todas con fuente)
+- Baseline de enlazado pre-cron:
+  - DGT: 21 links, 0 low confidence
+  - TEAC: 4 links, 0 low confidence
 
-- Se valido acceso a la base de produccion usando `DATABASE_PUBLIC_URL` publica.
-- Se ejecuto `python scripts/validate-cron-run.py --after 2026-04-12` ya con el script corregido.
-- Baseline agregado previo a la primera corrida real de cron:
+## Estado de commits
 
-| Organismo | Total links | Low confidence | Full confidence | % full |
-| --- | --- | --- | --- | --- |
-| `DGT` | `21` | `0` | `21` | `100.00` |
-| `TEAC` | `4` | `0` | `4` | `100.00` |
+| Commit | Descripcion |
+| --- | --- |
+| 879bef4 | feat(aeat-modelos): Phase 1 — schema, seed, and spec |
+| 307dae9 | feat(aeat-modelos): Batch B — API endpoints + tests |
+| 8b69b9f | feat(web): Batch C — modelos sidebars en articulo y doctrina |
+| 37a2f3e | feat(web): Batch D — modelo detail page |
 
-- Resultado adicional:
-  - `TEAC` con `confianza_enlace < 1.0`: `0` casos.
-  - `DGT` con `confianza_enlace < 1.0`: `0` casos.
-  - Documentos recientes desde `2026-04-12`: `0` filas.
+## Pendiente para la proxima sesion
 
-### Fix util para no repetir el bloqueo
+### Verificacion de deploy web
+- Confirmar que `/modelo/100` responde en produccion
+- Confirmar que sidebars "Modelos AEAT relacionados" aparecen en articulo y doctrina
 
-- `scripts/validate-cron-run.py` se ajusto para:
-  - normalizar DSNs tipo SQLAlchemy (`postgresql+psycopg://...`) antes de conectar con `psycopg2`.
-  - evitar el uso de `COUNT(da.id)` en `RECENT_DOCUMENTS`, porque `documento_articulo` no tiene columna `id` en el schema real.
-- Se anadieron pruebas de regresion en `scripts/test_validate_cron_run.py`.
-- Verificacion local del fix:
-
-```bash
-pytest scripts/test_validate_cron_run.py -q
-```
-
-Resultado verificado: `3 passed`.
-
-### Direccion del producto
-
-- `legalize-es` se reviso como corpus/versionado de legislacion: complementario, no sustituto de `esdata`.
-- `boletinclaro.es` se reviso como inspiracion de packaging/producto: util para ideas futuras, pero no prioritario ahora.
-- Decisiones tomadas:
-  - no mover el foco a producto todavia
-  - priorizar fiabilidad operativa y precision de linking real
-
-## Lo pendiente para la proxima sesion
-
-### Operativo inmediato
-
-1. Vigilar la primera ejecucion real de `cron-teac-weekly`.
-2. Vigilar la primera ejecucion real de `cron-dgt-weekly`.
-3. Confirmar via `/status` y, si hace falta, via consultas SQL que esas corridas no introducen regresiones.
+### Operativo (plan original)
+1. Esperar la primera ejecucion real de `cron-teac-weekly`
+2. Esperar la primera ejecucion real de `cron-dgt-weekly`
+3. Confirmar via `/status` y `scripts/validate-cron-run.py` que esas corridas no introducen regresiones
 
 ### Proximo ciclo de mejora TEAC/DGT
+1. Consultar casos con `confianza_enlace < 1.0` post-cron
+2. Agrupar por patron real
+3. Elegir un solo slice pequeno
+4. Implementar matcher/fix minimo
+5. Verificar en produccion
 
-1. Consultar en produccion nuevos casos con `confianza_enlace < 1.0`.
-2. Agruparlos por patron real.
-3. Elegir un solo slice pequeno.
-4. Implementar matcher/fix minimo.
-5. Verificar el resultado en produccion.
+## Deuda tecnica anotada
 
-### Decision de producto (solo despues de lo anterior)
-
-- Revisar si tiene sentido abrir la primera capa de producto ligera sobre `esdata`, probablemente una de estas:
-  - alertas tematicas fiscales
-  - resumen accionable por cambio normativo o doctrina nueva
-  - herramienta gratuita simple sobre el motor fiscal
-
-## Consultas utiles para la proxima sesion
-
-### Casos TEAC con confianza menor de 1.0
-
-```sql
-SELECT di.referencia, di.fecha, n.codigo, a.numero, da.confianza_enlace, da.metodo_enlace, da.nota
-FROM documento_articulo da
-JOIN documento_interpretativo di ON di.id = da.documento_id
-JOIN articulo a ON a.id = da.articulo_id
-JOIN norma n ON n.id = a.norma_id
-WHERE di.organismo_emisor = 'TEAC' AND da.confianza_enlace < 1.0
-ORDER BY da.confianza_enlace ASC, di.fecha DESC;
-```
-
-### Casos DGT con confianza menor de 1.0
-
-```sql
-SELECT di.referencia, di.fecha, n.codigo, a.numero, da.confianza_enlace, da.metodo_enlace, da.nota
-FROM documento_articulo da
-JOIN documento_interpretativo di ON di.id = da.documento_id
-JOIN articulo a ON a.id = da.articulo_id
-JOIN norma n ON n.id = a.norma_id
-WHERE di.organismo_emisor = 'DGT' AND da.confianza_enlace < 1.0
-ORDER BY da.confianza_enlace ASC, di.fecha DESC;
-```
-
-## Notas practicas
-
-- Los siguientes archivos locales siguen sin trackear y no forman parte de esta tanda:
-  - `apps/workers/tests/fixtures/V1923-24.html`
-  - `apps/workers/tests/fixtures/V2274-22.html`
-  - `dgt_cookies.txt`
-  - `tmp_fetch_dgt.py`
-- Si aparece un nuevo caso real con `0.85`, repetir exactamente el mismo patron de trabajo:
-  - producir muestra real
-  - agrupar
-  - escoger un solo patron
-  - slice pequeno
-  - deploy
-  - verificacion SQL en produccion
+1. **N+1 en sidebars de modelos**: `ModeloList` y `DoctrinaModelos` hacen fetch por cada modelo. Aceptable para 6 modelos. Consolidar en endpoint dedicado o helper server-side cuando haya mas cobertura.
+2. **Busqueda de legislacion**: no soporta preguntas en lenguaje natural. Placeholder y helper text ajustados para gestionar expectativas. Mejora futura: ranking semantico o query expansion.
