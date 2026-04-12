@@ -1,6 +1,6 @@
 # esdata
 
-API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, con versionado por articulo, busqueda full-text y superficies pensadas para consumo por aplicaciones y agentes.
+Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos AEAT con trazabilidad hasta el articulo aplicable. Incluye API y workers de ingesta, versionado por articulo, busqueda full-text y superficies pensadas para consumo por aplicaciones y agentes.
 
 ## Estado actual
 
@@ -10,7 +10,21 @@ API y workers para consultar e ingerir legislacion fiscal espanola desde BOE, co
 - Ingesta BOE activa con cobertura real para `LGT`, `LIRPF`, `LIS` y `LIVA`.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
+- Cadena norma -> doctrina -> modelo AEAT disponible con relaciones verificables y fuente oficial por enlace.
 - Busqueda full-text activa en produccion con `ts_rank`, `ts_headline` y fragmentos con `<mark>`.
+
+## Cobertura y foco
+
+- Cobertura normativa actual verificada: `LGT`, `LIRPF`, `LIS`, `LIVA`.
+- Cobertura doctrinal actual: DGT y TEAC con enlazado a articulos via `documento_articulo`.
+- Capa de cumplimiento y presentacion: modelos AEAT con relaciones verificadas a articulos concretos.
+- Foco del producto: ofrecer criterio fiscal trazable para trabajo real de despachos, productos y agentes.
+- Normas y marcos tambien relevantes para una herramienta de gestion fiscal, pero fuera de cobertura actual:
+  - `Real Decreto Legislativo 1/1993` (`ITP` y `AJD`)
+  - `Ley 38/1992` de Impuestos Especiales
+  - `Real Decreto Legislativo 2/2004` sobre Haciendas Locales
+  - `Directiva (UE) 2018/822` (`DAC6`)
+  - `UNE 19602`
 
 ## Servicios desplegados
 
