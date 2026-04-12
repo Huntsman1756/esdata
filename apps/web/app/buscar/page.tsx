@@ -29,9 +29,7 @@ export default async function BuscarPage({
   }>;
 }) {
   const params = await searchParams;
-  const q = params.q?.trim();
-  if (!q) return notFound();
-
+  const q = params.q?.trim() || "";
   const tab = (params.tab === "dgt" || params.tab === "teac" ? params.tab : "legislacion") as TabKey;
 
   return (
@@ -44,17 +42,24 @@ export default async function BuscarPage({
             href={(t) => `/buscar?q=${encodeURIComponent(q)}&tab=${t}`}
           />
         </div>
-        <Suspense
-          fallback={
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 animate-pulse rounded-md bg-stone-200" />
-              ))}
-            </div>
-          }
-        >
-          <Results q={q} tab={tab} params={params} />
-        </Suspense>
+        {!q ? (
+          <div className="py-20 text-center">
+            <h2 className="text-xl font-serif text-stone-900 mb-2">Buscador experto</h2>
+            <p className="text-stone-500 text-sm">Introduce un término para comenzar la búsqueda legal.</p>
+          </div>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 animate-pulse rounded-md bg-stone-200" />
+                ))}
+              </div>
+            }
+          >
+            <Results q={q} tab={tab} params={params} />
+          </Suspense>
+        )}
       </main>
     </div>
   );
@@ -87,7 +92,7 @@ async function Results({
     if (!data || data.resultados.length === 0) {
       return (
         <p className="py-12 text-center text-sm text-stone-400">
-          No se encontraron resultados para &ldquo;{q}&rdquo; en legislaci\u00f3n.
+          No se encontraron resultados para &ldquo;{q}&rdquo; en legislación.
         </p>
       );
     }
@@ -95,19 +100,19 @@ async function Results({
     return (
       <div>
         <p className="mb-4 text-xs text-stone-400">
-          {data.resultados.length} resultado{data.resultados.length !== 1 ? "s" : ""} en legislaci\u00f3n
+          {data.resultados.length} resultado{data.resultados.length !== 1 ? "s" : ""} en legislación
         </p>
         <div className="divide-y divide-stone-200">
           {data.resultados.map((r) => (
             <ResultCard
-              key={r.norma + r.numero}
+              key={r.norma + r.numero + r.vigente_desde}
               norma={r.norma}
               numero={r.numero}
               fragmento={r.fragmento}
               vigenteDesde={r.vigente_desde}
               vigenteHasta={r.vigente_hasta}
               confianzaNivel={r.confianza.nivel}
-              href={`/articulo/${r.norma}/${r.numero}`}
+              href={`/articulo/${r.norma}/${r.numero}?vigente_en=${r.vigente_desde}`}
             />
           ))}
         </div>

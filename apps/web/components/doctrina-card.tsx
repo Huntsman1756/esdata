@@ -75,7 +75,7 @@ export default function DoctrinaCard({
           href={href}
           className="text-xs font-medium text-stone-500 hover:text-stone-900 transition-colors"
         >
-          Ver criterio completo \u2192
+          Ver criterio completo →
         </Link>
       </div>
     </article>

@@ -4,13 +4,20 @@ import Header from "@/components/header";
 import OrganismBadge from "@/components/organism-badge";
 import ConfidenceBadge from "@/components/confidence-badge";
 import { getDoctrina } from "@/lib/api";
+import { formatDocumentType, formatLinkMethod } from "@/lib/labels";
 
 export default async function DoctrinaPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ referencia: string[] }>;
+  searchParams: Promise<{ q?: string; tab?: string }>;
 }) {
   const { referencia } = await params;
+  const sParams = await searchParams;
+  const q = sParams.q || "";
+  const tab = sParams.tab || "dgt";
+
   const refPath = referencia.join("/");
 
   let data: Awaited<ReturnType<typeof getDoctrina>> | null = null;
@@ -20,20 +27,16 @@ export default async function DoctrinaPage({
     return notFound();
   }
 
-  const fechaStr = data.referencia
-    ? null
-    : null; // fecha is not in detail response directly
-
   return (
     <div className="min-h-screen">
       <Header />
       <main className="mx-auto max-w-5xl px-6 py-8">
         {/* Breadcrumb */}
         <Link
-          href="/buscar?tab=teac"
+          href={`/buscar?q=${encodeURIComponent(q)}&tab=${tab}`}
           className="mb-6 inline-block text-xs text-stone-500 hover:text-stone-900 transition-colors"
         >
-          &larr; Volver a resultados
+          ← Volver a resultados
         </Link>
 
         {/* Identity */}
@@ -42,8 +45,9 @@ export default async function DoctrinaPage({
           <span className="font-mono text-sm text-stone-500">
             {data.referencia}
           </span>
+          <span className="text-sm text-stone-300">·</span>
           <span className="text-sm text-stone-400">
-            {data.tipo_documento}
+            {formatDocumentType(data.tipo_documento)}
           </span>
         </div>
 
@@ -64,11 +68,11 @@ export default async function DoctrinaPage({
           <aside className="shrink-0">
             <div className="rounded-md border border-stone-200 bg-white p-4">
               <h2 className="mb-3 text-sm font-semibold text-stone-900">
-                Art\u00edculos vinculados
+                Artículos vinculados
               </h2>
               {data.articulos_relacionados.length === 0 ? (
                 <p className="text-xs text-stone-400">
-                  Sin art\u00edculos vinculados.
+                  Sin artículos vinculados.
                 </p>
               ) : (
                 <ul className="space-y-3">
@@ -82,7 +86,7 @@ export default async function DoctrinaPage({
                           {a.norma} art. {a.numero}
                         </Link>
                         <p className="text-[11px] text-stone-400">
-                          {a.metodo_enlace}
+                          {formatLinkMethod(a.metodo_enlace)}
                         </p>
                       </div>
                       <ConfidenceBadge confianza={a.confianza_enlace} />
@@ -96,7 +100,7 @@ export default async function DoctrinaPage({
                 <div className="mt-4 border-t border-stone-100 pt-3">
                   {data.articulos_relacionados.some((a) => a.confianza_enlace >= 1.0) ? (
                     <p className="text-xs text-green-700">
-                      Enlace de confianza m\u00e1xima
+                      Enlace de confianza máxima
                     </p>
                   ) : data.articulos_relacionados.some((a) => a.confianza_enlace >= 0.85) ? (
                     <p className="text-xs text-amber-700">

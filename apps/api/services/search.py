@@ -98,30 +98,34 @@ def search_legislacion(
         if _is_postgres(db):
             query = text(
                 """
-                SELECT
-                    n.codigo,
-                    a.numero,
-                    a.tipo,
-                    va.texto,
-                    va.vigente_desde,
-                    va.vigente_hasta,
-                    ts_rank(va.search_vector, to_tsquery('spanish', :tsquery)) AS rank,
-                    ts_headline(
-                        'spanish',
+                SELECT * FROM (
+                    SELECT DISTINCT ON (n.codigo, a.numero)
+                        n.codigo,
+                        a.numero,
+                        a.tipo,
                         va.texto,
-                        to_tsquery('spanish', :tsquery),
-                        'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MaxWords=25, MinWords=8'
-                    ) AS fragmento
-                FROM norma n
-                JOIN articulo a ON a.norma_id = n.id
-                JOIN version_articulo va ON va.articulo_id = a.id
-                WHERE """
+                        va.vigente_desde,
+                        va.vigente_hasta,
+                        ts_rank(va.search_vector, to_tsquery('spanish', :tsquery)) AS rank,
+                        ts_headline(
+                            'spanish',
+                            va.texto,
+                            to_tsquery('spanish', :tsquery),
+                            'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MaxWords=25, MinWords=8'
+                        ) AS fragmento
+                    FROM norma n
+                    JOIN articulo a ON a.norma_id = n.id
+                    JOIN version_articulo va ON va.articulo_id = a.id
+                    WHERE """
                 + where_clause
                 + """
-                ORDER BY rank DESC, va.vigente_desde DESC
+                    ORDER BY n.codigo, a.numero, rank DESC, va.vigente_desde DESC
+                ) AS sub
+                ORDER BY rank DESC
                 LIMIT 10
                 """
             )
+
         else:
             query = text(
                 """
@@ -132,10 +136,12 @@ def search_legislacion(
                 WHERE """
                 + where_clause
                 + """
+                GROUP BY n.codigo, a.numero
                 ORDER BY va.vigente_desde DESC
                 LIMIT 10
                 """
             )
+
 
         rows = db.execute(query, params).mappings()
         return {

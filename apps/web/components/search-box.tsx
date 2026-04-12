@@ -27,6 +27,21 @@ export default function SearchBox() {
 
   return (
     <div>
+      <noscript>
+        <form action="/buscar" method="GET" className="mb-4 flex gap-2">
+          <input type="hidden" name="tab" value="legislacion" />
+          <input
+            type="text"
+            name="q"
+            placeholder="Buscar legislación, doctrina, criterios..."
+            className="w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-base text-stone-900"
+          />
+          <button type="submit" className="rounded-md bg-stone-900 px-4 py-3 text-sm font-medium text-white">
+            Buscar
+          </button>
+        </form>
+      </noscript>
+
       {/* Tabs + Input */}
       <form onSubmit={onSubmit}>
         <div className="flex gap-1 mb-3">

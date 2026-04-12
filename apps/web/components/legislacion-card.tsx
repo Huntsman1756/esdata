@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ConfidenceBadge from "./confidence-badge";
 
 interface ResultCardProps {
   norma: string;
@@ -27,12 +28,6 @@ export default function ResultCard({
       ? `Desde ${vigenteDesde}`
       : null;
 
-  const confColor = confianzaNivel >= 1.0
-    ? "text-green-700"
-    : confianzaNivel >= 0.85
-      ? "text-amber-700"
-      : "text-stone-500";
-
   return (
     <article className="border-b border-stone-200 py-5 first:pt-4 last:border-b-0">
       <div className="flex items-start justify-between gap-4">
@@ -44,9 +39,6 @@ export default function ResultCard({
             {vigencia && (
               <span className="text-stone-400">{vigencia}</span>
             )}
-            <span className={confColor}>
-              {confianzaNivel.toFixed(2)}
-            </span>
           </div>
           <p
             className="font-serif text-sm leading-relaxed text-stone-800"
@@ -59,7 +51,7 @@ export default function ResultCard({
           href={href}
           className="text-xs font-medium text-stone-500 hover:text-stone-900 transition-colors"
         >
-          Ver art\u00edculo completo \u2192
+          Ver artículo completo →
         </Link>
       </div>
     </article>
