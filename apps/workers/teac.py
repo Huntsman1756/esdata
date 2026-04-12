@@ -11,6 +11,13 @@ from sqlalchemy import create_engine, text
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
 
 
+def _parse_seed_urls(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+SEED_URLS = _parse_seed_urls(os.getenv("TEAC_SEED_URLS"))
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
@@ -31,12 +38,50 @@ def _extract(pattern: str, html: str) -> str | None:
     return _clean_html_text(match.group(1))
 
 
+def _extract_first(patterns: list[str], html: str) -> str | None:
+    for pattern in patterns:
+        value = _extract(pattern, html)
+        if value:
+            return value
+    return None
+
+
 def parse_resolution_html(html: str) -> dict[str, str]:
-    referencia = _extract(r"Resolucion TEAC\s+([0-9/]+)", html)
-    fecha = _extract(r'<div class="fecha">Fecha:\s*(.*?)</div>', html)
-    organo = _extract(r'<div class="organo">(.*?)</div>', html)
-    titulo = _extract(r'<div class="titulo">(.*?)</div>', html)
-    texto = _extract(r'<div class="texto">(.*?)</div>', html)
+    referencia = _extract_first(
+        [
+            r"Resolucion TEAC\s+([0-9/]+)",
+            r"resoluci(?:o|ó)n:\s*<span class=['\"]criterioNegrita['\"]>([0-9/]+)</span>",
+        ],
+        html,
+    )
+    fecha = _extract_first(
+        [
+            r'<div class="fecha">Fecha:\s*(.*?)</div>',
+            r"Fecha de la resoluci(?:o|ó)n:\s*<span class=['\"]criterioNegrita['\"]>(.*?)</span>",
+        ],
+        html,
+    )
+    organo = _extract_first(
+        [
+            r'<div class="organo">(.*?)</div>',
+            r"Unidad resolutoria:\s*<span class=['\"]criterioNegrita['\"]>(.*?)</span>",
+        ],
+        html,
+    )
+    titulo = _extract_first(
+        [
+            r'<div class="titulo">(.*?)</div>',
+            r"<div id=['\"]criterioDatosAsunto['\"][^>]*>.*?<p>(.*?)</p>",
+        ],
+        html,
+    )
+    texto = _extract_first(
+        [
+            r'<div class="texto">(.*?)</div>',
+            r"<div id=['\"]criterioDatosContenido['\"][^>]*>.*?<p>(.*?)</p>",
+        ],
+        html,
+    )
 
     return {
         "referencia": referencia,
@@ -92,7 +137,8 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     )
 
 
-def run_sync(seed_urls: list[str]) -> dict[str, int]:
+def run_sync(seed_urls: list[str] | None = None) -> dict[str, int]:
+    urls = seed_urls or SEED_URLS
     processed = 0
     stored = 0
     links_created = 0
@@ -100,7 +146,7 @@ def run_sync(seed_urls: list[str]) -> dict[str, int]:
 
     with engine.begin() as conn:
         _ensure_sync_log_table(conn)
-        for url in seed_urls:
+        for url in urls:
             html = fetch_resolution_html(url)
             data = parse_resolution_html(html)
             processed += 1
@@ -149,14 +195,14 @@ if __name__ == "__main__":
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 
     if args.run_once:
-        result = run_sync(seed_urls=[])
+        result = run_sync()
         print(
             f"[run-once] Documentos procesados: {result['processed']}, almacenados: {result['stored']}"
         )
     else:
         print(f"Starting TEAC worker in continuous mode (interval={interval}s)")
         while True:
-            result = run_sync(seed_urls=[])
+            result = run_sync()
             print(
                 f"Synced resoluciones={result['processed']}, almacenadas={result['stored']} at {datetime.now().isoformat()}"
             )

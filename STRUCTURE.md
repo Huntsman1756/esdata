@@ -1,6 +1,6 @@
 # Estructura actual del repo
 
-Estado actualizado tras la incorporacion del worker DGT y la mejora de doctrina enlazada.
+Estado actualizado tras la incorporacion de TEAC en produccion y la mejora de doctrina enlazada.
 
 ```text
 esdata/
@@ -33,8 +33,10 @@ esdata/
 |       |-- Dockerfile
 |       |-- boe.py
 |       |-- dgt.py
+|       |-- teac.py
 |       |-- requirements.txt
 |       `-- tests/
+|           |-- test_teac.py
 |           |-- test_dgt.py
 |           `-- test_boe.py
 |
@@ -62,7 +64,8 @@ esdata/
 ## Notas
 
 - No existen hoy `models/`, `schemas/`, `alembic/` ni `libs/common/`.
-- Hay dos workers implementados: `boe.py` para legislacion y `dgt.py` para doctrina DGT.
+- Hay tres workers implementados: `boe.py` para legislacion, `dgt.py` para doctrina DGT y `teac.py` para doctrina TEAC.
 - La doctrina real DGT se ingiere desde Petete y se enlaza con articulos via `documento_articulo`.
+- La doctrina real TEAC se ingiere desde DYCTEA y se enlaza con articulos via `documento_articulo`.
 - La busqueda full-text depende de `infra/sql/002_fulltext_search.sql`, ya aplicada en produccion.
-- Railway queda configurado para cinco servicios de aplicacion: `esdata`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, ademas de `Postgres`.
+- Railway queda configurado para siete servicios de aplicacion: `esdata`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, ademas de `Postgres`.

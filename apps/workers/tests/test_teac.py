@@ -26,6 +26,37 @@ def test_parse_resolution_html_extracts_core_fields():
     }
 
 
+def test_parse_resolution_html_supports_live_dyctea_markup():
+    html = """
+    <div id='criterioDatosTitulo' class='criterioDatosFila'>
+        Criterio <span class='criterioNegrita'>1</span> de <span class='criterioNegrita'>1</span> de la resolucion: <span class='criterioNegrita'>00/01362/2024/00/00</span>
+    </div>
+    <div id='criterioDatosUnidad' class='criterioDatosFila'>
+        Unidad resolutoria: <span class='criterioNegrita'>TEAC</span>
+    </div>
+    <div id='criterioDatosFecha' class='criterioDatosFila'>
+        Fecha de la resolucion: <span class='criterioNegrita'>27/02/2026</span>
+    </div>
+    <div id='criterioDatosAsunto' class='criterioDatosFila'>
+        <span class='criterioNegrita'>Asunto: </span><br /><p>IVA. Plazo para el ejercicio del derecho a la rectificacion.</p>
+    </div>
+    <div id='criterioDatosContenido' class='criterioDatosFila'>
+        <span class='criterioNegrita'>Criterio: </span><br />
+        <p>El articulo 89.Cinco b) de la Ley 37/1992 permite regularizar la situacion tributaria.</p>
+    </div>
+    """
+
+    data = parse_resolution_html(html)
+
+    assert data == {
+        "referencia": "00/01362/2024/00/00",
+        "fecha": "2026-02-27",
+        "organo": "TEAC",
+        "titulo": "IVA. Plazo para el ejercicio del derecho a la rectificacion.",
+        "texto": "El articulo 89.Cinco b) de la Ley 37/1992 permite regularizar la situacion tributaria.",
+    }
+
+
 def test_run_sync_persists_teac_document_and_metrics(monkeypatch):
     engine = create_engine("sqlite:///:memory:", future=True)
 
@@ -163,6 +194,136 @@ def test_run_sync_persists_teac_document_and_metrics(monkeypatch):
     assert row == ("00/1234/2024", "resolucion_teac", "TEAC", "teac")
     assert sync_row == ("worker-teac", "ok", 1, 1)
     assert link_row == ("LIVA", "91", 1.0)
+
+
+def test_run_sync_uses_default_seed_urls(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER NOT NULL,
+                    numero TEXT NOT NULL,
+                    titulo TEXT,
+                    tipo TEXT NOT NULL,
+                    UNIQUE (norma_id, numero)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_articulo (
+                    documento_id INTEGER NOT NULL,
+                    articulo_id INTEGER NOT NULL,
+                    metodo_enlace TEXT NOT NULL,
+                    confianza_enlace REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, articulo_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'
+                """
+            )
+        )
+
+    html = (FIXTURES / "teac-resolution.html").read_text(encoding="utf-8")
+
+    monkeypatch.setattr(
+        "teac.SEED_URLS",
+        ["https://serviciostelematicosext.hacienda.gob.es/TEAC/00-1234-2024"],
+    )
+    monkeypatch.setattr("teac.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr("teac.fetch_resolution_html", lambda url: html)
+
+    result = run_sync()
+
+    with engine.begin() as conn:
+        count = conn.execute(
+            text("SELECT COUNT(*) FROM documento_interpretativo")
+        ).scalar_one()
+        sync_row = conn.execute(
+            text(
+                "SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log"
+            )
+        ).fetchone()
+
+    assert result == {"processed": 1, "stored": 1}
+    assert count == 1
+    assert sync_row == ("worker-teac", "ok", 1, 1)
 
 
 def test_teac_run_once_flag_accepts_argparse():

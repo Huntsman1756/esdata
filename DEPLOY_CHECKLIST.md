@@ -17,7 +17,13 @@
 [ ] git add + git commit (usar COMMIT_MSG.txt)
 [ ] git push → Railway despliega automáticamente
 [ ] Esperar healthcheck verde en Railway dashboard para `esdata`
-[ ] Confirmar en Railway que `worker-boe` y `cron-boe-daily` tambien estan en verde
+[ ] Confirmar en Railway que `worker-boe`, `worker-dgt` y `worker-teac` tambien estan en verde
+[ ] Confirmar en Railway que `cron-boe-daily`, `cron-dgt-weekly` y `cron-teac-weekly` estan creados con el comando correcto
+[ ] Verificar variables operativas minimas en Railway:
+    - `worker-dgt`: `DATABASE_URL`, `WORKER_CMD=python dgt.py`, `DGT_SSL_VERIFY` si hace falta
+    - `cron-dgt-weekly`: `DATABASE_URL`, `WORKER_CMD=python dgt.py --run-once`
+    - `worker-teac`: `DATABASE_URL`, `WORKER_CMD=python teac.py`, `TEAC_SEED_URLS`
+    - `cron-teac-weekly`: `DATABASE_URL`, `WORKER_CMD=python teac.py --run-once`, `TEAC_SEED_URLS`
 
 ## Smoke tests post-deploy
 
@@ -36,11 +42,26 @@
 [ ] curl "https://esdata-production.up.railway.app/v1/doctrina/buscar?q=deduccion"
     → responde (aunque sea vacío si no hay doctrina aún)
 
+[ ] curl "https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=DGT"
+    → devuelve resultados DGT reales
+
+[ ] curl "https://esdata-production.up.railway.app/v1/doctrina/buscar?q=iva&organismo_emisor=TEAC"
+    → devuelve resultados TEAC reales
+
+[ ] curl "https://esdata-production.up.railway.app/v1/doctrina/00/01362/2024/00/00"
+    → devuelve `articulos_relacionados` con `LIVA 89` y `confianza_enlace=1.0`
+
 [ ] curl https://esdata-production.up.railway.app/mcp
     → responde con protocolo MCP (no 404)
 
 [ ] railway logs --service worker-boe --tail 50
     → debe mostrar sincronizaciones o al menos arranque sin excepciones
+
+[ ] railway logs --service worker-dgt --tail 50
+    → debe mostrar sincronizaciones DGT o al menos arranque sin excepciones
+
+[ ] railway logs --service worker-teac --tail 50
+    → debe mostrar sincronizaciones TEAC o al menos arranque sin excepciones
 
 ## Si algo falla
 
@@ -55,3 +76,11 @@
 
 - `worker-boe` falla al crear indice trigram: verificar que `pg_trgm` existe
   -> `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
+
+- TEAC devuelve 0 documentos procesados:
+  -> verificar `TEAC_SEED_URLS` en `worker-teac` y `cron-teac-weekly`
+  -> comprobar que `teac.py` sigue parseando markup real de DYCTEA
+
+- TEAC aparece sin enlaces:
+  -> comprobar en detalle que la resolucion tenga `articulos_relacionados`
+  -> revisar patrones en `apps/workers/boe.py::_extract_doctrina_refs`

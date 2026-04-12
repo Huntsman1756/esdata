@@ -447,6 +447,12 @@ def _setup_link_test_db():
         c.execute(
             text(
                 "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
+                "SELECT id, '89', 'Rectificacion de cuotas impositivas repercutidas', 'articulo' FROM norma WHERE codigo = 'LIVA'"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
                 "SELECT id, '15', 'Reglas de valoracion', 'articulo' FROM norma WHERE codigo = 'LIS'"
             )
         )
@@ -458,6 +464,16 @@ def _setup_link_test_db():
             ),
             {
                 "texto": "Artículo 91. Tipos impositivos reducidos.\nUno. Se aplicará el tipo del 6 por 100."
+            },
+        )
+        c.execute(
+            text(
+                "INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id) "
+                "SELECT a.id, :texto, '1993-01-01', NULL, 'a89' "
+                "FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIVA' AND a.numero = '89'"
+            ),
+            {
+                "texto": "Artículo 89. Rectificación de las cuotas impositivas repercutidas."
             },
         )
         c.execute(
@@ -559,6 +575,32 @@ def test_auto_link_doctrina_skips_ambiguous_article_reference():
 
     assert links == 0
     assert count == 0
+
+
+def test_auto_link_doctrina_matches_law_reference_with_subarticle_suffix():
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('resolucion_teac', 'TEAC', 'es', 'teac', 'fiscal', '00/01362/2024/00/00', '2026-02-27', 'Test', "
+                "'El articulo 89.Cinco b) de la Ley 37/1992 permite regularizar la situacion tributaria.', NULL)"
+            )
+        )
+        links = auto_link_doctrina(c)
+        row = c.execute(
+            text(
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "WHERE da.documento_id = (SELECT id FROM documento_interpretativo WHERE referencia = '00/01362/2024/00/00')"
+            )
+        ).fetchone()
+
+    assert links == 1
+    assert row == ("LIVA", "89", 1.0)
 
 
 def test_ensure_schema_creates_sync_log_when_missing():

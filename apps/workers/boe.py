@@ -506,9 +506,13 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
 
     law_patterns = [
         re.compile(
-            r"ART[ÍI]?CULO\s+(\d+)\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b", re.IGNORECASE
+            r"ART[ÍI]?CULO\s+(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b",
+            re.IGNORECASE,
         ),
-        re.compile(r"ART\.?\s*(\d+)\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b", re.IGNORECASE),
+        re.compile(
+            r"ART\.?\s*(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b",
+            re.IGNORECASE,
+        ),
     ]
 
     for pattern in law_patterns:
