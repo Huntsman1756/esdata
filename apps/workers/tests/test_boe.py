@@ -539,6 +539,49 @@ def test_auto_link_materias_creates_link():
     assert row == (2, "tipo-reducido-iva")
 
 
+def test_auto_link_doctrina_upgrades_confidence_when_better_match_found():
+    """Verify that a better match (1.0 > 0.85) upgrades the existing link.
+
+    This is the production bug: links created at 0.85 were never upgraded
+    when explicit 1.0 patterns were added later.
+    """
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        # Create a document and seed a link at 0.85 (simulating old contextual match)
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('resolucion_teac', 'TEAC', 'es', 'teac', 'fiscal', 'UPGRADE-TEST', '2026-04-12', 'Test', "
+                "'Resolucion sobre LIVA 91 en materia de IVA.', NULL)"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota) "
+                "SELECT di.id, a.id, 'contextual_fallback', 0.85, 'Old contextual match' "
+                "FROM documento_interpretativo di, articulo a JOIN norma n ON n.id = a.norma_id "
+                "WHERE di.referencia = 'UPGRADE-TEST' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        )
+        # Now run auto_link_doctrina which should detect LIVA 91 at 1.0
+        auto_link_doctrina(c)
+        row = c.execute(
+            text(
+                "SELECT da.confianza_enlace, da.metodo_enlace, da.nota "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "JOIN documento_interpretativo di ON di.id = da.documento_id "
+                "WHERE di.referencia = 'UPGRADE-TEST' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        ).fetchone()
+
+    assert row[0] == 1.0  # confidence upgraded
+    assert row[1] == "auto_link"
+    assert row[2] == "Referencia auto-detectada: LIVA art. 91"
+
+
 def test_auto_link_doctrina_creates_strong_links_for_explicit_norma_and_article():
     eng = _setup_link_test_db()
     with eng.begin() as c:
