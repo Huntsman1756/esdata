@@ -6,8 +6,8 @@
 - BOE, DGT y TEAC activos en produccion.
 - Frontend Next.js operativo en `https://web-production-ecb5.up.railway.app`.
 - Nueva capa **Modelos AEAT** desplegada:
-  - 6 modelos: 100, 111, 115, 130, 303, 390
-  - 16 relaciones modelo-articulo con fuente oficial verificable
+  - 8 modelos: 100, 111, 115, 130, 190, 196, 303, 390
+  - 22 relaciones modelo-articulo con fuente oficial verificable
   - 3 nuevos endpoints API: `GET /v1/modelos`, `GET /v1/modelos/{codigo}`, `GET /v1/modelos/{codigo}/articulos`
   - Sidebars "Modelos AEAT relacionados" en detalle de articulo y doctrina
   - Pagina de detalle de modelo: `/modelo/[codigo]`
@@ -79,8 +79,8 @@
   - LIVA: 228 articulos
   - Total: 901 articulos, 941 versiones
 - Modelos AEAT:
-  - 6 modelos en `aeat_modelo`
-  - 16 relaciones en `modelo_articulo` (todas con fuente)
+  - 8 modelos en `aeat_modelo`
+  - 22 relaciones en `modelo_articulo` (todas con fuente)
 - Baseline de enlazado pre-cron:
   - DGT: 21 links, 0 low confidence
   - TEAC: 4 links, 0 low confidence
@@ -93,6 +93,7 @@
 | 307dae9 | feat(aeat-modelos): Batch B — API endpoints + tests |
 | 8b69b9f | feat(web): Batch C — modelos sidebars en articulo y doctrina |
 | 37a2f3e | feat(web): Batch D — modelo detail page |
+| 9964414 | feat(aeat-modelos): add models 190 and 196 with verified sources |
 
 ## Pendiente para la proxima sesion
 
