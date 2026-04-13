@@ -101,7 +101,61 @@ def test_default_normas_include_itpajd():
     assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-253"
 
 
+def test_fetch_metadata_fallback_when_boe_returns_404():
+    """ITPAJD boe_id BOE-A-1993-253 returns 404 on /metadatos endpoint.
+
+    The worker must fall back to classification-based metadata instead of
+    crashing the entire ingestion pipeline.
+    """
+    from boe import fetch_metadata, NORMA_CLASSIFICATIONS
+
+    class Fake404Response:
+        status_code = 404
+
+        def raise_for_status(self):
+            # Create a proper httpx HTTPStatusError with mock request/response
+            import httpx
+            request = httpx.Request("GET", "http://example.com")
+            response = httpx.Response(404, request=request)
+            raise httpx.HTTPStatusError(
+                "404 Client Error: Not Found", request=request, response=response
+            )
+
+        def json(self):
+            raise Exception("Should not be called")
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, headers=None):
+            # Simulate BOE returning 404 for ITPAJD metadata
+            if "metadatos" in url:
+                return Fake404Response()
+            raise AssertionError(f"Unexpected URL: {url}")
+
+    with patch("boe.httpx.Client", return_value=FakeClient()):
+        metadata = fetch_metadata(FakeClient(), "ITPAJD", "BOE-A-1993-253")
+
+    classification = NORMA_CLASSIFICATIONS["ITPAJD"]
+    assert metadata.codigo == "ITPAJD"
+    assert metadata.boe_id == "BOE-A-1993-253"
+    assert metadata.tipo_documento == classification["tipo_documento"]
+    assert metadata.ambito == classification["ambito"]
+    assert metadata.estado_cobertura == "ingestada"
+    assert metadata.jurisdiccion == "es"
+    assert metadata.tipo_fuente == "boe"
+
+
 def test_run_sync_ingests_itpajd_article_and_version():
+    """Verify ITPAJD ingestion works even when BOE returns 404 on /metadatos.
+
+    This reproduces the production blocking issue where BOE-A-1993-253
+    returns 404 on /metadatos endpoint.
+    """
     from boe import run_sync
 
     class FakeResponse:
@@ -115,6 +169,21 @@ def test_run_sync_ingests_itpajd_article_and_version():
         def json(self):
             return self._json_data
 
+    class Fake404Response:
+        status_code = 404
+
+        def raise_for_status(self):
+            # Create a proper httpx HTTPStatusError with mock request/response
+            import httpx
+            request = httpx.Request("GET", "http://example.com")
+            response = httpx.Response(404, request=request)
+            raise httpx.HTTPStatusError(
+                "404 Client Error: Not Found", request=request, response=response
+            )
+
+        def json(self):
+            raise Exception("Should not be called")
+
     class FakeClient:
         def __enter__(self):
             return self
@@ -124,17 +193,8 @@ def test_run_sync_ingests_itpajd_article_and_version():
 
         def get(self, url, headers=None):
             if url.endswith("/id/BOE-A-1993-253/metadatos"):
-                return FakeResponse(
-                    json_data={
-                        "data": [
-                            {
-                                "titulo": "Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
-                                "fecha_vigencia": "19930925",
-                                "url_eli": "https://www.boe.es/eli/es/rdlg/1993/09/24/1",
-                            }
-                        ]
-                    }
-                )
+                # Simulate real BOE 404 for ITPAJD
+                return Fake404Response()
             if url.endswith("/id/BOE-A-1993-253/texto/indice"):
                 return FakeResponse(
                     json_data={
@@ -193,6 +253,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
             )
         ).fetchone()
 
+    # Norma should be ingested with fallback metadata
     assert norma == (
         "ITPAJD",
         "BOE-A-1993-253",
