@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 """
-Seed initial AEAT model-article relationships for esdata.
+Seed all AEAT model-article relationships for esdata.
 
 Populates:
-- aeat_modelo: top 6 models with metadata
+- aeat_modelo: 21 models with metadata (IRPF, IVA, IRNR, CENSAL, INFORMATIVO)
 - modelo_articulo: verified relationships with official source
+
+Models covered:
+  IRPF: 100, 111, 115, 123, 130, 180, 187, 189, 190, 193, 194, 196, 198
+  IVA: 303, 390
+  IRNR: 124, 216, 296
+  CENSAL: 036
+  INFORMATIVO: 289 (DAC2/CRS), 290 (FATCA)
 
 Usage:
     python scripts/seed-modelos.py [--db-url URL] [--dry-run]
@@ -39,6 +46,9 @@ except ImportError:
 # Model metadata — verifiable from AEAT sede pages
 # ---------------------------------------------------------------------------
 MODELOS = [
+    # ------------------------------------------------------------------
+    # IRPF — Declaraciones y autoliquidaciones
+    # ------------------------------------------------------------------
     {
         "codigo": "100",
         "nombre": "IRPF Declaración anual",
@@ -46,6 +56,17 @@ MODELOS = [
         "impuesto": "IRPF",
         "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-100/index.shtml",
     },
+    {
+        "codigo": "130",
+        "nombre": "IRPF Pago fraccionado",
+        "periodo": "trimestral",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-130/index.shtml",
+    },
+
+    # ------------------------------------------------------------------
+    # IRPF — Retenciones e ingresos a cuenta
+    # ------------------------------------------------------------------
     {
         "codigo": "111",
         "nombre": "IRPF Retenciones e ingresos a cuenta",
@@ -61,46 +82,18 @@ MODELOS = [
         "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-115/index.shtml",
     },
     {
-        "codigo": "130",
-        "nombre": "IRPF Pago fraccionado",
-        "periodo": "trimestral",
-        "impuesto": "IRPF",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-130/index.shtml",
+        "codigo": "123",
+        "nombre": "Retenciones IRPF/IS/IRNR — rentas sujetas a retención",
+        "periodo": "mensual",
+        "impuesto": "IRPF/IS/IRNR",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
     },
     {
-        "codigo": "303",
-        "nombre": "IVA Autoliquidación",
-        "periodo": "trimestral",
-        "impuesto": "IVA",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-valor-anadido-iva/modelo-303/index.shtml",
-    },
-    {
-        "codigo": "190",
-        "nombre": "IRPF Retenciones — rendimientos trabajo y actividades",
-        "periodo": "anual",
-        "impuesto": "IRPF",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-190.html",
-    },
-    {
-        "codigo": "196",
-        "nombre": "IRPF Resumen anual retenciones capital mobiliario",
-        "periodo": "anual",
-        "impuesto": "IRPF",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-196.html",
-    },
-    {
-        "codigo": "180",
-        "nombre": "IRPF Resumen anual retenciones arrendamientos inmuebles",
-        "periodo": "anual",
-        "impuesto": "IRPF",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-180.html",
-    },
-    {
-        "codigo": "193",
-        "nombre": "IRPF Retenciones capital mobiliario",
-        "periodo": "anual",
-        "impuesto": "IRPF",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-193.html",
+        "codigo": "124",
+        "nombre": "Retenciones IRNR — rentas sin establecimiento permanente",
+        "periodo": "mensual",
+        "impuesto": "IRNR",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-124.html",
     },
     {
         "codigo": "187",
@@ -110,11 +103,118 @@ MODELOS = [
         "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-187.html",
     },
     {
+        "codigo": "189",
+        "nombre": "IRPF Certificaciones individuales socios/partícipes",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-189.html",
+    },
+    {
+        "codigo": "190",
+        "nombre": "IRPF Retenciones — rendimientos trabajo y actividades",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-190.html",
+    },
+    {
+        "codigo": "193",
+        "nombre": "IRPF Retenciones capital mobiliario",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-193.html",
+    },
+    {
+        "codigo": "194",
+        "nombre": "IRPF Operaciones vinculadas y paraísos fiscales",
+        "periodo": "anual",
+        "impuesto": "IRPF/LIS",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-194.html",
+    },
+    {
+        "codigo": "196",
+        "nombre": "IRPF Resumen anual retenciones capital mobiliario",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-196.html",
+    },
+    {
+        "codigo": "198",
+        "nombre": "IRPF Operaciones con activos financieros",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-198.html",
+    },
+    {
+        "codigo": "180",
+        "nombre": "IRPF Resumen anual retenciones arrendamientos inmuebles",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-180.html",
+    },
+
+    # ------------------------------------------------------------------
+    # IRNR — Retenciones no residentes
+    # ------------------------------------------------------------------
+    {
+        "codigo": "216",
+        "nombre": "IRNR Retenciones rentas sin establecimiento permanente",
+        "periodo": "mensual",
+        "impuesto": "IRNR",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelos-declaraciones-retenciones.html",
+    },
+    {
+        "codigo": "296",
+        "nombre": "IRNR Resumen anual retenciones sin EP",
+        "periodo": "anual",
+        "impuesto": "IRNR",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelo-296-declaracion-informativa-resumen-anual_.html",
+    },
+
+    # ------------------------------------------------------------------
+    # IVA
+    # ------------------------------------------------------------------
+    {
+        "codigo": "303",
+        "nombre": "IVA Autoliquidación",
+        "periodo": "trimestral",
+        "impuesto": "IVA",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-valor-anadido-iva/modelo-303/index.shtml",
+    },
+    {
         "codigo": "390",
         "nombre": "IVA Resumen anual",
         "periodo": "anual",
         "impuesto": "IVA",
         "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-valor-anadido-iva/modelo-390/index.shtml",
+    },
+
+    # ------------------------------------------------------------------
+    # Censal y declarativo
+    # ------------------------------------------------------------------
+    {
+        "codigo": "036",
+        "nombre": "Declaración censal alta/modificación/baja",
+        "periodo": "eventual",
+        "impuesto": "CENSAL",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/censos-nif-domicilio-fiscal/censos/modelos-036-037_____icacion-baja-declaracion-simplificada_/modelo-036.html",
+    },
+
+    # ------------------------------------------------------------------
+    # Declaraciones informativas intercambio de información
+    # ------------------------------------------------------------------
+    {
+        "codigo": "289",
+        "nombre": "Cuentas financieras asistencia mutua (DAC2/CRS)",
+        "periodo": "anual",
+        "impuesto": "INFORMATIVO",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html",
+    },
+    {
+        "codigo": "290",
+        "nombre": "Cuentas financieras FATCA (EEUU)",
+        "periodo": "anual",
+        "impuesto": "INFORMATIVO",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml",
     },
 ]
 
@@ -344,28 +444,184 @@ MODELO_ARTICULO_DATA = [
         "Instrucciones Modelo 187 2025",
         "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-187/instrucciones/index.shtml",
     ),
+
+    # ------------------------------------------------------------------
+    # Modelo 036 — Declaración censal
+    # Fuente: Guía práctica cumplimentación modelo 036 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "036", "LGT", "109",
+        None, "Obligaciones de información — censo empresarios/profesionales",
+        "Guía práctica Modelo 036 2025 — Capítulo 1: Causas de presentación",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/guia-practica-cumplimentacion-modelo-censal-036/capitulo-01-cuestiones-generales/declaracion-censal.html",
+    ),
+    (
+        "036", "LGT", "110",
+        None, "Obligaciones formales — identificación censal",
+        "Guía práctica Modelo 036 2025 — Capítulo 2: Identificación",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/guia-practica-cumplimentacion-modelo-censal-036/capitulo-02-identificacion/modelo-036.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 123 — Retenciones IRPF/IS/IRNR rentas sujetas a retención
+    # Fuente: Instrucciones Modelo 123 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "123", "LIRPF", "99",
+        None, "Obligación de retener — rentas IRPF",
+        "Instrucciones Modelo 123 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
+    ),
+    (
+        "123", "LIRPF", "100",
+        None, "Ingresos a cuenta — rentas IRPF",
+        "Instrucciones Modelo 123 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
+    ),
+    (
+        "123", "LIS", "62",
+        None, "Retenciones IS — rentas sujetos pasivos IS",
+        "Instrucciones Modelo 123 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
+    ),
+    (
+        "123", "LIRPF", "17",
+        None, "Retenciones rendimientos trabajo",
+        "Instrucciones Modelo 123 2025 — Rendimientos trabajo",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
+    ),
+    (
+        "123", "LIRPF", "22",
+        None, "Retenciones rendimientos capital mobiliario",
+        "Instrucciones Modelo 123 2025 — Capital mobiliario",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 124 — Retenciones IRNR rentas sin EP
+    # Fuente: Instrucciones Modelo 124 (AEAT)
+    # Nota: Las relaciones con artículos IRNR están pendientes de ingesta
+    #       de la norma IRNR (RDL 5/2004). Se documentan aquí para contexto.
+    # ------------------------------------------------------------------
+    (
+        "124", "LGT", "109",
+        None, "Obligaciones de información — retenciones IRNR",
+        "Instrucciones Modelo 124 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-124.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 189 — IRPF Certificaciones individuales socios/partícipes
+    # Fuente: Instrucciones Modelo 189 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "189", "LIRPF", "99",
+        None, "Obligación de retener — certificaciones socios/partícipes",
+        "Instrucciones Modelo 189 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-189.html",
+    ),
+    (
+        "189", "LIRPF", "100",
+        None, "Ingresos a cuenta — certificaciones socios/partícipes",
+        "Instrucciones Modelo 189 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-189.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 194 — Operaciones vinculadas y paraísos fiscales
+    # Fuente: Instrucciones Modelo 194 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "194", "LGT", "109",
+        None, "Obligaciones de información — operaciones vinculadas",
+        "Instrucciones Modelo 194 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-194.html",
+    ),
+    (
+        "194", "LIS", "16",
+        None, "Operaciones vinculadas — valoración a valor de mercado",
+        "Instrucciones Modelo 194 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-194.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 198 — IRPF Operaciones con activos financieros
+    # Fuente: Instrucciones Modelo 198 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "198", "LIRPF", "94",
+        None, "Ganancias patrimoniales acciones/participaciones",
+        "Instrucciones Modelo 198 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-198.html",
+    ),
+    (
+        "198", "LIRPF", "95",
+        None, "Reembolso acciones/participaciones",
+        "Instrucciones Modelo 198 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-198.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 216 — IRNR Retenciones rentas sin EP
+    # Fuente: Instrucciones Modelo 216 (AEAT)
+    # Nota: Relaciones con artículos IRNR pendientes de ingesta de norma.
+    # ------------------------------------------------------------------
+    (
+        "216", "LGT", "109",
+        None, "Obligaciones de información — retenciones IRNR sin EP",
+        "Instrucciones Modelo 216 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelos-declaraciones-retenciones.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 296 — IRNR Resumen anual retenciones sin EP
+    # Fuente: Instrucciones Modelo 296 (AEAT)
+    # Nota: Resumen anual de retenciones declaradas en modelo 216.
+    # ------------------------------------------------------------------
+    (
+        "296", "LGT", "109",
+        None, "Obligaciones de información — resumen anual IRNR",
+        "Instrucciones Modelo 296 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelo-296-declaracion-informativa-resumen-anual_.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 289 — Cuentas financieras asistencia mutua (DAC2/CRS)
+    # Fuente: Instrucciones Modelo 289 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "289", "LGT", "109",
+        None, "Obligaciones de información — intercambio DAC2/CRS",
+        "Instrucciones Modelo 289 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 290 — Cuentas financieras FATCA (EEUU)
+    # Fuente: Instrucciones Modelo 290 (AEAT) — Acuerdo FATCA España-EEUU
+    # ------------------------------------------------------------------
+    (
+        "290", "LGT", "109",
+        None, "Obligaciones de información — acuerdo FATCA España-EEUU",
+        "Instrucciones Modelo 290 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
-# Modelos excluidos de Fase 1 (documentación para no perder contexto)
+# Modelos implementados y sus notas de cobertura
 #
-# 198: Declaración anual operaciones con activos financieros
-#      Existe, pero relación con artículos LIRPF menos directa.
-#      Aparcado hasta Fase 2.
+# Todos los modelos ahora están registrados en aeat_modelo.
+# Las relaciones con artículos de normas IRNR (RDL 5/2004) están
+# pendientes de ingesta de la norma. Se documentan aquí para contexto:
 #
-# 289: Declaración informativa cuentas financieras asistencia mutua
-#      Intercambio de información entre jurisdicciones, no encaja en
-#      la vertical fiscal IRPF/IVA de esta fase.
+# 124: IRNR rentas sin EP → necesita IRNR art. 14, 25
+# 216: IRNR retenciones sin EP → necesita IRNR art. 25, 26
+# 296: IRNR resumen anual → necesita IRNR art. 25, 26
 #
-# 290: No verificado como modelo independiente en la sede AEAT.
-#      Aparcado hasta confirmar existencia y número exacto.
-#
-# 296: Retenciones IRNR (Impuesto Renta No Residentes)
-#      Otro impuesto (IRNR), fuera de foco por ahora.
-#
-# 216: Retenciones IRNR rentas sin establecimiento permanente
-#      Otro impuesto (IRNR), fuera de foco por ahora.
-#      Verificado en tanda 2 pero excluido por coherencia fiscal.
+# Los modelos 289 y 290 son declaraciones informativas de intercambio
+# internacional (DAC2/CRS y FATCA) y se enlazan con LGT art. 109
+# como obligación formal de información.
 # ---------------------------------------------------------------------------
 
 

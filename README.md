@@ -26,6 +26,16 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
   - `Directiva (UE) 2018/822` (`DAC6`)
   - `UNE 19602`
 
+## Modelos AEAT registrados
+
+- **IRPF** (13 modelos): `100`, `111`, `115`, `123`, `130`, `180`, `187`, `189`, `190`, `193`, `194`, `196`, `198`
+- **IVA** (2 modelos): `303`, `390`
+- **IRNR** (3 modelos): `124`, `216`, `296`
+- **CENSAL** (1 modelo): `036`
+- **INFORMATIVO** (2 modelos): `289` (DAC2/CRS), `290` (FATCA)
+
+> Total: 21 modelos. Las relaciones con articulos IRNR (RDL 5/2004) estan pendientes de ingesta de la norma.
+
 ## Servicios desplegados
 
 - `api`: API FastAPI publica.
