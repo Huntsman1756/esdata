@@ -21,7 +21,6 @@ import re
 import time
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 
 import httpx
 from sqlalchemy import create_engine, text
@@ -528,7 +527,7 @@ def run_sync(engine, run_once: bool = False):
 
     while True:
         result = SyncResult()
-        logger.info(f"=== Syncing model data from AEAT ===")
+        logger.info("=== Syncing model data from AEAT ===")
 
         try:
             with engine.connect() as conn:

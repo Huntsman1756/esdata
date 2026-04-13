@@ -134,3 +134,29 @@ Resultado observado:
 
 - `docs/production-status-2026-04-12.md` ya no refleja el estado final actual de Railway ni de modelos v2; tomar este archivo como referencia mas fiable para retomar trabajo.
 - El proyecto ya es util como infraestructura, pero todavia falta empaquetado de producto para competir por adopcion, no solo por capacidad tecnica.
+
+## Incidencia detectada al cierre y como evitarla
+
+- Tras el ultimo push parecio que "GitHub y Railway se habian roto", pero la investigacion mostro que no era una caida de produccion.
+- Estado real observado:
+  - Railway seguia en verde y `/health` respondia `ok`.
+  - El problema estaba en GitHub Actions `CI`, no en `Deploy` ni en runtime.
+- Causa raiz:
+  - El workflow `CI` fallaba en `lint` con `ruff check apps/`.
+  - Los errores ya estaban presentes desde `f7b6f29`, antes del commit de docs final.
+  - Eran errores menores de lint (`F401`, `F541`), no una regresion funcional.
+- Correccion aplicada:
+  - eliminados imports no usados en `apps/api/routers/doctrina.py`
+  - eliminados imports no usados en `apps/workers/modelos.py`
+  - eliminada `f-string` sin placeholders en `apps/workers/modelos.py`
+  - eliminado import no usado en `apps/workers/tests/test_modelos.py`
+- Verificacion:
+  - `ruff check apps/` -> `All checks passed!`
+  - `pytest apps/api/tests/test_smoke.py apps/workers/tests/ -q` -> `104 passed, 1 warning`
+- Prevencion para futuras sesiones:
+  1. Separar siempre "CI rojo" de "produccion rota" antes de diagnosticar.
+  2. Comprobar primero estas tres cosas:
+     - `gh run list --limit 5`
+     - `curl https://esdata-production.up.railway.app/health`
+     - `railway status --json`
+  3. Si `Deploy` esta en verde y Railway responde, mirar primero `lint`/`test` antes de tocar produccion.

@@ -5,7 +5,6 @@ Tests for the modelos worker (AEAT model content scraper).
 import sys
 from pathlib import Path
 
-import pytest
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
