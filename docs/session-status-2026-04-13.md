@@ -134,6 +134,22 @@ Resultado observado:
 
 - `docs/production-status-2026-04-12.md` ya no refleja el estado final actual de Railway ni de modelos v2; tomar este archivo como referencia mas fiable para retomar trabajo.
 - El proyecto ya es util como infraestructura, pero todavia falta empaquetado de producto para competir por adopcion, no solo por capacidad tecnica.
+- Si Railway aparece en amarillo, comprobar si es un `latestDeployment=FAILED` con `activeDeployment=SUCCESS` antes de asumir una caida real.
+
+## Cierre posterior al handoff inicial
+
+- Se detecto un estado amarillo en Railway despues del handoff inicial.
+- Causa raiz confirmada:
+  - `worker-dgt`, `cron-dgt-weekly`, `worker-teac` y `cron-teac-weekly` tenian un `latestDeployment` fallido.
+  - Los servicios seguian vivos porque el `activeDeployment` anterior seguia en `SUCCESS`.
+  - El problema era el metodo de deploy de esos cuatro servicios, no una caida del runtime.
+- Correccion aplicada:
+  - redeploy manual de los cuatro servicios usando `apps/workers --path-as-root`
+  - actualizacion de `.github/workflows/deploy.yml` para usar ese mismo flujo en DGT/TEAC
+  - guard adicional en el paso de Cloudflare para saltarlo cuando faltan secrets
+- Verificacion final:
+  - `railway status --json` -> todos los servicios con `latestDeployment=SUCCESS`
+  - `Invoke-WebRequest -UseBasicParsing https://esdata-production.up.railway.app/health` -> `{"status":"ok"}`
 
 ## Incidencia detectada al cierre y como evitarla
 
