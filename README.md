@@ -71,6 +71,8 @@ Para añadir o quitar casillas en una nueva campaña, se actualiza `modelo_campa
 - `cron-dgt-weekly`: ejecucion semanal `python dgt.py --run-once`.
 - `worker-teac`: worker continuo que sincroniza doctrina TEAC desde DYCTEA y ejecuta auto-linking a articulos.
 - `cron-teac-weekly`: ejecucion semanal `python teac.py --run-once`.
+- `worker-modelos`: worker continuo que escanea la sede AEAT para actualizar instrucciones, casillas, claves y detectar nuevas campañas.
+- `cron-modelos-daily`: ejecucion diaria `python modelos.py --run-once` a las 05:00.
 - `web`: Frontend Next.js 15 con buscador fiscal, resultados y detalle de doctrina (Fase 1).
 - `Postgres`: base de datos principal.
 

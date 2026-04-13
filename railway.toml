@@ -76,6 +76,27 @@ startCommand = "python teac.py --run-once"
 [services.cron]
 schedule = "0 8 * * 1"
 
+# --- Modelos Worker (long-running — auto-scrapes AEAT for model content) ---
+[[services]]
+name = "worker-modelos"
+rootDirectory = "apps/workers"
+
+[services.deploy]
+startCommand = "python modelos.py"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# --- Cron: Modelos daily (refresh campaigns, casillas, instructions) ---
+[[services]]
+name = "cron-modelos-daily"
+rootDirectory = "apps/workers"
+
+[services.deploy]
+startCommand = "python modelos.py --run-once"
+
+[services.cron]
+schedule = "0 5 * * *"
+
 # --- Web (Next.js frontend) ---
 [[services]]
 name = "web"
