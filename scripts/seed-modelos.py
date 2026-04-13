@@ -3,15 +3,17 @@
 Seed all AEAT model-article relationships for esdata.
 
 Populates:
-- aeat_modelo: 21 models with metadata (IRPF, IVA, IRNR, CENSAL, INFORMATIVO)
+- aeat_modelo: 25 models with metadata (IRPF, IVA, IRNR, CENSAL, INFORMATIVO, FORMATO)
 - modelo_articulo: verified relationships with official source
 
 Models covered:
-  IRPF: 100, 111, 115, 123, 130, 180, 187, 189, 190, 193, 194, 196, 198
-  IVA: 303, 390
-  IRNR: 124, 216, 296
-  CENSAL: 036
-  INFORMATIVO: 289 (DAC2/CRS), 290 (FATCA)
+  IRPF (14):      100, 110 (obs.), 111, 115, 123, 130, 180, 187, 189, 190, 193, 194, 196, 198
+  IVA (4):        303, 349, 390
+  IRNR (3):       124, 216, 296
+  CENSAL (1):     036
+  INFORMATIVO (5): 289 (DAC2/CRS), 290 (FATCA), 347
+  FORMATO (1):    299 (diseño registro electrónico)
+  HISTÓRICO (1):  110 (obsoleto → 111)
 
 Usage:
     python scripts/seed-modelos.py [--db-url URL] [--dry-run]
@@ -215,6 +217,42 @@ MODELOS = [
         "periodo": "anual",
         "impuesto": "INFORMATIVO",
         "url_info": "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml",
+    },
+    {
+        "codigo": "299",
+        "nombre": "Diseño de registro — formato electrónico declaración",
+        "periodo": "eventual",
+        "impuesto": "FORMATO",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro.html",
+    },
+
+    # ------------------------------------------------------------------
+    # Declaraciones informativas de operaciones
+    # ------------------------------------------------------------------
+    {
+        "codigo": "347",
+        "nombre": "Declaración anual operaciones con terceros",
+        "periodo": "anual",
+        "impuesto": "INFORMATIVO",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/modelo-347-declaracion-anual-operaciones-terceras-personas/index.shtml",
+    },
+    {
+        "codigo": "349",
+        "nombre": "Declaración recapitulativa operaciones intracomunitarias",
+        "periodo": "mensual",
+        "impuesto": "IVA",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue/modelo-349.html",
+    },
+
+    # ------------------------------------------------------------------
+    # Modelos históricos / obsoletos
+    # ------------------------------------------------------------------
+    {
+        "codigo": "110",
+        "nombre": "IRPF Retenciones e ingresos a cuenta (obsoleto → 111)",
+        "periodo": "trimestral",
+        "impuesto": "IRPF",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/guia-practica-cumplimentacion-modelo-censal-036/capitulo-09-retenciones-ingresos-cuenta/modelo-110.html",
     },
 ]
 
@@ -605,6 +643,70 @@ MODELO_ARTICULO_DATA = [
         None, "Obligaciones de información — acuerdo FATCA España-EEUU",
         "Instrucciones Modelo 290 2025",
         "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 299 — Diseño de registro (formato electrónico)
+    # Nota: No es un modelo de declaración per se, sino formato de fichero
+    #       para presentación electrónica. Se registra para cobertura técnica.
+    # ------------------------------------------------------------------
+    (
+        "299", "LGT", "109",
+        None, "Formato electrónico de presentación — diseño de registro",
+        "Diseños de registro AEAT",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 347 — Declaración anual operaciones con terceros
+    # Fuente: Instrucciones Modelo 347 (BOE / AEAT)
+    # ------------------------------------------------------------------
+    (
+        "347", "LGT", "109",
+        None, "Obligaciones de información — operaciones con terceros",
+        "Instrucciones Modelo 347 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/8-declaraciones-informativas/8_2-declaracion-anual-operaciones-terceros-347.html",
+    ),
+    (
+        "347", "LIVA", "97",
+        None, "Registro de facturas emitidas y recibidas — soporte 347",
+        "Instrucciones Modelo 347 2025 — Operaciones con terceros",
+        "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/8-declaraciones-informativas/8_2-declaracion-anual-operaciones-terceros-347.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 349 — Declaración recapitulativa operaciones intracomunitarias
+    # Fuente: Instrucciones Modelo 349 (AEAT) — Reglamento UE 2018/1541
+    # ------------------------------------------------------------------
+    (
+        "349", "LIVA", "50",
+        None, "Entregas intracomunitarias de bienes — exención art. 50",
+        "Instrucciones Modelo 349 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue/modelo-349.html",
+    ),
+    (
+        "349", "LIVA", "84",
+        None, "Sujeción IVA — operaciones intracomunitarias",
+        "Instrucciones Modelo 349 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue/modelo-349.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 110 — IRPF Retenciones e ingresos a cuenta (OBSOLETO → 111)
+    # Nota: Modelo histórico sustituido por el 111. Se registra para
+    #       cobertura de datos históricos y trazabilidad.
+    # ------------------------------------------------------------------
+    (
+        "110", "LIRPF", "99",
+        None, "Obligación de retener — modelo histórico (obsoleto → 111)",
+        "Orden EHA/586/2011 — Modelo 110",
+        "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
+    ),
+    (
+        "110", "LIRPF", "100",
+        None, "Ingresos a cuenta — modelo histórico (obsoleto → 111)",
+        "Orden EHA/586/2011 — Modelo 110",
+        "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
     ),
 ]
 

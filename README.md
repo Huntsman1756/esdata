@@ -29,12 +29,14 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 ## Modelos AEAT registrados
 
 - **IRPF** (13 modelos): `100`, `111`, `115`, `123`, `130`, `180`, `187`, `189`, `190`, `193`, `194`, `196`, `198`
-- **IVA** (2 modelos): `303`, `390`
+- **IVA** (3 modelos): `303`, `349`, `390`
 - **IRNR** (3 modelos): `124`, `216`, `296`
 - **CENSAL** (1 modelo): `036`
-- **INFORMATIVO** (2 modelos): `289` (DAC2/CRS), `290` (FATCA)
+- **INFORMATIVO** (3 modelos): `289` (DAC2/CRS), `290` (FATCA), `347`
+- **FORMATO** (1 modelo): `299` (diseño registro electrónico)
+- **HISTÓRICO** (1 modelo): `110` (obsoleto → `111`)
 
-> Total: 21 modelos. Las relaciones con articulos IRNR (RDL 5/2004) estan pendientes de ingesta de la norma.
+> Total: 25 modelos. Las relaciones con articulos IRNR (RDL 5/2004) estan pendientes de ingesta de la norma.
 
 ## Servicios desplegados
 
