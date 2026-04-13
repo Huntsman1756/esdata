@@ -96,7 +96,12 @@ esdata/
 |   `-- sql/
 |       |-- 002_fulltext_search.sql
 |       |-- 003_modelos_aeat.sql
+|       |-- 004_modelos_v2.sql
 |       `-- init.sql
+|
+|-- scripts/
+|   |-- seed-modelos.py
+|   `-- seed-modelos-v2.py
 |
 |-- COMMIT_MSG.txt
 |-- DEPLOY_CHECKLIST.md
@@ -116,9 +121,11 @@ esdata/
 - La doctrina real TEAC se ingiere desde DYCTEA y se enlaza con articulos via `documento_articulo`.
 - La busqueda full-text depende de `infra/sql/002_fulltext_search.sql`, ya aplicada en produccion.
 - Railway queda configurado para ocho servicios de aplicacion: `api`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, `web`. Ademas de `Postgres`.
-- `apps/web` es el frontend Next.js 15 con buscador, resultados y detalle de doctrina (Fase 1).
-- `apps/api/routers/modelos.py` expone la capa `Modelos AEAT` sobre `aeat_modelo` y `modelo_articulo`.
-- `apps/web/app/modelo/[codigo]/page.tsx` ya esta implementada y publicada.
+- `apps/web` es el frontend Next.js 15 con buscador, resultados, detalle de doctrina, articulo y modelo (Fase 1).
+- `apps/api/routers/modelos.py` expone la capa `Modelos AEAT` v2: campañas, casillas, claves, instrucciones, normativa y doctrina derivada.
+- `apps/web/app/modelo/[codigo]/page.tsx` muestra instrucciones, casillas, claves, normativa, articulos y doctrina del modelo.
 - El frontend publicado vive en el servicio Railway `web` y hoy responde en `https://web-production-ecb5.up.railway.app`.
 - `app/articulo/[norma]/[numero]/page.tsx` ya esta implementada y publicada.
 - La home `app/page.tsx` se fuerza a dinamica para no congelar cobertura/status con un prerender erroneo.
+- `infra/sql/004_modelos_v2.sql` añade versionado por campaña, casillas, claves, instrucciones, normativa y formato.
+- `scripts/seed-modelos-v2.py` popula datos v2 para todos los 25 modelos (campaña 2025).

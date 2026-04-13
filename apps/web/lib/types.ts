@@ -171,6 +171,7 @@ export interface ModeloSummary {
   periodo: string | null;
   impuesto: string | null;
   articulos_count: number;
+  casillas_count: number;
 }
 
 export interface ModelosListResponse {
@@ -199,13 +200,55 @@ export interface DoctrinaRelacionada {
   via_articulos: DoctrinaViaArticulo[];
 }
 
+export interface ModeloCasilla {
+  codigo: string;
+  etiqueta: string;
+  descripcion: string | null;
+  tipo_casilla: string | null;
+  pagina: number | null;
+  orden: number | null;
+}
+
+export interface ModeloClave {
+  codigo: string;
+  etiqueta: string;
+  descripcion: string | null;
+  tipo_clave: string | null;
+}
+
+export interface ModeloInstruccion {
+  seccion: string;
+  titulo: string;
+  contenido: string;
+  orden: number;
+}
+
+export interface ModeloNormativa {
+  boe_id: string | null;
+  titulo: string;
+  fecha: string | null;
+  url_boe: string | null;
+  resumen: string | null;
+}
+
+export interface ModeloCampana {
+  campana: string;
+  activo: boolean;
+}
+
 export interface ModeloDetail {
   codigo: string;
   nombre: string;
   periodo: string | null;
   impuesto: string | null;
   url_info: string | null;
+  campana_activa: string | null;
+  campanas: ModeloCampana[];
   articulos: ModeloArticulo[];
+  casillas: ModeloCasilla[];
+  claves: ModeloClave[];
+  instrucciones: ModeloInstruccion[];
+  normativa: ModeloNormativa[];
   doctrina_relacionada: DoctrinaRelacionada[];
 }
 

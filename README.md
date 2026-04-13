@@ -38,6 +38,30 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 
 > Total: 25 modelos. Las relaciones con articulos IRNR (RDL 5/2004) estan pendientes de ingesta de la norma.
 
+### Contenido por modelo (v2)
+
+Cada modelo tiene, desde la campaña 2025:
+
+| Contenido | Descripción | Endpoint |
+|---|---|---|
+| **Instrucciones** | Paso a paso para rellenar (características, quién debe, cómo, plazo) | `GET /v1/modelos/{codigo}` → `instrucciones` |
+| **Casillas** | Inventario completo de todas las casillas (código, etiqueta, descripción, tipo) | `GET /v1/modelos/{codigo}/casillas` |
+| **Claves** | Códigos de rendimiento, régimen, etc. | `GET /v1/modelos/{codigo}/claves` |
+| **Normativa** | Órdenes BOE que regulan cada modelo | `GET /v1/modelos/{codigo}/normativa` |
+| **Artículos** | Relación con legislación (LIVA, LIRPF, LIS, LGT) | `GET /v1/modelos/{codigo}/articulos` |
+| **Doctrina** | Documentos DGT/TEAC que citan los artículos del modelo | `GET /v1/modelos/{codigo}` → `doctrina_relacionada` |
+
+### Versionado
+
+Los modelos soportan múltiples campañas (2024, 2025, etc.). Para ver una campaña específica:
+
+```
+GET /v1/modelos/303?campana=2024
+GET /v1/modelos/303/casillas?campana=2024
+```
+
+Para añadir o quitar casillas en una nueva campaña, se actualiza `modelo_campana` y `modelo_casilla` con `activo=true/false`.
+
 ## Servicios desplegados
 
 - `api`: API FastAPI publica.
