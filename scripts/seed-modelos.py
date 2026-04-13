@@ -538,14 +538,88 @@ MODELO_ARTICULO_DATA = [
     # ------------------------------------------------------------------
     # Modelo 124 — Retenciones IRNR rentas sin EP
     # Fuente: Instrucciones Modelo 124 (AEAT)
-    # Nota: Las relaciones con artículos IRNR están pendientes de ingesta
-    #       de la norma IRNR (RDL 5/2004). Se documentan aquí para contexto.
     # ------------------------------------------------------------------
     (
-        "124", "LGT", "109",
-        None, "Obligaciones de información — retenciones IRNR",
+        "124", "IRNR", "14",
+        None, "Rentas obtenidas sin establecimiento permanente — renta regular",
         "Instrucciones Modelo 124 2025",
         "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-124.html",
+    ),
+    (
+        "124", "IRNR", "25",
+        None, "Rentas del capital mobiliario sin EP",
+        "Instrucciones Modelo 124 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-124.html",
+    ),
+    (
+        "124", "IRNR", "26",
+        None, "Ganancias patrimoniales sin EP",
+        "Instrucciones Modelo 124 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-124.html",
+    ),
+    (
+        "124", "IRNR", "13",
+        None, "Rentas inmobiliarias sin EP",
+        "Instrucciones Modelo 124 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-124.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 216 — IRNR Retenciones rentas sin EP
+    # Fuente: Instrucciones Modelo 216 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "216", "IRNR", "14",
+        None, "Retenciones rentas sin EP — renta regular",
+        "Instrucciones Modelo 216 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelos-declaraciones-retenciones.html",
+    ),
+    (
+        "216", "IRNR", "25",
+        None, "Retenciones capital mobiliario sin EP",
+        "Instrucciones Modelo 216 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelos-declaraciones-retenciones.html",
+    ),
+    (
+        "216", "IRNR", "26",
+        None, "Retenciones ganancias patrimoniales sin EP",
+        "Instrucciones Modelo 216 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelos-declaraciones-retenciones.html",
+    ),
+    (
+        "216", "IRNR", "13",
+        None, "Retenciones rentas inmobiliarias sin EP",
+        "Instrucciones Modelo 216 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelos-declaraciones-retenciones.html",
+    ),
+
+    # ------------------------------------------------------------------
+    # Modelo 296 — IRNR Resumen anual retenciones sin EP
+    # Fuente: Instrucciones Modelo 296 (AEAT)
+    # ------------------------------------------------------------------
+    (
+        "296", "IRNR", "14",
+        None, "Resumen anual retenciones sin EP — renta regular",
+        "Instrucciones Modelo 296 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelo-296-declaracion-informativa-resumen-anual_.html",
+    ),
+    (
+        "296", "IRNR", "25",
+        None, "Resumen anual capital mobiliario sin EP",
+        "Instrucciones Modelo 296 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelo-296-declaracion-informativa-resumen-anual_.html",
+    ),
+    (
+        "296", "IRNR", "26",
+        None, "Resumen anual ganancias patrimoniales sin EP",
+        "Instrucciones Modelo 296 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelo-296-declaracion-informativa-resumen-anual_.html",
+    ),
+    (
+        "296", "IRNR", "13",
+        None, "Resumen anual rentas inmobiliarias sin EP",
+        "Instrucciones Modelo 296 2025",
+        "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelo-296-declaracion-informativa-resumen-anual_.html",
     ),
 
     # ------------------------------------------------------------------
@@ -713,17 +787,15 @@ MODELO_ARTICULO_DATA = [
 # ---------------------------------------------------------------------------
 # Modelos implementados y sus notas de cobertura
 #
-# Todos los modelos ahora están registrados en aeat_modelo.
-# Las relaciones con artículos de normas IRNR (RDL 5/2004) están
-# pendientes de ingesta de la norma. Se documentan aquí para contexto:
+# Todos los modelos están registrados en aeat_modelo con relaciones
+# a artículos de normas IRPF, IVA, LGT e IRNR.
 #
-# 124: IRNR rentas sin EP → necesita IRNR art. 14, 25
-# 216: IRNR retenciones sin EP → necesita IRNR art. 25, 26
-# 296: IRNR resumen anual → necesita IRNR art. 25, 26
+# IRNR (RDL 5/2004) ya está incorporada en el BOE worker y en los
+# enlaces de modelos: 124, 216, 296 → IRNR art. 13, 14, 25, 26
 #
-# Los modelos 289 y 290 son declaraciones informativas de intercambio
-# internacional (DAC2/CRS y FATCA) y se enlazan con LGT art. 109
-# como obligación formal de información.
+# Modelos 289 y 290 (DAC2/CRS, FATCA) son declaraciones informativas
+# de intercambio internacional y se enlazan con LGT art. 109 como
+# obligación formal de información.
 # ---------------------------------------------------------------------------
 
 

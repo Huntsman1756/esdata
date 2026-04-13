@@ -25,6 +25,7 @@ DEFAULT_NORMAS = {
     "LIS": "BOE-A-2014-12328",
     "LGT": "BOE-A-2003-23186",
     "ITPAJD": "BOE-A-1993-253",
+    "IRNR": "BOE-A-2004-19886",
 }
 
 NORMA_CLASSIFICATIONS = {
@@ -36,6 +37,10 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto_legislativo",
         "ambito": "tributario",
     },
+    "IRNR": {
+        "tipo_documento": "real_decreto_legislativo",
+        "ambito": "tributario",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -43,6 +48,7 @@ LAW_TO_NORMA = {
     "27/2014": "LIS",
     "35/2006": "LIRPF",
     "58/2003": "LGT",
+    "5/2004": "IRNR",
 }
 
 
@@ -544,13 +550,13 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
     source = text_value.upper()
 
     explicit_patterns = [
-        re.compile(r"\b(LIVA|LIRPF|LIS|LGT)\s+(\d+)\b", re.IGNORECASE),
-        re.compile(r"\b(LIVA|LIRPF|LIS|LGT)\s+ART\.?\s*(\d+)\b", re.IGNORECASE),
+        re.compile(r"\b(LIVA|LIRPF|LIS|LGT|ITPAJD|IRNR)\s+(\d+)\b", re.IGNORECASE),
+        re.compile(r"\b(LIVA|LIRPF|LIS|LGT|ITPAJD|IRNR)\s+ART\.?\s*(\d+)\b", re.IGNORECASE),
         re.compile(
-            r"ART[ÍI]?CULO\s+(\d+)\s+DE\s+LA\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE
+            r"ART[ÍI]?CULO\s+(\d+)\s+DE\s+(?:LA|LAS)\s+(LIVA|LIRPF|LIS|LGT|ITPAJD|IRNR)\b", re.IGNORECASE
         ),
-        re.compile(r"ART\.?\s*(\d+)\s+DE\s+LA\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE),
-        re.compile(r"\bART\.?\s+(\d+)\s+(LIVA|LIRPF|LIS|LGT)\b", re.IGNORECASE),
+        re.compile(r"ART\.?\s*(\d+)\s+DE\s+(?:LA|LAS)\s+(LIVA|LIRPF|LIS|LGT|ITPAJD|IRNR)\b", re.IGNORECASE),
+        re.compile(r"\bART\.?\s+(\d+)\s+(LIVA|LIRPF|LIS|LGT|ITPAJD|IRNR)\b", re.IGNORECASE),
     ]
 
     for pattern in explicit_patterns:
@@ -594,6 +600,26 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         for match in pattern.finditer(source):
             explicit_norma_refs.add(("LIVA", match.group(1), 1.00))
 
+    # Named law alias: IRNR (non-residents)
+    for pattern in [
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+DE\s+(?:LA\s+)?RENTE\s+DE\s+(?:LOS\s+)?NO\s+RESIDENTES\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART\.?\s*(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+DE\s+(?:LA\s+)?RENTE\s+DE\s+(?:LOS\s+)?NO\s+RESIDENTES\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)\s+IRNR\b", re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART\.?\s*(\d+)\s+IRNR\b", re.IGNORECASE,
+        ),
+    ]:
+        for match in pattern.finditer(source):
+            explicit_norma_refs.add(("IRNR", match.group(1), 1.00))
+
     if explicit_norma_refs:
         return explicit_norma_refs
 
@@ -604,6 +630,8 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         explicit_law_normas.add("LIVA")
     if re.search(r"\bLEY\s+GENERAL\s+TRIBUTARIA\b", source):
         explicit_law_normas.add("LGT")
+    if re.search(r"\bNO\s+RESIDENTES\b", source) or re.search(r"\bIRNR\b", source):
+        explicit_law_normas.add("IRNR")
 
     if len(explicit_law_normas) == 1:
         sola_norma = explicit_law_normas.pop()
@@ -633,6 +661,8 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         context_normas.append("LIS")
     if "IRPF" in source and "LIRPF" not in context_normas:
         context_normas.append("LIRPF")
+    if "NO RESIDENT" in source and "IRNR" not in context_normas:
+        context_normas.append("IRNR")
 
     if len(context_normas) != 1:
         return set()
