@@ -17,6 +17,7 @@ esdata/
 |   |   |-- main.py
 |   |   |-- mcp_server.py
 |   |   |-- requirements.txt
+|   |   |-- schemas.py
 |   |   |-- routers/
 |   |   |   |-- buscar.py
 |   |   |   |-- doctrina.py
@@ -35,12 +36,14 @@ esdata/
 |   |   |-- Dockerfile
 |   |   |-- boe.py
 |   |   |-- dgt.py
+|   |   |-- modelos.py
 |   |   |-- teac.py
 |   |   |-- requirements.txt
 |   |   `-- tests/
 |   |       |-- test_teac.py
 |   |       |-- test_dgt.py
-|   |       `-- test_boe.py
+|   |       |-- test_boe.py
+|   |       `-- test_modelos.py
 |   |
 |   `-- web/
 |       |-- Dockerfile
@@ -87,6 +90,9 @@ esdata/
 |       `-- next.config.ts
 |
 |-- docs/
+|   |-- deploy-commands.md
+|   |-- openapi-gpt-3.0.json
+|   |-- openapi-gpt.json
 |   |-- postmortem-sprint-2.md
 |   `-- superpowers/
 |       |-- plans/
@@ -97,9 +103,11 @@ esdata/
 |       |-- 002_fulltext_search.sql
 |       |-- 003_modelos_aeat.sql
 |       |-- 004_modelos_v2.sql
+|       |-- docker-init.sql
 |       `-- init.sql
 |
 |-- scripts/
+|   |-- export-gpt-openapi.py
 |   |-- seed-modelos.py
 |   `-- seed-modelos-v2.py
 |
@@ -115,12 +123,13 @@ esdata/
 
 ## Notas
 
-- No existen hoy `models/`, `schemas/`, `alembic/` ni `libs/common/`.
-- Hay tres workers implementados: `boe.py` para legislacion, `dgt.py` para doctrina DGT y `teac.py` para doctrina TEAC.
+- No existen hoy `models/`, `alembic/` ni `libs/common/`.
+- `apps/api/schemas.py` concentra los `response_model` de FastAPI para la spec OpenAPI.
+- Hay cuatro workers implementados: `boe.py` para legislacion, `dgt.py` para doctrina DGT, `teac.py` para doctrina TEAC y `modelos.py` para AEAT.
 - La doctrina real DGT se ingiere desde Petete y se enlaza con articulos via `documento_articulo`.
 - La doctrina real TEAC se ingiere desde DYCTEA y se enlaza con articulos via `documento_articulo`.
 - La busqueda full-text depende de `infra/sql/002_fulltext_search.sql`, ya aplicada en produccion.
-- Railway queda configurado para ocho servicios de aplicacion: `api`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, `web`. Ademas de `Postgres`.
+- Railway queda configurado para nueve servicios de aplicacion: `esdata`, `worker-boe`, `cron-boe-daily`, `worker-dgt`, `cron-dgt-weekly`, `worker-teac`, `cron-teac-weekly`, `worker-modelos`, `web`. Ademas de `Postgres` y el cron `cron-modelos-daily`.
 - `apps/web` es el frontend Next.js 15 con buscador, resultados, detalle de doctrina, articulo y modelo (Fase 1).
 - `apps/api/routers/modelos.py` expone la capa `Modelos AEAT` v2: campañas, casillas, claves, instrucciones, normativa y doctrina derivada.
 - `apps/web/app/modelo/[codigo]/page.tsx` muestra instrucciones, casillas, claves, normativa, articulos y doctrina del modelo.
@@ -129,3 +138,4 @@ esdata/
 - La home `app/page.tsx` se fuerza a dinamica para no congelar cobertura/status con un prerender erroneo.
 - `infra/sql/004_modelos_v2.sql` añade versionado por campaña, casillas, claves, instrucciones, normativa y formato.
 - `scripts/seed-modelos-v2.py` popula datos v2 para todos los 25 modelos (campaña 2025).
+- `docs/openapi-gpt*.json` son las specs reducidas para ChatGPT Actions.

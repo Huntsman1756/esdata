@@ -64,7 +64,7 @@ Para añadir o quitar casillas en una nueva campaña, se actualiza `modelo_campa
 
 ## Servicios desplegados
 
-- `api`: API FastAPI publica.
+- `esdata`: API FastAPI publica.
 - `worker-boe`: worker continuo que ingiere articulos desde BOE.
 - `cron-boe-daily`: ejecucion diaria `python boe.py --run-once`.
 - `worker-dgt`: worker continuo que sincroniza doctrina DGT y ejecuta auto-linking a articulos.
@@ -80,6 +80,7 @@ Para añadir o quitar casillas en una nueva campaña, se actualiza `modelo_campa
 
 - Frontend: `https://web-production-ecb5.up.railway.app`
 - API: `https://esdata-production.up.railway.app`
+- OpenAPI completa: `https://esdata-production.up.railway.app/openapi.json`
 
 Rutas frontend utiles:
 
@@ -87,10 +88,12 @@ Rutas frontend utiles:
 - `GET /buscar?q=iva&tab=legislacion`
 - `GET /doctrina/00/01454/2023/00/00`
 - `GET /articulo/LIVA/104`
+- `GET /modelo/100`
 
 ## Estructura real del repo
 
 - `apps/api`: API FastAPI.
+- `apps/api/schemas.py`: modelos Pydantic para respuestas tipadas y OpenAPI.
 - `apps/api/routers`: endpoints HTTP (`status`, `buscar`, `legislacion`, `materias`, `doctrina`).
 - `apps/api/services/search.py`: logica de busqueda full-text.
 - `apps/api/mcp_server.py`: monta MCP sobre la API.
@@ -98,14 +101,20 @@ Rutas frontend utiles:
 - `apps/workers/boe.py`: ingesta BOE, bootstrap de esquema y auto-linking.
 - `apps/workers/dgt.py`: scraping DGT via sesion/AJAX, persistencia y relinking de doctrina.
 - `apps/workers/teac.py`: scraping TEAC via DYCTEA, persistencia y relinking de doctrina.
+- `apps/workers/modelos.py`: scraping AEAT de instrucciones, casillas, claves y campañas por modelo.
 - `apps/workers/tests/test_boe.py`: tests del worker.
 - `apps/workers/tests/test_dgt.py`: tests del worker DGT.
 - `apps/workers/tests/test_teac.py`: tests del worker TEAC.
+- `apps/workers/tests/test_modelos.py`: tests del worker de modelos AEAT.
 - `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina, detalle de articulo y detalle de modelo AEAT.
 - `apps/api/routers/modelos.py`: endpoints `/v1/modelos` para la capa de modelos AEAT.
 - `scripts/seed-modelos.py`: seed idempotente de metadata y relaciones `modelo_articulo` con fuente verificable.
+- `scripts/seed-modelos-v2.py`: seed idempotente de campañas, instrucciones, casillas, claves y normativa AEAT.
+- `scripts/export-gpt-openapi.py`: genera specs OpenAPI reducidas para GPT Actions.
 - `infra/sql/init.sql`: esquema base.
 - `infra/sql/003_modelos_aeat.sql`: tablas `aeat_modelo` y `modelo_articulo`.
+- `infra/sql/004_modelos_v2.sql`: versionado por campaña, casillas, claves, instrucciones y normativa.
+- `infra/sql/docker-init.sql`: bootstrap local secuencial para Postgres en Docker.
 - `infra/sql/002_fulltext_search.sql`: migracion de `search_vector`, indices y trigger.
 - `railway.toml`: configuracion monorepo para Railway.
 
@@ -128,6 +137,10 @@ Rutas frontend utiles:
 - `GET /v1/modelos`
 - `GET /v1/modelos/{codigo}`
 - `GET /v1/modelos/{codigo}/articulos`
+- `GET /v1/modelos/{codigo}/casillas`
+- `GET /v1/modelos/{codigo}/claves`
+- `GET /v1/modelos/{codigo}/instrucciones`
+- `GET /v1/modelos/{codigo}/normativa`
 - `GET /mcp`
 
 Rutas frontend:
@@ -152,6 +165,7 @@ Worker:
 pytest apps/workers/tests/test_boe.py -q
 pytest apps/workers/tests/test_dgt.py -q
 pytest apps/workers/tests/test_teac.py -q
+pytest apps/workers/tests/test_modelos.py -q
 ```
 
 Web:
@@ -163,9 +177,16 @@ npm --prefix apps/web run test
 npm --prefix apps/web run build
 ```
 
+OpenAPI reducida para GPT Actions:
+
+```bash
+python scripts/export-gpt-openapi.py --output docs/openapi-gpt.json
+python scripts/export-gpt-openapi.py --openapi 3.0.3 --output docs/openapi-gpt-3.0.json
+```
+
 ## Deploy automatico
 
-- `.github/workflows/deploy.yml`: despliega API, workers y cron.
+- `.github/workflows/deploy.yml`: despliega `esdata`, workers y cron.
 - `.github/workflows/deploy-web.yml`: valida y despliega `apps/web` al servicio `web` de Railway.
 - `railway.toml`: define la topologia monorepo de servicios.
 
@@ -177,10 +198,19 @@ npm --prefix apps/web run build
 - `BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada`
 - `APP_ENV=production`
 - `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT,ITPAJD`
+- `MODELOS_SYNC_INTERVAL=86400` para `worker-modelos` si se quiere ajustar la cadencia del loop continuo.
 - `DGT_SSL_VERIFY=false` para el worker DGT si Petete falla por SSL en produccion.
 - `TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...,...` para el worker TEAC.
 - `SYNC_INTERVAL_SECONDS=604800` para `worker-dgt` si se quiere ajustar la cadencia del loop continuo.
 - `ESDATA_API_BASE_URL=https://esdata-production.up.railway.app` en el servicio `web` para que Next.js consulte la API publica en server-side.
+- Para bootstrap SQL y seeds en Railway, usar `docs/deploy-commands.md` o `DEPLOY_CHECKLIST.md`.
+
+### GPT Actions
+
+- Spec completa servida por la API: `https://esdata-production.up.railway.app/openapi.json`
+- Spec reducida para GPT: `docs/openapi-gpt.json`
+- Fallback OpenAPI 3.0.x para el builder: `docs/openapi-gpt-3.0.json`
+- Flujo operativo de deploy + bootstrap SQL: `docs/deploy-commands.md`
 
 ### Verificaciones utiles
 
@@ -214,6 +244,7 @@ FROM version_articulo;
 ## Documentacion adicional
 
 - `DEPLOY_CHECKLIST.md`: pasos de despliegue y smoke tests.
+- `docs/deploy-commands.md`: secuencia exacta de deploy en Railway, SQL y smoke tests.
 - `STRUCTURE.md`: mapa actualizado del repo.
 - `docs/production-status-2026-04-11.md`: estado operativo real, verificacion y siguientes pasos.
 - `docs/postmortem-sprint-2.md`: incidencias, diagnostico y resolucion del sprint.
