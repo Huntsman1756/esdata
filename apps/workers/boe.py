@@ -273,11 +273,36 @@ def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto
 
 
 def fetch_metadata(client: httpx.Client, codigo: str, boe_id: str) -> NormaMetadata:
-    response = client.get(
-        f"{BOE_API_BASE}/id/{boe_id}/metadatos", headers={"Accept": "application/json"}
-    )
-    response.raise_for_status()
-    return parse_metadata(codigo, boe_id, response.json())
+    """Fetch metadata from BOE API with fallback for unavailable endpoints.
+
+    Some BOE IDs (e.g. BOE-A-1993-253 for ITPAJD) return 404 on /metadatos.
+    In those cases we fall back to classification-based defaults.
+    """
+    try:
+        response = client.get(
+            f"{BOE_API_BASE}/id/{boe_id}/metadatos",
+            headers={"Accept": "application/json"},
+        )
+        response.raise_for_status()
+        return parse_metadata(codigo, boe_id, response.json())
+    except httpx.HTTPStatusError as exc:
+        status_code = getattr(exc.response, "status_code", None)
+        if status_code == 404:
+            # Fallback to classification-based metadata
+            classification = NORMA_CLASSIFICATIONS[codigo]
+            return NormaMetadata(
+                codigo=codigo,
+                boe_id=boe_id,
+                titulo=f"Norma {codigo} ({boe_id})",
+                eli_uri=None,
+                jurisdiccion="es",
+                tipo_fuente="boe",
+                tipo_documento=classification["tipo_documento"],
+                ambito=classification["ambito"],
+                estado_cobertura="ingestada",
+                vigente_desde="1900-01-01",  # Conservative default
+            )
+        raise
 
 
 def upsert_norma(conn, metadata: NormaMetadata) -> None:
