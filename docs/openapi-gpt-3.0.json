@@ -1,0 +1,1452 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "esdata API",
+    "description": "API de consulta de legislacion espanola consolidada, doctrina interpretativa y modelos tributarios AEAT. Permite buscar articulos por texto, consultar normas, doctrina (DGT, TEAC) y obtener casillas, claves e instrucciones de modelos fiscales.",
+    "version": "0.1.6"
+  },
+  "paths": {
+    "/v1/legislacion/buscar": {
+      "get": {
+        "tags": [
+          "buscar"
+        ],
+        "summary": "Search Spanish legislation by text",
+        "operationId": "buscar_legislacion",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Termino de busqueda",
+              "title": "Q"
+            },
+            "description": "Termino de busqueda"
+          },
+          {
+            "name": "norma",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por codigo de norma",
+              "title": "Norma"
+            },
+            "description": "Filtrar por codigo de norma"
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por fuente",
+              "title": "Fuente"
+            },
+            "description": "Filtrar por fuente"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por ambito",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por tipo de articulo",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo de articulo"
+          },
+          {
+            "name": "vigente_en",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha de vigencia (YYYY-MM-DD)",
+              "title": "Vigente En"
+            },
+            "description": "Fecha de vigencia (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegislacionSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Search consolidated Spanish laws (LIVA, LIRPF, LIS, etc.) by keyword. Returns matching articles with snippets and relevance scores. Filter by norma (e.g. LIVA, LIRPF), ambito, tipo, fuente, or vigencia."
+      }
+    },
+    "/v1/legislacion/{codigo}": {
+      "get": {
+        "tags": [
+          "legislacion"
+        ],
+        "summary": "Get law details",
+        "operationId": "get_norma",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Norma"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Get metadata for a Spanish law by code (e.g. LIVA, LIRPF, LIS). Returns title, jurisdiction, document type, and coverage status."
+      }
+    },
+    "/v1/legislacion/{codigo}/articulos/{numero}": {
+      "get": {
+        "tags": [
+          "legislacion"
+        ],
+        "summary": "Get article text",
+        "operationId": "get_articulo",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "numero",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Numero"
+            }
+          },
+          {
+            "name": "vigente_en",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha de vigencia (YYYY-MM-DD)",
+              "title": "Vigente En"
+            },
+            "description": "Fecha de vigencia (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticuloDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Get the full text of a specific article from a law. Optionally filter by vigencia_en (YYYY-MM-DD) for historical versions. Returns the article text, validity dates, and confidence info."
+      }
+    },
+    "/v1/doctrina/buscar": {
+      "get": {
+        "tags": [
+          "doctrina"
+        ],
+        "summary": "Search interpretative doctrine",
+        "operationId": "buscar_doctrina",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Termino de busqueda en texto de doctrina",
+              "title": "Q"
+            },
+            "description": "Termino de busqueda en texto de doctrina"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)"
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha minima (YYYY-MM-DD)",
+              "title": "Desde"
+            },
+            "description": "Fecha minima (YYYY-MM-DD)"
+          },
+          {
+            "name": "organismo_emisor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por organismo (DGT, TEAC, etc.)",
+              "title": "Organismo Emisor"
+            },
+            "description": "Filtrar por organismo (DGT, TEAC, etc.)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctrinaSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Search interpretative doctrine from DGT (binding queries) or TEAC (resolutions). Returns doctrine documents with linked articles and confidence scores. Filter by tipo (consulta_vinculante, resolucion_teac), organismo_emisor, or fecha."
+      }
+    },
+    "/v1/doctrina/{referencia}": {
+      "get": {
+        "tags": [
+          "doctrina"
+        ],
+        "summary": "Get doctrine document",
+        "operationId": "get_doctrina",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctrinaDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a specific doctrine document by reference (e.g. V0000-26, 00/1234/2024). Returns full text, linked articles, and confidence information."
+      }
+    },
+    "/v1/modelos": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "List AEAT tax models",
+        "description": "List all AEAT tax form models (100, 303, 111, etc.) with their linked article counts and active campaign box counts.",
+        "operationId": "list_modelos",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelosListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/modelos/{codigo}": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Get AEAT model details",
+        "description": "Get full details for a specific AEAT tax model including linked legislation articles, active campaign boxes (casillas), key codes (claves), step-by-step instructions, regulatory framework (normativa), and related doctrine.",
+        "operationId": "get_modelo",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa.",
+              "title": "Campana"
+            },
+            "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeloDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ArticuloDetail": {
+        "properties": {
+          "norma": {
+            "type": "string",
+            "title": "Norma",
+            "description": "Código de la norma"
+          },
+          "numero": {
+            "type": "string",
+            "title": "Numero",
+            "description": "Número del artículo"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto",
+            "description": "Texto vigente del artículo"
+          },
+          "vigente_desde": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Desde",
+            "description": "Fecha de inicio de vigencia (YYYY-MM-DD)"
+          },
+          "vigente_hasta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Hasta",
+            "description": "Fecha de fin de vigencia (YYYY-MM-DD)"
+          },
+          "confianza": {
+            "$ref": "#/components/schemas/ConfianzaInfo",
+            "description": "Información de confianza del dato"
+          }
+        },
+        "type": "object",
+        "required": [
+          "norma",
+          "numero",
+          "texto",
+          "confianza"
+        ],
+        "title": "ArticuloDetail"
+      },
+      "ArticuloRelacionado": {
+        "properties": {
+          "norma": {
+            "type": "string",
+            "title": "Norma",
+            "description": "Código de la norma vinculada"
+          },
+          "numero": {
+            "type": "string",
+            "title": "Numero",
+            "description": "Número del artículo vinculado"
+          },
+          "metodo_enlace": {
+            "type": "string",
+            "title": "Metodo Enlace",
+            "description": "Método de enlace (manual, auto_link, etc.)"
+          },
+          "confianza_enlace": {
+            "type": "number",
+            "title": "Confianza Enlace",
+            "description": "Confianza del enlace (0-1)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "norma",
+          "numero",
+          "metodo_enlace",
+          "confianza_enlace"
+        ],
+        "title": "ArticuloRelacionado"
+      },
+      "ConfianzaInfo": {
+        "properties": {
+          "nivel": {
+            "type": "integer",
+            "title": "Nivel",
+            "description": "Nivel de confianza (0-2)"
+          },
+          "fuentes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fuentes",
+            "description": "Fuentes que respaldan la respuesta"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso",
+            "description": "Advertencia si la confianza es baja"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nivel",
+          "fuentes"
+        ],
+        "title": "ConfianzaInfo"
+      },
+      "DoctrinaDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Referencia del documento (ej: V0000-26, 00/1234/2024)"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "Tipo (consulta_vinculante, resolucion_teac, etc.)"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor",
+            "description": "Organismo emisor (DGT, TEAC, etc.)"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto",
+            "description": "Texto completo del documento"
+          },
+          "articulos_relacionados": {
+            "items": {
+              "$ref": "#/components/schemas/ArticuloRelacionado"
+            },
+            "type": "array",
+            "title": "Articulos Relacionados",
+            "description": "Artículos de ley vinculados"
+          },
+          "confianza": {
+            "$ref": "#/components/schemas/ConfianzaInfo",
+            "description": "Información de confianza del dato"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "organismo_emisor",
+          "texto",
+          "confianza"
+        ],
+        "title": "DoctrinaDetail"
+      },
+      "DoctrinaRelacionada": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Referencia del documento doctrinal"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor",
+            "description": "Organismo emisor"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha",
+            "description": "Fecha del documento"
+          },
+          "via_articulos": {
+            "items": {
+              "$ref": "#/components/schemas/DoctrinaViaArticulo"
+            },
+            "type": "array",
+            "title": "Via Articulos",
+            "description": "Artículos por los que se relaciona"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "organismo_emisor"
+        ],
+        "title": "DoctrinaRelacionada"
+      },
+      "DoctrinaSearchResponse": {
+        "properties": {
+          "q": {
+            "type": "string",
+            "title": "Q",
+            "description": "Término de búsqueda"
+          },
+          "resultados": {
+            "items": {
+              "$ref": "#/components/schemas/DoctrinaSearchResult"
+            },
+            "type": "array",
+            "title": "Resultados"
+          }
+        },
+        "type": "object",
+        "required": [
+          "q",
+          "resultados"
+        ],
+        "title": "DoctrinaSearchResponse"
+      },
+      "DoctrinaSearchResult": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Referencia del documento"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "Tipo de documento"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor",
+            "description": "Organismo emisor"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha",
+            "description": "Fecha del documento (YYYY-MM-DD)"
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titulo",
+            "description": "Título del documento"
+          },
+          "nivel_enlace": {
+            "type": "number",
+            "title": "Nivel Enlace",
+            "description": "Máxima confianza de enlace (0-1)"
+          },
+          "norma": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Norma",
+            "description": "Código de norma vinculada"
+          },
+          "numero": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero",
+            "description": "Número de artículo vinculado"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento",
+            "description": "Fragmento del texto con el término buscado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "organismo_emisor",
+          "nivel_enlace",
+          "fragmento"
+        ],
+        "title": "DoctrinaSearchResult"
+      },
+      "DoctrinaViaArticulo": {
+        "properties": {
+          "norma": {
+            "type": "string",
+            "title": "Norma",
+            "description": "Código de la norma"
+          },
+          "numero": {
+            "type": "string",
+            "title": "Numero",
+            "description": "Número del artículo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "norma",
+          "numero"
+        ],
+        "title": "DoctrinaViaArticulo"
+      },
+      "LegislacionSearchResponse": {
+        "properties": {
+          "q": {
+            "type": "string",
+            "title": "Q",
+            "description": "Término de búsqueda"
+          },
+          "resultados": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Resultados"
+          }
+        },
+        "type": "object",
+        "required": [
+          "q",
+          "resultados"
+        ],
+        "title": "LegislacionSearchResponse"
+      },
+      "ModeloArticulo": {
+        "properties": {
+          "norma": {
+            "type": "string",
+            "title": "Norma",
+            "description": "Código de la norma"
+          },
+          "numero": {
+            "type": "string",
+            "title": "Numero",
+            "description": "Número del artículo"
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titulo",
+            "description": "Título del artículo"
+          },
+          "casilla": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Casilla",
+            "description": "Casilla asociada"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota",
+            "description": "Nota explicativa"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente",
+            "description": "Fuente del enlace"
+          },
+          "url_fuente": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url Fuente",
+            "description": "URL de la fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "norma",
+          "numero",
+          "fuente"
+        ],
+        "title": "ModeloArticulo"
+      },
+      "ModeloCampana": {
+        "properties": {
+          "campana": {
+            "type": "string",
+            "title": "Campana",
+            "description": "Año/campaña (2025, 2024, etc.)"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo",
+            "description": "Si es la campaña activa"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campana",
+          "activo"
+        ],
+        "title": "ModeloCampana"
+      },
+      "ModeloCasilla": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código de la casilla"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta",
+            "description": "Etiqueta descriptiva"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion",
+            "description": "Descripción breve"
+          },
+          "tipo_casilla": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Casilla",
+            "description": "Tipo (importe, checkbox, texto, etc.)"
+          },
+          "pagina": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagina",
+            "description": "Página del PDF donde aparece"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden",
+            "description": "Orden de aparición"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "etiqueta"
+        ],
+        "title": "ModeloCasilla"
+      },
+      "ModeloClave": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código de la clave"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta",
+            "description": "Etiqueta descriptiva"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion",
+            "description": "Descripción de la clave"
+          },
+          "tipo_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Clave",
+            "description": "Tipo (rendimiento, regimen, etc.)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "etiqueta"
+        ],
+        "title": "ModeloClave"
+      },
+      "ModeloDetail": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código del modelo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "Nombre completo"
+          },
+          "periodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodo",
+            "description": "Periodo"
+          },
+          "impuesto": {
+            "type": "string",
+            "title": "Impuesto",
+            "description": "Impuesto asociado"
+          },
+          "url_info": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url Info",
+            "description": "URL a la sede AEAT"
+          },
+          "campana_activa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campana Activa",
+            "description": "Campaña activa (año)"
+          },
+          "campanas": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampana"
+            },
+            "type": "array",
+            "title": "Campanas",
+            "description": "Campañas disponibles"
+          },
+          "articulos": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloArticulo"
+            },
+            "type": "array",
+            "title": "Articulos",
+            "description": "Artículos de ley vinculados"
+          },
+          "casillas": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCasilla"
+            },
+            "type": "array",
+            "title": "Casillas",
+            "description": "Casillas de la campaña activa"
+          },
+          "claves": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloClave"
+            },
+            "type": "array",
+            "title": "Claves",
+            "description": "Claves de la campaña activa"
+          },
+          "instrucciones": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloInstruccion"
+            },
+            "type": "array",
+            "title": "Instrucciones",
+            "description": "Instrucciones"
+          },
+          "normativa": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloNormativa"
+            },
+            "type": "array",
+            "title": "Normativa",
+            "description": "Normativa BOE"
+          },
+          "doctrina_relacionada": {
+            "items": {
+              "$ref": "#/components/schemas/DoctrinaRelacionada"
+            },
+            "type": "array",
+            "title": "Doctrina Relacionada",
+            "description": "Doctrina relacionada vía artículos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "impuesto"
+        ],
+        "title": "ModeloDetail"
+      },
+      "ModeloInstruccion": {
+        "properties": {
+          "seccion": {
+            "type": "string",
+            "title": "Seccion",
+            "description": "Sección (caracteristicas, quien-debe, como-rellenar, plazo)"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Título de la sección"
+          },
+          "contenido": {
+            "type": "string",
+            "title": "Contenido",
+            "description": "Contenido paso a paso"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "description": "Orden de presentación"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seccion",
+          "titulo",
+          "contenido",
+          "orden"
+        ],
+        "title": "ModeloInstruccion"
+      },
+      "ModeloNormativa": {
+        "properties": {
+          "boe_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boe Id",
+            "description": "Identificador BOE"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Título de la norma"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha",
+            "description": "Fecha de publicación (YYYY-MM-DD)"
+          },
+          "url_boe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url Boe",
+            "description": "URL al BOE"
+          },
+          "resumen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumen",
+            "description": "Breve descripción"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titulo"
+        ],
+        "title": "ModeloNormativa"
+      },
+      "ModeloSummary": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código del modelo (ej: 100, 303)"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "Nombre completo del modelo"
+          },
+          "periodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodo",
+            "description": "Periodo de presentación (anual, trimestral, etc.)"
+          },
+          "impuesto": {
+            "type": "string",
+            "title": "Impuesto",
+            "description": "Impuesto asociado (IRPF, IVA, etc.)"
+          },
+          "articulos_count": {
+            "type": "integer",
+            "title": "Articulos Count",
+            "description": "Número de artículos de ley vinculados"
+          },
+          "casillas_count": {
+            "type": "integer",
+            "title": "Casillas Count",
+            "description": "Número de casillas en la campaña activa"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "impuesto",
+          "articulos_count",
+          "casillas_count"
+        ],
+        "title": "ModeloSummary"
+      },
+      "ModelosListResponse": {
+        "properties": {
+          "modelos": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloSummary"
+            },
+            "type": "array",
+            "title": "Modelos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "modelos"
+        ],
+        "title": "ModelosListResponse"
+      },
+      "Norma": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código de la norma (ej: LIVA, LIRPF)"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Título completo de la norma"
+          },
+          "jurisdiccion": {
+            "type": "string",
+            "title": "Jurisdiccion",
+            "description": "Jurisdicción (es, autonomico, etc.)"
+          },
+          "tipo_fuente": {
+            "type": "string",
+            "title": "Tipo Fuente",
+            "description": "Tipo de fuente (boe, autonomica, etc.)"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "Tipo de documento (ley, real_decreto_legislativo, etc.)"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito",
+            "description": "Ámbito temático (tributario, etc.)"
+          },
+          "estado_cobertura": {
+            "type": "string",
+            "title": "Estado Cobertura",
+            "description": "Estado de cobertura (ingestada, parcial, etc.)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "titulo",
+          "jurisdiccion",
+          "tipo_fuente",
+          "tipo_documento",
+          "ambito",
+          "estado_cobertura"
+        ],
+        "title": "Norma"
+      },
+      "SearchResult": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "Tipo de resultado (articulo, norma, etc.)"
+          },
+          "norma": {
+            "type": "string",
+            "title": "Norma",
+            "description": "Código de la norma"
+          },
+          "numero": {
+            "type": "string",
+            "title": "Numero",
+            "description": "Número del artículo"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto",
+            "description": "Texto del artículo"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento",
+            "description": "Fragmento destacado con el término buscado"
+          },
+          "vigente_desde": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Desde",
+            "description": "Fecha de inicio de vigencia"
+          },
+          "vigente_hasta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Hasta",
+            "description": "Fecha de fin de vigencia"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank",
+            "description": "Puntuación de relevancia (ts_rank)"
+          },
+          "confianza": {
+            "$ref": "#/components/schemas/ConfianzaInfo",
+            "description": "Información de confianza del dato"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "norma",
+          "numero",
+          "texto",
+          "fragmento",
+          "confianza"
+        ],
+        "title": "SearchResult"
+      }
+    }
+  }
+}

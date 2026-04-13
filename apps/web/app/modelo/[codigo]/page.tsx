@@ -5,14 +5,17 @@ import { getModelo } from "@/lib/api";
 
 export default async function ModeloPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ codigo: string }>;
+  searchParams: Promise<{ campana?: string }>;
 }) {
   const { codigo } = await params;
+  const { campana } = await searchParams;
 
   let data;
   try {
-    data = await getModelo(codigo);
+    data = await getModelo(codigo, campana);
   } catch {
     return notFound();
   }
@@ -76,19 +79,20 @@ export default async function ModeloPage({
 
         {/* Campaign selector */}
         {data.campanas.length > 1 && (
-          <div className="mb-6 flex items-center gap-2">
+          <div className="mb-6 flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-stone-600">Campañas:</span>
             {data.campanas.map((c) => (
-              <span
+              <Link
                 key={c.campana}
-                className={`rounded px-2 py-0.5 text-xs ${
+                href={c.activo ? `/modelo/${codigo}` : `/modelo/${codigo}?campana=${c.campana}`}
+                className={`rounded px-2 py-0.5 text-xs transition-colors ${
                   c.activo
                     ? "bg-green-100 text-green-800 font-semibold"
-                    : "bg-stone-100 text-stone-400"
+                    : "bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600 cursor-pointer"
                 }`}
               >
                 {c.campana} {c.activo ? "(activa)" : ""}
-              </span>
+              </Link>
             ))}
           </div>
         )}

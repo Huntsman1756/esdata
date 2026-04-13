@@ -240,6 +240,103 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     JOIN norma n ON n.id = a.norma_id
     WHERE m.codigo = '100' AND n.codigo = 'LIVA' AND a.numero = '91'
     """,
+    # --- Modelos v2 schema: campañas, casillas, claves, instrucciones, normativa ---
+    """
+    CREATE TABLE modelo_campana (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
+        campana         TEXT NOT NULL,
+        version_form    TEXT,
+        url_instrucciones TEXT,
+        url_normativa   TEXT,
+        url_formato     TEXT,
+        activo          INTEGER NOT NULL DEFAULT 1,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(modelo_id, campana)
+    )
+    """,
+    """
+    CREATE TABLE modelo_casilla (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
+        codigo          TEXT NOT NULL,
+        etiqueta        TEXT NOT NULL,
+        descripcion     TEXT,
+        tipo_casilla    TEXT,
+        pagina          INTEGER,
+        orden           INTEGER,
+        activa          INTEGER NOT NULL DEFAULT 1,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(campana_id, codigo)
+    )
+    """,
+    """
+    CREATE TABLE modelo_clave (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
+        codigo          TEXT NOT NULL,
+        etiqueta        TEXT NOT NULL,
+        descripcion     TEXT,
+        tipo_clave      TEXT,
+        activa          INTEGER NOT NULL DEFAULT 1,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(campana_id, codigo)
+    )
+    """,
+    """
+    CREATE TABLE modelo_instruccion (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
+        seccion         TEXT NOT NULL,
+        titulo          TEXT NOT NULL,
+        contenido       TEXT NOT NULL,
+        orden           INTEGER DEFAULT 0,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE modelo_normativa (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
+        boe_id          TEXT,
+        titulo          TEXT NOT NULL,
+        fecha           TEXT,
+        url_boe         TEXT,
+        resumen         TEXT,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(modelo_id, boe_id)
+    )
+    """,
+    # --- Seed: campaign for model 100 ---
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones'
+    FROM aeat_modelo m WHERE m.codigo = '100'
+    """,
+    # --- Seed: casillas for model 100 campaign ---
+    """
+    INSERT INTO modelo_casilla (campana_id, codigo, etiqueta, descripcion, tipo_casilla, orden)
+    SELECT mc.id, '0002', 'Rendimientos del trabajo', 'Suma de todos los rendimientos del trabajo', 'importe', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '100' AND mc.campana = '2025'
+    """,
+    # --- Seed: instrucciones for model 100 campaign ---
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'caracteristicas', 'Que es el modelo 100?', 'El modelo 100 es la declaracion anual del IRPF.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '100' AND mc.campana = '2025'
+    """,
+    # --- Seed: normativa for model 100 ---
+    """
+    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
+    SELECT m.id, 'BOE-A-2024-26789', 'Orden HAC/1234/2024', '2024-12-20', 'https://www.boe.es/boe/dias/2024/12/20/pdfs/BOE-A-2024-26789.pdf', 'Aprueba el modelo 100'
+    FROM aeat_modelo m WHERE m.codigo = '100'
+    """,
+    # --- Note: modelo_campana_activa() is a Postgres function.
+    # For SQLite tests, the API code falls back to direct queries when the function
+    # is not available. The campaign seeded above has activo=1 so it will be picked
+    # by the "ORDER BY campana DESC LIMIT 1" query in the router.
 ]
 
 with engine.begin() as conn:

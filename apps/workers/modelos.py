@@ -70,6 +70,7 @@ def _client() -> httpx.Client:
 # Scrapers
 # ---------------------------------------------------------------------------
 
+
 def scrape_casillas_from_page(html: str, modelo_codigo: str) -> list[dict]:
     """
     Extract casilla information from AEAT instruction HTML.
@@ -85,54 +86,60 @@ def scrape_casillas_from_page(html: str, modelo_codigo: str) -> list[dict]:
     # Pattern 1: HTML tables with casilla data
     # Common pattern in AEAT sede: <td>0002</td><td>Rendimientos...</td>
     table_rows = re.findall(
-        r'<td[^>]*>\s*(\d{1,4})\s*</td>\s*<td[^>]*>(.*?)</td>',
+        r"<td[^>]*>\s*(\d{1,4})\s*</td>\s*<td[^>]*>(.*?)</td>",
         html,
         re.DOTALL,
     )
     if table_rows:
         for i, (codigo, etiqueta_raw) in enumerate(table_rows):
-            etiqueta = re.sub(r'<[^>]+>', '', etiqueta_raw).strip()
+            etiqueta = re.sub(r"<[^>]+>", "", etiqueta_raw).strip()
             if etiqueta and len(etiqueta) > 3:
-                casillas.append({
-                    "codigo": codigo.zfill(4) if len(codigo) < 4 else codigo,
-                    "etiqueta": etiqueta,
-                    "orden": i + 1,
-                })
+                casillas.append(
+                    {
+                        "codigo": codigo.zfill(4) if len(codigo) < 4 else codigo,
+                        "etiqueta": etiqueta,
+                        "orden": i + 1,
+                    }
+                )
         return casillas
 
     # Pattern 2: Definition lists — <dt>0002</dt><dd>Label...</dd>
     def_rows = re.findall(
-        r'<dt[^>]*>\s*(\d{1,4})\s*</dt>\s*<dd[^>]*>(.*?)</dd>',
+        r"<dt[^>]*>\s*(\d{1,4})\s*</dt>\s*<dd[^>]*>(.*?)</dd>",
         html,
         re.DOTALL,
     )
     if def_rows:
         for i, (codigo, desc_raw) in enumerate(def_rows):
-            desc = re.sub(r'<[^>]+>', '', desc_raw).strip()
+            desc = re.sub(r"<[^>]+>", "", desc_raw).strip()
             if desc:
-                casillas.append({
-                    "codigo": codigo.zfill(4) if len(codigo) < 4 else codigo,
-                    "etiqueta": desc[:100],
-                    "descripcion": desc if len(desc) > 100 else None,
-                    "orden": i + 1,
-                })
+                casillas.append(
+                    {
+                        "codigo": codigo.zfill(4) if len(codigo) < 4 else codigo,
+                        "etiqueta": desc[:100],
+                        "descripcion": desc if len(desc) > 100 else None,
+                        "orden": i + 1,
+                    }
+                )
         return casillas
 
     # Pattern 3: Structured lists — <li>0002 — Label</li>
     li_rows = re.findall(
-        r'<li[^>]*>\s*(\d{1,4})\s*[-–—:]\s*(.*?)</li>',
+        r"<li[^>]*>\s*(\d{1,4})\s*[-–—:]\s*(.*?)</li>",
         html,
         re.DOTALL,
     )
     if li_rows:
         for i, (codigo, etiqueta_raw) in enumerate(li_rows):
-            etiqueta = re.sub(r'<[^>]+>', '', etiqueta_raw).strip()
+            etiqueta = re.sub(r"<[^>]+>", "", etiqueta_raw).strip()
             if etiqueta and len(etiqueta) > 3:
-                casillas.append({
-                    "codigo": codigo.zfill(4) if len(codigo) < 4 else codigo,
-                    "etiqueta": etiqueta,
-                    "orden": i + 1,
-                })
+                casillas.append(
+                    {
+                        "codigo": codigo.zfill(4) if len(codigo) < 4 else codigo,
+                        "etiqueta": etiqueta,
+                        "orden": i + 1,
+                    }
+                )
         return casillas
 
     return casillas
@@ -151,32 +158,36 @@ def scrape_claves_from_page(html: str) -> list[dict]:
 
     # Pattern: single letter clave followed by description
     clave_rows = re.findall(
-        r'(?:Clave\s*)?([A-Z])\s*[-–—:)\.]\s*([^\n<]{5,80})',
+        r"(?:Clave\s*)?([A-Z])\s*[-–—:)\.]\s*([^\n<]{5,80})",
         html,
         re.MULTILINE,
     )
     for codigo, etiqueta in clave_rows:
         etiqueta = etiqueta.strip()
-        if etiqueta and len(etiqueta) > 3 and not etiqueta.startswith('http'):
-            claves.append({
-                "codigo": codigo,
-                "etiqueta": etiqueta,
-            })
+        if etiqueta and len(etiqueta) > 3 and not etiqueta.startswith("http"):
+            claves.append(
+                {
+                    "codigo": codigo,
+                    "etiqueta": etiqueta,
+                }
+            )
 
     # Pattern: numeric clave codes (for 303 regime codes)
     if not claves:
         num_claves = re.findall(
-            r'(?:Clave\s*)?(\d{1,2})\s*[-–—:)\.]\s*([^\n<]{5,80})',
+            r"(?:Clave\s*)?(\d{1,2})\s*[-–—:)\.]\s*([^\n<]{5,80})",
             html,
             re.MULTILINE,
         )
         for codigo, etiqueta in num_claves:
             etiqueta = etiqueta.strip()
-            if etiqueta and len(etiqueta) > 3 and not etiqueta.startswith('http'):
-                claves.append({
-                    "codigo": codigo,
-                    "etiqueta": etiqueta,
-                })
+            if etiqueta and len(etiqueta) > 3 and not etiqueta.startswith("http"):
+                claves.append(
+                    {
+                        "codigo": codigo,
+                        "etiqueta": etiqueta,
+                    }
+                )
 
     return claves
 
@@ -194,15 +205,15 @@ def scrape_instructions_from_page(html: str) -> list[dict]:
     instrucciones = []
 
     section_patterns = [
-        (r'Caracter[aí]sticas|¿Qu[eé] es\??', "caracteristicas"),
-        (r'[¿Qq]ui[eé]n debe presentar|Obligados|Sujetos pasivos', "quien-debe"),
-        (r'[Cc]ómo rellenar|[Cc]ómo cumplimentar|[Cc]ómo presentar', "como-rellenar"),
-        (r'[Pp]lazo|[Ff]echa de presentaci[oó]n|[Cc]u[aá]ndo', "plazo"),
+        (r"Caracter[aí]sticas|¿Qu[eé] es\??", "caracteristicas"),
+        (r"[¿Qq]ui[eé]n debe presentar|Obligados|Sujetos pasivos", "quien-debe"),
+        (r"[Cc]ómo rellenar|[Cc]ómo cumplimentar|[Cc]ómo presentar", "como-rellenar"),
+        (r"[Pp]lazo|[Ff]echa de presentaci[oó]n|[Cc]u[aá]ndo", "plazo"),
     ]
 
     for pattern, seccion in section_patterns:
         match = re.search(
-            rf'(?:<h[23][^>]*>.*?{pattern}.*?</h[23]>|{pattern})',
+            rf"(?:<h[23][^>]*>.*?{pattern}.*?</h[23]>|{pattern})",
             html,
             re.DOTALL | re.IGNORECASE,
         )
@@ -210,18 +221,54 @@ def scrape_instructions_from_page(html: str) -> list[dict]:
             # Try to extract content after the heading
             start = match.end()
             # Get next 500 chars as content
-            content_html = html[start:start + 2000]
-            content = re.sub(r'<[^>]+>', '\n', content_html)
-            content = re.sub(r'\n{3,}', '\n\n', content).strip()
+            content_html = html[start : start + 2000]
+            content = re.sub(r"<[^>]+>", "\n", content_html)
+            content = re.sub(r"\n{3,}", "\n\n", content).strip()
 
             if len(content) > 50:
-                instrucciones.append({
-                    "seccion": seccion,
-                    "titulo": match.group(0).replace('<', ' ').replace('>', ' ').strip()[:80],
-                    "contenido": content[:5000],
-                })
+                instrucciones.append(
+                    {
+                        "seccion": seccion,
+                        "titulo": match.group(0)
+                        .replace("<", " ")
+                        .replace(">", " ")
+                        .strip()[:80],
+                        "contenido": content[:5000],
+                    }
+                )
 
     return instrucciones
+
+
+def upsert_instructions(conn, campana_id: int, instrucciones: list[dict]) -> int:
+    """Upsert instruction sections for a campaign.
+
+    Only replaces sections that were actually found in the scrape.
+    Sections not found in the current scrape are left untouched,
+    preventing data loss from partial scrapes.
+    """
+    count = 0
+    for orden, inst in enumerate(instrucciones, start=1):
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+                VALUES (:campana_id, :seccion, :titulo, :contenido, :orden)
+                ON CONFLICT (campana_id, seccion, titulo) DO UPDATE SET
+                    contenido = EXCLUDED.contenido,
+                    orden = EXCLUDED.orden
+                """
+            ),
+            {
+                "campana_id": campana_id,
+                "seccion": inst["seccion"],
+                "titulo": inst["titulo"],
+                "contenido": inst["contenido"],
+                "orden": inst.get("orden", orden),
+            },
+        )
+        count += 1
+    return count
 
 
 def detect_campaigns(html: str, modelo_codigo: str) -> list[str]:
@@ -237,13 +284,13 @@ def detect_campaigns(html: str, modelo_codigo: str) -> list[str]:
     campaigns = set()
 
     # Pattern: year references (2020-2030)
-    years = re.findall(r'(?:20[23]\d)', html)
+    years = re.findall(r"(?:20[23]\d)", html)
     for year in years:
         if int(year) >= 2020 and int(year) <= 2030:
             campaigns.add(year)
 
     # Pattern: "Campaña 2025" or "Ejercicio 2025"
-    camp_matches = re.findall(r'(?:[Cc]ampa[ñn]a|[Ee]jercicio)\s*(20[23]\d)', html)
+    camp_matches = re.findall(r"(?:[Cc]ampa[ñn]a|[Ee]jercicio)\s*(20[23]\d)", html)
     for year in camp_matches:
         campaigns.add(year)
 
@@ -278,8 +325,19 @@ def fetch_instruction_page(url_instrucciones: str) -> str | None:
 # DB operations
 # ---------------------------------------------------------------------------
 
-def sync_model(engine, modelo_codigo: str, url_info: str, url_instrucciones: str | None, result: SyncResult):
-    """Sync a single model's data from AEAT."""
+
+def sync_model(
+    engine,
+    modelo_codigo: str,
+    url_info: str,
+    url_instrucciones: str | None,
+    result: SyncResult,
+):
+    """Sync a single model's data from AEAT.
+
+    Detects campaigns, creates any missing ones, then scrapes and persists
+    content independently for EACH detected campaign using its own URL.
+    """
     result.models_checked += 1
 
     # Get modelo_id
@@ -295,162 +353,173 @@ def sync_model(engine, modelo_codigo: str, url_info: str, url_instrucciones: str
         modelo_id = model_row[0]
         conn.close()
 
-    # Fetch pages
+    # Fetch main page to detect campaigns
     main_html = fetch_model_page(url_info) if url_info else None
-    instr_html = fetch_instruction_page(url_instrucciones) if url_instrucciones else None
-    html = instr_html or main_html
-
-    if not html:
+    if not main_html:
         logger.warning(f"No HTML content for modelo {modelo_codigo}")
         result.errors.append(f"No content for {modelo_codigo}")
         return
 
     # --- Detect campaigns ---
-    detected_campaigns = detect_campaigns(html, modelo_codigo)
-    if detected_campaigns:
-        # Create any missing campaigns
-        with engine.connect() as conn:
-            existing = conn.execute(
-                text(
-                    """
-                    SELECT campana FROM modelo_campana
-                    WHERE modelo_id = :modelo_id
-                    """
-                ),
-                {"modelo_id": modelo_id},
-            ).fetchall()
-            existing_campaigns = {r[0] for r in existing}
+    detected_campaigns = detect_campaigns(main_html, modelo_codigo)
+    if not detected_campaigns:
+        detected_campaigns = ["2025"]  # fallback
 
-            for camp in detected_campaigns:
-                if camp not in existing_campaigns:
-                    url_instr = url_instrucciones if url_instrucciones else url_info
-                    conn.execute(
-                        text(
-                            """
-                            INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones)
-                            VALUES (:modelo_id, :campana, :url_instr)
-                            ON CONFLICT (modelo_id, campana) DO NOTHING
-                            """
-                        ),
-                        {"modelo_id": modelo_id, "campana": camp, "url_instr": url_instr},
-                    )
-                    result.campaigns_created += 1
-                    logger.info(f"  New campaign detected: {modelo_codigo} → {camp}")
-            conn.commit()
-
-    # Get active campaign
+    # Create any missing campaigns
     with engine.connect() as conn:
-        camp_row = conn.execute(
+        existing = conn.execute(
             text(
                 """
-                SELECT id FROM modelo_campana
-                WHERE modelo_id = :modelo_id AND activo = true
-                ORDER BY campana DESC
-                LIMIT 1
+                SELECT campana FROM modelo_campana
+                WHERE modelo_id = :modelo_id
                 """
             ),
             {"modelo_id": modelo_id},
+        ).fetchall()
+        existing_campaigns = {r[0] for r in existing}
+
+        for camp in detected_campaigns:
+            if camp not in existing_campaigns:
+                url_instr = url_instrucciones if url_instrucciones else url_info
+                # Deactivate all previous campaigns before inserting the new one
+                conn.execute(
+                    text(
+                        """
+                        UPDATE modelo_campana SET activo = false
+                        WHERE modelo_id = :modelo_id
+                        """
+                    ),
+                    {"modelo_id": modelo_id},
+                )
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, activo)
+                        VALUES (:modelo_id, :campana, :url_instr, true)
+                        ON CONFLICT (modelo_id, campana) DO UPDATE SET
+                            url_instrucciones = EXCLUDED.url_instrucciones,
+                            activo = true
+                        """
+                    ),
+                    {
+                        "modelo_id": modelo_id,
+                        "campana": camp,
+                        "url_instr": url_instr,
+                    },
+                )
+                result.campaigns_created += 1
+                logger.info(f"  New campaign created: {modelo_codigo} → {camp}")
+        conn.commit()
+
+    # Scrape and persist content for EACH campaign independently
+    for camp in detected_campaigns:
+        _scrape_campaign(
+            engine, modelo_id, modelo_codigo, camp, url_info, url_instrucciones, result
+        )
+
+
+def _scrape_campaign(
+    engine,
+    modelo_id: int,
+    modelo_codigo: str,
+    campana: str,
+    url_info: str,
+    url_instrucciones_fallback: str | None,
+    result: SyncResult,
+):
+    """Scrape and persist content for a single campaign."""
+    with engine.connect() as conn:
+        # Get this campaign's instruction URL (or fall back to the model default)
+        camp_row = conn.execute(
+            text(
+                """
+                SELECT id, url_instrucciones FROM modelo_campana
+                WHERE modelo_id = :modelo_id AND campana = :campana
+                """
+            ),
+            {"modelo_id": modelo_id, "campana": campana},
         ).fetchone()
-        if not camp_row:
-            # Create default campaign if none exists
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, activo)
-                    SELECT :modelo_id, '2025', :url_instr, true
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM modelo_campana WHERE modelo_id = :modelo_id
-                    )
-                    ON CONFLICT (modelo_id, campana) DO NOTHING
-                    """
-                ),
-                {"modelo_id": modelo_id, "url_instr": url_instrucciones},
-            )
-            conn.commit()
-            camp_row = conn.execute(
-                text(
-                    "SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id AND activo = true ORDER BY campana DESC LIMIT 1"
-                ),
-                {"modelo_id": modelo_id},
-            ).fetchone()
-        campana_id = camp_row[0]
         conn.close()
 
-    # --- Scrape casillas ---
-    scraped_casillas = scrape_casillas_from_page(html, modelo_codigo)
-    if scraped_casillas:
-        with engine.connect() as conn:
-            for cas in scraped_casillas:
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO modelo_casilla (campana_id, codigo, etiqueta, descripcion, orden)
-                        VALUES (:campana_id, :codigo, :etiqueta, :descripcion, :orden)
-                        ON CONFLICT (campana_id, codigo) DO UPDATE SET
-                            etiqueta = EXCLUDED.etiqueta,
-                            descripcion = COALESCE(EXCLUDED.descripcion, modelo_casilla.descripcion),
-                            orden = EXCLUDED.orden
-                        """
-                    ),
-                    {
-                        "campana_id": campana_id,
-                        "codigo": cas["codigo"],
-                        "etiqueta": cas["etiqueta"],
-                        "descripcion": cas.get("descripcion"),
-                        "orden": cas.get("orden"),
-                    },
-                )
-                result.casillas_upserted += 1
-            conn.commit()
-            logger.info(f"  {modelo_codigo}: {len(scraped_casillas)} casillas scraped")
+        if not camp_row:
+            return
 
-    # --- Scrape claves ---
-    scraped_claves = scrape_claves_from_page(html)
-    if scraped_claves:
-        with engine.connect() as conn:
-            for clave in scraped_claves:
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO modelo_clave (campana_id, codigo, etiqueta)
-                        VALUES (:campana_id, :codigo, :etiqueta)
-                        ON CONFLICT (campana_id, codigo) DO UPDATE SET
-                            etiqueta = EXCLUDED.etiqueta
-                        """
-                    ),
-                    {
-                        "campana_id": campana_id,
-                        "codigo": clave["codigo"],
-                        "etiqueta": clave["etiqueta"],
-                    },
-                )
-                result.claves_upserted += 1
-            conn.commit()
-            logger.info(f"  {modelo_codigo}: {len(scraped_claves)} claves scraped")
+        campana_id = camp_row[0]
+        camp_url_instr = camp_row[1]
 
-    # --- Scrape instructions ---
-    scraped_instr = scrape_instructions_from_page(html)
-    if scraped_instr:
-        with engine.connect() as conn:
-            for inst in scraped_instr:
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido)
-                        VALUES (:campana_id, :seccion, :titulo, :contenido)
-                        ON CONFLICT DO NOTHING
-                        """
-                    ),
-                    {
-                        "campana_id": campana_id,
-                        "seccion": inst["seccion"],
-                        "titulo": inst["titulo"],
-                        "contenido": inst["contenido"],
-                    },
+        # Fetch HTML for this specific campaign
+        url_to_fetch = camp_url_instr or url_instrucciones_fallback or url_info
+        html = fetch_instruction_page(url_to_fetch) or fetch_model_page(url_info)
+        if not html:
+            logger.warning(f"  {modelo_codigo}/{campana}: no HTML to scrape")
+            return
+
+        # --- Scrape casillas ---
+        scraped_casillas = scrape_casillas_from_page(html, modelo_codigo)
+        if scraped_casillas:
+            with engine.connect() as conn:
+                for cas in scraped_casillas:
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO modelo_casilla (campana_id, codigo, etiqueta, descripcion, orden)
+                            VALUES (:campana_id, :codigo, :etiqueta, :descripcion, :orden)
+                            ON CONFLICT (campana_id, codigo) DO UPDATE SET
+                                etiqueta = EXCLUDED.etiqueta,
+                                descripcion = COALESCE(EXCLUDED.descripcion, modelo_casilla.descripcion),
+                                orden = EXCLUDED.orden
+                            """
+                        ),
+                        {
+                            "campana_id": campana_id,
+                            "codigo": cas["codigo"],
+                            "etiqueta": cas["etiqueta"],
+                            "descripcion": cas.get("descripcion"),
+                            "orden": cas.get("orden"),
+                        },
+                    )
+                    result.casillas_upserted += 1
+                conn.commit()
+                logger.info(
+                    f"  {modelo_codigo}/{campana}: {len(scraped_casillas)} casillas scraped"
                 )
-                result.instrucciones_upserted += 1
-            conn.commit()
-            logger.info(f"  {modelo_codigo}: {len(scraped_instr)} instructions scraped")
+
+        # --- Scrape claves ---
+        scraped_claves = scrape_claves_from_page(html)
+        if scraped_claves:
+            with engine.connect() as conn:
+                for clave in scraped_claves:
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO modelo_clave (campana_id, codigo, etiqueta)
+                            VALUES (:campana_id, :codigo, :etiqueta)
+                            ON CONFLICT (campana_id, codigo) DO UPDATE SET
+                                etiqueta = EXCLUDED.etiqueta
+                            """
+                        ),
+                        {
+                            "campana_id": campana_id,
+                            "codigo": clave["codigo"],
+                            "etiqueta": clave["etiqueta"],
+                        },
+                    )
+                    result.claves_upserted += 1
+                conn.commit()
+                logger.info(
+                    f"  {modelo_codigo}/{campana}: {len(scraped_claves)} claves scraped"
+                )
+
+        # --- Scrape instructions ---
+        scraped_instr = scrape_instructions_from_page(html)
+        if scraped_instr:
+            with engine.connect() as conn:
+                count = upsert_instructions(conn, campana_id, scraped_instr)
+                conn.commit()
+                result.instrucciones_upserted += count
+                logger.info(
+                    f"  {modelo_codigo}/{campana}: {count} instructions upserted"
+                )
 
 
 def run_sync(engine, run_once: bool = False):
@@ -526,7 +595,9 @@ def run_sync(engine, run_once: bool = False):
                             "errors": len(result.errors),
                             "models": result.models_checked,
                             "casillas": result.casillas_upserted,
-                            "error_msg": "; ".join(result.errors) if result.errors else None,
+                            "error_msg": "; ".join(result.errors)
+                            if result.errors
+                            else None,
                         },
                     )
                     conn.commit()

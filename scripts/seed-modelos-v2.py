@@ -37,111 +37,114 @@ CAMPANA_DEFAULT = "2025"
 # ===========================================================================
 # CAMPAIGNS
 # ===========================================================================
+# Note: campana field uses CAMPANA_DEFAULT placeholder, which is overridden
+# by the --campana CLI argument at runtime in seed_v2().
 CAMPAÑAS = [
-    # (modelo_codigo, campana, url_instrucciones, url_normativa, url_formato)
+    # (modelo_codigo, url_instrucciones, url_normativa, url_formato)
+    # The campana value is determined at runtime by the --campana argument.
     # --- IRPF ---
-    ("100", CAMPANA_DEFAULT,
+    ("100",
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-100/instrucciones/index.shtml",
      "https://www.boe.es/boe/dias/2024/12/20/pdfs/BOE-A-2024-26789.pdf",
      None),
-    ("111", CAMPANA_DEFAULT,
+    ("111",
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-111/instrucciones/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
      None),
-    ("115", CAMPANA_DEFAULT,
+    ("115",
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-115/instrucciones/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
      None),
-    ("123", CAMPANA_DEFAULT,
+    ("123",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
      None),
-    ("130", CAMPANA_DEFAULT,
+    ("130",
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-130/instrucciones/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
      None),
-    ("180", CAMPANA_DEFAULT,
+    ("180",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-180.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("187", CAMPANA_DEFAULT,
+    ("187",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-187.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("189", CAMPANA_DEFAULT,
+    ("189",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-189.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("190", CAMPANA_DEFAULT,
+    ("190",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-190.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("193", CAMPANA_DEFAULT,
+    ("193",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-193.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("194", CAMPANA_DEFAULT,
+    ("194",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-194.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("196", CAMPANA_DEFAULT,
+    ("196",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-196.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("198", CAMPANA_DEFAULT,
+    ("198",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-198.html",
      "https://www.boe.es/boe/dias/2024/11/15/pdfs/BOE-A-2024-23244.pdf",
      None),
-    ("110", CAMPANA_DEFAULT, None,
+    ("110", None,
      "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
      None),
 
     # --- IVA ---
-    ("303", CAMPANA_DEFAULT,
+    ("303",
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-valor-anadido-iva/modelo-303/instrucciones/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2024-16738",
      None),
-    ("349", CAMPANA_DEFAULT,
+    ("349",
      "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue/modelo-349.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2024-16738",
      None),
-    ("390", CAMPANA_DEFAULT,
+    ("390",
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-valor-anadido-iva/modelo-390/instrucciones/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2024-16738",
      None),
 
     # --- IRNR ---
-    ("124", CAMPANA_DEFAULT,
+    ("124",
      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-124.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2004-19886",
      None),
-    ("216", CAMPANA_DEFAULT,
+    ("216",
      "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelos-declaraciones-retenciones.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2004-19886",
      None),
-    ("296", CAMPANA_DEFAULT,
+    ("296",
      "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/retenciones-irnr-sin-establecimiento-permanente/modelo-296-declaracion-informativa-resumen-anual_.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2004-19886",
      None),
 
     # --- CENSAL ---
-    ("036", CAMPANA_DEFAULT,
+    ("036",
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/guia-practica-cumplimentacion-modelo-censal-036/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2024-25303",
      None),
 
     # --- INFORMATIVO ---
-    ("289", CAMPANA_DEFAULT,
+    ("289",
      "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2024-24098",
      None),
-    ("290", CAMPANA_DEFAULT,
+    ("290",
      "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2014-12328",
      None),
-    ("299", CAMPANA_DEFAULT, None, None,
+    ("299", None, None,
      "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro.html"),
-    ("347", CAMPANA_DEFAULT,
+    ("347",
      "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/modelo-347-declaracion-anual-operaciones-terceras-personas/index.shtml",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2024-25303",
      None),
@@ -772,22 +775,31 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
     with conn.cursor() as cur:
         # --- 1. Insert campaigns ---
         print(f"=== Campañas ({campana}) ===")
-        for modelo_codigo, camp, url_instr, url_norm, url_fmt in CAMPAÑAS:
+        for modelo_codigo, url_instr, url_norm, url_fmt in CAMPAÑAS:
             if dry_run:
-                print(f"  [DRY] modelo={modelo_codigo} campana={camp}")
+                print(f"  [DRY] modelo={modelo_codigo} campana={campana}")
                 continue
+            # Deactivate previous campaigns for this model before inserting
             cur.execute(
                 """
-                INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato)
-                SELECT m.id, %s, %s, %s, %s
+                UPDATE modelo_campana SET activo = false
+                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = %s)
+                """,
+                (modelo_codigo,),
+            )
+            cur.execute(
+                """
+                INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato, activo)
+                SELECT m.id, %s, %s, %s, %s, true
                 FROM aeat_modelo m
                 WHERE m.codigo = %s
                 ON CONFLICT (modelo_id, campana) DO UPDATE SET
                     url_instrucciones = EXCLUDED.url_instrucciones,
                     url_normativa = EXCLUDED.url_normativa,
-                    url_formato = EXCLUDED.url_formato
+                    url_formato = EXCLUDED.url_formato,
+                    activo = true
                 """,
-                (camp, url_instr, url_norm, url_fmt, modelo_codigo),
+                (campana, url_instr, url_norm, url_fmt, modelo_codigo),
             )
         conn.commit()
         if not dry_run:
@@ -906,7 +918,9 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
                     """
                     INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
                     VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT DO NOTHING
+                    ON CONFLICT (campana_id, seccion, titulo) DO UPDATE SET
+                        contenido = EXCLUDED.contenido,
+                        orden = EXCLUDED.orden
                     """,
                     (campana_id, seccion, titulo, contenido, orden),
                 )

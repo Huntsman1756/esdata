@@ -12,13 +12,18 @@ CREATE TABLE IF NOT EXISTS modelo_campana (
     version_form    TEXT,                       -- '1.0', '1.1' — versión del diseño
     url_instrucciones TEXT,                     -- PDF instrucciones AEAT
     url_normativa   TEXT,                       -- BOE/Orden que aprueba el modelo
-    url_formato     TEXT,                       —- diseño de registro electrónico
+    url_formato     TEXT,                       -- diseno de registro electronico
     activo          BOOLEAN NOT NULL DEFAULT true,  -- false = campaña obsoleta
     creado_at       TIMESTAMPTZ DEFAULT now(),
     UNIQUE(modelo_id, campana)
 );
 
 CREATE INDEX idx_modelo_campana_modelo ON modelo_campana(modelo_id);
+
+-- Enforce: only ONE active campaign per model at a time.
+-- Postgres supports partial unique indexes for this exact pattern.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_modelo_campana_unique_active
+    ON modelo_campana(modelo_id) WHERE activo = true;
 
 -- ---------------------------------------------------------------------------
 -- 2. CASILLAS — inventario completo de casillas por modelo/campaña
@@ -70,6 +75,8 @@ CREATE TABLE IF NOT EXISTS modelo_instruccion (
 );
 
 CREATE INDEX idx_modelo_instruccion_campana ON modelo_instruccion(campana_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_modelo_instruccion_unique
+    ON modelo_instruccion(campana_id, seccion, titulo);
 
 -- ---------------------------------------------------------------------------
 -- 5. NORMATIVA — órdenes BOE que regulan cada modelo (independiente de campaña)

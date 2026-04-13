@@ -112,8 +112,12 @@ export async function getModelos(): Promise<ModelosListResponse> {
   return fetchApi<ModelosListResponse>("/v1/modelos");
 }
 
-export async function getModelo(codigo: string): Promise<ModeloDetail> {
-  return fetchApi<ModeloDetail>(`/v1/modelos/${codigo}`);
+export async function getModelo(
+  codigo: string,
+  campana?: string
+): Promise<ModeloDetail> {
+  const params = campana ? `?campana=${campana}` : "";
+  return fetchApi<ModeloDetail>(`/v1/modelos/${codigo}${params}`);
 }
 
 export async function getModeloArticulos(

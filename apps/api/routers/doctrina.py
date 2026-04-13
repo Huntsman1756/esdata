@@ -2,16 +2,22 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 
 from db import get_db
+from schemas import (
+    DoctrinaDetail as DoctrinaDetailSchema,
+    DoctrinaSearchResponse,
+    DoctrinaSearchResult,
+)
 
 router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
 
 
-@router.get("/buscar", operation_id="buscar_doctrina")
+@router.get("/buscar", operation_id="buscar_doctrina", response_model=DoctrinaSearchResponse,
+            summary="Buscar doctrina interpretativa")
 async def buscar_doctrina(
-    q: str = Query(..., min_length=1),
-    tipo: str | None = None,
-    desde: str | None = None,
-    organismo_emisor: str | None = None,
+    q: str = Query(..., min_length=1, description="Termino de busqueda en texto de doctrina"),
+    tipo: str | None = Query(None, description="Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)"),
+    desde: str | None = Query(None, description="Fecha minima (YYYY-MM-DD)"),
+    organismo_emisor: str | None = Query(None, description="Filtrar por organismo (DGT, TEAC, etc.)"),
 ):
     db = next(get_db())
     filters = [
@@ -76,7 +82,7 @@ async def buscar_doctrina(
     }
 
 
-@router.get("/{referencia:path}", operation_id="get_doctrina")
+@router.get("/{referencia:path}", operation_id="get_doctrina", response_model=DoctrinaDetailSchema)
 async def get_doctrina(referencia: str):
     db = next(get_db())
     row = (

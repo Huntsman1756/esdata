@@ -2,19 +2,27 @@
 Tests for the modelos worker (AEAT model content scraper).
 """
 
-import pytest
+import sys
+from pathlib import Path
 
-from workers.modelos import (
+import pytest
+from sqlalchemy import create_engine, text
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from modelos import (
     scrape_casillas_from_page,
     scrape_claves_from_page,
     scrape_instructions_from_page,
     detect_campaigns,
+    upsert_instructions,
 )
 
 
 # ---------------------------------------------------------------------------
 # Casilla scraping
 # ---------------------------------------------------------------------------
+
 
 class TestScrapeCasillas:
     def test_table_pattern(self):
@@ -57,7 +65,7 @@ class TestScrapeCasillas:
         """
         result = scrape_casillas_from_page(html, "111")
         assert len(result) == 1
-        assert result[0]["codigo"] == "02"
+        assert result[0]["codigo"] == "0002"
 
     def test_iva_model_303(self):
         html = """
@@ -70,13 +78,14 @@ class TestScrapeCasillas:
         """
         result = scrape_casillas_from_page(html, "303")
         assert len(result) == 4
-        assert result[0]["codigo"] == "01"
+        assert result[0]["codigo"] == "0001"
         assert "Base imponible" in result[0]["etiqueta"]
 
 
 # ---------------------------------------------------------------------------
 # Clave scraping
 # ---------------------------------------------------------------------------
+
 
 class TestScrapeClaves:
     def test_letter_claves(self):
@@ -108,6 +117,7 @@ class TestScrapeClaves:
 # ---------------------------------------------------------------------------
 # Instruction scraping
 # ---------------------------------------------------------------------------
+
 
 class TestScrapeInstructions:
     def test_characteristics_section(self):
@@ -144,9 +154,65 @@ class TestScrapeInstructions:
         assert scrape_instructions_from_page("<html></html>") == []
 
 
+def test_upsert_instructions_replaces_existing_rows():
+    engine = create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE modelo_instruccion (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campana_id INTEGER NOT NULL,
+                    seccion TEXT NOT NULL,
+                    titulo TEXT NOT NULL,
+                    contenido TEXT NOT NULL,
+                    orden INTEGER DEFAULT 0,
+                    creado_at TEXT,
+                    UNIQUE(campana_id, seccion, titulo)
+                )
+                """
+            )
+        )
+
+        upsert_instructions(
+            conn,
+            1,
+            [
+                {
+                    "seccion": "plazo",
+                    "titulo": "Plazo de presentacion",
+                    "contenido": "Contenido inicial",
+                    "orden": 1,
+                }
+            ],
+        )
+        upsert_instructions(
+            conn,
+            1,
+            [
+                {
+                    "seccion": "plazo",
+                    "titulo": "Plazo de presentacion",
+                    "contenido": "Contenido actualizado",
+                    "orden": 1,
+                }
+            ],
+        )
+
+        rows = conn.execute(
+            text(
+                "SELECT seccion, titulo, contenido FROM modelo_instruccion WHERE campana_id = 1"
+            )
+        ).fetchall()
+
+    assert rows == [("plazo", "Plazo de presentacion", "Contenido actualizado")]
+
+
 # ---------------------------------------------------------------------------
 # Campaign detection
 # ---------------------------------------------------------------------------
+
 
 class TestDetectCampaigns:
     def test_year_in_text(self):

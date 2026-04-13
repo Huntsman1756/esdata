@@ -1,12 +1,62 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 
 from db import get_db
+from schemas import (
+    ModeloDetail as ModeloDetailSchema,
+    ModelosListResponse,
+)
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
 
 
-@router.get("", operation_id="list_modelos")
+def _get_active_campaign(db, codigo: str, campana: str = None):
+    """Get active or specified campaign for a model.
+
+    Works with both Postgres (modelo_campana_activa function) and SQLite
+    (direct query fallback).
+    """
+    if campana:
+        row = db.execute(
+            text(
+                """
+                SELECT id, campana, url_instrucciones, url_normativa, url_formato
+                FROM modelo_campana
+                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
+                  AND campana = :campana
+                LIMIT 1
+                """
+            ),
+            {"codigo": codigo, "campana": campana},
+        ).mappings().first()
+    else:
+        # Try the Postgres function first; fall back to raw query on SQLite
+        try:
+            row = db.execute(
+                text(
+                    "SELECT id, campana, url_instrucciones, url_normativa, url_formato FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
+                ),
+                {"codigo": codigo},
+            ).mappings().first()
+        except Exception:
+            # SQLite fallback: direct query
+            row = db.execute(
+                text(
+                    """
+                    SELECT id, campana, url_instrucciones, url_normativa, url_formato
+                    FROM modelo_campana
+                    WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
+                      AND activo = true
+                    ORDER BY campana DESC
+                    LIMIT 1
+                    """
+                ),
+                {"codigo": codigo},
+            ).mappings().first()
+    return row
+
+
+@router.get("", operation_id="list_modelos", response_model=ModelosListResponse)
 async def list_modelos():
     """Lista todos los modelos AEAT disponibles."""
     db = next(get_db())
@@ -22,8 +72,8 @@ async def list_modelos():
                 COUNT(DISTINCT mc.id) AS casillas_count
             FROM aeat_modelo m
             LEFT JOIN modelo_articulo ma ON ma.modelo_id = m.id
-            LEFT JOIN modelo_campana mcam ON mcam.modelo_id = m.id
-            LEFT JOIN modelo_casilla mc ON mc.campana_id = mcam.id AND mc.activo = true
+            LEFT JOIN modelo_campana mcam ON mcam.modelo_id = m.id AND mcam.activo = true
+            LEFT JOIN modelo_casilla mc ON mc.campana_id = mcam.id AND mc.activa = true
             GROUP BY m.id, m.codigo, m.nombre, m.periodo, m.impuesto
             ORDER BY m.codigo
             """
@@ -45,8 +95,9 @@ async def list_modelos():
     }
 
 
-@router.get("/{codigo}", operation_id="get_modelo")
-async def get_modelo(codigo: str, campana: str = None):
+@router.get("/{codigo}", operation_id="get_modelo", response_model=ModeloDetailSchema,
+            summary="Detalle de un modelo AEAT")
+async def get_modelo(codigo: str, campana: str = Query(None, description="Campana especifica (ej: 2025). Si no se indica, usa la activa.")):
     """
     Detalle de un modelo con artículos, casillas, claves, instrucciones,
     normativa y doctrina relacionada.
@@ -76,27 +127,7 @@ async def get_modelo(codigo: str, campana: str = None):
         )
 
     # Get active or specified campaign
-    if campana:
-        camp_row = db.execute(
-            text(
-                """
-                SELECT id, campana, url_instrucciones, url_normativa, url_formato
-                FROM modelo_campana
-                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                  AND campana = :campana
-                LIMIT 1
-                """
-            ),
-            {"codigo": codigo, "campana": campana},
-        ).mappings().first()
-    else:
-        camp_row = db.execute(
-            text(
-                "SELECT id, campana, url_instrucciones, url_normativa, url_formato FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
-
+    camp_row = _get_active_campaign(db, codigo, campana)
     campana_id = camp_row["id"] if camp_row else None
     campana_activa = camp_row["campana"] if camp_row else None
 
@@ -337,30 +368,13 @@ async def get_modelo_articulos(codigo: str):
     }
 
 
-@router.get("/{codigo}/casillas", operation_id="get_modelo_casillas")
-async def get_modelo_casillas(codigo: str, campana: str = None):
+@router.get("/{codigo}/casillas", operation_id="get_modelo_casillas", response_model=None,
+            summary="Casillas de un modelo")
+async def get_modelo_casillas(codigo: str, campana: str = Query(None, description="Campana especifica")):
     """Lista todas las casillas de un modelo para una campaña."""
     db = next(get_db())
 
-    if campana:
-        camp_row = db.execute(
-            text(
-                """
-                SELECT mc.id FROM modelo_campana mc
-                JOIN aeat_modelo m ON m.id = mc.modelo_id
-                WHERE m.codigo = :codigo AND mc.campana = :campana
-                LIMIT 1
-                """
-            ),
-            {"codigo": codigo, "campana": campana},
-        ).mappings().first()
-    else:
-        camp_row = db.execute(
-            text(
-                "SELECT id FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+    camp_row = _get_active_campaign(db, codigo, campana)
 
     if not camp_row:
         return {"codigo": codigo, "casillas": []}
@@ -385,30 +399,13 @@ async def get_modelo_casillas(codigo: str, campana: str = None):
     }
 
 
-@router.get("/{codigo}/claves", operation_id="get_modelo_claves")
-async def get_modelo_claves(codigo: str, campana: str = None):
+@router.get("/{codigo}/claves", operation_id="get_modelo_claves",
+            summary="Claves de un modelo")
+async def get_modelo_claves(codigo: str, campana: str = Query(None, description="Campana especifica")):
     """Lista todas las claves de un modelo para una campaña."""
     db = next(get_db())
 
-    if campana:
-        camp_row = db.execute(
-            text(
-                """
-                SELECT mc.id FROM modelo_campana mc
-                JOIN aeat_modelo m ON m.id = mc.modelo_id
-                WHERE m.codigo = :codigo AND mc.campana = :campana
-                LIMIT 1
-                """
-            ),
-            {"codigo": codigo, "campana": campana},
-        ).mappings().first()
-    else:
-        camp_row = db.execute(
-            text(
-                "SELECT id FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+    camp_row = _get_active_campaign(db, codigo, campana)
 
     if not camp_row:
         return {"codigo": codigo, "claves": []}
@@ -433,30 +430,13 @@ async def get_modelo_claves(codigo: str, campana: str = None):
     }
 
 
-@router.get("/{codigo}/instrucciones", operation_id="get_modelo_instrucciones")
-async def get_modelo_instrucciones(codigo: str, campana: str = None):
+@router.get("/{codigo}/instrucciones", operation_id="get_modelo_instrucciones",
+            summary="Instrucciones de un modelo")
+async def get_modelo_instrucciones(codigo: str, campana: str = Query(None, description="Campana especifica")):
     """Lista las instrucciones de un modelo para una campaña."""
     db = next(get_db())
 
-    if campana:
-        camp_row = db.execute(
-            text(
-                """
-                SELECT mc.id FROM modelo_campana mc
-                JOIN aeat_modelo m ON m.id = mc.modelo_id
-                WHERE m.codigo = :codigo AND mc.campana = :campana
-                LIMIT 1
-                """
-            ),
-            {"codigo": codigo, "campana": campana},
-        ).mappings().first()
-    else:
-        camp_row = db.execute(
-            text(
-                "SELECT id FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+    camp_row = _get_active_campaign(db, codigo, campana)
 
     if not camp_row:
         return {"codigo": codigo, "instrucciones": []}

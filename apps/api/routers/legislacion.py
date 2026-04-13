@@ -1,12 +1,18 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 
 from db import get_db
+from schemas import (
+    ArticuloDetail as ArticuloDetailSchema,
+    ArticulosListResponse,
+    Norma as NormaSchema,
+    NormasListResponse,
+)
 
 router = APIRouter(prefix="/v1/legislacion", tags=["legislacion"])
 
 
-@router.get("", operation_id="list_legislacion")
+@router.get("", operation_id="list_legislacion", response_model=NormasListResponse)
 async def list_legislacion():
     db = next(get_db())
     rows = db.execute(
@@ -58,7 +64,7 @@ async def get_cobertura():
     }
 
 
-@router.get("/{codigo}", operation_id="get_norma")
+@router.get("/{codigo}", operation_id="get_norma", response_model=NormaSchema)
 async def get_norma(codigo: str):
     db = next(get_db())
     row = (
@@ -80,8 +86,9 @@ async def get_norma(codigo: str):
     return dict(row)
 
 
-@router.get("/{codigo}/articulos", operation_id="list_articulos")
-async def list_articulos(codigo: str, tipo: str | None = None):
+@router.get("/{codigo}/articulos", operation_id="list_articulos", response_model=ArticulosListResponse,
+            summary="Lista articulos de una norma")
+async def list_articulos(codigo: str, tipo: str | None = Query(None, description="Filtrar por tipo de articulo")):
     db = next(get_db())
     filters = ["n.codigo = :codigo"]
     params = {"codigo": codigo}
@@ -116,8 +123,9 @@ async def list_articulos(codigo: str, tipo: str | None = None):
     return {"norma": codigo, "articulos": rows}
 
 
-@router.get("/{codigo}/articulos/{numero}", operation_id="get_articulo")
-async def get_articulo(codigo: str, numero: str, vigente_en: str | None = None):
+@router.get("/{codigo}/articulos/{numero}", operation_id="get_articulo", response_model=ArticuloDetailSchema,
+            summary="Detalle de un articulo de ley")
+async def get_articulo(codigo: str, numero: str, vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)")):
     db = next(get_db())
     filters = ["n.codigo = :codigo", "a.numero = :numero"]
     params = {"codigo": codigo, "numero": numero}
