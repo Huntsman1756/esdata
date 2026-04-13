@@ -26,6 +26,7 @@ DEFAULT_NORMAS = {
     "LGT": "BOE-A-2003-23186",
     "ITPAJD": "BOE-A-1993-253",
     "IRNR": "BOE-A-2004-19886",
+    "RIRPF": "BOE-A-2007-6820",
 }
 
 NORMA_CLASSIFICATIONS = {
@@ -41,6 +42,10 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto_legislativo",
         "ambito": "tributario",
     },
+    "RIRPF": {
+        "tipo_documento": "real_decreto",
+        "ambito": "tributario",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -49,6 +54,7 @@ LAW_TO_NORMA = {
     "35/2006": "LIRPF",
     "58/2003": "LGT",
     "5/2004": "IRNR",
+    "439/2007": "RIRPF",
 }
 
 
@@ -620,6 +626,35 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         for match in pattern.finditer(source):
             explicit_norma_refs.add(("IRNR", match.group(1), 1.00))
 
+    # Named regulation alias: RIRPF (Reglamento IRPF, RD 439/2007)
+    for pattern in [
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DEL\s+REGLAMENTO\s+DEL\s+IRPF\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART\.?\s*(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DEL\s+REGLAMENTO\s+DEL\s+IRPF\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)\s+RIRPF\b", re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART\.?\s*(\d+)\s+RIRPF\b", re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)\s+DEL\s+RD\s+439/2007\b", re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART\.?\s*(\d+)\s+RD\s+439/2007\b", re.IGNORECASE,
+        ),
+        re.compile(
+            r"ART[ÍI]?CULO\s+(\d+)\s+DE\s+L\s*[AÁ]\s*REGLAMENTO\b", re.IGNORECASE,
+        ),
+    ]:
+        for match in pattern.finditer(source):
+            explicit_norma_refs.add(("RIRPF", match.group(1), 1.00))
+
     if explicit_norma_refs:
         return explicit_norma_refs
 
@@ -663,6 +698,8 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         context_normas.append("LIRPF")
     if "NO RESIDENT" in source and "IRNR" not in context_normas:
         context_normas.append("IRNR")
+    if "REGLAMENTO" in source and "IRPF" in source and "RIRPF" not in context_normas:
+        context_normas.append("RIRPF")
 
     if len(context_normas) != 1:
         return set()
