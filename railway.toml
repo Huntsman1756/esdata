@@ -3,7 +3,7 @@
 
 # --- API ---
 [[services]]
-name = "api"
+name = "esdata"
 rootDirectory = "apps/api"
 
 [services.deploy]

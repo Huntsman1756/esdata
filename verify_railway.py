@@ -11,7 +11,18 @@ def run(cmd: str):
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 
-SERVICES = ["esdata", "worker-boe", "cron-boe-daily", "Postgres"]
+SERVICES = [
+    "esdata",
+    "worker-boe",
+    "worker-dgt",
+    "worker-teac",
+    "worker-modelos",
+    "cron-boe-daily",
+    "cron-dgt-weekly",
+    "cron-teac-weekly",
+    "cron-modelos-daily",
+    "Postgres",
+]
 CRITICAL_VARS = {"DATABASE_URL", "BOE_API_BASE", "APP_ENV"}
 
 print("=== Estado Railway ===\n")
@@ -56,10 +67,12 @@ else:
 
 print("\n--- Comprobaciones manuales recomendadas ---")
 print("railway logs --service worker-boe --tail 50")
+print("railway logs --service worker-modelos --tail 50")
 print("railway logs --service esdata --tail 50")
 print("curl https://esdata-production.up.railway.app/health")
 print("curl https://esdata-production.up.railway.app/status")
 print("curl https://esdata-production.up.railway.app/v1/legislacion/cobertura")
+print("curl https://esdata-production.up.railway.app/v1/modelos")
 
 print("\n--- Verificacion de BD tras migracion ---")
 print("Ejecutar manualmente despues de aplicar 002_fulltext_search.sql:")

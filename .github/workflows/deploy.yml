@@ -20,48 +20,48 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy API a Railway
-        run: railway up apps/api --path-as-root --service esdata --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+        run: railway up --service esdata --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
 
       - name: Deploy BOE worker a Railway
-        run: railway up apps/workers --path-as-root --service worker-boe --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+        run: railway up --service worker-boe --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
 
       - name: Deploy BOE daily cron a Railway
-        run: railway up apps/workers --path-as-root --service cron-boe-daily --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+        run: railway up --service cron-boe-daily --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
 
       - name: Deploy DGT worker a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+          if ! railway up --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
             railway add --service worker-dgt --json
-            railway up apps/workers --path-as-root --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+            railway up --service worker-dgt --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
       - name: Deploy DGT weekly cron a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+          if ! railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
             railway add --service cron-dgt-weekly --json
-            railway up apps/workers --path-as-root --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+            railway up --service cron-dgt-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
       - name: Deploy TEAC worker a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up apps/workers --path-as-root --service worker-teac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+          if ! railway up --service worker-teac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
             railway add --service worker-teac --json
-            railway up apps/workers --path-as-root --service worker-teac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+            railway up --service worker-teac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
       - name: Deploy TEAC weekly cron a Railway
         shell: bash
         run: |
           set -euo pipefail
-          if ! railway up apps/workers --path-as-root --service cron-teac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+          if ! railway up --service cron-teac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
             railway add --service cron-teac-weekly --json
-            railway up apps/workers --path-as-root --service cron-teac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+            railway up --service cron-teac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
       - name: Espera breve tras deploy
