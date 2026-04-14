@@ -204,6 +204,24 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     JOIN norma n ON n.id = a.norma_id
     WHERE d.referencia = 'V0000-26' AND n.codigo = 'LIVA'
     """,
+    # --- Jurisprudencia de referencia ---
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'sentencia_ts', 'TS', 'es', 'boe', 'tributario', 'ECLI:ES:TS:2024:2741', '2024-06-15', 'STS 741/2024 - IVA', 'Resumen de jurisprudencia TS sobre IVA.', 'https://example.invalid/ts-2741'
+    )
+    """,
+    """
+    INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
+    SELECT d.id, a.id, 'manual', 1.00, 'Jurisprudencia fixture'
+    FROM documento_interpretativo d
+    JOIN articulo a ON a.numero = '91'
+    JOIN norma n ON n.id = a.norma_id
+    WHERE d.referencia = 'ECLI:ES:TS:2024:2741' AND n.codigo = 'LIVA'
+    ON CONFLICT DO NOTHING
+    """,
     # --- Modelos AEAT ---
     """
     CREATE TABLE aeat_modelo (
