@@ -14,6 +14,8 @@ WORKERS = [
     "cron-dgt-weekly",
     "worker-teac",
     "cron-teac-weekly",
+    "worker-jurisprudencia",
+    "cron-jurisprudencia-weekly",
 ]
 
 
@@ -100,6 +102,8 @@ def _is_stale(worker: str, finished_at) -> bool:
         "cron-dgt-weekly": 24 * 8,
         "worker-teac": 24 * 8,
         "cron-teac-weekly": 24 * 8,
+        "worker-jurisprudencia": 24 * 8,
+        "cron-jurisprudencia-weekly": 24 * 8,
     }
     return age_hours > thresholds.get(worker, 25)
 
