@@ -20,6 +20,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Cobertura documental adicional: `BDNS` con convocatorias públicas de subvenciones almacenadas como fuente documental específica.
 - Cobertura regulatoria documental inicial: `CNMV` con circulares y documentos de reporting/indexación operativa.
 - Cobertura regulatoria documental inicial: `SEPBLAC` con formularios y documentación operativa PBC/FT.
+- Capa inicial de cumplimiento normalizado: `obligacion_regulatoria` enlazando documentos `CNMV` y `SEPBLAC` con obligaciones consultables por API.
 - Cobertura societaria inicial: `BORME` con actos societarios públicos almacenados como fuente documental mercantil.
 - Base inicial de entidades: `empresa` y `documento_empresa` para empezar a cruzar fuentes públicas alrededor de una sociedad.
 - Capa de cumplimiento y presentacion: modelos AEAT con relaciones verificadas a articulos concretos.
@@ -120,6 +121,7 @@ Rutas frontend utiles:
 - `apps/api/routers/modelos.py`: endpoints `/v1/modelos` para la capa de modelos AEAT.
 - `apps/api/routers/cnmv.py`: endpoints `/v1/cnmv` para la capa documental regulatoria CNMV.
 - `apps/api/routers/sepblac.py`: endpoints `/v1/sepblac` para la capa documental operativa SEPBLAC.
+- `apps/api/routers/obligaciones.py`: endpoints `/v1/obligaciones` para la primera capa normalizada de cumplimiento.
 - `apps/api/services/modelos.py`: consultas reutilizables para detalle, campañas y relaciones de modelos.
 - `scripts/seed-modelos.py`: seed idempotente de metadata y relaciones `modelo_articulo` con fuente verificable.
 - `scripts/seed-modelos-v2.py`: seed idempotente de campañas, instrucciones, casillas, claves y normativa AEAT.

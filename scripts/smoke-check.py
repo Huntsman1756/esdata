@@ -25,6 +25,7 @@ DEFAULT_CHECKS = [
     ("/v1/borme", 200, "actos"),
     ("/v1/cnmv", 200, "documentos"),
     ("/v1/sepblac", 200, "documentos"),
+    ("/v1/obligaciones", 200, "obligaciones"),
     ("/v1/empresas", 200, "empresas"),
     ("/v1/materias/tipo-reducido-iva", 200, "articulos"),
     ("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA", 200, "resultados"),

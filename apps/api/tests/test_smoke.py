@@ -334,6 +334,30 @@ async def test_sepblac_lista_y_detalle():
 
 
 @pytest.mark.asyncio
+async def test_obligaciones_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/obligaciones")
+        cnmv = await c.get("/v1/obligaciones?fuente=cnmv&ambito=reporting_regulatorio")
+        detalle = await c.get("/v1/obligaciones/SEPBLAC-INDICIO-M19")
+
+    assert lista.status_code == 200
+    assert cnmv.status_code == 200
+    assert detalle.status_code == 200
+
+    codigos = [item["codigo"] for item in lista.json()["obligaciones"]]
+    assert "CNMV-IR-RESERVADA" in codigos
+    assert "SEPBLAC-INDICIO-M19" in codigos
+    assert len(cnmv.json()["obligaciones"]) >= 1
+
+    data = detalle.json()
+    assert data["fuente"] == "sepblac"
+    assert data["reporte_modelo"] == "modelo_19"
+    assert data["seccion_origen"] == "15.5"
+    assert len(data["documentos"]) >= 1
+    assert data["documentos"][0]["referencia"] == "SEPBLAC-MODELO-19"
+
+
+@pytest.mark.asyncio
 async def test_borme_lista_y_detalle():
     async with _client() as c:
         lista = await c.get("/v1/borme")

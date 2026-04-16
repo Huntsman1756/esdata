@@ -339,5 +339,49 @@ class EmpresasListResponse(BaseModel):
     empresas: list[EmpresaSummary]
 
 
+class ObligacionDocumento(BaseModel):
+    referencia: str = Field(description="Referencia del documento fuente")
+    organismo_emisor: str = Field(description="Organismo emisor del documento")
+    tipo_fuente: str = Field(description="Fuente documental o normativa")
+    tipo_documento: str = Field(description="Tipo de documento fuente")
+    tipo_relacion: str = Field(description="Tipo de relación con la obligación")
+
+
+class ObligacionSummary(BaseModel):
+    codigo: str = Field(description="Código único de la obligación regulatoria")
+    nombre: str = Field(description="Nombre corto de la obligación")
+    fuente: str = Field(description="Fuente principal de la obligación")
+    organismo_emisor: str = Field(description="Organismo emisor principal")
+    tipo_obligacion: str = Field(description="Tipo funcional de obligación")
+    sujeto_obligado: str = Field(description="Sujeto obligado principal")
+    periodicidad: str | None = Field(default=None, description="Periodicidad declarada")
+    reporte_modelo: str | None = Field(default=None, description="Modelo o reporte asociado")
+    ambito: str = Field(description="Ámbito de cumplimiento")
+    estado_vigencia: str = Field(description="Estado de vigencia")
+
+
+class ObligacionDetail(BaseModel):
+    codigo: str = Field(description="Código único de la obligación regulatoria")
+    nombre: str = Field(description="Nombre corto de la obligación")
+    fuente: str = Field(description="Fuente principal de la obligación")
+    organismo_emisor: str = Field(description="Organismo emisor principal")
+    tipo_obligacion: str = Field(description="Tipo funcional de obligación")
+    sujeto_obligado: str = Field(description="Sujeto obligado principal")
+    periodicidad: str | None = Field(default=None, description="Periodicidad declarada")
+    reporte_modelo: str | None = Field(default=None, description="Modelo o reporte asociado")
+    ambito: str = Field(description="Ámbito de cumplimiento")
+    estado_vigencia: str = Field(description="Estado de vigencia")
+    documento_origen_tipo: str = Field(description="Tipo del documento origen")
+    documento_origen_ref: str = Field(description="Referencia del documento origen")
+    seccion_origen: str | None = Field(default=None, description="Sección origen si aplica")
+    anexo_origen: str | None = Field(default=None, description="Anexo origen si aplica")
+    nota: str | None = Field(default=None, description="Nota operativa adicional")
+    documentos: list[ObligacionDocumento] = Field(default_factory=list, description="Documentos relacionados")
+
+
+class ObligacionesListResponse(BaseModel):
+    obligaciones: list[ObligacionSummary]
+
+
 class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]

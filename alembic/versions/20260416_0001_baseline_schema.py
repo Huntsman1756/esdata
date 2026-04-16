@@ -95,6 +95,39 @@ def upgrade() -> None:
     )
     op.execute(
         """
+        CREATE TABLE IF NOT EXISTS obligacion_regulatoria (
+            id SERIAL PRIMARY KEY,
+            codigo TEXT UNIQUE NOT NULL,
+            nombre TEXT NOT NULL,
+            fuente TEXT NOT NULL,
+            organismo_emisor TEXT NOT NULL,
+            tipo_obligacion TEXT NOT NULL,
+            sujeto_obligado TEXT NOT NULL,
+            periodicidad TEXT,
+            reporte_modelo TEXT,
+            ambito TEXT NOT NULL,
+            estado_vigencia TEXT NOT NULL,
+            documento_origen_tipo TEXT NOT NULL,
+            documento_origen_ref TEXT NOT NULL,
+            seccion_origen TEXT,
+            anexo_origen TEXT,
+            nota TEXT,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+        """
+    )
+    op.execute(
+        """
+        CREATE TABLE IF NOT EXISTS obligacion_documento (
+            obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id),
+            documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+            tipo_relacion TEXT NOT NULL,
+            PRIMARY KEY (obligacion_id, documento_id)
+        )
+        """
+    )
+    op.execute(
+        """
         CREATE TABLE IF NOT EXISTS documento_empresa (
             documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),

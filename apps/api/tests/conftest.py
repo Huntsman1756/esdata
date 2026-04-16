@@ -80,6 +80,35 @@ STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE obligacion_regulatoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL,
+        fuente TEXT NOT NULL,
+        organismo_emisor TEXT NOT NULL,
+        tipo_obligacion TEXT NOT NULL,
+        sujeto_obligado TEXT NOT NULL,
+        periodicidad TEXT,
+        reporte_modelo TEXT,
+        ambito TEXT NOT NULL,
+        estado_vigencia TEXT NOT NULL,
+        documento_origen_tipo TEXT NOT NULL,
+        documento_origen_ref TEXT NOT NULL,
+        seccion_origen TEXT,
+        anexo_origen TEXT,
+        nota TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE obligacion_documento (
+        obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id),
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        tipo_relacion TEXT NOT NULL,
+        PRIMARY KEY (obligacion_id, documento_id)
+    )
+    """,
+    """
     CREATE TABLE documento_empresa (
         documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
         empresa_id INTEGER NOT NULL REFERENCES empresa(id),
@@ -492,6 +521,68 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         'Procedimiento para la comunicación por indicio de hechos u operaciones respecto de los que existan indicios o certeza de blanqueo de capitales o financiación del terrorismo. Incluye el formulario oficial Modelo 19 SEPBLAC.',
         'https://www.sepblac.es/es/'
     )
+    """,
+    """
+    INSERT INTO obligacion_regulatoria (
+        codigo, nombre, fuente, organismo_emisor, tipo_obligacion, sujeto_obligado,
+        periodicidad, reporte_modelo, ambito, estado_vigencia, documento_origen_tipo,
+        documento_origen_ref, seccion_origen, anexo_origen, nota
+    )
+    VALUES (
+        'CNMV-IR-RESERVADA',
+        'Remitir información reservada periódica a la CNMV',
+        'cnmv',
+        'CNMV',
+        'remision_informacion',
+        'empresa_servicios_inversion',
+        'periodica',
+        'estados_reservados',
+        'reporting_regulatorio',
+        'vigente',
+        'circular_cnmv',
+        'BOE-A-2009-133',
+        NULL,
+        NULL,
+        'Obligación base derivada del corpus CNMV para el primer slice de obligaciones.'
+    )
+    """,
+    """
+    INSERT INTO obligacion_regulatoria (
+        codigo, nombre, fuente, organismo_emisor, tipo_obligacion, sujeto_obligado,
+        periodicidad, reporte_modelo, ambito, estado_vigencia, documento_origen_tipo,
+        documento_origen_ref, seccion_origen, anexo_origen, nota
+    )
+    VALUES (
+        'SEPBLAC-INDICIO-M19',
+        'Comunicar operativa sospechosa por indicio mediante Modelo 19',
+        'sepblac',
+        'SEPBLAC',
+        'comunicacion_indicio',
+        'sujeto_obligado_pbcft',
+        'eventual',
+        'modelo_19',
+        'aml_cft_reporting',
+        'vigente',
+        'formulario_sepblac',
+        'SEPBLAC-MODELO-19',
+        '15.5',
+        NULL,
+        'Obligación base del primer slice operativo SEPBLAC.'
+    )
+    """,
+    """
+    INSERT INTO obligacion_documento (obligacion_id, documento_id, tipo_relacion)
+    SELECT o.id, d.id, 'fuente_principal'
+    FROM obligacion_regulatoria o
+    JOIN documento_interpretativo d ON d.referencia = 'BOE-A-2009-133'
+    WHERE o.codigo = 'CNMV-IR-RESERVADA'
+    """,
+    """
+    INSERT INTO obligacion_documento (obligacion_id, documento_id, tipo_relacion)
+    SELECT o.id, d.id, 'fuente_principal'
+    FROM obligacion_regulatoria o
+    JOIN documento_interpretativo d ON d.referencia = 'SEPBLAC-MODELO-19'
+    WHERE o.codigo = 'SEPBLAC-INDICIO-M19'
     """,
     """
     INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
