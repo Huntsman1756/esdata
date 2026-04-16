@@ -24,7 +24,11 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Foco del producto: ofrecer criterio fiscal trazable para trabajo real de despachos, productos y agentes.
 - Normas y marcos tambien relevantes para una herramienta de gestion fiscal, pero fuera de cobertura actual:
   - `UNE 19602`
-  - `PLACE`
+- `PLACE`
+
+Planificación permanente relacionada:
+
+- `docs/regulatory-compliance-expansion-plan.md`: plan maestro para la siguiente expansión regulatoria (`CNMV`, `SEPBLAC`, `BOE`, `UE`) orientada a compliance operativo.
 
 ## Modelos AEAT registrados
 

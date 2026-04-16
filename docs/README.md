@@ -13,6 +13,7 @@ Separar claramente la documentación permanente de los snapshots de sesión e in
 - `modelos-onboarding.md`
 - `infrastructure-handoff.md`
 - `professionalization-roadmap.md`
+- `regulatory-compliance-expansion-plan.md`
 - `deployment/overview.md`
 - `deployment/server-installation.md`
 - `deployment/rollback.md`
