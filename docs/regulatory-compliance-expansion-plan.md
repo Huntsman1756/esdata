@@ -174,6 +174,37 @@
 17. `Manual de procedimiento para la prevención del blanqueo de capitales y de la financiación del terrorismo`
 18. Referencias operativas ligadas a la `Sección 15.5` en el marco de `Ley 10/2010`
 
+## Fase 0 deliverable: master inventory
+
+La Fase 0 queda materializada en esta tabla maestra. Su objetivo es dejar cada referencia clasificada por fuente, tipo, prioridad, tratamiento técnico y estado de validación antes de empezar la implementación.
+
+| Referencia original | Referencia canónica | Fuente | Tipo | Vigencia | Prioridad | Fase objetivo | Tratamiento técnico | Estado validación | Notas |
+|---|---|---|---|---|---|---|---|---|---|
+| Reglamento de solvencia 2019/2033 | Reglamento (UE) 2019/2033 | UE / EUR-Lex | reglamento_ue | vigente | alta | Fase 1-3 | `norma` | validada | Base prudencial de referencia |
+| Reglamento delegado 217/584 | Reglamento Delegado (UE) 2017/584 | UE / EUR-Lex | reglamento_delegado_ue | vigente | media | Fase 1-3 | `norma` | validada | Pendiente de mapear su relación exacta con reporting/operativa del corpus |
+| Estados financieros Circular 9/2008 | Circular 9/2008, de 10 de diciembre, de la CNMV | CNMV | circular | vigente modificada | alta | Fase 1-3 | `documento_interpretativo` + obligaciones derivadas | parcialmente validada | BOE identificado vía `BOE-A-2009-133` en búsqueda; base contable y estados públicos/reservados |
+| Circular 6/2011 | Circular 6/2011, de 12 de diciembre, de la CNMV | CNMV | circular_modificadora | vigente modificada | alta | Fase 1-3 | `documento_interpretativo` + enlace a circular base | parcialmente validada | Modifica la Circular 9/2008 |
+| Circular 5/2016m | Circular 5/2016, de la CNMV | CNMV | circular_modificadora | derogada/histórica | baja | Fase 1-2 | `documento_interpretativo` histórico | validada con nota | Mantener como referencia histórica, no como base viva |
+| Circular 1/2010 | Circular 1/2010, de 28 de julio, de la CNMV | CNMV | circular | vigente modificada | alta | Fase 1-3 | `documento_interpretativo` + obligaciones derivadas | validada | Información reservada de entidades que prestan servicios de inversión |
+| Circular 3/2014 | Circular 3/2014, de 22 de octubre, de la CNMV | CNMV | circular_modificadora | vigente histórica | media | Fase 1-3 | `documento_interpretativo` + enlace a Circular 1/2010 | validada | BOE localizado como `BOE-A-2014-11497` |
+| Circular 4/2018 | Circular 4/2018, de 27 de septiembre, de la CNMV | CNMV | circular_modificadora | vigente | alta | Fase 1-3 | `documento_interpretativo` + enlace a Circulares 1/2010 y 7/2008 | validada | BOE localizado como `BOE-A-2018-13716` |
+| Información estadística infraestructuras de mercado Circular 1/2015 | Circular 1/2015, de 23 de junio, de la CNMV | CNMV | circular | vigente modificada | media | Fase 1-3 | `documento_interpretativo` + obligaciones derivadas | validada | BOE localizado como `BOE-A-2015-7185` |
+| Circular 1/2010 disp. adic. segunda | Disposición adicional segunda de la Circular 1/2010 | CNMV | fragmento_normativo | vigente según texto consolidado | media | Fase 2-3 | `documento_fragmento` o troceado de documento | validada funcionalmente | No conviene modelarla como documento independiente |
+| Modelo SEPBLAC 19 | Modelo 19 SEPBLAC de comunicación por indicio | SEPBLAC | formulario_oficial | vigente por confirmar en fase técnica | alta | Fase 1-3 | `documento_interpretativo` + `obligacion_regulatoria` | validada funcionalmente | Tratar como formulario oficial operativo, no como norma |
+| Real Decreto 304/2017 | Real Decreto 304/2014 | BOE | real_decreto | vigente modificada | alta | Fase 1-3 | `norma` | validada | Reglamento PBC/FT asociado a Ley 10/2010 |
+| Sección 15.5 SEPBLAC | Sección 15.5 vinculada al marco de la Ley 10/2010 | SEPBLAC | seccion_operativa | vigente por confirmar | alta | Fase 2-3 | `documento_fragmento` o troceado de manual | validada funcionalmente | No es una norma separada; debe ligarse al documento operativo fuente |
+| Ley 10/2010 de 28 de abril | Ley 10/2010, de 28 de abril | BOE | ley | vigente | alta | Fase 1-3 | `norma` | validada | Base legal del bloque PBC/FT |
+| Real Decreto 848/2001 de 3 de agosto | Real Decreto 848/2001, de 3 de agosto | BOE | real_decreto | vigente o histórica a confirmar | media | Fase 1-2 | `norma` | validada funcionalmente | Requiere verificación fina de ámbito exacto en Fase 1 |
+| Manual de procedimiento para la prevención del blanqueo de capitales y financiación del terrorismo | Manual PBC/FT | SEPBLAC | manual_operativo | vigente por confirmar | alta | Fase 1-3 | `documento_interpretativo` + troceado posterior | validada funcionalmente | Documento operativo clave para derivar procedimientos y formularios |
+| Real Decreto 1082/2012 de 13 de julio | Real Decreto 1082/2012, de 13 de julio | BOE | real_decreto | vigente o histórica a confirmar | media | Fase 1-2 | `norma` | validada funcionalmente | Verificar alcance exacto en el corpus regulatorio final |
+| Reglamento de desarrollo de la Ley 25/2003 | Reglamento de desarrollo de la Ley 35/2003 | BOE | reglamento_desarrollo | vigente por confirmar | media | Fase 1-2 | `norma` | validada con corrección | Confirmar referencia BOE exacta en el arranque técnico |
+
+### Estado de cierre de la Fase 0
+
+- El corpus ya está separado por fuente (`UE`, `BOE`, `CNMV`, `SEPBLAC`).
+- Las referencias ambiguas de la sesión ya están corregidas o marcadas como validación funcional pendiente de identificación fina en la implementación.
+- La tabla anterior es suficiente para arrancar la Fase 1 sin volver a rediscutir el alcance conceptual.
+
 ## Data model proposal
 
 ### Reuse existing models

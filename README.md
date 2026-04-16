@@ -29,6 +29,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 Planificación permanente relacionada:
 
 - `docs/regulatory-compliance-expansion-plan.md`: plan maestro para la siguiente expansión regulatoria (`CNMV`, `SEPBLAC`, `BOE`, `UE`) orientada a compliance operativo.
+  Incluye también la tabla maestra de canonización del corpus para cerrar la Fase 0.
 
 ## Modelos AEAT registrados
 
