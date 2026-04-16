@@ -42,17 +42,17 @@ export default function Home() {
               <Target aria-hidden="true" className="h-5 w-5 text-stone-700" />
             </div>
             <p className="font-semibold text-stone-900">Cobertura con foco</p>
-            <p className="mt-2 text-sm text-stone-600 leading-relaxed">Hoy cubre LGT, LIRPF, LIS y LIVA. No promete m\u00e1s de lo que ya est\u00e1 verificado.</p>
+            <p className="mt-2 text-sm text-stone-600 leading-relaxed">Hoy cubre LGT, LIRPF, LIS, LIVA, ITPAJD, IRNR, IIEE, HL y la capa DAC6 de España/UE. No promete m\u00e1s de lo que ya est\u00e1 verificado.</p>
           </div>
         </div>
         <p className="mt-6 text-sm leading-relaxed text-stone-500 bg-stone-100/50 p-4 rounded-lg border border-stone-100">
-          <span className="font-medium text-stone-700">Nota sobre cobertura:</span> En una herramienta de gesti\u00f3n fiscal tambi\u00e9n importan capas como ITP y AJD, Impuestos Especiales, Haciendas Locales, DAC6 o UNE 19602. Son relevantes para la evoluci\u00f3n del producto, pero no forman parte de la cobertura actual.
+          <span className="font-medium text-stone-700">Nota sobre cobertura:</span> En una herramienta de gesti\u00f3n fiscal tambi\u00e9n importan capas como UNE 19602, PLACE, BORME o BDNS. Son relevantes para la evoluci\u00f3n del producto, pero no forman parte de la cobertura actual.
         </p>
         <p className="mt-1 text-sm leading-relaxed text-stone-600 sm:text-base">
-          Hoy muestra soporte para LGT, LIRPF, LIS, LIVA e ITPAJD. La verificacion desplegada de ITPAJD sigue pendiente.
+          Hoy muestra soporte para LGT, LIRPF, LIS, LIVA, ITPAJD, IRNR, IIEE, HL, `DAC6`, `DAC6RD` y `DAC6EU`. La verificaci\u00f3n desplegada de estas incorporaciones depende del siguiente ciclo de ingesta y despliegue.
         </p>
         <p className="mt-2 text-sm leading-relaxed text-stone-500 sm:text-base">
-          Lo siguiente sigue en cola por separado: Ley 38/1992, RDL 2/2004, DAC6 y UNE 19602.
+          Lo siguiente sigue en cola por separado: UNE 19602, PLACE, BORME y BDNS.
         </p>
       </section>
 

@@ -168,6 +168,77 @@ async def test_legislacion_expone_irnr_con_clasificacion():
 
 
 @pytest.mark.asyncio
+async def test_legislacion_expone_iiee_con_clasificacion():
+    async with _client() as c:
+        lista = await c.get("/v1/legislacion")
+        detalle = await c.get("/v1/legislacion/IIEE")
+        articulo = await c.get("/v1/legislacion/IIEE/articulos/60")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert articulo.status_code == 200
+
+    norma = next(item for item in lista.json()["normas"] if item["codigo"] == "IIEE")
+    assert norma["tipo_documento"] == "ley"
+    assert norma["ambito"] == "tributario"
+    assert norma["estado_cobertura"] == "ingestada"
+    assert detalle.json()["tipo_documento"] == "ley"
+    assert "hidrocarburos" in articulo.json()["texto"].lower()
+
+
+@pytest.mark.asyncio
+async def test_legislacion_expone_hl_con_clasificacion():
+    async with _client() as c:
+        lista = await c.get("/v1/legislacion")
+        detalle = await c.get("/v1/legislacion/HL")
+        articulo = await c.get("/v1/legislacion/HL/articulos/20")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert articulo.status_code == 200
+
+    norma = next(item for item in lista.json()["normas"] if item["codigo"] == "HL")
+    assert norma["tipo_documento"] == "real_decreto_legislativo"
+    assert norma["ambito"] == "tributario_local"
+    assert norma["estado_cobertura"] == "ingestada"
+    assert detalle.json()["tipo_documento"] == "real_decreto_legislativo"
+    assert "tasas" in articulo.json()["texto"].lower()
+
+
+@pytest.mark.asyncio
+async def test_legislacion_expone_dac6_espana_y_ue():
+    async with _client() as c:
+        lista = await c.get("/v1/legislacion")
+        dac6 = await c.get("/v1/legislacion/DAC6")
+        dac6_articulo = await c.get("/v1/legislacion/DAC6/articulos/206 bis")
+        dac6rd = await c.get("/v1/legislacion/DAC6RD")
+        dac6eu = await c.get("/v1/legislacion/DAC6EU")
+
+    assert lista.status_code == 200
+    assert dac6.status_code == 200
+    assert dac6_articulo.status_code == 200
+    assert dac6rd.status_code == 200
+    assert dac6eu.status_code == 200
+
+    normas = {item["codigo"]: item for item in lista.json()["normas"]}
+
+    assert normas["DAC6"]["tipo_fuente"] == "boe"
+    assert normas["DAC6"]["ambito"] == "tributario_internacional"
+    assert normas["DAC6"]["estado_cobertura"] == "ingestada"
+
+    assert dac6.json()["tipo_documento"] == "ley"
+    assert "mecanismos transfronterizos" in dac6_articulo.json()["texto"].lower()
+
+    assert dac6rd.json()["tipo_documento"] == "real_decreto"
+    assert dac6rd.json()["ambito"] == "tributario_internacional"
+
+    assert dac6eu.json()["jurisdiccion"] == "ue"
+    assert dac6eu.json()["tipo_fuente"] == "eurlex"
+    assert dac6eu.json()["tipo_documento"] == "directiva_ue"
+    assert dac6eu.json()["estado_cobertura"] == "referenciada"
+
+
+@pytest.mark.asyncio
 async def test_legislacion_lista_articulos_filtra_por_tipo():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos?tipo=articulo")

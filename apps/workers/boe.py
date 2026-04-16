@@ -23,8 +23,12 @@ DEFAULT_NORMAS = {
     "LIRPF": "BOE-A-2006-20764",
     "LIS": "BOE-A-2014-12328",
     "LGT": "BOE-A-2003-23186",
-    "ITPAJD": "BOE-A-1993-253",
+    "ITPAJD": "BOE-A-1993-25359",
     "IRNR": "BOE-A-2004-19886",
+    "IIEE": "BOE-A-1992-28741",
+    "HL": "BOE-A-2004-4214",
+    "DAC6": "BOE-A-2020-17265",
+    "DAC6RD": "BOE-A-2021-5394",
     "RIRPF": "BOE-A-2007-6820",
 }
 
@@ -41,6 +45,26 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto_legislativo",
         "ambito": "tributario",
     },
+    "IIEE": {
+        "tipo_documento": "ley",
+        "ambito": "tributario",
+    },
+    "HL": {
+        "tipo_documento": "real_decreto_legislativo",
+        "ambito": "tributario_local",
+    },
+    "DAC6": {
+        "tipo_documento": "ley",
+        "ambito": "tributario_internacional",
+    },
+    "DAC6RD": {
+        "tipo_documento": "real_decreto",
+        "ambito": "tributario_internacional",
+    },
+    "DAC6EU": {
+        "tipo_documento": "directiva_ue",
+        "ambito": "tributario_ue",
+    },
     "RIRPF": {
         "tipo_documento": "real_decreto",
         "ambito": "tributario",
@@ -52,7 +76,10 @@ LAW_TO_NORMA = {
     "27/2014": "LIS",
     "35/2006": "LIRPF",
     "58/2003": "LGT",
+    "38/1992": "IIEE",
     "5/2004": "IRNR",
+    "2/2004": "HL",
+    "10/2020": "DAC6",
     "439/2007": "RIRPF",
 }
 
@@ -208,6 +235,24 @@ class BloqueTexto:
     tipo_articulo: str
     texto: str
     vigente_desde: str
+
+
+# Reference-only norms can live in the same catalog even if they are not
+# fetched from the BOE consolidated legislation API.
+MANUAL_NORMAS = {
+    "DAC6EU": NormaMetadata(
+        codigo="DAC6EU",
+        boe_id="DOUE-L-2018-80963",
+        titulo="Directiva (UE) 2018/822 del Consejo, de 25 de mayo de 2018, que modifica la Directiva 2011/16/UE por lo que se refiere al intercambio automático y obligatorio de información en el ámbito de la fiscalidad en relación con los mecanismos transfronterizos sujetos a comunicación de información.",
+        eli_uri="https://eur-lex.europa.eu/eli/dir/2018/822/oj",
+        jurisdiccion="ue",
+        tipo_fuente="eurlex",
+        tipo_documento="directiva_ue",
+        ambito="tributario_ue",
+        estado_cobertura="referenciada",
+        vigente_desde="2018-06-25",
+    )
+}
 
 
 def parse_metadata(codigo: str, boe_id: str, payload: dict) -> NormaMetadata:
@@ -928,6 +973,10 @@ def run_sync(
             with engine.begin() as conn:
                 _ensure_schema(conn)
                 for codigo in target_codes:
+                    if codigo in MANUAL_NORMAS:
+                        upsert_norma(conn, MANUAL_NORMAS[codigo])
+                        continue
+
                     boe_id = DEFAULT_NORMAS[codigo]
                     metadata = fetch_metadata(client, codigo, boe_id)
                     upsert_norma(conn, metadata)

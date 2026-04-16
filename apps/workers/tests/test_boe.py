@@ -62,11 +62,11 @@ def test_parse_metadata_uses_per_code_classification_for_itpajd():
         ]
     }
 
-    metadata = parse_metadata("ITPAJD", "BOE-A-1993-253", payload)
+    metadata = parse_metadata("ITPAJD", "BOE-A-1993-25359", payload)
 
     assert metadata == NormaMetadata(
         codigo="ITPAJD",
-        boe_id="BOE-A-1993-253",
+        boe_id="BOE-A-1993-25359",
         titulo="Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
         eli_uri="https://www.boe.es/eli/es/rdlg/1993/09/24/1",
         jurisdiccion="es",
@@ -98,11 +98,35 @@ def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
 def test_default_normas_include_itpajd():
     from boe import DEFAULT_NORMAS
 
-    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-253"
+    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-25359"
+
+
+def test_default_normas_include_iiee_and_hl():
+    from boe import DEFAULT_NORMAS
+
+    assert DEFAULT_NORMAS["IIEE"] == "BOE-A-1992-28741"
+    assert DEFAULT_NORMAS["HL"] == "BOE-A-2004-4214"
+
+
+def test_default_normas_include_dac6_spanish_transposition():
+    from boe import DEFAULT_NORMAS
+
+    assert DEFAULT_NORMAS["DAC6"] == "BOE-A-2020-17265"
+    assert DEFAULT_NORMAS["DAC6RD"] == "BOE-A-2021-5394"
+
+
+def test_manual_normas_include_dac6eu_reference():
+    from boe import MANUAL_NORMAS
+
+    metadata = MANUAL_NORMAS["DAC6EU"]
+    assert metadata.boe_id == "DOUE-L-2018-80963"
+    assert metadata.jurisdiccion == "ue"
+    assert metadata.tipo_fuente == "eurlex"
+    assert metadata.estado_cobertura == "referenciada"
 
 
 def test_fetch_metadata_fallback_when_boe_returns_404():
-    """ITPAJD boe_id BOE-A-1993-253 returns 404 on /metadatos endpoint.
+    """ITPAJD boe_id BOE-A-1993-25359 returns 404 on /metadatos endpoint.
 
     The worker must fall back to classification-based metadata instead of
     crashing the entire ingestion pipeline.
@@ -138,11 +162,11 @@ def test_fetch_metadata_fallback_when_boe_returns_404():
             raise AssertionError(f"Unexpected URL: {url}")
 
     with patch("boe.httpx.Client", return_value=FakeClient()):
-        metadata = fetch_metadata(FakeClient(), "ITPAJD", "BOE-A-1993-253")
+        metadata = fetch_metadata(FakeClient(), "ITPAJD", "BOE-A-1993-25359")
 
     classification = NORMA_CLASSIFICATIONS["ITPAJD"]
     assert metadata.codigo == "ITPAJD"
-    assert metadata.boe_id == "BOE-A-1993-253"
+    assert metadata.boe_id == "BOE-A-1993-25359"
     assert metadata.tipo_documento == classification["tipo_documento"]
     assert metadata.ambito == classification["ambito"]
     assert metadata.estado_cobertura == "ingestada"
@@ -153,7 +177,7 @@ def test_fetch_metadata_fallback_when_boe_returns_404():
 def test_run_sync_ingests_itpajd_article_and_version():
     """Verify ITPAJD ingestion works even when BOE returns 404 on /metadatos.
 
-    This reproduces the production blocking issue where BOE-A-1993-253
+    This reproduces the production blocking issue where an incorrect ITPAJD
     returns 404 on /metadatos endpoint.
     """
     from boe import run_sync
@@ -192,10 +216,10 @@ def test_run_sync_ingests_itpajd_article_and_version():
             return False
 
         def get(self, url, headers=None):
-            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+            if url.endswith("/id/BOE-A-1993-25359/metadatos"):
                 # Simulate real BOE 404 for ITPAJD
                 return Fake404Response()
-            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/indice"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -211,13 +235,13 @@ def test_run_sync_ingests_itpajd_article_and_version():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/bloque/a7"):
                 return FakeResponse(
                     text_data="""
                     <response>
                       <data>
                         <bloque id="a7" tipo="precepto" titulo="Artículo 7">
-                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                          <version id_norma="BOE-A-1993-25359" fecha_publicacion="19930925" fecha_vigencia="19930925">
                             <p class="articulo">Artículo 7. Operaciones societarias.</p>
                             <p class="parrafo">Uno. Son operaciones societarias sujetas las previstas en esta norma.</p>
                           </version>
@@ -256,7 +280,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
     # Norma should be ingested with fallback metadata
     assert norma == (
         "ITPAJD",
-        "BOE-A-1993-253",
+        "BOE-A-1993-25359",
         "real_decreto_legislativo",
         "tributario",
         "ingestada",
@@ -1288,6 +1312,48 @@ def test_ensure_sync_log_table_creates_log_table_independently():
         ).fetchone()
 
     assert row == ("sync_log",)
+
+
+def test_run_sync_upserts_manual_dac6eu_without_boe_requests(monkeypatch):
+    from boe import run_sync
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        _ensure_schema(conn)
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, headers=None):
+            raise AssertionError(f"DAC6EU should not hit BOE API: {url}")
+
+    monkeypatch.setattr("boe.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr("boe.httpx.Client", lambda *args, **kwargs: FakeClient())
+
+    result = run_sync(codigos=["DAC6EU"])
+
+    assert result == {"bloques": 0, "articulos": 0}
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                "SELECT codigo, boe_id, jurisdiccion, tipo_fuente, tipo_documento, estado_cobertura FROM norma WHERE codigo = 'DAC6EU'"
+            )
+        ).fetchone()
+
+    assert row == (
+        "DAC6EU",
+        "DOUE-L-2018-80963",
+        "ue",
+        "eurlex",
+        "directiva_ue",
+        "referenciada",
+    )
 
 
 def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch):

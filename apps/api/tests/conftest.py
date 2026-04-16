@@ -128,7 +128,7 @@ STATEMENTS = [
     VALUES (
         'ITPAJD',
         'Texto refundido del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados',
-        'BOE-A-1993-253',
+        'BOE-A-1993-25359',
         'https://www.boe.es/eli/es/rdlg/1993/09/24/1/con',
         'es',
         'boe',
@@ -136,6 +136,96 @@ STATEMENTS = [
         'tributario',
         'ingestada',
         '1993-09-25'
+    )
+    """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'IIEE',
+        'Ley de Impuestos Especiales',
+        'BOE-A-1992-28741',
+        'https://www.boe.es/eli/es/l/1992/12/28/38',
+        'es',
+        'boe',
+        'ley',
+        'tributario',
+        'ingestada',
+        '1993-01-01'
+    )
+    """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'HL',
+        'Texto refundido de la Ley Reguladora de las Haciendas Locales',
+        'BOE-A-2004-4214',
+        'https://www.boe.es/eli/es/rdl/2004/03/05/2',
+        'es',
+        'boe',
+        'real_decreto_legislativo',
+        'tributario_local',
+        'ingestada',
+        '2004-03-10'
+    )
+    """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'DAC6',
+        'Ley 10/2020, de 29 de diciembre, por la que se modifica la Ley 58/2003, de 17 de diciembre, General Tributaria, en transposición de la Directiva (UE) 2018/822 del Consejo, de 25 de mayo de 2018',
+        'BOE-A-2020-17265',
+        'https://www.boe.es/eli/es/l/2020/12/29/10',
+        'es',
+        'boe',
+        'ley',
+        'tributario_internacional',
+        'ingestada',
+        '2020-12-30'
+    )
+    """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'DAC6RD',
+        'Real Decreto 243/2021, de 6 de abril, por el que se modifica el Reglamento General de las actuaciones y los procedimientos de gestión e inspección tributaria y de desarrollo de las normas comunes de los procedimientos de aplicación de los tributos, aprobado por el Real Decreto 1065/2007, de 27 de julio, en transposición de la Directiva (UE) 2018/822 del Consejo, de 25 de mayo de 2018',
+        'BOE-A-2021-5394',
+        'https://www.boe.es/eli/es/rd/2021/04/06/243',
+        'es',
+        'boe',
+        'real_decreto',
+        'tributario_internacional',
+        'ingestada',
+        '2021-04-07'
+    )
+    """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'DAC6EU',
+        'Directiva (UE) 2018/822 del Consejo, de 25 de mayo de 2018, que modifica la Directiva 2011/16/UE por lo que se refiere al intercambio automático y obligatorio de información en el ámbito de la fiscalidad en relación con los mecanismos transfronterizos sujetos a comunicación de información',
+        'DOUE-L-2018-80963',
+        'https://eur-lex.europa.eu/eli/dir/2018/822/oj',
+        'ue',
+        'eurlex',
+        'directiva_ue',
+        'tributario_ue',
+        'referenciada',
+        '2018-06-25'
     )
     """,
     """
@@ -189,6 +279,58 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE n.codigo = 'ITPAJD' AND a.numero = '7'
+    """,
+    # --- IIEE 60: fixture básica para Impuestos Especiales ---
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '60', 'Impuesto especial sobre hidrocarburos', 'articulo'
+    FROM norma WHERE codigo = 'IIEE'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 60. El impuesto especial sobre hidrocarburos grava la fabricación e importación de los productos objeto del impuesto.', '1993-01-01', NULL, 'iiee-a60'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'IIEE' AND a.numero = '60'
+    """,
+    # --- HL 20: fixture básica para Haciendas Locales ---
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '20', 'Hecho imponible de las tasas', 'articulo'
+    FROM norma WHERE codigo = 'HL'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 20. Las entidades locales podrán establecer tasas por la utilización privativa o el aprovechamiento especial del dominio público local.', '2004-03-10', NULL, 'hl-a20'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'HL' AND a.numero = '20'
+    """,
+    # --- DAC6 206 bis: obligación informativa sobre mecanismos transfronterizos ---
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '206 bis', 'Obligación de información de determinados mecanismos transfronterizos de planificación fiscal', 'articulo'
+    FROM norma WHERE codigo = 'DAC6'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 206 bis. Deberán declararse los mecanismos transfronterizos de planificación fiscal cuando concurran las señas distintivas previstas en la normativa aplicable.', '2020-12-30', NULL, 'dac6-a206bis'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'DAC6' AND a.numero = '206 bis'
+    """,
+    # --- DAC6RD 45: desarrollo reglamentario de la declaración ---
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '45', 'Obligación de informar sobre mecanismos transfronterizos', 'articulo'
+    FROM norma WHERE codigo = 'DAC6RD'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 45. Se regula el contenido y plazo de las declaraciones informativas relativas a mecanismos transfronterizos sujetos a comunicación.', '2021-04-07', NULL, 'dac6rd-a45'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'DAC6RD' AND a.numero = '45'
     """,
     # --- IRNR 13/14/25/26: fixtures para relaciones de modelos IRNR ---
     """

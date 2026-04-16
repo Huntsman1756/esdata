@@ -7,7 +7,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Produccion operativa en Railway.
 - API publica en `https://esdata-production.up.railway.app`.
 - Frontend publico en `https://web-production-ecb5.up.railway.app`.
-- Ingesta BOE con soporte de codigo y configuracion para `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD` e `IRNR`.
+- Ingesta BOE con soporte de codigo y configuracion para `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD`, `IRNR`, `IIEE`, `HL`, `DAC6` y `DAC6RD`, con `DAC6EU` registrada como referencia UE desde `EUR-Lex`.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
 - Cadena norma -> doctrina -> modelo AEAT disponible con relaciones verificables y fuente oficial por enlace.
@@ -15,16 +15,15 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 
 ## Cobertura y foco
 
-- Cobertura normativa actual verificada en el repo: `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD`, `IRNR`.
+- Cobertura normativa actual verificada en el repo: `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD`, `IRNR`, `IIEE`, `HL`, `DAC6`, `DAC6RD` y `DAC6EU`.
 - Cobertura doctrinal actual: DGT y TEAC con enlazado a articulos via `documento_articulo`.
 - Capa de cumplimiento y presentacion: modelos AEAT con relaciones verificadas a articulos concretos.
 - Foco del producto: ofrecer criterio fiscal trazable para trabajo real de despachos, productos y agentes.
 - Normas y marcos tambien relevantes para una herramienta de gestion fiscal, pero fuera de cobertura actual:
-  - `Real Decreto Legislativo 1/1993` (`ITP` y `AJD`)
-  - `Ley 38/1992` de Impuestos Especiales
-  - `Real Decreto Legislativo 2/2004` sobre Haciendas Locales
-  - `Directiva (UE) 2018/822` (`DAC6`)
   - `UNE 19602`
+  - `PLACE`
+  - `BORME`
+  - `BDNS`
 
 ## Modelos AEAT registrados
 
@@ -199,7 +198,7 @@ python scripts/export-gpt-openapi.py --openapi 3.0.3 --output docs/openapi-gpt-3
 - `DATABASE_URL=postgresql+psycopg://...`
 - `BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada`
 - `APP_ENV=production`
-- `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT,ITPAJD,IRNR`
+- `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU`
 - `MODELOS_SYNC_INTERVAL=86400` para `worker-modelos` si se quiere ajustar la cadencia del loop continuo.
 - `DGT_SSL_VERIFY=false` para el worker DGT si Petete falla por SSL en produccion.
 - `TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...,...` para el worker TEAC.

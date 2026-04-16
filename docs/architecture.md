@@ -258,6 +258,11 @@ La configuracion base y los tests del repo ya contemplan como minimo:
 - `LGT`
 - `ITPAJD`
 - `IRNR`
+- `IIEE`
+- `HL`
+- `DAC6` (transposición española)
+- `DAC6RD` (desarrollo reglamentario español)
+- `DAC6EU` (referencia UE desde EUR-Lex)
 
 ### Configuracion todavia heterogenea
 
