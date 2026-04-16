@@ -205,6 +205,18 @@ def detect_campaigns(html: str, modelo_codigo: str) -> list[str]:
     return sorted(campaigns, reverse=True)
 
 
+def _campaign_sort_key(campaign: str) -> tuple[int, str]:
+    match = re.search(r"(20\d{2})", campaign)
+    year = int(match.group(1)) if match else -1
+    return (year, campaign)
+
+
+def pick_active_campaign(campaigns: list[str]) -> str | None:
+    if not campaigns:
+        return None
+    return max(campaigns, key=_campaign_sort_key)
+
+
 def fetch_page(fetcher, logger, url: str | None, context: str) -> str | None:
     if not url:
         return None
@@ -253,6 +265,7 @@ def ensure_campaigns(conn, modelo_id: int, modelo_codigo: str, campaigns: list[s
         {"modelo_id": modelo_id},
     ).fetchall()
     existing_campaigns = {row[0] for row in existing}
+    active_campaign = pick_active_campaign(campaigns)
 
     for campaign in campaigns:
         if campaign not in existing_campaigns:
@@ -260,20 +273,10 @@ def ensure_campaigns(conn, modelo_id: int, modelo_codigo: str, campaigns: list[s
             conn.execute(
                 text(
                     """
-                    UPDATE modelo_campana SET activo = false
-                    WHERE modelo_id = :modelo_id
-                    """
-                ),
-                {"modelo_id": modelo_id},
-            )
-            conn.execute(
-                text(
-                    """
                     INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, activo)
-                    VALUES (:modelo_id, :campana, :url_instr, true)
+                    VALUES (:modelo_id, :campana, :url_instr, false)
                     ON CONFLICT (modelo_id, campana) DO UPDATE SET
-                        url_instrucciones = EXCLUDED.url_instrucciones,
-                        activo = true
+                        url_instrucciones = EXCLUDED.url_instrucciones
                     """
                 ),
                 {
@@ -284,6 +287,28 @@ def ensure_campaigns(conn, modelo_id: int, modelo_codigo: str, campaigns: list[s
             )
             result.campaigns_created += 1
             logger.info(f"  New campaign created: {modelo_codigo} -> {campaign}")
+
+    if not active_campaign:
+        return
+
+    conn.execute(
+        text(
+            """
+            UPDATE modelo_campana SET activo = false
+            WHERE modelo_id = :modelo_id
+            """
+        ),
+        {"modelo_id": modelo_id},
+    )
+    conn.execute(
+        text(
+            """
+            UPDATE modelo_campana SET activo = true
+            WHERE modelo_id = :modelo_id AND campana = :campana
+            """
+        ),
+        {"modelo_id": modelo_id, "campana": active_campaign},
+    )
 
 
 def get_campaign_row(conn, modelo_id: int, campana: str):

@@ -712,3 +712,38 @@ async def test_modelo_instrucciones_endpoint_devuelve_datos_de_campana_activa():
     data = r.json()
     assert data["codigo"] == "100"
     assert any(item["seccion"] == "caracteristicas" for item in data["instrucciones"])
+
+
+@pytest.mark.asyncio
+async def test_modelo_sin_campana_devuelve_la_activa_mas_nueva():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE modelo_campana SET activo = 0 WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = '100')"))
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+                SELECT m.id, '2026', 1, 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2026'
+                FROM aeat_modelo m WHERE m.codigo = '100'
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_casilla (campana_id, codigo, etiqueta, descripcion, tipo_casilla, orden)
+                SELECT mc.id, '7777', 'Casilla vigente nueva', 'Casilla de la campaña 2026', 'importe', 1
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = '100' AND mc.campana = '2026'
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["campana_activa"] == "2026"
+    assert any(casilla["codigo"] == "7777" for casilla in data["casillas"])

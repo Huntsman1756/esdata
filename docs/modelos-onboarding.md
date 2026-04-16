@@ -38,6 +38,16 @@ Opcionalmente desde el inicio:
    - `GET /v1/modelos/{codigo}`
    - `GET /v1/modelos/{codigo}/casillas`
 
+## Regla de vigencia por defecto
+
+La API debe devolver por defecto la campaña activa mas reciente del modelo.
+
+Regla operativa actual:
+
+- si el worker detecta varias campañas, conserva el historico
+- deja `activo=true` solo en la campaña mas nueva
+- las campañas antiguas siguen consultables con `?campana=`
+
 ## Criterios para decidir si un modelo encaja bien con el scraper actual
 
 El modelo es buen candidato si:

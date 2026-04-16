@@ -10,10 +10,12 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from modelos_support import (
+    pick_active_campaign,
     scrape_casillas_from_page,
     scrape_claves_from_page,
     scrape_instructions_from_page,
     detect_campaigns,
+    ensure_campaigns,
     upsert_instructions,
 )
 
@@ -251,3 +253,114 @@ class TestDetectCampaigns:
         html = "2031 2035"
         result = detect_campaigns(html, "100")
         assert result == []
+
+
+class TestActiveCampaignSelection:
+    def test_pick_active_campaign_uses_latest_year(self):
+        assert pick_active_campaign(["2024", "2025", "2023"]) == "2025"
+
+    def test_pick_active_campaign_returns_none_for_empty(self):
+        assert pick_active_campaign([]) is None
+
+    def test_ensure_campaigns_activates_only_latest_detected(self):
+        engine = create_engine("sqlite:///:memory:")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE modelo_campana (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        modelo_id INTEGER NOT NULL,
+                        campana TEXT NOT NULL,
+                        url_instrucciones TEXT,
+                        activo INTEGER NOT NULL DEFAULT 0,
+                        UNIQUE(modelo_id, campana)
+                    )
+                    """
+                )
+            )
+
+            class Result:
+                campaigns_created = 0
+
+            class Logger:
+                def info(self, _message):
+                    return None
+
+            result = Result()
+            ensure_campaigns(
+                conn,
+                modelo_id=1,
+                modelo_codigo="100",
+                campaigns=["2025", "2024"],
+                instruction_url="https://example.com/instructions",
+                fallback_url="https://example.com/modelo",
+                result=result,
+                logger=Logger(),
+            )
+
+            rows = conn.execute(
+                text(
+                    "SELECT campana, activo FROM modelo_campana WHERE modelo_id = 1 ORDER BY campana DESC"
+                )
+            ).fetchall()
+
+        assert result.campaigns_created == 2
+        assert rows == [("2025", 1), ("2024", 0)]
+
+    def test_ensure_campaigns_switches_active_to_newer_existing_campaign(self):
+        engine = create_engine("sqlite:///:memory:")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE modelo_campana (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        modelo_id INTEGER NOT NULL,
+                        campana TEXT NOT NULL,
+                        url_instrucciones TEXT,
+                        activo INTEGER NOT NULL DEFAULT 0,
+                        UNIQUE(modelo_id, campana)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, activo)
+                    VALUES (1, '2025', 'https://example.com/2025', 1),
+                           (1, '2026', 'https://example.com/2026', 0)
+                    """
+                )
+            )
+
+            class Result:
+                campaigns_created = 0
+
+            class Logger:
+                def info(self, _message):
+                    return None
+
+            result = Result()
+            ensure_campaigns(
+                conn,
+                modelo_id=1,
+                modelo_codigo="100",
+                campaigns=["2026", "2025"],
+                instruction_url="https://example.com/instructions",
+                fallback_url="https://example.com/modelo",
+                result=result,
+                logger=Logger(),
+            )
+
+            rows = conn.execute(
+                text(
+                    "SELECT campana, activo FROM modelo_campana WHERE modelo_id = 1 ORDER BY campana DESC"
+                )
+            ).fetchall()
+
+        assert result.campaigns_created == 0
+        assert rows == [("2026", 1), ("2025", 0)]
