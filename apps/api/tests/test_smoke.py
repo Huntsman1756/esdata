@@ -40,6 +40,8 @@ async def test_status_tiene_workers():
         "cron-bdns-weekly",
         "worker-borme",
         "cron-borme-weekly",
+        "worker-cnmv",
+        "cron-cnmv-weekly",
     ]:
         assert w in data["workers"]
 
@@ -289,6 +291,25 @@ async def test_bdns_lista_y_detalle():
     assert "BDNS-749075-1034404" in referencias
     assert "becas" in detalle.json()["texto"].lower()
     assert len(filtrada.json()["convocatorias"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_cnmv_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/cnmv")
+        detalle = await c.get("/v1/cnmv/BOE-A-2009-133")
+        filtrada = await c.get("/v1/cnmv?q=cuentas+anuales&ambito=reporting_financiero")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert filtrada.status_code == 200
+
+    referencias = [item["referencia"] for item in lista.json()["documentos"]]
+    assert "BOE-A-2009-133" in referencias
+    assert detalle.json()["tipo_documento"] == "circular_cnmv"
+    assert detalle.json()["ambito"] == "reporting_financiero"
+    assert "estados de información reservada" in detalle.json()["texto"].lower()
+    assert len(filtrada.json()["documentos"]) >= 1
 
 
 @pytest.mark.asyncio

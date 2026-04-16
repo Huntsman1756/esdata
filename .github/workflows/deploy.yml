@@ -102,6 +102,24 @@ jobs:
             railway up apps/workers --path-as-root --service cron-borme-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
+      - name: Deploy CNMV worker a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service worker-cnmv --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service worker-cnmv --json
+            railway up apps/workers --path-as-root --service worker-cnmv --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
+      - name: Deploy CNMV weekly cron a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service cron-cnmv-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service cron-cnmv-weekly --json
+            railway up apps/workers --path-as-root --service cron-cnmv-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
       - name: Espera breve tras deploy
         run: sleep 20
 

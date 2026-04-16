@@ -266,6 +266,8 @@ La configuracion base y los tests del repo ya contemplan como minimo:
 
 Ademas, la capa documental incluye `BDNS` como fuente separada de convocatorias públicas de subvenciones. En este primer slice se almacena en `documento_interpretativo` con `organismo_emisor='BDNS'`, `tipo_fuente='bdns'` y `tipo_documento='convocatoria_subvencion'`, sin forzar todavía anclaje normativo automático.
 
+La capa regulatoria documental inicial incluye `CNMV` como fuente de circulares y documentos operativos públicos. En este primer slice también se almacena en `documento_interpretativo` con `organismo_emisor='CNMV'`, `tipo_fuente='cnmv'` y ámbitos heurísticos como `reporting_financiero`, `reporting_regulatorio`, `infraestructuras_mercado` o `mercados`.
+
 La capa mercantil inicial incluye `BORME` como fuente de actos societarios públicos. En este primer slice se almacena también en `documento_interpretativo` con `organismo_emisor='BORME'`, `tipo_fuente='borme'`, `ambito='mercantil'` y un `tipo_documento` básico detectado por heurística (`nombramiento`, `constitucion`, `cambio_domicilio`, `ampliacion_capital`, `reduccion_capital`, `disolucion`, `concurso`).
 
 Para soportar cruces futuros entre `BORME`, `BDNS` y otras fuentes, el esquema incorpora una tabla `empresa` y una tabla puente `documento_empresa`. En este slice se puebla desde `BORME` con extracción heurística de denominación social y domicilio, sin exigir todavía NIF ni normalización avanzada de sociedades.

@@ -259,6 +259,30 @@ class BORMEListResponse(BaseModel):
     actos: list[BORMESummary]
 
 
+class CNMVSummary(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento CNMV")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título principal del documento CNMV")
+    tipo_documento: str = Field(description="Tipo de documento CNMV")
+    ambito: str = Field(description="Ámbito regulatorio del documento")
+    fragmento: str = Field(description="Fragmento resumido del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento CNMV")
+
+
+class CNMVDetail(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento CNMV")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título principal del documento CNMV")
+    tipo_documento: str = Field(description="Tipo de documento CNMV")
+    ambito: str = Field(description="Ámbito regulatorio del documento")
+    texto: str = Field(description="Texto completo extraído del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento CNMV")
+
+
+class CNMVListResponse(BaseModel):
+    documentos: list[CNMVSummary]
+
+
 class EmpresaSummary(BaseModel):
     id: int = Field(description="Identificador interno de empresa")
     nombre: str = Field(description="Denominación social detectada")

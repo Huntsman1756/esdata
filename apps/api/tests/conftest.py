@@ -460,6 +460,23 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'circular_cnmv',
+        'CNMV',
+        'es',
+        'cnmv',
+        'reporting_financiero',
+        'BOE-A-2009-133',
+        '2009-01-02',
+        'Circular 9/2008, de 10 de diciembre, de la Comisión Nacional del Mercado de Valores',
+        'Circular 9/2008, de la Comisión Nacional del Mercado de Valores, sobre normas contables, estados de información reservada y pública y cuentas anuales de las sociedades rectoras de los mercados secundarios oficiales.',
+        'https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133'
+    )
+    """,
+    """
     INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
     VALUES (
         'ALVAREZ GARCIA GANADERIA, S.L.',

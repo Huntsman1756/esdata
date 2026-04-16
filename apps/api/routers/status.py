@@ -18,6 +18,8 @@ WORKERS = [
     "cron-bdns-weekly",
     "worker-borme",
     "cron-borme-weekly",
+    "worker-cnmv",
+    "cron-cnmv-weekly",
     "worker-modelos",
     "cron-modelos-daily",
 ]
@@ -110,6 +112,8 @@ def _is_stale(worker: str, finished_at) -> bool:
         "cron-bdns-weekly": 24 * 8,
         "worker-borme": 24 * 8,
         "cron-borme-weekly": 24 * 8,
+        "worker-cnmv": 24 * 8,
+        "cron-cnmv-weekly": 24 * 8,
         "worker-modelos": 25,
         "cron-modelos-daily": 25,
     }
