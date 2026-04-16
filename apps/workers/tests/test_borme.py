@@ -6,7 +6,13 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from borme import build_document_payload, run_sync, upsert_documento_interpretativo
+from borme import (
+    build_document_payload,
+    link_documento_empresa,
+    run_sync,
+    upsert_documento_interpretativo,
+    upsert_empresa,
+)
 
 
 MINIMAL_BORME_PDF = b"""%PDF-1.4
@@ -60,6 +66,8 @@ def test_build_document_payload_extracts_reference_event_and_text():
 
     assert payload["referencia"] == "BORME-A-2025-55-37"
     assert payload["tipo_documento"] == "nombramiento"
+    assert payload["empresa_nombre"] == "ALVAREZ GARCIA GANADERIA SL"
+    assert payload["empresa_domicilio"] == "C SANTA LUCIA 19"
     assert "alvarez garcia" in payload["texto"].lower()
 
 
@@ -115,6 +123,83 @@ def test_upsert_documento_interpretativo_stores_borme_fields_once():
     )
 
 
+def test_upsert_empresa_and_link_documento_empresa():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE empresa (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    nif TEXT,
+                    domicilio TEXT,
+                    fuente_inicial TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (nombre)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_empresa (
+                    documento_id INTEGER NOT NULL,
+                    empresa_id INTEGER NOT NULL,
+                    rol TEXT NOT NULL,
+                    confianza_extraccion REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, empresa_id)
+                )
+                """
+            )
+        )
+
+        payload = {
+            "referencia": "BORME-A-2025-55-37",
+            "fecha": "2025-03-20",
+            "titulo": "Actos de SALAMANCA del BORME núm. 55 de 2025",
+            "tipo_documento": "nombramiento",
+            "texto": "Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA.",
+            "url_fuente": "https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf",
+            "empresa_nombre": "ALVAREZ GARCIA GANADERIA SL",
+            "empresa_domicilio": "C SANTA LUCIA 19",
+        }
+
+        upsert_documento_interpretativo(conn, payload)
+        empresa_id = upsert_empresa(conn, payload)
+        link_documento_empresa(conn, payload["referencia"], empresa_id)
+
+        row = conn.execute(
+            text(
+                "SELECT e.nombre, e.domicilio, de.rol, de.confianza_extraccion FROM empresa e JOIN documento_empresa de ON de.empresa_id = e.id"
+            )
+        ).fetchone()
+
+    assert row == ("ALVAREZ GARCIA GANADERIA SL", "C SANTA LUCIA 19", "principal", 0.85)
+
+
 def test_run_sync_persists_borme_document_and_metrics(monkeypatch):
     engine = create_engine("sqlite:///:memory:", future=True)
     original_client = httpx.Client
@@ -135,6 +220,35 @@ def test_run_sync_persists_borme_document_and_metrics(monkeypatch):
                     titulo TEXT,
                     texto TEXT NOT NULL,
                     url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE empresa (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    nif TEXT,
+                    domicilio TEXT,
+                    fuente_inicial TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (nombre)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_empresa (
+                    documento_id INTEGER NOT NULL,
+                    empresa_id INTEGER NOT NULL,
+                    rol TEXT NOT NULL,
+                    confianza_extraccion REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, empresa_id)
                 )
                 """
             )
@@ -180,6 +294,12 @@ def test_run_sync_persists_borme_document_and_metrics(monkeypatch):
                 "SELECT referencia, organismo_emisor, tipo_fuente, ambito, tipo_documento FROM documento_interpretativo WHERE referencia = 'BORME-A-2025-55-37'"
             )
         ).fetchone()
+        empresa = conn.execute(
+            text("SELECT nombre, domicilio, fuente_inicial FROM empresa LIMIT 1")
+        ).fetchone()
+        enlace = conn.execute(
+            text("SELECT rol, confianza_extraccion FROM documento_empresa LIMIT 1")
+        ).fetchone()
         sync = conn.execute(
             text(
                 "SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log ORDER BY id DESC LIMIT 1"
@@ -187,4 +307,6 @@ def test_run_sync_persists_borme_document_and_metrics(monkeypatch):
         ).fetchone()
 
     assert doc == ("BORME-A-2025-55-37", "BORME", "borme", "mercantil", "nombramiento")
+    assert empresa == ("ALVAREZ GARCIA GANADERIA SL", "C SANTA LUCIA 19", "BORME")
+    assert enlace == ("principal", 0.85)
     assert sync == ("worker-borme", "ok", 1, 1)

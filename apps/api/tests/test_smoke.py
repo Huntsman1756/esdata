@@ -310,6 +310,32 @@ async def test_borme_lista_y_detalle():
 
 
 @pytest.mark.asyncio
+async def test_empresas_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/empresas")
+        filtrada = await c.get("/v1/empresas?q=alvarez")
+
+    assert lista.status_code == 200
+    assert filtrada.status_code == 200
+
+    empresas = lista.json()["empresas"]
+    assert len(empresas) >= 1
+
+    empresa = next(item for item in empresas if item["nombre"] == "ALVAREZ GARCIA GANADERIA, S.L.")
+    assert empresa["fuente_inicial"] == "BORME"
+    assert empresa["documentos_count"] >= 1
+
+    async with _client() as c:
+        detalle = await c.get(f"/v1/empresas/{empresa['id']}")
+
+    assert detalle.status_code == 200
+    data = detalle.json()
+    assert data["nombre"] == "ALVAREZ GARCIA GANADERIA, S.L."
+    assert len(data["documentos"]) >= 1
+    assert data["documentos"][0]["organismo_emisor"] == "BORME"
+
+
+@pytest.mark.asyncio
 async def test_doctrina_buscar_filtra_por_tipo():
     async with _client() as c:
         r = await c.get("/v1/doctrina/buscar?q=tipo+reducido&tipo=consulta_vinculante")

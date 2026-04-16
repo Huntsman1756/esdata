@@ -19,6 +19,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Cobertura doctrinal actual: DGT y TEAC con enlazado a articulos via `documento_articulo`.
 - Cobertura documental adicional: `BDNS` con convocatorias públicas de subvenciones almacenadas como fuente documental específica.
 - Cobertura societaria inicial: `BORME` con actos societarios públicos almacenados como fuente documental mercantil.
+- Base inicial de entidades: `empresa` y `documento_empresa` para empezar a cruzar fuentes públicas alrededor de una sociedad.
 - Capa de cumplimiento y presentacion: modelos AEAT con relaciones verificadas a articulos concretos.
 - Foco del producto: ofrecer criterio fiscal trazable para trabajo real de despachos, productos y agentes.
 - Normas y marcos tambien relevantes para una herramienta de gestion fiscal, pero fuera de cobertura actual:

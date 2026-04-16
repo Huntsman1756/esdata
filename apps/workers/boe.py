@@ -143,6 +143,27 @@ def _schema_statements(dialect: str) -> list[str]:
             url_fuente TEXT
         )
         """,
+        f"""
+        CREATE TABLE IF NOT EXISTS empresa (
+            id {id_type},
+            nombre TEXT NOT NULL,
+            nif TEXT,
+            domicilio TEXT,
+            fuente_inicial TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT {timestamp_default},
+            UNIQUE (nombre)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS documento_empresa (
+            documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+            empresa_id INTEGER NOT NULL REFERENCES empresa(id),
+            rol TEXT NOT NULL,
+            confianza_extraccion NUMERIC(3,2) NOT NULL,
+            nota TEXT,
+            PRIMARY KEY (documento_id, empresa_id)
+        )
+        """,
         """
         CREATE TABLE IF NOT EXISTS documento_articulo (
             documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),

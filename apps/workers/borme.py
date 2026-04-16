@@ -25,6 +25,8 @@ EVENT_PATTERNS = [
     ("concurso", r"\bConcurso\b"),
 ]
 
+COMPANY_SUFFIXES = r"(?:S\.L\.|SL|S\.A\.|SA|S\.L|S\.A|SOCIEDAD LIMITADA|SOCIEDAD ANONIMA)"
+
 
 def _parse_seed_urls(value: str | None) -> list[str]:
     if not value:
@@ -57,6 +59,25 @@ def _detect_event_type(text_value: str) -> str:
     return "acto_societario"
 
 
+def _extract_company_name(text_value: str) -> str | None:
+    patterns = [
+        rf"\bConstituci[oó]n\.\s*([A-Z0-9ÁÉÍÓÚÑ .,\-]+?\s+{COMPANY_SUFFIXES})\b",
+        rf"\b([A-Z0-9ÁÉÍÓÚÑ .,\-]+?\s+{COMPANY_SUFFIXES})\b",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text_value, flags=re.IGNORECASE)
+        if match:
+            return _normalize_whitespace(match.group(1)).strip(" .,")
+    return None
+
+
+def _extract_domicilio(text_value: str) -> str | None:
+    match = re.search(r"\bDomicilio:\s*([^\.]+)", text_value, flags=re.IGNORECASE)
+    if not match:
+        return None
+    return _normalize_whitespace(match.group(1)).strip(" .,")
+
+
 def extract_pdf_text(content: bytes) -> str:
     reader = PdfReader(BytesIO(content))
     chunks = []
@@ -85,6 +106,8 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
         "texto": text_value,
         "url_fuente": url,
         "tipo_documento": event_type,
+        "empresa_nombre": _extract_company_name(text_value),
+        "empresa_domicilio": _extract_domicilio(text_value),
     }
 
 
@@ -128,6 +151,51 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     )
 
 
+def upsert_empresa(conn, payload: dict[str, str]) -> int | None:
+    nombre = payload.get("empresa_nombre")
+    if not nombre:
+        return None
+
+    conn.execute(
+        text(
+            """
+            INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
+            VALUES (:nombre, NULL, :domicilio, 'BORME')
+            ON CONFLICT (nombre) DO UPDATE SET
+                domicilio = COALESCE(excluded.domicilio, empresa.domicilio)
+            """
+        ),
+        {"nombre": nombre, "domicilio": payload.get("empresa_domicilio")},
+    )
+
+    row = conn.execute(
+        text("SELECT id FROM empresa WHERE nombre = :nombre LIMIT 1"),
+        {"nombre": nombre},
+    ).fetchone()
+    return row[0] if row else None
+
+
+def link_documento_empresa(conn, referencia: str, empresa_id: int | None) -> None:
+    if empresa_id is None:
+        return
+
+    conn.execute(
+        text(
+            """
+            INSERT INTO documento_empresa (documento_id, empresa_id, rol, confianza_extraccion, nota)
+            SELECT d.id, :empresa_id, 'principal', 0.85, 'Extraccion heuristica desde BORME'
+            FROM documento_interpretativo d
+            WHERE d.referencia = :referencia
+            ON CONFLICT (documento_id, empresa_id) DO UPDATE SET
+                rol = excluded.rol,
+                confianza_extraccion = excluded.confianza_extraccion,
+                nota = excluded.nota
+            """
+        ),
+        {"empresa_id": empresa_id, "referencia": referencia},
+    )
+
+
 def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-borme",
@@ -147,6 +215,8 @@ def run_sync(
                     payload = build_document_payload(url, response.content)
                     processed += 1
                     upsert_documento_interpretativo(conn, payload)
+                    empresa_id = upsert_empresa(conn, payload)
+                    link_documento_empresa(conn, payload["referencia"], empresa_id)
                     stored += 1
 
                 log_sync(

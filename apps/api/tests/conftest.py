@@ -69,6 +69,27 @@ STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE empresa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        nif TEXT,
+        domicilio TEXT,
+        fuente_inicial TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (nombre)
+    )
+    """,
+    """
+    CREATE TABLE documento_empresa (
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        empresa_id INTEGER NOT NULL REFERENCES empresa(id),
+        rol TEXT NOT NULL,
+        confianza_extraccion REAL NOT NULL,
+        nota TEXT,
+        PRIMARY KEY (documento_id, empresa_id)
+    )
+    """,
+    """
     CREATE TABLE documento_articulo (
         documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
         articulo_id INTEGER NOT NULL REFERENCES articulo(id),
@@ -437,6 +458,22 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         'Constitución. ALVAREZ GARCIA GANADERIA, S.L. Domicilio: C/ SANTA LUCIA 19. Capital: 3.000,00 Euros. Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA.',
         'https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf'
     )
+    """,
+    """
+    INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
+    VALUES (
+        'ALVAREZ GARCIA GANADERIA, S.L.',
+        NULL,
+        'C/ SANTA LUCIA 19',
+        'BORME'
+    )
+    """,
+    """
+    INSERT INTO documento_empresa (documento_id, empresa_id, rol, confianza_extraccion, nota)
+    SELECT d.id, e.id, 'principal', 0.85, 'Test fixture BORME empresa'
+    FROM documento_interpretativo d
+    JOIN empresa e ON e.nombre = 'ALVAREZ GARCIA GANADERIA, S.L.'
+    WHERE d.referencia = 'BORME-A-2025-55-37'
     """,
     # --- Enlace doctrina <-> artículo ---
     """

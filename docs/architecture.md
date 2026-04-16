@@ -268,6 +268,8 @@ Ademas, la capa documental incluye `BDNS` como fuente separada de convocatorias 
 
 La capa mercantil inicial incluye `BORME` como fuente de actos societarios públicos. En este primer slice se almacena también en `documento_interpretativo` con `organismo_emisor='BORME'`, `tipo_fuente='borme'`, `ambito='mercantil'` y un `tipo_documento` básico detectado por heurística (`nombramiento`, `constitucion`, `cambio_domicilio`, `ampliacion_capital`, `reduccion_capital`, `disolucion`, `concurso`).
 
+Para soportar cruces futuros entre `BORME`, `BDNS` y otras fuentes, el esquema incorpora una tabla `empresa` y una tabla puente `documento_empresa`. En este slice se puebla desde `BORME` con extracción heurística de denominación social y domicilio, sin exigir todavía NIF ni normalización avanzada de sociedades.
+
 ### Configuracion todavia heterogenea
 
 Existen variables documentadas en `.env.example` que no estan usadas por el runtime actual y tambien existen variables usadas por scripts operativos que no forman parte del contrato principal de la aplicacion. Esto se documenta por separado en `docs/environment-variables.md`.

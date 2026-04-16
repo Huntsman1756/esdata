@@ -251,5 +251,37 @@ class BORMEListResponse(BaseModel):
     actos: list[BORMESummary]
 
 
+class EmpresaSummary(BaseModel):
+    id: int = Field(description="Identificador interno de empresa")
+    nombre: str = Field(description="Denominación social detectada")
+    nif: str | None = Field(default=None, description="NIF si existe")
+    domicilio: str | None = Field(default=None, description="Domicilio detectado")
+    fuente_inicial: str = Field(description="Fuente por la que se creó la empresa")
+    documentos_count: int = Field(description="Número de documentos vinculados")
+
+
+class EmpresaDocumento(BaseModel):
+    referencia: str = Field(description="Referencia del documento relacionado")
+    organismo_emisor: str = Field(description="Organismo emisor del documento")
+    tipo_fuente: str = Field(description="Fuente documental")
+    tipo_documento: str = Field(description="Tipo de documento o acto")
+    fecha: str | None = Field(default=None, description="Fecha del documento")
+    rol: str = Field(description="Rol de la empresa en el documento")
+    confianza_extraccion: float = Field(description="Confianza de la extracción (0-1)")
+
+
+class EmpresaDetail(BaseModel):
+    id: int = Field(description="Identificador interno de empresa")
+    nombre: str = Field(description="Denominación social detectada")
+    nif: str | None = Field(default=None, description="NIF si existe")
+    domicilio: str | None = Field(default=None, description="Domicilio detectado")
+    fuente_inicial: str = Field(description="Fuente por la que se creó la empresa")
+    documentos: list[EmpresaDocumento] = Field(default_factory=list, description="Documentos públicos relacionados")
+
+
+class EmpresasListResponse(BaseModel):
+    empresas: list[EmpresaSummary]
+
+
 class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]
