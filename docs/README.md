@@ -31,6 +31,7 @@ Separar claramente la documentación permanente de los snapshots de sesión e in
 Estos archivos siguen siendo útiles como contexto, pero no deben tomarse como fuente principal del estado actual del sistema:
 
 - `next-session-handoff-2026-04-12.md`
+- `next-session-handoff-2026-04-16.md`
 - `session-status-2026-04-13.md`
 - `production-status-2026-04-11.md`
 - `production-status-2026-04-12.md`
