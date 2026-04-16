@@ -7,7 +7,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Produccion operativa en Railway.
 - API publica en `https://esdata-production.up.railway.app`.
 - Frontend publico en `https://web-production-ecb5.up.railway.app`.
-- Ingesta BOE con soporte de codigo y configuracion para `LGT`, `LIRPF`, `LIS`, `LIVA` e `ITPAJD`; la verificacion desplegada de `ITPAJD` sigue pendiente hasta ejecutar el smoke en produccion.
+- Ingesta BOE con soporte de codigo y configuracion para `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD` e `IRNR`.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
 - Cadena norma -> doctrina -> modelo AEAT disponible con relaciones verificables y fuente oficial por enlace.
@@ -15,7 +15,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 
 ## Cobertura y foco
 
-- Cobertura normativa actual verificada: `LGT`, `LIRPF`, `LIS`, `LIVA`.
+- Cobertura normativa actual verificada en el repo: `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD`, `IRNR`.
 - Cobertura doctrinal actual: DGT y TEAC con enlazado a articulos via `documento_articulo`.
 - Capa de cumplimiento y presentacion: modelos AEAT con relaciones verificadas a articulos concretos.
 - Foco del producto: ofrecer criterio fiscal trazable para trabajo real de despachos, productos y agentes.
@@ -36,7 +36,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - **FORMATO** (1 modelo): `299` (diseño registro electrónico)
 - **HISTÓRICO** (1 modelo): `110` (obsoleto → `111`)
 
-> Total: 25 modelos. Las relaciones con articulos IRNR (RDL 5/2004) estan pendientes de ingesta de la norma.
+> Total: 25 modelos. Los modelos IRNR `124`, `216` y `296` ya quedan enlazados a articulos de `IRNR` (RDL 5/2004) en seeds y tests del repo.
 
 ### Contenido por modelo (v2)
 
@@ -101,13 +101,15 @@ Rutas frontend utiles:
 - `apps/workers/boe.py`: ingesta BOE, bootstrap de esquema y auto-linking.
 - `apps/workers/dgt.py`: scraping DGT via sesion/AJAX, persistencia y relinking de doctrina.
 - `apps/workers/teac.py`: scraping TEAC via DYCTEA, persistencia y relinking de doctrina.
-- `apps/workers/modelos.py`: scraping AEAT de instrucciones, casillas, claves y campañas por modelo.
+- `apps/workers/modelos.py`: orquestación del sync AEAT por modelo.
+- `apps/workers/modelos_support.py`: scraping, campañas y persistencia del dominio de modelos AEAT.
 - `apps/workers/tests/test_boe.py`: tests del worker.
 - `apps/workers/tests/test_dgt.py`: tests del worker DGT.
 - `apps/workers/tests/test_teac.py`: tests del worker TEAC.
 - `apps/workers/tests/test_modelos.py`: tests del worker de modelos AEAT.
 - `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina, detalle de articulo y detalle de modelo AEAT.
 - `apps/api/routers/modelos.py`: endpoints `/v1/modelos` para la capa de modelos AEAT.
+- `apps/api/services/modelos.py`: consultas reutilizables para detalle, campañas y relaciones de modelos.
 - `scripts/seed-modelos.py`: seed idempotente de metadata y relaciones `modelo_articulo` con fuente verificable.
 - `scripts/seed-modelos-v2.py`: seed idempotente de campañas, instrucciones, casillas, claves y normativa AEAT.
 - `scripts/export-gpt-openapi.py`: genera specs OpenAPI reducidas para GPT Actions.
@@ -197,7 +199,7 @@ python scripts/export-gpt-openapi.py --openapi 3.0.3 --output docs/openapi-gpt-3
 - `DATABASE_URL=postgresql+psycopg://...`
 - `BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada`
 - `APP_ENV=production`
-- `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT,ITPAJD`
+- `BOE_LEGISLACION_NORMAS=LIVA,LIS,LIRPF,LGT,ITPAJD,IRNR`
 - `MODELOS_SYNC_INTERVAL=86400` para `worker-modelos` si se quiere ajustar la cadencia del loop continuo.
 - `DGT_SSL_VERIFY=false` para el worker DGT si Petete falla por SSL en produccion.
 - `TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...,...` para el worker TEAC.

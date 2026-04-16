@@ -138,6 +138,24 @@ STATEMENTS = [
         '1993-09-25'
     )
     """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'IRNR',
+        'Texto refundido de la Ley del Impuesto sobre la Renta de no Residentes',
+        'BOE-A-2004-19886',
+        'https://www.boe.es/eli/es/rdl/2004/12/03/5',
+        'es',
+        'boe',
+        'real_decreto_legislativo',
+        'tributario',
+        'ingestada',
+        '2004-12-03'
+    )
+    """,
     # --- LIVA 91: fixture de test con texto realista del BOE ---
     # Este no es un placeholder de producción; el worker BOE ingesta el texto real.
     # Aquí usamos un extracto representativo para que los tests verifiquen búsqueda y estructura.
@@ -171,6 +189,55 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE n.codigo = 'ITPAJD' AND a.numero = '7'
+    """,
+    # --- IRNR 13/14/25/26: fixtures para relaciones de modelos IRNR ---
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '13', 'Rentas inmobiliarias obtenidas sin establecimiento permanente', 'articulo'
+    FROM norma WHERE codigo = 'IRNR'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '14', 'Rentas obtenidas sin mediación de establecimiento permanente', 'articulo'
+    FROM norma WHERE codigo = 'IRNR'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '25', 'Rendimientos del capital mobiliario en el IRNR', 'articulo'
+    FROM norma WHERE codigo = 'IRNR'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '26', 'Ganancias patrimoniales en el IRNR', 'articulo'
+    FROM norma WHERE codigo = 'IRNR'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 13. Rentas inmobiliarias obtenidas en territorio español por contribuyentes no residentes sin establecimiento permanente.', '2004-12-03', NULL, 'irnr-a13'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'IRNR' AND a.numero = '13'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 14. Rentas obtenidas sin mediación de establecimiento permanente sujetas al impuesto.', '2004-12-03', NULL, 'irnr-a14'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'IRNR' AND a.numero = '14'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 25. Rendimientos del capital mobiliario obtenidos por no residentes sin establecimiento permanente.', '2004-12-03', NULL, 'irnr-a25'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'IRNR' AND a.numero = '25'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 26. Ganancias patrimoniales obtenidas por no residentes sin establecimiento permanente.', '2004-12-03', NULL, 'irnr-a26'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'IRNR' AND a.numero = '26'
     """,
     # --- Materias (taxonomía curada) ---
     """
@@ -231,7 +298,10 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """
     INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info)
     VALUES ('100', 'IRPF Declaración anual', 'anual', 'IRPF', 'https://sede.agenciatributaria.gob.es/modelo-100'),
-           ('303', 'IVA Autoliquidación', 'trimestral', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-303')
+           ('303', 'IVA Autoliquidación', 'trimestral', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-303'),
+           ('124', 'Retenciones IRNR — rentas sin establecimiento permanente', 'mensual', 'IRNR', 'https://sede.agenciatributaria.gob.es/modelo-124'),
+           ('216', 'IRNR Retenciones rentas sin establecimiento permanente', 'mensual', 'IRNR', 'https://sede.agenciatributaria.gob.es/modelo-216'),
+           ('296', 'IRNR Resumen anual retenciones sin EP', 'anual', 'IRNR', 'https://sede.agenciatributaria.gob.es/modelo-296')
     """,
     """
     INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
@@ -239,6 +309,30 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM aeat_modelo m, articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE m.codigo = '100' AND n.codigo = 'LIVA' AND a.numero = '91'
+    """,
+    """
+    INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
+    SELECT m.id, a.id, NULL, 'Rentas obtenidas sin EP', 'Instrucciones Modelo 124 2025', 'https://sede.agenciatributaria.gob.es/modelo-124'
+    FROM aeat_modelo m
+    JOIN articulo a ON 1=1
+    JOIN norma n ON n.id = a.norma_id
+    WHERE m.codigo = '124' AND n.codigo = 'IRNR' AND a.numero = '14'
+    """,
+    """
+    INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
+    SELECT m.id, a.id, NULL, 'Retenciones IRNR sin EP', 'Instrucciones Modelo 216 2025', 'https://sede.agenciatributaria.gob.es/modelo-216'
+    FROM aeat_modelo m
+    JOIN articulo a ON 1=1
+    JOIN norma n ON n.id = a.norma_id
+    WHERE m.codigo = '216' AND n.codigo = 'IRNR' AND a.numero = '14'
+    """,
+    """
+    INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
+    SELECT m.id, a.id, NULL, 'Resumen anual IRNR', 'Instrucciones Modelo 296 2025', 'https://sede.agenciatributaria.gob.es/modelo-296'
+    FROM aeat_modelo m
+    JOIN articulo a ON 1=1
+    JOIN norma n ON n.id = a.norma_id
+    WHERE m.codigo = '296' AND n.codigo = 'IRNR' AND a.numero = '14'
     """,
     # --- Modelos v2 schema: campañas, casillas, claves, instrucciones, normativa ---
     """
@@ -313,6 +407,21 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones'
     FROM aeat_modelo m WHERE m.codigo = '100'
     """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-124-instrucciones'
+    FROM aeat_modelo m WHERE m.codigo = '124'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-216-instrucciones'
+    FROM aeat_modelo m WHERE m.codigo = '216'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-296-instrucciones'
+    FROM aeat_modelo m WHERE m.codigo = '296'
+    """,
     # --- Seed: casillas for model 100 campaign ---
     """
     INSERT INTO modelo_casilla (campana_id, codigo, etiqueta, descripcion, tipo_casilla, orden)
@@ -332,6 +441,11 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
     SELECT m.id, 'BOE-A-2024-26789', 'Orden HAC/1234/2024', '2024-12-20', 'https://www.boe.es/boe/dias/2024/12/20/pdfs/BOE-A-2024-26789.pdf', 'Aprueba el modelo 100'
     FROM aeat_modelo m WHERE m.codigo = '100'
+    """,
+    """
+    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
+    SELECT m.id, 'BOE-A-2004-19886', 'RDL 5/2004 — IRNR', '2004-12-03', 'https://www.boe.es/buscar/act.php?id=BOE-A-2004-19886', 'Texto refundido de la Ley del IRNR'
+    FROM aeat_modelo m WHERE m.codigo IN ('124', '216', '296')
     """,
     # --- Note: modelo_campana_activa() is a Postgres function.
     # For SQLite tests, the API code falls back to direct queries when the function

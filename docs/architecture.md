@@ -248,9 +248,16 @@ La observabilidad sigue siendo basica, pero ya cubre todos los workers y cron jo
 
 La API y los workers comparten dependencias y patrones de acceso a base de datos, pero todavia no existe una libreria comun. Este es uno de los principales candidatos a refactor de profesionalizacion.
 
-### Migraciones de BD manuales
+### Cobertura normativa operativa
 
-El sistema usa SQL versionado manualmente. Funciona, pero todavia no hay un framework formal de migraciones ni una estrategia de rollback automatizada.
+La configuracion base y los tests del repo ya contemplan como minimo:
+
+- `LIVA`
+- `LIRPF`
+- `LIS`
+- `LGT`
+- `ITPAJD`
+- `IRNR`
 
 ### Configuracion todavia heterogenea
 

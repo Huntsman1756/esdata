@@ -77,7 +77,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BOE_API_BASE: ${BOE_API_BASE:-https://www.boe.es/datosabiertos/api/legislacion-consolidada}
-      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD}
+      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR}
       SYNC_INTERVAL_SECONDS: ${BOE_SYNC_INTERVAL_SECONDS:-3600}
       WORKER_CMD: python boe.py
     depends_on:
@@ -154,7 +154,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BOE_API_BASE: ${BOE_API_BASE:-https://www.boe.es/datosabiertos/api/legislacion-consolidada}
-      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD}
+      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR}
       WORKER_CMD: python boe.py --run-once
 
   cron-dgt-weekly:

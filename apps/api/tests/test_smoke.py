@@ -147,6 +147,27 @@ async def test_legislacion_expone_itpajd_con_clasificacion():
 
 
 @pytest.mark.asyncio
+async def test_legislacion_expone_irnr_con_clasificacion():
+    async with _client() as c:
+        lista = await c.get("/v1/legislacion")
+        detalle = await c.get("/v1/legislacion/IRNR")
+        articulo = await c.get("/v1/legislacion/IRNR/articulos/14")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert articulo.status_code == 200
+
+    norma = next(item for item in lista.json()["normas"] if item["codigo"] == "IRNR")
+    assert norma["tipo_documento"] == "real_decreto_legislativo"
+    assert norma["ambito"] == "tributario"
+    assert norma["estado_cobertura"] == "ingestada"
+
+    assert detalle.json()["tipo_documento"] == "real_decreto_legislativo"
+    assert detalle.json()["estado_cobertura"] == "ingestada"
+    assert "sin mediación de establecimiento permanente" in articulo.json()["texto"].lower()
+
+
+@pytest.mark.asyncio
 async def test_legislacion_lista_articulos_filtra_por_tipo():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos?tipo=articulo")
@@ -539,9 +560,12 @@ async def test_modelos_lista():
     assert r.status_code == 200
     data = r.json()
     assert "modelos" in data
-    assert len(data["modelos"]) == 2  # 100, 303 in test fixture
+    assert len(data["modelos"]) == 5  # 100, 124, 216, 296, 303 in test fixture
     codigos = [m["codigo"] for m in data["modelos"]]
     assert "100" in codigos
+    assert "124" in codigos
+    assert "216" in codigos
+    assert "296" in codigos
     assert "303" in codigos
 
 
@@ -592,6 +616,22 @@ async def test_modelo_inexistente_404():
         r = await c.get("/v1/modelos/999")
     assert r.status_code == 404
     assert "detail" in r.json()
+
+
+@pytest.mark.asyncio
+async def test_modelos_irnr_tienen_relacion_articulo():
+    async with _client() as c:
+        r124 = await c.get("/v1/modelos/124/articulos")
+        r216 = await c.get("/v1/modelos/216/articulos")
+        r296 = await c.get("/v1/modelos/296/articulos")
+
+    assert r124.status_code == 200
+    assert r216.status_code == 200
+    assert r296.status_code == 200
+
+    assert any(item["norma"] == "IRNR" for item in r124.json()["articulos"])
+    assert any(item["norma"] == "IRNR" for item in r216.json()["articulos"])
+    assert any(item["norma"] == "IRNR" for item in r296.json()["articulos"])
 
 
 @pytest.mark.asyncio

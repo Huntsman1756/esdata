@@ -14,9 +14,12 @@ import urllib.request
 DEFAULT_CHECKS = [
     ("/health", 200, None),
     ("/v1/legislacion/LIVA/articulos/91", 200, "texto"),
+    ("/v1/legislacion/ITPAJD", 200, "codigo"),
+    ("/v1/legislacion/IRNR", 200, "codigo"),
     ("/v1/materias/tipo-reducido-iva", 200, "articulos"),
     ("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA", 200, "resultados"),
     ("/v1/legislacion/cobertura", 200, "normas"),
+    ("/v1/modelos/124", 200, "codigo"),
     ("/status", 200, "workers"),
 ]
 

@@ -61,6 +61,16 @@ El worker de modelos queda repartido ahora así:
 
 Esto permite añadir nuevas heurísticas y persistencia sin inflar el entrypoint principal.
 
+## Modelos que ya dependen de IRNR
+
+La cobertura actual del repo ya deja enlazados a `IRNR` estos modelos:
+
+- `124`
+- `216`
+- `296`
+
+Si se añaden nuevos modelos de no residentes, conviene reutilizar primero los articulos ya cubiertos del `RDL 5/2004` antes de inventar relaciones nuevas.
+
 ## Cuándo crear lógica específica por familia de modelos
 
 Si varios modelos comparten el mismo patrón especial, conviene crear helpers específicos en `modelos_support.py`.
