@@ -19,27 +19,21 @@ Usage:
 import os
 import re
 import time
-import logging
 from dataclasses import dataclass, field
 
 import httpx
 from sqlalchemy import create_engine, text
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
-)
-SYNC_INTERVAL_SECONDS = int(os.getenv("MODELOS_SYNC_INTERVAL", "86400"))  # daily
-DGT_SSL_VERIFY = os.getenv("DGT_SSL_VERIFY", "true").lower() == "false"
+from runtime import configure_logging, get_bool_env, get_database_url, get_interval_seconds
+
+DATABASE_URL = get_database_url()
+SYNC_INTERVAL_SECONDS = get_interval_seconds("MODELOS_SYNC_INTERVAL", 86400)
+SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", False)
 
 # AEAT sede base
 AEAT_SEDE = "https://sede.agenciatributaria.gob.es"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger("worker-modelos")
+logger = configure_logging("worker-modelos")
 
 
 @dataclass
@@ -58,7 +52,7 @@ def _client() -> httpx.Client:
         base_url=AEAT_SEDE,
         follow_redirects=True,
         timeout=30,
-        verify=not DGT_SSL_VERIFY,
+        verify=SSL_VERIFY,
         headers={
             "User-Agent": "esdata-bot/1.0 (fiscal data infrastructure bot)",
         },

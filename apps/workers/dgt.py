@@ -1,7 +1,6 @@
 import argparse
 from datetime import datetime
 from html import unescape
-import os
 import re
 import time
 
@@ -10,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import text
 
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
+from runtime import get_bool_env, get_database_url, get_interval_seconds
 
 
 SEED_URLS = [
@@ -27,16 +27,9 @@ SEED_URLS = [
 
 
 BASE_URL = "https://petete.tributos.hacienda.gob.es"
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
-)
-DGT_SSL_VERIFY = os.getenv("DGT_SSL_VERIFY", "false").lower() in {
-    "1",
-    "true",
-    "yes",
-}
-SYNC_INTERVAL_SECONDS = int(os.getenv("SYNC_INTERVAL_SECONDS", "604800"))
+DATABASE_URL = get_database_url()
+DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", False)
+SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
 
 def build_search_payload(num_consulta: str) -> dict[str, str]:

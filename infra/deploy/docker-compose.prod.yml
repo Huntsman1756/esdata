@@ -1,0 +1,191 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-esdata}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-esdata}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - esdata-postgres:/var/lib/postgresql/data
+      - ../../infra/sql/init.sql:/docker-entrypoint-initdb.d/010_init.sql:ro
+      - ../../infra/sql/002_fulltext_search.sql:/docker-entrypoint-initdb.d/020_fulltext_search.sql:ro
+      - ../../infra/sql/003_modelos_aeat.sql:/docker-entrypoint-initdb.d/030_modelos_aeat.sql:ro
+      - ../../infra/sql/004_modelos_v2.sql:/docker-entrypoint-initdb.d/040_modelos_v2.sql:ro
+      - ../../infra/sql/004_norma_classification.sql:/docker-entrypoint-initdb.d/050_norma_classification.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-esdata} -d ${POSTGRES_DB:-esdata}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      APP_ENV: ${APP_ENV:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ESDATA_API_BASE_URL: ${ESDATA_API_BASE_URL:?ESDATA_API_BASE_URL is required}
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  worker-boe:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BOE_API_BASE: ${BOE_API_BASE:-https://www.boe.es/datosabiertos/api/legislacion-consolidada}
+      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD}
+      SYNC_INTERVAL_SECONDS: ${BOE_SYNC_INTERVAL_SECONDS:-3600}
+      WORKER_CMD: python boe.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  worker-dgt:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
+      SYNC_INTERVAL_SECONDS: ${DGT_SYNC_INTERVAL_SECONDS:-604800}
+      WORKER_CMD: python dgt.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  worker-teac:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      TEAC_SEED_URLS: ${TEAC_SEED_URLS:?TEAC_SEED_URLS is required}
+      SYNC_INTERVAL_SECONDS: ${TEAC_SYNC_INTERVAL_SECONDS:-604800}
+      WORKER_CMD: python teac.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  worker-modelos:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      MODELOS_SYNC_INTERVAL: ${MODELOS_SYNC_INTERVAL:-86400}
+      DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
+      WORKER_CMD: python modelos.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  cron-boe-daily:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BOE_API_BASE: ${BOE_API_BASE:-https://www.boe.es/datosabiertos/api/legislacion-consolidada}
+      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD}
+      WORKER_CMD: python boe.py --run-once
+
+  cron-dgt-weekly:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
+      WORKER_CMD: python dgt.py --run-once
+
+  cron-teac-weekly:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      TEAC_SEED_URLS: ${TEAC_SEED_URLS:?TEAC_SEED_URLS is required}
+      WORKER_CMD: python teac.py --run-once
+
+  cron-modelos-daily:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
+      WORKER_CMD: python modelos.py --run-once
+
+volumes:
+  esdata-postgres:

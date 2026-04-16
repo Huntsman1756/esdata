@@ -72,58 +72,7 @@ jobs:
       - name: Smoke tests funcionales
         env:
           API_BASE: https://esdata-production.up.railway.app
-        run: |
-          python - <<'EOF'
-          import json
-          import os
-          import sys
-          import time
-          import urllib.error
-          import urllib.request
-
-          base = os.environ["API_BASE"]
-          checks = [
-              ("/health", 200, None),
-              ("/v1/legislacion/LIVA/articulos/91", 200, "texto"),
-              ("/v1/materias/tipo-reducido-iva", 200, "articulos"),
-              ("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA", 200, "resultados"),
-              ("/v1/legislacion/cobertura", 200, "normas"),
-              ("/status", 200, "workers"),
-          ]
-
-          failed = []
-          for path, expected_status, expected_key in checks:
-              last_error = None
-              for _ in range(10):
-                  try:
-                      with urllib.request.urlopen(f"{base}{path}", timeout=10) as response:
-                          status_code = response.getcode()
-                          payload = json.loads(response.read().decode("utf-8"))
-
-                      if status_code == expected_status and (
-                          not expected_key or expected_key in payload
-                      ):
-                          last_error = None
-                          break
-                      last_error = (
-                          f"status {status_code} (esperado {expected_status})"
-                          if status_code != expected_status
-                          else f"clave '{expected_key}' ausente en respuesta"
-                      )
-                  except urllib.error.HTTPError as exc:
-                      last_error = f"status {exc.code} (esperado {expected_status})"
-                  except Exception as exc:
-                      last_error = str(exc)
-                  time.sleep(5)
-
-              if last_error is not None:
-                  failed.append(f"FAIL {path}: {last_error}")
-
-          if failed:
-              print("\n".join(failed))
-              sys.exit(1)
-          print(f"Smoke tests OK ({len(checks)} checks)")
-          EOF
+        run: python scripts/smoke-check.py --base-url "$API_BASE"
 
       - name: Purge Cloudflare cache (solo paths deterministas)
         if: success() && env.CF_ZONE_ID != '' && env.CF_API_TOKEN != ''

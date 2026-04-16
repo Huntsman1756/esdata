@@ -1,9 +1,18 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
 WORKDIR /app
+
+RUN addgroup --system app && adduser --system --ingroup app app
+
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY . /app
 
-RUN if [ -f /app/requirements.txt ]; then pip install --no-cache-dir -r /app/requirements.txt; else pip install --no-cache-dir -r /app/apps/workers/requirements.txt; fi
+USER app
 
-CMD ["sh", "-c", "WORKER_CMD=${WORKER_CMD:-python boe.py}; if [ -f /app/dgt.py ]; then cd /app && exec sh -c \"$WORKER_CMD\"; else cd /app/apps/workers && exec sh -c \"$WORKER_CMD\"; fi"]
+CMD ["sh", "-c", "WORKER_CMD=${WORKER_CMD:-python boe.py}; exec sh -c \"$WORKER_CMD\""]

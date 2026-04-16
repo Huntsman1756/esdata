@@ -9,15 +9,14 @@ from xml.etree import ElementTree as ET
 import httpx
 from sqlalchemy import create_engine, text
 
+from runtime import get_database_url, get_interval_seconds
+
 BOE_API_BASE = os.getenv(
     "BOE_API_BASE",
     "https://www.boe.es/datosabiertos/api/legislacion-consolidada",
 )
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
-)
-SYNC_INTERVAL_SECONDS = int(os.getenv("SYNC_INTERVAL_SECONDS", "3600"))
+DATABASE_URL = get_database_url()
+SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 3600)
 
 DEFAULT_NORMAS = {
     "LIVA": "BOE-A-1992-28740",

@@ -1,17 +1,30 @@
-FROM node:22-slim AS base
+FROM node:22-slim AS deps
 
 WORKDIR /app
-
-# Install dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy source
-COPY . .
+FROM node:22-slim AS builder
 
-# Build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 ENV NODE_ENV=production
 RUN npm run build
 
-# Start
-CMD ["npm", "start"]
+FROM node:22-slim AS runner
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN addgroup --system app && adduser --system --ingroup app app
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+USER app
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

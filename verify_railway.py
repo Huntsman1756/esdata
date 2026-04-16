@@ -23,7 +23,18 @@ SERVICES = [
     "cron-modelos-daily",
     "Postgres",
 ]
-CRITICAL_VARS = {"DATABASE_URL", "BOE_API_BASE", "APP_ENV"}
+CRITICAL_VARS = {
+    "esdata": {"DATABASE_URL"},
+    "worker-boe": {"DATABASE_URL", "BOE_API_BASE", "BOE_LEGISLACION_NORMAS"},
+    "cron-boe-daily": {"DATABASE_URL", "BOE_API_BASE", "BOE_LEGISLACION_NORMAS"},
+    "worker-dgt": {"DATABASE_URL"},
+    "cron-dgt-weekly": {"DATABASE_URL"},
+    "worker-teac": {"DATABASE_URL", "TEAC_SEED_URLS"},
+    "cron-teac-weekly": {"DATABASE_URL", "TEAC_SEED_URLS"},
+    "worker-modelos": {"DATABASE_URL"},
+    "cron-modelos-daily": {"DATABASE_URL"},
+    "web": {"ESDATA_API_BASE_URL"},
+}
 
 print("=== Estado Railway ===\n")
 
@@ -54,13 +65,16 @@ for service in SERVICES:
     else:
         print(f"[WARN] {service}: {current}")
 
-print("\n--- Variables de entorno worker-boe ---")
-code, out, err = run("railway variable list --service worker-boe -k")
-if code != 0:
-    print(f"[WARN] No se pudieron listar variables: {err[:120]}")
-else:
+print("\n--- Variables de entorno críticas por servicio ---")
+for service, required_vars in CRITICAL_VARS.items():
+    print(f"\n[{service}]")
+    code, out, err = run(f"railway variable list --service {service} -k")
+    if code != 0:
+        print(f"[WARN] No se pudieron listar variables: {err[:120]}")
+        continue
+
     keys = {line.split("=", 1)[0].strip() for line in out.splitlines() if "=" in line}
-    for key in sorted(CRITICAL_VARS):
+    for key in sorted(required_vars):
         icon = "[OK  ]" if key in keys else "[FAIL]"
         state = "configurada" if key in keys else "NO ENCONTRADA"
         print(f"{icon} {key} {state}")

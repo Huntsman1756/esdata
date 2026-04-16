@@ -9,6 +9,7 @@ import httpx
 from sqlalchemy import create_engine, text
 
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
+from runtime import get_database_url, get_interval_seconds
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:
@@ -18,11 +19,8 @@ def _parse_seed_urls(value: str | None) -> list[str]:
 
 
 SEED_URLS = _parse_seed_urls(os.getenv("TEAC_SEED_URLS"))
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
-)
-SYNC_INTERVAL_SECONDS = int(os.getenv("SYNC_INTERVAL_SECONDS", "604800"))
+DATABASE_URL = get_database_url()
+SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
 
 def _clean_html_text(value: str) -> str:
