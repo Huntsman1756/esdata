@@ -238,6 +238,13 @@ class BORMESummary(BaseModel):
     url_fuente: str | None = Field(default=None, description="URL pública del documento BORME")
 
 
+class BORMEEmpresaRelacionada(BaseModel):
+    id: int = Field(description="Identificador interno de la empresa")
+    nombre: str = Field(description="Denominación social relacionada")
+    rol: str = Field(description="Rol detectado de la empresa en el acto")
+    confianza_extraccion: float = Field(description="Confianza de la extracción (0-1)")
+
+
 class BORMEDetail(BaseModel):
     referencia: str = Field(description="Referencia interna del documento BORME")
     fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
@@ -245,6 +252,7 @@ class BORMEDetail(BaseModel):
     tipo_documento: str = Field(description="Tipo de acto societario detectado")
     texto: str = Field(description="Texto completo extraído del documento")
     url_fuente: str | None = Field(default=None, description="URL pública del documento BORME")
+    empresas_relacionadas: list[BORMEEmpresaRelacionada] = Field(default_factory=list, description="Empresas relacionadas con el acto")
 
 
 class BORMEListResponse(BaseModel):

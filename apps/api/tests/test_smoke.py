@@ -306,6 +306,8 @@ async def test_borme_lista_y_detalle():
     assert "BORME-A-2025-55-37" in referencias
     assert detalle.json()["tipo_documento"] == "nombramiento"
     assert "nombramientos" in detalle.json()["texto"].lower()
+    assert len(detalle.json()["empresas_relacionadas"]) >= 2
+    assert any(item["rol"] == "absorbida" for item in detalle.json()["empresas_relacionadas"])
     assert len(filtrada.json()["actos"]) >= 1
 
 
@@ -333,6 +335,7 @@ async def test_empresas_lista_y_detalle():
     assert data["nombre"] == "ALVAREZ GARCIA GANADERIA, S.L."
     assert len(data["documentos"]) >= 1
     assert data["documentos"][0]["organismo_emisor"] == "BORME"
+    assert any(item["rol"] == "principal" for item in data["documentos"])
 
 
 @pytest.mark.asyncio

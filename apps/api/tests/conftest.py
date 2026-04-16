@@ -469,10 +469,26 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
+    INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
+    VALUES (
+        'MURILLO & BARRERO, SOCIEDAD LIMITADA',
+        NULL,
+        NULL,
+        'BORME'
+    )
+    """,
+    """
     INSERT INTO documento_empresa (documento_id, empresa_id, rol, confianza_extraccion, nota)
     SELECT d.id, e.id, 'principal', 0.85, 'Test fixture BORME empresa'
     FROM documento_interpretativo d
     JOIN empresa e ON e.nombre = 'ALVAREZ GARCIA GANADERIA, S.L.'
+    WHERE d.referencia = 'BORME-A-2025-55-37'
+    """,
+    """
+    INSERT INTO documento_empresa (documento_id, empresa_id, rol, confianza_extraccion, nota)
+    SELECT d.id, e.id, 'absorbida', 0.70, 'Test fixture BORME empresa relacionada'
+    FROM documento_interpretativo d
+    JOIN empresa e ON e.nombre = 'MURILLO & BARRERO, SOCIEDAD LIMITADA'
     WHERE d.referencia = 'BORME-A-2025-55-37'
     """,
     # --- Enlace doctrina <-> artículo ---

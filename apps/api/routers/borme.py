@@ -82,6 +82,22 @@ async def get_borme(referencia: str):
         if not row:
             raise HTTPException(status_code=404, detail={"error": "Acto BORME no encontrado"})
 
+        empresas = list(
+            db.execute(
+                text(
+                    """
+                    SELECT e.id, e.nombre, de.rol, de.confianza_extraccion
+                    FROM documento_empresa de
+                    JOIN documento_interpretativo d ON d.id = de.documento_id
+                    JOIN empresa e ON e.id = de.empresa_id
+                    WHERE d.referencia = :referencia
+                    ORDER BY de.confianza_extraccion DESC, e.nombre ASC
+                    """
+                ),
+                {"referencia": referencia},
+            ).mappings()
+        )
+
         return {
             "referencia": row["referencia"],
             "fecha": str(row["fecha"]) if row["fecha"] else None,
@@ -89,4 +105,13 @@ async def get_borme(referencia: str):
             "tipo_documento": row["tipo_documento"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
+            "empresas_relacionadas": [
+                {
+                    "id": item["id"],
+                    "nombre": item["nombre"],
+                    "rol": item["rol"],
+                    "confianza_extraccion": float(item["confianza_extraccion"]),
+                }
+                for item in empresas
+            ],
         }

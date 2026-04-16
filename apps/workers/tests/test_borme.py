@@ -8,10 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from borme import (
     build_document_payload,
-    link_documento_empresa,
+    link_documento_empresas,
     run_sync,
     upsert_documento_interpretativo,
-    upsert_empresa,
+    upsert_empresas,
 )
 
 
@@ -31,9 +31,9 @@ stream
 BT
 /F1 12 Tf
 20 110 Td
-(Constitucion. ALVAREZ GARCIA GANADERIA SL) Tj
+(ALDITRAEX SOCIEDAD LIMITADA (Sociedad absorbente)) Tj
 0 -18 Td
-(Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA) Tj
+(MURILLO BARRERO SOCIEDAD LIMITADA (Sociedad absorbida)) Tj
 0 -18 Td
 (Domicilio: C SANTA LUCIA 19) Tj
 ET
@@ -65,10 +65,12 @@ def test_build_document_payload_extracts_reference_event_and_text():
     )
 
     assert payload["referencia"] == "BORME-A-2025-55-37"
-    assert payload["tipo_documento"] == "nombramiento"
-    assert payload["empresa_nombre"] == "ALVAREZ GARCIA GANADERIA SL"
+    assert payload["tipo_documento"] == "cambio_domicilio"
+    assert payload["empresa_nombre"] == "ALDITRAEX SOCIEDAD LIMITADA"
     assert payload["empresa_domicilio"] == "C SANTA LUCIA 19"
-    assert "alvarez garcia" in payload["texto"].lower()
+    assert len(payload["empresas"]) >= 2
+    assert any(item["rol"] == "absorbente" for item in payload["empresas"])
+    assert any(item["rol"] == "absorbida" for item in payload["empresas"])
 
 
 def test_upsert_documento_interpretativo_stores_borme_fields_once():
@@ -123,7 +125,7 @@ def test_upsert_documento_interpretativo_stores_borme_fields_once():
     )
 
 
-def test_upsert_empresa_and_link_documento_empresa():
+def test_upsert_empresas_and_link_documento_empresas():
     engine = create_engine("sqlite:///:memory:", future=True)
 
     with engine.begin() as conn:
@@ -180,24 +182,31 @@ def test_upsert_empresa_and_link_documento_empresa():
             "referencia": "BORME-A-2025-55-37",
             "fecha": "2025-03-20",
             "titulo": "Actos de SALAMANCA del BORME núm. 55 de 2025",
-            "tipo_documento": "nombramiento",
-            "texto": "Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA.",
+            "tipo_documento": "cambio_domicilio",
+            "texto": "ALDITRAEX SOCIEDAD LIMITADA (Sociedad absorbente). MURILLO BARRERO SOCIEDAD LIMITADA (Sociedad absorbida).",
             "url_fuente": "https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf",
-            "empresa_nombre": "ALVAREZ GARCIA GANADERIA SL",
+            "empresa_nombre": "ALDITRAEX SOCIEDAD LIMITADA",
             "empresa_domicilio": "C SANTA LUCIA 19",
+            "empresas": [
+                {"nombre": "ALDITRAEX SOCIEDAD LIMITADA", "domicilio": "C SANTA LUCIA 19", "rol": "absorbente", "confianza_extraccion": 0.7, "nota": "absorcion"},
+                {"nombre": "MURILLO BARRERO SOCIEDAD LIMITADA", "domicilio": None, "rol": "absorbida", "confianza_extraccion": 0.7, "nota": "absorcion"},
+            ],
         }
 
         upsert_documento_interpretativo(conn, payload)
-        empresa_id = upsert_empresa(conn, payload)
-        link_documento_empresa(conn, payload["referencia"], empresa_id)
+        empresas = upsert_empresas(conn, payload)
+        link_documento_empresas(conn, payload["referencia"], empresas)
 
-        row = conn.execute(
+        rows = conn.execute(
             text(
-                "SELECT e.nombre, e.domicilio, de.rol, de.confianza_extraccion FROM empresa e JOIN documento_empresa de ON de.empresa_id = e.id"
+                "SELECT e.nombre, e.domicilio, de.rol, de.confianza_extraccion FROM empresa e JOIN documento_empresa de ON de.empresa_id = e.id ORDER BY e.nombre"
             )
-        ).fetchone()
+        ).fetchall()
 
-    assert row == ("ALVAREZ GARCIA GANADERIA SL", "C SANTA LUCIA 19", "principal", 0.85)
+    assert rows == [
+        ("ALDITRAEX SOCIEDAD LIMITADA", "C SANTA LUCIA 19", "absorbente", 0.7),
+        ("MURILLO BARRERO SOCIEDAD LIMITADA", None, "absorbida", 0.7),
+    ]
 
 
 def test_run_sync_persists_borme_document_and_metrics(monkeypatch):
@@ -294,19 +303,22 @@ def test_run_sync_persists_borme_document_and_metrics(monkeypatch):
                 "SELECT referencia, organismo_emisor, tipo_fuente, ambito, tipo_documento FROM documento_interpretativo WHERE referencia = 'BORME-A-2025-55-37'"
             )
         ).fetchone()
-        empresa = conn.execute(
-            text("SELECT nombre, domicilio, fuente_inicial FROM empresa LIMIT 1")
-        ).fetchone()
-        enlace = conn.execute(
-            text("SELECT rol, confianza_extraccion FROM documento_empresa LIMIT 1")
-        ).fetchone()
+        empresas = conn.execute(
+            text("SELECT nombre, domicilio, fuente_inicial FROM empresa ORDER BY nombre")
+        ).fetchall()
+        enlaces = conn.execute(
+            text("SELECT rol, confianza_extraccion FROM documento_empresa ORDER BY rol")
+        ).fetchall()
         sync = conn.execute(
             text(
                 "SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log ORDER BY id DESC LIMIT 1"
             )
         ).fetchone()
 
-    assert doc == ("BORME-A-2025-55-37", "BORME", "borme", "mercantil", "nombramiento")
-    assert empresa == ("ALVAREZ GARCIA GANADERIA SL", "C SANTA LUCIA 19", "BORME")
-    assert enlace == ("principal", 0.85)
+    assert doc == ("BORME-A-2025-55-37", "BORME", "borme", "mercantil", "cambio_domicilio")
+    assert empresas == [
+        ("ALDITRAEX SOCIEDAD LIMITADA", "C SANTA LUCIA 19", "BORME"),
+        ("MURILLO BARRERO SOCIEDAD LIMITADA", None, "BORME"),
+    ]
+    assert enlaces == [("absorbente", 0.7), ("absorbida", 0.7)]
     assert sync == ("worker-borme", "ok", 1, 1)

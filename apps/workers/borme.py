@@ -26,6 +26,12 @@ EVENT_PATTERNS = [
 ]
 
 COMPANY_SUFFIXES = r"(?:S\.L\.|SL|S\.A\.|SA|S\.L|S\.A|SOCIEDAD LIMITADA|SOCIEDAD ANONIMA)"
+ROLE_PATTERNS = [
+    ("absorbente", r"\(([Ss]ociedad absorbente)\)"),
+    ("absorbida", r"\(([Ss]ociedad absorbida)\)"),
+    ("beneficiaria", r"\(([Ss]ociedades? beneficiarias?)\)"),
+    ("escindida", r"\(([Ss]ociedad totalmente escindida)\)"),
+]
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:
@@ -71,6 +77,57 @@ def _extract_company_name(text_value: str) -> str | None:
     return None
 
 
+def _dedupe_company_entries(entries: list[dict[str, str | float | None]]) -> list[dict[str, str | float | None]]:
+    deduped: list[dict[str, str | float | None]] = []
+    seen: set[tuple[str, str]] = set()
+    for entry in entries:
+        nombre = str(entry["nombre"])
+        rol = str(entry["rol"])
+        key = (nombre, rol)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(entry)
+    return deduped
+
+
+def _extract_related_companies(text_value: str) -> list[dict[str, str | float | None]]:
+    entries: list[dict[str, str | float | None]] = []
+
+    primary_name = _extract_company_name(text_value)
+    if primary_name:
+        entries.append(
+            {
+                "nombre": primary_name,
+                "domicilio": _extract_domicilio(text_value),
+                "rol": "principal",
+                "confianza_extraccion": 0.85,
+                "nota": "Extraccion heuristica desde BORME",
+            }
+        )
+
+    company_pattern = rf"([A-Z0-9ÁÉÍÓÚÑ .,\-]+?\s+{COMPANY_SUFFIXES})\s*\(([^\)]+)\)"
+    for match in re.finditer(company_pattern, text_value, flags=re.IGNORECASE):
+        nombre = _normalize_whitespace(match.group(1)).strip(" .,")
+        role_context = match.group(2)
+        role = "relacionada"
+        for candidate_role, role_pattern in ROLE_PATTERNS:
+            if re.search(role_pattern, f"({role_context})", flags=re.IGNORECASE):
+                role = candidate_role
+                break
+        entries.append(
+            {
+                "nombre": nombre,
+                "domicilio": None,
+                "rol": role,
+                "confianza_extraccion": 0.7,
+                "nota": f"Extraccion heuristica desde BORME: {role_context}",
+            }
+        )
+
+    return _dedupe_company_entries(entries)
+
+
 def _extract_domicilio(text_value: str) -> str | None:
     match = re.search(r"\bDomicilio:\s*([^\.]+)", text_value, flags=re.IGNORECASE)
     if not match:
@@ -108,6 +165,7 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
         "tipo_documento": event_type,
         "empresa_nombre": _extract_company_name(text_value),
         "empresa_domicilio": _extract_domicilio(text_value),
+        "empresas": _extract_related_companies(text_value),
     }
 
 
@@ -175,6 +233,40 @@ def upsert_empresa(conn, payload: dict[str, str]) -> int | None:
     return row[0] if row else None
 
 
+def upsert_empresas(conn, payload: dict[str, object]) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for company in payload.get("empresas", []):
+        nombre = company.get("nombre")
+        if not nombre:
+            continue
+        conn.execute(
+            text(
+                """
+                INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
+                VALUES (:nombre, NULL, :domicilio, 'BORME')
+                ON CONFLICT (nombre) DO UPDATE SET
+                    domicilio = COALESCE(excluded.domicilio, empresa.domicilio)
+                """
+            ),
+            {"nombre": nombre, "domicilio": company.get("domicilio")},
+        )
+        row = conn.execute(
+            text("SELECT id FROM empresa WHERE nombre = :nombre LIMIT 1"),
+            {"nombre": nombre},
+        ).fetchone()
+        if not row:
+            continue
+        results.append(
+            {
+                "empresa_id": row[0],
+                "rol": company.get("rol", "relacionada"),
+                "confianza_extraccion": company.get("confianza_extraccion", 0.7),
+                "nota": company.get("nota"),
+            }
+        )
+    return results
+
+
 def link_documento_empresa(conn, referencia: str, empresa_id: int | None) -> None:
     if empresa_id is None:
         return
@@ -196,6 +288,31 @@ def link_documento_empresa(conn, referencia: str, empresa_id: int | None) -> Non
     )
 
 
+def link_documento_empresas(conn, referencia: str, empresas: list[dict[str, object]]) -> None:
+    for empresa in empresas:
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_empresa (documento_id, empresa_id, rol, confianza_extraccion, nota)
+                SELECT d.id, :empresa_id, :rol, :confianza_extraccion, :nota
+                FROM documento_interpretativo d
+                WHERE d.referencia = :referencia
+                ON CONFLICT (documento_id, empresa_id) DO UPDATE SET
+                    rol = excluded.rol,
+                    confianza_extraccion = excluded.confianza_extraccion,
+                    nota = excluded.nota
+                """
+            ),
+            {
+                "empresa_id": empresa["empresa_id"],
+                "rol": empresa["rol"],
+                "confianza_extraccion": empresa["confianza_extraccion"],
+                "nota": empresa["nota"],
+                "referencia": referencia,
+            },
+        )
+
+
 def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-borme",
@@ -215,8 +332,12 @@ def run_sync(
                     payload = build_document_payload(url, response.content)
                     processed += 1
                     upsert_documento_interpretativo(conn, payload)
-                    empresa_id = upsert_empresa(conn, payload)
-                    link_documento_empresa(conn, payload["referencia"], empresa_id)
+                    empresas = upsert_empresas(conn, payload)
+                    if empresas:
+                        link_documento_empresas(conn, payload["referencia"], empresas)
+                    else:
+                        empresa_id = upsert_empresa(payload=payload, conn=conn)
+                        link_documento_empresa(conn, payload["referencia"], empresa_id)
                     stored += 1
 
                 log_sync(
