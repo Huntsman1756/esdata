@@ -10,6 +10,7 @@ Separar claramente la documentación permanente de los snapshots de sesión e in
 - `repository-structure.md`
 - `environment-variables.md`
 - `database.md`
+- `modelos-onboarding.md`
 - `infrastructure-handoff.md`
 - `professionalization-roadmap.md`
 - `deployment/overview.md`

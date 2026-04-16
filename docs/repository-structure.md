@@ -41,7 +41,7 @@ Archivos clave:
 Subdirectorios:
 
 - `routers/`: endpoints HTTP por dominio funcional
-- `services/`: logica auxiliar, hoy centrada en busqueda
+- `services/`: logica de acceso/consulta reutilizable; ahora incluye tambien el dominio de modelos
 - `tests/`: pruebas de API
 
 #### `apps/workers/`
@@ -53,7 +53,8 @@ Archivos clave:
 - `boe.py`: ingesta de legislacion BOE y asegurado basico de esquema
 - `dgt.py`: ingesta de doctrina DGT desde Petete
 - `teac.py`: ingesta de resoluciones TEAC desde URLs semilla
-- `modelos.py`: scraping de modelos AEAT y campanas
+- `modelos.py`: orquestacion del sync de modelos AEAT
+- `modelos_support.py`: scraping, deteccion de campañas y persistencia del dominio de modelos
 - `requirements.txt`: dependencias Python de workers
 - `Dockerfile`: imagen generica para workers
 

@@ -1,84 +1,31 @@
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
 
 from db import db_session
 from schemas import (
     ModeloDetail as ModeloDetailSchema,
     ModelosListResponse,
 )
+from services.modelos import (
+    get_active_campaign,
+    get_model_row,
+    list_campaign_casillas,
+    list_campaign_claves,
+    list_campaign_instructions,
+    list_modelo_articulos,
+    list_modelo_campanas,
+    list_modelo_normativa,
+    list_modelos_summary,
+    list_related_doctrina,
+)
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
-
-
-def _get_active_campaign(db, codigo: str, campana: str = None):
-    """Get active or specified campaign for a model.
-
-    Works with both Postgres (modelo_campana_activa function) and SQLite
-    (direct query fallback).
-    """
-    if campana:
-        row = db.execute(
-            text(
-                """
-                SELECT id, campana, url_instrucciones, url_normativa, url_formato
-                FROM modelo_campana
-                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                  AND campana = :campana
-                LIMIT 1
-                """
-            ),
-            {"codigo": codigo, "campana": campana},
-        ).mappings().first()
-    else:
-        # Try the Postgres function first; fall back to raw query on SQLite
-        try:
-            row = db.execute(
-                text(
-                    "SELECT id, campana, url_instrucciones, url_normativa, url_formato FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
-                ),
-                {"codigo": codigo},
-            ).mappings().first()
-        except Exception:
-            # SQLite fallback: direct query
-            row = db.execute(
-                text(
-                    """
-                    SELECT id, campana, url_instrucciones, url_normativa, url_formato
-                    FROM modelo_campana
-                    WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                      AND activo = true
-                    ORDER BY campana DESC
-                    LIMIT 1
-                    """
-                ),
-                {"codigo": codigo},
-            ).mappings().first()
-    return row
 
 
 @router.get("", operation_id="list_modelos", response_model=ModelosListResponse)
 async def list_modelos():
     """Lista todos los modelos AEAT disponibles."""
     with db_session() as db:
-        rows = db.execute(
-            text(
-                """
-                SELECT
-                    m.codigo,
-                    m.nombre,
-                    m.periodo,
-                    m.impuesto,
-                    COUNT(DISTINCT ma.articulo_id) AS articulos_count,
-                    COUNT(DISTINCT mc.id) AS casillas_count
-                FROM aeat_modelo m
-                LEFT JOIN modelo_articulo ma ON ma.modelo_id = m.id
-                LEFT JOIN modelo_campana mcam ON mcam.modelo_id = m.id AND mcam.activo = true
-                LEFT JOIN modelo_casilla mc ON mc.campana_id = mcam.id AND mc.activa = true
-                GROUP BY m.id, m.codigo, m.nombre, m.periodo, m.impuesto
-                ORDER BY m.codigo
-                """
-            )
-        ).mappings()
+        rows = list_modelos_summary(db)
 
         return {
             "modelos": [
@@ -107,47 +54,18 @@ async def get_modelo(codigo: str, campana: str = Query(None, description="Campan
       usa la campaña activa más reciente.
     """
     with db_session() as db:
-        model_row = db.execute(
-            text(
-                """
-                SELECT codigo, nombre, periodo, impuesto, url_info
-                FROM aeat_modelo
-                WHERE codigo = :codigo
-                LIMIT 1
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+        model_row = get_model_row(db, codigo)
 
         if not model_row:
             raise HTTPException(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
 
-        camp_row = _get_active_campaign(db, codigo, campana)
+        camp_row = get_active_campaign(db, codigo, campana)
         campana_id = camp_row["id"] if camp_row else None
         campana_activa = camp_row["campana"] if camp_row else None
 
-        art_rows = db.execute(
-            text(
-                """
-                SELECT
-                    n.codigo AS norma,
-                    a.numero,
-                    a.titulo,
-                    ma.casilla,
-                    ma.nota,
-                    ma.fuente,
-                    ma.url_fuente
-                FROM modelo_articulo ma
-                JOIN articulo a ON a.id = ma.articulo_id
-                JOIN norma n ON n.id = a.norma_id
-                WHERE ma.modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                ORDER BY n.codigo, a.numero
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings()
+        art_rows = list_modelo_articulos(db, codigo)
 
         articulos = [
             {
@@ -164,123 +82,25 @@ async def get_modelo(codigo: str, campana: str = Query(None, description="Campan
 
         casillas = []
         if campana_id:
-            cas_rows = db.execute(
-                text(
-                    """
-                    SELECT codigo, etiqueta, descripcion, tipo_casilla, pagina, orden
-                    FROM modelo_casilla
-                    WHERE campana_id = :campana_id AND activa = true
-                    ORDER BY orden
-                    """
-                ),
-                {"campana_id": campana_id},
-            ).mappings()
+            cas_rows = list_campaign_casillas(db, campana_id)
             casillas = [dict(r) for r in cas_rows]
 
         claves = []
         if campana_id:
-            clav_rows = db.execute(
-                text(
-                    """
-                    SELECT codigo, etiqueta, descripcion, tipo_clave
-                    FROM modelo_clave
-                    WHERE campana_id = :campana_id AND activa = true
-                    ORDER BY codigo
-                    """
-                ),
-                {"campana_id": campana_id},
-            ).mappings()
+            clav_rows = list_campaign_claves(db, campana_id)
             claves = [dict(r) for r in clav_rows]
 
         instrucciones = []
         if campana_id:
-            instr_rows = db.execute(
-                text(
-                    """
-                    SELECT seccion, titulo, contenido, orden
-                    FROM modelo_instruccion
-                    WHERE campana_id = :campana_id
-                    ORDER BY orden
-                    """
-                ),
-                {"campana_id": campana_id},
-            ).mappings()
+            instr_rows = list_campaign_instructions(db, campana_id)
             instrucciones = [dict(r) for r in instr_rows]
 
-        norm_rows = db.execute(
-            text(
-                """
-                SELECT boe_id, titulo, fecha, url_boe, resumen
-                FROM modelo_normativa
-                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                ORDER BY fecha DESC
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings()
+        norm_rows = list_modelo_normativa(db, codigo)
         normativa = [dict(r) for r in norm_rows]
 
-        camp_rows = db.execute(
-            text(
-                """
-                SELECT campana, activo
-                FROM modelo_campana
-                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                ORDER BY campana DESC
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings()
+        camp_rows = list_modelo_campanas(db, codigo)
         campanas = [dict(r) for r in camp_rows]
-
-        if articulos:
-            conditions = []
-            params = {}
-            for i, art in enumerate(articulos):
-                conditions.append(f"n.codigo = :n{i} AND a.numero = :a{i}")
-                params[f"n{i}"] = art["norma"]
-                params[f"a{i}"] = art["numero"]
-
-            where_clause = " OR ".join(conditions)
-
-            doc_rows = db.execute(
-                text(
-                    f"""
-                    SELECT DISTINCT
-                        di.referencia,
-                        di.organismo_emisor,
-                        di.fecha,
-                        n.codigo AS norma,
-                        a.numero
-                    FROM documento_articulo da
-                    JOIN documento_interpretativo di ON di.id = da.documento_id
-                    JOIN articulo a ON a.id = da.articulo_id
-                    JOIN norma n ON n.id = a.norma_id
-                    WHERE {where_clause}
-                    ORDER BY di.fecha DESC
-                    LIMIT 50
-                    """
-                ),
-                params,
-            ).mappings()
-
-            doctrina_map = {}
-            for row in doc_rows:
-                ref = row["referencia"]
-                if ref not in doctrina_map:
-                    doctrina_map[ref] = {
-                        "referencia": ref,
-                        "organismo_emisor": row["organismo_emisor"],
-                        "fecha": str(row["fecha"]) if row["fecha"] else None,
-                        "via_articulos": [],
-                    }
-                doctrina_map[ref]["via_articulos"].append(
-                    {"norma": row["norma"], "numero": row["numero"]}
-                )
-
-            doctrina_relacionada = list(doctrina_map.values())
-        else:
-            doctrina_relacionada = []
+        doctrina_relacionada = list_related_doctrina(db, articulos)
 
         return {
             "codigo": model_row["codigo"],
@@ -303,40 +123,14 @@ async def get_modelo(codigo: str, campana: str = Query(None, description="Campan
 async def get_modelo_articulos(codigo: str):
     """Solo artículos enlazados a un modelo (para filtros/paginación futura)."""
     with db_session() as db:
-        model_row = db.execute(
-            text(
-                """
-                SELECT codigo FROM aeat_modelo WHERE codigo = :codigo LIMIT 1
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+        model_row = get_model_row(db, codigo)
 
         if not model_row:
             raise HTTPException(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
 
-        rows = db.execute(
-            text(
-                """
-                SELECT
-                    n.codigo AS norma,
-                    a.numero,
-                    a.titulo,
-                    ma.casilla,
-                    ma.nota,
-                    ma.fuente,
-                    ma.url_fuente
-                FROM modelo_articulo ma
-                JOIN articulo a ON a.id = ma.articulo_id
-                JOIN norma n ON n.id = a.norma_id
-                WHERE ma.modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                ORDER BY n.codigo, a.numero
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings()
+        rows = list_modelo_articulos(db, codigo)
 
         return {
             "codigo": codigo,
@@ -360,24 +154,13 @@ async def get_modelo_articulos(codigo: str):
 async def get_modelo_casillas(codigo: str, campana: str = Query(None, description="Campana especifica")):
     """Lista todas las casillas de un modelo para una campaña."""
     with db_session() as db:
-        camp_row = _get_active_campaign(db, codigo, campana)
+        camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
             return {"codigo": codigo, "casillas": []}
 
         campana_id = camp_row["id"]
-
-        rows = db.execute(
-            text(
-                """
-                SELECT codigo, etiqueta, descripcion, tipo_casilla, pagina, orden
-                FROM modelo_casilla
-                WHERE campana_id = :campana_id AND activa = true
-                ORDER BY orden
-                """
-            ),
-            {"campana_id": campana_id},
-        ).mappings()
+        rows = list_campaign_casillas(db, campana_id)
 
         return {
             "codigo": codigo,
@@ -390,24 +173,13 @@ async def get_modelo_casillas(codigo: str, campana: str = Query(None, descriptio
 async def get_modelo_claves(codigo: str, campana: str = Query(None, description="Campana especifica")):
     """Lista todas las claves de un modelo para una campaña."""
     with db_session() as db:
-        camp_row = _get_active_campaign(db, codigo, campana)
+        camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
             return {"codigo": codigo, "claves": []}
 
         campana_id = camp_row["id"]
-
-        rows = db.execute(
-            text(
-                """
-                SELECT codigo, etiqueta, descripcion, tipo_clave
-                FROM modelo_clave
-                WHERE campana_id = :campana_id AND activa = true
-                ORDER BY codigo
-                """
-            ),
-            {"campana_id": campana_id},
-        ).mappings()
+        rows = list_campaign_claves(db, campana_id)
 
         return {
             "codigo": codigo,
@@ -420,24 +192,13 @@ async def get_modelo_claves(codigo: str, campana: str = Query(None, description=
 async def get_modelo_instrucciones(codigo: str, campana: str = Query(None, description="Campana especifica")):
     """Lista las instrucciones de un modelo para una campaña."""
     with db_session() as db:
-        camp_row = _get_active_campaign(db, codigo, campana)
+        camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
             return {"codigo": codigo, "instrucciones": []}
 
         campana_id = camp_row["id"]
-
-        rows = db.execute(
-            text(
-                """
-                SELECT seccion, titulo, contenido, orden
-                FROM modelo_instruccion
-                WHERE campana_id = :campana_id
-                ORDER BY orden
-                """
-            ),
-            {"campana_id": campana_id},
-        ).mappings()
+        rows = list_campaign_instructions(db, campana_id)
 
         return {
             "codigo": codigo,
@@ -449,17 +210,7 @@ async def get_modelo_instrucciones(codigo: str, campana: str = Query(None, descr
 async def get_modelo_normativa(codigo: str):
     """Lista la normativa (BOE) de un modelo."""
     with db_session() as db:
-        rows = db.execute(
-            text(
-                """
-                SELECT boe_id, titulo, fecha, url_boe, resumen
-                FROM modelo_normativa
-                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
-                ORDER BY fecha DESC
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings()
+        rows = list_modelo_normativa(db, codigo)
 
         return {
             "codigo": codigo,

@@ -18,6 +18,7 @@ Ubicacion:
 
 - `apps/api/main.py`
 - `apps/api/routers/*`
+- `apps/api/services/*`
 - `apps/api/db.py`
 - `apps/api/schemas.py`
 
@@ -34,6 +35,10 @@ Responsabilidades:
 - publicar spec OpenAPI
 - exponer superficie MCP en `/mcp`
 - devolver estado agregado basico del sistema en `/status` y salud en `/health`
+
+Observacion estructural:
+
+- el dominio de modelos ya no vive solo en el router; la capa `apps/api/services/modelos.py` concentra consultas y composicion de respuestas para facilitar evolucion y testing
 
 Routers actuales:
 
@@ -52,6 +57,7 @@ Ubicacion:
 - `apps/workers/dgt.py`
 - `apps/workers/teac.py`
 - `apps/workers/modelos.py`
+- `apps/workers/modelos_support.py`
 
 Tecnologia:
 
@@ -67,6 +73,11 @@ Responsabilidades:
 - descargar resoluciones TEAC desde DYCTEA/URLs semilla
 - sincronizar instrucciones, casillas, claves y normativa de modelos AEAT
 - dejar traza operativa en `sync_log`
+
+Observacion estructural:
+
+- `apps/workers/modelos.py` actua ahora como orquestador del sync
+- `apps/workers/modelos_support.py` concentra scraping, deteccion de campañas y persistencia del dominio de modelos
 
 ### 3. Frontend web
 
@@ -157,11 +168,12 @@ Responsabilidades:
 ### Flujo 4. Modelos AEAT
 
 1. `worker-modelos` obtiene modelos desde la base de datos.
-2. Descarga HTML de paginas de sede AEAT.
-3. Detecta campanas.
-4. Actualiza `modelo_campana`, `modelo_casilla`, `modelo_clave` y `modelo_instruccion`.
-5. Registra una entrada agregada en `sync_log`.
-6. La API expone esos datos en `/v1/modelos/*` y el frontend en `/modelo/[codigo]`.
+2. `modelos_support.py` descarga HTML de paginas de sede AEAT.
+3. `modelos_support.py` detecta campañas y aplica heuristicas de scraping.
+4. Se actualizan `modelo_campana`, `modelo_casilla`, `modelo_clave` y `modelo_instruccion`.
+5. El worker registra una entrada agregada en `sync_log`.
+6. `apps/api/services/modelos.py` compone lecturas de detalle, campañas y datos relacionados.
+7. La API expone esos datos en `/v1/modelos/*` y el frontend en `/modelo/[codigo]`.
 
 ### Flujo 5. Frontend web
 
