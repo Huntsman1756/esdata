@@ -404,6 +404,23 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Consulta DGT sobre tipo reducido', 'Documento de referencia relacionado con LIVA 91.', 'https://example.invalid/dgt/V0000-26'
     )
     """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'convocatoria_subvencion',
+        'BDNS',
+        'es',
+        'bdns',
+        'subvenciones',
+        'BDNS-749075-1034404',
+        '2026-04-16',
+        'Convocatoria 749075 - Becas de carácter general para estudiantes de enseñanzas postobligatorias',
+        'Convocatoria de subvención pública para becas de carácter general. Incluye beneficiarios, cuantía, plazo de presentación y bases reguladoras.',
+        'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404'
+    )
+    """,
     # --- Enlace doctrina <-> artículo ---
     """
     INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)

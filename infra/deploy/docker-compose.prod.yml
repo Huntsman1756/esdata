@@ -146,6 +146,25 @@ services:
     tmpfs:
       - /tmp
 
+  worker-bdns:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
+      SYNC_INTERVAL_SECONDS: ${BDNS_SYNC_INTERVAL_SECONDS:-604800}
+      WORKER_CMD: python bdns.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
   cron-boe-daily:
     build:
       context: ../../apps/workers
@@ -186,6 +205,16 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
       WORKER_CMD: python modelos.py --run-once
+
+  cron-bdns-weekly:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
+      WORKER_CMD: python bdns.py --run-once
 
 volumes:
   esdata-postgres:

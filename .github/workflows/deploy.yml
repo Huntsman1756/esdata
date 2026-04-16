@@ -66,6 +66,24 @@ jobs:
             railway up apps/workers --path-as-root --service cron-teac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
+      - name: Deploy BDNS worker a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service worker-bdns --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service worker-bdns --json
+            railway up apps/workers --path-as-root --service worker-bdns --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
+      - name: Deploy BDNS weekly cron a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service cron-bdns-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service cron-bdns-weekly --json
+            railway up apps/workers --path-as-root --service cron-bdns-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
       - name: Espera breve tras deploy
         run: sleep 20
 

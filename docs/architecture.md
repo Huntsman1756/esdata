@@ -264,6 +264,8 @@ La configuracion base y los tests del repo ya contemplan como minimo:
 - `DAC6RD` (desarrollo reglamentario español)
 - `DAC6EU` (referencia UE desde EUR-Lex)
 
+Ademas, la capa documental incluye `BDNS` como fuente separada de convocatorias públicas de subvenciones. En este primer slice se almacena en `documento_interpretativo` con `organismo_emisor='BDNS'`, `tipo_fuente='bdns'` y `tipo_documento='convocatoria_subvencion'`, sin forzar todavía anclaje normativo automático.
+
 ### Configuracion todavia heterogenea
 
 Existen variables documentadas en `.env.example` que no estan usadas por el runtime actual y tambien existen variables usadas por scripts operativos que no forman parte del contrato principal de la aplicacion. Esto se documenta por separado en `docs/environment-variables.md`.

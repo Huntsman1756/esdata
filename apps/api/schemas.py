@@ -205,5 +205,29 @@ class DoctrinaSearchResponse(BaseModel):
     resultados: list[DoctrinaSearchResult]
 
 
+# ---------------------------------------------------------------------------
+# BDNS
+# ---------------------------------------------------------------------------
+
+class BDNSSummary(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento BDNS")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título de la convocatoria")
+    fragmento: str = Field(description="Fragmento resumido del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento BDNS")
+
+
+class BDNSDetail(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento BDNS")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título de la convocatoria")
+    texto: str = Field(description="Texto completo extraído del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento BDNS")
+
+
+class BDNSListResponse(BaseModel):
+    convocatorias: list[BDNSSummary]
+
+
 class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]

@@ -46,13 +46,13 @@ export default function Home() {
           </div>
         </div>
         <p className="mt-6 text-sm leading-relaxed text-stone-500 bg-stone-100/50 p-4 rounded-lg border border-stone-100">
-          <span className="font-medium text-stone-700">Nota sobre cobertura:</span> En una herramienta de gesti\u00f3n fiscal tambi\u00e9n importan capas como UNE 19602, PLACE, BORME o BDNS. Son relevantes para la evoluci\u00f3n del producto, pero no forman parte de la cobertura actual.
+          <span className="font-medium text-stone-700">Nota sobre cobertura:</span> En una herramienta de gesti\u00f3n fiscal tambi\u00e9n importan capas como UNE 19602, PLACE o BORME. Son relevantes para la evoluci\u00f3n del producto, pero no forman parte de la cobertura actual.
         </p>
         <p className="mt-1 text-sm leading-relaxed text-stone-600 sm:text-base">
-          Hoy muestra soporte para LGT, LIRPF, LIS, LIVA, ITPAJD, IRNR, IIEE, HL, `DAC6`, `DAC6RD` y `DAC6EU`. La verificaci\u00f3n desplegada de estas incorporaciones depende del siguiente ciclo de ingesta y despliegue.
+          Hoy muestra soporte para LGT, LIRPF, LIS, LIVA, ITPAJD, IRNR, IIEE, HL, `DAC6`, `DAC6RD`, `DAC6EU` y una primera capa documental `BDNS` para convocatorias públicas de subvenciones. La verificaci\u00f3n desplegada de estas incorporaciones depende del siguiente ciclo de ingesta y despliegue.
         </p>
         <p className="mt-2 text-sm leading-relaxed text-stone-500 sm:text-base">
-          Lo siguiente sigue en cola por separado: UNE 19602, PLACE, BORME y BDNS.
+          Lo siguiente sigue en cola por separado: UNE 19602, PLACE y BORME.
         </p>
       </section>
 

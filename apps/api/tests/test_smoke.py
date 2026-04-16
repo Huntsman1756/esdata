@@ -36,6 +36,8 @@ async def test_status_tiene_workers():
         "cron-dgt-weekly",
         "worker-teac",
         "cron-teac-weekly",
+        "worker-bdns",
+        "cron-bdns-weekly",
     ]:
         assert w in data["workers"]
 
@@ -268,6 +270,23 @@ async def test_doctrina_buscar_por_texto():
     data = r.json()
     assert len(data["resultados"]) >= 1
     assert any(item["referencia"] == "V0000-26" for item in data["resultados"])
+
+
+@pytest.mark.asyncio
+async def test_bdns_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/bdns")
+        detalle = await c.get("/v1/bdns/BDNS-749075-1034404")
+        filtrada = await c.get("/v1/bdns?q=becas")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert filtrada.status_code == 200
+
+    referencias = [item["referencia"] for item in lista.json()["convocatorias"]]
+    assert "BDNS-749075-1034404" in referencias
+    assert "becas" in detalle.json()["texto"].lower()
+    assert len(filtrada.json()["convocatorias"]) >= 1
 
 
 @pytest.mark.asyncio

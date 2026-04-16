@@ -59,5 +59,17 @@ services:
       - postgres
     command: python apps/workers/modelos.py
 
+  worker-bdns:
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
+      BDNS_SEED_URLS: https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404
+      SYNC_INTERVAL_SECONDS: "604800"
+    depends_on:
+      - postgres
+    command: python -m workers.bdns
+
 volumes:
   pgdata:
