@@ -71,5 +71,17 @@ services:
       - postgres
     command: python -m workers.bdns
 
+  worker-borme:
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
+      BORME_SEED_URLS: https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf
+      SYNC_INTERVAL_SECONDS: "604800"
+    depends_on:
+      - postgres
+    command: python -m workers.borme
+
 volumes:
   pgdata:

@@ -22,6 +22,7 @@ DEFAULT_CHECKS = [
     ("/v1/legislacion/DAC6RD", 200, "codigo"),
     ("/v1/legislacion/DAC6EU", 200, "codigo"),
     ("/v1/bdns", 200, "convocatorias"),
+    ("/v1/borme", 200, "actos"),
     ("/v1/materias/tipo-reducido-iva", 200, "articulos"),
     ("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA", 200, "resultados"),
     ("/v1/legislacion/cobertura", 200, "normas"),

@@ -38,6 +38,8 @@ async def test_status_tiene_workers():
         "cron-teac-weekly",
         "worker-bdns",
         "cron-bdns-weekly",
+        "worker-borme",
+        "cron-borme-weekly",
     ]:
         assert w in data["workers"]
 
@@ -287,6 +289,24 @@ async def test_bdns_lista_y_detalle():
     assert "BDNS-749075-1034404" in referencias
     assert "becas" in detalle.json()["texto"].lower()
     assert len(filtrada.json()["convocatorias"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_borme_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/borme")
+        detalle = await c.get("/v1/borme/BORME-A-2025-55-37")
+        filtrada = await c.get("/v1/borme?q=alvarez&tipo=nombramiento")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert filtrada.status_code == 200
+
+    referencias = [item["referencia"] for item in lista.json()["actos"]]
+    assert "BORME-A-2025-55-37" in referencias
+    assert detalle.json()["tipo_documento"] == "nombramiento"
+    assert "nombramientos" in detalle.json()["texto"].lower()
+    assert len(filtrada.json()["actos"]) >= 1
 
 
 @pytest.mark.asyncio

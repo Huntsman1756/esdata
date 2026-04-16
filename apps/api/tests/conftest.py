@@ -421,6 +421,23 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404'
     )
     """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'nombramiento',
+        'BORME',
+        'es',
+        'borme',
+        'mercantil',
+        'BORME-A-2025-55-37',
+        '2025-03-20',
+        'Actos de SALAMANCA del BORME núm. 55 de 2025',
+        'Constitución. ALVAREZ GARCIA GANADERIA, S.L. Domicilio: C/ SANTA LUCIA 19. Capital: 3.000,00 Euros. Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA.',
+        'https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf'
+    )
+    """,
     # --- Enlace doctrina <-> artículo ---
     """
     INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)

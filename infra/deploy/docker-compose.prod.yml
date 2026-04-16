@@ -165,6 +165,25 @@ services:
     tmpfs:
       - /tmp
 
+  worker-borme:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
+      SYNC_INTERVAL_SECONDS: ${BORME_SYNC_INTERVAL_SECONDS:-604800}
+      WORKER_CMD: python borme.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
   cron-boe-daily:
     build:
       context: ../../apps/workers
@@ -215,6 +234,16 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
       WORKER_CMD: python bdns.py --run-once
+
+  cron-borme-weekly:
+    build:
+      context: ../../apps/workers
+      dockerfile: Dockerfile
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
+      WORKER_CMD: python borme.py --run-once
 
 volumes:
   esdata-postgres:

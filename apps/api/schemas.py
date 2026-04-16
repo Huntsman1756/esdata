@@ -229,5 +229,27 @@ class BDNSListResponse(BaseModel):
     convocatorias: list[BDNSSummary]
 
 
+class BORMESummary(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento BORME")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título o encabezado principal")
+    tipo_documento: str = Field(description="Tipo de acto societario detectado")
+    fragmento: str = Field(description="Fragmento resumido del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento BORME")
+
+
+class BORMEDetail(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento BORME")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título o encabezado principal")
+    tipo_documento: str = Field(description="Tipo de acto societario detectado")
+    texto: str = Field(description="Texto completo extraído del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento BORME")
+
+
+class BORMEListResponse(BaseModel):
+    actos: list[BORMESummary]
+
+
 class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]

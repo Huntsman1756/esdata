@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from mcp_server import mount_mcp
-from routers import bdns, buscar, doctrina, legislacion, materias, modelos, status
+from routers import bdns, borme, buscar, doctrina, legislacion, materias, modelos, status
 
 app = FastAPI(
     title="esdata API",
@@ -16,6 +16,7 @@ app.include_router(legislacion.router)
 app.include_router(materias.router)
 app.include_router(doctrina.router)
 app.include_router(bdns.router)
+app.include_router(borme.router)
 app.include_router(modelos.router)
 
 mount_mcp(app)
