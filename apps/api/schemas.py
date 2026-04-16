@@ -283,6 +283,30 @@ class CNMVListResponse(BaseModel):
     documentos: list[CNMVSummary]
 
 
+class SEPBLACSummary(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento SEPBLAC")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título principal del documento SEPBLAC")
+    tipo_documento: str = Field(description="Tipo de documento SEPBLAC")
+    ambito: str = Field(description="Ámbito operativo o regulatorio del documento")
+    fragmento: str = Field(description="Fragmento resumido del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento SEPBLAC")
+
+
+class SEPBLACDetail(BaseModel):
+    referencia: str = Field(description="Referencia interna del documento SEPBLAC")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    titulo: str | None = Field(default=None, description="Título principal del documento SEPBLAC")
+    tipo_documento: str = Field(description="Tipo de documento SEPBLAC")
+    ambito: str = Field(description="Ámbito operativo o regulatorio del documento")
+    texto: str = Field(description="Texto completo extraído del documento")
+    url_fuente: str | None = Field(default=None, description="URL pública del documento SEPBLAC")
+
+
+class SEPBLACListResponse(BaseModel):
+    documentos: list[SEPBLACSummary]
+
+
 class EmpresaSummary(BaseModel):
     id: int = Field(description="Identificador interno de empresa")
     nombre: str = Field(description="Denominación social detectada")

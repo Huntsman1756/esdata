@@ -42,6 +42,8 @@ async def test_status_tiene_workers():
         "cron-borme-weekly",
         "worker-cnmv",
         "cron-cnmv-weekly",
+        "worker-sepblac",
+        "cron-sepblac-weekly",
     ]:
         assert w in data["workers"]
 
@@ -309,6 +311,25 @@ async def test_cnmv_lista_y_detalle():
     assert detalle.json()["tipo_documento"] == "circular_cnmv"
     assert detalle.json()["ambito"] == "reporting_financiero"
     assert "estados de información reservada" in detalle.json()["texto"].lower()
+    assert len(filtrada.json()["documentos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_sepblac_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/sepblac")
+        detalle = await c.get("/v1/sepblac/SEPBLAC-MODELO-19")
+        filtrada = await c.get("/v1/sepblac?q=comunicaci%C3%B3n+por+indicio&ambito=aml_cft_reporting")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert filtrada.status_code == 200
+
+    referencias = [item["referencia"] for item in lista.json()["documentos"]]
+    assert "SEPBLAC-MODELO-19" in referencias
+    assert detalle.json()["tipo_documento"] == "formulario_sepblac"
+    assert detalle.json()["ambito"] == "aml_cft_reporting"
+    assert "modelo 19" in detalle.json()["texto"].lower()
     assert len(filtrada.json()["documentos"]) >= 1
 
 

@@ -477,6 +477,23 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'formulario_sepblac',
+        'SEPBLAC',
+        'es',
+        'sepblac',
+        'aml_cft_reporting',
+        'SEPBLAC-MODELO-19',
+        '2026-04-16',
+        'Comunicación por indicio - Modelo 19 SEPBLAC',
+        'Procedimiento para la comunicación por indicio de hechos u operaciones respecto de los que existan indicios o certeza de blanqueo de capitales o financiación del terrorismo. Incluye el formulario oficial Modelo 19 SEPBLAC.',
+        'https://www.sepblac.es/es/'
+    )
+    """,
+    """
     INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
     VALUES (
         'ALVAREZ GARCIA GANADERIA, S.L.',

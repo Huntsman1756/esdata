@@ -120,6 +120,24 @@ jobs:
             railway up apps/workers --path-as-root --service cron-cnmv-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
           fi
 
+      - name: Deploy SEPBLAC worker a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service worker-sepblac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service worker-sepblac --json
+            railway up apps/workers --path-as-root --service worker-sepblac --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
+      - name: Deploy SEPBLAC weekly cron a Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! railway up apps/workers --path-as-root --service cron-sepblac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach; then
+            railway add --service cron-sepblac-weekly --json
+            railway up apps/workers --path-as-root --service cron-sepblac-weekly --project $RAILWAY_PROJECT_ID --environment $RAILWAY_ENVIRONMENT --detach
+          fi
+
       - name: Espera breve tras deploy
         run: sleep 20
 

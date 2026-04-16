@@ -95,5 +95,17 @@ services:
       - postgres
     command: python -m workers.cnmv
 
+  worker-sepblac:
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
+      SEPBLAC_SEED_URLS: https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/
+      SYNC_INTERVAL_SECONDS: "604800"
+    depends_on:
+      - postgres
+    command: python -m workers.sepblac
+
 volumes:
   pgdata:

@@ -19,6 +19,7 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Cobertura doctrinal actual: DGT y TEAC con enlazado a articulos via `documento_articulo`.
 - Cobertura documental adicional: `BDNS` con convocatorias públicas de subvenciones almacenadas como fuente documental específica.
 - Cobertura regulatoria documental inicial: `CNMV` con circulares y documentos de reporting/indexación operativa.
+- Cobertura regulatoria documental inicial: `SEPBLAC` con formularios y documentación operativa PBC/FT.
 - Cobertura societaria inicial: `BORME` con actos societarios públicos almacenados como fuente documental mercantil.
 - Base inicial de entidades: `empresa` y `documento_empresa` para empezar a cruzar fuentes públicas alrededor de una sociedad.
 - Capa de cumplimiento y presentacion: modelos AEAT con relaciones verificadas a articulos concretos.
@@ -108,6 +109,7 @@ Rutas frontend utiles:
 - `apps/workers/dgt.py`: scraping DGT via sesion/AJAX, persistencia y relinking de doctrina.
 - `apps/workers/teac.py`: scraping TEAC via DYCTEA, persistencia y relinking de doctrina.
 - `apps/workers/cnmv.py`: ingesta documental inicial de CNMV desde referencias públicas canonizadas.
+- `apps/workers/sepblac.py`: ingesta documental inicial de SEPBLAC con soporte HTML/PDF para operativa PBC/FT.
 - `apps/workers/modelos.py`: orquestación del sync AEAT por modelo.
 - `apps/workers/modelos_support.py`: scraping, campañas y persistencia del dominio de modelos AEAT.
 - `apps/workers/tests/test_boe.py`: tests del worker.
@@ -117,6 +119,7 @@ Rutas frontend utiles:
 - `apps/web`: frontend Next.js 15 con home, busqueda, detalle de doctrina, detalle de articulo y detalle de modelo AEAT.
 - `apps/api/routers/modelos.py`: endpoints `/v1/modelos` para la capa de modelos AEAT.
 - `apps/api/routers/cnmv.py`: endpoints `/v1/cnmv` para la capa documental regulatoria CNMV.
+- `apps/api/routers/sepblac.py`: endpoints `/v1/sepblac` para la capa documental operativa SEPBLAC.
 - `apps/api/services/modelos.py`: consultas reutilizables para detalle, campañas y relaciones de modelos.
 - `scripts/seed-modelos.py`: seed idempotente de metadata y relaciones `modelo_articulo` con fuente verificable.
 - `scripts/seed-modelos-v2.py`: seed idempotente de campañas, instrucciones, casillas, claves y normativa AEAT.

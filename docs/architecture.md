@@ -268,6 +268,8 @@ Ademas, la capa documental incluye `BDNS` como fuente separada de convocatorias 
 
 La capa regulatoria documental inicial incluye `CNMV` como fuente de circulares y documentos operativos públicos. En este primer slice también se almacena en `documento_interpretativo` con `organismo_emisor='CNMV'`, `tipo_fuente='cnmv'` y ámbitos heurísticos como `reporting_financiero`, `reporting_regulatorio`, `infraestructuras_mercado` o `mercados`.
 
+La capa regulatoria documental inicial incluye también `SEPBLAC` como fuente de formularios y documentación operativa PBC/FT. En este primer slice se almacena en `documento_interpretativo` con `organismo_emisor='SEPBLAC'`, `tipo_fuente='sepblac'` y ámbitos heurísticos como `aml_cft_reporting`, `aml_cft` o `supervision_sepblac`, con soporte de extracción tanto desde HTML como desde PDF.
+
 La capa mercantil inicial incluye `BORME` como fuente de actos societarios públicos. En este primer slice se almacena también en `documento_interpretativo` con `organismo_emisor='BORME'`, `tipo_fuente='borme'`, `ambito='mercantil'` y un `tipo_documento` básico detectado por heurística (`nombramiento`, `constitucion`, `cambio_domicilio`, `ampliacion_capital`, `reduccion_capital`, `disolucion`, `concurso`).
 
 Para soportar cruces futuros entre `BORME`, `BDNS` y otras fuentes, el esquema incorpora una tabla `empresa` y una tabla puente `documento_empresa`. En este slice se puebla desde `BORME` con extracción heurística de denominación social y domicilio, sin exigir todavía NIF ni normalización avanzada de sociedades.
