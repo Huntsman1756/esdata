@@ -1,0 +1,188 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "esdata API",
+    "description": "Minimal GPT Action spec for AEAT models.",
+    "version": "0.1.6"
+  },
+  "servers": [
+    {
+      "url": "https://esdata-production.up.railway.app",
+      "description": "Production API on Railway"
+    }
+  ],
+  "paths": {
+    "/v1/modelos": {
+      "get": {
+        "operationId": "list_modelos",
+        "summary": "List AEAT tax models",
+        "description": "List available AEAT tax models and their box counts.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "modelos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "codigo": { "type": "string" },
+                          "nombre": { "type": "string" },
+                          "periodo": { "type": "string" },
+                          "impuesto": { "type": "string" },
+                          "articulos_count": { "type": "integer" },
+                          "casillas_count": { "type": "integer" }
+                        },
+                        "required": ["codigo", "nombre", "impuesto", "articulos_count", "casillas_count"]
+                      }
+                    }
+                  },
+                  "required": ["modelos"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/modelos/{codigo}": {
+      "get": {
+        "operationId": "get_modelo",
+        "summary": "Get AEAT model details",
+        "description": "Get full details for a specific AEAT model, including campaigns, boxes, keys, instructions, and regulation.",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "AEAT model code, for example 303 or 100."
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Specific campaign year, for example 2025. If omitted, use the active campaign."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "codigo": { "type": "string" },
+                    "nombre": { "type": "string" },
+                    "periodo": { "type": "string" },
+                    "impuesto": { "type": "string" },
+                    "url_info": { "type": "string" },
+                    "campana_activa": { "type": "string" },
+                    "campanas": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "campana": { "type": "string" },
+                          "activo": { "type": "boolean" }
+                        },
+                        "required": ["campana", "activo"]
+                      }
+                    },
+                    "articulos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "norma": { "type": "string" },
+                          "numero": { "type": "string" },
+                          "titulo": { "type": "string" },
+                          "casilla": { "type": "string" },
+                          "nota": { "type": "string" },
+                          "fuente": { "type": "string" },
+                          "url_fuente": { "type": "string" }
+                        }
+                      }
+                    },
+                    "casillas": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "codigo": { "type": "string" },
+                          "etiqueta": { "type": "string" },
+                          "descripcion": { "type": "string" },
+                          "tipo_casilla": { "type": "string" },
+                          "pagina": { "type": "integer" },
+                          "orden": { "type": "integer" }
+                        },
+                        "required": ["codigo", "etiqueta"]
+                      }
+                    },
+                    "claves": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "codigo": { "type": "string" },
+                          "etiqueta": { "type": "string" },
+                          "descripcion": { "type": "string" },
+                          "tipo_clave": { "type": "string" }
+                        },
+                        "required": ["codigo", "etiqueta"]
+                      }
+                    },
+                    "instrucciones": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "seccion": { "type": "string" },
+                          "titulo": { "type": "string" },
+                          "contenido": { "type": "string" },
+                          "orden": { "type": "integer" }
+                        },
+                        "required": ["seccion", "titulo", "contenido", "orden"]
+                      }
+                    },
+                    "normativa": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "boe_id": { "type": "string" },
+                          "titulo": { "type": "string" },
+                          "fecha": { "type": "string" },
+                          "url_boe": { "type": "string" },
+                          "resumen": { "type": "string" }
+                        },
+                        "required": ["titulo"]
+                      }
+                    },
+                    "doctrina_relacionada": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "required": ["codigo", "nombre", "impuesto"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

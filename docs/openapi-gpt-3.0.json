@@ -5,6 +5,12 @@
     "description": "API de consulta de legislacion espanola consolidada, doctrina interpretativa y modelos tributarios AEAT. Permite buscar articulos por texto, consultar normas, doctrina (DGT, TEAC) y obtener casillas, claves e instrucciones de modelos fiscales.",
     "version": "0.1.6"
   },
+  "servers": [
+    {
+      "url": "https://esdata-production.up.railway.app",
+      "description": "Production API on Railway"
+    }
+  ],
   "paths": {
     "/v1/legislacion/buscar": {
       "get": {
@@ -31,14 +37,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Filtrar por codigo de norma",
               "title": "Norma"
             },
@@ -49,14 +48,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Filtrar por fuente",
               "title": "Fuente"
             },
@@ -67,14 +59,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Filtrar por ambito",
               "title": "Ambito"
             },
@@ -85,14 +70,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Filtrar por tipo de articulo",
               "title": "Tipo"
             },
@@ -103,14 +81,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Fecha de vigencia (YYYY-MM-DD)",
               "title": "Vigente En"
             },
@@ -124,16 +95,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LegislacionSearchResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -167,16 +128,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Norma"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -216,14 +167,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Fecha de vigencia (YYYY-MM-DD)",
               "title": "Vigente En"
             },
@@ -237,16 +181,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ArticuloDetail"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -280,14 +214,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)",
               "title": "Tipo"
             },
@@ -298,14 +225,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Fecha minima (YYYY-MM-DD)",
               "title": "Desde"
             },
@@ -316,14 +236,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "type": "string",
               "description": "Filtrar por organismo (DGT, TEAC, etc.)",
               "title": "Organismo Emisor"
             },
@@ -337,16 +250,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DoctrinaSearchResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -380,16 +283,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DoctrinaDetail"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -460,16 +353,6 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
         }
       }
@@ -495,26 +378,12 @@
             "description": "Texto vigente del artículo"
           },
           "vigente_desde": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Vigente Desde",
             "description": "Fecha de inicio de vigencia (YYYY-MM-DD)"
           },
           "vigente_hasta": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Vigente Hasta",
             "description": "Fecha de fin de vigencia (YYYY-MM-DD)"
           },
@@ -580,14 +449,7 @@
             "description": "Fuentes que respaldan la respuesta"
           },
           "aviso": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Aviso",
             "description": "Advertencia si la confianza es baja"
           }
@@ -657,14 +519,7 @@
             "description": "Organismo emisor"
           },
           "fecha": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Fecha",
             "description": "Fecha del documento"
           },
@@ -724,26 +579,12 @@
             "description": "Organismo emisor"
           },
           "fecha": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Fecha",
             "description": "Fecha del documento (YYYY-MM-DD)"
           },
           "titulo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Titulo",
             "description": "Título del documento"
           },
@@ -753,26 +594,12 @@
             "description": "Máxima confianza de enlace (0-1)"
           },
           "norma": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Norma",
             "description": "Código de norma vinculada"
           },
           "numero": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Numero",
             "description": "Número de artículo vinculado"
           },
@@ -812,6 +639,19 @@
         ],
         "title": "DoctrinaViaArticulo"
       },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
       "LegislacionSearchResponse": {
         "properties": {
           "q": {
@@ -847,38 +687,17 @@
             "description": "Número del artículo"
           },
           "titulo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Titulo",
             "description": "Título del artículo"
           },
           "casilla": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Casilla",
             "description": "Casilla asociada"
           },
           "nota": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Nota",
             "description": "Nota explicativa"
           },
@@ -888,14 +707,7 @@
             "description": "Fuente del enlace"
           },
           "url_fuente": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Url Fuente",
             "description": "URL de la fuente"
           }
@@ -941,50 +753,22 @@
             "description": "Etiqueta descriptiva"
           },
           "descripcion": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Descripcion",
             "description": "Descripción breve"
           },
           "tipo_casilla": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Tipo Casilla",
             "description": "Tipo (importe, checkbox, texto, etc.)"
           },
           "pagina": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
             "title": "Pagina",
             "description": "Página del PDF donde aparece"
           },
           "orden": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
             "title": "Orden",
             "description": "Orden de aparición"
           }
@@ -1009,26 +793,12 @@
             "description": "Etiqueta descriptiva"
           },
           "descripcion": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Descripcion",
             "description": "Descripción de la clave"
           },
           "tipo_clave": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Tipo Clave",
             "description": "Tipo (rendimiento, regimen, etc.)"
           }
@@ -1053,14 +823,7 @@
             "description": "Nombre completo"
           },
           "periodo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Periodo",
             "description": "Periodo"
           },
@@ -1070,26 +833,12 @@
             "description": "Impuesto asociado"
           },
           "url_info": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Url Info",
             "description": "URL a la sede AEAT"
           },
           "campana_activa": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Campana Activa",
             "description": "Campaña activa (año)"
           },
@@ -1193,14 +942,7 @@
       "ModeloNormativa": {
         "properties": {
           "boe_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Boe Id",
             "description": "Identificador BOE"
           },
@@ -1210,38 +952,17 @@
             "description": "Título de la norma"
           },
           "fecha": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Fecha",
             "description": "Fecha de publicación (YYYY-MM-DD)"
           },
           "url_boe": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Url Boe",
             "description": "URL al BOE"
           },
           "resumen": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Resumen",
             "description": "Breve descripción"
           }
@@ -1265,14 +986,7 @@
             "description": "Nombre completo del modelo"
           },
           "periodo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Periodo",
             "description": "Periodo de presentación (anual, trimestral, etc.)"
           },
@@ -1396,38 +1110,17 @@
             "description": "Fragmento destacado con el término buscado"
           },
           "vigente_desde": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Vigente Desde",
             "description": "Fecha de inicio de vigencia"
           },
           "vigente_hasta": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Vigente Hasta",
             "description": "Fecha de fin de vigencia"
           },
           "rank": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "number",
             "title": "Rank",
             "description": "Puntuación de relevancia (ts_rank)"
           },
@@ -1446,6 +1139,39 @@
           "confianza"
         ],
         "title": "SearchResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }

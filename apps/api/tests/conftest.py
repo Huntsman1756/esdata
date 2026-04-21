@@ -652,10 +652,16 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """
     INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info)
     VALUES ('100', 'IRPF Declaración anual', 'anual', 'IRPF', 'https://sede.agenciatributaria.gob.es/modelo-100'),
+           ('111', 'IRPF Retenciones e ingresos a cuenta', 'trimestral', 'IRPF', 'https://sede.agenciatributaria.gob.es/modelo-111'),
+           ('115', 'IRPF Retenciones arrendamientos', 'trimestral', 'IRPF', 'https://sede.agenciatributaria.gob.es/modelo-115'),
            ('303', 'IVA Autoliquidación', 'trimestral', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-303'),
+           ('349', 'Declaración recapitulativa operaciones intracomunitarias', 'mensual', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-349'),
+           ('390', 'IVA Resumen anual', 'anual', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-390'),
            ('124', 'Retenciones IRNR — rentas sin establecimiento permanente', 'mensual', 'IRNR', 'https://sede.agenciatributaria.gob.es/modelo-124'),
            ('216', 'IRNR Retenciones rentas sin establecimiento permanente', 'mensual', 'IRNR', 'https://sede.agenciatributaria.gob.es/modelo-216'),
-           ('296', 'IRNR Resumen anual retenciones sin EP', 'anual', 'IRNR', 'https://sede.agenciatributaria.gob.es/modelo-296')
+           ('296', 'IRNR Resumen anual retenciones sin EP', 'anual', 'IRNR', 'https://sede.agenciatributaria.gob.es/modelo-296'),
+           ('036', 'Declaración censal alta/modificación/baja', 'eventual', 'CENSAL', 'https://sede.agenciatributaria.gob.es/modelo-036'),
+           ('347', 'Declaración anual operaciones con terceros', 'anual', 'INFORMATIVO', 'https://sede.agenciatributaria.gob.es/modelo-347')
     """,
     """
     INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
@@ -755,26 +761,101 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         UNIQUE(modelo_id, boe_id)
     )
     """,
+    """
+    CREATE TABLE modelo_campana_operativa (
+        campana_id               INTEGER PRIMARY KEY REFERENCES modelo_campana(id) ON DELETE CASCADE,
+        categoria_obligado       TEXT,
+        frecuencia_presentacion  TEXT,
+        ventana_presentacion     TEXT,
+        canal_presentacion       TEXT,
+        obligados_resumen        TEXT,
+        plazo_resumen            TEXT,
+        presentacion_resumen     TEXT,
+        norma_base               TEXT,
+        nota                     TEXT,
+        origen_metadato          TEXT DEFAULT 'seed_curado',
+        estado_metadato          TEXT DEFAULT 'curado',
+        actualizado_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
     # --- Seed: campaign for model 100 ---
     """
-    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
-    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones'
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa, url_formato)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-100-normativa',
+           'https://sede.agenciatributaria.gob.es/modelo-100-formato'
     FROM aeat_modelo m WHERE m.codigo = '100'
     """,
     """
-    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
-    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-124-instrucciones'
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-111-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-111-normativa'
+    FROM aeat_modelo m WHERE m.codigo = '111'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-115-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-115-normativa'
+    FROM aeat_modelo m WHERE m.codigo = '115'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-124-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-124-normativa'
     FROM aeat_modelo m WHERE m.codigo = '124'
     """,
     """
-    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
-    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-216-instrucciones'
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-216-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-216-normativa'
     FROM aeat_modelo m WHERE m.codigo = '216'
     """,
     """
-    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
-    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-296-instrucciones'
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-296-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-296-normativa'
     FROM aeat_modelo m WHERE m.codigo = '296'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-303-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-303-normativa'
+    FROM aeat_modelo m WHERE m.codigo = '303'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-349-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-349-normativa'
+    FROM aeat_modelo m WHERE m.codigo = '349'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-390-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-390-normativa'
+    FROM aeat_modelo m WHERE m.codigo = '390'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-036-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-036-normativa'
+    FROM aeat_modelo m WHERE m.codigo = '036'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, url_normativa)
+    SELECT m.id, '2025', 1,
+           'https://sede.agenciatributaria.gob.es/modelo-347-instrucciones',
+           'https://sede.agenciatributaria.gob.es/modelo-347-normativa'
+    FROM aeat_modelo m WHERE m.codigo = '347'
     """,
     # --- Seed: casillas for model 100 campaign ---
     """
@@ -790,6 +871,198 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
     WHERE m.codigo = '100' AND mc.campana = '2025'
     """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 100', 'Deben presentar este modelo los contribuyentes del IRPF obligados a declarar conforme a los limites legales vigentes.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '100' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 100', 'La presentacion de la declaracion anual del IRPF correspondiente a la campana 2025 se realiza dentro del plazo general de la campana de renta publicado por AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '100' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 216', 'Deben presentar el modelo 216 los obligados a practicar retenciones o ingresos a cuenta sobre determinadas rentas obtenidas por no residentes sin establecimiento permanente.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '216' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 111', 'Deben presentar el modelo 111 los obligados a practicar retenciones e ingresos a cuenta por rendimientos del trabajo y determinadas actividades economicas.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '111' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 111', 'El modelo 111 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '111' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 111', 'La presentacion del modelo 111 se realiza por via electronica a traves de la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '111' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 115', 'Deben presentar el modelo 115 los obligados a practicar retenciones por arrendamientos de inmuebles urbanos.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '115' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 115', 'El modelo 115 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '115' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 115', 'La presentacion del modelo 115 se realiza por via electronica a traves de la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '115' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 216', 'El modelo 216 se presenta con caracter mensual dentro de los primeros veinte dias naturales del mes siguiente al periodo de declaracion, salvo las especialidades previstas por AEAT.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '216' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 216', 'La presentacion del modelo 216 se realiza por via electronica a traves de la sede de la AEAT utilizando los sistemas de identificacion admitidos.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '216' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 124', 'Deben presentar el modelo 124 los obligados a retener sobre determinadas rentas del capital mobiliario obtenidas por no residentes sin establecimiento permanente.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '124' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 124', 'El modelo 124 se presenta con caracter mensual dentro de los primeros veinte dias naturales del mes siguiente al periodo de declaracion.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '124' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 124', 'La presentacion del modelo 124 se realiza por medios electronicos a traves de la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '124' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 296', 'Deben presentar el modelo 296 los retenedores y obligados a ingresar a cuenta que deban resumir anualmente las rentas sujetas al IRNR sin establecimiento permanente.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '296' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 296', 'El modelo 296 se presenta con caracter anual en el plazo fijado por la AEAT para el resumen anual de retenciones e ingresos a cuenta.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '296' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 296', 'La presentacion del modelo 296 se realiza electronicamente mediante la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '296' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 303', 'Deben presentar el modelo 303 los empresarios y profesionales que deban autoliquidar el IVA en el periodo correspondiente, salvo los supuestos exceptuados por la normativa.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '303' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 303', 'El modelo 303 se presenta con caracter trimestral o mensual segun el regimen aplicable, dentro de los plazos generales establecidos por la AEAT para la autoliquidacion del IVA.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '303' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 303', 'La presentacion del modelo 303 se realiza por via electronica mediante la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '303' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 349', 'Deben presentar el modelo 349 los sujetos pasivos del IVA que realicen operaciones intracomunitarias de bienes o servicios.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '349' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 349', 'El modelo 349 se presenta con caracter mensual o trimestral segun el volumen de operaciones, del 1 al 20 del mes siguiente al periodo.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '349' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 349', 'La presentacion del modelo 349 se realiza por via electronica a traves de la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '349' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 390', 'Deben presentar el modelo 390 los sujetos pasivos del IVA obligados a presentar el resumen anual, salvo excepciones previstas por la normativa.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '390' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 390', 'El modelo 390 se presenta con caracter anual en el plazo fijado por la AEAT junto con el cierre del ejercicio de IVA.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '390' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 390', 'La presentacion del modelo 390 se realiza por via electronica mediante la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '390' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 036', 'Deben presentar el modelo 036 las personas fisicas o juridicas que inicien actividad, modifiquen datos censales o causen baja en el censo.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '036' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 036', 'El modelo 036 se presenta dentro del plazo de un mes desde el inicio de actividad o desde la modificacion censal correspondiente.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '036' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 036', 'La presentacion del modelo 036 puede realizarse por la sede de la AEAT con los sistemas de identificacion admitidos.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '036' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 347', 'Deben presentar el modelo 347 quienes hayan realizado operaciones con terceros por importe superior al umbral legal anual.', 1
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '347' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 347', 'El modelo 347 se presenta con caracter anual durante el mes de febrero del ano siguiente.', 2
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '347' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 347', 'La presentacion del modelo 347 se realiza por via electronica a traves de la sede de la AEAT.', 3
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '347' AND mc.campana = '2025'
+    """,
     # --- Seed: normativa for model 100 ---
     """
     INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
@@ -798,8 +1071,158 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """,
     """
     INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
+    SELECT m.id, 'BOE-A-2011-4948', 'Orden EHA/586/2011', '2011-03-09', 'https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948', 'Normativa base de modelos de retenciones 111 y 115'
+    FROM aeat_modelo m WHERE m.codigo IN ('111', '115')
+    """,
+    """
+    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
     SELECT m.id, 'BOE-A-2004-19886', 'RDL 5/2004 — IRNR', '2004-12-03', 'https://www.boe.es/buscar/act.php?id=BOE-A-2004-19886', 'Texto refundido de la Ley del IRNR'
     FROM aeat_modelo m WHERE m.codigo IN ('124', '216', '296')
+    """,
+    """
+    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
+    SELECT m.id, 'BOE-A-1992-28740', 'Ley 37/1992 del IVA', '1992-12-28', 'https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740', 'Norma base del IVA para el modelo 303'
+    FROM aeat_modelo m WHERE m.codigo = '303'
+    """,
+    """
+    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
+    SELECT m.id, 'BOE-A-2024-16738', 'Orden HAC/891/2024', '2024-09-10', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-16738', 'Normativa base de modelos 349 y 390'
+    FROM aeat_modelo m WHERE m.codigo IN ('349', '390')
+    """,
+    """
+    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
+    SELECT m.id, 'BOE-A-2024-25303', 'Orden HAC/1187/2024', '2024-12-02', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-25303', 'Normativa base de modelos 036 y 347'
+    FROM aeat_modelo m WHERE m.codigo IN ('036', '347')
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id,
+           'retenedor_irnr',
+           'mensual',
+           'primeros_20_dias_mes_siguiente',
+           'electronica',
+           'Deben presentar el modelo 216 los obligados a practicar retenciones e ingresos a cuenta sobre determinadas rentas de no residentes sin establecimiento permanente.',
+           'El modelo 216 se presenta mensualmente dentro de los primeros veinte dias naturales del mes siguiente al periodo declarado.',
+           'La presentacion del modelo 216 se realiza por via electronica a traves de la sede de la AEAT.',
+           'IRNR art. 14',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc
+    JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '216' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id,
+           'empresario_o_profesional_iva',
+           'trimestral',
+           'plazo_general_aeat',
+           'electronica',
+           'Deben presentar el modelo 303 los empresarios y profesionales obligados a autoliquidar el IVA del periodo.',
+           'El modelo 303 se presenta en los plazos generales fijados por la AEAT para la autoliquidacion del IVA.',
+           'La presentacion del modelo 303 se realiza por via electronica mediante la sede de la AEAT.',
+           'LIVA art. 71',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc
+    JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '303' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id, 'retenedor_irpf', 'trimestral', 'primeros_20_dias_periodo_siguiente', 'electronica',
+           'Deben presentar el modelo 111 los obligados a practicar retenciones e ingresos a cuenta por rendimientos del trabajo y determinadas actividades economicas.',
+           'El modelo 111 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.',
+           'La presentacion del modelo 111 se realiza por via electronica a traves de la sede de la AEAT.',
+           'LIRPF retenciones',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '111' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id, 'retenedor_arrendamientos', 'trimestral', 'primeros_20_dias_periodo_siguiente', 'electronica',
+           'Deben presentar el modelo 115 los obligados a practicar retenciones por arrendamientos de inmuebles urbanos.',
+           'El modelo 115 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.',
+           'La presentacion del modelo 115 se realiza por via electronica a traves de la sede de la AEAT.',
+           'LIRPF arrendamientos',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '115' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id, 'operador_intracomunitario_iva', 'mensual', 'primeros_20_dias_mes_siguiente', 'electronica',
+           'Deben presentar el modelo 349 los sujetos pasivos del IVA que realicen operaciones intracomunitarias de bienes o servicios.',
+           'El modelo 349 se presenta con caracter mensual o trimestral segun el volumen de operaciones, del 1 al 20 del mes siguiente al periodo.',
+           'La presentacion del modelo 349 se realiza por via electronica a traves de la sede de la AEAT.',
+           'LIVA operaciones intracomunitarias',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '349' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id, 'sujeto_pasivo_iva', 'anual', 'plazo_fijado_aeat', 'electronica',
+           'Deben presentar el modelo 390 los sujetos pasivos del IVA obligados a presentar el resumen anual, salvo excepciones previstas por la normativa.',
+           'El modelo 390 se presenta con caracter anual en el plazo fijado por la AEAT junto con el cierre del ejercicio de IVA.',
+           'La presentacion del modelo 390 se realiza por via electronica mediante la sede de la AEAT.',
+           'LIVA resumen anual',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '390' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id, 'obligado_censal', 'eventual', '1_mes_desde_hecho', 'electronica',
+           'Deben presentar el modelo 036 las personas fisicas o juridicas que inicien actividad, modifiquen datos censales o causen baja en el censo.',
+           'El modelo 036 se presenta dentro del plazo de un mes desde el inicio de actividad o desde la modificacion censal correspondiente.',
+           'La presentacion del modelo 036 puede realizarse por la sede de la AEAT con los sistemas de identificacion admitidos.',
+           'Censo AEAT',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '036' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_campana_operativa (
+        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
+        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
+        norma_base, nota
+    )
+    SELECT mc.id, 'declarante_operaciones_terceros', 'anual', 'febrero_ano_siguiente', 'electronica',
+           'Deben presentar el modelo 347 quienes hayan realizado operaciones con terceros por importe superior al umbral legal anual.',
+           'El modelo 347 se presenta con caracter anual durante el mes de febrero del ano siguiente.',
+           'La presentacion del modelo 347 se realiza por via electronica a traves de la sede de la AEAT.',
+           'LGT informacion terceros',
+           'Metadato operativo curado para agentes.'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '347' AND mc.campana = '2025'
     """,
     # --- Note: modelo_campana_activa() is a Postgres function.
     # For SQLite tests, the API code falls back to direct queries when the function

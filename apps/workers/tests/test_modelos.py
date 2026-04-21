@@ -10,12 +10,14 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from modelos_support import (
+    derive_campaign_operativa,
     pick_active_campaign,
     scrape_casillas_from_page,
     scrape_claves_from_page,
     scrape_instructions_from_page,
     detect_campaigns,
     ensure_campaigns,
+    upsert_campaign_operativa,
     upsert_instructions,
 )
 
@@ -153,6 +155,180 @@ class TestScrapeInstructions:
 
     def test_empty_html(self):
         assert scrape_instructions_from_page("<html></html>") == []
+
+
+class TestCampaignOperativa:
+    def test_derive_campaign_operativa_for_irnr_model(self):
+        payload = derive_campaign_operativa(
+            modelo_codigo="216",
+            impuesto="IRNR",
+            periodo="mensual",
+            instrucciones=[
+                {
+                    "seccion": "quien-debe",
+                    "contenido": "Deben presentar el modelo 216 los obligados a practicar retenciones e ingresos a cuenta sobre determinadas rentas de no residentes.",
+                },
+                {
+                    "seccion": "plazo",
+                    "contenido": "El modelo 216 se presenta del 1 al 20 del mes siguiente al periodo declarado.",
+                },
+                {
+                    "seccion": "como-presentar",
+                    "contenido": "La presentacion se realiza por via electronica en la sede de la AEAT.",
+                },
+            ],
+        )
+
+        assert payload["categoria_obligado"] == "retenedor_irnr"
+        assert payload["frecuencia_presentacion"] == "mensual"
+        assert payload["ventana_presentacion"] == "primeros_20_dias_periodo_siguiente"
+        assert payload["canal_presentacion"] == "electronica"
+
+    def test_upsert_campaign_operativa_replaces_existing_row(self):
+        engine = create_engine("sqlite:///:memory:")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE modelo_campana_operativa (
+                        campana_id INTEGER PRIMARY KEY,
+                        categoria_obligado TEXT,
+                        frecuencia_presentacion TEXT,
+                        ventana_presentacion TEXT,
+                        canal_presentacion TEXT,
+                        obligados_resumen TEXT,
+                        plazo_resumen TEXT,
+                        presentacion_resumen TEXT,
+                        norma_base TEXT,
+                        nota TEXT,
+                        origen_metadato TEXT DEFAULT 'seed_curado',
+                        estado_metadato TEXT DEFAULT 'curado'
+                    )
+                    """
+                )
+            )
+
+            wrote_first = upsert_campaign_operativa(
+                conn,
+                1,
+                {
+                    "categoria_obligado": "retenedor_irnr",
+                    "frecuencia_presentacion": "mensual",
+                    "ventana_presentacion": "primeros_20_dias_periodo_siguiente",
+                    "canal_presentacion": "electronica",
+                    "obligados_resumen": "Inicial",
+                    "plazo_resumen": "Inicial",
+                    "presentacion_resumen": "Inicial",
+                    "norma_base": "IRNR art. 14",
+                    "nota": "Inicial",
+                    "origen_metadato": "worker_derivado",
+                    "estado_metadato": "borrador",
+                },
+            )
+            wrote_second = upsert_campaign_operativa(
+                conn,
+                1,
+                {
+                    "categoria_obligado": "retenedor_irnr",
+                    "frecuencia_presentacion": "mensual",
+                    "ventana_presentacion": "primeros_20_dias_periodo_siguiente",
+                    "canal_presentacion": "electronica",
+                    "obligados_resumen": "Actualizado",
+                    "plazo_resumen": "Actualizado",
+                    "presentacion_resumen": "Actualizado",
+                    "norma_base": "IRNR art. 14",
+                    "nota": "Actualizado",
+                    "origen_metadato": "worker_derivado",
+                    "estado_metadato": "borrador",
+                },
+            )
+
+            row = conn.execute(
+                text(
+                    """
+                    SELECT obligados_resumen, plazo_resumen, presentacion_resumen, nota, origen_metadato, estado_metadato
+                    FROM modelo_campana_operativa
+                    WHERE campana_id = 1
+                    """
+                )
+            ).fetchone()
+
+        assert wrote_first is True
+        assert wrote_second is True
+        assert row == ("Actualizado", "Actualizado", "Actualizado", "Actualizado", "worker_derivado", "borrador")
+
+    def test_upsert_campaign_operativa_preserves_curated_row_against_worker_derivation(self):
+        engine = create_engine("sqlite:///:memory:")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE modelo_campana_operativa (
+                        campana_id INTEGER PRIMARY KEY,
+                        categoria_obligado TEXT,
+                        frecuencia_presentacion TEXT,
+                        ventana_presentacion TEXT,
+                        canal_presentacion TEXT,
+                        obligados_resumen TEXT,
+                        plazo_resumen TEXT,
+                        presentacion_resumen TEXT,
+                        norma_base TEXT,
+                        nota TEXT,
+                        origen_metadato TEXT DEFAULT 'seed_curado',
+                        estado_metadato TEXT DEFAULT 'curado'
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO modelo_campana_operativa (
+                        campana_id,
+                        categoria_obligado,
+                        frecuencia_presentacion,
+                        obligados_resumen,
+                        nota,
+                        origen_metadato,
+                        estado_metadato
+                    )
+                    VALUES (1, 'retenedor_irnr', 'mensual', 'Curado', 'Metadato operativo curado para agentes.', 'seed_curado', 'curado')
+                    """
+                )
+            )
+
+            wrote = upsert_campaign_operativa(
+                conn,
+                1,
+                {
+                    "categoria_obligado": "retenedor_irnr",
+                    "frecuencia_presentacion": "mensual",
+                    "ventana_presentacion": "primeros_20_dias_periodo_siguiente",
+                    "canal_presentacion": "electronica",
+                    "obligados_resumen": "Borrador worker",
+                    "plazo_resumen": "Borrador worker",
+                    "presentacion_resumen": "Borrador worker",
+                    "norma_base": None,
+                    "nota": "Borrador derivado automaticamente desde instrucciones AEAT.",
+                    "origen_metadato": "worker_derivado",
+                    "estado_metadato": "borrador",
+                },
+            )
+
+            row = conn.execute(
+                text(
+                    """
+                    SELECT obligados_resumen, nota, origen_metadato, estado_metadato
+                    FROM modelo_campana_operativa
+                    WHERE campana_id = 1
+                    """
+                )
+            ).fetchone()
+
+        assert wrote is False
+        assert row == ("Curado", "Metadato operativo curado para agentes.", "seed_curado", "curado")
 
 
 def test_upsert_instructions_replaces_existing_rows():

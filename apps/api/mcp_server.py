@@ -21,12 +21,17 @@ def mount_mcp(app) -> None:
             "get_doctrina",
             # Modelos AEAT
             "list_modelos",
+            "list_modelos_campanas_operativas",
             "get_modelo",
             "get_modelo_articulos",
             "get_modelo_casillas",
             "get_modelo_claves",
             "get_modelo_instrucciones",
             "get_modelo_normativa",
+            "get_modelo_artefactos",
+            "get_modelo_campana_operativa",
+            "get_modelo_resumen_operativo",
+            "get_modelo_fuentes_oficiales",
         ],
     )
     mcp.mount_http(mount_path="/mcp")

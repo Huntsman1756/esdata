@@ -7,6 +7,7 @@ import time
 from sqlalchemy import create_engine
 
 from modelos_support import (
+    derive_campaign_operativa,
     SyncResult,
     build_client,
     detect_campaigns,
@@ -14,11 +15,13 @@ from modelos_support import (
     fetch_page,
     get_campaign_row,
     get_model_id,
+    get_model_metadata,
     get_model_rows,
     log_sync_result,
     scrape_casillas_from_page,
     scrape_claves_from_page,
     scrape_instructions_from_page,
+    upsert_campaign_operativa,
     upsert_casillas,
     upsert_claves,
     upsert_instructions,
@@ -74,10 +77,32 @@ def _scrape_campaign(engine, modelo_id: int, modelo_codigo: str, campana: str, u
 
     scraped_instr = scrape_instructions_from_page(html)
     if scraped_instr:
+        operativa_status = "sin metadato operativo"
         with engine.begin() as conn:
             count = upsert_instructions(conn, campana_id, scraped_instr)
+            metadata = get_model_metadata(conn, modelo_codigo)
+            if metadata:
+                operativa_payload = derive_campaign_operativa(
+                    modelo_codigo=modelo_codigo,
+                    impuesto=metadata["impuesto"],
+                    periodo=metadata["periodo"],
+                    instrucciones=scraped_instr,
+                )
+                operativa_payload["norma_base"] = None
+                operativa_payload["nota"] = (
+                    "Borrador derivado automaticamente desde instrucciones AEAT."
+                )
+                if upsert_campaign_operativa(conn, campana_id, operativa_payload):
+                    result.operativa_upserted += 1
+                    operativa_status = "operativa derivada guardada"
+                else:
+                    result.operativa_skipped += 1
+                    operativa_status = "operativa curada preservada"
         result.instrucciones_upserted += count
-        logger.info(f"  {modelo_codigo}/{campana}: {count} instructions upserted")
+        logger.info(
+            f"  {modelo_codigo}/{campana}: {count} instructions upserted, "
+            f"{operativa_status}"
+        )
 
 
 def sync_model(engine, modelo_codigo: str, url_info: str, url_instrucciones: str | None, result: SyncResult):
@@ -164,7 +189,9 @@ def run_sync(engine, run_once: bool = False):
                 f"{result.campaigns_created} new campaigns, "
                 f"{result.casillas_upserted} casillas, "
                 f"{result.claves_upserted} claves, "
-                f"{result.instrucciones_upserted} instrucciones"
+                f"{result.instrucciones_upserted} instrucciones, "
+                f"{result.operativa_upserted} operativas, "
+                f"{result.operativa_skipped} preservadas"
             )
             if result.errors:
                 logger.warning(f"Errors: {result.errors}")

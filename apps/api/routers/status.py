@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from db import db_session
+from services.modelos import get_modelos_status
 
 router = APIRouter()
 
@@ -37,6 +38,8 @@ async def status():
     }
 
     with db_session() as db:
+        result["modelos"] = get_modelos_status(db)
+
         for worker in WORKERS:
             row = db.execute(
                 text(

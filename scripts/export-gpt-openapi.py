@@ -14,6 +14,7 @@ import json
 import argparse
 from pathlib import Path
 import sys
+from copy import deepcopy
 
 # Allow importing from apps/api
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "api"))
@@ -55,6 +56,8 @@ INCLUDE_SCHEMAS = {
     "ModeloCampana",
     "DoctrinaRelacionada",
     "DoctrinaViaArticulo",
+    "HTTPValidationError",
+    "ValidationError",
 }
 
 # Override descriptions for GPT clarity
@@ -144,6 +147,70 @@ def _downgrade_to_30(spec: dict) -> dict:
     return spec
 
 
+def _iter_refs(node):
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str):
+            yield ref
+        for value in node.values():
+            yield from _iter_refs(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _iter_refs(item)
+
+
+def _collect_schema_refs(node, all_schemas: dict) -> set[str]:
+    pending = []
+    seen = set()
+    for ref in _iter_refs(node):
+        prefix = "#/components/schemas/"
+        if ref.startswith(prefix):
+            pending.append(ref[len(prefix) :])
+
+    while pending:
+        name = pending.pop()
+        if name in seen or name not in all_schemas:
+            continue
+        seen.add(name)
+        for ref in _iter_refs(all_schemas[name]):
+            prefix = "#/components/schemas/"
+            if ref.startswith(prefix):
+                pending.append(ref[len(prefix) :])
+
+    return seen
+
+
+def _simplify_for_gpt(node):
+    if isinstance(node, dict):
+        if "anyOf" in node:
+            variants = node["anyOf"]
+            if isinstance(variants, list):
+                non_null = [
+                    item
+                    for item in variants
+                    if not (isinstance(item, dict) and item.get("type") == "null")
+                ]
+                if len(non_null) == 1:
+                    replacement = deepcopy(non_null[0])
+                    for key, value in list(node.items()):
+                        if key != "anyOf" and key not in replacement:
+                            replacement[key] = value
+                    node.clear()
+                    node.update(replacement)
+
+        if node.get("type") == ["string", "null"]:
+            node["type"] = "string"
+
+        for key, value in list(node.items()):
+            if key == "responses" and isinstance(value, dict):
+                value.pop("422", None)
+            else:
+                _simplify_for_gpt(value)
+    elif isinstance(node, list):
+        for item in node:
+            _simplify_for_gpt(item)
+
+
 def export(openapi_version: str | None = None, output_path: str | None = None):
     spec = app.openapi()
 
@@ -153,6 +220,7 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
         if path in INCLUDE_PATHS:
             filtered_methods = {}
             for method, op in methods.items():
+                op = deepcopy(op)
                 op_id = op.get("operationId", "")
                 if op_id in OPERATION_OVERRIDES:
                     override = OPERATION_OVERRIDES[op_id]
@@ -163,21 +231,31 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
                 filtered_methods[method] = op
             filtered_paths[path] = filtered_methods
 
-    # Filter schemas
+    all_schemas = spec.get("components", {}).get("schemas", {})
+    referenced_schemas = _collect_schema_refs(filtered_paths, all_schemas)
+    filtered_schema_names = INCLUDE_SCHEMAS | referenced_schemas
     filtered_schemas = {}
-    for name, schema in spec.get("components", {}).get("schemas", {}).items():
-        if name in INCLUDE_SCHEMAS:
-            filtered_schemas[name] = schema
+    for name, schema in all_schemas.items():
+        if name in filtered_schema_names:
+            filtered_schemas[name] = deepcopy(schema)
 
     # Build final spec
     curated = {
         "openapi": openapi_version or spec.get("openapi", "3.1.0"),
         "info": spec.get("info", {}),
+        "servers": [
+            {
+                "url": "https://esdata-production.up.railway.app",
+                "description": "Production API on Railway",
+            }
+        ],
         "paths": filtered_paths,
         "components": {
             "schemas": filtered_schemas,
         },
     }
+
+    _simplify_for_gpt(curated)
 
     if openapi_version and openapi_version.startswith("3.0"):
         curated = _downgrade_to_30(curated)
@@ -187,13 +265,17 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(curated, f, indent=2, ensure_ascii=False)
         print(f"Written {output_path} ({curated['openapi']})")
-        print(f"  {len(curated['paths'])} paths, {len(curated['components']['schemas'])} schemas")
+        print(
+            f"  {len(curated['paths'])} paths, {len(curated['components']['schemas'])} schemas"
+        )
     else:
         print(json.dumps(curated, indent=2, ensure_ascii=False))
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Export curated OpenAPI spec for GPT Actions")
+    parser = argparse.ArgumentParser(
+        description="Export curated OpenAPI spec for GPT Actions"
+    )
     parser.add_argument("--openapi", default=None, help="OpenAPI version (e.g. 3.0.3)")
     parser.add_argument("--output", default=None, help="Output file path")
     args = parser.parse_args()

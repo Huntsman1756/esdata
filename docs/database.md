@@ -11,8 +11,18 @@ La base de datos es el repositorio principal de:
 - legislacion normalizada y versionada
 - doctrina interpretativa DGT y TEAC
 - enlaces entre doctrina y articulos
-- modelos AEAT, campanas, casillas, claves e instrucciones
+- modelos AEAT, campanas, casillas, claves, instrucciones y metadatos operativos por campana
 - trazas operativas de workers en `sync_log`
+
+En `modelo_campana_operativa`, los campos `origen_metadato` y `estado_metadato` distinguen:
+
+- metadato curado cargado por seed o ajuste manual
+- metadato borrador derivado automaticamente por workers
+
+Regla operativa actual:
+
+- el worker puede crear o refrescar borradores derivados
+- el worker no debe sobreescribir filas ya marcadas como curadas
 
 ## Bootstrap actual
 
