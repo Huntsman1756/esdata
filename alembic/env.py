@@ -14,10 +14,18 @@ if config.config_file_name is not None:
 target_metadata = None
 
 
+def normalize_db_url(db_url: str) -> str:
+    if db_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + db_url.removeprefix("postgresql://")
+    return db_url
+
+
 def get_url() -> str:
-    return os.getenv(
-        "DATABASE_URL",
-        config.get_main_option("sqlalchemy.url"),
+    return normalize_db_url(
+        os.getenv(
+            "DATABASE_URL",
+            config.get_main_option("sqlalchemy.url"),
+        )
     )
 
 

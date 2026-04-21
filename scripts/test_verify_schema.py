@@ -45,6 +45,22 @@ def test_find_schema_issues_returns_empty_when_required_table_and_columns_exist(
     assert issues == []
 
 
+def test_normalize_db_url_adds_psycopg_driver_for_plain_postgresql_scheme():
+    module = _load_module()
+
+    url = "postgresql://user:pass@host:5432/dbname"
+
+    assert module.normalize_db_url(url) == "postgresql+psycopg://user:pass@host:5432/dbname"
+
+
+def test_normalize_db_url_keeps_existing_driver_scheme():
+    module = _load_module()
+
+    url = "postgresql+psycopg://user:pass@host:5432/dbname"
+
+    assert module.normalize_db_url(url) == url
+
+
 def test_find_schema_issues_reports_missing_columns():
     module = _load_module()
     engine = create_engine("sqlite:///:memory:", future=True)

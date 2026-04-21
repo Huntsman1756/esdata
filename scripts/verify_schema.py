@@ -28,6 +28,12 @@ REQUIRED_SCHEMA = {
 }
 
 
+def normalize_db_url(db_url: str) -> str:
+    if db_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + db_url.removeprefix("postgresql://")
+    return db_url
+
+
 def find_schema_issues(db_inspector) -> list[str]:
     issues: list[str] = []
     tables = set(db_inspector.get_table_names())
@@ -55,7 +61,7 @@ def main() -> int:
         print("SCHEMA VERIFICATION FAILED: DATABASE_URL is not set", file=sys.stderr)
         return 2
 
-    engine = create_engine(database_url, future=True)
+    engine = create_engine(normalize_db_url(database_url), future=True)
     try:
         issues = find_schema_issues(inspect(engine))
     finally:
