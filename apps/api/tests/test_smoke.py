@@ -409,6 +409,64 @@ async def test_modelo_campana_operativa_expone_obligados_plazo_y_presentacion():
 
 
 @pytest.mark.asyncio
+async def test_modelo_campana_operativa_usa_seccion_presentacion_como_fallback_sin_metadata_curada():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                DELETE FROM modelo_campana_operativa
+                WHERE campana_id = (
+                    SELECT mc.id
+                    FROM modelo_campana mc
+                    JOIN aeat_modelo m ON m.id = mc.modelo_id
+                    WHERE m.codigo = '216' AND mc.campana = '2025'
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                DELETE FROM modelo_instruccion
+                WHERE campana_id = (
+                    SELECT mc.id
+                    FROM modelo_campana mc
+                    JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = '216' AND mc.campana = '2025'
+                )
+                AND seccion IN ('como-presentar', 'plazo')
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+                SELECT mc.id,
+                       'presentacion',
+                       'Presentacion del modelo 216',
+                       'La presentacion del modelo 216 se realiza exclusivamente por via electronica en la sede de la AEAT.',
+                       3
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = '216' AND mc.campana = '2025'
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/modelos/216/campana-operativa")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert "consultar la sede aeat" in data["plazo_resumen"].lower()
+    assert "exclusivamente por via electronica" in data["presentacion_resumen"].lower()
+
+
+@pytest.mark.asyncio
 async def test_modelos_campanas_operativas_agrega_varios_modelos():
     async with _client() as c:
         r = await c.get("/v1/modelos/campanas-operativas?codigos=111,115,124,216,296,303,349,390,036,347")

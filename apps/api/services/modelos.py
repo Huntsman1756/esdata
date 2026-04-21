@@ -603,7 +603,7 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
         seccion = (row["seccion"] or "").strip().lower()
         if seccion in {"quien-debe", "quien_debe", "obligados"} and not obligados:
             obligados = row["contenido"]
-        elif seccion in {"plazo", "presentacion", "plazo-presentacion"} and not plazo:
+        elif seccion in {"plazo", "plazo-presentacion"} and not plazo:
             plazo = row["contenido"]
         elif seccion in {"como-presentar", "como_presentar", "presentacion"} and not presentacion:
             presentacion = row["contenido"]
