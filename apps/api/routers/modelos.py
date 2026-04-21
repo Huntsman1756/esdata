@@ -36,6 +36,7 @@ router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
     operation_id="list_modelos_campanas_operativas",
     response_model=ModelosCampanasOperativasResponse,
     summary="Vista operativa agregada de varios modelos",
+    openapi_extra={"x-beta": True},
 )
 async def get_campanas_operativas_modelos(
     codigos: str = Query(..., description="Codigos separados por comas, ej: 124,216,296"),
@@ -280,6 +281,7 @@ async def get_modelo_normativa(codigo: str):
     operation_id="get_modelo_artefactos",
     response_model=ModeloArtefactosResponse,
     summary="Artefactos técnicos disponibles para un modelo",
+    openapi_extra={"x-beta": True},
 )
 async def get_modelo_artefactos(
     codigo: str, campana: str = Query(None, description="Campana especifica")
@@ -298,6 +300,7 @@ async def get_modelo_artefactos(
     operation_id="get_modelo_resumen_operativo",
     response_model=ModeloResumenOperativoResponse,
     summary="Resumen operativo para agentes sobre un modelo",
+    openapi_extra={"x-beta": True},
 )
 async def get_resumen_operativo_modelo(
     codigo: str, campana: str = Query(None, description="Campana especifica")
@@ -316,6 +319,7 @@ async def get_resumen_operativo_modelo(
     operation_id="get_modelo_campana_operativa",
     response_model=ModeloCampanaOperativaResponse,
     summary="Vista de campaña operativa para agentes",
+    openapi_extra={"x-beta": True},
 )
 async def get_campana_operativa_modelo(
     codigo: str, campana: str = Query(None, description="Campana especifica")
@@ -334,6 +338,7 @@ async def get_campana_operativa_modelo(
     operation_id="get_modelo_fuentes_oficiales",
     response_model=ModeloFuentesOficialesResponse,
     summary="Fuentes oficiales recomendadas para trabajar un modelo",
+    openapi_extra={"x-beta": True},
 )
 async def get_modelo_fuentes_oficiales(
     codigo: str, campana: str = Query(None, description="Campana especifica")

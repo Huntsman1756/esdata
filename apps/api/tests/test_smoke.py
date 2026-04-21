@@ -54,6 +54,25 @@ async def test_openapi_includes_modelo_fuentes_oficiales_endpoint():
 
 
 @pytest.mark.asyncio
+async def test_openapi_marks_new_modelos_surfaces_as_beta():
+    async with _client() as c:
+        r = await c.get("/openapi.json")
+    assert r.status_code == 200
+    data = r.json()
+
+    beta_paths = [
+        "/v1/modelos/{codigo}/fuentes-oficiales",
+        "/v1/modelos/{codigo}/artefactos",
+        "/v1/modelos/campanas-operativas",
+        "/v1/modelos/{codigo}/campana-operativa",
+        "/v1/modelos/{codigo}/resumen-operativo",
+    ]
+
+    for path in beta_paths:
+        assert data["paths"][path]["get"]["x-beta"] is True
+
+
+@pytest.mark.asyncio
 async def test_status_tiene_workers():
     async with _client() as c:
         r = await c.get("/status")
