@@ -31,11 +31,13 @@ jobs:
         run: alembic upgrade head
         env:
           DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL || secrets.DATABASE_URL }}
+          PGSSLMODE: require
 
       - name: Verify DB schema
         run: python scripts/verify_schema.py
         env:
           DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL || secrets.DATABASE_URL }}
+          PGSSLMODE: require
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
