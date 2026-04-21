@@ -556,7 +556,7 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str = None):
         seccion = (row["seccion"] or "").strip().lower()
         if seccion in {"quien-debe", "quien_debe", "obligados"} and not quien_debe:
             quien_debe = row["contenido"]
-        if seccion in {"plazo", "presentacion", "plazo-presentacion"} and not plazo:
+        if seccion in {"plazo", "plazo-presentacion"} and not plazo:
             plazo = row["contenido"]
 
     if not quien_debe:

@@ -381,6 +381,64 @@ async def test_modelo_resumen_operativo_expone_quien_debe_y_plazo():
 
 
 @pytest.mark.asyncio
+async def test_modelo_resumen_operativo_no_usa_seccion_presentacion_como_plazo():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                DELETE FROM modelo_instruccion
+                WHERE campana_id = (
+                    SELECT mc.id
+                    FROM modelo_campana mc
+                    JOIN aeat_modelo m ON m.id = mc.modelo_id
+                    WHERE m.codigo = '100' AND mc.campana = '2025'
+                )
+                AND seccion IN ('plazo', 'quien-debe')
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                DELETE FROM modelo_instruccion
+                WHERE campana_id = (
+                    SELECT mc.id
+                    FROM modelo_campana mc
+                    JOIN aeat_modelo m ON m.id = mc.modelo_id
+                    WHERE m.codigo = '100' AND mc.campana = '2025'
+                )
+                AND seccion = 'presentacion'
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
+                SELECT mc.id,
+                       'presentacion',
+                       'Presentacion del modelo 100',
+                       'La presentacion del modelo 100 se realiza exclusivamente por via electronica o por los canales habilitados por AEAT.',
+                       99
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = '100' AND mc.campana = '2025'
+                """
+            )
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100/resumen-operativo")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert "ficha aeat del modelo 100" in data["plazo_presentacion"].lower()
+
+
+@pytest.mark.asyncio
 async def test_modelo_campana_operativa_expone_obligados_plazo_y_presentacion():
     async with _client() as c:
         r = await c.get("/v1/modelos/216/campana-operativa")
@@ -491,6 +549,20 @@ async def test_modelos_campanas_operativas_agrega_varios_modelos():
     modelo_036 = next(item for item in data["modelos"] if item["codigo"] == "036")
     assert modelo_036["categoria_obligado"] == "obligado_censal"
     assert modelo_036["ventana_presentacion"] == "1_mes_desde_hecho"
+
+
+@pytest.mark.asyncio
+async def test_modelos_campanas_operativas_deduplica_y_descarta_codigos_desconocidos():
+    async with _client() as c:
+        r = await c.get(
+            "/v1/modelos/campanas-operativas?codigos=303,303,XYZ_INEXISTENTE,216,,216"
+        )
+
+    assert r.status_code == 200
+    data = r.json()
+    codigos = [item["codigo"] for item in data["modelos"]]
+
+    assert codigos == ["303", "216"]
 
 
 @pytest.mark.asyncio
