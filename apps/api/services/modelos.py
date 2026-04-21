@@ -704,3 +704,38 @@ def list_modelos_campanas_operativas(db, codigos: list[str], campana: str = None
         if payload:
             resultados.append(payload)
     return resultados
+
+
+def get_modelos_status(db):
+    try:
+        row = db.execute(
+            text(
+                """
+                SELECT
+                    COUNT(*) FILTER (WHERE campana_id IS NOT NULL) AS campanas_activas,
+                    MAX(actualizado_at) AS ultima_actualizacion
+                FROM modelo_campana_operativa
+                """
+            )
+        ).mappings().first()
+    except Exception:
+        return {
+            "campanas_activas": 0,
+            "ultima_actualizacion": None,
+            "estado": "sin_datos",
+        }
+
+    campanas_activas = row["campanas_activas"] or 0
+    ultima_actualizacion = row["ultima_actualizacion"]
+
+    return {
+        "campanas_activas": campanas_activas,
+        "ultima_actualizacion": (
+            ultima_actualizacion.isoformat()
+            if hasattr(ultima_actualizacion, "isoformat")
+            else str(ultima_actualizacion)
+            if ultima_actualizacion is not None
+            else None
+        ),
+        "estado": "ok" if campanas_activas > 0 and ultima_actualizacion else "sin_datos",
+    }

@@ -134,6 +134,18 @@ async def test_status_expone_metricas_dgt_si_existen():
 
 
 @pytest.mark.asyncio
+async def test_status_expone_bloque_modelos():
+    async with _client() as c:
+        r = await c.get("/status")
+    assert r.status_code == 200
+    data = r.json()
+    assert "modelos" in data
+    assert "campanas_activas" in data["modelos"]
+    assert "ultima_actualizacion" in data["modelos"]
+    assert data["modelos"]["estado"] in {"ok", "sin_datos"}
+
+
+@pytest.mark.asyncio
 async def test_liva_articulo_91():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos/91")
