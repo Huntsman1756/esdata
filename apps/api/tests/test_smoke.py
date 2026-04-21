@@ -577,6 +577,10 @@ async def test_modelos_campanas_operativas_deduplica_y_descarta_codigos_desconoc
     assert codigos == ["303", "216"]
 
 
+# TODO: test fuentes-oficiales partial payload when there is no active campaign; see apps/api/services/modelos.py:327
+# TODO: test artefactos with missing url_formato or url_normativa; see apps/api/services/modelos.py:445
+# TODO: test fallback schema without origen_metadato/estado_metadato in get_modelo_campana_operativa_row; see apps/api/services/modelos.py:60
+# TODO: test _infer_* helpers with None or unrecognized inputs; see apps/api/services/modelos.py:23,36,47
 @pytest.mark.asyncio
 async def test_legislacion_lista_articulos_filtra_por_tipo():
     async with _client() as c:
