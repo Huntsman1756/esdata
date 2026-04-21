@@ -30,12 +30,12 @@ jobs:
       - name: Run DB migrations
         run: alembic upgrade head
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL || secrets.DATABASE_URL }}
 
       - name: Verify DB schema
         run: python scripts/verify_schema.py
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL || secrets.DATABASE_URL }}
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli

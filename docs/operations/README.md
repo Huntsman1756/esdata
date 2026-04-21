@@ -28,6 +28,7 @@ Centralizar la operación recurrente de `esdata` para reducir dependencia de con
 ### Migraciones
 
 - `deploy.yml` ejecuta `alembic upgrade head` antes del deploy de la API.
+- En GitHub Actions, las migraciones usan `DATABASE_PUBLIC_URL` si existe y caen a `DATABASE_URL` solo como fallback.
 - El mismo workflow ejecuta `python scripts/verify_schema.py` y falla si falta `modelo_campana_operativa` o las columnas de procedencia.
 - Si este paso falla, no debe llegar código nuevo a Railway.
 
