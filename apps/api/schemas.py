@@ -164,6 +164,129 @@ class ModeloCampana(BaseModel):
     activo: bool = Field(description="Si es la campaña activa")
 
 
+class ModeloFuenteOficial(BaseModel):
+    tipo: str = Field(description="Tipo de fuente oficial o cuasi oficial")
+    titulo: str = Field(description="Título legible de la fuente")
+    url: str = Field(description="URL pública de la fuente")
+    organismo: str = Field(description="Organismo emisor o titular de la fuente")
+    campana: str | None = Field(default=None, description="Campaña asociada si aplica")
+    boe_id: str | None = Field(default=None, description="Identificador BOE si aplica")
+    fecha: str | None = Field(default=None, description="Fecha de publicación si aplica")
+    oficial: bool = Field(description="Si la fuente es oficial primaria")
+    nota: str | None = Field(default=None, description="Contexto corto para el uso de la fuente")
+
+
+class ModeloFuentesOficialesResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    campana_activa: str | None = Field(default=None, description="Campaña activa resuelta")
+    criterio_uso: str = Field(description="Criterio de uso de estas fuentes en esdata")
+    fuentes_oficiales: list[ModeloFuenteOficial] = Field(
+        default_factory=list,
+        description="Fuentes oficiales y de trazabilidad recomendadas para trabajar el modelo",
+    )
+
+
+class ModeloArtefacto(BaseModel):
+    tipo: str = Field(description="Tipo de artefacto técnico del modelo")
+    titulo: str = Field(description="Título legible del artefacto")
+    url: str = Field(description="URL pública del artefacto")
+    campana: str | None = Field(default=None, description="Campaña asociada")
+    boe_id: str | None = Field(default=None, description="Identificador BOE si aplica")
+    fecha: str | None = Field(default=None, description="Fecha asociada si aplica")
+    formato: str | None = Field(default=None, description="Formato esperado del artefacto")
+    oficial: bool = Field(description="Si el artefacto procede de fuente oficial primaria")
+    nota: str | None = Field(default=None, description="Descripción corta de uso")
+
+
+class ModeloArtefactosResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    campana_activa: str | None = Field(default=None, description="Campaña activa resuelta")
+    criterio_validacion: str = Field(description="Criterio de uso de estos artefactos para validación")
+    artefactos: list[ModeloArtefacto] = Field(
+        default_factory=list,
+        description="Artefactos técnicos disponibles para trabajar o validar el modelo",
+    )
+
+
+class ModeloResumenOperativoResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    nombre: str = Field(description="Nombre completo del modelo")
+    impuesto: str = Field(description="Impuesto asociado")
+    periodo: str | None = Field(default=None, description="Periodicidad o periodo del modelo")
+    campana_activa: str | None = Field(default=None, description="Campaña activa resuelta")
+    quien_debe_presentarlo: str | None = Field(
+        default=None,
+        description="Resumen operativo de sujetos obligados según instrucciones",
+    )
+    plazo_presentacion: str | None = Field(
+        default=None,
+        description="Resumen operativo del plazo de presentación según instrucciones",
+    )
+    fuentes_recomendadas: list[ModeloFuenteOficial] = Field(
+        default_factory=list,
+        description="Fuentes oficiales recomendadas para validar el resumen operativo",
+    )
+
+
+class ModeloCampanaOperativaResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    nombre: str = Field(description="Nombre completo del modelo")
+    campana: str | None = Field(default=None, description="Campaña resuelta")
+    impuesto: str = Field(description="Impuesto asociado")
+    periodo: str | None = Field(default=None, description="Periodo o frecuencia declarada")
+    frecuencia_presentacion: str | None = Field(
+        default=None,
+        description="Frecuencia normalizada estimada: mensual, trimestral, anual o variable",
+    )
+    ventana_presentacion: str | None = Field(
+        default=None,
+        description="Ventana normalizada de presentación cuando se puede inferir",
+    )
+    canal_presentacion: str | None = Field(
+        default=None,
+        description="Canal normalizado de presentación: electronica, presencial o mixta",
+    )
+    categoria_obligado: str | None = Field(
+        default=None,
+        description="Categoría normalizada del sujeto obligado cuando se puede inferir",
+    )
+    norma_base: str | None = Field(
+        default=None,
+        description="Referencia corta a la norma o artículo base de la operativa del modelo",
+    )
+    origen_metadato: str | None = Field(
+        default=None,
+        description="Procedencia del metadato operativo: seed_curado, manual_curado o worker_derivado",
+    )
+    estado_metadato: str | None = Field(
+        default=None,
+        description="Estado de revisión del metadato operativo: curado o borrador",
+    )
+    obligados_resumen: str | None = Field(
+        default=None,
+        description="Resumen corto de quién debe presentar el modelo en la campaña",
+    )
+    plazo_resumen: str | None = Field(
+        default=None,
+        description="Resumen corto del plazo de presentación",
+    )
+    presentacion_resumen: str | None = Field(
+        default=None,
+        description="Resumen corto de la forma de presentación",
+    )
+    fuentes_recomendadas: list[ModeloFuenteOficial] = Field(
+        default_factory=list,
+        description="Fuentes recomendadas para confirmar la operativa de campaña",
+    )
+
+
+class ModelosCampanasOperativasResponse(BaseModel):
+    modelos: list[ModeloCampanaOperativaResponse] = Field(
+        default_factory=list,
+        description="Resumen operativo de campaña para varios modelos",
+    )
+
+
 class ModeloDetail(BaseModel):
     codigo: str = Field(description="Código del modelo")
     nombre: str = Field(description="Nombre completo")

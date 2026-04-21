@@ -23,6 +23,37 @@ async def test_health():
 
 
 @pytest.mark.asyncio
+async def test_gpt_action_spec_endpoint_serves_minimal_model_schema():
+    async with _client() as c:
+        r = await c.get("/gpt-actions/modelos/openapi.json")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["openapi"] == "3.1.0"
+    assert "/v1/modelos/{codigo}" in data["paths"]
+
+
+@pytest.mark.asyncio
+async def test_privacy_policy_endpoint_serves_text():
+    async with _client() as c:
+        r = await c.get("/privacy")
+    assert r.status_code == 200
+    assert "privacy policy" in r.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_openapi_includes_modelo_fuentes_oficiales_endpoint():
+    async with _client() as c:
+        r = await c.get("/openapi.json")
+    assert r.status_code == 200
+    data = r.json()
+    assert "/v1/modelos/{codigo}/fuentes-oficiales" in data["paths"]
+    assert "/v1/modelos/{codigo}/artefactos" in data["paths"]
+    assert "/v1/modelos/campanas-operativas" in data["paths"]
+    assert "/v1/modelos/{codigo}/campana-operativa" in data["paths"]
+    assert "/v1/modelos/{codigo}/resumen-operativo" in data["paths"]
+
+
+@pytest.mark.asyncio
 async def test_status_tiene_workers():
     async with _client() as c:
         r = await c.get("/status")
@@ -172,7 +203,10 @@ async def test_legislacion_expone_irnr_con_clasificacion():
 
     assert detalle.json()["tipo_documento"] == "real_decreto_legislativo"
     assert detalle.json()["estado_cobertura"] == "ingestada"
-    assert "sin mediación de establecimiento permanente" in articulo.json()["texto"].lower()
+    assert (
+        "sin mediación de establecimiento permanente"
+        in articulo.json()["texto"].lower()
+    )
 
 
 @pytest.mark.asyncio
@@ -236,7 +270,6 @@ async def test_legislacion_expone_dac6_espana_y_ue():
 
     assert dac6.json()["tipo_documento"] == "ley"
     assert "mecanismos transfronterizos" in dac6_articulo.json()["texto"].lower()
-
     assert dac6rd.json()["tipo_documento"] == "real_decreto"
     assert dac6rd.json()["ambito"] == "tributario_internacional"
 
@@ -244,6 +277,143 @@ async def test_legislacion_expone_dac6_espana_y_ue():
     assert dac6eu.json()["tipo_fuente"] == "eurlex"
     assert dac6eu.json()["tipo_documento"] == "directiva_ue"
     assert dac6eu.json()["estado_cobertura"] == "referenciada"
+
+
+@pytest.mark.asyncio
+async def test_modelo_fuentes_oficiales_expone_aeat_y_boe():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100/fuentes-oficiales")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert data["codigo"] == "100"
+    assert data["campana_activa"] == "2025"
+    assert len(data["fuentes_oficiales"]) >= 3
+    assert any(
+        item["tipo"] == "aeat_modelo"
+        and item["url"] == "https://sede.agenciatributaria.gob.es/modelo-100"
+        for item in data["fuentes_oficiales"]
+    )
+    assert any(
+        item["tipo"] == "aeat_instrucciones"
+        and item["campana"] == "2025"
+        for item in data["fuentes_oficiales"]
+    )
+    assert any(
+        item["tipo"] == "boe"
+        and item["boe_id"] == "BOE-A-2024-26789"
+        for item in data["fuentes_oficiales"]
+    )
+    assert "fuente maestra" in data["criterio_uso"].lower()
+
+
+@pytest.mark.asyncio
+async def test_modelo_artefactos_expone_superficie_tecnica_de_campana():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100/artefactos")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert data["codigo"] == "100"
+    assert data["campana_activa"] == "2025"
+    assert any(
+        item["tipo"] == "instrucciones"
+        and item["url"] == "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones"
+        for item in data["artefactos"]
+    )
+    assert any(
+        item["tipo"] == "normativa_campana"
+        and item["url"] == "https://sede.agenciatributaria.gob.es/modelo-100-normativa"
+        for item in data["artefactos"]
+    )
+    assert any(
+        item["tipo"] == "formato"
+        and item["url"] == "https://sede.agenciatributaria.gob.es/modelo-100-formato"
+        for item in data["artefactos"]
+    )
+    assert any(
+        item["tipo"] == "boe_modelo"
+        and item["boe_id"] == "BOE-A-2024-26789"
+        for item in data["artefactos"]
+    )
+    assert "validacion local" in data["criterio_validacion"].lower()
+
+
+@pytest.mark.asyncio
+async def test_modelo_resumen_operativo_expone_quien_debe_y_plazo():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100/resumen-operativo")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert data["codigo"] == "100"
+    assert data["campana_activa"] == "2025"
+    assert data["periodo"] == "anual"
+    assert data["impuesto"] == "IRPF"
+    assert "obligados a declarar" in data["quien_debe_presentarlo"].lower()
+    assert "campana de renta" in data["plazo_presentacion"].lower()
+    assert any(
+        item["tipo"] == "aeat_instrucciones"
+        for item in data["fuentes_recomendadas"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_modelo_campana_operativa_expone_obligados_plazo_y_presentacion():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/216/campana-operativa")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert data["codigo"] == "216"
+    assert data["campana"] == "2025"
+    assert data["periodo"] == "mensual"
+    assert data["impuesto"] == "IRNR"
+    assert data["frecuencia_presentacion"] == "mensual"
+    assert data["canal_presentacion"] == "electronica"
+    assert data["categoria_obligado"] == "retenedor_irnr"
+    assert data["ventana_presentacion"] == "primeros_20_dias_mes_siguiente"
+    assert data["norma_base"] == "IRNR art. 14"
+    assert data["origen_metadato"] == "seed_curado"
+    assert data["estado_metadato"] == "curado"
+    assert "obligados a practicar retenciones" in data["obligados_resumen"].lower()
+    assert "primeros veinte dias naturales" in data["plazo_resumen"].lower()
+    assert "via electronica" in data["presentacion_resumen"].lower()
+    assert any(
+        item["tipo"] == "aeat_instrucciones"
+        for item in data["fuentes_recomendadas"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_modelos_campanas_operativas_agrega_varios_modelos():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/campanas-operativas?codigos=111,115,124,216,296,303,349,390,036,347")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert [item["codigo"] for item in data["modelos"]] == ["111", "115", "124", "216", "296", "303", "349", "390", "036", "347"]
+    modelo_111 = next(item for item in data["modelos"] if item["codigo"] == "111")
+    assert modelo_111["categoria_obligado"] == "retenedor_irpf"
+    assert modelo_111["frecuencia_presentacion"] == "trimestral"
+    modelo_303 = next(item for item in data["modelos"] if item["codigo"] == "303")
+    assert modelo_303["campana"] == "2025"
+    assert modelo_303["periodo"] == "trimestral"
+    assert modelo_303["frecuencia_presentacion"] == "trimestral"
+    assert modelo_303["canal_presentacion"] == "electronica"
+    assert modelo_303["categoria_obligado"] == "empresario_o_profesional_iva"
+    assert modelo_303["norma_base"] == "LIVA art. 71"
+    assert modelo_303["estado_metadato"] == "curado"
+    assert "autoliquidar el iva" in modelo_303["obligados_resumen"].lower()
+    assert "plazos generales" in modelo_303["plazo_resumen"].lower()
+    modelo_036 = next(item for item in data["modelos"] if item["codigo"] == "036")
+    assert modelo_036["categoria_obligado"] == "obligado_censal"
+    assert modelo_036["ventana_presentacion"] == "1_mes_desde_hecho"
 
 
 @pytest.mark.asyncio
@@ -319,7 +489,9 @@ async def test_sepblac_lista_y_detalle():
     async with _client() as c:
         lista = await c.get("/v1/sepblac")
         detalle = await c.get("/v1/sepblac/SEPBLAC-MODELO-19")
-        filtrada = await c.get("/v1/sepblac?q=comunicaci%C3%B3n+por+indicio&ambito=aml_cft_reporting")
+        filtrada = await c.get(
+            "/v1/sepblac?q=comunicaci%C3%B3n+por+indicio&ambito=aml_cft_reporting"
+        )
 
     assert lista.status_code == 200
     assert detalle.status_code == 200
@@ -373,7 +545,9 @@ async def test_borme_lista_y_detalle():
     assert detalle.json()["tipo_documento"] == "nombramiento"
     assert "nombramientos" in detalle.json()["texto"].lower()
     assert len(detalle.json()["empresas_relacionadas"]) >= 2
-    assert any(item["rol"] == "absorbida" for item in detalle.json()["empresas_relacionadas"])
+    assert any(
+        item["rol"] == "absorbida" for item in detalle.json()["empresas_relacionadas"]
+    )
     assert len(filtrada.json()["actos"]) >= 1
 
 
@@ -389,7 +563,9 @@ async def test_empresas_lista_y_detalle():
     empresas = lista.json()["empresas"]
     assert len(empresas) >= 1
 
-    empresa = next(item for item in empresas if item["nombre"] == "ALVAREZ GARCIA GANADERIA, S.L.")
+    empresa = next(
+        item for item in empresas if item["nombre"] == "ALVAREZ GARCIA GANADERIA, S.L."
+    )
     assert empresa["fuente_inicial"] == "BORME"
     assert empresa["documentos_count"] >= 1
 
@@ -765,13 +941,19 @@ async def test_modelos_lista():
     assert r.status_code == 200
     data = r.json()
     assert "modelos" in data
-    assert len(data["modelos"]) == 5  # 100, 124, 216, 296, 303 in test fixture
+    assert len(data["modelos"]) >= 11
     codigos = [m["codigo"] for m in data["modelos"]]
     assert "100" in codigos
+    assert "111" in codigos
+    assert "115" in codigos
     assert "124" in codigos
     assert "216" in codigos
     assert "296" in codigos
     assert "303" in codigos
+    assert "349" in codigos
+    assert "390" in codigos
+    assert "036" in codigos
+    assert "347" in codigos
 
 
 @pytest.mark.asyncio
@@ -924,7 +1106,11 @@ async def test_modelo_sin_campana_devuelve_la_activa_mas_nueva():
     from conftest import engine
 
     with engine.begin() as conn:
-        conn.execute(text("UPDATE modelo_campana SET activo = 0 WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = '100')"))
+        conn.execute(
+            text(
+                "UPDATE modelo_campana SET activo = 0 WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = '100')"
+            )
+        )
         conn.execute(
             text(
                 """

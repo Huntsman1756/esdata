@@ -2,23 +2,50 @@ from fastapi import APIRouter, HTTPException, Query
 
 from db import db_session
 from schemas import (
+    ModeloCampanaOperativaResponse,
+    ModeloArtefactosResponse,
     ModeloDetail as ModeloDetailSchema,
+    ModeloFuentesOficialesResponse,
+    ModeloResumenOperativoResponse,
+    ModelosCampanasOperativasResponse,
     ModelosListResponse,
 )
 from services.modelos import (
     get_active_campaign,
+    get_modelo_campana_operativa,
     get_model_row,
+    get_modelo_resumen_operativo,
     list_campaign_casillas,
     list_campaign_claves,
     list_campaign_instructions,
+    list_modelo_artefactos,
     list_modelo_articulos,
     list_modelo_campanas,
+    list_modelos_campanas_operativas,
+    list_modelo_fuentes_oficiales,
     list_modelo_normativa,
     list_modelos_summary,
     list_related_doctrina,
 )
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
+
+
+@router.get(
+    "/campanas-operativas",
+    operation_id="list_modelos_campanas_operativas",
+    response_model=ModelosCampanasOperativasResponse,
+    summary="Vista operativa agregada de varios modelos",
+)
+async def get_campanas_operativas_modelos(
+    codigos: str = Query(..., description="Codigos separados por comas, ej: 124,216,296"),
+    campana: str = Query(None, description="Campana especifica"),
+):
+    lista_codigos = [item.strip() for item in codigos.split(",")]
+    with db_session() as db:
+        return {
+            "modelos": list_modelos_campanas_operativas(db, lista_codigos, campana)
+        }
 
 
 @router.get("", operation_id="list_modelos", response_model=ModelosListResponse)
@@ -42,13 +69,23 @@ async def list_modelos():
         }
 
 
-@router.get("/{codigo}", operation_id="get_modelo", response_model=ModeloDetailSchema,
-            summary="Detalle de un modelo AEAT")
-async def get_modelo(codigo: str, campana: str = Query(None, description="Campana especifica (ej: 2025). Si no se indica, usa la activa.")):
+@router.get(
+    "/{codigo}",
+    operation_id="get_modelo",
+    response_model=ModeloDetailSchema,
+    summary="Detalle de un modelo AEAT",
+)
+async def get_modelo(
+    codigo: str,
+    campana: str = Query(
+        None,
+        description="Campana especifica (ej: 2025). Si no se indica, usa la activa.",
+    ),
+):
     """
     Detalle de un modelo con artículos, casillas, claves, instrucciones,
     normativa y doctrina relacionada.
-    
+
     Query params:
     - campana: filtra por campaña específica (ej: '2025'). Si no se indica,
       usa la campaña activa más reciente.
@@ -96,7 +133,13 @@ async def get_modelo(codigo: str, campana: str = Query(None, description="Campan
             instrucciones = [dict(r) for r in instr_rows]
 
         norm_rows = list_modelo_normativa(db, codigo)
-        normativa = [dict(r) for r in norm_rows]
+        normativa = [
+            {
+                **dict(r),
+                "fecha": str(r["fecha"]) if r["fecha"] else None,
+            }
+            for r in norm_rows
+        ]
 
         camp_rows = list_modelo_campanas(db, codigo)
         campanas = [dict(r) for r in camp_rows]
@@ -149,9 +192,15 @@ async def get_modelo_articulos(codigo: str):
         }
 
 
-@router.get("/{codigo}/casillas", operation_id="get_modelo_casillas", response_model=None,
-            summary="Casillas de un modelo")
-async def get_modelo_casillas(codigo: str, campana: str = Query(None, description="Campana especifica")):
+@router.get(
+    "/{codigo}/casillas",
+    operation_id="get_modelo_casillas",
+    response_model=None,
+    summary="Casillas de un modelo",
+)
+async def get_modelo_casillas(
+    codigo: str, campana: str = Query(None, description="Campana especifica")
+):
     """Lista todas las casillas de un modelo para una campaña."""
     with db_session() as db:
         camp_row = get_active_campaign(db, codigo, campana)
@@ -168,9 +217,12 @@ async def get_modelo_casillas(codigo: str, campana: str = Query(None, descriptio
         }
 
 
-@router.get("/{codigo}/claves", operation_id="get_modelo_claves",
-            summary="Claves de un modelo")
-async def get_modelo_claves(codigo: str, campana: str = Query(None, description="Campana especifica")):
+@router.get(
+    "/{codigo}/claves", operation_id="get_modelo_claves", summary="Claves de un modelo"
+)
+async def get_modelo_claves(
+    codigo: str, campana: str = Query(None, description="Campana especifica")
+):
     """Lista todas las claves de un modelo para una campaña."""
     with db_session() as db:
         camp_row = get_active_campaign(db, codigo, campana)
@@ -187,9 +239,14 @@ async def get_modelo_claves(codigo: str, campana: str = Query(None, description=
         }
 
 
-@router.get("/{codigo}/instrucciones", operation_id="get_modelo_instrucciones",
-            summary="Instrucciones de un modelo")
-async def get_modelo_instrucciones(codigo: str, campana: str = Query(None, description="Campana especifica")):
+@router.get(
+    "/{codigo}/instrucciones",
+    operation_id="get_modelo_instrucciones",
+    summary="Instrucciones de un modelo",
+)
+async def get_modelo_instrucciones(
+    codigo: str, campana: str = Query(None, description="Campana especifica")
+):
     """Lista las instrucciones de un modelo para una campaña."""
     with db_session() as db:
         camp_row = get_active_campaign(db, codigo, campana)
@@ -216,3 +273,75 @@ async def get_modelo_normativa(codigo: str):
             "codigo": codigo,
             "normativa": [dict(r) for r in rows],
         }
+
+
+@router.get(
+    "/{codigo}/artefactos",
+    operation_id="get_modelo_artefactos",
+    response_model=ModeloArtefactosResponse,
+    summary="Artefactos técnicos disponibles para un modelo",
+)
+async def get_modelo_artefactos(
+    codigo: str, campana: str = Query(None, description="Campana especifica")
+):
+    with db_session() as db:
+        payload = list_modelo_artefactos(db, codigo, campana)
+        if not payload:
+            raise HTTPException(
+                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
+            )
+        return payload
+
+
+@router.get(
+    "/{codigo}/resumen-operativo",
+    operation_id="get_modelo_resumen_operativo",
+    response_model=ModeloResumenOperativoResponse,
+    summary="Resumen operativo para agentes sobre un modelo",
+)
+async def get_resumen_operativo_modelo(
+    codigo: str, campana: str = Query(None, description="Campana especifica")
+):
+    with db_session() as db:
+        payload = get_modelo_resumen_operativo(db, codigo, campana)
+        if not payload:
+            raise HTTPException(
+                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
+            )
+        return payload
+
+
+@router.get(
+    "/{codigo}/campana-operativa",
+    operation_id="get_modelo_campana_operativa",
+    response_model=ModeloCampanaOperativaResponse,
+    summary="Vista de campaña operativa para agentes",
+)
+async def get_campana_operativa_modelo(
+    codigo: str, campana: str = Query(None, description="Campana especifica")
+):
+    with db_session() as db:
+        payload = get_modelo_campana_operativa(db, codigo, campana)
+        if not payload:
+            raise HTTPException(
+                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
+            )
+        return payload
+
+
+@router.get(
+    "/{codigo}/fuentes-oficiales",
+    operation_id="get_modelo_fuentes_oficiales",
+    response_model=ModeloFuentesOficialesResponse,
+    summary="Fuentes oficiales recomendadas para trabajar un modelo",
+)
+async def get_modelo_fuentes_oficiales(
+    codigo: str, campana: str = Query(None, description="Campana especifica")
+):
+    with db_session() as db:
+        payload = list_modelo_fuentes_oficiales(db, codigo, campana)
+        if not payload:
+            raise HTTPException(
+                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
+            )
+        return payload

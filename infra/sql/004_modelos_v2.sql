@@ -98,6 +98,22 @@ CREATE INDEX idx_modelo_normativa_modelo ON modelo_normativa(modelo_id);
 -- ---------------------------------------------------------------------------
 -- 6. FORMATO — especificaciones de diseño de registro por campaña
 -- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS modelo_campana_operativa (
+    campana_id               INTEGER PRIMARY KEY REFERENCES modelo_campana(id) ON DELETE CASCADE,
+    categoria_obligado       TEXT,
+    frecuencia_presentacion  TEXT,
+    ventana_presentacion     TEXT,
+    canal_presentacion       TEXT,
+    obligados_resumen        TEXT,
+    plazo_resumen            TEXT,
+    presentacion_resumen     TEXT,
+    norma_base               TEXT,
+    nota                     TEXT,
+    origen_metadato          TEXT DEFAULT 'seed_curado',
+    estado_metadato          TEXT DEFAULT 'curado',
+    actualizado_at           TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS modelo_formato (
     id              SERIAL PRIMARY KEY,
     campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,

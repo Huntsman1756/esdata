@@ -5,6 +5,7 @@ for all AEAT models in esdata.
 
 Populates:
 - modelo_campana: campaign versions per model
+- modelo_campana_operativa: normalized operational metadata per campaign
 - modelo_casilla: complete casilla inventory per campaign
 - modelo_clave: clave codes per campaign
 - modelo_instruccion: step-by-step instructions per campaign
@@ -752,6 +753,131 @@ NORMATIVA = [
 ]
 
 
+OPERATIVA_CAMPANA = {
+    "100": {
+        "categoria_obligado": "contribuyente_irpf",
+        "frecuencia_presentacion": "anual",
+        "ventana_presentacion": "campana_renta_aeat",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 100 los contribuyentes del IRPF obligados a declarar conforme a los limites legales vigentes.",
+        "plazo_resumen": "La presentacion del modelo 100 se realiza dentro del plazo general de la campana de renta fijado cada ano por la AEAT.",
+        "presentacion_resumen": "La presentacion del modelo 100 se realiza por via electronica mediante la sede de la AEAT, con los sistemas de identificacion admitidos en cada campana.",
+        "norma_base": "LIRPF",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "111": {
+        "categoria_obligado": "retenedor_irpf",
+        "frecuencia_presentacion": "trimestral",
+        "ventana_presentacion": "primeros_20_dias_periodo_siguiente",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 111 los obligados a practicar retenciones e ingresos a cuenta por rendimientos del trabajo y determinadas actividades economicas.",
+        "plazo_resumen": "El modelo 111 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.",
+        "presentacion_resumen": "La presentacion del modelo 111 se realiza por via electronica a traves de la sede de la AEAT.",
+        "norma_base": "LIRPF retenciones",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "115": {
+        "categoria_obligado": "retenedor_arrendamientos",
+        "frecuencia_presentacion": "trimestral",
+        "ventana_presentacion": "primeros_20_dias_periodo_siguiente",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 115 los obligados a practicar retenciones por arrendamientos de inmuebles urbanos.",
+        "plazo_resumen": "El modelo 115 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.",
+        "presentacion_resumen": "La presentacion del modelo 115 se realiza por via electronica a traves de la sede de la AEAT.",
+        "norma_base": "LIRPF arrendamientos",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "124": {
+        "categoria_obligado": "retenedor_irnr",
+        "frecuencia_presentacion": "mensual",
+        "ventana_presentacion": "primeros_20_dias_mes_siguiente",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 124 los obligados a retener sobre determinadas rentas del capital mobiliario obtenidas por no residentes sin establecimiento permanente.",
+        "plazo_resumen": "El modelo 124 se presenta mensualmente dentro de los primeros veinte dias naturales del mes siguiente al periodo declarado.",
+        "presentacion_resumen": "La presentacion del modelo 124 se realiza por medios electronicos a traves de la sede de la AEAT.",
+        "norma_base": "IRNR art. 25",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "216": {
+        "categoria_obligado": "retenedor_irnr",
+        "frecuencia_presentacion": "mensual",
+        "ventana_presentacion": "primeros_20_dias_mes_siguiente",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 216 los obligados a practicar retenciones e ingresos a cuenta sobre determinadas rentas de no residentes sin establecimiento permanente.",
+        "plazo_resumen": "El modelo 216 se presenta mensualmente dentro de los primeros veinte dias naturales del mes siguiente al periodo declarado.",
+        "presentacion_resumen": "La presentacion del modelo 216 se realiza por via electronica a traves de la sede de la AEAT.",
+        "norma_base": "IRNR art. 14",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "296": {
+        "categoria_obligado": "retenedor_irnr",
+        "frecuencia_presentacion": "anual",
+        "ventana_presentacion": "plazo_fijado_aeat",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 296 los retenedores y obligados a ingresar a cuenta que deban resumir anualmente las rentas sujetas al IRNR sin establecimiento permanente.",
+        "plazo_resumen": "El modelo 296 se presenta con caracter anual en el plazo fijado por la AEAT para el resumen anual de retenciones e ingresos a cuenta.",
+        "presentacion_resumen": "La presentacion del modelo 296 se realiza electronicamente mediante la sede de la AEAT.",
+        "norma_base": "IRNR art. 14",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "303": {
+        "categoria_obligado": "empresario_o_profesional_iva",
+        "frecuencia_presentacion": "trimestral",
+        "ventana_presentacion": "plazo_general_aeat",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 303 los empresarios y profesionales obligados a autoliquidar el IVA del periodo.",
+        "plazo_resumen": "El modelo 303 se presenta en los plazos generales fijados por la AEAT para la autoliquidacion del IVA.",
+        "presentacion_resumen": "La presentacion del modelo 303 se realiza por via electronica mediante la sede de la AEAT.",
+        "norma_base": "LIVA art. 71",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "349": {
+        "categoria_obligado": "operador_intracomunitario_iva",
+        "frecuencia_presentacion": "mensual",
+        "ventana_presentacion": "primeros_20_dias_mes_siguiente",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 349 los sujetos pasivos del IVA que realicen operaciones intracomunitarias de bienes o servicios.",
+        "plazo_resumen": "El modelo 349 se presenta con caracter mensual o trimestral segun el volumen de operaciones, del 1 al 20 del mes siguiente al periodo.",
+        "presentacion_resumen": "La presentacion del modelo 349 se realiza por via electronica a traves de la sede de la AEAT.",
+        "norma_base": "LIVA operaciones intracomunitarias",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "390": {
+        "categoria_obligado": "sujeto_pasivo_iva",
+        "frecuencia_presentacion": "anual",
+        "ventana_presentacion": "plazo_fijado_aeat",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 390 los sujetos pasivos del IVA obligados a presentar el resumen anual, salvo excepciones previstas por la normativa.",
+        "plazo_resumen": "El modelo 390 se presenta con caracter anual en el plazo fijado por la AEAT junto con el cierre del ejercicio de IVA.",
+        "presentacion_resumen": "La presentacion del modelo 390 se realiza por via electronica mediante la sede de la AEAT.",
+        "norma_base": "LIVA resumen anual",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "036": {
+        "categoria_obligado": "obligado_censal",
+        "frecuencia_presentacion": "eventual",
+        "ventana_presentacion": "1_mes_desde_hecho",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 036 las personas fisicas o juridicas que inicien actividad, modifiquen datos censales o causen baja en el censo.",
+        "plazo_resumen": "El modelo 036 se presenta dentro del plazo de un mes desde el inicio de actividad o desde la modificacion censal correspondiente.",
+        "presentacion_resumen": "La presentacion del modelo 036 puede realizarse por la sede de la AEAT con los sistemas de identificacion admitidos.",
+        "norma_base": "Censo AEAT",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+    "347": {
+        "categoria_obligado": "declarante_operaciones_terceros",
+        "frecuencia_presentacion": "anual",
+        "ventana_presentacion": "febrero_ano_siguiente",
+        "canal_presentacion": "electronica",
+        "obligados_resumen": "Deben presentar el modelo 347 quienes hayan realizado operaciones con terceros por importe superior al umbral legal anual.",
+        "plazo_resumen": "El modelo 347 se presenta con caracter anual durante el mes de febrero del ano siguiente.",
+        "presentacion_resumen": "La presentacion del modelo 347 se realiza por via electronica a traves de la sede de la AEAT.",
+        "norma_base": "LGT informacion terceros",
+        "nota": "Metadato operativo curado para agentes.",
+    },
+}
+
+
 def get_db_url(args_db_url):
     if args_db_url:
         return args_db_url
@@ -968,6 +1094,83 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
         conn.commit()
         if not dry_run:
             print(f"  Upserted {total_norm} normativa entries.")
+
+        # --- 6. Insert campaign operational metadata ---
+        print(f"\n=== Operativa de campana ===")
+        total_operativa = 0
+        for modelo_codigo, payload in OPERATIVA_CAMPANA.items():
+            payload.setdefault("origen_metadato", "seed_curado")
+            payload.setdefault("estado_metadato", "curado")
+            cur.execute(
+                """
+                SELECT mc.id
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = %s AND mc.campana = %s
+                """,
+                (modelo_codigo, campana),
+            )
+            camp_row = cur.fetchone()
+            if not camp_row:
+                print(f"  SKIP: modelo {modelo_codigo} campaign {campana} not found")
+                continue
+            campana_id = camp_row[0]
+
+            if dry_run:
+                print(f"  [DRY] {modelo_codigo} operativa={payload['categoria_obligado']}")
+                total_operativa += 1
+                continue
+
+            cur.execute(
+                """
+                INSERT INTO modelo_campana_operativa (
+                    campana_id,
+                    categoria_obligado,
+                    frecuencia_presentacion,
+                    ventana_presentacion,
+                    canal_presentacion,
+                    obligados_resumen,
+                    plazo_resumen,
+                    presentacion_resumen,
+                    norma_base,
+                    nota,
+                    origen_metadato,
+                    estado_metadato
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (campana_id) DO UPDATE SET
+                    categoria_obligado = EXCLUDED.categoria_obligado,
+                    frecuencia_presentacion = EXCLUDED.frecuencia_presentacion,
+                    ventana_presentacion = EXCLUDED.ventana_presentacion,
+                    canal_presentacion = EXCLUDED.canal_presentacion,
+                    obligados_resumen = EXCLUDED.obligados_resumen,
+                    plazo_resumen = EXCLUDED.plazo_resumen,
+                    presentacion_resumen = EXCLUDED.presentacion_resumen,
+                    norma_base = EXCLUDED.norma_base,
+                    nota = EXCLUDED.nota,
+                    origen_metadato = EXCLUDED.origen_metadato,
+                    estado_metadato = EXCLUDED.estado_metadato
+                """,
+                (
+                    campana_id,
+                    payload["categoria_obligado"],
+                    payload["frecuencia_presentacion"],
+                    payload["ventana_presentacion"],
+                    payload["canal_presentacion"],
+                    payload["obligados_resumen"],
+                    payload["plazo_resumen"],
+                    payload["presentacion_resumen"],
+                    payload["norma_base"],
+                    payload["nota"],
+                    payload["origen_metadato"],
+                    payload["estado_metadato"],
+                ),
+            )
+            total_operativa += 1
+
+        conn.commit()
+        if not dry_run:
+            print(f"  Upserted {total_operativa} operativa entries.")
 
 
 def main():

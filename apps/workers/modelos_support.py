@@ -18,6 +18,8 @@ class SyncResult:
     instrucciones_upserted: int = 0
     claves_upserted: int = 0
     normativa_upserted: int = 0
+    operativa_upserted: int = 0
+    operativa_skipped: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -165,6 +167,251 @@ def scrape_instructions_from_page(html: str) -> list[dict]:
     return instrucciones
 
 
+def _infer_operativa_frequency(periodo: str | None, plazo: str | None) -> str | None:
+    periodo_value = (periodo or "").lower()
+    plazo_value = (plazo or "").lower()
+    if "mensual" in periodo_value:
+        return "mensual"
+    if "trimestral" in periodo_value:
+        return "trimestral"
+    if "anual" in periodo_value:
+        return "anual"
+    if "eventual" in periodo_value:
+        return "eventual"
+    if "mensual" in plazo_value:
+        return "mensual"
+    if "trimestral" in plazo_value:
+        return "trimestral"
+    if "anual" in plazo_value:
+        return "anual"
+    return None
+
+
+def _infer_operativa_window(plazo: str | None) -> str | None:
+    plazo_value = (plazo or "").lower()
+    if "primeros veinte dias" in plazo_value or "1 al 20" in plazo_value:
+        return "primeros_20_dias_periodo_siguiente"
+    if "mes de febrero" in plazo_value:
+        return "febrero_ano_siguiente"
+    if "un mes" in plazo_value:
+        return "1_mes_desde_hecho"
+    if "campana de renta" in plazo_value:
+        return "campana_renta_aeat"
+    if "plazo fijado por la aeat" in plazo_value or "plazos generales" in plazo_value:
+        return "plazo_general_aeat"
+    return None
+
+
+def _infer_operativa_channel(presentacion: str | None) -> str | None:
+    presentacion_value = (presentacion or "").lower()
+    if "electronica" in presentacion_value or "electrónica" in presentacion_value:
+        return "electronica"
+    if "presencial" in presentacion_value:
+        return "presencial"
+    return None
+
+
+def _infer_operativa_category(modelo_codigo: str, impuesto: str | None, obligados: str | None) -> str | None:
+    obligados_value = (obligados or "").lower()
+    if modelo_codigo in {"124", "216", "296"} or "no residentes" in obligados_value:
+        return "retenedor_irnr"
+    if modelo_codigo == "303" or "autoliquidar el iva" in obligados_value:
+        return "empresario_o_profesional_iva"
+    if modelo_codigo == "349":
+        return "operador_intracomunitario_iva"
+    if modelo_codigo == "390":
+        return "sujeto_pasivo_iva"
+    if modelo_codigo == "036":
+        return "obligado_censal"
+    if modelo_codigo == "347":
+        return "declarante_operaciones_terceros"
+    if modelo_codigo == "111":
+        return "retenedor_irpf"
+    if modelo_codigo == "115":
+        return "retenedor_arrendamientos"
+    if modelo_codigo == "100" or "irpf" in obligados_value:
+        return "contribuyente_irpf"
+    if impuesto:
+        return f"obligado_{impuesto.lower()}"
+    return None
+
+
+def derive_campaign_operativa(
+    modelo_codigo: str,
+    impuesto: str | None,
+    periodo: str | None,
+    instrucciones: list[dict],
+) -> dict:
+    who = None
+    deadline = None
+    presentation = None
+
+    for item in instrucciones:
+        section = (item.get("seccion") or "").strip().lower()
+        content = item.get("contenido")
+        if section in {"quien-debe", "quien_debe", "obligados"} and not who:
+            who = content
+        elif section in {"plazo", "presentacion", "plazo-presentacion"} and not deadline:
+            deadline = content
+        elif section in {"como-presentar", "como_presentar", "como-rellenar"} and not presentation:
+            presentation = content
+
+    return {
+        "categoria_obligado": _infer_operativa_category(modelo_codigo, impuesto, who),
+        "frecuencia_presentacion": _infer_operativa_frequency(periodo, deadline),
+        "ventana_presentacion": _infer_operativa_window(deadline),
+        "canal_presentacion": _infer_operativa_channel(presentation),
+        "obligados_resumen": who,
+        "plazo_resumen": deadline,
+        "presentacion_resumen": presentation,
+        "origen_metadato": "worker_derivado",
+        "estado_metadato": "borrador",
+    }
+
+
+def _get_campaign_operativa_existing_row(conn, campana_id: int) -> dict | None:
+    try:
+        row = conn.execute(
+            text(
+                """
+                SELECT campana_id, origen_metadato, estado_metadato, nota
+                FROM modelo_campana_operativa
+                WHERE campana_id = :campana_id
+                """
+            ),
+            {"campana_id": campana_id},
+        ).mappings().first()
+    except Exception:
+        row = conn.execute(
+            text(
+                """
+                SELECT campana_id, nota
+                FROM modelo_campana_operativa
+                WHERE campana_id = :campana_id
+                """
+            ),
+            {"campana_id": campana_id},
+        ).mappings().first()
+    return dict(row) if row else None
+
+
+def _is_curated_operativa(row: dict | None) -> bool:
+    if not row:
+        return False
+
+    origen = (row.get("origen_metadato") or "").strip().lower()
+    estado = (row.get("estado_metadato") or "").strip().lower()
+    nota = (row.get("nota") or "").strip().lower()
+
+    if origen in {"seed_curado", "manual_curado"}:
+        return True
+    if estado == "curado":
+        return True
+    return "metadato operativo curado" in nota
+
+
+def upsert_campaign_operativa(conn, campana_id: int, payload: dict) -> bool:
+    existing = _get_campaign_operativa_existing_row(conn, campana_id)
+    incoming_origen = (payload.get("origen_metadato") or "").strip().lower()
+    params = {"campana_id": campana_id, **payload}
+
+    if existing and _is_curated_operativa(existing) and incoming_origen == "worker_derivado":
+        return False
+
+    try:
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana_operativa (
+                    campana_id,
+                    categoria_obligado,
+                    frecuencia_presentacion,
+                    ventana_presentacion,
+                    canal_presentacion,
+                    obligados_resumen,
+                    plazo_resumen,
+                    presentacion_resumen,
+                    norma_base,
+                    nota,
+                    origen_metadato,
+                    estado_metadato
+                )
+                VALUES (
+                    :campana_id,
+                    :categoria_obligado,
+                    :frecuencia_presentacion,
+                    :ventana_presentacion,
+                    :canal_presentacion,
+                    :obligados_resumen,
+                    :plazo_resumen,
+                    :presentacion_resumen,
+                    :norma_base,
+                    :nota,
+                    :origen_metadato,
+                    :estado_metadato
+                )
+                ON CONFLICT (campana_id) DO UPDATE SET
+                    categoria_obligado = EXCLUDED.categoria_obligado,
+                    frecuencia_presentacion = EXCLUDED.frecuencia_presentacion,
+                    ventana_presentacion = EXCLUDED.ventana_presentacion,
+                    canal_presentacion = EXCLUDED.canal_presentacion,
+                    obligados_resumen = EXCLUDED.obligados_resumen,
+                    plazo_resumen = EXCLUDED.plazo_resumen,
+                    presentacion_resumen = EXCLUDED.presentacion_resumen,
+                    norma_base = EXCLUDED.norma_base,
+                    nota = EXCLUDED.nota,
+                    origen_metadato = EXCLUDED.origen_metadato,
+                    estado_metadato = EXCLUDED.estado_metadato
+                """
+            ),
+            params,
+        )
+    except Exception:
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana_operativa (
+                    campana_id,
+                    categoria_obligado,
+                    frecuencia_presentacion,
+                    ventana_presentacion,
+                    canal_presentacion,
+                    obligados_resumen,
+                    plazo_resumen,
+                    presentacion_resumen,
+                    norma_base,
+                    nota
+                )
+                VALUES (
+                    :campana_id,
+                    :categoria_obligado,
+                    :frecuencia_presentacion,
+                    :ventana_presentacion,
+                    :canal_presentacion,
+                    :obligados_resumen,
+                    :plazo_resumen,
+                    :presentacion_resumen,
+                    :norma_base,
+                    :nota
+                )
+                ON CONFLICT (campana_id) DO UPDATE SET
+                    categoria_obligado = EXCLUDED.categoria_obligado,
+                    frecuencia_presentacion = EXCLUDED.frecuencia_presentacion,
+                    ventana_presentacion = EXCLUDED.ventana_presentacion,
+                    canal_presentacion = EXCLUDED.canal_presentacion,
+                    obligados_resumen = EXCLUDED.obligados_resumen,
+                    plazo_resumen = EXCLUDED.plazo_resumen,
+                    presentacion_resumen = EXCLUDED.presentacion_resumen,
+                    norma_base = EXCLUDED.norma_base,
+                    nota = EXCLUDED.nota
+                """
+            ),
+            params,
+        )
+
+    return True
+
+
 def upsert_instructions(conn, campana_id: int, instrucciones: list[dict]) -> int:
     count = 0
     for orden, inst in enumerate(instrucciones, start=1):
@@ -252,6 +499,20 @@ def get_model_id(conn, modelo_codigo: str):
         {"codigo": modelo_codigo},
     ).fetchone()
     return row[0] if row else None
+
+
+def get_model_metadata(conn, modelo_codigo: str):
+    return conn.execute(
+        text(
+            """
+            SELECT codigo, impuesto, periodo
+            FROM aeat_modelo
+            WHERE codigo = :codigo
+            LIMIT 1
+            """
+        ),
+        {"codigo": modelo_codigo},
+    ).mappings().first()
 
 
 def ensure_campaigns(conn, modelo_id: int, modelo_codigo: str, campaigns: list[str], instruction_url: str | None, fallback_url: str, result: SyncResult, logger) -> None:
