@@ -21,8 +21,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+      context: ./apps/api
+      dockerfile: Dockerfile
     ports:
       - "8001:8000"
     environment:
@@ -33,12 +33,12 @@ services:
       - postgres
     volumes:
       - ./apps/api:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
 
   worker-boe:
     build:
-      context: .
-      dockerfile: apps/workers/Dockerfile
+      context: ./apps/workers
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       BOE_API_BASE: https://www.boe.es/datosabiertos/api/legislacion-consolidada
@@ -46,12 +46,12 @@ services:
       SYNC_INTERVAL_SECONDS: "3600"
     depends_on:
       - postgres
-    command: python -m workers.boe
+    command: python boe.py
 
   worker-modelos:
     build:
-      context: .
-      dockerfile: apps/workers/Dockerfile
+      context: ./apps/workers
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       MODELOS_SYNC_INTERVAL: "86400"
@@ -61,51 +61,51 @@ services:
 
   worker-bdns:
     build:
-      context: .
-      dockerfile: apps/workers/Dockerfile
+      context: ./apps/workers
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       BDNS_SEED_URLS: https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404
       SYNC_INTERVAL_SECONDS: "604800"
     depends_on:
       - postgres
-    command: python -m workers.bdns
+    command: python bdns.py
 
   worker-borme:
     build:
-      context: .
-      dockerfile: apps/workers/Dockerfile
+      context: ./apps/workers
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       BORME_SEED_URLS: https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf
       SYNC_INTERVAL_SECONDS: "604800"
     depends_on:
       - postgres
-    command: python -m workers.borme
+    command: python borme.py
 
   worker-cnmv:
     build:
-      context: .
-      dockerfile: apps/workers/Dockerfile
+      context: ./apps/workers
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       CNMV_SEED_URLS: https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133
       SYNC_INTERVAL_SECONDS: "604800"
     depends_on:
       - postgres
-    command: python -m workers.cnmv
+    command: python cnmv.py
 
   worker-sepblac:
     build:
-      context: .
-      dockerfile: apps/workers/Dockerfile
+      context: ./apps/workers
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       SEPBLAC_SEED_URLS: https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/
       SYNC_INTERVAL_SECONDS: "604800"
     depends_on:
       - postgres
-    command: python -m workers.sepblac
+    command: python sepblac.py
 
 volumes:
   pgdata:

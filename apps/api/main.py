@@ -43,7 +43,16 @@ app.include_router(modelos.router)
 mount_mcp(app)
 
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+def _resolve_root_dir() -> Path:
+    current = Path(__file__).resolve()
+    candidates = [current.parent, *current.parents]
+    for candidate in candidates:
+        if (candidate / "docs").exists():
+            return candidate
+    return current.parent
+
+
+ROOT_DIR = _resolve_root_dir()
 
 
 @app.get("/gpt-actions/modelos/openapi.json", include_in_schema=False)

@@ -1,0 +1,10 @@
+[Unit]
+Description=esdata scheduled job (%i)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/srv/esdata
+ExecStart=/usr/bin/docker compose --env-file /srv/esdata/infra/deploy/.env.prod -f /srv/esdata/infra/deploy/docker-compose.prod.yml run --rm %i

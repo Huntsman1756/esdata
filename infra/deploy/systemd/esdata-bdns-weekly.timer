@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata BDNS weekly sync
+
+[Timer]
+OnCalendar=Tue *-*-* 09:00:00
+Persistent=true
+Unit=esdata-job@cron-bdns-weekly.service
+
+[Install]
+WantedBy=timers.target

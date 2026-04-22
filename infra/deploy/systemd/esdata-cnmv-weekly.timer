@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata CNMV weekly sync
+
+[Timer]
+OnCalendar=Wed *-*-* 09:00:00
+Persistent=true
+Unit=esdata-job@cron-cnmv-weekly.service
+
+[Install]
+WantedBy=timers.target

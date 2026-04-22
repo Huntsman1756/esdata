@@ -26,6 +26,9 @@ Variables criticas de runtime hoy:
 Variables operativas usadas por scripts o periferia:
 
 - `DATABASE_PUBLIC_URL`
+- `API_DOMAIN`
+- `WEB_DOMAIN`
+- `CADDY_EMAIL`
 - `MCP_SECRET_ACTIVE`
 - `MCP_SECRET_PREVIOUS`
 - `CLOUDFLARE_ZONE_ID`
@@ -214,6 +217,29 @@ La API no consume hoy variables propias adicionales de runtime aparte de `DATABA
 
 - uso: token anterior durante ventana de rotacion
 - leida por: `infra/cloudflare/worker.js`
+
+### Caddy / Hetzner Compose
+
+#### `API_DOMAIN`
+
+- uso: dominio publico de la API en el `Caddyfile` del despliegue portable
+- leida por:
+  - `infra/deploy/Caddyfile`
+  - `infra/deploy/compose.env.example`
+
+#### `WEB_DOMAIN`
+
+- uso: dominio publico del frontend en el `Caddyfile` del despliegue portable
+- leida por:
+  - `infra/deploy/Caddyfile`
+  - `infra/deploy/compose.env.example`
+
+#### `CADDY_EMAIL`
+
+- uso: email opcional para ACME / Let's Encrypt en Caddy
+- leida por:
+  - `infra/deploy/Caddyfile`
+  - `infra/deploy/compose.env.example`
 
 ## Variables documentadas pero no consumidas por el runtime principal
 

@@ -30,7 +30,11 @@ Primer aterrizaje empresarial recomendado:
 ## Artefactos disponibles en el repo
 
 - `infra/deploy/docker-compose.prod.yml`
+- `infra/deploy/Caddyfile`
+- `infra/deploy/Dockerfile.ops`
+- `infra/deploy/systemd/*`
 - `infra/deploy/compose.env.example`
 - `docs/operations/runbooks/deploy-compose.md`
+- `docs/deployment/railway-to-hetzner-v2.md`
 - `alembic.ini`
 - `alembic/versions/20260416_0001_baseline_schema.py`

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata BOE daily sync
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+Unit=esdata-job@cron-boe-daily.service
+
+[Install]
+WantedBy=timers.target

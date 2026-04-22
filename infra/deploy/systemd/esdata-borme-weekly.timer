@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata BORME weekly sync
+
+[Timer]
+OnCalendar=Tue *-*-* 10:00:00
+Persistent=true
+Unit=esdata-job@cron-borme-weekly.service
+
+[Install]
+WantedBy=timers.target

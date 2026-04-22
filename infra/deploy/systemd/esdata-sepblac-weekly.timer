@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata SEPBLAC weekly sync
+
+[Timer]
+OnCalendar=Wed *-*-* 10:00:00
+Persistent=true
+Unit=esdata-job@cron-sepblac-weekly.service
+
+[Install]
+WantedBy=timers.target

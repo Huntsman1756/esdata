@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata DGT weekly sync
+
+[Timer]
+OnCalendar=Mon *-*-* 07:00:00
+Persistent=true
+Unit=esdata-job@cron-dgt-weekly.service
+
+[Install]
+WantedBy=timers.target
