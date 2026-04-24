@@ -205,6 +205,59 @@ La Fase 0 queda materializada en esta tabla maestra. Su objetivo es dejar cada r
 - Las referencias ambiguas de la sesión ya están corregidas o marcadas como validación funcional pendiente de identificación fina en la implementación.
 - La tabla anterior es suficiente para arrancar la Fase 1 sin volver a rediscutir el alcance conceptual.
 
+## Estado de Fase 1: Capa documental regulatoria
+
+### Entregables completados
+
+- **CNMV**: worker `cnmv.py` implementado, router `/v1/cnmv` expuesto, endpoints `listar_cnmv` y `get_cnmv` en MCP
+- **SEPBLAC**: worker `sepblac.py` implementado, router `/v1/sepblac` expuesto, endpoints `listar_sepblac` y `get_sepblac` en MCP
+- **Empresas**: tabla `empresa` y `documento_empresa` implementadas, router `/v1/empresas` expuesto
+- **BORME**: ingesta de actos societarios implementada, router `/v1/borme` expuesto, endpoints `listar_borme` y `get_borme` en MCP
+- **BDNS**: ingesta de convocatorias de subvenciones implementada, router `/v1/bdns` expuesto, endpoints `listar_bdns` y `get_bdns` en MCP
+- **Obligaciones**: tabla `obligacion_regulatoria` y `obligacion_documento` implementadas, router `/v1/obligaciones` expuesto, endpoints `listar_obligaciones` y `get_obligacion` en MCP
+
+### MCP - Superficie de consulta unificada
+
+Se implementó el servidor MCP con 36 operaciones que unifican el acceso a todas las fuentes:
+
+| Fuentes | Estado | Operaciones MCP |
+|---|---|---|
+| Legislacion BOE | ✅ Completo | 7 operaciones |
+| Materias | ✅ Completo | 2 operaciones |
+| Doctrina DGT/TEAC | ✅ Completo | 2 operaciones |
+| Modelos AEAT (25 modelos) | ✅ Completo | 12 operaciones |
+| Consulta fiscal inteligente | ✅ Completo | 1 operación principal |
+| BORME (Registro Mercantil) | ✅ Fase 1 | 2 operaciones |
+| SEPBLAC (Blanqueo capitales) | ✅ Fase 1 | 2 operaciones |
+| Empresas (capa societaria) | ✅ Fase 1 | 2 operaciones |
+| Obligaciones regulatorias | ✅ Fase 1 | 2 operaciones |
+| BDNS (Subvenciones) | ✅ Fase 1 | 2 operaciones |
+| CNMV (Mercado valores) | ✅ Fase 1 | 2 operaciones |
+| **Total** | | **36 operaciones** |
+
+### Consulta fiscal inteligente
+
+El endpoint `/v1/consulta` permite consultas en lenguaje natural que cruzan todas las fuentes:
+
+- Legislacion vigente con enlazado a articulos
+- Doctrina DGT y TEAC vinculada a normas
+- Modelos AEAT con casillas, claves e instrucciones
+- Datos internacionales (convenios DT, CRS, FATCA, DAC, W-8)
+- Fallback ILIKE para terminos en inglés (FATCA, CRS, W-8BEN, GIIN, DAC, BEPS, OECD)
+- Clarificacion de terminologia AEAT (FactA ≠ Facturae)
+
+### Datos internacionales
+
+Adicionalmente se ingesto cobertura internacional completa:
+
+- 166 normas internacionales
+- 107 convenios de doble tributacion (ES-XX) con textos estructurados por articulo
+- 60 paises con informacion TIN/NRF
+- 10 normas informativas (CRS/OECD, FATCA, DAC1-DAC11)
+- Formularios W-8 (W-8BEN, W-8BEN-E, GIIN, FFI, NFFE)
+- Normativa UE (NIF/NRF, VIES, OSS, ROIR)
+- 4371 articulos totales en la base de datos
+
 ## Data model proposal
 
 ### Reuse existing models

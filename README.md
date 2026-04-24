@@ -12,6 +12,26 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
 - Cadena norma -> doctrina -> modelo AEAT disponible con relaciones verificables y fuente oficial por enlace.
 - Busqueda full-text activa en produccion con `ts_rank`, `ts_headline` y fragmentos con `<mark>`.
+- MCP (Model Context Protocol) operativo con 36 operaciones expuestas en `/mcp`:
+  - Consulta fiscal inteligente (`consulta_fiscal`)
+  - Legislacion completa (list, get, articulos, historial, buscar)
+  - Materias (list, get)
+  - Doctrina (buscar, get)
+  - Modelos AEAT (list, get, articulos, casillas, claves, instrucciones, normativa, artefactos, campana_operativa, resumen_operativo, fuentes_oficiales)
+  - Registro Mercantil BORME (list, get)
+  - Blanqueo de capitales SEPBLAC (list, get)
+  - Empresas (list, get)
+  - Obligaciones regulatorias (list, get)
+  - Subvenciones BDNS (list, get)
+  - Mercado de valores CNMV (list, get)
+- Datos internacionales completos:
+  - 107 convenios de doble tributacion (ES-XX) con textos estructurados por articulo
+  - 60 paises con informacion TIN/NRF
+  - CRS/OECD, FATCA, DAC1-DAC10
+  - Formularios W-8 (W-8BEN, W-8BEN-E, GIIN)
+  - Normativa UE (NIF/NRF, VIES, OSS, ROIR)
+  - Busqueda ILIKE fallback para terminos internacionales en ingles (FATCA, CRS, W-8BEN, BEPS, OECD, DAC)
+- Clarificacion de terminologia AEAT en MCP para evitar confusiones entre FactA (Modelo 216) y Facturae (Ley 58/2023)
 
 ## Cobertura y foco
 

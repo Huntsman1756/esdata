@@ -30,10 +30,11 @@ Tecnologia:
 
 Responsabilidades:
 
-- exponer endpoints de legislacion, doctrina, materias y modelos
+- exponer endpoints de legislacion, doctrina, materias, modelos y fuentes regulatorias
 - leer datos ya normalizados desde PostgreSQL
 - publicar spec OpenAPI
-- exponer superficie MCP en `/mcp`
+- exponer superficie MCP en `/mcp` con 36 operaciones
+- exponer endpoint de consulta fiscal inteligente (`/v1/consulta`)
 - devolver estado agregado basico del sistema en `/status` y salud en `/health`
 
 Observacion estructural:
@@ -48,6 +49,13 @@ Routers actuales:
 - `materias`
 - `doctrina`
 - `modelos`
+- `consulta` (consulta fiscal inteligente con fallback ILIKE para terminos internacionales en ingles)
+- `bdns` (subvenciones)
+- `borme` (registro mercantil)
+- `cnmv` (mercado de valores)
+- `sepblac` (blanqueo de capitales)
+- `obligaciones` (capa de cumplimiento normalizado)
+- `empresas` (capa societaria)
 
 ### 2. Workers de ingesta
 
@@ -76,8 +84,35 @@ Responsabilidades:
 
 Observacion estructural:
 
-- `apps/workers/modelos.py` actua ahora como orquestador del sync
-- `apps/workers/modelos_support.py` concentra scraping, deteccion de campañas y persistencia del dominio de modelos
+- `apps/workers/modelos.py` actua como orquestador del sync
+- `apps/workers/modelos_support.py` concentra scraping, deteccion de campanas y persistencia del dominio de modelos
+
+### 2.5. Scripts de ingesta internacional
+
+Ubicacion:
+
+- `apps/api/ingest_internacional.py`
+- `apps/api/ingest_convenios.py`
+- `apps/api/ingest_crs_fatca.py`
+- `apps/api/ingest_w8_forms.py`
+- `apps/api/ingest_tin_europa.py`
+
+Responsabilidades:
+
+- poblar datos internacionales en las mismas tablas del esquema principal
+- enlazar convenios DT con articulos IRNR e IIEE
+- registrar normas informativas internacionales (CRS, FATCA, DAC)
+- almacenar formularios W-8 con textos detallados
+- mapear 60+ paises con TIN/NRF y convenios bilaterales
+- mapear normativa UE (NIF/NRF, VIES, OSS, ROIR)
+
+Estado actual:
+
+- 166 normas internacionales ingesticadas
+- 107 convenios de doble tributacion con textos estructurados
+- 60 paises con informacion TIN/NRF
+- 10 normas informativas (CRS, FATCA, DAC1-DAC11)
+- 4371 articulos totales en la base de datos
 
 ### 3. Frontend web
 
@@ -120,7 +155,48 @@ Responsabilidades:
 - almacenar modelos AEAT y sus campanas
 - almacenar trazas de ejecucion de workers en `sync_log`
 
-### 5. Capa perimetral y despliegue
+### 5. Superficie MCP
+
+Ubicacion:
+
+- `apps/api/mcp_server.py`
+- `apps/api/mcp_stdio.py`
+
+Tecnologia:
+
+- `fastapi-mcp` (FastApiMCP)
+- HTTP SSE + stdio
+
+Responsabilidades:
+
+- exponer 36 operaciones MCP para consumo por agentes LLM
+- permitir consulta fiscal inteligente con contexto normativo completo
+- servir datos de legislacion, doctrina, modelos AEAT y fuentes regulatorias
+- soportar SSE para conexiones persistentes y stdio para procesos locales
+
+Operaciones expuestas (36):
+
+| Grupo | Operaciones |
+|---|---|
+| Consulta fiscal | `consulta_fiscal` |
+| Legislacion | `list_legislacion`, `get_norma`, `list_articulos`, `get_articulo`, `get_articulo_historial`, `buscar`, `buscar_legislacion` |
+| Materias | `list_materias`, `get_materia` |
+| Doctrina | `buscar_doctrina`, `get_doctrina` |
+| Modelos AEAT | `list_modelos`, `list_modelos_campanas_operativas`, `get_modelo`, `get_modelo_articulos`, `get_modelo_casillas`, `get_modelo_claves`, `get_modelo_instrucciones`, `get_modelo_normativa`, `get_modelo_artefactos`, `get_modelo_campana_operativa`, `get_modelo_resumen_operativo`, `get_modelo_fuentes_oficiales` |
+| BORME | `listar_borme`, `get_borme` |
+| SEPBLAC | `listar_sepblac`, `get_sepblac` |
+| Empresas | `listar_empresas`, `get_empresa` |
+| Obligaciones | `listar_obligaciones`, `get_obligacion` |
+| BDNS | `listar_bdns`, `get_bdns` |
+| CNMV | `listar_cnmv`, `get_cnmv` |
+
+Clave de diseno:
+
+- La consulta fiscal (`consulta_fiscal`) es la operacion principal: combina legislacion vigente, doctrina DGT/TEAC, modelos AEAT y datos internacionales en una sola respuesta LLM-optimizada
+- Se incluyo una seccion de "NOTA DE TERMINOLOGÍA AEAT" en la descripcion de la herramienta para evitar confusiones entre FactA (Modelo 216) y Facturae (Ley 58/2023)
+- Los datos internacionales (convenios DT, CRS, FATCA, DAC, W-8, TIN) son consultables via la misma operacion
+
+### 6. Capa perimetral y despliegue
 
 Artefactos actuales:
 
