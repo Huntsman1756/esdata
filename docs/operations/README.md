@@ -63,6 +63,7 @@ Centralizar la operación recurrente de `esdata` para reducir dependencia de con
 
 ## Runbooks
 
+- `docs/operations/OPERATIONS.md`
 - `docs/operations/runbooks/deploy-compose.md`
 - `docs/operations/runbooks/worker-boe.md`
 - `docs/operations/runbooks/worker-dgt-teac.md`

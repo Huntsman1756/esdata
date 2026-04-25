@@ -15,9 +15,12 @@ Separar claramente la documentación permanente de los snapshots de sesión e in
 - `professionalization-roadmap.md`
 - `regulatory-compliance-expansion-plan.md`
 - `deployment/overview.md`
+- `deployment/vps-trial-deploy.md`
+- `deployment/HANDOFF-IT.md`
 - `deployment/server-installation.md`
 - `deployment/rollback.md`
 - `operations/README.md`
+- `operations/OPERATIONS.md`
 - `operations/runbooks/`
 
 ## Artefactos operativos auxiliares

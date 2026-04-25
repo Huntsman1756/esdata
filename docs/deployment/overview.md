@@ -34,6 +34,9 @@ Primer aterrizaje empresarial recomendado:
 - `infra/deploy/Dockerfile.ops`
 - `infra/deploy/systemd/*`
 - `infra/deploy/compose.env.example`
+- `docs/deployment/vps-trial-deploy.md`
+- `docs/deployment/HANDOFF-IT.md`
+- `docs/operations/OPERATIONS.md`
 - `docs/operations/runbooks/deploy-compose.md`
 - `docs/deployment/railway-to-hetzner-v2.md`
 - `alembic.ini`
