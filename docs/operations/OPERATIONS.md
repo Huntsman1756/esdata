@@ -167,6 +167,10 @@ curl http://127.0.0.1:8000/status
 
 ## Referencias
 
+- `docs/operations/LOGGING.md`
+- `docs/operations/DATA-POLICY.md`
+- `docs/operations/DEPENDENCIES.md`
+- `docs/operations/SECRETS.md`
 - `docs/operations/runbooks/deploy-compose.md`
 - `docs/deployment/vps-trial-deploy.md`
 - `docs/deployment/HANDOFF-IT.md`
