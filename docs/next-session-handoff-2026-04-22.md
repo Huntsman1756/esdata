@@ -1,4 +1,6 @@
-# Next Session Handoff - 2026-04-22
+# [HISTORICAL] Next Session Handoff - 2026-04-22
+
+> Documento historico. No leer por defecto. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 
 ## Objetivo de la siguiente sesion
 

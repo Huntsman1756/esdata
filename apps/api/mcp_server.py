@@ -5,6 +5,8 @@ def mount_mcp(app) -> None:
     mcp = FastApiMCP(
         app,
         include_operations=[
+            # Consulta fiscal inteligente (principal)
+            "consulta_fiscal",
             # Legislacion
             "list_legislacion",
             "get_norma",
@@ -32,6 +34,27 @@ def mount_mcp(app) -> None:
             "get_modelo_campana_operativa",
             "get_modelo_resumen_operativo",
             "get_modelo_fuentes_oficiales",
+            # BORME - Registro Mercantil
+            "listar_borme",
+            "get_borme",
+            # SEPBLAC - Blanqueo de capitales
+            "listar_sepblac",
+            "get_sepblac",
+            # Empresas
+            "listar_empresas",
+            "get_empresa",
+            # Obligaciones regulatorias
+            "listar_obligaciones",
+            "listar_obligaciones_aplicables",
+            "get_obligacion",
+            "listar_obligaciones_operativas",
+            "listar_deadlines",
+            # BDNS - Subvenciones
+            "listar_bdns",
+            "get_bdns",
+            # CNMV - Mercado de valores
+            "listar_cnmv",
+            "get_cnmv",
         ],
     )
     mcp.mount_http(mount_path="/mcp")

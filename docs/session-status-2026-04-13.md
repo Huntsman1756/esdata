@@ -1,4 +1,6 @@
-# Estado de sesion a 2026-04-13
+# [HISTORICAL] Estado de sesion a 2026-04-13
+
+> Documento historico. No leer por defecto. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 
 ## Resumen rapido
 

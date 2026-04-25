@@ -143,7 +143,8 @@ async def get_articulo(codigo: str, numero: str, vigente_en: str | None = Query(
             db.execute(
                 text(
                     """
-                SELECT n.codigo, a.numero, va.texto, va.vigente_desde, va.vigente_hasta
+                SELECT n.codigo, a.numero, va.texto, va.vigente_desde, va.vigente_hasta,
+                       n.boe_id, n.eli_uri
                 FROM norma n
                 JOIN articulo a ON a.norma_id = n.id
                 JOIN version_articulo va ON va.articulo_id = a.id
@@ -165,6 +166,7 @@ async def get_articulo(codigo: str, numero: str, vigente_en: str | None = Query(
             "texto": row["texto"],
             "vigente_desde": str(row["vigente_desde"]),
             "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+            "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
             "confianza": {
                 "nivel": 1,
                 "fuentes": [f"{row['codigo']} art. {row['numero']}"],

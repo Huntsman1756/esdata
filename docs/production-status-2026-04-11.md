@@ -1,4 +1,6 @@
-# Estado operativo a 2026-04-11
+# [HISTORICAL] Estado operativo a 2026-04-11
+
+> Documento historico. No leer por defecto. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 
 > Nota: este snapshot ha quedado superado por `docs/production-status-2026-04-12.md`, que recoge el cierre de la tanda de linking TEAC y el handoff para la proxima sesion.
 

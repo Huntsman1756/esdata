@@ -1,0 +1,208 @@
+# Fallos habituales por worker
+
+## Resumen
+
+Este documento documenta los patrones de fallo comunes por worker, como detectarlos
+y como resolverlos. Todos los workers comparten el patron base de `boe.py`
+(sin logica de retry nativa — los fallos crashan el proceso y Docker lo reinicia).
+
+## Patron comun de todos los workers
+
+- **Sin retry**: si una peticion falla, el worker crasha y Docker Compose lo reinicia
+- **Sync log**: todos escriben en `sync_log` con `started_at` y `finished_at`
+- **Intervalo**: `SYNC_INTERVAL_SECONDS` controla la frecuencia de ejecucion
+- **Logging**: usan `esdata_common.logging.configure()` (texto o JSON segun `LOG_FORMAT`)
+
+## Worker BOE (legislacion consolidada)
+
+### Fallos comunes
+
+| Fallo | Causa | Deteccion | Solucion |
+|-------|-------|-----------|----------|
+| Timeout BOE API | BOE lento o caido | `sync_log` con error `Timeout` | Reintentar con `--run-once`; verificar `BOE_API_BASE` |
+| Parsing XML fallido | Cambios en estructura BOE | `sync_log` con error de parsing | Revisar logs del worker; posible fix en parser |
+| DB write error | Postgres lento o lleno | `sync_log` con error `IntegrityError` | Verificar disco y conexiones DB |
+
+### Comandos de diagnostico
+
+```bash
+# Ver ultimos logs de sincronizacion
+docker compose -f infra/deploy/docker-compose.prod.yml logs worker-boe | tail -50
+
+# Verificar ultimo sync
+docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+  "SELECT worker, started_at, finished_at, rows_added, error FROM sync_log WHERE worker='boe' ORDER BY started_at DESC LIMIT 5;"
+
+# Ejecutar manualmente
+docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-boe python boe.py --run-once
+```
+
+## Worker DGT (consultas vinculantes)
+
+### Fallos comunes
+
+| Fallo | Causa | Deteccion | Solucion |
+|-------|-------|-----------|----------|
+| SSL verification error | DGT con cert invalido | `sync_log` con error SSL | `DGT_SSL_VERIFY=false` (default) |
+| Cookie expired | Sesion DGT caducada | `sync_log` con error 401/403 | Reiniciar worker |
+| Parsing HTML fallido | Cambios en web DGT | `sync_log` con error de parsing | Revisar logs; posible fix en parser |
+
+### Notas especiales
+
+- Gestiona cookies manualmente (sin session de httpx)
+- `DGT_SSL_VERIFY=false` por defecto (no recomendado para produccion a largo plazo)
+
+### Comandos de diagnostico
+
+```bash
+docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='dgt' ORDER BY started_at DESC LIMIT 5;"
+
+docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt python dgt.py --run-once
+```
+
+## Worker TEAC (resoluciones)
+
+### Fallos comunes
+
+| Fallo | Causa | Deteccion | Solucion |
+|-------|-------|-----------|----------|
+| Sin seed URLs | `TEAC_SEED_URLS` vacio | `sync_log` sin ejecuciones | Configurar `TEAC_SEED_URLS` |
+| Parsing HTML fallido | Cambios en web TEAC | `sync_log` con error | Revisar logs; posible fix en parser |
+
+### Comandos de diagnostico
+
+```bash
+docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='teac' ORDER BY started_at DESC LIMIT 5;"
+```
+
+## Worker Modelos AEAT
+
+### Fallos comunes
+
+| Fallo | Causa | Deteccion | Solucion |
+|-------|-------|-----------|----------|
+| Timeout DGT | DGT lento | `sync_log` con error `Timeout` | Reintentar; verificar `DGT_SSL_VERIFY` |
+| Parsing HTML fallido | Cambios en web DGT | `sync_log` con error | Revisar logs; posible fix en parser |
+
+### Notas especiales
+
+- Usa `httpx.Client(timeout=30)` (timeout configurable via httpx)
+- Intervalo configurable via `MODELOS_SYNC_INTERVAL` (default 86400 = 24h)
+
+### Comandos de diagnostico
+
+```bash
+docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='modelos' ORDER BY started_at DESC LIMIT 5;"
+```
+
+## Workers de parsing PDF (BORME, CNMV, AEPD, BDE)
+
+### Fallos comunes
+
+| Fallo | Causa | Deteccion | Solucion |
+|-------|-------|-----------|----------|
+| PDF corrupto/inaccesible | URL rota o PDF invalido | `sync_log` con error `pypdf` | Verificar URL en `*_SEED_URLS`; skip manual |
+| Timeout descarga PDF | PDF grande o lento | `sync_log` con error `Timeout` | Reintentar; verificar conectividad |
+| Parsing texto fallido | PDF sin texto extraible | `sync_log` con error | Verificar logs del worker |
+
+### Workers afectados
+
+| Worker | Variable seed URL | Fuente |
+|--------|-------------------|--------|
+| `worker-borme` | `BORME_SEED_URLS` | Boletines oficiales de sociedades |
+| `worker-cnmv` | `CNMV_SEED_URLS` | Documentos CNMV |
+| `worker-aepd` | `AEPD_SEED_URLS` | Guias AEPD |
+| `worker-bde` | `BDE_SEED_URLS` | Informes Banco de Espana |
+
+### Comandos de diagnostico
+
+```bash
+# BORME
+docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='borme' ORDER BY started_at DESC LIMIT 5;"
+
+# CNMV
+docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='cnmv' ORDER BY started_at DESC LIMIT 5;"
+```
+
+## Workers de web scraping (BDNS, SEPBLAC, CENDOJ, EURLEX)
+
+### Fallos comunes
+
+| Fallo | Causa | Deteccion | Solucion |
+|-------|-------|-----------|----------|
+| HTML structure changed | Cambios en estructura web | `sync_log` con error de parsing | Revisar logs; possible fix en selector |
+| Rate limiting | Demasiadas peticiones | `sync_log` con error 429 | Aumentar `SYNC_INTERVAL_SECONDS` |
+| Login required | Web requiere auth | `sync_log` con error 401/403 | Configurar credenciales si disponibles |
+
+### Workers afectados
+
+| Worker | Variable seed URL | Fuente |
+|--------|-------------------|--------|
+| `worker-bdns` | `BDNS_SEED_URLS` | Bolsa de subvenciones |
+| `worker-sepblac` | `SEPBLAC_SEED_URLS` | Lista de bloqueos |
+| `worker-cendoj` | `CENDOJ_SEED_URLS` | Portal poder judicial |
+| `worker-eurlex` | `EURLEX_SEED_URLS` | Legislacion UE |
+
+## Worker Embeddings
+
+### Fallos comunes
+
+| Fallo | Causa | Deteccion | Solucion |
+|-------|-------|-----------|----------|
+| Modelo no encontrado | `sentence-transformers` no instalado | Crash al iniciar | Verificar `requirements.txt` |
+| OOM (Out of Memory) | DB muy grande + embeddings | Crash por memoria | Reducir batch size; mas RAM |
+| GPU no disponible | Sin GPU pero se intenta usar | Warning en logs | Forzar CPU en modelo |
+
+### Notas especiales
+
+- Devuelve `None` si `sentence-transformers` no esta instalado (graceful degradation)
+- Usa modelo `paraphrase-multilingual-MiniLM-L12-v2` (1536-dim, CPU-friendly)
+
+## Grafico de dependencia de fallos
+
+```
+Worker falla
+    |
+    +--- Timeout HTTP
+    |       +--- Causa: destino lento/caido
+    |       +--- Impacto: worker crash, Docker reinicia
+    |       +--- Resolucion: reintentar automatico
+    |
+    +--- Parsing error
+    |       +--- Causa: fuente cambio estructura
+    |       +--- Impacto: datos faltantes, worker crash
+    |       +--- Resolucion: fix parser manual
+    |
+    +--- DB error
+    |       +--- Causa: Postgres lento/lleno/conexiones
+    |       +--- Impacto: datos no persistidos
+    |       +--- Resolucion: verificar DB, vacuum, reiniciar worker
+    |
+    +--- SSL/TLS error
+            +--- Causa: certificado invalido o caducado
+            +--- Impacto: worker crash
+            +--- Resolucion: verificar SSL_VERIFY o actualizar CA certs
+```
+
+## Checklist de diagnostico通用
+
+Cuando un worker falla:
+
+1. **Verificar logs**: `docker compose logs worker-<nombre> | tail -50`
+2. **Verificar sync_log**: `SELECT * FROM sync_log WHERE worker='<nombre>' ORDER BY started_at DESC LIMIT 5;`
+3. **Reiniciar worker**: `docker compose restart worker-<nombre>`
+4. **Ejecutar manualmente**: `docker compose run --rm worker-<nombre> python <nombre>.py --run-once`
+5. **Verificar fuente externa**: visitar la URL de la fuente manualmente
+6. **Verificar conexiones DB**: `docker compose exec db psql -U esdata -d esdata -c "SELECT 1;"`
+
+## Referencias
+
+- `docs/operations/README.md` — runbooks operativos
+- `docs/operations/metrics.md` — indicadores minimos
+- `docs/deployment/rollback.md` — procedimientos de rollback
+- `apps/workers/boe.py` — patron base de workers

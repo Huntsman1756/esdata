@@ -1,30 +1,34 @@
-# Railway deploy commands — exact sequence
-# Ejecutar en orden. Cada paso debe terminar en OK antes de continuar.
+# Railway deploy commands — HISTORICO
+
+> **NOTA: HISTORICO — Railway DEPRECATED**
+>
+> Railway YA NO se usa como plataforma de despliegue. Este documento es una referencia historica obsoleta.
+> El despliegue de referencia es Docker Compose (`infra/deploy/docker-compose.prod.yml`).
+> Ver `docs/operations/runbooks/deploy-compose.md` para el deploy actual.
+>
+> NO usar estos comandos en nuevas sesiones. NO proponer Railway.
+
+# PRE-REQUISITOS HISTORICOS (Railway)
+# ============================================================
+# - CLI de Railway instalada: pip install railway (DEPRECATED)
+# - railway login (DEPRECATED)
+# - Proyecto Railway creado: railway link <project-id> (DEPRECATED)
+# - Postgres provisioning: railway add postgresql (DEPRECATED)
 
 # ============================================================
-# PRE-REQUISITOS
+# PASO 1: Variables de entorno (HISTORICO - Railway)
 # ============================================================
-# - CLI de Railway instalada: pip install railway
-# - railway login (ya autenticado)
-# - Proyecto Railway creado: railway link <project-id>
-# - Postgres provisioning: railway add postgresql (en el proyecto)
-
-# ============================================================
-# PASO 1: Variables de entorno
-# ============================================================
-# Obtener el DATABASE_URL del Postgres de Railway
-railway variables --service esdata
+# railway variables --service esdata (DEPRECATED)
 # Si no tiene DATABASE_URL:
-railway variables set DATABASE_URL="postgresql+psycopg://user:pass@host:5432/railway" --service esdata
+# railway variables set DATABASE_URL="..." --service esdata (DEPRECATED)
 
 # ============================================================
-# PASO 2: Ejecutar SQL migrations sobre Postgres Railway
+# PASO 2: Ejecutar SQL migrations (HISTORICO - Railway)
 # ============================================================
-# Railway expone el DATABASE_URL. Usar psql local para aplicar:
-
-# Obtener el DATABASE_URL en formato psql-compatible (sin +psycopg)
-export PG_URL="postgresql://user:pass@host:5432/railway"
-# ^^^^ sustituir con el valor real de Railway, cambiando postgresql+psycopg:// por postgresql://
+# Railway expone el DATABASE_URL. Usar psql local para aplicar: (DEPRECATED)
+# Obtener el DATABASE_URL en formato psql-compatible (sin +psycopg) (DEPRECATED)
+# export PG_URL="postgresql://user:pass@host:5432/railway" (DEPRECATED)
+# ^^^^ sustituir con el valor real de Railway, cambiando postgresql+psycopg:// por postgresql:// (DEPRECATED)
 
 psql "$PG_URL" -f infra/sql/init.sql
 psql "$PG_URL" -f infra/sql/002_fulltext_search.sql

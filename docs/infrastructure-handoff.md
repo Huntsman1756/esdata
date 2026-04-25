@@ -1,285 +1,260 @@
-# Handoff a infraestructura
+# [REFERENCE] Handoff de infraestructura
+
+> Documento de referencia de infraestructura. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
+
+## Resumen
+
+esdata se despliega con Docker Compose. No se usa Railway (DEPRECATED). La infraestructura de referencia es `infra/deploy/docker-compose.prod.yml`.
+
+## Arquitectura de despliegue
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Servidor Ubuntu                      │
+│                                                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │
+│  │ esdata   │  │ esdata   │  │ esdata   │  │ esdata │ │
+│  │ api      │  │ web      │  │ worker-  │  │ db     │ │
+│  │ :8000    │  │ :3000    │  │ boe      │  │ :5432  │ │
+│  │          │  │          │  │          │  │ pg     │ │
+│  │          │  │          │  │          │  │ :6379  │ │
+│  └──────────┘  └──────────┘  └──────────┘  └────────┘ │
+│         │              │              │                │
+│         └──────────────┴──────────────┘                │
+│                    PostgreSQL 16                        │
+│                    pgvector extension                   │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Objetivo
+## Servicios Docker Compose
+
+### api (FastAPI)
 
-Este documento resume lo que un equipo de infraestructura necesita para desplegar, operar y verificar `esdata` fuera del contexto original de Railway.
+- **Imagen**: `esdata-api:latest` (construida desde `apps/api/Dockerfile`)
+- **Puerto**: 8000 (mapeado como 8001 en local)
+- **Red**: `esdata-net`
+- **Depende de**: `db`
+- **Reiniciar**: `unless-stopped`
+- **Healthcheck**: GET `/v1/status`
+- **Variables clave**: `DATABASE_URL`, `BOE_API_BASE`, `ESDATA_API_BASE_URL`
 
-## Resumen ejecutivo
+### web (Next.js)
 
-`esdata` es un sistema compuesto por:
+- **Imagen**: `esdata-web:latest` (construida desde `apps/web/Dockerfile`)
+- **Puerto**: 3000 (mapeado como 3005 en local)
+- **Red**: `esdata-net`
+- **Depende de**: `api`
+- **Reiniciar**: `unless-stopped`
+- **Variables clave**: `ESDATA_API_BASE_URL` (apunta a `api:8000`)
 
-- 1 API publica FastAPI
-- 1 frontend Next.js
-- 4 workers de ingesta continua
-- 4 procesos programados tipo cron
-- 1 base de datos PostgreSQL
-- 1 capa opcional perimetral Cloudflare para cache, rate limiting y proteccion de `/mcp`
+### db (PostgreSQL)
 
-El sistema puede ejecutarse en un servidor empresarial basado en contenedores. La forma mas natural de primer aterrizaje fuera de Railway es Docker Compose productivo o una plataforma interna que ejecute contenedores equivalentes.
+- **Imagen**: `pgvector/pgvector:pg16`
+- **Puerto**: 5432 (mapeado como 5434 en local)
+- **Red**: `esdata-net`
+- **Reiniciar**: `always`
+- **Persistencia**: Volume `esdata-pgdata` en `/var/lib/postgresql/data`
+- **Init scripts**: `infra/sql/` montado en `/docker-entrypoint-initdb.d/`
+- **Variables**: `POSTGRES_USER=esdata`, `POSTGRES_PASSWORD`, `POSTGRES_DB=esdata`
 
-Artefactos ya preparados en el repo:
+### redis
 
-- `infra/deploy/docker-compose.prod.yml`
-- `infra/deploy/compose.env.example`
-- `docs/operations/runbooks/deploy-compose.md`
-- `docs/infrastructure-acceptance-checklist.md`
+- **Imagen**: `redis:7-alpine`
+- **Puerto**: 6379 (mapeado como 6379 en local)
+- **Red**: `esdata-net`
+- **Reiniciar**: `unless-stopped`
+- **Persistencia**: Volume `esdata-redis-data`
 
-## Servicios a desplegar
+### Workers
 
-### Core
+- **Imagen**: `esdata-workers:latest` (construida desde `apps/workers/Dockerfile`)
+- **Servicios**: `worker-boe`, `worker-modelos`, `worker-bdns`, `worker-borme`, etc.
+- **Red**: `esdata-net`
+- **Depende de**: `db`
+- **Reiniciar**: `unless-stopped`
+- **Variables clave**: `DATABASE_URL`, `BOE_API_BASE`, `SYNC_INTERVAL_SECONDS`
 
-#### API
+## Volumen de datos
 
-- nombre actual: `esdata`
-- raiz actual: `apps/api`
-- comando actual: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- puerto HTTP: `8000` interno en contenedor
-- healthcheck: `/health`
+| Volume | Montaje | Contenido | Persistencia |
+|--------|---------|-----------|--------------|
+| `esdata-pgdata` | `/var/lib/postgresql/data` | Base de datos PostgreSQL | Si |
+| `esdata-redis-data` | `/data` | Datos de Redis | Si |
 
-#### Web
+## Despliegue de produccion
 
-- nombre actual: `web`
-- raiz actual: `apps/web`
-- comando actual: `npm run build && npm start`
-- puerto HTTP: el de Next.js configurado por runtime
-- healthcheck: `/`
+### Pre-requisitos del servidor
 
-#### Base de datos
+- Ubuntu 22.04+
+- Docker >= 24.0
+- Docker Compose >= 2.20
+- Puertos disponibles: 80, 443, 8001, 3005, 5434, 6379
+- Memoria minima: 2GB RAM
+- Disco minimo: 10GB
 
-- tipo: PostgreSQL
-- uso: almacenamiento principal de legislacion, doctrina, modelos y trazas de workers
+### Pasos de despliegue
 
-### Workers continuos
+1. Clonar repositorio en el servidor
+2. Copiar `.env` con las variables de produccion
+3. Ejecutar `infra/deploy/server-setup.sh` para configurar el servidor
+4. Ejecutar `infra/deploy/deploy.sh` para construir y lanzar los contenedores
 
-#### `worker-boe`
+### Comandos operativos
 
-- raiz actual: `apps/workers`
-- comando actual: `python boe.py`
-- funcion: sincronizacion continua de legislacion BOE
+```bash
+# Levantar servicios
+docker compose -f infra/deploy/docker-compose.prod.yml up -d
 
-#### `worker-dgt`
+# Ver logs
+docker compose -f infra/deploy/docker-compose.prod.yml logs -f api
+docker compose -f infra/deploy/docker-compose.prod.yml logs -f worker-boe
 
-- raiz actual: `apps/workers`
-- comando actual: `python dgt.py`
-- funcion: sincronizacion continua de doctrina DGT
+# Reiniciar un servicio
+docker compose -f infra/deploy/docker-compose.prod.yml restart api
 
-#### `worker-teac`
+# Parar todos los servicios
+docker compose -f infra/deploy/docker-compose.prod.yml down
 
-- raiz actual: `apps/workers`
-- comando actual: `python teac.py`
-- funcion: sincronizacion continua de resoluciones TEAC
+# Parar y borrar datos (DESTRUCTIVO)
+docker compose -f infra/deploy/docker-compose.prod.yml down -v
 
-#### `worker-modelos`
+# Verificar healthcheck
+docker compose -f infra/deploy/docker-compose.prod.yml ps
 
-- raiz actual: `apps/workers`
-- comando actual: `python modelos.py`
-- funcion: sincronizacion continua de modelos AEAT
+# Backup de base de datos
+docker exec esdata-db pg_dump -U esdata esdata > backup.sql
 
-### Cron jobs
+# Restore de base de datos
+docker exec -i esdata-db psql -U esdata esdata < backup.sql
+```
 
-#### `cron-boe-daily`
+## Migraciones de base de datos
 
-- comando actual: `python boe.py --run-once`
-- schedule actual: `0 6 * * *`
+### SQL init scripts
 
-#### `cron-dgt-weekly`
+Los archivos en `infra/sql/` se ejecutan automaticamente en orden numerico al primer inicio de la base de datos:
 
-- comando actual: `python dgt.py --run-once`
-- schedule actual: `0 7 * * 1`
+1. `000_docker_init.sql` — Init especifico para Docker
+2. `002_fulltext_search.sql` — Configuracion fulltext
+3. `003_modelos_aeat.sql` — Tablas modelos AEAT
+4. `004_modelos_v2.sql` — Schema modelos v2
+5. `004_norma_classification.sql` — Clasificacion de normas
+6. `005_indexes.sql` — Indices criticos de rendimiento
+7. `006_pgvector.sql` — Extension pgvector + embeddings
 
-#### `cron-teac-weekly`
+### Migraciones Alembic
 
-- comando actual: `python teac.py --run-once`
-- schedule actual: `0 8 * * 1`
+Para migraciones posteriores al deploy inicial:
 
-#### `cron-modelos-daily`
+```bash
+# Crear nueva migracion
+alembic revision -m "descripcion"
 
-- comando actual: `python modelos.py --run-once`
-- schedule actual: `0 5 * * *`
+# Aplicar migraciones pendientes
+alembic upgrade head
 
-## Dependencias externas
+# Revertir ultima migracion
+alembic downgrade -1
 
-El sistema depende de conectividad saliente hacia:
+# Ver historial de migraciones
+alembic history --verbose
+```
 
-- `www.boe.es`
-- `petete.tributos.hacienda.gob.es`
-- `sede.agenciatributaria.gob.es`
-- destinos TEAC definidos en `TEAC_SEED_URLS`
-- opcionalmente `api.cloudflare.com`
+Configuracion en `alembic.ini`.
 
-## Variables de entorno minimas
+## Monitoring
 
-### Imprescindibles
+### Healthcheck
 
-- API: `DATABASE_URL`
-- Web: `ESDATA_API_BASE_URL`
-- worker BOE: `DATABASE_URL`
-- worker DGT: `DATABASE_URL`
-- worker TEAC: `DATABASE_URL`, `TEAC_SEED_URLS`
-- worker Modelos: `DATABASE_URL`
+El endpoint `/v1/status` devuelve el estado de la API y la base de datos.
 
-### Recomendadas
+### Logs
 
-- `BOE_API_BASE`
-- `BOE_LEGISLACION_NORMAS`
-- `SYNC_INTERVAL_SECONDS`
-- `MODELOS_SYNC_INTERVAL`
-- `DGT_SSL_VERIFY`
+Los logs de cada servicio se gestionan con `docker compose logs`. Configurar `LOG_LEVEL` en `.env` para ajustar el nivel de detalle.
 
-### Perimetro opcional
+### Metricas
 
-- `MCP_SECRET_ACTIVE`
-- `MCP_SECRET_PREVIOUS`
-- `CLOUDFLARE_ZONE_ID`
-- `CLOUDFLARE_API_TOKEN`
+No se configuran metricas externas en el deploy base. Se puede integrar con Prometheus + Grafana montando un sidecar o exportador de metricas de PostgreSQL.
 
-## Bootstrap de base de datos
+## Seguridad
 
-El repo ya incorpora Alembic como capa formal para evolucion futura de schema y mantiene el SQL historico como compatibilidad heredada.
+- Sin autenticacion en endpoints publicos
+- Base de datos con autenticacion por usuario/password
+- Docker: usuario `app` non-root en API
+- Sin secretos en capas de imagen
+- Imagen base fijada (no `latest`)
+- Redis sin autenticacion (solo accesible desde `esdata-net`)
 
-Ruta recomendada:
+## Backup
 
-1. `make db-upgrade`
+### Base de datos
 
-Ruta heredada:
+```bash
+# Backup completo
+docker exec esdata-db pg_dump -U esdata esdata > backup_$(date +%Y%m%d).sql
 
-1. `make bootstrap-db`
+# Backup comprimido
+docker exec esdata-db pg_dump -U esdata esdata | gzip > backup_$(date +%Y%m%d).sql.gz
 
-Orden actual recomendado:
+# Restaurar
+docker exec -i esdata-db psql -U esdata esdata < backup_20260425.sql
+```
 
-1. `infra/sql/init.sql`
-2. `infra/sql/002_fulltext_search.sql`
-3. `infra/sql/003_modelos_aeat.sql`
-4. `infra/sql/004_modelos_v2.sql`
-5. `infra/sql/004_norma_classification.sql`
-6. `infra/sql/docker-init.sql` solo para entorno docker/local segun necesidad
+### Volmenes
 
-Seeds relevantes:
+```bash
+# Backup de volumes
+docker run --rm -v esdata-pgdata:/data -v $(pwd):/backup alpine tar czf /backup/pgdata_backup.tar.gz -C /data .
+```
 
-1. `python scripts/seed-modelos.py --db-url ...`
-2. `python scripts/seed-modelos-v2.py --db-url ... --campana 2025`
+## Troubleshooting
 
-Validaciones manuales ya existentes:
+### API no responde
 
-- `verify_railway.py`
-- `scripts/validate-cron-run.py`
-- `scripts/smoke-check.py`
+```bash
+# Ver logs
+docker compose -f infra/deploy/docker-compose.prod.yml logs api
 
-## Orden recomendado de arranque
+# Verificar healthcheck
+docker compose -f infra/deploy/docker-compose.prod.yml ps
 
-1. levantar PostgreSQL
-2. aplicar schema y seeds necesarios
-3. arrancar API
-4. verificar `/health` y `/status`
-5. arrancar workers continuos
-6. arrancar frontend web
-7. habilitar cron jobs externos o contenedores programados
-8. activar perimetro Cloudflare si aplica
+# Reiniciar
+docker compose -f infra/deploy/docker-compose.prod.yml restart api
+```
 
-## Criterios de aceptacion operativa
+### Base de datos lenta
 
-El sistema debe considerarse correctamente desplegado cuando se cumpla esto:
+```bash
+# Ver conexiones activas
+docker exec esdata-db psql -U esdata -c "SELECT count(*) FROM pg_stat_activity;"
 
-- `GET /health` responde `200`
-- `GET /status` responde `200`
-- `GET /openapi.json` responde `200`
-- `GET /v1/legislacion/cobertura` devuelve normas
-- `GET /v1/modelos` devuelve modelos
-- `GET /` del frontend responde correctamente
-- existe conectividad desde workers hacia sus fuentes externas
-- los workers registran ejecuciones en `sync_log`
+# Ver queries lentas
+docker exec esdata-db psql -U esdata -c "SELECT query, now() - query_start as duration FROM pg_stat_activity WHERE state = 'active' ORDER BY duration DESC LIMIT 10;"
 
-## Observabilidad actual
+# Verificar indexes
+docker exec esdata-db psql -U esdata -c "\di" esdata
+```
 
-### Disponible hoy
+### Workers no procesan
 
-- `/health`
-- `/status`
-- tabla `sync_log`
-- `docs/operations/README.md`
-- logs stdout/stderr de contenedores
-- smoke tests de deploy en GitHub Actions
-- `verify_railway.py`
+```bash
+# Ver logs del worker
+docker compose -f infra/deploy/docker-compose.prod.yml logs worker-boe
 
-### Limitaciones actuales
+# Verificar conexion a DB
+docker exec esdata-worker-boe python -c "from runtime import get_database_url; print(get_database_url())"
 
-- no hay metricas Prometheus ni equivalente
-- no hay alertado integrado en runtime
-- el formato de logs no esta unificado entre todos los procesos
+# Reiniciar worker
+docker compose -f infra/deploy/docker-compose.prod.yml restart worker-boe
+```
 
-## Riesgos operativos actuales
+## Referencias
 
-### 1. Migraciones manuales
-
-- no existe Alembic ni versionado formal aplicado en BD
-- requiere disciplina documental y control de ejecucion
-
-### 2. Configuracion no totalmente normalizada
-
-- hay variables documentadas que no consume el runtime
-- hay scripts que usan variables auxiliares no centrales
-
-### 3. Reutilizacion tecnica limitada
-
-- API y workers no comparten una libreria comun formal
-- parte del conocimiento sigue embebido en scripts y docs de sesion
-
-### 4. Dependencia de fuentes externas HTML
-
-- DGT, TEAC y AEAT dependen de scraping y parsing HTML
-- cambios en markup externo pueden romper sincronizaciones
-
-## Runbook minimo para infraestructura
-
-### Comprobacion inicial
-
-1. verificar variables de entorno por servicio
-2. verificar resolucion DNS y salida HTTPS a fuentes externas
-3. verificar acceso a PostgreSQL
-4. comprobar salud de API y web
-5. comprobar que `sync_log` recibe nuevas entradas
-
-### Recuperacion basica
-
-1. revisar logs del servicio afectado
-2. comprobar variables de entorno especificas del worker
-3. validar conectividad a la fuente externa correspondiente
-4. ejecutar el worker en modo `--run-once` para aislar fallo
-5. revisar impacto en `sync_log`
-
-### Validacion post-deploy
-
-1. ejecutar checks HTTP equivalentes a los de `.github/workflows/deploy.yml`
-2. validar estado de trabajadores
-3. validar que el frontend resuelve contra la API correcta
-4. ejecutar scripts de validacion doctrinal si hubo cambios de datos
-
-## Requisitos recomendados para el futuro entorno empresarial
-
-### Minimos
-
-- contenedores o runtime equivalente
-- PostgreSQL gestionado o autocontenido con backups
-- scheduler para jobs periodicos
-- gestion de secretos separada del repo
-- logs centralizados
-
-### Recomendados
-
-- reverse proxy corporativo
-- monitorizacion y alertas
-- backups automatizados de PostgreSQL
-- entorno staging separado de produccion
-- despliegues con rollback controlado
-
-## Gaps a cerrar antes de un handoff definitivo
-
-1. documentar arquitectura y variables como contrato estable
-2. normalizar configuracion Python compartida
-3. decidir estrategia formal de migraciones
-4. preparar despliegue portable fuera de Railway
-5. completar runbooks y observabilidad minima
-
-## Estado del handoff
-
-Con la estructura actual, el proyecto ya es transferible a un equipo tecnico con experiencia, pero todavia no esta en su punto ideal de madurez operativa. El principal riesgo del handoff hoy no es la falta de contenedores, sino la falta de normalizacion completa en configuracion, migraciones y operacion.
+- `infra/deploy/docker-compose.prod.yml` — Despliegue de produccion
+- `infra/deploy/server-setup.sh` — Script de setup del servidor
+- `infra/deploy/deploy.sh` — Script de despliegue
+- `infra/sql/` — Schema y migraciones SQL
+- `docker-compose.yml` — Despliegue de desarrollo local
+- `apps/api/Dockerfile` — Imagen de la API
+- `apps/workers/Dockerfile` — Imagen de los workers
+- `apps/web/Dockerfile` — Imagen del frontend

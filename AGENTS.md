@@ -266,12 +266,94 @@ Regla:
 
 ## Protocolo de trabajo por fases
 
+## Modelo de trabajo permanente del repo
+
+Este repositorio debe poder ser trabajado por cualquier LLM o agente sin depender de memoria conversacional larga ni de grandes ventanas de contexto.
+
+La regla principal es simple:
+
+- una sola fuente activa de estado y ejecucion
+- una sola fase activa cada vez
+- un solo siguiente paso exacto
+- contexto minimo suficiente, no contexto maximo
+
+### Fuente activa unica
+
+- Documento maestro activo: `docs/master-execution-roadmap.md`
+- Los demas roadmaps, handoffs y planes pasan a ser `REFERENCE` o `HISTORICAL`
+- Ningun documento historico puede competir con el documento maestro como fuente de estado actual
+
+### Jerarquia obligatoria de lectura
+
+Orden obligatorio:
+
+1. `AGENTS.md`
+2. `docs/master-execution-roadmap.md`
+3. archivos de codigo directamente afectados
+4. una documentacion tecnica adicional solo si la fase actual lo requiere
+5. documentos historicos solo si hay bloqueo real y el documento maestro lo indica
+
+### Politica de contexto minima
+
+- no cargar documentos completos por defecto
+- no cargar mas de una fase completa a la vez
+- no cargar mas de un documento historico por iteracion
+- no arrastrar handoffs completos entre sesiones
+- siempre resumir antes de expandir
+
+Antes de empezar cualquier tarea, reducir el contexto a:
+
+- fase actual
+- tarea actual
+- criterio de exito
+- archivos afectados
+- restricciones no negociables
+
+### Slice minimo obligatorio
+
+Secuencia obligatoria:
+
+1. identificar fase y siguiente paso exacto
+2. anadir o ejecutar verificacion
+3. hacer el cambio minimo
+4. volver a verificar
+5. actualizar el estado vivo
+6. dejar escrito el siguiente paso exacto
+
+### Regla de no duplicacion operativa
+
+Queda prohibido mantener el mismo estado operativo en varios documentos activos.
+
+Contenido que solo puede vivir en un sitio activo:
+
+- fase actual
+- siguiente paso exacto
+- estado ejecutivo
+- objetivo actual
+- criterio de exito de la fase
+
+### Regla documental permanente
+
+- `AGENTS.md` define disciplina, seguridad y restricciones
+- `docs/master-execution-roadmap.md` define estado y ejecucion activos
+- docs tecnicos (`architecture`, `database`, `operations`, `deployment`) se leen solo cuando la tarea lo requiere
+- handoffs antiguos y planes cerrados no se leen por defecto
+
+### Antipatrones prohibidos
+
+- empezar leyendo varios roadmaps a la vez
+- usar el handoff mas reciente como sustituto del roadmap maestro
+- cargar contexto completo "por si acaso"
+- abrir varias fases en paralelo sin control
+- afirmar exito sin verificacion fresca
+- crear nuevos planes activos sin integrarlos en el documento maestro
+
 ### Antes de empezar
 
-1. **Leer los planes vigentes solo de forma selectiva**: `docs/next-session-handoff-2026-04-25.md`, `docs/professionalization-roadmap.md`, `docs/plan-fase2-chunking.md`, `docs/superpowers/plans/2026-04-12-buscador-profesional-phase-1.md`
-2. **Extraer y conservar un resumen breve**: no arrastrar el contenido completo de esos documentos en iteraciones posteriores.
-3. **Identificar la fase actual**: la primera fase sin marcar como completa en el handoff.
-4. **Revisar solo la seccion del plan necesaria** para la tarea actual en `docs/superpowers/plans/` o `docs/superpowers/specs/`.
+1. **Leer siempre primero**: `docs/master-execution-roadmap.md`
+2. **Extraer y conservar un resumen breve**: no arrastrar el contenido completo de documentos en iteraciones posteriores.
+3. **Identificar la fase actual**: la primera fase no completada o la fase marcada como activa en el documento maestro.
+4. **Revisar solo la seccion necesaria** del plan o spec de detalle si el documento maestro lo exige para la tarea actual.
 5. **Confirmar con el usuario** que la fase identificada es correcta antes de codificar.
 
 ### Durante la ejecución
@@ -282,15 +364,15 @@ Regla:
 
 ### Al terminar una fase
 
-9. **Actualizar el handoff**: editar `docs/next-session-handoff-2026-04-25.md`
-   - Marcar la fase como `✅ COMPLETA` con el encabezado correspondiente
-   - Listar items entregables con archivos afectados
-   - Actualizar "Siguientes pasos recomendados" con la proxima fase
-   - Actualizar "Estado actual" con scores/metrics si aplica
-10. **Confirmar al usuario** que la fase esta completa y que el handoff fue actualizado.
+9. **Actualizar el documento maestro**: editar `docs/master-execution-roadmap.md`
+   - Marcar la fase o subfase como completa cuando aplique
+   - Actualizar `Resumen vivo`
+   - Actualizar `Fase activa` y `Siguiente paso exacto`
+   - Reflejar scores/metrics si aplica
+10. **Confirmar al usuario** que la fase esta completa y que el documento maestro fue actualizado.
 11. **Preguntar si continuar** con la siguiente fase o cambiar de direccion.
 
-### Estructura de actualizacion del handoff
+### Estructura de actualizacion del documento maestro
 
 ```
 ## Fase X — [nombre] ✅ COMPLETA

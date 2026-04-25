@@ -1,4 +1,6 @@
-# Regulatory Compliance Expansion Plan
+# [REFERENCE] Regulatory Compliance Expansion Plan
+
+> Este documento queda como referencia conceptual del bloque compliance/regulatorio. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 
 ## Goal
 
@@ -206,6 +208,8 @@ La Fase 0 queda materializada en esta tabla maestra. Su objetivo es dejar cada r
 - La tabla anterior es suficiente para arrancar la Fase 1 sin volver a rediscutir el alcance conceptual.
 
 ## Estado de Fase 1: Capa documental regulatoria
+
+- Manifest de ejecucion recomendado para la siguiente ola: `docs/source-manifests/sociedad-valores-wave-1.md`
 
 ### Entregables completados
 

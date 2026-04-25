@@ -1,0 +1,24 @@
+# Pre-commit hooks for esdata
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-simplejson
+          - types-requests
+        exclude: ^(tests?/|scripts/check_failing|scripts/backfill_|scripts/smoke_tests|scripts/benchmark_|scripts/eval_).*$
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      - id: gitleaks

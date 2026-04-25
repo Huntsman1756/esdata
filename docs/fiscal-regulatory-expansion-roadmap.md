@@ -1,4 +1,6 @@
-# Fiscal and Regulatory Expansion Roadmap
+# [REFERENCE] Fiscal and Regulatory Expansion Roadmap
+
+> Este documento queda como referencia estrategica del bloque fiscal-regulatorio. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 
 ## Purpose
 
@@ -18,6 +20,10 @@ This roadmap is written to fit the current architecture of the project:
 - shared PostgreSQL storage
 - official-source traceability
 - public API and MCP surface
+
+## Target regulated entity
+
+The regulated entity prioritized for the next wave is a `sociedad de valores` in Spain. Corpus, taxonomy and workflow decisions should be evaluated against that profile first.
 
 ## Current baseline
 

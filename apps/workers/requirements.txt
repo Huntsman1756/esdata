@@ -1,4 +1,8 @@
+-e ../../libs/python/esdata_common
 httpx==0.28.1
 sqlalchemy==2.0.43
 psycopg[binary]==3.2.9
 pypdf==5.4.0
+sentence-transformers==4.1.0
+numpy==2.2.6
+sentry-sdk==2.26.1

@@ -1,0 +1,52 @@
+# Ruff configuration for esdata project
+# https://docs.astral.sh/ruff/configuration/
+
+target-version = "py312"
+line-length = 120
+
+[lint]
+# Rules to enable
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "RUF",    # ruff-specific rules
+    "S",      # flake8-bandit (security)
+    "C90",    # mccabe complexity
+    "G",      # flake8-logging-format
+    "T20",    # flake8-print
+    "PYI",    # flake8-pyi
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "PIE",    # flake8-pie
+    "PGH",    # pygrep-hooks
+    "PERF",   # perflint
+    "RUF",    # ruff rules
+]
+
+ignore = [
+    "E501",     # line length handled by formatter
+    "S101",     # assert used (needed for tests)
+    "S603",     # subprocess with shell=False (default)
+    "S311",     # random (used in some workers)
+    "PT011",    # pytest.raises without match
+    "RUF012",   # mutable class attributes (acceptable in SQLAlchemy)
+]
+
+# Allow fix for all rules
+fixable = ["ALL"]
+unfixable = []
+
+[lint.isort]
+known-first-party = ["esdata_common"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

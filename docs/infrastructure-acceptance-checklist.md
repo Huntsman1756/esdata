@@ -1,4 +1,6 @@
-# Checklist de aceptación de infraestructura
+# [REFERENCE] Checklist de aceptación de infraestructura
+
+> Documento de referencia operativa. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 
 ## Objetivo
 

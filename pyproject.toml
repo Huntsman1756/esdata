@@ -1,0 +1,64 @@
+# pyproject.toml — esdata project configuration
+
+[project]
+name = "esdata"
+version = "0.1.0"
+description = "Motor de consulta fiscal y legislacion consolidada"
+requires-python = ">=3.12"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+strict_optional = true
+ignore_missing_imports = true
+
+# Exclude scripts and auto-generated
+exclude = [
+    "^scripts/check_failing\\.py$",
+    "^scripts/backfill_",
+    "^scripts/smoke_tests\\.py$",
+    "^scripts/benchmark_",
+    "^scripts/eval_",
+    "^scripts/consulta_fiscal_demo\\.py$",
+    "^scripts/seed_test_data\\.py$",
+    "^apps/workers/embeddings\\.py$",
+]
+
+[[tool.mypy.overrides]]
+module = ["apps.api.*"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = ["apps.workers.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["apps/api/tests", "apps/workers/tests", "scripts/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "integration: tests that require a real database",
+    "smoke: quick health check tests",
+    "slow: tests that take more than 5 seconds",
+]
+
+[tool.ruff]
+include = ["apps/**/*.py", "libs/**/*.py", "scripts/**/*.py"]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "RUF", "G", "T20", "PT"]
+ignore = ["E501", "S101", "PT011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["esdata_common"]

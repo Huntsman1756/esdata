@@ -4,9 +4,10 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 
 ## Estado actual
 
-- Produccion operativa en Railway.
-- API publica en `https://esdata-production.up.railway.app`.
-- Frontend publico en `https://web-production-ecb5.up.railway.app`.
+> **NOTA: Railway DEPRECATED — Despliegue de referencia: Docker Compose**
+>
+> Railway YA NO se usa como plataforma de despliegue. El despliegue de referencia es Docker Compose (`infra/deploy/docker-compose.prod.yml`).
+> Las URLs de Railway que aparecen en este documento son HISTORICAS y NO deben usarse en nuevos cambios.
 - Ingesta BOE con soporte de codigo y configuracion para `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD`, `IRNR`, `IIEE`, `HL`, `DAC6` y `DAC6RD`, con `DAC6EU` registrada como referencia UE desde `EUR-Lex`.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
@@ -45,14 +46,15 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 - Base inicial de entidades: `empresa` y `documento_empresa` para empezar a cruzar fuentes públicas alrededor de una sociedad.
 - Capa de cumplimiento y presentacion: modelos AEAT con relaciones verificadas a articulos concretos.
 - Foco del producto: ofrecer criterio fiscal trazable para trabajo real de despachos, productos y agentes.
+- Perfil regulado prioritario actual: `sociedad de valores` en Espana, como caso de uso para evolucionar la capa regulatoria y de compliance.
 - Normas y marcos tambien relevantes para una herramienta de gestion fiscal, pero fuera de cobertura actual:
   - `UNE 19602`
 - `PLACE`
 
 Planificación permanente relacionada:
 
-- `docs/regulatory-compliance-expansion-plan.md`: plan maestro para la siguiente expansión regulatoria (`CNMV`, `SEPBLAC`, `BOE`, `UE`) orientada a compliance operativo.
-  Incluye también la tabla maestra de canonización del corpus para cerrar la Fase 0.
+- `docs/master-execution-roadmap.md`: unica fuente activa de roadmap, estado actual, fase en curso y siguiente paso exacto.
+- `docs/regulatory-compliance-expansion-plan.md`: referencia conceptual del bloque compliance/regulatorio.
 
 ## Modelos AEAT registrados
 
@@ -90,9 +92,7 @@ GET /v1/modelos/303/casillas?campana=2024
 
 Para añadir o quitar casillas en una nueva campaña, se actualiza `modelo_campana` y `modelo_casilla` con `activo=true/false`.
 
-## Servicios desplegados
-
-- `esdata`: API FastAPI publica.
+> **HISTORICO:** Las URLs de Railway que aparecen a continuacion son HISTORICAS. El despliegue de referencia actual es Docker Compose en infra/deploy/docker-compose.prod.yml.
 - `worker-boe`: worker continuo que ingiere articulos desde BOE.
 - `cron-boe-daily`: ejecucion diaria `python boe.py --run-once`.
 - `worker-dgt`: worker continuo que sincroniza doctrina DGT y ejecuta auto-linking a articulos.
@@ -151,7 +151,7 @@ Rutas frontend utiles:
 - `infra/sql/004_modelos_v2.sql`: versionado por campaña, casillas, claves, instrucciones y normativa.
 - `infra/sql/docker-init.sql`: bootstrap local secuencial para Postgres en Docker.
 - `infra/sql/002_fulltext_search.sql`: migracion de `search_vector`, indices y trigger.
-- `railway.toml`: configuracion monorepo para Railway.
+- `railway.toml`: **DEPRECATED** — Railway ya no se usa como plataforma de despliegue.
 
 ## Endpoints principales
 
@@ -222,8 +222,8 @@ python scripts/export-gpt-openapi.py --openapi 3.0.3 --output docs/openapi-gpt-3
 ## Deploy automatico
 
 - `.github/workflows/deploy.yml`: despliega `esdata`, workers y cron.
-- `.github/workflows/deploy-web.yml`: valida y despliega `apps/web` al servicio `web` de Railway.
-- `railway.toml`: define la topologia monorepo de servicios.
+- `.github/workflows/deploy-web.yml`: valida y despliega `apps/web` (DEPRECATED — Railway)
+- `railway.toml`: **DEPRECATED** — Railway ya no se usa como plataforma de despliegue.
 
 ## Produccion
 
@@ -239,8 +239,8 @@ python scripts/export-gpt-openapi.py --openapi 3.0.3 --output docs/openapi-gpt-3
 - `DGT_SSL_VERIFY=false` para el worker DGT si Petete falla por SSL en produccion.
 - `TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...,...` para el worker TEAC.
 - `SYNC_INTERVAL_SECONDS=604800` para `worker-dgt` si se quiere ajustar la cadencia del loop continuo.
-- `ESDATA_API_BASE_URL=https://esdata-production.up.railway.app` en el servicio `web` para que Next.js consulte la API publica en server-side.
-- Para bootstrap SQL y seeds en Railway, usar `docs/deploy-commands.md` o `DEPLOY_CHECKLIST.md`.
+- `ESDATA_API_BASE_URL=https://esdata-production.up.railway.app` en el servicio `web` para que Next.js consulte la API publica en server-side. (**HISTORICO** — Railway)
+- Para bootstrap SQL y seeds en Railway (HISTORICO), usar `docs/deploy-commands.md` o `DEPLOY_CHECKLIST.md`.
 
 ### GPT Actions
 

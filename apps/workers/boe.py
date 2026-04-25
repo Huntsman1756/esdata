@@ -24,12 +24,16 @@ DEFAULT_NORMAS = {
     "LIS": "BOE-A-2014-12328",
     "LGT": "BOE-A-2003-23186",
     "ITPAJD": "BOE-A-1993-25359",
-    "IRNR": "BOE-A-2004-19886",
+    "IRNR": "BOE-A-2004-4527",
     "IIEE": "BOE-A-1992-28741",
     "HL": "BOE-A-2004-4214",
     "DAC6": "BOE-A-2020-17265",
     "DAC6RD": "BOE-A-2021-5394",
     "RIRPF": "BOE-A-2007-6820",
+    "RIVA": "BOE-A-1992-28759",
+    "RIS": "BOE-A-2014-12531",
+    "RD1080": "BOE-A-2015-12843",
+    "LIVA_IGIC": "BOE-A-2022-5689",
 }
 
 NORMA_CLASSIFICATIONS = {
@@ -69,6 +73,22 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto",
         "ambito": "tributario",
     },
+    "RIVA": {
+        "tipo_documento": "real_decreto",
+        "ambito": "tributario",
+    },
+    "RIS": {
+        "tipo_documento": "real_decreto",
+        "ambito": "tributario",
+    },
+    "RD1080": {
+        "tipo_documento": "real_decreto",
+        "ambito": "tributario",
+    },
+    "LIVA_IGIC": {
+        "tipo_documento": "ley",
+        "ambito": "tributario_canarias",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -81,6 +101,10 @@ LAW_TO_NORMA = {
     "2/2004": "HL",
     "10/2020": "DAC6",
     "439/2007": "RIRPF",
+    "1628/2012": "RIVA",
+    "173/2014": "RIS",
+    "1080/2015": "RD1080",
+    "10/2022": "LIVA_IGIC",
 }
 
 
@@ -339,6 +363,9 @@ def fetch_index(client: httpx.Client, boe_id: str) -> list[BloqueIndex]:
         f"{BOE_API_BASE}/id/{boe_id}/texto/indice",
         headers={"Accept": "application/json"},
     )
+    if response.status_code == 404:
+        print(f"  [WARN] {boe_id} not found in BOE API, skipping")
+        return []
     response.raise_for_status()
     return parse_index(response.json())
 
@@ -815,6 +842,7 @@ def log_sync(
     documentos_upserted: int = 0,
     doctrina_links_created: int = 0,
     error_msg: str | None = None,
+    started_at: str | None = None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
     _ensure_sync_log_table(conn)
@@ -849,7 +877,7 @@ def log_sync(
         ),
         {
             "worker": worker,
-            "started_at": now,
+            "started_at": started_at or now,
             "finished_at": now,
             "status": status,
             "bloques_processed": bloques,
@@ -1017,6 +1045,7 @@ def run_sync(
     engine = create_engine(DATABASE_URL, future=True)
     bloques_fetched = 0
     articulos_upserted = 0
+    sync_start = datetime.now(timezone.utc).isoformat()
 
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -1049,6 +1078,7 @@ def run_sync(
                     "ok",
                     bloques=bloques_fetched,
                     articulos=articulos_upserted,
+                    started_at=sync_start,
                 )
                 print(
                     f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}"
@@ -1116,6 +1146,10 @@ if __name__ == "__main__":
         help=f"Seconds between sync cycles in continuous mode (default: {SYNC_INTERVAL_SECONDS})",
     )
     args = parser.parse_args()
+
+    # Sentry error monitoring
+    from runtime import init_sentry
+    init_sentry("boe")
 
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 

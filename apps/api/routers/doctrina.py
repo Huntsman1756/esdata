@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from db import db_session
@@ -6,6 +7,8 @@ from schemas import (
     DoctrinaDetail as DoctrinaDetailSchema,
     DoctrinaSearchResponse,
 )
+from services.search import _build_tsquery_sql, _chunk_rank_boost, _build_fragment
+from services.semantic_search import hybrid_search_doctrina
 
 router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
 
@@ -30,66 +33,248 @@ async def buscar_doctrina(
     ),
 ):
     with db_session() as db:
-        filters = [
-            "(LOWER(d.texto) LIKE LOWER(:term) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:term))"
-        ]
-        params = {"term": f"%{q}%"}
+        is_postgres = db.bind.dialect.name == "postgresql"
 
-        if tipo is not None:
-            filters.append("d.tipo_documento = :tipo")
-            params["tipo"] = tipo
-        if desde is not None:
-            filters.append("d.fecha >= :desde")
-            params["desde"] = desde
-        if organismo_emisor is not None:
-            filters.append("LOWER(d.organismo_emisor) = LOWER(:organismo_emisor)")
-            params["organismo_emisor"] = organismo_emisor
+        if is_postgres:
+            result = _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor)
+        else:
+            result = _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor)
 
-        rows = db.execute(
-            text(
-                """
-                SELECT
-                    d.referencia,
-                    d.tipo_documento,
-                    d.organismo_emisor,
-                    d.fecha,
-                    d.titulo,
-                    d.texto,
-                    n.codigo AS norma,
-                    a.numero,
-                    MAX(da.confianza_enlace) AS nivel_enlace
-                FROM documento_interpretativo d
-                LEFT JOIN documento_articulo da ON da.documento_id = d.id
-                LEFT JOIN articulo a ON a.id = da.articulo_id
-                LEFT JOIN norma n ON n.id = a.norma_id
-                WHERE {where_clause}
-                GROUP BY d.id, d.referencia, d.tipo_documento, d.organismo_emisor, d.fecha, d.titulo, d.texto, n.codigo, a.numero
-                ORDER BY d.fecha DESC
-                LIMIT 20
-                """.format(where_clause=" AND ".join(filters))
-            ),
-            params,
-        ).mappings()
+        return result
 
-        # TODO: migrate doctrina search to tsvector when document volume justifies it.
-        return {
-            "q": q,
-            "resultados": [
-                {
-                    "referencia": row["referencia"],
-                    "tipo_documento": row["tipo_documento"],
-                    "organismo_emisor": row["organismo_emisor"],
-                    "fecha": str(row["fecha"]),
-                    "titulo": row["titulo"],
-                    "nivel_enlace": float(row["nivel_enlace"] or 0),
-                    "norma": row["norma"],
-                    "numero": row["numero"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                }
-                for row in rows
-            ],
-        }
+
+def _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor):
+    """Postgres branch: search over documento_fragmento chunks with ts_rank.
+
+    Falls back to direct search on documento_interpretativo if the
+    documento_fragmento table does not exist (not yet backfilled).
+    """
+    params: dict = {}
+    tsquery_str, _ = _build_tsquery_sql(q)
+    use_ts_rank = bool(tsquery_str)
+
+    if use_ts_rank:
+        chunk_filter = "df.search_vector @@ (" + tsquery_str + ")"
+        rank_expr = "ts_rank(df.search_vector, (" + tsquery_str + "))"
+    else:
+        chunk_filter = "df.texto ILIKE :term"
+        params["term"] = f"%{q}%"
+        rank_expr = "0.0"
+
+    chunk_filters = [chunk_filter, "df.documento_origen_tipo = 'doctrina'"]
+
+    if tipo is not None:
+        chunk_filters.append("d.tipo_documento = :tipo")
+        params["tipo"] = tipo
+    if desde is not None:
+        chunk_filters.append("d.fecha >= :desde")
+        params["desde"] = desde
+    if organismo_emisor is not None:
+        chunk_filters.append("LOWER(d.organismo_emisor) = LOWER(:organismo_emisor)")
+        params["organismo_emisor"] = organismo_emisor
+
+    where_clause = " AND ".join(chunk_filters)
+
+    try:
+        query = text(
+            f"""
+            SELECT
+                df.documento_origen_id AS d_id,
+                d.referencia,
+                d.tipo_documento,
+                d.organismo_emisor,
+                d.fecha,
+                d.titulo,
+                d.url_fuente,
+                df.texto AS chunk_texto,
+                df.id AS chunk_id,
+                {rank_expr} AS chunk_rank,
+                MAX(da.confianza_enlace) AS nivel_enlace,
+                n.codigo AS norma,
+                a.numero
+            FROM documento_fragmento df
+            JOIN documento_interpretativo d ON d.id = df.documento_origen_id
+            LEFT JOIN documento_articulo da ON da.documento_id = d.id
+            LEFT JOIN articulo a ON a.id = da.articulo_id
+            LEFT JOIN norma n ON n.id = a.norma_id
+            WHERE {where_clause}
+            GROUP BY d.id, df.id, df.texto, n.codigo, a.numero
+            ORDER BY chunk_rank DESC
+            LIMIT 20
+            """
+        )
+
+        rows = db.execute(query, params).mappings()
+        results = []
+        for row in rows:
+            chunk_rank = row.get("chunk_rank")
+            if chunk_rank is not None and use_ts_rank:
+                has_chunks = bool(row.get("chunk_id"))
+                chunk_rank = _chunk_rank_boost(has_chunks, float(chunk_rank))
+
+            chunk_texto = row.get("chunk_texto")
+            fragmento = None
+            if chunk_texto and use_ts_rank:
+                fragmento = _build_fragment(chunk_texto, q)
+            elif chunk_texto:
+                fragmento = chunk_texto[:220] + ("..." if len(chunk_texto) > 220 else "")
+
+            results.append({
+                "referencia": row["referencia"],
+                "tipo_documento": row["tipo_documento"],
+                "organismo_emisor": row["organismo_emisor"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "nivel_enlace": float(row["nivel_enlace"] or 0),
+                "norma": row["norma"],
+                "numero": row["numero"],
+                "fragmento": fragmento or "",
+                "source_url": row.get("url_fuente"),
+            })
+
+        return {"q": q, "resultados": results}
+
+    except Exception:
+        # documento_fragmento table does not exist — fall back to direct search
+        return _buscar_doctrina_pg_fallback(db, q, tipo, desde, organismo_emisor, params, use_ts_rank)
+
+
+def _buscar_doctrina_pg_fallback(db, q, tipo, desde, organismo_emisor, params, use_ts_rank):
+    """Fallback search over documento_interpretativo when documento_fragmento is missing."""
+    fallback_params: dict = {}
+    if use_ts_rank:
+        tsquery_str, _ = _build_tsquery_sql(q)
+        search_filter = "d.search_vector @@ (" + tsquery_str + ")"
+        rank_expr = "ts_rank(d.search_vector, (" + tsquery_str + "))"
+    else:
+        search_filter = "LOWER(d.texto) LIKE LOWER(:term)"
+        fallback_params["term"] = f"%{q}%"
+        rank_expr = "0.0"
+
+    filters = [search_filter]
+    if tipo is not None:
+        filters.append("d.tipo_documento = :tipo")
+        fallback_params["tipo"] = tipo
+    if desde is not None:
+        filters.append("d.fecha >= :desde")
+        fallback_params["desde"] = desde
+    if organismo_emisor is not None:
+        filters.append("LOWER(d.organismo_emisor) = LOWER(:organismo_emisor)")
+        fallback_params["organismo_emisor"] = organismo_emisor
+
+    where_clause = " AND ".join(filters)
+
+    query = text(
+        f"""
+        SELECT
+            d.id,
+            d.referencia,
+            d.tipo_documento,
+            d.organismo_emisor,
+            d.fecha,
+            d.titulo,
+            d.texto,
+            d.url_fuente,
+            {rank_expr} AS chunk_rank,
+            MAX(da.confianza_enlace) AS nivel_enlace,
+            n.codigo AS norma,
+            a.numero
+        FROM documento_interpretativo d
+        LEFT JOIN documento_articulo da ON da.documento_id = d.id
+        LEFT JOIN articulo a ON a.id = da.articulo_id
+        LEFT JOIN norma n ON n.id = a.norma_id
+        WHERE {where_clause}
+        GROUP BY d.id, d.referencia, d.tipo_documento, d.organismo_emisor, d.fecha, d.titulo, d.texto, d.url_fuente, n.codigo, a.numero
+        ORDER BY chunk_rank DESC
+        LIMIT 20
+        """
+    )
+
+    rows = db.execute(query, fallback_params).mappings()
+    results = []
+    for row in rows:
+        chunk_rank = row.get("chunk_rank")
+        if chunk_rank is not None and use_ts_rank:
+            chunk_rank = float(chunk_rank)
+
+        texto = row["texto"] or ""
+        results.append({
+            "referencia": row["referencia"],
+            "tipo_documento": row["tipo_documento"],
+            "organismo_emisor": row["organismo_emisor"],
+            "fecha": str(row["fecha"]) if row["fecha"] else None,
+            "titulo": row["titulo"],
+            "nivel_enlace": float(row["nivel_enlace"] or 0),
+            "norma": row["norma"],
+            "numero": row["numero"],
+            "fragmento": _build_fragment(texto, q) if texto else "",
+            "source_url": row.get("url_fuente"),
+        })
+
+    return {"q": q, "resultados": results}
+
+
+def _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor):
+    """SQLite branch: legacy ILIKE search over documento_interpretativo."""
+    params: dict = {"term_like": f"%{q}%"}
+    where_parts = [
+        "(LOWER(d.texto) LIKE LOWER(:term_like) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:term_like))"
+    ]
+
+    if tipo is not None:
+        where_parts.append("d.tipo_documento = :tipo")
+        params["tipo"] = tipo
+    if desde is not None:
+        where_parts.append("d.fecha >= :desde")
+        params["desde"] = desde
+    if organismo_emisor is not None:
+        where_parts.append("LOWER(d.organismo_emisor) = LOWER(:organismo_emisor)")
+        params["organismo_emisor"] = organismo_emisor
+
+    where_clause = " AND ".join(where_parts)
+
+    query = text(
+        f"""
+        SELECT
+            d.referencia,
+            d.tipo_documento,
+            d.organismo_emisor,
+            d.fecha,
+            d.titulo,
+            d.texto,
+            d.url_fuente,
+            n.codigo AS norma,
+            a.numero,
+            MAX(da.confianza_enlace) AS nivel_enlace
+        FROM documento_interpretativo d
+        LEFT JOIN documento_articulo da ON da.documento_id = d.id
+        LEFT JOIN articulo a ON a.id = da.articulo_id
+        LEFT JOIN norma n ON n.id = a.norma_id
+        WHERE {where_clause}
+        GROUP BY d.id, d.referencia, d.tipo_documento, d.organismo_emisor, d.fecha, d.titulo, d.texto, d.url_fuente, n.codigo, a.numero
+        ORDER BY d.fecha DESC
+        LIMIT 20
+        """
+    )
+
+    rows = db.execute(query, params).mappings()
+    results = []
+    for row in rows:
+        texto = row["texto"] or ""
+        results.append({
+            "referencia": row["referencia"],
+            "tipo_documento": row["tipo_documento"],
+            "organismo_emisor": row["organismo_emisor"],
+            "fecha": str(row["fecha"]) if row["fecha"] else None,
+            "titulo": row["titulo"],
+            "nivel_enlace": float(row["nivel_enlace"] or 0),
+            "norma": row["norma"],
+            "numero": row["numero"],
+            "fragmento": texto[:220] + ("..." if len(texto) > 220 else ""),
+            "source_url": row.get("url_fuente"),
+        })
+
+    return {"q": q, "resultados": results}
 
 
 @router.get(
@@ -172,3 +357,18 @@ async def get_doctrina(referencia: str):
                 else "Criterio sin anclaje normativo suficiente",
             },
         }
+
+
+@router.get("/buscar/hybrid", operation_id="buscar_doctrina_hybrid")
+async def buscar_doctrina_hybrid(
+    q: str = Query(..., min_length=1, description="Termino de busqueda en texto de doctrina"),
+    tipo: str | None = Query(None, description="Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)"),
+    desde: str | None = Query(None, description="Fecha minima (YYYY-MM-DD)"),
+    organismo_emisor: str | None = Query(None, description="Filtrar por organismo (DGT, TEAC, etc.)"),
+    hybrid_weight: float = Query(0.3, ge=0.0, le=1.0, description="Peso busqueda vectorial (0.0=fulltext, 0.3=optimo, 1.0=vectorial)"),
+    limit: int = Query(10, ge=1, le=50, description="Numero maximo de resultados"),
+):
+    result = hybrid_search_doctrina(
+        q, tipo, desde, organismo_emisor, hybrid_weight, limit
+    )
+    return JSONResponse(content=result)

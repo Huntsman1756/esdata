@@ -98,7 +98,7 @@ VALUES
     ('LIRPF', 'Ley del Impuesto sobre la Renta de las Personas Físicas', 'BOE-A-2006-20764', 'https://www.boe.es/eli/es/l/2006/11/23/35', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2007-01-01'),
     ('LIS', 'Ley del Impuesto sobre Sociedades', 'BOE-A-2014-12328', 'https://www.boe.es/eli/es/l/2014/11/27/27', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2015-01-01'),
     ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', 'https://www.boe.es/eli/es/l/2003/12/17/58', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2004-01-01'),
-    ('IRNR', 'RDL 5/2004 — Ley del IRNR', 'BOE-A-2004-19886', 'https://www.boe.es/eli/es/rdl/2004/12/03/5', 'es', 'boe', 'real_decreto_legislativo', 'tributario', 'ingestada', '2004-12-03'),
+    ('IRNR', 'RDL 5/2004 — Ley del IRNR', 'BOE-A-2004-4527', 'https://www.boe.es/eli/es/rdl/2004/12/03/5', 'es', 'boe', 'real_decreto_legislativo', 'tributario', 'ingestada', '2004-12-03'),
     ('RIRPF', 'RD 439/2007 — Reglamento del IRPF', 'BOE-A-2007-6820', 'https://www.boe.es/eli/es/rd/2007/03/30/439', 'es', 'boe', 'real_decreto', 'tributario', 'seed', '2007-04-01')
 ON CONFLICT (codigo) DO NOTHING;
 

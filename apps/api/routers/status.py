@@ -25,6 +25,14 @@ WORKERS = [
     "cron-sepblac-weekly",
     "worker-modelos",
     "cron-modelos-daily",
+    "worker-cendoj",
+    "cron-cendoj-weekly",
+    "worker-eurlex",
+    "cron-eurlex-weekly",
+    "worker-bde",
+    "cron-bde-weekly",
+    "worker-aepd",
+    "cron-aepd-weekly",
 ]
 
 
@@ -38,46 +46,54 @@ async def status():
     }
 
     with db_session() as db:
-        result["modelos"] = get_modelos_status(db)
+        try:
+            result["modelos"] = get_modelos_status(db)
+        except Exception:
+            db.rollback()
+            result["modelos"] = {"error": "unavailable"}
 
         for worker in WORKERS:
-            row = db.execute(
-                text(
-                    """
-                    SELECT
-                        started_at,
-                        finished_at,
-                        status,
-                        bloques_processed,
-                        articulos_upserted,
-                        documentos_processed,
-                        documentos_upserted,
-                        doctrina_links_created,
-                        error_msg
-                    FROM sync_log
-                    WHERE worker = :worker
-                    ORDER BY started_at DESC
-                    LIMIT 1
-                    """
-                ),
-                {"worker": worker},
-            ).fetchone()
+            try:
+                row = db.execute(
+                    text(
+                        """
+                        SELECT
+                            started_at,
+                            finished_at,
+                            status,
+                            bloques_processed,
+                            articulos_upserted,
+                            documentos_processed,
+                            documentos_upserted,
+                            doctrina_links_created,
+                            error_msg
+                        FROM sync_log
+                        WHERE worker = :worker
+                        ORDER BY started_at DESC
+                        LIMIT 1
+                        """
+                    ),
+                    {"worker": worker},
+                ).fetchone()
 
-            if row:
-                result["workers"][worker] = {
-                    "last_run": _serialize_datetime(row.started_at),
-                    "finished_at": _serialize_datetime(row.finished_at),
-                    "status": row.status,
-                    "bloques_processed": row.bloques_processed,
-                    "articulos_upserted": row.articulos_upserted,
-                    "documentos_processed": row.documentos_processed,
-                    "documentos_upserted": row.documentos_upserted,
-                    "doctrina_links_created": row.doctrina_links_created,
-                    "error": row.error_msg,
-                    "stale": _is_stale(worker, row.finished_at),
-                }
-            else:
-                result["workers"][worker] = {"status": "never_run", "stale": True}
+                if row:
+                    result["workers"][worker] = {
+                        "last_run": _serialize_datetime(row.started_at),
+                        "finished_at": _serialize_datetime(row.finished_at),
+                        "status": row.status,
+                        "bloques_processed": row.bloques_processed,
+                        "articulos_upserted": row.articulos_upserted,
+                        "documentos_processed": row.documentos_processed,
+                        "documentos_upserted": row.documentos_upserted,
+                        "doctrina_links_created": row.doctrina_links_created,
+                        "error": row.error_msg,
+                        "stale": _is_stale(worker, row.finished_at),
+                    }
+                else:
+                    result["workers"][worker] = {"status": "never_run", "stale": True}
+            except Exception:
+                db.rollback()
+                result["workers"][worker] = {"status": "error", "stale": True}
 
     return result
 
@@ -123,6 +139,14 @@ def _is_stale(worker: str, finished_at) -> bool:
         "cron-sepblac-weekly": 24 * 8,
         "worker-modelos": 25,
         "cron-modelos-daily": 25,
+        "worker-cendoj": 24 * 8,
+        "cron-cendoj-weekly": 24 * 8,
+        "worker-eurlex": 24 * 8,
+        "cron-eurlex-weekly": 24 * 8,
+        "worker-bde": 24 * 8,
+        "cron-bde-weekly": 24 * 8,
+        "worker-aepd": 24 * 8,
+        "cron-aepd-weekly": 24 * 8,
     }
     return age_hours > thresholds.get(worker, 25)
 

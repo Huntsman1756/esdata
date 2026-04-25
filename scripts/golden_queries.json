@@ -1,0 +1,1041 @@
+{
+  "metadata": {
+    "version": "2.0",
+    "created": "2026-04-25",
+    "description": "Golden dataset para evaluación de retrieval en esdata. 52 queries en 8 dominios (iva, irpf_is, internacional, compliance, mixto, lgt, borme, bdns). Incluye queries semánticas, chunk-based, BORME/BDNS, edge-cases y sinónimos.",
+    "thresholds": {
+      "fuerte": 0.9,
+      "aceptable": 0.8,
+      "falla": 0.7
+    },
+    "enrichment": {
+      "semantic_queries": 6,
+      "chunk_queries": 5,
+      "borme_bdns_queries": 3,
+      "edge_cases": 3,
+      "synonym_queries": 3,
+      "lgt_queries": 7
+    }
+  },
+  "queries": [
+    {
+      "id": "iva-001",
+      "dominio": "iva",
+      "pregunta": "Tipo reducido IVA pan leche libros",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA art. 91 con tipos impositivos reducidos para pan, leche y libros."
+    },
+    {
+      "id": "iva-002",
+      "dominio": "iva",
+      "pregunta": "Autoliquidacion trimestral IVA modelo 303",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "303",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 303 de autoliquidación trimestral del IVA."
+    },
+    {
+      "id": "iva-003",
+      "dominio": "iva",
+      "pregunta": "Entregas intracomunitarias de bienes modelo 349",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "349",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 349 de declaración recapitulativa de operaciones intracomunitarias."
+    },
+    {
+      "id": "iva-004",
+      "dominio": "iva",
+      "pregunta": "Tipo superreducido IVA alimentos",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA art. 91 con información sobre tipo superreducido para pan y leche."
+    },
+    {
+      "id": "iva-005",
+      "dominio": "iva",
+      "pregunta": "Resumen anual IVA modelo 390",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "390",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 390 de resumen anual del IVA."
+    },
+    {
+      "id": "irpf-001",
+      "dominio": "irpf_is",
+      "pregunta": "Declaracion anual IRPF modelo 100",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "100",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 100 de declaración anual del IRPF."
+    },
+    {
+      "id": "irpf-002",
+      "dominio": "irpf_is",
+      "pregunta": "Retenciones ingresos a cuenta modelo 111",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "111",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 111 de retenciones e ingresos a cuenta."
+    },
+    {
+      "id": "irpf-003",
+      "dominio": "irpf_is",
+      "pregunta": "Retenciones arrendamientos urbanos modelo 115",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "115",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 115 de retenciones por arrendamientos de inmuebles urbanos."
+    },
+    {
+      "id": "irpf-004",
+      "dominio": "irpf_is",
+      "pregunta": "Rendimientos del trabajo IRPF",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "100",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa IRPF sobre rendimientos del trabajo y modelo 100."
+    },
+    {
+      "id": "irpf-005",
+      "dominio": "irpf_is",
+      "pregunta": "Dividendos retencion IRPF modelo 124",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF",
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "124",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 124 de retenciones sobre rentas del capital mobiliario."
+    },
+    {
+      "id": "irpf-006",
+      "dominio": "irpf_is",
+      "pregunta": "Ganancias patrimoniales IRPF",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "100",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa IRPF sobre ganancias patrimoniales."
+    },
+    {
+      "id": "irpf-007",
+      "dominio": "irpf_is",
+      "pregunta": "Impuesto sociedades modelo IS",
+      "criterios": {
+        "fuente_esperada": [
+          "LIS"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa del Impuesto sobre Sociedades."
+    },
+    {
+      "id": "int-001",
+      "dominio": "internacional",
+      "pregunta": "No residente rentas inmobiliarias modelo 216",
+      "criterios": {
+        "fuente_esperada": [
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver IRNR rentas inmobiliarias no residentes."
+    },
+    {
+      "id": "int-002",
+      "dominio": "internacional",
+      "pregunta": "IRNR rentas sin establecimiento permanente",
+      "criterios": {
+        "fuente_esperada": [
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver IRNR rentas sin establecimiento permanente."
+    },
+    {
+      "id": "int-003",
+      "dominio": "internacional",
+      "pregunta": "IRNR dividendos retencion modelo 124",
+      "criterios": {
+        "fuente_esperada": [
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver IRNR dividendos retención modelo 124."
+    },
+    {
+      "id": "int-004",
+      "dominio": "internacional",
+      "pregunta": "IRNR ganancias patrimoniales no residentes",
+      "criterios": {
+        "fuente_esperada": [
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "norma_filtro": "LIRNR"
+      },
+      "respuesta_esperada": "Debe devolver IRNR ganancias patrimoniales no residentes."
+    },
+    {
+      "id": "int-005",
+      "dominio": "internacional",
+      "pregunta": "Mecanismos transfronterizos DAC6",
+      "criterios": {
+        "fuente_esperada": [
+          "DAC6",
+          "DAC6RD"
+        ],
+        "articulo_esperado": "206",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver DAC6 art. 206 bis sobre mecanismos transfronterizos de planificación fiscal."
+    },
+    {
+      "id": "int-006",
+      "dominio": "internacional",
+      "pregunta": "Operaciones intracomunitarias IVA UE",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "349",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa IVA sobre operaciones intracomunitarias y modelo 349."
+    },
+    {
+      "id": "int-007",
+      "dominio": "internacional",
+      "pregunta": "Resumen anual retenciones IRNR modelo 296",
+      "criterios": {
+        "fuente_esperada": [
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "296",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 296 de resumen anual de retenciones IRNR."
+    },
+    {
+      "id": "comp-001",
+      "dominio": "compliance",
+      "pregunta": "Comunicacion indicio blanqueo capitales modelo 19 SEPBLAC",
+      "criterios": {
+        "fuente_esperada": [
+          "SEPBLAC"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "doctrina_esperada": true,
+        "obligacion_esperada": "SEPBLAC-INDICIO-M19"
+      },
+      "respuesta_esperada": "Debe devolver información sobre comunicación de indicios de blanqueo de capitales al SEPBLAC."
+    },
+    {
+      "id": "comp-002",
+      "dominio": "compliance",
+      "pregunta": "Informacion reservada CNMV mercados valores",
+      "criterios": {
+        "fuente_esperada": [
+          "CNMV"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "doctrina_esperada": true,
+        "obligacion_esperada": "CNMV-IR-RESERVADA"
+      },
+      "respuesta_esperada": "Debe devolver información sobre información reservada a la CNMV."
+    },
+    {
+      "id": "comp-003",
+      "dominio": "compliance",
+      "pregunta": "Transparencia fiscal directiva DAC6 UE",
+      "criterios": {
+        "fuente_esperada": [
+          "DAC6",
+          "DAC6EU"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa DAC6 y directiva UE 2018/822 sobre transparencia fiscal."
+    },
+    {
+      "id": "comp-004",
+      "dominio": "compliance",
+      "pregunta": "Declaracion anual operaciones terceros modelo 347",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "347",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 347 de declaración anual de operaciones con terceros."
+    },
+    {
+      "id": "comp-005",
+      "dominio": "compliance",
+      "pregunta": "Alta modification baja censo modelo 036",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "036",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver modelo 036 de declaración censal."
+    },
+    {
+      "id": "mix-001",
+      "dominio": "mixto",
+      "pregunta": "Retencion no residente EEUU Alemania",
+      "criterios": {
+        "fuente_esperada": [
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "chunk_esperado": false,
+        "modelo_esperado": "124",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa IRNR sobre retenciones a no residentes de EEUU/Alemania."
+    },
+    {
+      "id": "mix-002",
+      "dominio": "mixto",
+      "pregunta": "Impuesto transmisiones patrimoniales ITPAJD",
+      "criterios": {
+        "fuente_esperada": [
+          "ITPAJD"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver ITPAJD sobre transmisiones patrimoniales sujetas."
+    },
+    {
+      "id": "mix-003",
+      "dominio": "mixto",
+      "pregunta": "Tasas locales hacendarias municipales",
+      "criterios": {
+        "fuente_esperada": [
+          "HL"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver HL sobre tasas locales hacendarias municipales."
+    },
+    {
+      "id": "mix-004",
+      "dominio": "mixto",
+      "pregunta": "Impuestos especiales hidrocarburos",
+      "criterios": {
+        "fuente_esperada": [
+          "IIEE"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver IIEE sobre impuestos especiales de hidrocarburos."
+    },
+    {
+      "id": "lgt-001",
+      "dominio": "lgt",
+      "pregunta": "Obligaciones formales tributarias LGT",
+      "criterios": {
+        "fuente_esperada": [
+          "LGT"
+        ],
+        "articulo_esperado": "109",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LGT art. 109 sobre obligaciones formales tributarias."
+    },
+    {
+      "id": "lgt-002",
+      "dominio": "lgt",
+      "pregunta": "Prescripcion deudas tributarias LGT",
+      "criterios": {
+        "fuente_esperada": [
+          "LGT"
+        ],
+        "articulo_esperado": "66",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LGT art. 66 sobre prescripción de deudas tributarias."
+    },
+    {
+      "id": "lgt-003",
+      "dominio": "lgt",
+      "pregunta": "Procedimiento tributarioLGTRG",
+      "criterios": {
+        "fuente_esperada": [
+          "LGT"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LGT sobre procedimiento tributario general."
+    },
+    {
+      "id": "lgt-004",
+      "dominio": "lgt",
+      "pregunta": "Repercuusion tipos impositivos LGT",
+      "criterios": {
+        "fuente_esperada": [
+          "LGT"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LGT sobre repercusión de tipos impositivos."
+    },
+    {
+      "id": "lgt-005",
+      "dominio": "lgt",
+      "pregunta": "Liquidacion tributaria comprobacion valores LGT",
+      "criterios": {
+        "fuente_esperada": [
+          "LGT"
+        ],
+        "articulo_esperado": "56",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LGT art. 56 sobre comprobación de valores."
+    },
+    {
+      "id": "lgt-006",
+      "dominio": "lgt",
+      "pregunta": "Subsidios solidaridad LGT",
+      "criterios": {
+        "fuente_esperada": [
+          "LGT"
+        ],
+        "articulo_esperado": "111",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LGT art. 111 sobre subsidios de solidaridad."
+    },
+    {
+      "id": "lgt-007",
+      "dominio": "lgt",
+      "pregunta": "Responsables tributarios LGT",
+      "criterios": {
+        "fuente_esperada": [
+          "LGT"
+        ],
+        "articulo_esperado": "35",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LGT art. 35 sobre responsables tributarios."
+    },
+    {
+      "id": "iva-006",
+      "dominio": "iva",
+      "pregunta": "Como calcular la prorrata de deducciones en IVA",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": "90",
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA sobre prorrata de deducciones (art. 90) con fragmentos de sección."
+    },
+    {
+      "id": "iva-007",
+      "dominio": "iva",
+      "pregunta": "Entrega temporal de bienes fuera de la UE",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA sobre operaciones con terceros países y entregas temporales."
+    },
+    {
+      "id": "irpf-008",
+      "dominio": "irpf_is",
+      "pregunta": "Como deducirme la compra de casa vivienda habitual",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": "68",
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIRPF art. 68 sobre deducción por vivienda habitual."
+    },
+    {
+      "id": "irpf-009",
+      "dominio": "irpf_is",
+      "pregunta": "Que impuestos paga una SL al constituirse",
+      "criterios": {
+        "fuente_esperada": [
+          "ITPAJD",
+          "LIS"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver ITPAJD (actos jurídicos documentados) y LIS sobre constitución de sociedades."
+    },
+    {
+      "id": "int-008",
+      "dominio": "internacional",
+      "pregunta": "Contractor digital americano vendiendo a Espana",
+      "criterios": {
+        "fuente_esperada": [
+          "IRNR"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false,
+        "norma_filtro": "LIRNR"
+      },
+      "respuesta_esperada": "Debe devolver IRNR sobre proveedores digitales no residentes sin establecimiento permanente."
+    },
+    {
+      "id": "int-009",
+      "dominio": "internacional",
+      "pregunta": "Prestador de servicios frances facturando a cliente espanol",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA",
+          "DAC6"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA sobre inverso del sujeto pasivo para servicios intracomunitarios."
+    },
+    {
+      "id": "comp-006",
+      "dominio": "compliance",
+      "pregunta": "Registro contable de operaciones con terceros pais",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa sobre declaración recapitulativa y operaciones con terceros países."
+    },
+    {
+      "id": "comp-007",
+      "dominio": "compliance",
+      "pregunta": "Cuando hay que comunicar operaciones con paraísos fiscales",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA",
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa sobre comunicación de operaciones con paraísos fiscales (modelos 115, 111, 347)."
+    },
+    {
+      "id": "borme-001",
+      "dominio": "borme",
+      "pregunta": "Publicacion junta general sociedades modificacion estatutos",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "borme_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver información sobre publicaciones BORME de junta general y modificación de estatutos."
+    },
+    {
+      "id": "borme-002",
+      "dominio": "borme",
+      "pregunta": "Constitucion empresa limitada registro mercantil",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "borme_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver información sobre publicaciones BORME de constitución de sociedades."
+    },
+    {
+      "id": "bdns-001",
+      "dominio": "bdns",
+      "pregunta": "Listado entidades credito supervision banco espana",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "bdns_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver información sobre entidades de crédito del registro BDNS/Banco de España."
+    },
+    {
+      "id": "edge-001",
+      "dominio": "mixto",
+      "pregunta": "",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver respuesta vacía o de error controlado sin 500."
+    },
+    {
+      "id": "edge-002",
+      "dominio": "mixto",
+      "pregunta": "xyzabc123noexistentexxxxxxxx",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver resultados vacíos o irrelevantes sin error 500."
+    },
+    {
+      "id": "edge-003",
+      "dominio": "mixto",
+      "pregunta": "a",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver respuesta controlada para query de 1 letra sin error."
+    },
+    {
+      "id": "syn-001",
+      "dominio": "iva",
+      "pregunta": "Hacer la declaracion de la renta online paso a paso",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "modelo_esperado": "100",
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver IRPF modelo 100 (sinónimo: 'declaracion de la renta' = IRPF)."
+    },
+    {
+      "id": "syn-002",
+      "dominio": "iva",
+      "pregunta": "Factura sin iva valido legalmente",
+      "criterios": {
+        "fuente_esperada": [
+          "LIVA"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA sobre facturación y tipos impositivos (sinónimo: 'factura' = IVA)."
+    },
+    {
+      "id": "syn-003",
+      "dominio": "irpf_is",
+      "pregunta": "Cuanto me descuentan del salario nomina",
+      "criterios": {
+        "fuente_esperada": [
+          "LIRPF"
+        ],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false,
+        "modelo_esperado": "111"
+      },
+      "respuesta_esperada": "Debe devolver IRPF sobre retenciones nómina (sinónimo: 'descuenten salario' = retenciones modelo 111)."
+    },
+    {
+      "id": "borme-003",
+      "dominio": "borme",
+      "pregunta": "Constitucion sociedad responsabilidad limitada SRL SL",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "borme_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver actos de constitucion de sociedades del BORME con extractos de acuerdos."
+    },
+    {
+      "id": "borme-004",
+      "dominio": "borme",
+      "pregunta": "Modificacion estatutos sociedad cambio domicilio social",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "borme_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver modificaciones estatutarias del BORME sobre cambio de domicilio social."
+    },
+    {
+      "id": "borme-005",
+      "dominio": "borme",
+      "pregunta": "Aprobacion cuentas anuales sociedad ejercicio 2024",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "borme_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver aprobacion de cuentas anuales de sociedades en el BORME."
+    },
+    {
+      "id": "bdns-002",
+      "dominio": "bdns",
+      "pregunta": "Registro entidades gestion pensiones publico oficial",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "bdns_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver entidades de gestion de pensiones registradas en BDNS."
+    },
+    {
+      "id": "bdns-003",
+      "dominio": "bdns",
+      "pregunta": "Supervision entidades seguros mercado espana",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "bdns_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver informacion sobre supervision de entidades de seguros en BDNS."
+    },
+    {
+      "id": "bdns-004",
+      "dominio": "bdns",
+      "pregunta": "Entidades credito registro oficial banco espana",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "bdns_esperado": true
+      },
+      "respuesta_esperada": "Debe devolver entidades de credito registradas en el registro del Banco de Espana."
+    },
+    {
+      "id": "chunk-001",
+      "dominio": "iva",
+      "pregunta": "Entrega intracomunitaria bienes parte camion alemania",
+      "criterios": {
+        "fuente_esperada": ["LIVA"],
+        "articulo_esperado": "21",
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA art. 21 sobre entregas intracomunitarias con seccion de documento relevante."
+    },
+    {
+      "id": "chunk-002",
+      "dominio": "irpf_is",
+      "pregunta": "Deduccion inversiones inversiones inmovilizado corporaciones",
+      "criterios": {
+        "fuente_esperada": ["LIS"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIS sobre deducciones por inversiones en inmovilizado con seccion documental."
+    },
+    {
+      "id": "chunk-003",
+      "dominio": "compliance",
+      "pregunta": "Deberes informacion sociedad controlada participada",
+      "criterios": {
+        "fuente_esperada": ["LIS"],
+        "articulo_esperado": "17",
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIS art. 17 sobre deberes de informacion entre sociedades vinculadas con seccion."
+    },
+    {
+      "id": "chunk-004",
+      "dominio": "lgt",
+      "pregunta": "Retencion heredencias personas fallecidas no residentes",
+      "criterios": {
+        "fuente_esperada": ["LIRNR"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIRNR sobre sucesiones y heredencias con seccion document relevante."
+    },
+    {
+      "id": "chunk-005",
+      "dominio": "mixto",
+      "pregunta": "Operaciones exentas IVA asistencia medicala servicios hospitales",
+      "criterios": {
+        "fuente_esperada": ["LIVA"],
+        "articulo_esperado": "20",
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA art. 20 sobre operaciones exentas de servicios medicos."
+    },
+    {
+      "id": "chunk-006",
+      "dominio": "iva",
+      "pregunta": "IVA entregas intracomunitarias bienes otros estados miembros",
+      "criterios": {
+        "fuente_esperada": ["LIVA"],
+        "articulo_esperado": "63",
+        "vigencia_necesaria": false,
+        "chunk_esperado": true,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIVA art. 63 sobre entregas intracomunitarias de bienes."
+    },
+    {
+      "id": "sem-001",
+      "dominio": "iva",
+      "pregunta": "Cuanto pago de impuestos al comprar casa segunda mano",
+      "criterios": {
+        "fuente_esperada": ["LIVA", "ITPAJD"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver ITPAJD sobre transmisiones patrimoniales de viviendas de segunda mano."
+    },
+    {
+      "id": "sem-002",
+      "dominio": "irpf_is",
+      "pregunta": "Impuestos beneficios empresa sociedad anonima",
+      "criterios": {
+        "fuente_esperada": ["LIS"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIS sobre imposicion de beneficios de sociedades."
+    },
+    {
+      "id": "sem-003",
+      "dominio": "internacional",
+      "pregunta": "Evitar doble imposicion ingresos Francia espana",
+      "criterios": {
+        "fuente_esperada": ["LIRNR"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIRNR sobre convenios de doble imposicion con Francia."
+    },
+    {
+      "id": "sem-004",
+      "dominio": "compliance",
+      "pregunta": "Prevenir blanqueo capitales obligaciones declarar",
+      "criterios": {
+        "fuente_esperada": [],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver normativa sobre prevencion de blanqueo de capitales y obligaciones de declaracion."
+    },
+    {
+      "id": "sem-005",
+      "dominio": "mixto",
+      "pregunta": "Planificacion fiscal herencia patrimonio familiar",
+      "criterios": {
+        "fuente_esperada": ["LIRPF", "Impuesto_Sucesiones"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver IRPF e Impuesto de Sucesiones sobre planificacion hereditaria."
+    },
+    {
+      "id": "sem-006",
+      "dominio": "lgt",
+      "pregunta": "Modelo 216 facturas no residentes espana servicio",
+      "criterios": {
+        "fuente_esperada": ["LIRNR"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false,
+        "modelo_esperado": "216"
+      },
+      "respuesta_esperada": "Debe devolver LIRNR sobre modelo 216 de facturas a no residentes."
+    }
+  ]
+}

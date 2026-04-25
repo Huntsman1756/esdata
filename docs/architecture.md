@@ -1,357 +1,219 @@
 # Arquitectura de esdata
 
-## Objetivo
+## Resumen
 
-`esdata` es un sistema de datos fiscales espanoles con tres superficies principales:
+esdata es un sistema de ingesta, almacenamiento y consulta de legislacion fiscal espanola consolidada, doctrina interpretativa y modelos tributarios AEAT. Proporciona una API REST publica y un frontend web, con workers de ingestion asincrona que alimentan una base de datos PostgreSQL.
 
-- API HTTP publica para legislacion, doctrina y modelos AEAT
-- frontend web para consulta humana
-- workers de ingesta y sincronizacion contra fuentes oficiales
+## Componentes
 
-El sistema esta desplegado hoy en Railway, pero la arquitectura ya esta separada por servicios y puede migrarse a un entorno empresarial con contenedores.
+### 1. API (apps/api)
 
-## Componentes principales
+Servidor FastAPI que expone endpoints REST para consulta publica.
 
-### 1. API publica
+- **Framework**: FastAPI 0.116.1 con Uvicorn
+- **ORM**: SQLAlchemy 2.0.43 con psycopg3
+- **Version**: 0.1.6
+- **Puerto**: 8000 (expuesto como 8001 en local)
+- **Lifespan**: Carga el modelo de embeddings al iniciar para busqueda hibrida
 
-Ubicacion:
+**Routers registrados**:
 
-- `apps/api/main.py`
-- `apps/api/routers/*`
-- `apps/api/services/*`
-- `apps/api/db.py`
-- `apps/api/schemas.py`
+| Router | Ruta base | Descripcion |
+|--------|-----------|-------------|
+| `status` | `/v1/status` | Healthcheck y version |
+| `buscar` | `/v1/legislacion/buscar` | Busqueda fulltext de legislacion |
+| `buscar` | `/v1/legislacion/buscar/hybrid` | Busqueda hibrida (fulltext + vector) |
+| `legislacion` | `/v1/legislacion/*` | CRUD de normas, articulos, busqueda |
+| `materias` | `/v1/materias/*` | Listado y detalle de materias |
+| `doctrina` | `/v1/doctrina/*` | Busqueda y detalle de doctrina (DGT, TEAC) |
+| `bdns` | `/v1/bdns/*` | Base de datos de subvenciones |
+| `borme` | `/v1/borme/*` | Boletin oficial del registro mercantil |
+| `cnmv` | `/v1/cnmv/*` | Comision nacional del mercado de valores |
+| `sepblac` | `/v1/sepblac/*` | Servicio de vigilancia de blanqueo de capitales |
+| `obligaciones` | `/v1/obligaciones/*` | Obligaciones regulatorias tributarias |
+| `empresas` | `/v1/empresas/*` | Empresas detectadas en documentos |
+| `modelos` | `/v1/modelos/*` | Modelos tributarios AEAT (303, 216, etc.) |
+| `consulta` | `/v1/consulta` | Consulta fiscal inteligente (agrega multiples fuentes) |
+| `chunks` | `/v1/chunks/*` | Acceso a chunks de legislacion |
+| `cendoj` | `/v1/cendoj/*` | Centro de documentacion del Consejo de Estado |
+| `eurlex` | `/v1/eurlex/*` | Legislacion de la Union Europea |
+| `bde` | `/v1/bde/*` | Banco de Espana |
+| `aepd` | `/v1/aepd/*` | Agencia espanola de proteccion de datos |
 
-Tecnologia:
+**Servicios principales**:
 
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
+- `search.py`: Busqueda fulltext en PostgreSQL con `ts_rank`, `websearch_to_tsquery`, `tsvector`. Incluye chunks, boost, fallback SQLite y deteccion automatica de normas en query.
+- `semantic_search.py`: Busqueda hibrida con RRF (Reciprocal Rank Fusion). Combina fulltext y embeddings vectoriales con pesos configurables.
+- **Schemas**: Pydantic models para todas las respuestas de la API (677 lineas, 40+ modelos de respuesta).
 
-Responsabilidades:
+### 2. Workers (apps/workers)
 
-- exponer endpoints de legislacion, doctrina, materias, modelos y fuentes regulatorias
-- leer datos ya normalizados desde PostgreSQL
-- publicar spec OpenAPI
-- exponer superficie MCP en `/mcp` con 36 operaciones
-- exponer endpoint de consulta fiscal inteligente (`/v1/consulta`)
-- devolver estado agregado basico del sistema en `/status` y salud en `/health`
+Procesos asincronos de ingestion que descargan, parsean y almacenan datos de fuentes externas.
 
-Observacion estructural:
+**Workers activos**:
 
-- el dominio de modelos ya no vive solo en el router; la capa `apps/api/services/modelos.py` concentra consultas y composicion de respuestas para facilitar evolucion y testing
+| Worker | Fuente | Frecuencia | Descripcion |
+|--------|--------|------------|-------------|
+| `boe.py` | BOE | 1 hora (configurable) | Legislacion consolidada (15 normas tributarias) |
+| `modelos.py` | AEAT | 24 horas | Modelos tributarios (303, 100, 216, etc.) |
+| `bdns.py` | Infosubvenciones | 7 dias | Convocatorias de subvenciones |
+| `borme.py` | BOE BORME | 7 dias | Actos mercantiles |
+| `cnmv.py` | CNMV | 7 dias | Documentos regulatorios |
+| `sepblac.py` | SEPBLAC | 7 dias | Publicaciones anticorrupcion |
+| `dgt.py` | DGT | Segun config | Consultas vinculantes |
+| `teac.py` | TEAC | Segun config | Resoluciones del Tribunal Economico-Administrativo Central |
+| `embeddings.py` | Local | On-demand | Generacion de embeddings con sentence-transformers |
 
-Routers actuales:
+**Worker BOE (principal)**:
+- Descarga XML del BOE API (`/api/legislacion-consolidada`)
+- Parsea articulos, versiones y metadatos
+- Almacena en `articulo`, `version_articulo`, `norma`
+- Clasifica normas por ambito (tributario, local, internacional, UE)
+- Log de sincronizacion en `sync_log` con duracion automatica
 
-- `status`
-- `buscar`
-- `legislacion`
-- `materias`
-- `doctrina`
-- `modelos`
-- `consulta` (consulta fiscal inteligente con fallback ILIKE para terminos internacionales en ingles)
-- `bdns` (subvenciones)
-- `borme` (registro mercantil)
-- `cnmv` (mercado de valores)
-- `sepblac` (blanqueo de capitales)
-- `obligaciones` (capa de cumplimiento normalizado)
-- `empresas` (capa societaria)
+**Worker Embeddings**:
+- Modelo: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (1536-dim, CPU-friendly)
+- Funciones: `embed_single(text)`, `embed_texts(texts)` con batching
+- Genera embeddings para `version_articulo`, `documento_fragmento`, `documento_interpretativo`
 
-### 2. Workers de ingesta
+**Runtime comun**:
+- `runtime.py`: Utilidades compartidas (parseo de URL DB, intervalos de sincronizacion)
+- Todos los workers heredan patron de `log_sync()` con `started_at`/`finished_at`
 
-Ubicacion:
+### 3. Web (apps/web)
 
-- `apps/workers/boe.py`
-- `apps/workers/dgt.py`
-- `apps/workers/teac.py`
-- `apps/workers/modelos.py`
-- `apps/workers/modelos_support.py`
+Frontend Next.js 15 para consulta publica.
 
-Tecnologia:
+- **Framework**: Next.js 15
+- **Puerto**: 3000 (expuesto como 3005 en local)
+- **API base**: `ESDATA_API_BASE_URL` (apunta a `http://api:8000` en Docker)
 
-- Python 3.12
-- `httpx`
-- SQLAlchemy
-- PostgreSQL
+## Base de datos
 
-Responsabilidades:
+### Motor
 
-- descargar y normalizar legislacion desde BOE
-- descargar doctrina DGT desde Petete
-- descargar resoluciones TEAC desde DYCTEA/URLs semilla
-- sincronizar instrucciones, casillas, claves y normativa de modelos AEAT
-- dejar traza operativa en `sync_log`
+PostgreSQL 16 con extension pgvector.
 
-Observacion estructural:
+- **Imagen**: `pgvector/pgvector:pg16`
+- **DB**: `esdata`
+- **Usuario**: `esdata`
 
-- `apps/workers/modelos.py` actua como orquestador del sync
-- `apps/workers/modelos_support.py` concentra scraping, deteccion de campanas y persistencia del dominio de modelos
+### Tablas principales
 
-### 2.5. Scripts de ingesta internacional
+| Tabla | Descripcion |
+|-------|-------------|
+| `norma` | Leyes y normativas (LIVA, LIRPF, LIS, etc.) |
+| `articulo` | Articulos de leyes |
+| `version_articulo` | Versiones historicas con texto vigente |
+| `documento_seccion` | Secciones de documentos para chunking |
+| `documento_fragmento` | Chunks de texto con `tsvector` y `vector(1536)` |
+| `documento_interpretativo` | Doctrina, BORME, BDNS con embedding |
+| `documento_articulo` | Relacion documento-articulo |
+| `sync_log` | Historial de sincronizacion de workers |
+| `articulo_norma` | Relacion articulo-norma |
+| `materia` | Materias tematicas |
+| `eval_run` | Historial de evaluaciones |
+| `eval_query` | Resultados por query de evaluacion |
 
-Ubicacion:
+### Indices
 
-- `apps/api/ingest_internacional.py`
-- `apps/api/ingest_convenios.py`
-- `apps/api/ingest_crs_fatca.py`
-- `apps/api/ingest_w8_forms.py`
-- `apps/api/ingest_tin_europa.py`
+- **Fulltext**: `tsvector` en `documento_fragmento.search_vector`
+- **Vector**: HNSW en `documento_fragmento.embedding`, `version_articulo.embedding`, `documento_interpretativo.embedding` (m=16, ef_construction=64)
+- **Critic**: `articulo(norma_id)`, `version_articulo(articulo_id)`, `documento_articulo(documento_id)`, `documento_fragmento(origen_tipo_id)`, `sync_log(worker, started_at)`
 
-Responsabilidades:
+### Migraciones
 
-- poblar datos internacionales en las mismas tablas del esquema principal
-- enlazar convenios DT con articulos IRNR e IIEE
-- registrar normas informativas internacionales (CRS, FATCA, DAC)
-- almacenar formularios W-8 con textos detallados
-- mapear 60+ paises con TIN/NRF y convenios bilaterales
-- mapear normativa UE (NIF/NRF, VIES, OSS, ROIR)
-
-Estado actual:
-
-- 166 normas internacionales ingesticadas
-- 107 convenios de doble tributacion con textos estructurados
-- 60 paises con informacion TIN/NRF
-- 10 normas informativas (CRS, FATCA, DAC1-DAC11)
-- 4371 articulos totales en la base de datos
-
-### 3. Frontend web
-
-Ubicacion:
-
-- `apps/web/app/*`
-- `apps/web/components/*`
-- `apps/web/lib/*`
-
-Tecnologia:
-
-- Next.js 15
-- React 19
-- TypeScript
-
-Responsabilidades:
-
-- ofrecer buscador y navegacion sobre la API
-- renderizar detalle de articulo, doctrina y modelo
-- consumir la API mediante la variable de servidor `ESDATA_API_BASE_URL`
-
-### 4. Base de datos
-
-Ubicacion de esquema y cambios:
-
-- `infra/sql/init.sql`
-- `infra/sql/002_fulltext_search.sql`
-- `infra/sql/003_modelos_aeat.sql`
-- `infra/sql/004_modelos_v2.sql`
-- `infra/sql/docker-init.sql`
-
-Motor:
-
-- PostgreSQL 16 en local y Railway en produccion
-
-Responsabilidades:
-
-- almacenar legislacion versionada por articulo
-- almacenar doctrina interpretativa y sus enlaces a articulos
-- almacenar modelos AEAT y sus campanas
-- almacenar trazas de ejecucion de workers en `sync_log`
-
-### 5. Superficie MCP
-
-Ubicacion:
-
-- `apps/api/mcp_server.py`
-- `apps/api/mcp_stdio.py`
-
-Tecnologia:
-
-- `fastapi-mcp` (FastApiMCP)
-- HTTP SSE + stdio
-
-Responsabilidades:
-
-- exponer 36 operaciones MCP para consumo por agentes LLM
-- permitir consulta fiscal inteligente con contexto normativo completo
-- servir datos de legislacion, doctrina, modelos AEAT y fuentes regulatorias
-- soportar SSE para conexiones persistentes y stdio para procesos locales
-
-Operaciones expuestas (36):
-
-| Grupo | Operaciones |
-|---|---|
-| Consulta fiscal | `consulta_fiscal` |
-| Legislacion | `list_legislacion`, `get_norma`, `list_articulos`, `get_articulo`, `get_articulo_historial`, `buscar`, `buscar_legislacion` |
-| Materias | `list_materias`, `get_materia` |
-| Doctrina | `buscar_doctrina`, `get_doctrina` |
-| Modelos AEAT | `list_modelos`, `list_modelos_campanas_operativas`, `get_modelo`, `get_modelo_articulos`, `get_modelo_casillas`, `get_modelo_claves`, `get_modelo_instrucciones`, `get_modelo_normativa`, `get_modelo_artefactos`, `get_modelo_campana_operativa`, `get_modelo_resumen_operativo`, `get_modelo_fuentes_oficiales` |
-| BORME | `listar_borme`, `get_borme` |
-| SEPBLAC | `listar_sepblac`, `get_sepblac` |
-| Empresas | `listar_empresas`, `get_empresa` |
-| Obligaciones | `listar_obligaciones`, `get_obligacion` |
-| BDNS | `listar_bdns`, `get_bdns` |
-| CNMV | `listar_cnmv`, `get_cnmv` |
-
-Clave de diseno:
-
-- La consulta fiscal (`consulta_fiscal`) es la operacion principal: combina legislacion vigente, doctrina DGT/TEAC, modelos AEAT y datos internacionales en una sola respuesta LLM-optimizada
-- Se incluyo una seccion de "NOTA DE TERMINOLOGÍA AEAT" en la descripcion de la herramienta para evitar confusiones entre FactA (Modelo 216) y Facturae (Ley 58/2023)
-- Los datos internacionales (convenios DT, CRS, FATCA, DAC, W-8, TIN) son consultables via la misma operacion
-
-### 6. Capa perimetral y despliegue
-
-Artefactos actuales:
-
-- `railway.toml`
-- `.github/workflows/ci.yml`
-- `.github/workflows/deploy.yml`
-- `.github/workflows/deploy-web.yml`
-- `infra/cloudflare/worker.js`
-- `verify_railway.py`
-
-Responsabilidades:
-
-- definir servicios y cron jobs en Railway
-- ejecutar CI y despliegues automaticos
-- aplicar cache y proteccion de `/mcp` en Cloudflare
-- verificar el estado del proyecto Railway desde CLI
+- **Manual**: SQL en `infra/sql/` (init, fulltext, modelos, chunking, indexes, pgvector)
+- **Alembic**: Migraciones en `alembic/versions/` (chunking, eval_history, indexes)
 
 ## Flujo de datos
 
-### Flujo 1. Legislacion BOE
+### Ingestion BOE
 
-1. `worker-boe` consulta la API de BOE.
-2. Inserta o actualiza `norma`, `articulo` y `version_articulo`.
-3. Ejecuta auto-linking basico de materias y doctrina.
-4. Registra la ejecucion en `sync_log`.
-5. La API expone los datos en `/v1/legislacion/*` y `/v1/buscar`.
+```
+BOE API (XML) -> worker-boe -> parse XML -> articulo/version_articulo/norma
+  -> sync_log -> documento_fragmento (chunking) -> embedding (workers)
+```
 
-### Flujo 2. Doctrina DGT
+1. `worker-boe` llama a `BOE_API_BASE/datosabiertos/api/legislacion-consolidada`
+2. Descarga XML con articulos y versiones de las 15 normas en `DEFAULT_NORMAS`
+3. Parsea estructura XML: articulos, parrafos, textos, fechas de vigencia
+4. Inserta/actualiza en `norma`, `articulo`, `version_articulo`
+5. Clasifica norma con `NORMA_CLASSIFICATIONS` (tipo_documento, ambito)
+6. Genera chunks en `documento_fragmento` (backfill via `scripts/backfill_chunks.py`)
+7. Genera embeddings (backfill via `scripts/backfill_embeddings.py`)
 
-1. `worker-dgt` navega Petete con `httpx`.
-2. Extrae referencias, fecha, organo, texto y normativa.
-3. Inserta o actualiza `documento_interpretativo`.
-4. Ejecuta `auto_link_doctrina` para enlazar doctrina con articulos.
-5. Registra resultados en `sync_log`.
-6. La API expone resultados en `/v1/doctrina/*`.
+### Consulta API
 
-### Flujo 3. Doctrina TEAC
+```
+Request -> Router -> Service (search/semantic_search) -> PostgreSQL -> Response
+```
 
-1. `worker-teac` parte de `TEAC_SEED_URLS`.
-2. Descarga cada resolucion HTML.
-3. Inserta o actualiza `documento_interpretativo`.
-4. Ejecuta `auto_link_doctrina`.
-5. Registra la ejecucion en `sync_log`.
+1. Router recibe request (ej: `/v1/legislacion/buscar?q=IVA+retencion`)
+2. `search_legislacion()` detecta norma automatica de la query ("IVA" -> "LIVA")
+3. Construye tsquery con `websearch_to_tsquery('spanish', ...)`
+4. Busca en `documento_fragmento` con `ts_rank`, boost por chunks
+5. Fallback a `version_articulo` si `documento_fragmento` esta vacio
+6. Fallback a SQLite si PostgreSQL no disponible
+7. Respuesta con `SearchResult` incluyendo `source_url`, `fuente_norma`, `fragmento`, `confianza`
 
-### Flujo 4. Modelos AEAT
+### Busqueda hibrida
 
-1. `worker-modelos` obtiene modelos desde la base de datos.
-2. `modelos_support.py` descarga HTML de paginas de sede AEAT.
-3. `modelos_support.py` detecta campañas y aplica heuristicas de scraping.
-4. Se actualizan `modelo_campana`, `modelo_casilla`, `modelo_clave` y `modelo_instruccion`.
-5. El worker registra una entrada agregada en `sync_log`.
-6. `apps/api/services/modelos.py` compone lecturas de detalle, campañas y datos relacionados.
-7. La API expone esos datos en `/v1/modelos/*` y el frontend en `/modelo/[codigo]`.
+```
+Request -> Router -> semantic_search.hybrid_search -> RRF merge -> Response
+```
 
-### Flujo 5. Frontend web
+1. Mismo inicio que busqueda fulltext (tsquery)
+2. Paralelamente: busqueda vectorial por similitud cosine en `embedding`
+3. Fusiona resultados con RRF (Reciprocal Rank Fusion): `score = w_ft * rank_ft/(k+rank_ft) + w_vec * rank_vec/(k+rank_vec)`, k=60
+4. `hybrid_weight=0.3` es optimo: 100% recall con mezcla fulltext+vector
+5. Response incluye `search_mode`, `weights`, `rrf_score`, `rrf_sources`
 
-1. El usuario accede al frontend Next.js.
-2. El servidor Next consulta la API via `ESDATA_API_BASE_URL`.
-3. El frontend renderiza informacion de estado, resultados y detalle.
+### Consulta fiscal inteligente
 
-## Servicios desplegados hoy
+```
+Request `/v1/consulta` -> Router consulta -> Multiples servicios -> Resultados agregados
+```
 
-Servicios declarados en `railway.toml`:
+1. Recibe query en lenguaje natural
+2. Busca en legislacion, doctrina, modelos AEAT, obligaciones
+3. Agrega resultados con `ConsultaResultado` (tipo, codigo, texto, evidencia)
+4. Calcula relevancia y confianza
+5. Respuesta con `ConsultaFiscalResponse` (modelos, resultados, relevancia, confianza)
 
-- `esdata`
-- `worker-boe`
-- `cron-boe-daily`
-- `worker-dgt`
-- `cron-dgt-weekly`
-- `worker-teac`
-- `cron-teac-weekly`
-- `worker-modelos`
-- `cron-modelos-daily`
-- `web`
+## Patrones de seguridad
 
-Dependencias externas principales:
+- Sin autenticacion en endpoints publicos
+- Sin secretos expuestos en frontend (no `NEXT_PUBLIC_*`)
+- Validacion de input en toda mutacion
+- Rate limiting en endpoints publicos
+- Docker: usuario `app` non-root, sin secretos en capas de imagen
+- PostgreSQL: indexes criticos para evitar full table scans
 
-- BOE datos abiertos
-- Petete DGT
-- sede AEAT
-- URLs semilla TEAC
-- Railway
-- Cloudflare
+## Dependencias externas
 
-## Modelo operativo actual
+| Fuente | URL | Uso |
+|--------|-----|-----|
+| BOE | `boe.es/datosabiertos/api/` | Legislacion consolidada |
+| AEAT | Sede electronica | Modelos tributarios |
+| DGT | `sede.organcp.es` | Consultas vinculantes |
+| TEAC | `hacienda.es` | Resoluciones economico-administrativas |
+| CNMV | `cnmv.es` | Documentos regulatorios |
+| SEPBLAC | `sepblac.es` | Publicaciones anticorrupcion |
+| BORME | `boe.es/borme` | Actos mercantiles |
+| BDNS | `infosubvenciones.es` | Convocatorias subvenciones |
+| EURLEX | `eur-lex.europa.eu` | Legislacion UE |
+| PLACE | `place.boe.es` | Datos administrativos (post-v2) |
+| HuggingFace | `sentence-transformers` | Modelo de embeddings |
 
-### Ejecucion continua
+## Versiones
 
-- `worker-boe`
-- `worker-dgt`
-- `worker-teac`
-- `worker-modelos`
-
-### Ejecucion programada
-
-- `cron-boe-daily`
-- `cron-dgt-weekly`
-- `cron-teac-weekly`
-- `cron-modelos-daily`
-
-### Superficies publicas
-
-- API: `https://esdata-production.up.railway.app`
-- Web: `https://web-production-ecb5.up.railway.app`
-- OpenAPI: `https://esdata-production.up.railway.app/openapi.json`
-
-## Observaciones importantes
-
-### Observabilidad basica en `/status`
-
-El endpoint `/status` informa hoy sobre:
-
-- `worker-boe`
-- `cron-boe-daily`
-- `worker-dgt`
-- `cron-dgt-weekly`
-- `worker-teac`
-- `cron-teac-weekly`
-- `worker-modelos`
-- `cron-modelos-daily`
-
-La observabilidad sigue siendo basica, pero ya cubre todos los workers y cron jobs principales del sistema.
-
-### Duplicacion de infraestructura Python
-
-La API y los workers comparten dependencias y patrones de acceso a base de datos, pero todavia no existe una libreria comun. Este es uno de los principales candidatos a refactor de profesionalizacion.
-
-### Cobertura normativa operativa
-
-La configuracion base y los tests del repo ya contemplan como minimo:
-
-- `LIVA`
-- `LIRPF`
-- `LIS`
-- `LGT`
-- `ITPAJD`
-- `IRNR`
-- `IIEE`
-- `HL`
-- `DAC6` (transposición española)
-- `DAC6RD` (desarrollo reglamentario español)
-- `DAC6EU` (referencia UE desde EUR-Lex)
-
-Ademas, la capa documental incluye `BDNS` como fuente separada de convocatorias públicas de subvenciones. En este primer slice se almacena en `documento_interpretativo` con `organismo_emisor='BDNS'`, `tipo_fuente='bdns'` y `tipo_documento='convocatoria_subvencion'`, sin forzar todavía anclaje normativo automático.
-
-La capa regulatoria documental inicial incluye `CNMV` como fuente de circulares y documentos operativos públicos. En este primer slice también se almacena en `documento_interpretativo` con `organismo_emisor='CNMV'`, `tipo_fuente='cnmv'` y ámbitos heurísticos como `reporting_financiero`, `reporting_regulatorio`, `infraestructuras_mercado` o `mercados`.
-
-La capa regulatoria documental inicial incluye también `SEPBLAC` como fuente de formularios y documentación operativa PBC/FT. En este primer slice se almacena en `documento_interpretativo` con `organismo_emisor='SEPBLAC'`, `tipo_fuente='sepblac'` y ámbitos heurísticos como `aml_cft_reporting`, `aml_cft` o `supervision_sepblac`, con soporte de extracción tanto desde HTML como desde PDF.
-
-Sobre estas capas documentales se añade una primera entidad común `obligacion_regulatoria`, pensada para normalizar obligaciones mínimas reutilizables por fuente. En este primer slice se enlaza a documentos mediante `obligacion_documento` y permite exponer por API obligaciones CNMV y SEPBLAC sin troceado completo todavía.
-
-La capa mercantil inicial incluye `BORME` como fuente de actos societarios públicos. En este primer slice se almacena también en `documento_interpretativo` con `organismo_emisor='BORME'`, `tipo_fuente='borme'`, `ambito='mercantil'` y un `tipo_documento` básico detectado por heurística (`nombramiento`, `constitucion`, `cambio_domicilio`, `ampliacion_capital`, `reduccion_capital`, `disolucion`, `concurso`).
-
-Para soportar cruces futuros entre `BORME`, `BDNS` y otras fuentes, el esquema incorpora una tabla `empresa` y una tabla puente `documento_empresa`. En este slice se puebla desde `BORME` con extracción heurística de denominación social y domicilio, sin exigir todavía NIF ni normalización avanzada de sociedades.
-
-### Configuracion todavia heterogenea
-
-Existen variables documentadas en `.env.example` que no estan usadas por el runtime actual y tambien existen variables usadas por scripts operativos que no forman parte del contrato principal de la aplicacion. Esto se documenta por separado en `docs/environment-variables.md`.
+- **Python**: 3.12
+- **FastAPI**: 0.116.1
+- **SQLAlchemy**: 2.0.43
+- **psycopg**: 3.2.9 (binary)
+- **Alembic**: 1.16.4
+- **sentence-transformers**: 4.1.0
+- **PostgreSQL**: 16 (pgvector)
+- **Redis**: 7 (alpine)
+- **Next.js**: 15

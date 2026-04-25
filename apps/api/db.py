@@ -2,15 +2,19 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
+    "postgresql+psycopg://esdata:testpass@localhost:5434/esdata",
 )
 
-engine_kwargs = {"future": True}
+engine_kwargs = {"future": True, "pool_size": 50, "max_overflow": 100, "pool_pre_ping": True}
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 

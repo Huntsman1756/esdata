@@ -1,12 +1,21 @@
 import os
+import sys
+import tempfile
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
-TEST_DB_PATH = Path(__file__).resolve().parent / "test_esdata.sqlite3"
+API_DIR = Path(__file__).resolve().parents[1]
+if str(API_DIR) not in sys.path:
+    sys.path.insert(0, str(API_DIR))
+
+TEST_DB_PATH = Path(tempfile.gettempdir()) / f"esdata_test_{os.getpid()}.sqlite3"
 
 if TEST_DB_PATH.exists():
-    TEST_DB_PATH.unlink()
+    try:
+        TEST_DB_PATH.unlink()
+    except PermissionError:
+        pass
 
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 
@@ -54,6 +63,21 @@ STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE materia (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT UNIQUE NOT NULL,
+        etiqueta TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE articulo_materia (
+        articulo_id INTEGER NOT NULL REFERENCES articulo(id) ON DELETE CASCADE,
+        materia_id INTEGER NOT NULL REFERENCES materia(id) ON DELETE CASCADE,
+        relevancia INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (articulo_id, materia_id)
+    )
+    """,
+    """
     CREATE TABLE documento_interpretativo (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tipo_documento TEXT NOT NULL,
@@ -69,6 +93,110 @@ STATEMENTS = [
     )
     """,
     """
+    INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde)
+    VALUES
+        ('LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740', 'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01'),
+        ('LIRPF', 'Ley del Impuesto sobre la Renta de las Personas Fisicas', 'BOE-A-2006-20764', 'https://www.boe.es/eli/es/l/2006/11/23/35', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2007-01-01'),
+        ('LIS', 'Ley del Impuesto sobre Sociedades', 'BOE-A-2014-12328', 'https://www.boe.es/eli/es/l/2014/11/27/27', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2015-01-01'),
+        ('LGT', 'Ley General Tributaria', 'BOE-A-2003-23186', 'https://www.boe.es/eli/es/l/2003/12/17/58', 'es', 'boe', 'ley', 'tributario', 'ingestada', '2004-01-01'),
+        ('ITPAJD', 'Ley del ITPAJD', 'BOE-A-1993-25359', 'https://www.boe.es/eli/es/rdl/1993/09/24/1', 'es', 'boe', 'real_decreto_legislativo', 'tributario', 'ingestada', '1993-09-25'),
+        ('IRNR', 'RDL 5/2004 — Ley del IRNR', 'BOE-A-2004-4527', 'https://www.boe.es/eli/es/rdl/2004/12/03/5', 'es', 'boe', 'real_decreto_legislativo', 'tributario', 'ingestada', '2004-12-03'),
+        ('IIEE', 'Ley de Impuestos Especiales', 'BOE-A-1992-28741', 'https://www.boe.es/eli/es/l/1992/12/28/38', 'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01'),
+        ('HL', 'Ley de Haciendas Locales', 'BOE-A-2004-4214', 'https://www.boe.es/eli/es/rdl/2004/03/05/2', 'es', 'boe', 'real_decreto_legislativo', 'tributario_local', 'ingestada', '2004-03-09'),
+        ('DAC6', 'Ley 10/2020 de transposicion DAC6', 'BOE-A-2020-11325', 'https://www.boe.es/eli/es/l/2020/12/29/10', 'es', 'boe', 'ley', 'tributario_internacional', 'ingestada', '2020-12-30'),
+        ('DAC6RD', 'Real Decreto 243/2021 DAC6', 'BOE-A-2021-5090', 'https://www.boe.es/eli/es/rd/2021/04/06/243', 'es', 'boe', 'real_decreto', 'tributario_internacional', 'ingestada', '2021-04-07'),
+        ('DAC6EU', 'Directiva (UE) 2018/822', 'EUR-Lex-32018L0822', 'https://eur-lex.europa.eu/eli/dir/2018/822/oj', 'ue', 'eurlex', 'directiva_ue', 'tributario_internacional', 'referenciada', '2018-06-25')
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '91', 'Tipos impositivos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '14', 'Rentas exentas', 'articulo' FROM norma WHERE codigo = 'IRNR'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '7', 'Hecho imponible', 'articulo' FROM norma WHERE codigo = 'ITPAJD'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '60', 'Impuestos especiales', 'articulo' FROM norma WHERE codigo = 'IIEE'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '20', 'Tributos locales', 'articulo' FROM norma WHERE codigo = 'HL'
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '206 bis', 'Obligaciones de informacion', 'articulo' FROM norma WHERE codigo = 'DAC6'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id,
+           'Articulo 91. El tipo reducido se aplica a alimentos, productos sanitarios y bienes de primera necesidad conforme a los tipos impositivos reducidos.',
+           '1993-01-01',
+           NULL,
+           'a91'
+    FROM articulo a JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'LIVA' AND a.numero = '91'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id,
+           'Articulo 14. Rentas obtenidas sin mediación de establecimiento permanente exentas en los supuestos legalmente previstos.',
+           '2004-12-03',
+           NULL,
+           'irnr-14'
+    FROM articulo a JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'IRNR' AND a.numero = '14'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 7. Constituye el hecho imponible la transmision patrimonial onerosa y otras transmisiones sujetas al ITPAJD.', '1993-09-25', NULL, 'itpajd-7'
+    FROM articulo a JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'ITPAJD' AND a.numero = '7'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 60. Impuestos especiales sobre hidrocarburos y otros productos objeto de gravamen especifico.', '1993-01-01', NULL, 'iiee-60'
+    FROM articulo a JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'IIEE' AND a.numero = '60'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 20. Tasas y tributos locales.', '2004-03-09', NULL, 'hl-20'
+    FROM articulo a JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'HL' AND a.numero = '20'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 206 bis. Obligaciones de informacion de mecanismos transfronterizos.', '2020-01-01', NULL, 'dac6-206bis'
+    FROM articulo a JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'DAC6' AND a.numero = '206 bis'
+    """,
+    """
+    INSERT INTO materia (slug, etiqueta)
+    VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')
+    """,
+    """
+    INSERT INTO articulo_materia (articulo_id, materia_id, relevancia)
+    SELECT a.id, m.id, 1
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    JOIN materia m ON m.slug = 'tipo-reducido-iva'
+    WHERE n.codigo = 'LIVA' AND a.numero = '91'
+    """,
+    """
+    INSERT INTO documento_interpretativo (tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente)
+    VALUES
+        ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Consulta DGT sobre tipo reducido', 'Consulta sobre la aplicacion del tipo reducido del IVA conforme al articulo 91 de la Ley 37/1992.', 'https://example.invalid/dgt/V0000-26'),
+        ('circular_cnmv', 'CNMV', 'es', 'cnmv', 'reporting_financiero', 'BOE-A-2009-133', '2009-01-02', 'Circular 9/2008 de la CNMV', 'Normas contables, estados de información reservada y pública y cuentas anuales. Estados de información reservada para entidades supervisadas.', 'https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133'),
+        ('formulario_sepblac', 'SEPBLAC', 'es', 'sepblac', 'aml_cft_reporting', 'SEPBLAC-MODELO-19', '2026-04-16', 'Comunicación por indicio - Modelo 19 SEPBLAC', 'Procedimiento para la comunicación por indicio y formulario oficial Modelo 19 SEPBLAC.', 'https://www.sepblac.es/es/'),
+        ('convocatoria_bdns', 'BDNS', 'es', 'bdns', 'subvenciones', 'BDNS-749075-1034404', '2025-02-01', 'Convocatoria de becas 2025', 'Convocatoria publica de becas y ayudas al estudio para el curso 2025.', 'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075'),
+        ('nombramiento', 'BORME', 'es', 'borme', 'mercantil', 'BORME-A-2025-55-37', '2025-03-01', 'Nombramientos y reelecciones societarias', 'Se publican nombramientos y otras modificaciones societarias en el BORME para Alvarez Garcia Ganaderia, S.L. y Murillo & Barrero, Sociedad Limitada.', 'https://www.boe.es/borme/dias/2025/03/01/pdfs/BORME-A-2025-55-37.pdf')
+    """,
+    """
     CREATE TABLE empresa (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
@@ -80,7 +208,42 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE obligacion_regulatoria (
+    CREATE TABLE documento_empresa (
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id) ON DELETE CASCADE,
+        empresa_id INTEGER NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+        rol TEXT NOT NULL,
+        confianza_extraccion REAL,
+        nota TEXT,
+        PRIMARY KEY (documento_id, empresa_id, rol)
+    )
+    """,
+    """
+    CREATE TABLE documento_articulo (
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id) ON DELETE CASCADE,
+        articulo_id INTEGER NOT NULL REFERENCES articulo(id) ON DELETE CASCADE,
+        metodo_enlace TEXT NOT NULL,
+        confianza_enlace REAL NOT NULL,
+        nota TEXT,
+        PRIMARY KEY (documento_id, articulo_id)
+    )
+    """,
+    """
+    CREATE TABLE sync_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        worker TEXT NOT NULL,
+        started_at TEXT,
+        finished_at TEXT,
+        status TEXT,
+        bloques_processed INTEGER,
+        articulos_upserted INTEGER,
+        documentos_processed INTEGER,
+        documentos_upserted INTEGER,
+        doctrina_links_created INTEGER,
+        error_msg TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS obligacion_regulatoria (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT UNIQUE NOT NULL,
         nombre TEXT NOT NULL,
@@ -97,436 +260,43 @@ STATEMENTS = [
         seccion_origen TEXT,
         anexo_origen TEXT,
         nota TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        plazo_dias INTEGER,
+        frecuencia_presentacion TEXT,
+        ventana_presentacion TEXT,
+        trigger_presentacion TEXT,
+        canal_presentacion TEXT,
+        obligados_resumen TEXT,
+        sancion_min NUMERIC(10,2),
+        sancion_max NUMERIC(10,2),
+        recargo_voluntario TEXT,
+        recargo_involuntario TEXT,
+        interes_demora TEXT,
+        prescripcion_anos INTEGER,
+        deposito_previo TEXT,
+        fuentes_operativas TEXT,
+        ultima_actualizacion TEXT,
+        origen_metadato TEXT,
+        estado_metadato TEXT
     )
     """,
     """
-    CREATE TABLE obligacion_documento (
-        obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id),
-        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+    CREATE TABLE IF NOT EXISTS obligacion_documento (
+        obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id) ON DELETE CASCADE,
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id) ON DELETE CASCADE,
         tipo_relacion TEXT NOT NULL,
         PRIMARY KEY (obligacion_id, documento_id)
-    )
-    """,
-    """
-    CREATE TABLE documento_empresa (
-        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
-        empresa_id INTEGER NOT NULL REFERENCES empresa(id),
-        rol TEXT NOT NULL,
-        confianza_extraccion REAL NOT NULL,
-        nota TEXT,
-        PRIMARY KEY (documento_id, empresa_id)
-    )
-    """,
-    """
-    CREATE TABLE documento_articulo (
-        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
-        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-        metodo_enlace TEXT NOT NULL,
-        confianza_enlace REAL NOT NULL,
-        nota TEXT,
-        PRIMARY KEY (documento_id, articulo_id)
-    )
-    """,
-    """
-    CREATE TABLE materia (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        slug TEXT UNIQUE NOT NULL,
-        etiqueta TEXT NOT NULL
-    )
-    """,
-    """
-    CREATE TABLE articulo_materia (
-        articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-        materia_id INTEGER NOT NULL REFERENCES materia(id),
-        relevancia INTEGER NOT NULL DEFAULT 1,
-        PRIMARY KEY (articulo_id, materia_id)
-    )
-    """,
-    """
-    CREATE TABLE sync_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        worker TEXT NOT NULL,
-        started_at TEXT NOT NULL,
-        finished_at TEXT,
-        status TEXT NOT NULL,
-        bloques_processed INTEGER,
-        articulos_upserted INTEGER,
-        documentos_processed INTEGER,
-        documentos_upserted INTEGER,
-        doctrina_links_created INTEGER,
-        error_msg TEXT
-    )
-    """,
-    # --- Normas (metadatos de referencia) ---
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'LIVA', 'Ley del Impuesto sobre el Valor Anadido', 'BOE-A-1992-28740',
-        'https://www.boe.es/eli/es/l/1992/12/28/37', 'es', 'boe',
-        'ley', 'tributario', 'ingestada', '1993-01-01'
-    )
-    """,
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'ITPAJD',
-        'Texto refundido del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados',
-        'BOE-A-1993-25359',
-        'https://www.boe.es/eli/es/rdlg/1993/09/24/1/con',
-        'es',
-        'boe',
-        'real_decreto_legislativo',
-        'tributario',
-        'ingestada',
-        '1993-09-25'
-    )
-    """,
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'IIEE',
-        'Ley de Impuestos Especiales',
-        'BOE-A-1992-28741',
-        'https://www.boe.es/eli/es/l/1992/12/28/38',
-        'es',
-        'boe',
-        'ley',
-        'tributario',
-        'ingestada',
-        '1993-01-01'
-    )
-    """,
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'HL',
-        'Texto refundido de la Ley Reguladora de las Haciendas Locales',
-        'BOE-A-2004-4214',
-        'https://www.boe.es/eli/es/rdl/2004/03/05/2',
-        'es',
-        'boe',
-        'real_decreto_legislativo',
-        'tributario_local',
-        'ingestada',
-        '2004-03-10'
-    )
-    """,
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'DAC6',
-        'Ley 10/2020, de 29 de diciembre, por la que se modifica la Ley 58/2003, de 17 de diciembre, General Tributaria, en transposición de la Directiva (UE) 2018/822 del Consejo, de 25 de mayo de 2018',
-        'BOE-A-2020-17265',
-        'https://www.boe.es/eli/es/l/2020/12/29/10',
-        'es',
-        'boe',
-        'ley',
-        'tributario_internacional',
-        'ingestada',
-        '2020-12-30'
-    )
-    """,
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'DAC6RD',
-        'Real Decreto 243/2021, de 6 de abril, por el que se modifica el Reglamento General de las actuaciones y los procedimientos de gestión e inspección tributaria y de desarrollo de las normas comunes de los procedimientos de aplicación de los tributos, aprobado por el Real Decreto 1065/2007, de 27 de julio, en transposición de la Directiva (UE) 2018/822 del Consejo, de 25 de mayo de 2018',
-        'BOE-A-2021-5394',
-        'https://www.boe.es/eli/es/rd/2021/04/06/243',
-        'es',
-        'boe',
-        'real_decreto',
-        'tributario_internacional',
-        'ingestada',
-        '2021-04-07'
-    )
-    """,
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'DAC6EU',
-        'Directiva (UE) 2018/822 del Consejo, de 25 de mayo de 2018, que modifica la Directiva 2011/16/UE por lo que se refiere al intercambio automático y obligatorio de información en el ámbito de la fiscalidad en relación con los mecanismos transfronterizos sujetos a comunicación de información',
-        'DOUE-L-2018-80963',
-        'https://eur-lex.europa.eu/eli/dir/2018/822/oj',
-        'ue',
-        'eurlex',
-        'directiva_ue',
-        'tributario_ue',
-        'referenciada',
-        '2018-06-25'
-    )
-    """,
-    """
-    INSERT INTO norma (
-        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
-        tipo_documento, ambito, estado_cobertura, vigente_desde
-    )
-    VALUES (
-        'IRNR',
-        'Texto refundido de la Ley del Impuesto sobre la Renta de no Residentes',
-        'BOE-A-2004-19886',
-        'https://www.boe.es/eli/es/rdl/2004/12/03/5',
-        'es',
-        'boe',
-        'real_decreto_legislativo',
-        'tributario',
-        'ingestada',
-        '2004-12-03'
-    )
-    """,
-    # --- LIVA 91: fixture de test con texto realista del BOE ---
-    # Este no es un placeholder de producción; el worker BOE ingesta el texto real.
-    # Aquí usamos un extracto representativo para que los tests verifiquen búsqueda y estructura.
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '91', 'Tipos impositivos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Artículo 91. Tipos impositivos reducidos.
-Uno. Se aplicará el tipo reducido a las siguientes operaciones:
-1. Las entregas de bienes de primera necesidad.
-2. Los servicios de hostelería y restaurante.
-Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', NULL, 'a91'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'LIVA' AND a.numero = '91'
-    """,
-    # --- ITPAJD 7: fixture para validar la nueva cobertura ---
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '7', 'Transmisiones patrimoniales sujetas', 'articulo'
-    FROM norma WHERE codigo = 'ITPAJD'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 7. Son transmisiones patrimoniales sujetas:
-1. Las transmisiones onerosas por actos inter vivos de toda clase de bienes y derechos.
-2. La constitucion de derechos reales, prestamos, fianzas, arrendamientos y pensiones.',
-    '1993-09-25', NULL, 'itpajd-a7'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'ITPAJD' AND a.numero = '7'
-    """,
-    # --- IIEE 60: fixture básica para Impuestos Especiales ---
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '60', 'Impuesto especial sobre hidrocarburos', 'articulo'
-    FROM norma WHERE codigo = 'IIEE'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 60. El impuesto especial sobre hidrocarburos grava la fabricación e importación de los productos objeto del impuesto.', '1993-01-01', NULL, 'iiee-a60'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'IIEE' AND a.numero = '60'
-    """,
-    # --- HL 20: fixture básica para Haciendas Locales ---
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '20', 'Hecho imponible de las tasas', 'articulo'
-    FROM norma WHERE codigo = 'HL'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 20. Las entidades locales podrán establecer tasas por la utilización privativa o el aprovechamiento especial del dominio público local.', '2004-03-10', NULL, 'hl-a20'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'HL' AND a.numero = '20'
-    """,
-    # --- DAC6 206 bis: obligación informativa sobre mecanismos transfronterizos ---
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '206 bis', 'Obligación de información de determinados mecanismos transfronterizos de planificación fiscal', 'articulo'
-    FROM norma WHERE codigo = 'DAC6'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 206 bis. Deberán declararse los mecanismos transfronterizos de planificación fiscal cuando concurran las señas distintivas previstas en la normativa aplicable.', '2020-12-30', NULL, 'dac6-a206bis'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'DAC6' AND a.numero = '206 bis'
-    """,
-    # --- DAC6RD 45: desarrollo reglamentario de la declaración ---
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '45', 'Obligación de informar sobre mecanismos transfronterizos', 'articulo'
-    FROM norma WHERE codigo = 'DAC6RD'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 45. Se regula el contenido y plazo de las declaraciones informativas relativas a mecanismos transfronterizos sujetos a comunicación.', '2021-04-07', NULL, 'dac6rd-a45'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'DAC6RD' AND a.numero = '45'
-    """,
-    # --- IRNR 13/14/25/26: fixtures para relaciones de modelos IRNR ---
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '13', 'Rentas inmobiliarias obtenidas sin establecimiento permanente', 'articulo'
-    FROM norma WHERE codigo = 'IRNR'
-    """,
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '14', 'Rentas obtenidas sin mediación de establecimiento permanente', 'articulo'
-    FROM norma WHERE codigo = 'IRNR'
-    """,
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '25', 'Rendimientos del capital mobiliario en el IRNR', 'articulo'
-    FROM norma WHERE codigo = 'IRNR'
-    """,
-    """
-    INSERT INTO articulo (norma_id, numero, titulo, tipo)
-    SELECT id, '26', 'Ganancias patrimoniales en el IRNR', 'articulo'
-    FROM norma WHERE codigo = 'IRNR'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 13. Rentas inmobiliarias obtenidas en territorio español por contribuyentes no residentes sin establecimiento permanente.', '2004-12-03', NULL, 'irnr-a13'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'IRNR' AND a.numero = '13'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 14. Rentas obtenidas sin mediación de establecimiento permanente sujetas al impuesto.', '2004-12-03', NULL, 'irnr-a14'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'IRNR' AND a.numero = '14'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 25. Rendimientos del capital mobiliario obtenidos por no residentes sin establecimiento permanente.', '2004-12-03', NULL, 'irnr-a25'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'IRNR' AND a.numero = '25'
-    """,
-    """
-    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
-    SELECT a.id, 'Articulo 26. Ganancias patrimoniales obtenidas por no residentes sin establecimiento permanente.', '2004-12-03', NULL, 'irnr-a26'
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    WHERE n.codigo = 'IRNR' AND a.numero = '26'
-    """,
-    # --- Materias (taxonomía curada) ---
-    """
-    INSERT INTO materia (slug, etiqueta)
-    VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')
-    """,
-    # --- Enlace materia <-> artículo (requiere que LIVA 91 exista) ---
-    """
-    INSERT INTO articulo_materia (articulo_id, materia_id, relevancia)
-    SELECT a.id, m.id, 3
-    FROM articulo a
-    JOIN norma n ON n.id = a.norma_id
-    JOIN materia m ON m.slug = 'tipo-reducido-iva'
-    WHERE n.codigo = 'LIVA' AND a.numero = '91'
-    """,
-    # --- Doctrina de referencia ---
-    """
-    INSERT INTO documento_interpretativo (
-        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
-    )
-    VALUES (
-        'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0000-26', '2026-01-15', 'Consulta DGT sobre tipo reducido', 'Documento de referencia relacionado con LIVA 91.', 'https://example.invalid/dgt/V0000-26'
-    )
-    """,
-    """
-    INSERT INTO documento_interpretativo (
-        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
-    )
-    VALUES (
-        'convocatoria_subvencion',
-        'BDNS',
-        'es',
-        'bdns',
-        'subvenciones',
-        'BDNS-749075-1034404',
-        '2026-04-16',
-        'Convocatoria 749075 - Becas de carácter general para estudiantes de enseñanzas postobligatorias',
-        'Convocatoria de subvención pública para becas de carácter general. Incluye beneficiarios, cuantía, plazo de presentación y bases reguladoras.',
-        'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404'
-    )
-    """,
-    """
-    INSERT INTO documento_interpretativo (
-        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
-    )
-    VALUES (
-        'nombramiento',
-        'BORME',
-        'es',
-        'borme',
-        'mercantil',
-        'BORME-A-2025-55-37',
-        '2025-03-20',
-        'Actos de SALAMANCA del BORME núm. 55 de 2025',
-        'Constitución. ALVAREZ GARCIA GANADERIA, S.L. Domicilio: C/ SANTA LUCIA 19. Capital: 3.000,00 Euros. Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA.',
-        'https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf'
-    )
-    """,
-    """
-    INSERT INTO documento_interpretativo (
-        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
-    )
-    VALUES (
-        'circular_cnmv',
-        'CNMV',
-        'es',
-        'cnmv',
-        'reporting_financiero',
-        'BOE-A-2009-133',
-        '2009-01-02',
-        'Circular 9/2008, de 10 de diciembre, de la Comisión Nacional del Mercado de Valores',
-        'Circular 9/2008, de la Comisión Nacional del Mercado de Valores, sobre normas contables, estados de información reservada y pública y cuentas anuales de las sociedades rectoras de los mercados secundarios oficiales.',
-        'https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133'
-    )
-    """,
-    """
-    INSERT INTO documento_interpretativo (
-        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente
-    )
-    VALUES (
-        'formulario_sepblac',
-        'SEPBLAC',
-        'es',
-        'sepblac',
-        'aml_cft_reporting',
-        'SEPBLAC-MODELO-19',
-        '2026-04-16',
-        'Comunicación por indicio - Modelo 19 SEPBLAC',
-        'Procedimiento para la comunicación por indicio de hechos u operaciones respecto de los que existan indicios o certeza de blanqueo de capitales o financiación del terrorismo. Incluye el formulario oficial Modelo 19 SEPBLAC.',
-        'https://www.sepblac.es/es/'
     )
     """,
     """
     INSERT INTO obligacion_regulatoria (
         codigo, nombre, fuente, organismo_emisor, tipo_obligacion, sujeto_obligado,
         periodicidad, reporte_modelo, ambito, estado_vigencia, documento_origen_tipo,
-        documento_origen_ref, seccion_origen, anexo_origen, nota
+        documento_origen_ref, seccion_origen, anexo_origen, nota,
+        plazo_dias, frecuencia_presentacion, ventana_presentacion, trigger_presentacion,
+        canal_presentacion, obligados_resumen, sancion_min, sancion_max,
+        recargo_voluntario, recargo_involuntario, interes_demora, prescripcion_anos,
+        deposito_previo, fuentes_operativas, origen_metadato, estado_metadato
     )
     VALUES (
         'CNMV-IR-RESERVADA',
@@ -543,14 +313,21 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         'BOE-A-2009-133',
         NULL,
         NULL,
-        'Obligación base derivada del corpus CNMV para el primer slice de obligaciones.'
+        'Obligación base derivada del corpus CNMV para el primer slice de obligaciones.',
+        NULL, 'mensual', 'primeros_20_dias_periodo_siguiente', 'fin_mes',
+        'electronica', 'Empresas de servicios de inversión', 3000, 60000000,
+        NULL, NULL, NULL, 4, NULL, '{}', 'seed_curado', 'curado'
     )
     """,
     """
     INSERT INTO obligacion_regulatoria (
         codigo, nombre, fuente, organismo_emisor, tipo_obligacion, sujeto_obligado,
         periodicidad, reporte_modelo, ambito, estado_vigencia, documento_origen_tipo,
-        documento_origen_ref, seccion_origen, anexo_origen, nota
+        documento_origen_ref, seccion_origen, anexo_origen, nota,
+        plazo_dias, frecuencia_presentacion, ventana_presentacion, trigger_presentacion,
+        canal_presentacion, obligados_resumen, sancion_min, sancion_max,
+        recargo_voluntario, recargo_involuntario, interes_demora, prescripcion_anos,
+        deposito_previo, fuentes_operativas, origen_metadato, estado_metadato
     )
     VALUES (
         'SEPBLAC-INDICIO-M19',
@@ -567,7 +344,72 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         'SEPBLAC-MODELO-19',
         '15.5',
         NULL,
-        'Obligación base del primer slice operativo SEPBLAC.'
+        'Obligación base del primer slice operativo SEPBLAC.',
+        15, 'eventual', '1_mes_desde_hecho', 'detectar_indicio',
+        'electronica', 'Sujetos obligados PBCFT', 10000, 6000000,
+        NULL, NULL, NULL, 4, NULL, '{}', 'seed_curado', 'curado'
+    )
+    """,
+    """
+    INSERT INTO obligacion_regulatoria (
+        codigo, nombre, fuente, organismo_emisor, tipo_obligacion, sujeto_obligado,
+        periodicidad, reporte_modelo, ambito, estado_vigencia, documento_origen_tipo,
+        documento_origen_ref, seccion_origen, anexo_origen, nota,
+        plazo_dias, frecuencia_presentacion, ventana_presentacion, trigger_presentacion,
+        canal_presentacion, obligados_resumen, sancion_min, sancion_max,
+        recargo_voluntario, recargo_involuntario, interes_demora, prescripcion_anos,
+        deposito_previo, fuentes_operativas, origen_metadato, estado_metadato
+    )
+    VALUES (
+        'IRNR_FACTA',
+        'Presentar modelos IRNR por retenciones a no residentes sin establecimiento permanente',
+        'aeat',
+        'AEAT',
+        'declaracion_tributaria',
+        'retenedor_irnr',
+        'periodica',
+        '216',
+        'tributario_internacional',
+        'vigente',
+        'real_decreto_legislativo',
+        'BOE-A-2004-4527',
+        'articulo 14',
+        NULL,
+        'Obligacion fiscal base para retenciones IRNR sin establecimiento permanente.',
+        20, 'mensual', 'primeros_20_dias_periodo_siguiente', 'fin_mes',
+        'electronica', 'Retenedores sobre rentas de no residentes sin establecimiento permanente.', 50, 150,
+        '5%', '5-10%', 'TIE + 4%', 4, NULL, '{}', 'seed_curado', 'curado'
+    )
+    """,
+    """
+    INSERT INTO obligacion_regulatoria (
+        codigo, nombre, fuente, organismo_emisor, tipo_obligacion, sujeto_obligado,
+        periodicidad, reporte_modelo, ambito, estado_vigencia, documento_origen_tipo,
+        documento_origen_ref, seccion_origen, anexo_origen, nota,
+        plazo_dias, frecuencia_presentacion, ventana_presentacion, trigger_presentacion,
+        canal_presentacion, obligados_resumen, sancion_min, sancion_max,
+        recargo_voluntario, recargo_involuntario, interes_demora, prescripcion_anos,
+        deposito_previo, fuentes_operativas, origen_metadato, estado_metadato
+    )
+    VALUES (
+        'IRPF_ANUAL',
+        'Presentar declaracion anual del IRPF',
+        'aeat',
+        'AEAT',
+        'declaracion_tributaria',
+        'contribuyente_irpf',
+        'periodica',
+        '100',
+        'tributario',
+        'vigente',
+        'ley',
+        'BOE-A-2006-20764',
+        NULL,
+        NULL,
+        'Obligacion anual del IRPF para contribuyentes obligados a declarar.',
+        120, 'anual', 'campana_renta', 'cierre_ejercicio',
+        'electronica', 'Contribuyentes del IRPF obligados a declarar.', 0, 150000,
+        NULL, NULL, NULL, 4, NULL, '{}', 'seed_curado', 'curado'
     )
     """,
     """
@@ -583,6 +425,13 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM obligacion_regulatoria o
     JOIN documento_interpretativo d ON d.referencia = 'SEPBLAC-MODELO-19'
     WHERE o.codigo = 'SEPBLAC-INDICIO-M19'
+    """,
+    """
+    INSERT INTO obligacion_documento (obligacion_id, documento_id, tipo_relacion)
+    SELECT o.id, d.id, 'fuente_principal'
+    FROM obligacion_regulatoria o
+    JOIN documento_interpretativo d ON d.referencia = 'V0000-26'
+    WHERE o.codigo = 'IRNR_FACTA'
     """,
     """
     INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
@@ -1076,7 +925,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """,
     """
     INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-    SELECT m.id, 'BOE-A-2004-19886', 'RDL 5/2004 — IRNR', '2004-12-03', 'https://www.boe.es/buscar/act.php?id=BOE-A-2004-19886', 'Texto refundido de la Ley del IRNR'
+    SELECT m.id, 'BOE-A-2004-4527', 'RDL 5/2004 — IRNR', '2004-12-03', 'https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527', 'Texto refundido de la Ley del IRNR'
     FROM aeat_modelo m WHERE m.codigo IN ('124', '216', '296')
     """,
     """

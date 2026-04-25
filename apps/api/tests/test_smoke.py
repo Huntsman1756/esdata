@@ -604,6 +604,20 @@ async def test_busqueda_full_text():
 
 
 @pytest.mark.asyncio
+async def test_busqueda_full_text_incluye_source_url_y_motivo_ranking():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/buscar?q=tipo+reducido&norma=LIVA")
+
+    assert r.status_code == 200
+    data = r.json()
+    resultado = data["resultados"][0]
+
+    assert resultado["source_url"] == "https://www.boe.es/diario_boe/txt.php?id=BOE-A-1992-28740"
+    assert resultado["fuente_norma"] == "BOE-A-1992-28740"
+    assert resultado["motivo_ranking"]
+
+
+@pytest.mark.asyncio
 async def test_doctrina_buscar_por_texto():
     async with _client() as c:
         r = await c.get("/v1/doctrina/buscar?q=tipo+reducido")
@@ -611,6 +625,88 @@ async def test_doctrina_buscar_por_texto():
     data = r.json()
     assert len(data["resultados"]) >= 1
     assert any(item["referencia"] == "V0000-26" for item in data["resultados"])
+
+
+@pytest.mark.asyncio
+async def test_doctrina_buscar_incluye_source_url():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=tipo+reducido")
+
+    assert r.status_code == 200
+    data = r.json()
+    resultado = next(item for item in data["resultados"] if item["referencia"] == "V0000-26")
+
+    assert resultado["source_url"] == "https://example.invalid/dgt/V0000-26"
+    assert resultado["fragmento"]
+
+
+@pytest.mark.asyncio
+async def test_consulta_incluye_evidencia_normativa_estructurada():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=tipo+reducido")
+
+    assert r.status_code == 200
+    data = r.json()
+    normativa = next(item for item in data["resultados"] if item["tipo"] == "normativa")
+
+    assert normativa["source_url"] == "https://www.boe.es/diario_boe/txt.php?id=BOE-A-1992-28740"
+    assert normativa["fuente_norma"] == "BOE-A-1992-28740"
+    assert normativa["motivo_ranking"]
+    assert normativa["evidencia"]["source_url"] == "https://www.boe.es/diario_boe/txt.php?id=BOE-A-1992-28740"
+    assert normativa["evidencia"]["fuente_norma"] == "BOE-A-1992-28740"
+    assert normativa["evidencia"]["fragmento_exacto"] == normativa["fragmento"]
+    assert normativa["evidencia"]["motivo_ranking"]
+
+
+@pytest.mark.asyncio
+async def test_consulta_respeta_vigente_en_en_resultados_normativos():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE version_articulo
+                SET vigente_hasta = '2010-12-31'
+                WHERE articulo_id = (
+                    SELECT a.id
+                    FROM articulo a
+                    JOIN norma n ON n.id = a.norma_id
+                    WHERE n.codigo = 'LIVA' AND a.numero = '91'
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+                SELECT a.id,
+                       'Artículo 91. Tipos impositivos reducidos. Redacción vigente desde 2011 con referencia expresa al tipo reducido para libros electrónicos.',
+                       '2011-01-01',
+                       NULL,
+                       'a91-2011'
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = 'LIVA' AND a.numero = '91'
+                """
+            )
+        )
+
+    async with _client() as c:
+        pasada = await c.get("/v1/consulta?q=tipo+reducido&vigente_en=2010-01-01")
+        actual = await c.get("/v1/consulta?q=tipo+reducido&vigente_en=2020-01-01")
+
+    assert pasada.status_code == 200
+    assert actual.status_code == 200
+
+    normativa_pasada = next(item for item in pasada.json()["resultados"] if item["tipo"] == "normativa")
+    normativa_actual = next(item for item in actual.json()["resultados"] if item["tipo"] == "normativa")
+
+    assert "primera necesidad" in normativa_pasada["texto"].lower()
+    assert normativa_pasada["vigente_hasta"] == "2010-12-31"
+    assert "libros electrónicos" in normativa_actual["texto"].lower()
+    assert normativa_actual["vigente_desde"] == "2011-01-01"
 
 
 @pytest.mark.asyncio
@@ -692,6 +788,109 @@ async def test_obligaciones_lista_y_detalle():
     assert data["seccion_origen"] == "15.5"
     assert len(data["documentos"]) >= 1
     assert data["documentos"][0]["referencia"] == "SEPBLAC-MODELO-19"
+
+
+@pytest.mark.asyncio
+async def test_obligaciones_operativas():
+    async with _client() as c:
+        operativas = await c.get("/v1/obligaciones/operativas")
+        deadlines = await c.get("/v1/obligaciones/deadlines")
+        detalle_op = await c.get("/v1/obligaciones/SEPBLAC-INDICIO-M19")
+
+    assert operativas.status_code == 200
+    assert deadlines.status_code == 200
+    assert detalle_op.status_code == 200
+
+    data = operativas.json()
+    assert len(data) >= 1
+    campos_op = list(data[0].keys())
+    assert "plazo_dias" in campos_op
+    assert "frecuencia_presentacion" in campos_op
+    assert "sancion_min" in campos_op
+    assert "sancion_max" in campos_op
+
+    # SEPBLAC-INDICIO-M19 tiene sancion definida
+    sepblac = next((o for o in data if o["codigo"] == "SEPBLAC-INDICIO-M19"), None)
+    assert sepblac is not None
+    assert sepblac["sancion_min"] == 10000
+    assert sepblac["sancion_max"] == 6000000
+    assert sepblac["plazo_dias"] == 15
+    assert sepblac["frecuencia_presentacion"] == "eventual"
+
+    # Deadlines ordena por frecuencia
+    dl = deadlines.json()
+    assert len(dl) >= 1
+    freq_order = [item["frecuencia_presentacion"] for item in dl if item.get("frecuencia_presentacion")]
+    if len(set(freq_order)) > 1:
+        freq_set = {"mensual": 1, "trimestral": 2, "anual": 3}
+        prev = 0
+        for f in freq_order:
+            cur = freq_set.get(f, 99)
+            assert cur >= prev, f"Deadlines no ordenados: {freq_order}"
+            prev = cur
+
+
+@pytest.mark.asyncio
+async def test_obligaciones_detalle_campos_operativos():
+    async with _client() as c:
+        detalle = await c.get("/v1/obligaciones/IRNR_FACTA")
+
+    assert detalle.status_code == 200
+    data = detalle.json()
+    assert data["plazo_dias"] == 20
+    assert data["frecuencia_presentacion"] == "mensual"
+    assert data["ventana_presentacion"] == "primeros_20_dias_periodo_siguiente"
+    assert data["trigger_presentacion"] == "fin_mes"
+    assert data["canal_presentacion"] == "electronica"
+    assert data["sancion_min"] == 50
+    assert data["sancion_max"] == 150
+    assert data["recargo_voluntario"] == "5%"
+    assert data["recargo_involuntario"] == "5-10%"
+    assert data["interes_demora"] == "TIE + 4%"
+    assert data["prescripcion_anos"] == 4
+    assert data["origen_metadato"] == "seed_curado"
+    assert data["estado_metadato"] == "curado"
+    assert len(data["documentos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_obligaciones_detalle_incluye_operativa_de_control():
+    async with _client() as c:
+        detalle = await c.get("/v1/obligaciones/SEPBLAC-INDICIO-M19")
+
+    assert detalle.status_code == 200
+    data = detalle.json()
+    assert data["evidencia_requerida"] == [
+        "acuse_presentacion_modelo_19",
+        "expediente_interno_indicio",
+        "soporte_revision_compliance",
+    ]
+    assert data["owner_rol_sugerido"] == "compliance"
+    assert data["criticidad"] == "alta"
+    assert data["control_interno_sugerido"] == "escalado_indicios_y_validacion"
+    assert data["procedimiento_relacionado"] == "procedimiento_comunicacion_indicios_sepblac"
+
+
+@pytest.mark.asyncio
+async def test_obligaciones_filtro_frecuencia():
+    async with _client() as c:
+        todas = await c.get("/v1/obligaciones")
+        mensuales = await c.get("/v1/obligaciones?frecuencia=mensual")
+        anuales = await c.get("/v1/obligaciones?frecuencia=anual")
+
+    assert todas.status_code == 200
+    assert mensuales.status_code == 200
+    assert anuales.status_code == 200
+
+    mensuales_codigos = {o["codigo"] for o in mensuales.json()["obligaciones"]}
+    anuales_codigos = {o["codigo"] for o in anuales.json()["obligaciones"]}
+
+    # IRNR_FACTA es mensual
+    assert "IRNR_FACTA" in mensuales_codigos
+    assert "IRNR_FACTA" not in anuales_codigos
+    # IRPF_ANUAL es anual
+    assert "IRPF_ANUAL" in anuales_codigos
+    assert "IRPF_ANUAL" not in mensuales_codigos
 
 
 @pytest.mark.asyncio
@@ -1303,3 +1502,78 @@ async def test_modelo_sin_campana_devuelve_la_activa_mas_nueva():
     data = r.json()
     assert data["campana_activa"] == "2026"
     assert any(casilla["codigo"] == "7777" for casilla in data["casillas"])
+
+
+@pytest.mark.asyncio
+async def test_consulta_expone_relevancia_y_confianza():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=tipo+reducido+iva")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert "relevancia" in data
+    assert "confianza" in data
+
+    relevancia = data["relevancia"]
+    assert relevancia["nivel"] in {"alta", "media", "baja"}
+    assert isinstance(relevancia["score"], float)
+    assert relevancia["score"] >= 0.0
+    assert relevancia["score"] <= 1.0
+    assert isinstance(relevancia["coincidencia"], str) and len(relevancia["coincidencia"]) > 0
+    assert isinstance(relevancia["terminos_encontrados"], list)
+    assert isinstance(relevancia["terminos_faltantes"], list)
+
+    confianza = data["confianza"]
+    assert confianza["nivel"] in {0, 1, 2}
+    assert confianza["nivel_texto"] in {"alta", "media", "baja"}
+    assert isinstance(confianza["fuentes"], list)
+    assert isinstance(confianza["modelos_cubiertos"], list)
+    assert isinstance(confianza["resultados_clasificados"], dict)
+
+
+@pytest.mark.asyncio
+async def test_consulta_relevancia_ordena_resultados_por_score():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=tipo+reducido")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    scores = [r["_relevancia"]["score"] for r in data["resultados"]]
+    assert scores == sorted(scores, reverse=True)
+
+    if scores:
+        assert scores[0] >= scores[-1]
+
+
+@pytest.mark.asyncio
+async def test_consulta_confianza_baja_consulta_vacia():
+    async with _client() as c:
+        r = await c.get("/v1/consulta")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    confianza = data["confianza"]
+    assert confianza["nivel"] == 0
+    assert confianza["nivel_texto"] == "baja"
+    assert "consulta vacia" in (confianza["aviso"] or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_consulta_resultados_tienen_relevancia_interna():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=modelo+100+irpf")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    for resultado in data["resultados"]:
+        assert "_relevancia" in resultado
+        rev = resultado["_relevancia"]
+        assert rev["nivel"] in {"alta", "media", "baja"}
+        assert isinstance(rev["score"], float)
+        assert isinstance(rev["coincidencia"], str)
+        assert isinstance(rev["terminos_encontrados"], list)
+        assert isinstance(rev["terminos_faltantes"], list)

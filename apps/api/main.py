@@ -1,17 +1,36 @@
 import json
+import logging
+from contextlib import asynccontextmanager
+from decimal import Decimal
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
 from mcp_server import mount_mcp
+from middleware.metrics import create_metrics_endpoint, create_metrics_middleware
+from middleware.rate_limit import rate_limit_middleware
 from routers import (
+    aepd,
+    bde,
     bdns,
     borme,
     buscar,
+    cambios,
+    cendoj,
     cnmv,
+    chunks,
+    consulta,
     doctrina,
     empresas,
+    eurlex,
     legislacion,
     materias,
     modelos,
@@ -20,15 +39,52 @@ from routers import (
     status,
 )
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    import threading
+    def _load_model():
+        try:
+            from apps.workers.embeddings import get_model
+            model = get_model()
+            if model:
+                logger.info("Embedding model loaded in background thread")
+            else:
+                logger.warning("Embedding model not available")
+        except Exception:
+            logger.warning("Failed to load embedding model", exc_info=True)
+    t = threading.Thread(target=_load_model, daemon=True)
+    t.start()
+    logger.info("Embedding model loading in background...")
+    yield
+
 app = FastAPI(
     title="esdata API",
     version="0.1.6",
     description="API de consulta de legislacion espanola consolidada, doctrina interpretativa y modelos tributarios AEAT. "
     "Permite buscar articulos por texto, consultar normas, doctrina (DGT, TEAC) y obtener casillas, claves e instrucciones de modelos fiscales.",
+    lifespan=lifespan,
 )
+
+# Middleware de rate limiting (primero para que se aplique antes de cualquier logica)
+# TEMPORALMENTE desactivado para benchmarking
+# app.middleware("http")(rate_limit_middleware)
+
+# Middleware de metrics Prometheus (si prometheus_client esta disponible)
+metrics_middleware = create_metrics_middleware()
+if metrics_middleware:
+    app.middleware("http")(metrics_middleware)
+
+# Endpoint /metrics para Prometheus (si prometheus_client esta disponible)
+metrics_endpoint = create_metrics_endpoint()
+if metrics_endpoint:
+    app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], include_in_schema=False)
 
 app.include_router(status.router)
 app.include_router(buscar.router)
+app.include_router(cambios.router)
 app.include_router(legislacion.router)
 app.include_router(materias.router)
 app.include_router(doctrina.router)
@@ -39,8 +95,41 @@ app.include_router(sepblac.router)
 app.include_router(obligaciones.router)
 app.include_router(empresas.router)
 app.include_router(modelos.router)
+app.include_router(consulta.router)
+app.include_router(chunks.router)
+app.include_router(cendoj.router)
+app.include_router(eurlex.router)
+app.include_router(bde.router)
+app.include_router(aepd.router)
 
 mount_mcp(app)
+
+# Sentry error monitoring (optional, only if ESDATA_SENTRY_DSN is set)
+_sentry_dsn = None
+try:
+    import os
+    _sentry_dsn = os.environ.get("ESDATA_SENTRY_DSN")
+except Exception:
+    pass
+
+if _sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
+
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1,
+        integrations=[
+            FastApiIntegration(),
+            StarletteIntegration(),
+        ],
+        environment=os.environ.get("APP_ENV", "production"),
+    )
+    logger.info("Sentry error monitoring enabled")
+else:
+    logger.info("Sentry disabled (no ESDATA_SENTRY_DSN)")
 
 
 def _resolve_root_dir() -> Path:

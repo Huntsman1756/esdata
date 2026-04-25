@@ -1,4 +1,6 @@
-# Postmortem Sprint 2
+# [HISTORICAL] Postmortem Sprint 2
+
+> Documento historico. No usar como fuente activa de estado. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 
 ## Resumen
 

@@ -4,6 +4,12 @@
 
 Separar claramente la documentación permanente de los snapshots de sesión e informes puntuales.
 
+## Punto de entrada obligatorio
+
+- Fuente activa unica de roadmap, estado y siguiente paso: `master-execution-roadmap.md`
+- Reglas permanentes del repo: `../AGENTS.md`
+- El resto de roadmaps, handoffs y planes deben tratarse como `REFERENCE` o `HISTORICAL`
+
 ## Regla de integraciones
 
 - `MCP` se documenta como superficie para uso personal con `OpenCode` y modelos LLM locales.
@@ -12,14 +18,15 @@ Separar claramente la documentación permanente de los snapshots de sesión e in
 
 ## Documentación permanente
 
+- `master-execution-roadmap.md`
 - `architecture.md`
 - `repository-structure.md`
 - `environment-variables.md`
 - `database.md`
 - `modelos-onboarding.md`
 - `infrastructure-handoff.md`
-- `professionalization-roadmap.md`
-- `regulatory-compliance-expansion-plan.md`
+- `professionalization-roadmap.md` (`REFERENCE`)
+- `regulatory-compliance-expansion-plan.md` (`REFERENCE`)
 - `deployment/overview.md`
 - `deployment/server-installation.md`
 - `deployment/rollback.md`

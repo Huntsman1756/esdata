@@ -7,6 +7,46 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff lint
+        run: ruff check apps/ libs/ scripts/ --exit-zero
+
+      - name: Run ruff format check
+        run: ruff format --check apps/ libs/ scripts/
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install mypy
+          pip install -r apps/api/requirements.txt
+          pip install -r apps/workers/requirements.txt
+
+      - name: Run mypy on core modules
+        run: mypy apps/api/libs/python/esdata_common --ignore-missing-imports
+
   test-python:
     runs-on: ubuntu-latest
 
@@ -47,15 +87,106 @@ jobs:
       - name: Run Python tests
         run: pytest apps/api/tests/ apps/workers/tests/ -v --tb=short
 
-  lint-python:
+  test-integration:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: esdata
+          POSTGRES_PASSWORD: esdata_test
+          POSTGRES_DB: esdata_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://esdata:esdata_test@localhost:5432/esdata_test
+      APP_ENV: test
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install ruff
-      - run: ruff check apps/ verify_railway.py
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r apps/api/requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Create test database schema
+        run: |
+          psql -h localhost -U esdata -d esdata_test -f infra/sql/init.sql
+          psql -h localhost -U esdata -d esdata_test -f infra/sql/005_indexes.sql
+        env:
+          PGPASSWORD: esdata_test
+
+      - name: Run integration tests
+        run: pytest apps/api/tests/test_integration.py -v --tb=short -m integration
+
+  eval-gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: esdata
+          POSTGRES_PASSWORD: esdata_test
+          POSTGRES_DB: esdata_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://esdata:esdata_test@localhost:5432/esdata_test
+      APP_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r apps/api/requirements.txt
+          pip install -r apps/workers/requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Create test database schema
+        run: |
+          psql -h localhost -U esdata -d esdata_test -f infra/sql/init.sql
+          psql -h localhost -U esdata -d esdata_test -f infra/sql/005_indexes.sql
+        env:
+          PGPASSWORD: esdata_test
+
+      - name: Seed test data
+        run: |
+          python scripts/check_db.py
+        env:
+          DATABASE_URL: postgresql://esdata:esdata_test@localhost:5432/esdata_test
+
+      - name: Run eval quality gate
+        run: |
+          python scripts/eval_phase3.py --local
+        env:
+          DATABASE_URL: postgresql://esdata:esdata_test@localhost:5432/esdata_test
 
   test-web:
     runs-on: ubuntu-latest
@@ -72,3 +203,31 @@ jobs:
       - run: npm ci
       - run: npm run test
       - run: npm run build
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run secrets audit
+        run: python scripts/secrets_audit.py
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit API dependencies
+        run: pip-audit -r apps/api/requirements.txt --fail-on=vulnerability
+
+      - name: Audit workers dependencies
+        run: pip-audit -r apps/workers/requirements.txt --fail-on=vulnerability

@@ -1,0 +1,679 @@
+"""Consulta fiscal inteligente — responde preguntas naturales devolviendo modelos, obligaciones y normativa."""
+
+import re
+from fastapi import APIRouter, Query
+from sqlalchemy import text
+
+from db import db_session
+from schemas import ConsultaFiscalResponse
+from services.search import search_legislacion
+
+# ── Sinonimos juridicos para expansion semantica ──────────────────────────
+SINONIMOS_JURIDICOS = {
+    "no residente": ["irnr", "extranjero", "residente fuera"],
+    "intracomunitario": ["ue", "union europea", "comunitario", "intracom"],
+    "dividendos": ["distribuciones", "rentas capital financiero"],
+    "retencion": ["retenciones", "ingresos a cuenta", "reintegro"],
+    "entregas bienes": ["suministros", "traslados", "ventas"],
+    "prestacion servicios": ["servicios", "prestaciones"],
+    "irpf": ["rendimientos", "renta personas fisicas"],
+    "iva": ["impuesto valorado", "impuesto valor añadido"],
+    "blanqueo capitales": ["lavado", "aml", "anti lavado"],
+    "hacendario": ["aeat", "agencia tributaria", "hacienda"],
+}
+
+# ── Mapeo termino → tipo resultado preferido ──────────────────────────────
+TERMINO_TIPO = {
+    "modelo": ["modelo", "formulario", "aeat"],
+    "normativa": ["articulo", "ley", "real decreto", "disposicion", "vigente"],
+    "doctrina": ["dgt", "teac", "consulta vinculante", "criterio", "criterio interpretativo"],
+    "obligacion": ["obligacion", "deber", "comunicar", "presentar", "reportar"],
+}
+
+# ── Boost por tipo de resultado ───────────────────────────────────────────
+RESULTADO_BOOST = {
+    "modelo": 2.0,
+    "normativa": 1.5,
+    "obligacion": 1.3,
+    "doctrina": 1.0,
+}
+
+router = APIRouter(prefix="", tags=["consulta"])
+
+# ── Keyword → modelo mapping ──────────────────────────────────────────
+KEYWORD_MODELOS = {
+    # FactA / intracomunitario
+    "facta": ["216", "349", "124"],
+    "intracomunitario": ["216", "349", "124"],
+    "entregas intracomunitarias": ["216", "349"],
+    "adquisiciones intracomunitarias": ["349"],
+    "operaciones intracomunitarias": ["216", "349"],
+    "ue": ["216", "349", "124"],
+    "unión europea": ["216", "349", "124"],
+    "europa": ["216", "349", "124"],
+    "nif intracomunitario": ["216", "349"],
+    "eu": ["216", "349", "124"],
+    # IRNR / no residente
+    "no residente": ["124", "216", "123", "296"],
+    "irnr": ["124", "216", "123", "296"],
+    "residente fuera": ["124", "216", "123", "296"],
+    "residente en": ["124", "216", "123", "296"],
+    "extranjero": ["124", "216", "123", "296"],
+    "eeuu": ["124", "216", "123", "296"],
+    "estados unidos": ["124", "216", "123", "296"],
+    "alemania": ["124", "216", "349"],
+    "francia": ["124", "216", "349"],
+    "portugal": ["124", "216", "349"],
+    # Retenciones / dividendos
+    "dividendos": ["124"],
+    "retención": ["124", "123", "111", "115"],
+    "retenciones": ["124", "123", "111", "115"],
+    "ingresos a cuenta": ["111"],
+    "rentas capital": ["124"],
+    "intereses": ["296"],
+    "cánones": ["296"],
+    "royalties": ["296"],
+    "arrendamiento": ["115", "296"],
+    "arrendamientos urbanos": ["115"],
+    # IVA
+    "iva": ["303", "349"],
+    "entregas bienes": ["303", "349"],
+    "prestación servicios": ["303", "349"],
+    "servicios": ["303", "349"],
+    "exento": ["303"],
+    # IRPF
+    "irpf": ["100", "190", "193"],
+    "renta": ["100", "190", "193"],
+    "nómina": ["100"],
+    "alquiler": ["115"],
+    "ganancia patrimonial": ["100"],
+    "venta inmueble": ["100"],
+    "acciones": ["100"],
+    "mercado regulado": ["100"],
+    # IS
+    "impuesto sociedades": ["200"],
+    "sociedad": ["200"],
+    "empresa": ["200", "303"],
+    "sociedades": ["200"],
+    # 347 / terceros
+    "terceras personas": ["347"],
+    "347": ["347"],
+    "operaciones terceras": ["347"],
+    # 720
+    "720": ["720"],
+    "bienes extranjero": ["720"],
+    "cuentas extranjero": ["720"],
+    # Modelo 036
+    "alta": ["036"],
+    "censo": ["036"],
+    # DAC6
+    "dac6": ["DAC6"],
+    "planificación agresiva": ["DAC6"],
+    "mecanismos transfronterizos": ["DAC6"],
+    "transparencia fiscal": ["DAC6"],
+    "directiva DAC6": ["DAC6"],
+    # Compliance
+    "blanqueo capitales": ["SEPBLAC"],
+    "sepblac": ["SEPBLAC"],
+    "indicio blanqueo": ["SEPBLAC"],
+    "comunicacion indicio": ["SEPBLAC"],
+    "CNMV": ["CNMV"],
+    "mercados valores": ["CNMV"],
+    "informacion reservada": ["CNMV"],
+    # ITPAJD / HL / IIEE
+    "transmisiones patrimoniales": ["ITPAJD"],
+    "ITPAJD": ["ITPAJD"],
+    "imponible transmisiones": ["ITPAJD"],
+    "tasas locales": ["HL"],
+    "hacendarias municipales": ["HL"],
+    "impuestos especiales": ["IIEE"],
+    "hidrocarburos": ["IIEE"],
+    "consumo especifico": ["IIEE"],
+    # Extraer modelos explicitos de la query
+    "modelo 111": ["111"],
+    "modelo 115": ["115"],
+    "modelo 190": ["190"],
+    "modelo 193": ["193"],
+    "modelo 390": ["390"],
+    "modelo 347": ["347"],
+    "modelo 036": ["036"],
+    "modelo 296": ["296"],
+    "modelo 720": ["720"],
+    "modelo DAC6": ["DAC6"],
+}
+
+# ── Sujeto → modelo mapping ──────────────────────────────────────────
+SUJETO_MODELOS = {
+    "no_residente": ["124", "216", "123", "296"],
+    "retenedor": ["124", "123"],
+    "contribuyente": ["100"],
+    "sociedad_contribuyente": ["200"],
+    "empresario": ["349"],
+    "empresario_intracomunitario": ["349"],
+}
+
+
+def _extract_keywords(q: str, sujeto: str) -> list[str]:
+    """Extract relevant keywords and subject hints from the query."""
+    q_lower = q.lower()
+    keywords = []
+
+    sorted_kw = sorted(KEYWORD_MODELOS.keys(), key=len, reverse=True)
+    for kw in sorted_kw:
+        if kw in q_lower:
+            keywords.append(kw)
+
+    if sujeto:
+        s = sujeto.lower().replace(" ", "_")
+        if s in SUJETO_MODELOS:
+            keywords.append(f"_subject_{s}")
+
+    return keywords
+
+
+def _resolve_modelos(keywords: list[str]) -> list[str]:
+    """Resolve keywords to a prioritized list of model codes.
+    
+    Prioritizes longer/more specific keywords over generic ones.
+    E.g., "irnr" (2 chars, tax-specific) beats "renta" (5 chars, generic).
+    Also prioritizes subject hints over keyword matches.
+    """
+    # Group keywords by specificity: longer keywords first, then by position
+    # This ensures "irnr" (matched from query) beats "renta" (generic)
+    sorted_keywords = sorted(keywords, key=lambda k: (len(k), keywords.index(k)), reverse=True)
+    
+    # Track how many models each keyword contributes
+    keyword_models = {}
+    seen = set()
+
+    for kw in sorted_keywords:
+        if kw.startswith("_subject_"):
+            subj = kw.replace("_subject_", "")
+            models = SUJETO_MODELOS.get(subj, [])
+        else:
+            models = KEYWORD_MODELOS.get(kw, [])
+        keyword_models[kw] = models
+
+    # Build priority: group by model code, score by keyword specificity
+    model_scores: dict[str, int] = {}
+    for kw in sorted_keywords:
+        models = keyword_models.get(kw, [])
+        for code in models:
+            if code not in model_scores:
+                # Score = length of keyword (longer = more specific) + position bonus
+                model_scores[code] = len(kw) + (len(keywords) - keywords.index(kw))
+            else:
+                # Keep the higher score
+                score = len(kw) + (len(keywords) - keywords.index(kw))
+                model_scores[code] = max(model_scores[code], score)
+
+    # Sort by score descending
+    priority = sorted(model_scores.keys(), key=lambda c: model_scores[c], reverse=True)
+    return priority
+
+
+def _expand_keywords(q: str, keywords: list[str]) -> list[str]:
+    """Expand keywords with synonyms for better matching."""
+    q_lower = q.lower()
+    expanded = list(keywords)
+    seen_synonyms = set(expanded)
+
+    for kw in keywords:
+        if kw in SINONIMOS_JURIDICOS:
+            for syn in SINONIMOS_JURIDICOS[kw]:
+                if syn not in seen_synonyms and syn in q_lower:
+                    expanded.append(syn)
+                    seen_synonyms.add(syn)
+
+    return expanded
+
+
+def _score_resultado(r: dict, q: str, expanded_keywords: list[str]) -> dict:
+    """Score a single result for relevance to the query.
+
+    Returns the result dict augmented with '_relevancia' key containing:
+    - nivel: 'alta', 'media', 'baja'
+    - score: float 0-1
+    - coincidencia: description
+    - terminos_encontrados: list
+    - terminos_faltantes: list
+    """
+    q_lower = q.lower()
+    q_terms = set(re.findall(r'[a-záéíóúñ]{3,}', q_lower))
+    if not q_terms:
+        r['_relevancia'] = {'nivel': 'baja', 'score': 0.0, 'coincidencia': 'sin terminos relevantes', 'terminos_encontrados': [], 'terminos_faltantes': list(q_terms)}
+        return r
+
+    texto_para_buscar = ''
+    for k in ['nombre', 'titulo', 'texto', 'fragmento', 'tipo_obligacion', 'fuente', 'organismo', 'motivo_ranking']:
+        val = r.get(k)
+        if val:
+            texto_para_buscar += f' {val}'
+    texto_lower = texto_para_buscar.lower()
+
+    terminos_encontrados = []
+    for term in q_terms:
+        if term in texto_lower:
+            terminos_encontrados.append(term)
+
+    terminos_faltantes = list(q_terms - set(terminos_encontrados))
+
+    tipo = r.get('tipo', '')
+    tipo_boost = RESULTADO_BOOST.get(tipo, 0.5)
+
+    score = 0.0
+    coincidencia = ''
+
+    if terminos_encontrados:
+        proporcion = len(terminos_encontrados) / len(q_terms)
+        score = proporcion * tipo_boost
+
+        if proporcion >= 0.7 and tipo in ('modelo', 'normativa'):
+            score = min(score, 1.0)
+            coincidencia = 'coincidencia alta con terminos clave'
+        elif proporcion >= 0.4:
+            score = min(score, 0.8)
+            coincidencia = 'coincidencia media con terminos relevantes'
+        else:
+            score = min(score, 0.5)
+            coincidencia = 'coincidencia parcial'
+    else:
+        score = 0.1 * tipo_boost
+        coincidencia = 'sin coincidencia directa de terminos'
+
+    rank = r.get('rank')
+    if rank is not None and rank > 0:
+        rank_normalized = min(rank / 5.0, 1.0)
+        score = score * 0.6 + rank_normalized * 0.4
+
+    r['_relevancia'] = {
+        'nivel': 'alta' if score >= 0.6 else ('media' if score >= 0.3 else 'baja'),
+        'score': round(score, 4),
+        'coincidencia': coincidencia,
+        'terminos_encontrados': terminos_encontrados,
+        'terminos_faltantes': terminos_faltantes,
+    }
+
+    return r
+
+
+def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos: list[str]) -> dict:
+    """Compute confidence information for the query response.
+
+    Returns a dict compatible with ConsultaConfianza schema.
+    """
+    q_lower = q.lower()
+    fuentes = []
+    tipos_conteo = {}
+
+    for r in resultados:
+        tipo = r.get('tipo', 'desconocido')
+        tipos_conteo[tipo] = tipos_conteo.get(tipo, 0) + 1
+
+        fuente = r.get('fuente_norma') or r.get('fuente') or r.get('organismo') or r.get('tipo_doc')
+        if fuente and fuente not in fuentes:
+            fuentes.append(fuente)
+
+    if modelos:
+        fuentes.append('aeat_modelos')
+    if resolved_modelos:
+        for m in resolved_modelos:
+            if m not in fuentes:
+                fuentes.append(f'modelo_{m}')
+
+    nivel = 0
+    nivel_texto = 'baja'
+    aviso = None
+
+    if tipos_conteo.get('modelo', 0) > 0 and tipos_conteo.get('normativa', 0) > 0:
+        nivel = 2
+        nivel_texto = 'alta'
+    elif tipos_conteo.get('modelo', 0) > 0 or tipos_conteo.get('normativa', 0) > 0:
+        nivel = 1
+        nivel_texto = 'media'
+        if len(resultados) <= 2:
+            aviso = 'pocos resultados, considerar ampliar la consulta'
+    elif len(resultados) > 0:
+        nivel = 1
+        nivel_texto = 'media'
+    else:
+        nivel = 0
+        nivel_texto = 'baja'
+        aviso = 'no se encontraron resultados relevantes'
+
+    if not q:
+        nivel = 0
+        nivel_texto = 'baja'
+        aviso = 'consulta vacia'
+
+    return {
+        'nivel': nivel,
+        'nivel_texto': nivel_texto,
+        'fuentes': fuentes,
+        'aviso': aviso,
+        'modelos_cubiertos': [m for m in resolved_modelos if m],
+        'resultados_clasificados': tipos_conteo,
+    }
+
+
+@router.get(
+    "/v1/consulta",
+    operation_id="consulta_fiscal",
+    response_model=ConsultaFiscalResponse,
+    summary="Consulta fiscal inteligente",
+    description=(
+        "Responde preguntas fiscales en lenguaje natural. Dada una pregunta, devuelve:\n"
+        "- Modelos AEAT a presentar (código, nombre, plazo)\n"
+        "- Obligaciones regulatorias aplicables\n"
+        "- Normativa aplicable (artículos)\n"
+        "- Doctrina DGT/TEAC relevante\n"
+        "- Casillas/claves/instrucciones de los modelos\n\n"
+        "NOTA DE TERMINOLOGÍA AEAT (para evitar confusiones):\n"
+        "- 'FactA' = Modelo 216 (declaración de facturas a no residentes), NO es Facturae (factura electrónica)\n"
+        "- 'FactA intracomunitaria' = Modelo 349 (solo UE/NIF intracomunitario)\n"
+        "- 'FactA no intracomunitaria' = Modelo 216 (fuera de UE)\n"
+        "- Facturae = Ley 58/2023 (factura electrónica obligatoria para España)\n"
+        "- Modelo 216 = obligatorio para TODOS los no residentes (UE y fuera UE)\n"
+        "- Modelo 349 = SOLO para intracomunitarios (UE)\n"
+        "- Facturae no obligatorio para clientes fuera de la UE"
+    ),
+)
+async def consulta_fiscal(
+    q: str = Query("", description="Pregunta fiscal en lenguaje natural (ej: 'facta no residente', 'irpf dividendos ue', 'iva entregas intracomunitarias')"),
+    sujeto: str = Query("", description="Tipo de sujeto: contribuyente, no_residente, empresa, retenedor, etc."),
+    pais: str = Query("", description="País/territorio: es, ue, intracomunitario, fuera_ue, etc."),
+    tipo_operacion: str = Query("", description="Tipo de operación: entrega_bienes, prestacion_servicios, dividendos, retencion, etc."),
+    vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
+):
+    results = []
+    modelos_codigo = []
+
+    # Resolve keywords to model codes
+    keywords = _extract_keywords(q, sujeto)
+    resolved_modelos = _resolve_modelos(keywords)
+
+    with db_session() as db:
+        # ── 1. Buscar modelos por resolución de keywords ──────────────────
+        if resolved_modelos:
+            try:
+                placeholders = ",".join([f":m{i}" for i in range(len(resolved_modelos))])
+                model_rows = db.execute(
+                    text(f"""
+                        SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info
+                        FROM aeat_modelo am
+                        WHERE am.codigo IN ({placeholders})
+                        ORDER BY am.codigo
+                    """),
+                    {f"m{i}": code for i, code in enumerate(resolved_modelos)},
+                ).mappings()
+
+                for row in model_rows:
+                    modelos_codigo.append(row["codigo"])
+                    results.append({
+                        "tipo": "modelo",
+                        "codigo": row["codigo"],
+                        "nombre": row["nombre"],
+                        "periodo": row["periodo"],
+                        "impuesto": row["impuesto"],
+                    })
+            except Exception:
+                db.rollback()
+
+        # ── 1b. Fallback: buscar por nombre/instrucciones si no hay matches ─
+        if not resolved_modelos and q:
+            try:
+                model_rows = db.execute(
+                    text("""
+                        SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info
+                        FROM aeat_modelo am
+                        WHERE am.nombre ILIKE :q
+                           OR am.codigo = :q
+                        ORDER BY am.codigo
+                    """),
+                    {"q": f"%{q}%"},
+                ).mappings()
+
+                for row in model_rows:
+                    modelos_codigo.append(row["codigo"])
+                    results.append({
+                        "tipo": "modelo",
+                        "codigo": row["codigo"],
+                        "nombre": row["nombre"],
+                        "periodo": row["periodo"],
+                        "impuesto": row["impuesto"],
+                    })
+            except Exception:
+                db.rollback()
+
+        # ── 2. Buscar obligaciones regulatorias ─────────────────────────────
+        try:
+            oblig_filters = ["1=1"]
+            oblig_params: dict = {}
+            if q:
+                oblig_filters.append("(o.nombre ILIKE :q OR o.tipo_obligacion ILIKE :q OR o.fuente ILIKE :q OR o.nota ILIKE :q)")
+                oblig_params["q"] = f"%{q}%"
+            if sujeto:
+                oblig_filters.append("o.sujeto_obligado ILIKE :suj")
+                oblig_params["suj"] = f"%{sujeto}%"
+            if pais:
+                oblig_filters.append("o.ambito ILIKE :pai")
+                oblig_params["pai"] = f"%{pais}%"
+
+            oblig_rows = db.execute(
+                text(f"""
+                    SELECT o.codigo, o.nombre, o.fuente, o.organismo_emisor, o.tipo_obligacion,
+                           o.sujeto_obligado, o.periodicidad, o.reporte_modelo, o.ambito, o.estado_vigencia
+                    FROM obligacion_regulatoria o
+                    WHERE {' AND '.join(oblig_filters)}
+                    ORDER BY o.fuente ASC, o.codigo ASC
+                """),
+                oblig_params,
+            ).mappings()
+
+            for row in oblig_rows.fetchall():
+                results.append({
+                    "tipo": "obligacion",
+                    "codigo": row["codigo"],
+                    "nombre": row["nombre"],
+                    "fuente": row["fuente"],
+                    "organismo": row["organismo_emisor"],
+                    "tipo_obligacion": row["tipo_obligacion"],
+                    "sujeto": row["sujeto_obligado"],
+                    "periodicidad": row["periodicidad"],
+                    "modelos": row["reporte_modelo"],
+                    "ambito": row["ambito"],
+                    "vigencia": row["estado_vigencia"],
+                })
+        except Exception:
+            db.rollback()
+            pass
+
+        # ── 3. Buscar legislación relevante (via search_legislacion service) ─
+        if q:
+            try:
+                search_result = search_legislacion(
+                    q=q,
+                    vigente_en=vigente_en,
+                )
+                for row in search_result["resultados"]:
+                    evidencia = {
+                        "source_url": row.get("source_url"),
+                        "fuente_norma": row.get("fuente_norma"),
+                        "fragmento_exacto": row.get("fragmento"),
+                        "motivo_ranking": row.get("motivo_ranking"),
+                    }
+                    results.append({
+                        "tipo": "normativa",
+                        "norma": row["norma"],
+                        "articulo": row["numero"],
+                        "texto": row["texto"],
+                        "fragmento": row["fragmento"],
+                        "vigente_desde": row["vigente_desde"],
+                        "vigente_hasta": row["vigente_hasta"],
+                        "rank": row["rank"],
+                        "source_url": row.get("source_url"),
+                        "fuente_norma": row.get("fuente_norma"),
+                        "motivo_ranking": row.get("motivo_ranking"),
+                        "evidencia": evidencia,
+                    })
+            except Exception:
+                db.rollback()
+                pass
+
+        # ── 4. Buscar doctrina DGT/TEAC ─────────────────────────────────────
+        try:
+            if q:
+                doc_filters = [
+                    "(LOWER(d.texto) LIKE LOWER(:q) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:q))"
+                ]
+                doc_params = {"q": f"%{q}%"}
+
+                doc_rows = db.execute(
+                    text(f"""
+                        SELECT d.referencia, d.tipo_documento, d.organismo_emisor,
+                               d.titulo, d.texto, d.fecha, d.url_fuente
+                        FROM documento_interpretativo d
+                        WHERE {' AND '.join(doc_filters)}
+                        ORDER BY d.fecha DESC
+                        LIMIT 10
+                    """),
+                    doc_params,
+                ).mappings()
+
+                for row in doc_rows.fetchall():
+                    fragmento = row["texto"][:500] if row["texto"] else None
+                    results.append({
+                        "tipo": "doctrina",
+                        "referencia": row["referencia"],
+                        "tipo_doc": row["tipo_documento"],
+                        "organismo": row["organismo_emisor"],
+                        "titulo": row["titulo"],
+                        "fragmento": fragmento,
+                        "fecha": str(row["fecha"]) if row["fecha"] else None,
+                        "source_url": row.get("url_fuente"),
+                        "motivo_ranking": "ILIKE titulo/texto match ordered by fecha desc",
+                        "evidencia": {
+                            "source_url": row.get("url_fuente"),
+                            "fuente_norma": None,
+                            "fragmento_exacto": fragmento,
+                            "motivo_ranking": "ILIKE titulo/texto match ordered by fecha desc",
+                        },
+                    })
+        except Exception:
+            db.rollback()
+            pass
+
+    # ── 5. Obtener detalle completo de modelos ──────────────────────────
+    try:
+        modelos_codigo = list(dict.fromkeys(modelos_codigo))
+        modelos_detalle = []
+
+        for codigo in modelos_codigo:
+            rows = db.execute(
+                text("""
+                    SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info,
+                           mc.campana, mc.version_form, mc.url_normativa, mc.url_formato,
+                           mi.seccion, mi.titulo, mi.contenido, mi.orden,
+                           mco.categoria_obligado, mco.frecuencia_presentacion,
+                           mco.ventana_presentacion, mco.canal_presentacion,
+                           mco.obligados_resumen, mco.plazo_resumen, mco.norma_base
+                    FROM aeat_modelo am
+                    LEFT JOIN modelo_campana mc ON mc.modelo_id = am.id AND mc.activo = true
+                    LEFT JOIN modelo_campana_operativa mco ON mco.campana_id = mc.id
+                    LEFT JOIN modelo_instruccion mi ON mi.campana_id = mc.id
+                    WHERE am.codigo = :codigo
+                    ORDER BY mi.orden
+                """),
+                {"codigo": codigo},
+            ).mappings()
+
+            rows_list = list(rows)
+            if rows_list:
+                first = rows_list[0]
+                instrucciones = [
+                    {"seccion": r["seccion"], "titulo": r["titulo"], "contenido": r["contenido"], "orden": r["orden"]}
+                    for r in rows_list if r["seccion"]
+                ]
+                modelos_detalle.append({
+                    "codigo": first["codigo"],
+                    "nombre": first["nombre"],
+                    "periodo": first["periodo"],
+                    "impuesto": first["impuesto"],
+                    "url_info": first["url_info"],
+                    "campana": first["campana"],
+                    "categoria_obligado": first["categoria_obligado"],
+                    "frecuencia": first["frecuencia_presentacion"],
+                    "ventana": first["ventana_presentacion"],
+                    "canal": first["canal_presentacion"],
+                    "obligados_resumen": first["obligados_resumen"],
+                    "plazo_resumen": first["plazo_resumen"],
+                    "norma_base": first["norma_base"],
+                    "instrucciones": instrucciones,
+                })
+    except Exception:
+        db.rollback()
+        pass
+
+    # Deduplicate results
+    seen = set()
+    unique_results = []
+    for r in results:
+        articulo_val = r.get('articulo', '') or ''
+        codigo_val = r.get('codigo', r.get('referencia', r.get('norma', '')) or '')
+        key = f"{r['tipo']}:{codigo_val}:{articulo_val}"
+        if key not in seen:
+            seen.add(key)
+            unique_results.append(r)
+
+    # Score and sort results by relevance
+    expanded_keywords = _expand_keywords(q, keywords)
+    scored_results = []
+    for r in unique_results:
+        scored_r = _score_resultado(r, q, expanded_keywords)
+        scored_results.append(scored_r)
+
+    scored_results.sort(key=lambda x: x['_relevancia']['score'], reverse=True)
+
+    # Compute confidence
+    confianza = _compute_confianza(modelos_detalle, scored_results, q, resolved_modelos)
+
+    # Build top-level relevancia
+    total_scored = len(scored_results)
+    if total_scored > 0:
+        avg_score = sum(r['_relevancia']['score'] for r in scored_results) / total_scored
+        alta_count = sum(1 for r in scored_results if r['_relevancia']['nivel'] == 'alta')
+        relevancia_nivel = 'alta' if avg_score >= 0.6 else ('media' if avg_score >= 0.3 else 'baja')
+        relevancia_coins = []
+        todos_terminos = set()
+        encontrados = set()
+        for r in scored_results:
+            for t in r['_relevancia'].get('terminos_encontrados', []):
+                encontrados.add(t)
+            for t in r['_relevancia'].get('terminos_faltantes', []):
+                todos_terminos.add(t)
+        todos_terminos = todos_terminos | encontrados
+        faltantes = todos_terminos - encontrados
+        relevancia = {
+            'nivel': relevancia_nivel,
+            'score': round(avg_score, 4),
+            'coincidencia': f'{alta_count}/{total_scored} resultados con relevancia alta',
+            'terminos_encontrados': list(encontrados),
+            'terminos_faltantes': list(faltantes),
+        }
+    else:
+        relevancia = {
+            'nivel': 'baja',
+            'score': 0.0,
+            'coincidencia': 'sin resultados',
+            'terminos_encontrados': [],
+            'terminos_faltantes': list(re.findall(r'[a-záéíóúñ]{3,}', q.lower())) if q else [],
+        }
+
+    return {
+        "consulta": q or sujeto or tipo_operacion or pais,
+        "modelos": modelos_detalle,
+        "resultados": scored_results,
+        "total_resultados": len(scored_results),
+        "relevancia": relevancia,
+        "confianza": confianza,
+    }

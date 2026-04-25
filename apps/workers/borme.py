@@ -321,6 +321,7 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
+    sync_start = datetime.now(timezone.utc).isoformat()
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
@@ -376,6 +377,9 @@ if __name__ == "__main__":
         help=f"Seconds between sync cycles in continuous mode (default: {SYNC_INTERVAL_SECONDS})",
     )
     args = parser.parse_args()
+
+    from runtime import init_sentry
+    init_sentry("borme")
 
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 

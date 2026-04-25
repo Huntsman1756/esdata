@@ -1,5 +1,5 @@
 import argparse
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from html import unescape
 from io import BytesIO
 import os
@@ -36,6 +36,8 @@ def _extract_reference(url: str, text_value: str) -> str:
         return "SEPBLAC-MODELO-19"
     if "manual" in lowered and "blanqueo de capitales" in lowered:
         return "SEPBLAC-MANUAL-PBCFT"
+    if "comunicación por indicio" in lowered or "comunicacion por indicio" in lowered:
+        return "SEPBLAC-COMUNICACION-INDICIO"
 
     path = urlparse(url).path.rstrip("/").split("/")[-1]
     return f"SEPBLAC-{path.removesuffix('.pdf').removesuffix('.html') or 'seed'}"
@@ -49,6 +51,8 @@ def _detect_document_type(text_value: str) -> str:
         return "manual_sepblac"
     if "comunicación por indicio" in lowered or "comunicacion por indicio" in lowered:
         return "guia_operativa_sepblac"
+    if "ley 10/2010" in lowered or "real decreto 304/2014" in lowered:
+        return "normativa_sepblac"
     return "documento_sepblac"
 
 
@@ -154,6 +158,7 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
+    sync_start = datetime.now(timezone.utc).isoformat()
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
@@ -205,6 +210,9 @@ if __name__ == "__main__":
         help=f"Seconds between sync cycles in continuous mode (default: {SYNC_INTERVAL_SECONDS})",
     )
     args = parser.parse_args()
+
+    from runtime import init_sentry
+    init_sentry("sepblac")
 
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 

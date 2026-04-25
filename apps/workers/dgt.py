@@ -228,14 +228,11 @@ def run_sync(
     urls = seed_urls or SEED_URLS
     processed = 0
     stored = 0
-    links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
+    sync_start = datetime.now(timezone.utc).isoformat()
 
     try:
-        with httpx.Client(
-            base_url=BASE_URL, timeout=30.0, verify=DGT_SSL_VERIFY
-        ) as client:
-            start_session(client)
+        with httpx.Client(timeout=30.0) as client:
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
                 for url in urls:
@@ -307,6 +304,9 @@ if __name__ == "__main__":
         help=f"Seconds between sync cycles in continuous mode (default: {SYNC_INTERVAL_SECONDS})",
     )
     args = parser.parse_args()
+
+    from runtime import init_sentry
+    init_sentry("dgt")
 
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 

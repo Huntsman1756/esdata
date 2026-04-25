@@ -1,326 +1,128 @@
 # Variables de entorno
 
-## Objetivo
+## Resumen
 
-Este documento separa las variables de entorno en tres grupos:
+esdata usa variables de entorno para configurar todas las dependencias externas y el comportamiento de los servicios. Las variables se cargan via `.env` (local) o desde el orchestrator Docker.
 
-- variables de runtime realmente usadas por el codigo actual
-- variables usadas por despliegue, CI o periferia
-- variables documentadas pero no consumidas por la aplicacion en su estado actual
+## Archivo de referencia
 
-Esto es importante porque `.env.example` contiene una mezcla de contratos actuales y futuros.
+`.env.example` contiene todas las variables documentadas del proyecto.
 
-## Resumen rapido
+## Clasificacion
 
-Variables criticas de runtime hoy:
+### Runtime compartido
 
-- `DATABASE_URL`
-- `ESDATA_API_BASE_URL`
-- `BOE_API_BASE`
-- `BOE_LEGISLACION_NORMAS`
-- `SYNC_INTERVAL_SECONDS`
-- `TEAC_SEED_URLS`
-- `MODELOS_SYNC_INTERVAL`
-- `DGT_SSL_VERIFY`
-
-Variables operativas usadas por scripts o periferia:
-
-- `DATABASE_PUBLIC_URL`
-- `API_DOMAIN`
-- `WEB_DOMAIN`
-- `CADDY_EMAIL`
-- `MCP_SECRET_ACTIVE`
-- `MCP_SECRET_PREVIOUS`
-- `CLOUDFLARE_ZONE_ID`
-- `CLOUDFLARE_API_TOKEN`
-- `RAILWAY_TOKEN`
-- `RAILWAY_PROJECT_ID`
-- `RAILWAY_ENVIRONMENT`
-
-Variables hoy documentadas pero no leidas por el runtime principal:
-
-- `SECRET_KEY`
-- `LOG_LEVEL`
-- `REDIS_URL`
-- `DGT_BASE_URL`
-- `DGT_REQUEST_DELAY_SECONDS`
-- `WORKER_BOE_BATCH_SIZE`
-- `WORKER_RETRY_MAX`
-- `WORKER_RETRY_BACKOFF_SECONDS`
-- `SLACK_WEBHOOK_URL`
-
-## Runtime de aplicacion
-
-### Compartidas por API y workers
-
-#### `DATABASE_URL`
-
-- uso: conexion principal a PostgreSQL
-- leida por:
-  - `apps/api/db.py`
-  - `apps/workers/boe.py`
-  - `apps/workers/dgt.py`
-  - `apps/workers/teac.py`
-  - `apps/workers/modelos.py`
-  - scripts de seed y soporte
-- obligatoria: si, salvo que se use el valor local por defecto en desarrollo
-- valor por defecto en codigo: `postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata`
-- observacion: en tests de API se sustituye temporalmente por SQLite
-
-### API FastAPI
-
-La API no consume hoy variables propias adicionales de runtime aparte de `DATABASE_URL`.
-
-#### `APP_ENV`
-
-- uso real hoy: aparece en CI, `docker-compose.yml`, README y verificaciones auxiliares
-- consumo por codigo runtime: no
-- estado: variable operativa/documental; hoy se usa en CI y verificaciones, no en la logica principal de FastAPI
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `DATABASE_URL` | Si | `postgresql+psycopg://user:password@host:5432/dbname` | URL de conexion a PostgreSQL | API + Workers |
+| `DATABASE_PUBLIC_URL` | No | | URL publica de la DB (para scripts auxiliares) | Scripts |
 
 ### Frontend web
 
-#### `ESDATA_API_BASE_URL`
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `ESDATA_API_BASE_URL` | No | `http://localhost:8000` | URL base de la API para el frontend | Next.js |
 
-- uso: URL base de la API consumida por el frontend del lado servidor
-- leida por:
-  - `apps/web/lib/api.ts`
-  - referencias directas adicionales en componentes/paginas de detalle
-- obligatoria: si en produccion
-- valor por defecto en codigo: `http://localhost:8000`
-- observacion: esta pensada para no exponerse al cliente; se usa en render server-side
+### API / Operacion general
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `APP_ENV` | No | `development` | Entorno de la aplicacion | API |
+
+### BOE / Legislacion
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `BOE_API_BASE` | No | `https://www.boe.es/datosabiertos/api/legislacion-consolidada` | URL base de la API del BOE | Worker BOE |
+| `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | Lista de normas a sincronizar | Worker BOE |
+| `SYNC_INTERVAL_SECONDS` | No | `3600` | Intervalo de sincronizacion en segundos | Worker BOE |
+| `BOE_ONLY_BLOCK_IDS` | No | | IDs de bloques BOE a procesar (filtro opcional) | Worker BOE |
+
+### Fuentes de ingestion
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `BDNS_SEED_URLS` | No | | URLs de semilla para BDNS (subvenciones), separadas por coma | Worker BDNS |
+| `BORME_SEED_URLS` | No | | URLs de semilla para BORME, separadas por coma | Worker BORME |
+| `CNMV_SEED_URLS` | No | | URLs de semilla para CNMV, separadas por coma | Worker CNMV |
+| `SEPBLAC_SEED_URLS` | No | | URLs de semilla para SEPBLAC, separadas por coma | Worker SEPBLAC |
+| `CENDOJ_SEED_URLS` | No | | URLs de semilla para CENDOJ, separadas por coma | Worker CENDOJ |
+| `EURLEX_SEED_URLS` | No | | URLs de semilla para EURLEX, separadas por coma | Worker EURLEX |
+| `BDE_SEED_URLS` | No | | URLs de semilla para BDE, separadas por coma | Worker BDE |
+| `AEPD_SEED_URLS` | No | | URLs de semilla para AEPD, separadas por coma | Worker AEPD |
+
+### DGT / Doctrina
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `DGT_SSL_VERIFY` | No | `false` | Si verificar SSL contra sede DGT (`true|1|yes`) | Worker DGT |
+
+### TEAC
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `TEAC_SEED_URLS` | No | | URLs de semilla para TEAC, separadas por coma | Worker TEAC |
+
+### Modelos AEAT
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `MODELOS_SYNC_INTERVAL` | No | `86400` | Intervalo de sincronizacion de modelos en segundos (24h) | Worker Modelos |
+
+### Cloudflare / MCP perimetral
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `MCP_SECRET_ACTIVE` | No | | MCP secret actualmente activo | MCP Server |
+| `MCP_SECRET_PREVIOUS` | No | | MCP secret anterior (para rotacion) | MCP Server |
+| `CLOUDFLARE_ZONE_ID` | No | | ID del zone en Cloudflare | Cloudflare Workers |
+| `CLOUDFLARE_API_TOKEN` | No | | Token de API de Cloudflare | Cloudflare Workers |
+
+### Postgres (variables alternativas a DATABASE_URL)
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `PGHOST` | No | | Host de PostgreSQL | SQLAlchemy |
+| `PGPORT` | No | `5432` | Puerto de PostgreSQL | SQLAlchemy |
+| `PGUSER` | No | | Usuario de PostgreSQL | SQLAlchemy |
+| `PGPASSWORD` | No | | Password de PostgreSQL | SQLAlchemy |
+| `PGDATABASE` | No | | Nombre de la base de datos | SQLAlchemy |
+
+### Observabilidad / Otros
+
+| Variable | Requerida | Default | Descripcion | Uso |
+|----------|-----------|---------|-------------|-----|
+| `REDIS_URL` | No | | URL de Redis (para cache, colas) | API |
+| `SECRET_KEY` | No | | Clave secreta para JWT/sesion | API |
+| `LOG_LEVEL` | No | `INFO` | Nivel de log (DEBUG, INFO, WARNING, ERROR) | Todos los servicios |
+| `SLACK_WEBHOOK_URL` | No | | Webhook de Slack para alertas | Scripts/Workers |
+
+## Uso en Docker Compose
+
+Las variables se pasan a los contenedores via archivo `.env` en la raiz del proyecto:
+
+```yaml
+services:
+  api:
+    env_file:
+      - .env
+  worker-boe:
+    env_file:
+      - .env
+```
+
+O directamente en el docker-compose.yml con `environment:`.
+
+## Seguridad
+
+- Nunca hardcodear secretos en codigo ni en el repo.
+- Nunca exponer secretos en frontend (no usar `NEXT_PUBLIC_*`).
+- `.env` esta en `.gitignore`.
+- `.env.example` solo contiene valores de ejemplo sin credenciales reales.
+
+## Referencias
 
-### Worker BOE
-
-#### `BOE_API_BASE`
-
-- uso: base de la API de BOE datos abiertos
-- leida por: `apps/workers/boe.py`
-- valor por defecto: `https://www.boe.es/datosabiertos/api/legislacion-consolidada`
-
-#### `SYNC_INTERVAL_SECONDS`
-
-- uso: intervalo de repeticion del worker continuo
-- leida por: `apps/workers/boe.py`
-- valor por defecto: `3600`
-
-#### `BOE_LEGISLACION_NORMAS`
-
-- uso: lista separada por comas de codigos de norma a sincronizar
-- leida por: `apps/workers/boe.py`
-- valor por defecto efectivo: `LIVA`
-- observacion: en `docker-compose.yml` y docs se usa una lista mas amplia
-
-#### `BOE_ONLY_BLOCK_IDS`
-
-- uso: limitar sincronizacion a bloques concretos para ejecucion parcial o debugging
-- leida por: `apps/workers/boe.py`
-- obligatoria: no
-- valor por defecto: vacio
-
-### Worker DGT
-
-#### `SYNC_INTERVAL_SECONDS`
-
-- uso: intervalo de repeticion del worker continuo
-- leida por: `apps/workers/dgt.py`
-- valor por defecto: `604800`
-
-#### `DGT_SSL_VERIFY`
-
-- uso: activar o desactivar validacion SSL al consultar DGT
-- leida por: `apps/workers/dgt.py`
-- valor por defecto: `false`
-- semantica actual: se considera `true` si el valor es `1`, `true` o `yes`
-
-### Worker TEAC
-
-#### `TEAC_SEED_URLS`
-
-- uso: URLs semilla separadas por comas para resoluciones TEAC
-- leida por: `apps/workers/teac.py`
-- obligatoria: si se quiere una ingesta real util
-- valor por defecto: vacio
-
-#### `SYNC_INTERVAL_SECONDS`
-
-- uso: intervalo de repeticion del worker continuo
-- leida por: `apps/workers/teac.py`
-- valor por defecto: `604800`
-
-### Worker Modelos AEAT
-
-#### `MODELOS_SYNC_INTERVAL`
-
-- uso: intervalo de repeticion del worker de modelos
-- leida por: `apps/workers/modelos.py`
-- valor por defecto: `86400`
-
-#### `DGT_SSL_VERIFY`
-
-- uso real: el worker de modelos la reutiliza para decidir el `verify` de `httpx` al llamar a AEAT
-- leida por: `apps/workers/modelos.py`
-- valor por defecto: `true`
-- advertencia: la semantica esta invertida en este archivo; el codigo hace `== "false"` y luego usa `verify=not DGT_SSL_VERIFY`
-- impacto: esta variable necesita aclaracion o refactor antes de un handoff profesional
-
-## Variables usadas por scripts
-
-### `DATABASE_PUBLIC_URL`
-
-- uso: conexion publica o alternativa a PostgreSQL desde scripts auxiliares
-- leida por:
-  - `scripts/seed-modelos.py`
-  - `scripts/seed-modelos-v2.py`
-  - `scripts/validate-cron-run.py`
-- obligatoria: no, si existe `DATABASE_URL`
-- observacion: no es parte del contrato principal del runtime de API/workers
-
-## Variables de despliegue y periferia
-
-### GitHub Actions y Railway
-
-#### `RAILWAY_TOKEN`
-
-- uso: autenticar despliegues CI hacia Railway
-- leida por:
-  - `.github/workflows/deploy.yml`
-  - `.github/workflows/deploy-web.yml`
-
-#### `RAILWAY_PROJECT_ID`
-
-- uso: identificar proyecto Railway en CI
-- definida hoy dentro de workflows
-
-#### `RAILWAY_ENVIRONMENT`
-
-- uso: entorno Railway objetivo en CI
-- definida hoy dentro de workflows
-
-### Cloudflare
-
-#### `CLOUDFLARE_ZONE_ID`
-
-- uso: purge de cache tras deploy
-- leida por: `.github/workflows/deploy.yml`
-
-#### `CLOUDFLARE_API_TOKEN`
-
-- uso: autenticar purge de cache en Cloudflare
-- leida por: `.github/workflows/deploy.yml`
-
-#### `MCP_SECRET_ACTIVE`
-
-- uso: token Bearer valido principal para `/mcp`
-- leida por: `infra/cloudflare/worker.js`
-
-#### `MCP_SECRET_PREVIOUS`
-
-- uso: token anterior durante ventana de rotacion
-- leida por: `infra/cloudflare/worker.js`
-
-### Caddy / Hetzner Compose
-
-#### `API_DOMAIN`
-
-- uso: dominio publico de la API en el `Caddyfile` del despliegue portable
-- leida por:
-  - `infra/deploy/Caddyfile`
-  - `infra/deploy/compose.env.example`
-
-#### `WEB_DOMAIN`
-
-- uso: dominio publico del frontend en el `Caddyfile` del despliegue portable
-- leida por:
-  - `infra/deploy/Caddyfile`
-  - `infra/deploy/compose.env.example`
-
-#### `CADDY_EMAIL`
-
-- uso: email opcional para ACME / Let's Encrypt en Caddy
-- leida por:
-  - `infra/deploy/Caddyfile`
-  - `infra/deploy/compose.env.example`
-
-## Variables documentadas pero no consumidas por el runtime principal
-
-Estas variables aparecen en `.env.example` o `env.example`, pero el codigo actual no las usa directamente en runtime:
-
-- `SECRET_KEY`
-- `LOG_LEVEL`
-- `REDIS_URL`
-- `DGT_BASE_URL`
-- `DGT_REQUEST_DELAY_SECONDS`
-- `WORKER_BOE_BATCH_SIZE`
-- `WORKER_RETRY_MAX`
-- `WORKER_RETRY_BACKOFF_SECONDS`
-- `SLACK_WEBHOOK_URL`
-- `PGHOST`
-- `PGPORT`
-- `PGUSER`
-- `PGPASSWORD`
-- `PGDATABASE`
-
-No significa que sobren necesariamente. Significa que hoy no forman parte del contrato ejecutado por la aplicacion y deberian revisarse antes de prometerlas como definitivas al equipo de infraestructura.
-
-## Variables recomendadas por servicio
-
-### API `esdata`
-
-- `DATABASE_URL`
-
-### `worker-boe`
-
-- `DATABASE_URL`
-- `BOE_API_BASE`
-- `BOE_LEGISLACION_NORMAS`
-- `SYNC_INTERVAL_SECONDS`
-
-### `cron-boe-daily`
-
-- `DATABASE_URL`
-- `BOE_API_BASE`
-- `BOE_LEGISLACION_NORMAS`
-
-### `worker-dgt`
-
-- `DATABASE_URL`
-- `SYNC_INTERVAL_SECONDS`
-- `DGT_SSL_VERIFY`
-
-### `cron-dgt-weekly`
-
-- `DATABASE_URL`
-- `DGT_SSL_VERIFY`
-
-### `worker-teac`
-
-- `DATABASE_URL`
-- `SYNC_INTERVAL_SECONDS`
-- `TEAC_SEED_URLS`
-
-### `cron-teac-weekly`
-
-- `DATABASE_URL`
-- `TEAC_SEED_URLS`
-
-### `worker-modelos`
-
-- `DATABASE_URL`
-- `MODELOS_SYNC_INTERVAL`
-- `DGT_SSL_VERIFY`
-
-### `cron-modelos-daily`
-
-- `DATABASE_URL`
-
-### `web`
-
-- `ESDATA_API_BASE_URL`
-
-## Recomendaciones para profesionalizacion
-
-1. separar variables de runtime, scripts y despliegue en documentos o secciones distintas
-2. eliminar o etiquetar claramente las variables no consumidas por el codigo actual
-3. introducir una capa comun de configuracion Python
-4. normalizar la semantica de `DGT_SSL_VERIFY`
-5. retirar o consolidar `env.example` cuando ya no haga falta como alias heredado
+- `.env.example` — listado canonical de todas las variables
+- `apps/api/db.py` — carga de `DATABASE_URL`
+- `apps/workers/boe.py` — carga de `BOE_API_BASE`, `SYNC_INTERVAL_SECONDS`
+- `apps/workers/runtime.py` — utilidad `get_database_url()`

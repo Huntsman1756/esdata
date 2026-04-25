@@ -1,8 +1,14 @@
 # Deploy checklist — sprint 2
 
-## Antes del deploy
+> **NOTA: HISTORICO — Railway DEPRECATED**
+>
+> Railway YA NO se usa como plataforma de despliegue. Este documento se mantiene como referencia historica.
+> El despliegue de referencia es Docker Compose (`infra/deploy/docker-compose.prod.yml`).
+> Ver `docs/operations/runbooks/deploy-compose.md` para el deploy actual.
 
-[ ] Confirmar que el servicio Railway de la API se llama `esdata` y tiene `DATABASE_URL`
+## Antes del deploy (Railway — DEPRECATED)
+
+[ ] Confirmar que el servicio Railway de la API se llama `esdata` y tiene `DATABASE_URL` (DEPRECATED)
 
 ## Bootstrap de BD (solo si el Postgres esta vacio)
 

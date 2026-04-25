@@ -7,3 +7,37 @@ apps/api/tests/test_esdata.sqlite3
 script.py
 .env
 .worktrees/
+
+# Logs and local artifacts
+*.log
+search_result.json
+madrid-refugio.html
+
+# Scratch files at repo root
+/check_*.py
+/debug_*.py
+/test_*.py
+/review_schema.py
+/seed_tax_data.py
+/update_chunks.py
+
+# Scratch API helpers
+apps/api/check_*.py
+apps/api/debug_*.py
+apps/api/test_*.py
+apps/api/quick_test.py
+apps/api/simple_test.py
+apps/api/verify_*.py
+apps/api/temp_*
+apps/api/apps/
+
+# Scratch scripts and outputs
+scripts/check_*.py
+scripts/debug_*.py
+scripts/inspect_*.py
+scripts/test_*.py
+scripts/api_responses.json
+scripts/baseline.json
+scripts/golden_analysis_results.json
+scripts/eval_results/
+scripts/telemetry/

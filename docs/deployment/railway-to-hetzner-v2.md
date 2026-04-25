@@ -1,4 +1,6 @@
-# Migracion Railway -> Hetzner Cloud (v2)
+# [HISTORICAL] Migracion Railway -> Hetzner Cloud (v2)
+
+> Documento historico de transicion. No usar como guia de despliegue activa. La referencia actual es Docker Compose y el estado activo vive en `docs/master-execution-roadmap.md`.
 
 ## Objetivo
 

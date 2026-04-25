@@ -1,5 +1,5 @@
 import argparse
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from io import BytesIO
 import os
 import re
@@ -34,9 +34,13 @@ def _extract_reference(url: str, text_value: str) -> str:
     if match:
         return match.group(1)
 
+    title_match = re.search(r"\bCircular\s+(\d+/\d{4})\b", text_value, flags=re.IGNORECASE)
+    if title_match:
+        return f"CNMV-CIRCULAR-{title_match.group(1).replace('/', '-') }"
+
     text_match = re.search(r"\bCircular\s+(\d+/\d{4})\b", text_value, flags=re.IGNORECASE)
     if text_match:
-        return f"CNMV-{text_match.group(1).replace('/', '-') }"
+        return f"CNMV-CIRCULAR-{text_match.group(1).replace('/', '-') }"
 
     path = urlparse(url).path.rstrip("/").split("/")[-1]
     return f"CNMV-{path.removesuffix('.pdf') or 'seed'}"
@@ -47,6 +51,8 @@ def _detect_document_type(text_value: str) -> str:
         return "circular_cnmv"
     if re.search(r"\bManual\b", text_value, flags=re.IGNORECASE):
         return "manual_cnmv"
+    if re.search(r"\bGu[ií]a\b", text_value, flags=re.IGNORECASE):
+        return "guia_cnmv"
     return "documento_cnmv"
 
 
@@ -58,6 +64,8 @@ def _detect_ambito(text_value: str) -> str:
         return "reporting_financiero"
     if "infraestructuras de mercado" in lowered:
         return "infraestructuras_mercado"
+    if "mifid" in lowered or "servicios de inversión" in lowered or "servicios de inversion" in lowered:
+        return "mercados"
     return "mercados"
 
 
@@ -140,6 +148,7 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
+    sync_start = datetime.now(timezone.utc).isoformat()
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
@@ -189,6 +198,9 @@ if __name__ == "__main__":
         help=f"Seconds between sync cycles in continuous mode (default: {SYNC_INTERVAL_SECONDS})",
     )
     args = parser.parse_args()
+
+    from runtime import init_sentry
+    init_sentry("cnmv")
 
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 

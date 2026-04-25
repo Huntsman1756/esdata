@@ -32,3 +32,21 @@ def configure_logging(name: str) -> logging.Logger:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     return logging.getLogger(name)
+
+
+def init_sentry(worker_name: str) -> None:
+    """Initialize Sentry error monitoring for workers (optional)."""
+    dsn = os.environ.get("ESDATA_SENTRY_DSN")
+    if not dsn:
+        return
+
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=dsn,
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1,
+        environment=os.environ.get("APP_ENV", "production"),
+    )
+    sentry_sdk.set_tag("worker", worker_name)
+    logging.getLogger(__name__).info("Sentry enabled for worker %s", worker_name)
