@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from html import unescape
 import re
 import time
@@ -228,11 +228,12 @@ def run_sync(
     urls = seed_urls or SEED_URLS
     processed = 0
     stored = 0
+    links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
     sync_start = datetime.now(timezone.utc).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0) as client:
+        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client:
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
                 for url in urls:

@@ -1,5 +1,5 @@
 import argparse
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from io import BytesIO
 import os
 import re

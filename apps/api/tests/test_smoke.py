@@ -767,6 +767,68 @@ async def test_sepblac_lista_y_detalle():
 
 
 @pytest.mark.asyncio
+async def test_cendoj_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/cendoj")
+        detalle = await c.get("/v1/cendoj/STS-2847/2025")
+        filtrada = await c.get("/v1/cendoj?q=tipo+reducido&tribunal=tribunal_supremo")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert filtrada.status_code == 200
+
+    referencias = [item["referencia"] for item in lista.json()["documentos"]]
+    assert "STS-2847/2025" in referencias
+    assert detalle.json()["tipo_documento"] == "sentencia"
+    assert detalle.json()["ambito"] == "tributario"
+    assert "trib supremo" in detalle.json()["titulo"].lower()
+    assert len(filtrada.json()["documentos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_eurlex_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/eurlex")
+        filtrada = await c.get("/v1/eurlex?q=reglamento&ambito=mercado_interior")
+
+    assert lista.status_code == 200
+    referencias = [item["referencia"] for item in lista.json()["documentos"]]
+    assert "EUR-Lex-32020R548" in referencias
+    assert len(filtrada.json()["documentos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_bde_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/bde")
+        detalle = await c.get("/v1/bde/BDE-IB-2025-01")
+        filtrada = await c.get("/v1/bde?q=estabilidad+financiera&ambito=estabilidad_financiera")
+
+    assert lista.status_code == 200
+    assert detalle.status_code == 200
+    assert filtrada.status_code == 200
+
+    referencias = [item["referencia"] for item in lista.json()["documentos"]]
+    assert "BDE-IB-2025-01" in referencias
+    assert detalle.json()["tipo_documento"] == "informe_bde"
+    assert detalle.json()["ambito"] == "estabilidad_financiera"
+    assert "informe bde" in detalle.json()["titulo"].lower()
+    assert len(filtrada.json()["documentos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_aepd_lista_y_detalle():
+    async with _client() as c:
+        lista = await c.get("/v1/aepd")
+        filtrada = await c.get("/v1/aepd?q=proteccion&ambito=proteccion_datos")
+
+    assert lista.status_code == 200
+    referencias = [item["referencia"] for item in lista.json()["documentos"]]
+    assert "AEPD-R-2025-1234" in referencias
+    assert len(filtrada.json()["documentos"]) >= 1
+
+
+@pytest.mark.asyncio
 async def test_obligaciones_lista_y_detalle():
     async with _client() as c:
         lista = await c.get("/v1/obligaciones")

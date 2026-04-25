@@ -154,6 +154,61 @@ Si alguna respuesta es "si", detener y refactorizar.
 
 ---
 
+## Coordinacion multi-agente (reclamo de tarea)
+
+Cuando varios agentes pueden trabajar simultaneamente en el mismo repo, el riesgo principal es la colision de escrituras en los mismos archivos.
+
+### Regla de reclamo obligatorio
+
+Antes de modificar cualquier archivo, el agente debe:
+
+1. Anotar en `docs/master-execution-roadmap.md` (seccion "Fase activa" o resumen vivo) que esta trabajando en esa tarea especifica.
+2. Incluir: tarea, archivos afectados, estado "EN CURSO".
+3. Si otro agente detecta que la tarea ya esta marcada como "EN CURSO" por otro agente, no iniciar trabajo en esos archivos.
+4. Esperar a que se marque como completada o cancelada antes de intervenir.
+
+### Regla de no colision
+
+- Un archivo solo puede ser modificado por un agente a la vez.
+- Si dos agentes necesitan el mismo archivo, uno espera y el otro continua.
+- El agente que termina debe actualizar el estado en el roadmap maestro.
+
+### Regla de lectura concurrente
+
+- Lectura concurrente de archivos es segura.
+- Solo las escrituras requieren reclamo y exclusividad.
+
+### Regla de reporte al usuario
+
+- Si un agente no puede reclamar una tarea porque ya esta en curso, debe reportarlo al usuario y sugerir otra tarea o esperar.
+- No silenciar el conflicto ni empezar trabajo duplicado.
+
+### Ejemplo de reclamo en el roadmap maestro
+
+En la seccion "Fase activa" o "Resumen vivo" del roadmap maestro:
+
+```
+## Fase activa
+- Fase activa: Fase 6 — Change impact
+- Estado: EN CURSO por agente-X
+- Tarea actual: anadir filtro por obligacion_afectada
+- Archivos afectados:
+  - apps/api/routers/cambios.py
+  - apps/api/tests/test_change_impact.py
+- Inicio: 2026-04-25T10:00
+- Estado del agente: modificando archivos
+```
+
+Cuando termine:
+
+```
+- Estado del agente: COMPLETADA
+- Cambios: filtro anadido, tests verdes
+- Siguiente paso: [proxima tarea]
+```
+
+---
+
 ## Context budget y control de tokens (obligatorio)
 
 Objetivo: evitar `ContextWindowExceededError`, reducir coste y mantener respuestas utiles.

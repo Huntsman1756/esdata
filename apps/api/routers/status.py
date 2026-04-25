@@ -153,4 +153,10 @@ def _is_stale(worker: str, finished_at) -> bool:
 
 @router.get("/health")
 async def health():
-    return {"status": "ok"}
+    try:
+        from db import engine
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "connected"}
+    except Exception:
+        return {"status": "degraded", "db": "disconnected"}

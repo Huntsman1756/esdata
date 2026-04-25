@@ -183,9 +183,10 @@ def test_run_sync_ingests_itpajd_article_and_version():
     from boe import run_sync
 
     class FakeResponse:
-        def __init__(self, *, json_data=None, text_data=""):
+        def __init__(self, *, json_data=None, text_data="", status_code=200):
             self._json_data = json_data
             self.text = text_data
+            self.status_code = status_code
 
         def raise_for_status(self):
             return None

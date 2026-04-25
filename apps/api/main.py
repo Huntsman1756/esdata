@@ -1,10 +1,12 @@
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 from decimal import Decimal
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 
@@ -15,8 +17,11 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 from mcp_server import mount_mcp
+from middleware.api_key_auth import ApiKeyAuthMiddleware
 from middleware.metrics import create_metrics_endpoint, create_metrics_middleware
 from middleware.rate_limit import rate_limit_middleware
+from middleware.request_logging import RequestLoggingMiddleware
+from middleware.security_headers import SecurityHeadersMiddleware
 from routers import (
     aepd,
     bde,
@@ -69,9 +74,41 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Middleware de rate limiting (primero para que se aplique antes de cualquier logica)
-# TEMPORALMENTE desactivado para benchmarking
-# app.middleware("http")(rate_limit_middleware)
+# Rate limiting middleware (primero para que se aplique antes de cualquier logica)
+app.middleware("http")(rate_limit_middleware)
+
+# Security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS middleware (configurable via env)
+_cors_origins_str = os.environ.get("ESDATA_CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
+_cors_origins = [o.strip() for o in _cors_origins_str.split(",")] if _cors_origins_str != "*" else ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# API key auth middleware (applied after rate limiting & CORS)
+app.add_middleware(ApiKeyAuthMiddleware)
+
+# Request logging middleware (after auth so it logs the real status)
+app.add_middleware(RequestLoggingMiddleware)
+
+# Env var validation at startup
+_esdata_api_key = os.environ.get("ESDATA_API_KEY")
+_esdata_auth_enabled = os.environ.get("ESDATA_AUTH_ENABLED", "").lower() == "true"
+if _esdata_auth_enabled and not _esdata_api_key:
+    raise RuntimeError(
+        "ESDATA_AUTH_ENABLED=true requires ESDATA_API_KEY to be set. "
+        "Set ESDATA_API_KEY=<your-key> or disable auth with ESDATA_AUTH_ENABLED=false."
+    )
+if _esdata_auth_enabled:
+    logger.info("API key auth enabled (ESDATA_AUTH_ENABLED=true)")
+else:
+    logger.info("API key auth disabled (set ESDATA_AUTH_ENABLED=true to enable)")
 
 # Middleware de metrics Prometheus (si prometheus_client esta disponible)
 metrics_middleware = create_metrics_middleware()

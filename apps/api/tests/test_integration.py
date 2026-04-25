@@ -451,6 +451,9 @@ async def test_chunks_endpoint_returns_empty(seeded_db):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         r = await c.get("/v1/chunks/1")
     assert r.status_code in (200, 404)
+    data = r.json()
+    if r.status_code == 200:
+        assert "chunks" in data or "chunk" in data
 
 
 @pytest.mark.integration

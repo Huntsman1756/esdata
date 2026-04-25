@@ -3,6 +3,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
 from sqlalchemy import create_engine, text
 
 API_DIR = Path(__file__).resolve().parents[1]
@@ -194,7 +195,11 @@ STATEMENTS = [
         ('circular_cnmv', 'CNMV', 'es', 'cnmv', 'reporting_financiero', 'BOE-A-2009-133', '2009-01-02', 'Circular 9/2008 de la CNMV', 'Normas contables, estados de información reservada y pública y cuentas anuales. Estados de información reservada para entidades supervisadas.', 'https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133'),
         ('formulario_sepblac', 'SEPBLAC', 'es', 'sepblac', 'aml_cft_reporting', 'SEPBLAC-MODELO-19', '2026-04-16', 'Comunicación por indicio - Modelo 19 SEPBLAC', 'Procedimiento para la comunicación por indicio y formulario oficial Modelo 19 SEPBLAC.', 'https://www.sepblac.es/es/'),
         ('convocatoria_bdns', 'BDNS', 'es', 'bdns', 'subvenciones', 'BDNS-749075-1034404', '2025-02-01', 'Convocatoria de becas 2025', 'Convocatoria publica de becas y ayudas al estudio para el curso 2025.', 'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075'),
-        ('nombramiento', 'BORME', 'es', 'borme', 'mercantil', 'BORME-A-2025-55-37', '2025-03-01', 'Nombramientos y reelecciones societarias', 'Se publican nombramientos y otras modificaciones societarias en el BORME para Alvarez Garcia Ganaderia, S.L. y Murillo & Barrero, Sociedad Limitada.', 'https://www.boe.es/borme/dias/2025/03/01/pdfs/BORME-A-2025-55-37.pdf')
+        ('nombramiento', 'BORME', 'es', 'borme', 'mercantil', 'BORME-A-2025-55-37', '2025-03-01', 'Nombramientos y reelecciones societarias', 'Se publican nombramientos y otras modificaciones societarias en el BORME para Alvarez Garcia Ganaderia, S.L. y Murillo & Barrero, Sociedad Limitada.', 'https://www.boe.es/borme/dias/2025/03/01/pdfs/BORME-A-2025-55-37.pdf'),
+        ('sentencia', 'Tribunal Supremo', 'es', 'cendoj', 'tributario', 'STS-2847/2025', '2025-06-15', 'Sentencia 2847/2025 — Trib Supremo', 'Sentencia del Tribunal Supremo sobre la aplicacion del tipo reducido del IVA en servicios de restauracion.', 'https://example.invalid/cendoj/STS-2847-2025'),
+        ('reglamento', 'UE', 'ue', 'eurlex', 'mercado_interior', 'EUR-Lex-32020R548', '2020-04-17', 'Reglamento (UE) 2020/548', 'Reglamento sobre medidas de solidaridad en el mercado interior y estabilidad financiera.', 'https://example.invalid/eurlex/EUR-Lex-32020P0548'),
+        ('informe_bde', 'Banco de España', 'es', 'bde', 'estabilidad_financiera', 'BDE-IB-2025-01', '2025-03-10', 'Informe Bde 1/2025', 'Informe sobre estabilidad financiera y politica monetaria del Banco de Espana.', 'https://example.invalid/bde/BDE-IB-2025-01'),
+        ('resolucion_aepd', 'AEPD', 'es', 'aepd', 'proteccion_datos', 'AEPD-R-2025-1234', '2025-02-20', 'Resolucion AEPD 1234/2025', 'Resolucion sobre proteccion de datos y derechos de arrendatarios en ficheros de datos.', 'https://example.invalid/aepd/AEPD-R-2025-1234')
     """,
     """
     CREATE TABLE empresa (
@@ -939,3 +944,27 @@ STATEMENTS = [
 with engine.begin() as conn:
     for statement in STATEMENTS:
         conn.execute(text(statement))
+
+
+@pytest.fixture(autouse=True)
+def _disable_auth_and_rate_limit():
+    """Ensure API key auth and rate limiting are disabled for all tests.
+
+    Only clears auth if it is not explicitly enabled by the calling test,
+    allowing tests that need auth enabled to set their own env vars.
+    """
+    original = dict(os.environ)
+    # Only clear auth if not explicitly enabled by the test
+    if os.environ.get("ESDATA_AUTH_ENABLED", "").lower() != "true":
+        os.environ.pop("ESDATA_AUTH_ENABLED", None)
+        os.environ.pop("ESDATA_API_KEY", None)
+    # Disable rate limiting for tests to avoid 429s across test files
+    os.environ["ESDATA_RATE_LIMIT_ENABLED"] = "false"
+    yield
+    # Restore only the vars we modified — never clear() the entire env
+    for key in list(os.environ.keys()):
+        if key in original:
+            continue
+        os.environ.pop(key, None)
+    for key, value in original.items():
+        os.environ[key] = value

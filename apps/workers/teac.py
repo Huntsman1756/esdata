@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from html import unescape
 import os
 import re
@@ -148,36 +148,40 @@ def run_sync(
     try:
         with httpx.Client(timeout=30.0) as client:
             with engine.begin() as conn:
-        _ensure_sync_log_table(conn)
-        for url in urls:
-            html = fetch_resolution_html(url)
-            data = parse_resolution_html(html)
-            processed += 1
-            upsert_documento_interpretativo(
-                conn,
-                {
-                    "referencia": data["referencia"],
-                    "fecha": data["fecha"],
-                    "titulo": data["titulo"],
-                    "texto": data["texto"],
-                    "url_fuente": url,
-                },
-            )
-            stored += 1
+                _ensure_sync_log_table(conn)
+                for url in urls:
+                    html = fetch_resolution_html(url)
+                    data = parse_resolution_html(html)
+                    processed += 1
+                    upsert_documento_interpretativo(
+                        conn,
+                        {
+                            "referencia": data["referencia"],
+                            "fecha": data["fecha"],
+                            "titulo": data["titulo"],
+                            "texto": data["texto"],
+                            "url_fuente": url,
+                        },
+                    )
+                    stored += 1
 
-        if stored:
-            links_created = auto_link_doctrina(conn)
+                if stored:
+                    links_created = auto_link_doctrina(conn)
 
-        log_sync(
-            conn,
-            worker_name,
-            "ok",
-            documentos_processed=processed,
-            documentos_upserted=stored,
-            doctrina_links_created=links_created,
-        )
+                log_sync(
+                    conn,
+                    worker_name,
+                    "ok",
+                    documentos_processed=processed,
+                    documentos_upserted=stored,
+                    doctrina_links_created=links_created,
+                )
 
-    return {"processed": processed, "stored": stored}
+            return {"processed": processed, "stored": stored}
+
+    except Exception:
+        logger.exception("TEAC sync failed")
+        return {"processed": processed, "stored": stored}
 
 
 if __name__ == "__main__":
