@@ -19,6 +19,8 @@ Separar claramente la documentación permanente de los snapshots de sesión e in
 - `deployment/HANDOFF-IT.md`
 - `deployment/server-installation.md`
 - `deployment/rollback.md`
+- `integrations/opencode-local-and-vps.md`
+- `integrations/chatgpt-business-actions.md`
 - `operations/README.md`
 - `operations/OPERATIONS.md`
 - `operations/runbooks/`
