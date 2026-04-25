@@ -9,6 +9,7 @@ from typing import Any
 from main import app
 from routers.consulta import consulta_fiscal
 from fastapi.testclient import TestClient
+from mcp_catalog import get_stdio_tool_definitions
 
 client = TestClient(app)
 
@@ -93,142 +94,7 @@ class MCPStdioServer:
         })
 
     def _handle_tools_list(self, msg_id: Any):
-        tools = [
-            {
-                "name": "consulta_fiscal",
-                "description": (
-                    "Consulta fiscal inteligente en lenguaje natural. Responde preguntas sobre modelos AEAT, "
-                    "obligaciones fiscales, plazos de presentación, normativa aplicable y doctrina DGT/TEAC. "
-                    "Ejemplos: 'necesito comunicar facta cliente EEUU', 'irpf dividendos', 'iva entregas intracomunitarias', "
-                    "'retenciones no residente', 'modelo 216 como rellenar'."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "q": {
-                            "type": "string",
-                            "description": "Pregunta fiscal en lenguaje natural (ej: 'facta no residente', 'irpf dividendos ue')",
-                        },
-                        "sujeto": {
-                            "type": "string",
-                            "enum": ["contribuyente", "no_residente", "empresa", "retenedor", "sociedad_contribuyente", "empresario_intracomunitario"],
-                            "description": "Tipo de sujeto fiscal",
-                        },
-                        "pais": {
-                            "type": "string",
-                            "description": "País/territorio (ej: 'eeuu', 'ue', 'intracomunitario', 'fuera_ue')",
-                        },
-                        "tipo_operacion": {
-                            "type": "string",
-                            "description": "Tipo de operación (ej: 'entrega_bienes', 'prestacion_servicios', 'dividendos', 'retencion')",
-                        },
-                    },
-                    "required": ["q"],
-                },
-            },
-            {
-                "name": "listar_obligaciones_operativas",
-                "description": (
-                    "Listar obligaciones regulatorias con datos operativos estructurados: plazos, sanciones, "
-                    "triggers, frecuencia de presentación, canales. Devuelve datos accionables para el LLM "
-                    "en lugar de texto libre. Ejemplos de uso: 'qué sanciones aplica el modelo 349', "
-                    "'obligaciones CNMV para sociedad de valores', 'plazos presentación IVA trimestral'."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "ambito": {
-                            "type": "string",
-                            "description": "Filtrar por ámbito (ej: 'tributario_internacional', 'aml_cft_reporting', 'mercado_valores')",
-                        },
-                        "frecuencia": {
-                            "type": "string",
-                            "enum": ["mensual", "trimestral", "anual", "eventual"],
-                            "description": "Filtrar por frecuencia de presentación",
-                        },
-                        "con_sancion": {
-                            "type": "boolean",
-                            "description": "Solo obligaciones con sanciones definidas",
-                        },
-                        "limite": {
-                            "type": "integer",
-                            "description": "Número máximo de resultados (1-200)",
-                        },
-                    },
-                    "required": [],
-                },
-            },
-            {
-                "name": "listar_obligaciones_aplicables",
-                "description": (
-                    "Listar obligaciones regulatorias aplicables a un perfil base de sociedad de valores. "
-                    "Sirve como primer paso de aplicabilidad regulatoria antes del workflow interno."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "tipo_entidad": {
-                            "type": "string",
-                            "description": "Tipo de entidad regulada, por defecto sociedad_valores",
-                        },
-                        "reporting_reservado": {
-                            "type": "boolean",
-                            "description": "Si aplica reporting reservado CNMV",
-                        },
-                        "aml_cft_reforzado": {
-                            "type": "boolean",
-                            "description": "Si la entidad esta sujeta a obligaciones AML/CFT operativas",
-                        },
-                        "cross_border_ue": {
-                            "type": "boolean",
-                            "description": "Si presta servicios cross-border UE",
-                        },
-                    },
-                    "required": [],
-                },
-            },
-            {
-                "name": "listar_deadlines",
-                "description": (
-                    "Listar obligaciones próximas a vencer o presentar. Devuelve obligaciones ordenadas "
-                    "por frecuencia, útil para responder 'qué tengo que presentar pronto' o 'plazos próximos'. "
-                    "No calcula fechas exactas (depende de la fecha actual), pero filtra por frecuencia y ordena."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "dias_proximo": {
-                            "type": "integer",
-                            "description": "Mostrar obligaciones en los próximos N días (1-365)",
-                        },
-                        "frecuencia": {
-                            "type": "string",
-                            "enum": ["mensual", "trimestral", "anual"],
-                            "description": "Filtrar por frecuencia",
-                        },
-                    },
-                    "required": [],
-                },
-            },
-            {
-                "name": "get_obligacion_completa",
-                "description": (
-                    "Obtener detalle completo de una obligación regulatoria incluyendo datos operativos "
-                    "(plazos, sanciones, recargos, interés de demora, prescripción, depósito previo). "
-                    "Usar cuando se necesiten datos concretos de cumplimiento: multas, plazos, requisitos."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "codigo": {
-                            "type": "string",
-                            "description": "Código de la obligación (ej: 'IRNR_FACTA', 'CNMV-IR-RESERVADA', 'SEPBLAC-INDICIO-M19')",
-                        },
-                    },
-                    "required": ["codigo"],
-                },
-            },
-        ]
+        tools = get_stdio_tool_definitions()
         self._send_jsonrpc(msg_id, {"tools": tools})
 
     def _handle_tools_call(self, message: dict, msg_id: Any):
@@ -346,6 +212,67 @@ class MCPStdioServer:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_obligacion_completa: {str(e)}")
+        elif tool_name == "agente_consulta":
+            try:
+                q = arguments.get("q", "")
+                sujeto_arg = arguments.get("sujeto", "")
+                tipo_entidad = arguments.get("tipo_entidad", "sociedad_valores")
+
+                sujeto = sujeto_arg or self._entidad_to_sujeto(tipo_entidad)
+
+                response = client.get(
+                    "/v1/consulta",
+                    params={"q": q, "sujeto": sujeto},
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_response(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing agente_consulta: {str(e)}")
+        elif tool_name == "agente_monitoreo_status":
+            try:
+                from agent_monitor import get_monitor_status
+
+                status = get_monitor_status()
+                self._send_jsonrpc(msg_id, {
+                    "content": [{"type": "text", "text": json.dumps(status, ensure_ascii=False, indent=2)}],
+                    "structuredContent": status,
+                })
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error getting monitor status: {str(e)}")
+        elif tool_name == "agente_compliance_resumen":
+            try:
+                estado = arguments.get("estado")
+                limite = arguments.get("limite", 20)
+
+                params = {}
+                if estado:
+                    params["estado"] = estado
+                params["limite"] = limite
+
+                response = client.get(
+                    "/v1/compliance/workflow",
+                    params=params,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_compliance_resumen(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing agente_compliance_resumen: {str(e)}")
         else:
             self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
 
@@ -583,6 +510,43 @@ class MCPStdioServer:
             lines.append(f"Documentos relacionados: {len(data['documentos'])}")
             for doc in data['documentos']:
                 lines.append(f"  - {doc['referencia']} ({doc['tipo_documento']}) — {doc['tipo_relacion']}")
+
+        return "\n".join(lines)
+
+    def _entidad_to_sujeto(self, tipo_entidad: str) -> str:
+        mapping = {
+            "sociedad_valores": "contribuyente",
+            "entidad_dinero_electronico": "empresa",
+            "retenedor": "retenedor",
+            "no_residente": "no_residente",
+        }
+        return mapping.get(tipo_entidad, "contribuyente")
+
+    def _format_compliance_resumen(self, data: list[dict]) -> str:
+        if not data:
+            return "No se encontraron casos de workflow con los filtros aplicados."
+
+        lines = [f"Casos de workflow: {len(data)} resultados"]
+        lines.append("")
+
+        estados: dict[str, int] = {}
+        for caso in data:
+            estado = caso.get("estado", "desconocido")
+            estados[estado] = estados.get(estado, 0) + 1
+        lines.append(f"Por estado: {', '.join(f'{k}: {v}' for k, v in sorted(estados.items()))}")
+        lines.append("")
+
+        for caso in data:
+            lines.append(f"=== Caso: {caso.get('workflow_id', 'N/A')} ===")
+            lines.append(f"  Cambio: {caso.get('cambio_codigo', 'N/A')}")
+            lines.append(f"  Obligacion: {caso.get('obligacion_codigo', 'N/A')}")
+            lines.append(f"  Estado: {caso.get('estado', 'N/A')}")
+            lines.append(f"  Owner: {caso.get('owner_rol', 'N/A')}")
+            if caso.get('fecha_objetivo'):
+                lines.append(f"  Fecha objetivo: {caso['fecha_objetivo']}")
+            if caso.get('notas'):
+                lines.append(f"  Notas: {caso['notas'][:200]}")
+            lines.append("")
 
         return "\n".join(lines)
 
