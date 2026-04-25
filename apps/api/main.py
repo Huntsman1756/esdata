@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from mcp_security import guard_mcp_http
 from mcp_server import mount_mcp
 from routers import (
     bdns,
@@ -26,6 +27,8 @@ app = FastAPI(
     description="API de consulta de legislacion espanola consolidada, doctrina interpretativa y modelos tributarios AEAT. "
     "Permite buscar articulos por texto, consultar normas, doctrina (DGT, TEAC) y obtener casillas, claves e instrucciones de modelos fiscales.",
 )
+
+app.middleware("http")(guard_mcp_http)
 
 app.include_router(status.router)
 app.include_router(buscar.router)

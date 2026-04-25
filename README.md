@@ -4,9 +4,14 @@ Infraestructura fiscal espanola para consultar norma vigente, doctrina y modelos
 
 ## Estado actual
 
-- Produccion operativa en Railway.
-- API publica en `https://esdata-production.up.railway.app`.
-- Frontend publico en `https://web-production-ecb5.up.railway.app`.
+> **NOTA: Railway HISTORICO**
+>
+> Railway no debe considerarse despliegue de referencia para nuevos cambios en este repo.
+> Las URLs de Railway que aparecen en este documento se mantienen como referencia historica.
+
+- Produccion historica en Railway.
+- API publica historica en `https://esdata-production.up.railway.app`.
+- Frontend publico historico en `https://web-production-ecb5.up.railway.app`.
 - Ingesta BOE con soporte de codigo y configuracion para `LGT`, `LIRPF`, `LIS`, `LIVA`, `ITPAJD`, `IRNR`, `IIEE`, `HL`, `DAC6` y `DAC6RD`, con `DAC6EU` registrada como referencia UE desde `EUR-Lex`.
 - Doctrina DGT activa para consultas objetivo de `LIVA` y `LIS`, con enlazado a articulos via `documento_articulo`.
 - Doctrina TEAC activa en produccion con ingesta real desde DYCTEA y enlazado a articulos via `documento_articulo`.
@@ -192,7 +197,25 @@ API:
 
 ```bash
 pytest apps/api/tests/test_smoke.py -q
+pytest apps/api/tests/test_mcp_private.py -q
 ```
+
+### MCP HTTP privado
+
+El modo MCP soportado en este corte es `HTTP privado` sobre `/mcp`.
+
+Variables relevantes:
+
+- `MCP_API_KEY=...` activa proteccion por cabecera `X-API-Key`
+- `MCP_RATE_LIMIT_PER_MINUTE=60` limita trafico hacia `/mcp`
+
+Uso de ejemplo:
+
+```bash
+curl -H "Accept: text/event-stream" -H "X-API-Key: $MCP_API_KEY" http://localhost:8000/mcp
+```
+
+Este modo esta pensado para uso interno, red privada o VPN, no para exposicion publica abierta.
 
 Worker:
 
@@ -222,8 +245,8 @@ python scripts/export-gpt-openapi.py --openapi 3.0.3 --output docs/openapi-gpt-3
 ## Deploy automatico
 
 - `.github/workflows/deploy.yml`: despliega `esdata`, workers y cron.
-- `.github/workflows/deploy-web.yml`: valida y despliega `apps/web` al servicio `web` de Railway.
-- `railway.toml`: define la topologia monorepo de servicios.
+- `.github/workflows/deploy-web.yml`: flujo historico para Railway.
+- `railway.toml`: historico; Railway no es plataforma de referencia.
 
 ## Produccion
 
@@ -239,11 +262,20 @@ python scripts/export-gpt-openapi.py --openapi 3.0.3 --output docs/openapi-gpt-3
 - `DGT_SSL_VERIFY=false` para el worker DGT si Petete falla por SSL en produccion.
 - `TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...,...` para el worker TEAC.
 - `SYNC_INTERVAL_SECONDS=604800` para `worker-dgt` si se quiere ajustar la cadencia del loop continuo.
-- `ESDATA_API_BASE_URL=https://esdata-production.up.railway.app` en el servicio `web` para que Next.js consulte la API publica en server-side.
-- Para bootstrap SQL y seeds en Railway, usar `docs/deploy-commands.md` o `DEPLOY_CHECKLIST.md`.
+- `ESDATA_API_BASE_URL=https://esdata-production.up.railway.app` en el servicio `web` para que Next.js consulte la API publica en server-side. (HISTORICO)
+- Para bootstrap SQL y seeds del despliegue historico en Railway, usar `docs/deploy-commands.md` o `DEPLOY_CHECKLIST.md`.
+
+### MCP HTTP privado
+
+- Endpoint: `/mcp`
+- Auth: cabecera `X-API-Key` cuando `MCP_API_KEY` esta configurada
+- Rate limit: control simple por minuto cuando `MCP_API_KEY` esta configurada
+- Recomendacion: usar en red privada, VPN o detras de proxy interno
 
 ### GPT Actions
 
+- `GPT Actions` y `MCP` son superficies distintas.
+- `GPT Actions` usa OpenAPI y no sustituye el modo MCP privado.
 - Spec completa servida por la API: `https://esdata-production.up.railway.app/openapi.json`
 - Spec reducida para GPT: `docs/openapi-gpt.json`
 - Fallback OpenAPI 3.0.x para el builder: `docs/openapi-gpt-3.0.json`
