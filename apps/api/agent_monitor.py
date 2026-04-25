@@ -22,8 +22,6 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from main import app as fastapi_app
-
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +44,16 @@ class MonitorStatus:
 # Global singleton — initialized lazily on first status call
 _monitor_status: MonitorStatus | None = None
 _monitor_task: asyncio.Task | None = None
-_client = TestClient(fastapi_app)
+_client: TestClient | None = None
+
+
+def _get_client() -> TestClient:
+    """Lazy import of the FastAPI app to avoid circular imports."""
+    global _client
+    if _client is None:
+        from main import app as fastapi_app
+        _client = TestClient(fastapi_app)
+    return _client
 
 
 def _get_status() -> MonitorStatus:

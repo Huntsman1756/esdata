@@ -16,6 +16,8 @@ class DecimalEncoder(json.JSONEncoder):
             return float(obj)
         return super().default(obj)
 
+from agent_monitor import start_agent_monitor, stop_agent_monitor
+from mcp_security import guard_mcp_http
 from mcp_server import mount_mcp
 from middleware.api_key_auth import ApiKeyAuthMiddleware
 from middleware.metrics import create_metrics_endpoint, create_metrics_middleware
@@ -64,7 +66,14 @@ async def lifespan(app: FastAPI):
     t = threading.Thread(target=_load_model, daemon=True)
     t.start()
     logger.info("Embedding model loading in background...")
+
+    # Start agent monitor (opt-in via AGENT_MONITOR_ENABLED)
+    start_agent_monitor()
+
     yield
+
+    # Stop agent monitor on shutdown
+    stop_agent_monitor()
 
 app = FastAPI(
     title="esdata API",
@@ -76,6 +85,9 @@ app = FastAPI(
 
 # Rate limiting middleware (primero para que se aplique antes de cualquier logica)
 app.middleware("http")(rate_limit_middleware)
+
+# MCP HTTP guard — API key + rate limit for /mcp endpoint
+app.middleware("http")(guard_mcp_http)
 
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
