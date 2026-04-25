@@ -10,6 +10,7 @@ async def listar_cambios_regulatorios(
     fuente: str | None = Query(None),
     estado: str | None = Query(None),
     prioridad: str | None = Query(None),
+    obligacion_afectada: str | None = Query(None),
 ):
     cambios = list_seed_changes()
 
@@ -19,5 +20,11 @@ async def listar_cambios_regulatorios(
         cambios = [cambio for cambio in cambios if cambio.get("estado") == estado]
     if prioridad:
         cambios = [cambio for cambio in cambios if cambio.get("prioridad") == prioridad]
+    if obligacion_afectada:
+        cambios = [
+            cambio
+            for cambio in cambios
+            if obligacion_afectada in cambio.get("obligaciones_afectadas", [])
+        ]
 
     return cambios

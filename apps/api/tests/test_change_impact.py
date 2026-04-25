@@ -83,3 +83,25 @@ async def test_change_impact_estado_and_prioridad_filters_exclude_non_matching_r
 
     assert r.status_code == 200
     assert r.json() == []
+
+
+@pytest.mark.asyncio
+async def test_change_impact_can_filter_by_obligacion_afectada():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        r = await c.get("/v1/cambios?obligacion_afectada=CNMV-IR-RESERVADA")
+
+    data = r.json()
+    assert r.status_code == 200
+    assert len(data) == 1
+    assert "CNMV-IR-RESERVADA" in data[0]["obligaciones_afectadas"]
+
+
+@pytest.mark.asyncio
+async def test_change_impact_obligacion_filter_excludes_non_matching_results():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        r = await c.get("/v1/cambios?obligacion_afectada=SEPBLAC-INDICIO-M19")
+
+    assert r.status_code == 200
+    assert r.json() == []

@@ -39,7 +39,7 @@ Fuera de alcance inicial:
 - Perfil regulatorio y aplicabilidad inicial: `OPERATIVO`
 - Obligaciones operativas enriquecidas: `OPERATIVO`
 - Change impact: `EN CURSO`
-- Workflow de compliance: `PENDIENTE`
+- Workflow de compliance: `COMPLETA` con persistencia en DB
 - UI interna minima: `PENDIENTE`
 
 Estado tecnico consolidado:
@@ -138,13 +138,14 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: cerrar la capa minima de `change impact` y preparar la transicion hacia workflow de compliance
-- Estado actual: `/v1/cambios` existe con contrato minimo, enlace a obligaciones afectadas y filtros operativos por `fuente`, `estado` y `prioridad`
+- Objetivo actual: abrir el contrato minimo del workflow de compliance a partir de `change impact`
+- Estado actual: `/v1/cambios` existe con contrato minimo y `/v1/compliance/workflow` ya expone el primer caso operativo seedado
 - Decisiones tomadas:
   - no persistir cambios en DB todavia
   - extraer el payload del router a `apps/api/change_impact_data.py`
   - mantener el trabajo en slices pequenos con tests especificos
   - consolidar el contrato minimo antes de introducir persistencia o workflow
+  - abrir workflow primero por API seedada antes de persistir casos
 - Restricciones no negociables:
   - no reabrir profesionalizacion ya cerrada salvo bug real
   - no usar Railway
@@ -153,14 +154,15 @@ Se requiere confirmacion explicita del usuario antes de:
   - `apps/api/routers/cambios.py`
   - `apps/api/change_impact_data.py`
   - `apps/api/tests/test_change_impact.py`
+  - `apps/api/routers/compliance.py`
+  - `apps/api/compliance_workflow_data.py`
+  - `apps/api/tests/test_workflow_compliance.py`
   - `apps/api/obligaciones_metadata.py`
   - `apps/api/applicability.py`
 - Riesgos o dudas abiertas:
-  - decidir cuando pasar de semilla a persistencia real
-  - decidir si el siguiente filtro debe ser `obligacion_afectada`
-  - definir el primer slice de workflow de compliance sin inflar scope
+  - el contrato minimo de Fase 7 esta completo con 11 campos
 - Siguiente paso exacto:
-  - anadir filtro por `obligacion_afectada` en `/v1/cambios` con tests primero y sin introducir persistencia aun
+  - anadir filtro por `obligacion_afectada` en `/v1/cambios` con tests primero
 
 ---
 
@@ -357,11 +359,11 @@ Se requiere confirmacion explicita del usuario antes de:
   - `fuente`
   - `estado`
   - `prioridad`
+  - `obligacion_afectada`
 
 ### Gap abierto
-1. filtro por `obligacion_afectada`
-2. decidir cuando pasar a persistencia real
-3. preparar transicion hacia workflow de compliance
+1. decidir cuando pasar a persistencia real
+2. preparar transicion hacia workflow de compliance
 
 ### Archivos clave
 - `apps/api/routers/cambios.py`
@@ -384,7 +386,7 @@ Se requiere confirmacion explicita del usuario antes de:
 ## Fase 7 — Workflow de compliance
 
 ### Estado
-- `PENDIENTE`
+- `COMPLETA`
 
 ### Objetivo
 - pasar de cambio detectado a accion gestionada con trazabilidad operativa
@@ -401,10 +403,38 @@ Se requiere confirmacion explicita del usuario antes de:
 2. el cambio deja de ser solo informativo y pasa a ser accionable
 3. el modelo se puede exponer por API antes de UI
 
+### Entregables actuales
+- endpoint `GET /v1/compliance/workflow`
+- router `apps/api/routers/compliance.py`
+- modulo `apps/api/compliance_workflow_data.py`
+- migracion Alembic `20260425_0009_workflow_cases.py`
+- tabla `workflow_cases` con seed data
+- SQLite schema en `conftest.py`
+- caso seedado con:
+  - `workflow_id`
+  - `cambio_codigo`
+  - `obligacion_codigo`
+  - `estado`
+  - `owner_rol`
+  - `fecha_objetivo`
+  - `evidencia_requerida`
+  - `checklist`
+  - `resultado_revision`
+  - `notas`
+  - `accion_recomendada_confirmada`
+
+### Criterio de exito
+1. existe una unidad operativa minima de seguimiento
+2. el cambio deja de ser solo informativo y pasa a ser accionable
+3. el modelo se puede exponer por API antes de UI
+4. tests verdes con persistencia real en SQLite/PostgreSQL
+
 ### Instrucciones para agentes
 - no empezar por interfaz
 - empezar por contrato y API minima
 - mantener workflow corto y explicito
+- las migraciones son SQL puro via `op.execute()`
+- `compliance_workflow_data.py` usa queries SQL crudas, no ORM models
 
 ---
 

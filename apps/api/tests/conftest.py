@@ -897,186 +897,43 @@ STATEMENTS = [
     """
     INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
     SELECT mc.id, 'quien-debe', 'Quienes deben presentar el modelo 347', 'Deben presentar el modelo 347 quienes hayan realizado operaciones con terceros por importe superior al umbral legal anual.', 1
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '347' AND mc.campana = '2025'
-    """,
+     FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+     WHERE m.codigo = '347' AND mc.campana = '2025'
+     """,
+    # --- workflow_cases table ---
     """
-    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
-    SELECT mc.id, 'plazo', 'Plazo de presentacion del modelo 347', 'El modelo 347 se presenta con caracter anual durante el mes de febrero del ano siguiente.', 2
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '347' AND mc.campana = '2025'
-    """,
-    """
-    INSERT INTO modelo_instruccion (campana_id, seccion, titulo, contenido, orden)
-    SELECT mc.id, 'como-presentar', 'Forma de presentacion del modelo 347', 'La presentacion del modelo 347 se realiza por via electronica a traves de la sede de la AEAT.', 3
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '347' AND mc.campana = '2025'
-    """,
-    # --- Seed: normativa for model 100 ---
-    """
-    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-    SELECT m.id, 'BOE-A-2024-26789', 'Orden HAC/1234/2024', '2024-12-20', 'https://www.boe.es/boe/dias/2024/12/20/pdfs/BOE-A-2024-26789.pdf', 'Aprueba el modelo 100'
-    FROM aeat_modelo m WHERE m.codigo = '100'
-    """,
-    """
-    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-    SELECT m.id, 'BOE-A-2011-4948', 'Orden EHA/586/2011', '2011-03-09', 'https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948', 'Normativa base de modelos de retenciones 111 y 115'
-    FROM aeat_modelo m WHERE m.codigo IN ('111', '115')
-    """,
-    """
-    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-    SELECT m.id, 'BOE-A-2004-4527', 'RDL 5/2004 — IRNR', '2004-12-03', 'https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527', 'Texto refundido de la Ley del IRNR'
-    FROM aeat_modelo m WHERE m.codigo IN ('124', '216', '296')
-    """,
-    """
-    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-    SELECT m.id, 'BOE-A-1992-28740', 'Ley 37/1992 del IVA', '1992-12-28', 'https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740', 'Norma base del IVA para el modelo 303'
-    FROM aeat_modelo m WHERE m.codigo = '303'
-    """,
-    """
-    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-    SELECT m.id, 'BOE-A-2024-16738', 'Orden HAC/891/2024', '2024-09-10', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-16738', 'Normativa base de modelos 349 y 390'
-    FROM aeat_modelo m WHERE m.codigo IN ('349', '390')
-    """,
-    """
-    INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-    SELECT m.id, 'BOE-A-2024-25303', 'Orden HAC/1187/2024', '2024-12-02', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-25303', 'Normativa base de modelos 036 y 347'
-    FROM aeat_modelo m WHERE m.codigo IN ('036', '347')
-    """,
-    """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
+    CREATE TABLE IF NOT EXISTS workflow_cases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workflow_id TEXT UNIQUE NOT NULL,
+        cambio_codigo TEXT NOT NULL,
+        obligacion_codigo TEXT NOT NULL,
+        estado TEXT NOT NULL DEFAULT 'pendiente_revision',
+        owner_rol TEXT NOT NULL,
+        fecha_objetivo TEXT NOT NULL,
+        evidencia_requerida TEXT NOT NULL DEFAULT '[]',
+        checklist TEXT NOT NULL DEFAULT '[]',
+        resultado_revision TEXT,
+        notas TEXT,
+        accion_recomendada_confirmada TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
-    SELECT mc.id,
-           'retenedor_irnr',
-           'mensual',
-           'primeros_20_dias_mes_siguiente',
-           'electronica',
-           'Deben presentar el modelo 216 los obligados a practicar retenciones e ingresos a cuenta sobre determinadas rentas de no residentes sin establecimiento permanente.',
-           'El modelo 216 se presenta mensualmente dentro de los primeros veinte dias naturales del mes siguiente al periodo declarado.',
-           'La presentacion del modelo 216 se realiza por via electronica a traves de la sede de la AEAT.',
-           'IRNR art. 14',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc
-    JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '216' AND mc.campana = '2025'
     """,
     """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
+    INSERT OR IGNORE INTO workflow_cases (
+        workflow_id, cambio_codigo, obligacion_codigo, estado, owner_rol,
+        fecha_objetivo, evidencia_requerida, checklist
+    ) VALUES (
+        'WF-001',
+        'CAMBIO-CNMV-001',
+        'CNMV-IR-RESERVADA',
+        'pendiente_revision',
+        'compliance',
+        '2026-05-05',
+        '["analisis_impacto","actualizacion_calendario"]',
+        '["validar impacto normativo","asignar responsable","confirmar fecha objetivo"]'
     )
-    SELECT mc.id,
-           'empresario_o_profesional_iva',
-           'trimestral',
-           'plazo_general_aeat',
-           'electronica',
-           'Deben presentar el modelo 303 los empresarios y profesionales obligados a autoliquidar el IVA del periodo.',
-           'El modelo 303 se presenta en los plazos generales fijados por la AEAT para la autoliquidacion del IVA.',
-           'La presentacion del modelo 303 se realiza por via electronica mediante la sede de la AEAT.',
-           'LIVA art. 71',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc
-    JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '303' AND mc.campana = '2025'
     """,
-    """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
-    )
-    SELECT mc.id, 'retenedor_irpf', 'trimestral', 'primeros_20_dias_periodo_siguiente', 'electronica',
-           'Deben presentar el modelo 111 los obligados a practicar retenciones e ingresos a cuenta por rendimientos del trabajo y determinadas actividades economicas.',
-           'El modelo 111 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.',
-           'La presentacion del modelo 111 se realiza por via electronica a traves de la sede de la AEAT.',
-           'LIRPF retenciones',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '111' AND mc.campana = '2025'
-    """,
-    """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
-    )
-    SELECT mc.id, 'retenedor_arrendamientos', 'trimestral', 'primeros_20_dias_periodo_siguiente', 'electronica',
-           'Deben presentar el modelo 115 los obligados a practicar retenciones por arrendamientos de inmuebles urbanos.',
-           'El modelo 115 se presenta trimestralmente del 1 al 20 de abril, julio, octubre y enero.',
-           'La presentacion del modelo 115 se realiza por via electronica a traves de la sede de la AEAT.',
-           'LIRPF arrendamientos',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '115' AND mc.campana = '2025'
-    """,
-    """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
-    )
-    SELECT mc.id, 'operador_intracomunitario_iva', 'mensual', 'primeros_20_dias_mes_siguiente', 'electronica',
-           'Deben presentar el modelo 349 los sujetos pasivos del IVA que realicen operaciones intracomunitarias de bienes o servicios.',
-           'El modelo 349 se presenta con caracter mensual o trimestral segun el volumen de operaciones, del 1 al 20 del mes siguiente al periodo.',
-           'La presentacion del modelo 349 se realiza por via electronica a traves de la sede de la AEAT.',
-           'LIVA operaciones intracomunitarias',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '349' AND mc.campana = '2025'
-    """,
-    """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
-    )
-    SELECT mc.id, 'sujeto_pasivo_iva', 'anual', 'plazo_fijado_aeat', 'electronica',
-           'Deben presentar el modelo 390 los sujetos pasivos del IVA obligados a presentar el resumen anual, salvo excepciones previstas por la normativa.',
-           'El modelo 390 se presenta con caracter anual en el plazo fijado por la AEAT junto con el cierre del ejercicio de IVA.',
-           'La presentacion del modelo 390 se realiza por via electronica mediante la sede de la AEAT.',
-           'LIVA resumen anual',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '390' AND mc.campana = '2025'
-    """,
-    """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
-    )
-    SELECT mc.id, 'obligado_censal', 'eventual', '1_mes_desde_hecho', 'electronica',
-           'Deben presentar el modelo 036 las personas fisicas o juridicas que inicien actividad, modifiquen datos censales o causen baja en el censo.',
-           'El modelo 036 se presenta dentro del plazo de un mes desde el inicio de actividad o desde la modificacion censal correspondiente.',
-           'La presentacion del modelo 036 puede realizarse por la sede de la AEAT con los sistemas de identificacion admitidos.',
-           'Censo AEAT',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '036' AND mc.campana = '2025'
-    """,
-    """
-    INSERT INTO modelo_campana_operativa (
-        campana_id, categoria_obligado, frecuencia_presentacion, ventana_presentacion,
-        canal_presentacion, obligados_resumen, plazo_resumen, presentacion_resumen,
-        norma_base, nota
-    )
-    SELECT mc.id, 'declarante_operaciones_terceros', 'anual', 'febrero_ano_siguiente', 'electronica',
-           'Deben presentar el modelo 347 quienes hayan realizado operaciones con terceros por importe superior al umbral legal anual.',
-           'El modelo 347 se presenta con caracter anual durante el mes de febrero del ano siguiente.',
-           'La presentacion del modelo 347 se realiza por via electronica a traves de la sede de la AEAT.',
-           'LGT informacion terceros',
-           'Metadato operativo curado para agentes.'
-    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
-    WHERE m.codigo = '347' AND mc.campana = '2025'
-    """,
-    # --- Note: modelo_campana_activa() is a Postgres function.
-    # For SQLite tests, the API code falls back to direct queries when the function
-    # is not available. The campaign seeded above has activo=1 so it will be picked
-    # by the "ORDER BY campana DESC LIMIT 1" query in the router.
 ]
 
 with engine.begin() as conn:

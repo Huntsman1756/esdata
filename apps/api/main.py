@@ -27,6 +27,7 @@ from routers import (
     cendoj,
     cnmv,
     chunks,
+    compliance,
     consulta,
     doctrina,
     empresas,
@@ -85,6 +86,7 @@ if metrics_endpoint:
 app.include_router(status.router)
 app.include_router(buscar.router)
 app.include_router(cambios.router)
+app.include_router(compliance.router)
 app.include_router(legislacion.router)
 app.include_router(materias.router)
 app.include_router(doctrina.router)
