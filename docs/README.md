@@ -4,6 +4,12 @@
 
 Separar claramente la documentación permanente de los snapshots de sesión e informes puntuales.
 
+## Regla de integraciones
+
+- `MCP` se documenta como superficie para uso personal con `OpenCode` y modelos LLM locales.
+- `ChatGPT Business` se documenta como integracion separada via `OpenAPI/Actions`.
+- No mezclar ambas superficies en una misma guia salvo que el documento compare explicitamente ambos flujos.
+
 ## Documentación permanente
 
 - `architecture.md`
