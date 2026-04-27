@@ -185,6 +185,26 @@ Si alguna respuesta es "si", detener y refactorizar.
   - Build/lint si el cambio es estructural.
   - Solo push tras verificar.
 
+### Actualizacion obligatoria de CHANGELOG y MEMO por commit
+
+Cada commit atomico debe ir acompanado de dos actualizaciones documentales:
+
+1. **`docs/CHANGELOG.md`** — entrada con fecha, rama, hash del commit, tipo conventional y mensaje:
+   ```
+   ## 2026-04-27
+   ### main
+   - **abc1234** `fix(api)` — validate input before DB write
+   ```
+2. **`docs/MEMO.md`** — tabla con commit, tipo, descripcion y archivos afectados:
+   ```
+   | abc1234 | fix(api) | validate input before DB write | apps/api/routers/consulta.py, apps/api/services/search.py |
+   ```
+3. El CHANGELOG y MEMO se actualizan ANTES de hacer `git commit`.
+4. Si el commit toca archivos en multiples areas (api + workers + docs), se anotan todos en la misma entrada.
+5. El CHANGELOG se mantiene ordenado por fecha (descendente) y rama.
+6. El MEMO se mantiene ordenado por rama, con el resumen de la rama activa siempre arriba.
+7. Si `docs/CHANGELOG.md` o `docs/MEMO.md` no existen, crearlos.
+
 ---
 
 ## Integraciones LLM (persistente)
