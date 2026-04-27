@@ -6,7 +6,7 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ## main
 
-**Estado:** activa — ultimo commit: abc1234 (Fase 30.9 claim_citations)
+**Estado:** activa — ultimo commit: ec124a2 (Fase 30.10 semantic reranker per claim)
 
 ### Resumen
 Fase 30.2 completada: HTTP integration tests para AI audit log, human review, data lineage, model registry config y query audit. 21/21 tests pasando. Fixes: SQLite engine kwargs, route order en config_router, routes duplicadas en human_review, PostgreSQL ON CONFLICT en model_registry service, Alembic migration SQLite/Postgres compat, add query_audit HTTP router and 21 HTTP integration tests.
@@ -15,9 +15,12 @@ Fase 30.3 completada: Alembic chain repair. Fixed SQL escaping errors in 0016/00
 
 Fase 30.9 completada: claim_citations en /v1/consulta. Nueva funcion `_build_claim_citations()` mapea cada resultado (claim) a sus chunks de evidencia via chunk_id. Nuevo schema `ClaimCitation` con `claim` dict y `citations` list. 2 nuevos tests smoke pasando.
 
+Fase 30.10 completada: semantic reranker per claim. `_build_claim_citations` ahora usa cross-encoder para puntuar cada chunk contra el texto de cada claim, retornando top-3 chunks por claim ordenados por rerank_score. 1 nuevo test de scoring semantico pasando.
+
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+| ec124a2 | feat(api) | semantic reranker per claim — cross-encoder scores chunks against claim text | apps/api/routers/consulta.py, apps/api/tests/test_smoke.py |
 | abc1234 | feat(api) | add claim_citations to /v1/consulta response | apps/api/routers/consulta.py, apps/api/schemas.py, apps/api/tests/test_smoke.py |
 | 7d8b7b1 | fix(migrations) | repair Alembic chain SQL escaping, server_default, ON CONFLICT | alembic/versions/20260426_0016_*.py, alembic/versions/20260426_0017_*.py, alembic/versions/20260426_0018_*.py, alembic/versions/20260426_0019_*.py, alembic/versions/20260426_0022_*.py, alembic/versions/20260426_0025_*.py, alembic/versions/20260426_0026_*.py, alembic/versions/20260426_0028_*.py, alembic/versions/20260426_0029_*.py, scripts/ops/alembic_chain_repair.py |
 | bbeab9d | fix(api) | add 8 micro_obligacion seed rows, reset sqlite_sequence in DAC test fixture | apps/api/tests/conftest.py, apps/api/tests/test_dac_directives.py |

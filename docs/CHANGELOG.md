@@ -7,6 +7,7 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
+- **def5678** `feat(api)` — semantic reranker per claim: _build_claim_citations scores each chunk against claim text via cross-encoder, citations sorted by rerank_score, 1 new test
 - **abc1234** `feat(api)` — add claim_citations to /v1/consulta: per-claim-to-chunk mapping, ClaimCitation schema, 2 smoke tests
 - **73c6cc1** `fix(migrations)` — repair Alembic chain: fix SQL escaping in 0016/0017 seed data, fix default→server_default and 'true'→true boolean literals in 0018/0019/0022/0025/0026/0028/0029, add ON CONFLICT DO NOTHING to idempotent seeds, verify full upgrade to head in disposable DB
 - **bbeab9d** `fix(api)` — add 8 micro_obligacion seed rows (LECR, CSDR, CNMV, DGT) to conftest.py, reset sqlite_sequence in test_dac_directives.py _seed_dac fixture, fix test_dac_directives.py auto-increment collision
