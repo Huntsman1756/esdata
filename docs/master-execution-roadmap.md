@@ -340,11 +340,10 @@ Se requiere confirmacion explicita del usuario antes de:
 - Evidencia: `pytest apps/api/tests/test_mcp_audit.py apps/api/tests/test_query_audit.py apps/api/tests/test_smoke.py -k "mcp_consulta_persists_audit_entry_with_request_id_correlation or consulta_runtime_persists_query_audit_entry or buscar_runtime_persists_query_audit_entry or doctrina_buscar_runtime_persists_query_audit_entry or consulta_baja_confianza_abstiene_y_expone_disclaimer or consulta_confianza_alta_no_requiere_revision_humana or consulta_confianza_baja_consulta_vacia" -v --tb=short` -> `7 passed`
 - Riesgos restantes:
   - `GET /v1/legislacion/{codigo}/articulos/{numero}` y otras lecturas directas siguen fuera de la auditoria durable, con prioridad menor por no ser surfaces de retrieval inferencial principal
-   - claim_citations completadas: Fase 30.9 (mapeo estatico result→chunk via chunk_id) y Fase 30.10 (reranker semantico por claim con cross-encoder, top-3 chunks por claim ordenados por rerank_score)
-   - el repo continua correctamente bloqueado por `.env`, `apps/api/.env` y `apps/web/.env.local`
-- Siguiente paso exacto: evaluar si claim_citations semanticas son suficientes o se necesita grounding a nivel de respuesta generada (si se introduce LLM)
+    - el repo continua correctamente bloqueado por `.env`, `apps/api/.env` y `apps/web/.env.local`
+- Siguiente paso exacto: Fase 30.13 — grounding duro: respuestas factuales con citas exactas por claim, abstencion cuando falte evidencia, chunks como input no confiable revisado contra prompt injection
 - Correcciones aplicadas: Fase 30.1 cerrada; Fase 30.2 ejecutada en service layer con persistencia durable real para `ai_audit`, `data_lineage`, `human_review`, `model_registry`, `ai_config_version` y nuevo `query_audit_log`; Fase 30.3 slice 1 anade `source_hash` al contrato de `search_legislacion` y `/v1/consulta`, propaga `chunk_id` cuando existe, y endurece el bloque `evidencia` de resultados normativos para grounding verificable; Fase 30.3 slice 2 anade superficie `/v1/sources/manifest`, `/v1/sources/freshness` y resumen `fuentes` en `/status`, derivando owner, trust tier, cadencia y freshness desde el manifest vivo y `sync_log`; Fase 30.3 slice 3 anade `faithfulness_score`, `faithfulness_label` y `review_required` en `confianza` de `/v1/consulta`, ponderando grounding explicito, soporte estructurado y relevancia media, y alineando el umbral de revision con `services.human_review.check_review_required`; Fase 30.3 slice 4 anade tabla durable `source_freshness_snapshot` y hace que `/v1/sources/freshness` persista snapshots versionados por fuente, exponiendo `snapshot_at` y `snapshot_version`; Fase 30.3 slice 5 compara los dos snapshots mas recientes por `source_id` y expone `previous_snapshot_at` y `changed_since_previous` en `/v1/sources/freshness`; manual actualizado en `docs/manual-usuario/06-api-y-ejemplos.md` y `docs/manual-usuario/09-referencia-de-endpoints.md`; Fase 30.3 se da por cerrada con verificacion fresca sobre grounding, faithfulness y freshness ledger durable; Fase 30.4 slice 1 anade `GET /v1/connectivity/articulos/{codigo_norma}/{numero}` como capa de conectividad derivada cross-source sobre `modelo_articulo`, `documento_articulo` y `obligacion_documento`, exponiendo modelos, doctrina y obligaciones conectadas por articulo; Fase 30.4 slice 2 amplía la misma capa a `GET /v1/connectivity/documentos/{referencia}` y `GET /v1/connectivity/obligaciones/{codigo}`, usando documentos y obligaciones como nodos raiz del grafo derivado; Fase 30.4 slice 3 anade `GET /v1/connectivity/entidades/{identificador}` como nodo raiz de grafo cross-source sobre `entity_identity`, `screening_result`, `ownership_*` y `giin_registry`; Fase 30.4 se da por cerrada; Fase 30.5 anade `faithfulness_score`, `faithfulness_label` y `review_required` en `/v1/consulta`, ponderando grounding explicito, soporte estructurado y relevancia media, alineando umbral con `check_review_required`; Fase 30.6 anade tabla `source_freshness_snapshot` y hace `/v1/sources/freshness` persistir snapshots versionados, exponiendo `snapshot_at`, `snapshot_version`, `previous_snapshot_at` y `changed_since_previous`; Fase 30.7 cierra con verificacion fresca sobre grounding, faithfulness y freshness ledger durable. Fase 30.8 (Alembic chain repair): fixed SQL escaping in 0016/0017 seed data, fixed `default`→`server_default` and `'true'`→`true` boolean literals in 0018/0019/0022/0025/0026/0028/0029, added `ON CONFLICT DO NOTHING` to idempotent seeds, verified full upgrade to `head` in disposable PostgreSQL container. Fase 30.9 (claim_citations): nueva funcion `_build_claim_citations()` mapea cada resultado (claim) a sus chunks de evidencia via chunk_id, nuevo schema `ClaimCitation` con `claim` dict y `citations` list, 2 nuevos tests smoke pasando. Fase 30.10 (semantic reranker per claim): `_build_claim_citations` ahora usa cross-encoder para puntuar cada chunk contra el texto de cada claim, retornando top-3 chunks por claim ordenados por `rerank_score`, 1 nuevo test de scoring semantico pasando.
-- Siguiente paso exacto: evaluar si claim_citations semanticas son suficientes o se necesita grounding a nivel de respuesta generada (si se introduce LLM)
+- Siguiente paso exacto: Fase 30.13 — grounding duro: respuestas factuales con citas exactas por claim, abstencion cuando falte evidencia, chunks como input no confiable revisado contra prompt injection
 - Fases planificadas:
   - Fase 22: Matriz de controles, riesgos y pruebas ✅ COMPLETA
   - Fase 23: Expansion integral CNMV ✅ COMPLETA
@@ -2961,7 +2960,7 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 ## Fase 30 — Remediacion estructural post-auditoria
 
 ### Estado
-- `30.1 ✅`, `30.2 ✅`, `30.3 ✅`, `30.4 ✅`, `30.5 ✅` — Fase 30 parcialmente completa; 30.4 sigue pendiente de implementacion real
+- `30.1 ✅`, `30.2 ✅`, `30.3 ✅`, `30.4 ✅`, `30.5 ✅`, `30.9 ✅`, `30.10 ✅`, `30.11 ✅`, `30.12 ✅` — Fase 30 parcialmente completa; 30.4 sigue pendiente de implementacion real
 
 ### Objetivo
 - cerrar blockers de seguridad, trazabilidad, grounding y operacion antes de seguir ampliando corpus o nuevas superficies de producto
@@ -3007,11 +3006,25 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 - desplegar observabilidad minima real: P95/P99 retrieval latency, error rate por componente, RAM/VRAM por query, token count por query, worker lag y tendencia de faithfulness
 
 #### Fase 30.5 — Detección de cambios y reindexación incremental ✅ COMPLETA
-- modulo compartido `change_detection.py` con `compute_content_hash()`, `check_content_changed()`, `record_revision()`, `invalidate_old_embeddings()` ✅
+- modulo compartido `change_detection.py` con `compute_content_hash()`, `check_content_changed()`, `record_revision()`, `invalidate_old_embeddings()`, `invalidate_old_embeddings_by_entity()`, `record_embedding_version()` ✅
 - migration Alembic `20260427_0033_source_revision_tracking.py` añadiendo tabla `source_revision` (worker_name, source_entity_tipo, source_entity_id, content_hash_sha256, etag, last_modified, content_length, fetched_at, unique constraint) ✅
-- integración en BOE worker: `ensure_source_revision_table()` en `run_sync()`, `check_content_changed()` por bloque, `invalidate_old_embeddings()` en cambio, `record_revision()` tras upsert ✅
-- integración en DGT worker: `ensure_source_revision_table()` en `run_sync()`, `check_content_changed()` por consulta, `invalidate_old_embeddings()` en cambio, `record_revision()` tras upsert ✅
-- 9 tests pasando en `apps/workers/tests/test_change_detection.py` ✅
+- integración en 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr) ✅
+- 12 tests pasando en `apps/workers/tests/test_change_detection.py` ✅
+
+#### Fase 30.11 — Embedding versioning por modelo y chunk hash ✅ COMPLETA
+- migration Alembic `20260427_0034_embedding_versioning.py` añadiendo `embedding_model_name` y `content_hash` a `version_articulo`, `documento_fragmento`, `documento_interpretativo` ✅
+- tabla `embedding_version` con unique constraint (entity_table, entity_id, model_name, content_hash) e indexes por entity y model ✅
+- `record_embedding_version()` registra version y invalida versiones anteriores para mismo entity+model ✅
+- `invalidate_old_embeddings_by_entity()` generaliza invalidacion a cualquier tabla de embedding con cols configurables ✅
+- `backfill_embeddings.py` actualizado para almacenar `embedding_model_name` y `content_hash` al generar embeddings ✅
+- `embeddings.py` exporta `EMBEDDING_MODEL_NAME`, `EMBEDDING_DIMENSIONS`, `get_model_name()`, `compute_embedding_hash()` ✅
+- backfill queries verifican que el modelo coincida antes de regenerar embeddings ✅
+
+#### Fase 30.12 — CI drift blocking fortalecido ✅ COMPLETA
+- `verify-doc-artifacts.py` añade `verify_docs_vs_roadmap()` — detecta claims de [IMPLEMENTED] en docs cuando roadmap marca [PARTIAL]/[TARGET] ✅
+- `verify-doc-artifacts.py` añade `verify_workers_documented()` — detecta workers sin referencia en docs ✅
+- `verify-doc-artifacts.py` añade `verify_endpoints_documented()` — detecta endpoints sin referencia en docs (>30% no documentados) ✅
+- 1 worker no documentado detectado: `vocabulary_validation` ✅
 
 ### Entregables esperados
 - auth y rate limiting seguros por defecto
