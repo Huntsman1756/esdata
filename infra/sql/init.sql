@@ -80,7 +80,10 @@ CREATE TABLE IF NOT EXISTS sync_log (
     documentos_processed INTEGER,
     documentos_upserted INTEGER,
     doctrina_links_created INTEGER,
-    error_msg TEXT
+    error_msg TEXT,
+    rows_processed INTEGER,
+    errors INTEGER DEFAULT 0,
+    duration_ms INTEGER
 );
 
 -- Índice GIN para búsqueda full-text con pg_trgm

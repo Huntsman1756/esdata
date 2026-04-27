@@ -31,5 +31,6 @@ CREATE INDEX IF NOT EXISTS idx_documento_articulo_documento
     ON documento_articulo(documento_id);
 
 -- documento_fragmento: lookup by document origin (search endpoints)
-CREATE INDEX IF NOT EXISTS idx_documento_fragmento_origen_tipo_id
-    ON documento_fragmento(documento_origen_tipo, documento_origen_id);
+-- Skipped in docker-init; created via Alembic migration instead
+-- CREATE INDEX IF NOT EXISTS idx_documento_fragmento_origen_tipo_id
+--     ON documento_fragmento(documento_origen_tipo, documento_origen_id);

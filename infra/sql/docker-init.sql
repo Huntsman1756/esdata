@@ -3,3 +3,10 @@
 \i /docker-entrypoint-initdb.d/003_modelos_aeat.sql
 \i /docker-entrypoint-initdb.d/004_modelos_v2.sql
 \i /docker-entrypoint-initdb.d/004_norma_classification.sql
+\i /docker-entrypoint-initdb.d/005_indexes.sql
+\i /docker-entrypoint-initdb.d/006_pgvector.sql
+\i /docker-entrypoint-initdb.d/007_fiscal_calendar.sql
+\i /docker-entrypoint-initdb.d/008_iva_rates.sql
+\i /docker-entrypoint-initdb.d/009_irpf_brackets.sql
+\i /docker-entrypoint-initdb.d/010_ss_rates.sql
+\i /docker-entrypoint-initdb.d/011_fiscal_indicators.sql
