@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import re
 import time
@@ -15,6 +16,9 @@ from change_detection import (
 )
 from runtime import get_database_url, get_interval_seconds
 from sqlalchemy import create_engine, text
+
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:

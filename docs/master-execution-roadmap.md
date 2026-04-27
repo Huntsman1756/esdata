@@ -196,12 +196,13 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: dejar persistidas en `.env.example` las seeds verificadas de los workers regulatorios productivos.
-- Estado actual: slice `worker-seed-config-persistence` `COMPLETADA` — `.env.example` ya documenta las seeds verificadas de `CNMV`, `SEPBLAC` y `BDE`; runtime y compose productivo siguen leyendolas desde variables de entorno, sin fallbacks hardcodeados en codigo para `SEPBLAC` y `BDE`.
-- Estado del agente: COMPLETADA — configuracion minima persistida sin introducir secretos ni defaults duplicados. Siguiente paso exacto: propagar `CNMV_SEED_URLS`, `SEPBLAC_SEED_URLS` y `BDE_SEED_URLS` al entorno Compose/productivo real que consuma `infra/deploy/docker-compose.prod.yml`.
+- Objetivo actual: cerrar la validacion alta prioridad de `CENDOJ`, `AEPD` y `TEAC`, documentando solo las seeds que pasan runtime real.
+- Estado actual: slice `high-priority-worker-seed-validation` `COMPLETADA` — `CENDOJ` y `AEPD` ya tienen seeds verificadas y persistidas en `.env.example`; `TEAC` ya no falla por `logger`, pero su parser no soporta el HTML real de la seed estable y queda pendiente.
+- Estado del agente: COMPLETADA — seeds verificadas persistidas solo donde hubo evidencia runtime. Siguiente paso exacto: **TEAC parser**: `strptime()` recibe `None` — el campo de fecha en el HTML real no tiene el formato esperado. Localizar el selector de fecha en `apps/workers/teac.py` y añadir guard antes del parse.
 - Archivos afectados:
   - `docs/master-execution-roadmap.md`
   - `.env.example`
+  - `infra/deploy/compose.env.example`
   - `apps/workers/change_detection.py`
   - `apps/workers/tests/test_change_detection.py`
   - `apps/workers/cnmv.py`
@@ -213,6 +214,18 @@ Se requiere confirmacion explicita del usuario antes de:
   - `docs/operations/agent-notes.md`
 - Inicio: 2026-04-27
 - Evidencia verificada:
+  - `python -m pytest apps/workers/tests/test_teac.py -k handles_fetch_errors_without_nameerror -q --tb=short` -> primero `1 failed`, luego `1 passed` tras inicializar `logger` a nivel de modulo en `apps/workers/teac.py`
+  - `python -m pytest apps/workers/tests/test_teac.py -q --tb=short` -> `10 passed`
+  - `python apps/workers/cendoj.py --run-once` con `DATABASE_URL=postgresql+psycopg://esdata:esdata_dev@localhost:5434/esdata` y `CENDOJ_SEED_URLS=https://www.poderjudicial.es/search/indexAN.jsp` -> `[run-once] Documentos procesados: 1, almacenados: 1`
+  - `python apps/workers/aepd.py --run-once` con `AEPD_SEED_URLS=https://www.aepd.es/es/resoluciones` -> `500 Internal Server Error`
+  - `python apps/workers/aepd.py --run-once` con `AEPD_SEED_URLS=https://www.aepd.es/es/documento-de-archivo/resoluciones` -> `500 Internal Server Error`
+  - `python apps/workers/aepd.py --run-once` con `AEPD_SEED_URLS=https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673` -> `[run-once] Documentos procesados: 1, almacenados: 1`
+  - `python apps/workers/teac.py --run-once` con `TEAC_SEED_URLS=https://www.hacienda.gob.es/es-ES/Areas%20Tematicas/Impuestos/TEAC/Paginas/Tribunales%20economicos%20administrativos.aspx` -> `TEAC sync failed` con `TypeError: strptime() argument 1 must be str, not None`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT referencia, tipo_fuente, organismo_emisor, url_fuente FROM documento_interpretativo WHERE tipo_fuente IN ('cendoj','aepd','teac') ORDER BY id DESC LIMIT 10;"` -> `AEPD-2018-12 | aepd | AEPD | https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673`; `CENDOJ-indexAN-jsp | cendoj | Tribunal Supremo | https://www.poderjudicial.es/search/indexAN.jsp`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT worker, status, documentos_processed, documentos_upserted, left(coalesce(error_msg,''), 220) AS error_excerpt, started_at FROM sync_log WHERE worker IN ('cron-cendoj-weekly','cron-aepd-weekly','cron-teac-weekly') ORDER BY id DESC LIMIT 10;"` -> `cron-cendoj-weekly | ok | 1 | 1`; `cron-aepd-weekly | ok | 1 | 1`; `cron-aepd-weekly | error | 0 | 0 | 500 Internal Server Error`
+  - `.env.example` actualizado con `CENDOJ_SEED_URLS=https://www.poderjudicial.es/search/indexAN.jsp`
+  - `.env.example` actualizado con `AEPD_SEED_URLS=https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673`
+  - `infra/deploy/compose.env.example` actualizado con `CENDOJ_SEED_URLS=https://www.poderjudicial.es/search/indexAN.jsp` y `AEPD_SEED_URLS=https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673`
   - `grep -n "CNMV_SEED_URLS\|SEPBLAC_SEED_URLS" apps/workers/cnmv.py apps/workers/sepblac.py` -> ambos workers consumen seeds desde variables de entorno
   - `.env.example` actualizado con `CNMV_SEED_URLS=https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133`
   - `.env.example` actualizado con `SEPBLAC_SEED_URLS=https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/`
@@ -261,6 +274,7 @@ Se requiere confirmacion explicita del usuario antes de:
   - `python -m pytest apps/workers/tests/test_modelos.py -q --tb=short` -> `27 passed`
   - comprobación documental fresca: `docs/operations/agent-notes.md` registra la trampa `DRIFT_AEAT` para futuros agentes
 - Riesgos restantes:
+  - `TEAC_SEED_URLS` sigue sin persistirse en `.env.example`: el runtime ya no cae por `logger`, pero el parser actual no encuentra la fecha en el HTML real de la seed estable y falla en `datetime.strptime()`
   - las seeds correctas de `CNMV`, `SEPBLAC` y `BDE` ya estan persistidas en `.env.example`, pero aun hay que propagarlas al entorno Compose/productivo real que inyecta variables a `infra/deploy/docker-compose.prod.yml`; si ese entorno sigue usando valores antiguos, reapareceran los fallos observados en validacion
   - `documento_interpretativo` para CNMV ya tiene 1 registro, SEPBLAC 2 y BDE 1, pero `documento_version`, `cnmv_regulation_link`, `cnmv_obligation_link`, `obligacion_regulatoria`, `screening_lists` y `screening_entries` siguen a `0`; la superficie regulatoria sigue `[PARTIAL]`.
   - el runtime que hoy ocupa `localhost:8001` no se pudo recargar in-place durante esta iteración: `docker compose up -d --build api` falla por un problema preexistente de `requirements.txt` (`../../libs/python/esdata_common` no resoluble en build) y `docker compose up -d api` además choca con el puerto ya asignado; la validación HTTP final se hizo en `8002`
