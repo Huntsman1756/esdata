@@ -7,6 +7,7 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
+- **xxxxxxxx** `docs` — Fase 30.15: Dependabot security advisory — 26 vulns documented (23 medium, 3 low): 21 pypdf DoS/RAM exhaustion in workers, 1 pytest tmpdir, 1 python-dotenv symlink, 1 lychee-action code injection, 1 postcss XSS
 - **xxxxxxxx** `docs` — Fase 30.14: security audit findings — CORS allow_credentials+origin risk, plaintext DB password in docker-compose, missing Docker healthchecks/non-root/SHA digests, fragile SQL injection pattern in router where_clause filters, hardcoded test API keys
 
 ### main

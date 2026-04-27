@@ -3090,6 +3090,55 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 - ✅ No hay webhooks sin verificacion (no hay endpoints de webhooks)
 - ✅ Sentry DSN se lee desde env var de entorno
 
+#### Fase 30.15 — Dependabot alerts: 26 vulnerabilidades en dependencias ✅ COMPLETA
+- **Resumen**: 26 alerts abiertos (23 medium, 3 low) — 1 actions, 24 pip, 1 npm
+- **Origen**: GitHub Dependabot (`github.com/Huntsman1756/esdata/security/dependabot`)
+
+**ACTIONS (1)**:
+- **lycheeverse/lychee-action < 2.0.2** — GHSA-65rg-554r-9j5x / CVE-2024-48908 (medium) — arbitrary code injection en composite action. `.github/workflows/ci.yml`. **Fix**: actualizar a `>=2.0.2`.
+
+**NPM (1)**:
+- **postcss < 8.5.10** — GHSA-qx2v-qp2m-jg93 / CVE-2026-41305 (medium) — XSS via unescaped `</style>` en CSS stringify output. `apps/web/package-lock.json`. **Fix**: `npm update postcss` o fijar `>=8.5.10`.
+
+**PIP — python-dotenv (1)**:
+- **python-dotenv < 1.2.2** — GHSA-mf9w-mj56-hr94 / CVE-2026-28684 (medium) — symlink following en `set_key()` permite overwrite de archivos arbitrarios. `libs/python/esdata_common/requirements.txt`. **Fix**: actualizar a `>=1.2.2`.
+
+**PIP — pypdf (21)** — `apps/workers/requirements.txt`:
+  - **CVE-2026-41314** (medium) — FlateDecode image dimensions exhaust RAM — fix `>=6.10.2`
+  - **CVE-2026-41312** (medium) — FlateDecode predictor params exhaust RAM — fix `>=6.10.2`
+  - **CVE-2026-41313** (medium) — long runtimes wrong size values incremental mode — fix `>=6.10.2`
+  - **CVE-2026-41168** (medium) — long runtimes wrong size cross-reference/object streams — fix `>=6.10.1`
+  - **CVE-2026-40260** (medium) — manipulated XMP metadata exhaust RAM — fix `>=6.10.0`
+  - **CVE-2026-33699** (medium) — infinite loop during recovery attempts — fix `>=6.9.2`
+  - **CVE-2026-33123** (medium) — inefficient decoding array-based streams — fix `>=6.9.1`
+  - **CVE-2026-31826** (medium) — manipulated stream length exhaust RAM — fix `>=6.8.0`
+  - **CVE-2026-28804** (medium) — inefficient ASCIIHexDecode decoding — fix `>=6.7.5`
+  - **CVE-2026-28351** (medium) — manipulated RunLengthDecode exhaust RAM — fix `>=6.7.4`
+  - **CVE-2026-27888** (medium) — manipulated FlateDecode XFA streams exhaust RAM — fix `>=6.7.3`
+  - **CVE-2026-27628** (low) — infinite loop circular /Prev entries — fix `>=6.7.2`
+  - **CVE-2026-27026** (medium) — long runtimes malformed FlateDecode — fix `>=6.7.1`
+  - **CVE-2026-27025** (medium) — long runtimes/large memory /ToUnicode streams — fix `>=6.7.1`
+  - **CVE-2026-27024** (medium) — infinite loop TreeObject processing — fix `>=6.7.1`
+  - **CVE-2026-24688** (medium) — infinite loop outlines/bookmarks — fix `>=6.6.2`
+  - **CVE-2026-22691** (low) — long runtimes malformed startxref — fix `>=6.6.0`
+  - **CVE-2026-22690** (medium) — long runtimes missing /Root with large /Size — fix `>=6.6.0`
+  - **CVE-2025-66019** (medium) — LZWDecode streams exhaust RAM — fix `>=6.4.0`
+  - **CVE-2025-62708** (medium) — LZWDecode streams exhaust RAM — fix `>=6.1.3`
+  - **CVE-2025-62707** (medium) — infinite loop DCT inline images without EOF — fix `>=6.1.3`
+  - **CVE-2025-55197** (medium) — FlateDecode streams exhaust RAM — fix `>=6.0.0`
+
+**PIP — pytest (1)**:
+- **pytest < 9.0.3** — GHSA-6w46-j5rx-g56g / CVE-2025-71176 (medium) — vulnerable tmpdir handling. `apps/api/requirements.txt`. **Fix**: actualizar a `>=9.0.3` (ya instalado en entorno local 9.0.3, verificar requirements.txt).
+
+**Impacto**: todas las vulnerabilidades de pypdf son en `apps/workers` — afectan el parsing de PDFs de fuentes oficiales (BOE, CNMV, etc.). Las más peligrosas son las de exhaustion de RAM (DoS) que podrían activarse con PDFs maliciosos en la ingestion pipeline.
+
+**Prioridad de remediacion**:
+1. **Alta**: pypdf (21 vulns) — actualizar a `>=6.10.2` en `apps/workers/requirements.txt`
+2. **Alta**: pytest — verificar que requirements.txt tenga `>=9.0.3`
+3. **Media**: python-dotenv — actualizar a `>=1.2.2` en `libs/python/esdata_common/requirements.txt`
+4. **Media**: lychee-action — actualizar a `>=2.0.2` en `.github/workflows/ci.yml`
+5. **Media**: postcss — actualizar a `>=8.5.10` en `apps/web/package-lock.json`
+
 ### Entregables esperados
 - auth y rate limiting seguros por defecto
 - tablas durables para audit/lineage/review/query logs
