@@ -111,7 +111,10 @@ DDL_TEMPLATE = [
         response_summary TEXT NOT NULL DEFAULT '',
         model_version TEXT,
         config_version TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        grounding_status TEXT DEFAULT '',
+        prompt_injection_detected INTEGER NOT NULL DEFAULT 0,
+        grounding_summary TEXT NOT NULL DEFAULT '{{}}'
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_query_audit_request ON query_audit_log(request_id)",

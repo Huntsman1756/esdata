@@ -465,11 +465,14 @@ class ChunkCitation(BaseModel):
     article_number: str | None = Field(default=None, description="Numero de articulo cuando aplica")
     rerank_score: float = Field(description="Score bruto devuelto por el reranker para este chunk")
     excerpt: str = Field(description="Extracto corto del chunk para verificacion humana")
+    grounded: bool = Field(default=False, description="Si el chunk supera el umbral de grounding minimo")
+    chunk_clean: bool = Field(default=True, description="Si el chunk no contiene patrones de inyeccion sospechosos")
 
 
 class ClaimCitation(BaseModel):
     claim: dict = Field(description="Identificador del claim (resultado)")
     citations: list[ChunkCitation] = Field(description="Chunks que respaldan este claim")
+    grounded: bool = Field(default=False, description="Si el claim cuenta con al menos una citation grounded")
 
 
 class ConsultaFiscalResponse(BaseModel):

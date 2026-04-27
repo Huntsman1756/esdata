@@ -9,6 +9,7 @@ from middleware.metrics import record_consulta_metrics
 from schemas import ConsultaFiscalResponse
 from services.ai_disclaimer import get_ai_version
 from services.faithfulness import compute_faithfulness
+from services.grounding import validate_claim_grounding
 from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
 from services.reranker import normalize_rerank_score, rerank
@@ -663,6 +664,32 @@ def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tupl
     return [], confianza
 
 
+def _apply_claim_level_abstention(
+    resultados: list[dict],
+    claim_citations: list[dict],
+) -> tuple[list[dict], dict]:
+    """Remove ungrounded claims from results when grounding is insufficient."""
+    grounded_keys: set[str] = set()
+    for item in claim_citations:
+        if item.get("grounded"):
+            claim = item.get("claim", {})
+            key = f"{claim.get('tipo')}:{claim.get('codigo')}:{claim.get('articulo')}"
+            grounded_keys.add(key)
+
+    if not grounded_keys:
+        return [], {}
+
+    filtered = []
+    for r in resultados:
+        articulo_val = r.get('articulo', '') or ''
+        codigo_val = r.get('codigo', r.get('referencia', r.get('norma', '')) or '')
+        key = f"{r['tipo']}:{codigo_val}:{articulo_val}"
+        if key in grounded_keys:
+            filtered.append(r)
+
+    return filtered, {}
+
+
 @router.get(
     "/v1/consulta",
     operation_id="consulta_fiscal",
@@ -951,6 +978,20 @@ async def consulta_fiscal(
     cited_chunks = _build_cited_chunks(ranked_chunks)
     claim_citations = _build_claim_citations(scored_results, ranked_chunks, q)
 
+    # ── Grounding hard — per-claim validation ──────────────────────────
+    grounding_summary = {
+        "total_claims": 0,
+        "grounded_claims": 0,
+        "ungrounded_claims": 0,
+        "grounding_status": "empty",
+        "all_claims_have_evidence": True,
+        "all_chunks_clean": True,
+        "injection_flags": [],
+        "query": q,
+    }
+    if claim_citations and q:
+        claim_citations, grounding_summary = validate_claim_grounding(claim_citations, q)
+
     # Compute confidence
     confianza = _compute_confianza(modelos_detalle, scored_results, q, resolved_modelos)
     final_results, confianza, cited_chunks = _apply_grounding_abstention_if_needed(
@@ -961,6 +1002,19 @@ async def consulta_fiscal(
         confianza,
         cited_chunks,
     )
+
+    # Apply claim-level abstention when grounding is insufficient
+    if claim_citations and grounding_summary.get("grounding_status") in ("partial", "none"):
+        final_results, _ = _apply_claim_level_abstention(
+            final_results, claim_citations
+        )
+    elif not claim_citations and not resolved_modelos and q:
+        # No claim citations and no resolved modelos — check if grounding is empty
+        if not cited_chunks and confianza.get("faithfulness_score", 0.0) < FAITHFULNESS_REVIEW_THRESHOLD:
+            final_results = []
+            confianza = dict(confianza)
+            confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+
     final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
     if not final_results:
         cited_chunks = []
@@ -1000,7 +1054,7 @@ async def consulta_fiscal(
     request_id = request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown"
     user_id = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
     retrieved_chunks = _build_query_audit_chunks(scored_results)
-    response_summary = f"resultados={len(final_results)} faithfulness={confianza.get('faithfulness_score', 0.0):.4f} review_required={confianza.get('review_required', False)}"
+    response_summary = f"resultados={len(final_results)} faithfulness={confianza.get('faithfulness_score', 0.0):.4f} review_required={confianza.get('review_required', False)} grounding={grounding_summary.get('grounding_status', 'unknown')}/{grounding_summary.get('total_claims', 0)} claims"
     get_query_audit_service().record_query(
         request_id=request_id,
         user_id=user_id,
@@ -1010,6 +1064,9 @@ async def consulta_fiscal(
         response_summary=response_summary,
         model_version=get_ai_version(),
         config_version=QUERY_AUDIT_CONFIG_VERSION,
+        grounding_status=grounding_summary.get("grounding_status"),
+        prompt_injection_detected=not grounding_summary.get("all_chunks_clean", True),
+        grounding_summary=grounding_summary,
     )
 
     record_consulta_metrics("/v1/consulta", confianza)
@@ -1023,4 +1080,5 @@ async def consulta_fiscal(
         "confianza": confianza,
         "cited_chunks": cited_chunks,
         "claim_citations": claim_citations,
+        "grounding_summary": grounding_summary,
     }

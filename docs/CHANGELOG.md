@@ -8,6 +8,7 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ### main
 - **xxxxxxxx** `feat(workers)` — embedding versioning: migration 0034 adds embedding_model_name/content_hash columns to 3 tables + embedding_version tracking table, backfill_embeddings.py stores model+hash, 12 change_detection tests
+- **xxxxxxxx** `feat(api)` — grounding hard (Fase 30.13): services/grounding.py with per-claim grounding validation (threshold 0.4), 12+ adversarial chunk injection patterns, claim-level abstention, ChunkCitation/ClaimCitation schemas extended with grounded/chunk_clean flags, query_audit_log DDL extended with grounding fields, 33 tests
 - **xxxxxxxx** `feat(ops)` — CI drift blocking: verify-doc-artifacts.py adds docs-vs-roadmap drift check, undocumented workers detection, endpoint documentation coverage check
 - **xxxxxxxx** `feat(workers)` — incremental reindexing: shared change_detection module, source_revision table, integrate into 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr), 12 tests
 

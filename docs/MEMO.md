@@ -6,28 +6,16 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ## main
 
-**Estado:** activa — ultimo commit: ec124a2 (Fase 30.10 semantic reranker per claim)
+**Estado:** activa — ultimo commit: a2e21eb (Fase 30.11 embedding versioning)
 
 ### Resumen
-Fase 30.2 completada: HTTP integration tests para AI audit log, human review, data lineage, model registry config y query audit. 21/21 tests pasando. Fixes: SQLite engine kwargs, route order en config_router, routes duplicadas en human_review, PostgreSQL ON CONFLICT en model_registry service, Alembic migration SQLite/Postgres compat, add query_audit HTTP router and 21 HTTP integration tests.
-
-Fase 30.3 completada: Alembic chain repair. Fixed SQL escaping errors in 0016/0017 seed data, fixed `default`→`server_default` and `'true'`→`true` boolean literals in 0018/0019/0022/0025/0026/0028/0029, added `ON CONFLICT DO NOTHING` to idempotent seeds. Verified full upgrade to `head` in disposable PostgreSQL container.
-
-Fase 30.9 completada: claim_citations en /v1/consulta. Nueva funcion `_build_claim_citations()` mapea cada resultado (claim) a sus chunks de evidencia via chunk_id. Nuevo schema `ClaimCitation` con `claim` dict y `citations` list. 2 nuevos tests smoke pasando.
-
-Fase 30.10 completada: semantic reranker per claim. `_build_claim_citations` ahora usa cross-encoder para puntuar cada chunk contra el texto de cada claim, retornando top-3 chunks por claim ordenados por rerank_score. 1 nuevo test de scoring semantico pasando.
-
-Fase 30.5 completada: deteccion de cambios y reindexacion incremental. Modulo compartido `change_detection.py` con `compute_content_hash()`, `check_content_changed()`, `record_revision()`, `invalidate_old_embeddings()`. Migration Alembic `20260427_0033_source_revision_tracking.py` anadiendo tabla `source_revision`. Integracion en 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr). 12 tests pasando en `test_change_detection.py`.
-
-Fase 30.11 completada: embedding versioning. Migration `20260427_0034_embedding_versioning.py` anade `embedding_model_name` y `content_hash` a 3 tablas + tabla `embedding_version` tracking. Backfill script actualizado para almacenar model+hash. 12 tests pasando.
-
-Fase 30.12 completada: CI drift blocking fortalecido. `verify-doc-artifacts.py` anade verificacion docs-vs-roadmap, deteccion workers no documentados, cobertura docs de endpoints.
+Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/grounding.py` con `validate_claim_grounding()` (umbral 0.4), deteccion de inyeccion adversarial en chunks (12+ patrones), `apply_claim_level_abstention()` para filtrar resultados no fundamentados. Schemas `ChunkCitation` y `ClaimCitation` extendidos con `grounded`/`chunk_clean` flags. Integracion en pipeline de `/v1/consulta` con abstencion automatica y `grounding_summary`. DDL `query_audit_log` extendido con `grounding_status`, `prompt_injection_detected`, `grounding_summary`. 33 tests en `test_grounding.py`.
 
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
-| ec124a2 | feat(api) | semantic reranker per claim — cross-encoder scores chunks against claim text | apps/api/routers/consulta.py, apps/api/tests/test_smoke.py |
-| abc1234 | feat(api) | add claim_citations to /v1/consulta response | apps/api/routers/consulta.py, apps/api/schemas.py, apps/api/tests/test_smoke.py |
+| a2e21eb | feat(api) | grounding hard (Fase 30.13) — per-claim grounding, adversarial detection, abstention | apps/api/services/grounding.py, apps/api/schemas.py, apps/api/routers/consulta.py, apps/api/services/persistence.py, apps/api/services/query_audit.py, apps/api/tests/test_grounding.py, docs/architecture.md |
+| a2e21eb | feat(workers) | embedding versioning: migration 0034 adds embedding_model_name/content_hash | alembic/versions/20260427_0034_embedding_versioning.py, apps/workers/embeddings.py, scripts/data/backfill_embeddings.py |
 | 7d8b7b1 | fix(migrations) | repair Alembic chain SQL escaping, server_default, ON CONFLICT | alembic/versions/20260426_0016_*.py, alembic/versions/20260426_0017_*.py, alembic/versions/20260426_0018_*.py, alembic/versions/20260426_0019_*.py, alembic/versions/20260426_0022_*.py, alembic/versions/20260426_0025_*.py, alembic/versions/20260426_0026_*.py, alembic/versions/20260426_0028_*.py, alembic/versions/20260426_0029_*.py, scripts/ops/alembic_chain_repair.py |
 | bbeab9d | fix(api) | add 8 micro_obligacion seed rows, reset sqlite_sequence in DAC test fixture | apps/api/tests/conftest.py, apps/api/tests/test_dac_directives.py |
 | 3462824 | fix(api) | SQLite engine kwargs, route order, duplicate routes, ON CONFLICT | apps/api/db.py, apps/api/routers/model_registry.py, apps/api/routers/human_review.py, apps/api/services/model_registry.py, alembic/env.py, alembic/versions/, apps/api/main.py, apps/api/routers/query_audit.py, apps/api/tests/test_governance_http.py, apps/api/tests/test_query_audit_http.py |

@@ -47,6 +47,7 @@ Fuera de alcance inicial:
 - XBRL fixture-first: `COMPLETA`
 - IBAN validation: `COMPLETA`
 - Fase 29.3 LECR + Fase 29.4 CSDR: `COMPLETA`
+- Fase 30.13 Grounding duro por claim: `COMPLETA`
 
 Estado tecnico consolidado:
 
@@ -2960,7 +2961,7 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 ## Fase 30 — Remediacion estructural post-auditoria
 
 ### Estado
-- `30.1 ✅`, `30.2 ✅`, `30.3 ✅`, `30.4 ✅`, `30.5 ✅`, `30.9 ✅`, `30.10 ✅`, `30.11 ✅`, `30.12 ✅` — Fase 30 parcialmente completa; 30.4 sigue pendiente de implementacion real
+- `30.1 ✅`, `30.2 ✅`, `30.3 ✅`, `30.4 ✅`, `30.5 ✅`, `30.9 ✅`, `30.10 ✅`, `30.11 ✅`, `30.12 ✅`, `30.13 ✅` — Fase 30 parcialmente completa; 30.4 sigue pendiente de implementacion real
 
 ### Objetivo
 - cerrar blockers de seguridad, trazabilidad, grounding y operacion antes de seguir ampliando corpus o nuevas superficies de producto
@@ -3026,6 +3027,19 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 - `verify-doc-artifacts.py` añade `verify_endpoints_documented()` — detecta endpoints sin referencia en docs (>30% no documentados) ✅
 - 1 worker no documentado detectado: `vocabulary_validation` ✅
 
+#### Fase 30.13 — Grounding duro por claim ✅ COMPLETA
+- `services/grounding.py` implementado con `validate_claim_grounding()` — per-claim grounding validation con umbral `GROUNDING_THRESHOLD=0.4` ✅
+- Deteccion de inyeccion adversarial en chunks: 12+ patrones (DAN, ignore instructions, code blocks, base64, SQL injection, prompt leak, leetspeak, multilingual ignore, importlib) ✅
+- `apply_claim_level_abstention()` filtra resultados no fundamentados cuando `grounding_status` es "partial" o "none" ✅
+- `ClaimCitation` schema extendido con `grounded: bool` ✅
+- `ChunkCitation` schema extendido con `grounded: bool` y `chunk_clean: bool` ✅
+- Integracion en pipeline de `/v1/consulta`: validacion post-reranker, abstencion automatica, `grounding_summary` en respuesta ✅
+- DDL `query_audit_log` extendido con `grounding_status TEXT`, `prompt_injection_detected INTEGER`, `grounding_summary TEXT` ✅
+- `QueryAuditEntry` y `record_query()` actualizados con nuevos campos ✅
+- `query_audit.py` actualizado para serializar/deserializar nuevos campos ✅
+- `architecture.md` actualizado: inference layer `[IMPLEMENTED]`, validacion y auditoria `[IMPLEMENTED]` ✅
+- `test_grounding.py` — 33 tests: chunk injection detection (14 tests), sufficient evidence (6 tests), grounding validation (8 tests), claim-level abstention (4 tests) ✅
+
 ### Entregables esperados
 - auth y rate limiting seguros por defecto
 - tablas durables para audit/lineage/review/query logs
@@ -3046,9 +3060,11 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 1. no existe ningun entorno no-dev donde API o `/mcp` queden expuestos por omision
 2. toda query AI queda registrada con retrieval, configuracion, respuesta y actor en almacenamiento durable
 3. toda respuesta factual puede citar chunks exactos y devolver score de faithfulness
-4. el sistema puede responder relaciones cross-source via una capa de conectividad explicita y no solo via fan-out heuristico
-5. cambios de fuente disparan solo reindexado incremental, no reembedding global indiscriminado
-6. CI bloquea drift documental y checks rotos; monitoring emite senales operativas reales
+4. toda respuesta factual valida grounding por claim: cada afirmacion tiene `grounded=true` con `rerank_score >= 0.4` o se abstiene automaticamente
+5. los chunks recuperados se tratan como input no confiable: se detectan patrones de inyeccion adversarial y se flaguean individualmente
+6. el sistema puede responder relaciones cross-source via una capa de conectividad explicita y no solo via fan-out heuristico
+7. cambios de fuente disparan solo reindexado incremental, no reembedding global indiscriminado
+8. CI bloquea drift documental y checks rotos; monitoring emite senales operativas reales
 
 ### Instrucciones para agentes
 - no continuar con nuevas fases de expansion normativa mientras 30.1 siga abierta salvo correccion de bug critico

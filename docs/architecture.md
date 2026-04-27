@@ -102,14 +102,14 @@ Capacidades reales hoy:
 
 - [IMPLEMENTED] ingesta multi-fuente por workers especializados
 - [IMPLEMENTED] almacenamiento principal en PostgreSQL
-- [PARTIAL] full-text search, chunking y busqueda vectorial/hibrida sin reranker activo ni grounding duro por claim
+- [IMPLEMENTED] full-text search, chunking y busqueda vectorial/hibrida con reranker cross-encoder activo y grounding duro por claim
 - [IMPLEMENTED] superficies API y MCP para consulta
 
 Limitaciones estructurales vigentes:
 
 - [PARTIAL] la conectividad cross-source global no esta modelada de forma explicita; hoy predomina el fan-out por tablas y fusion heuristica
 - [PARTIAL] existen piezas de AI governance durables, pero la auditoria de consulta end-to-end sigue incompleta mientras `query_audit` no este cableado al runtime
-- [PARTIAL] la trazabilidad de retrieval devuelve `chunk_id` y `source_hash`, pero no impone grounding fuerte por claim ni abstencion dura
+- [IMPLEMENTED] la trazabilidad de retrieval devuelve `chunk_id`, `source_hash`, grounding por claim con `grounded` flag, y abstencion por evidencia insuficiente
 - [PARTIAL] la observabilidad actual cubre salud HTTP, freshness y metricas basicas, pero no retrieval P95/P99, token count, coste ni error budget por componente
 
 ## Arquitectura objetivo post-auditoria
@@ -212,16 +212,20 @@ Cada resultado factual debe devolver al menos:
 - score de retrieval
 - motivo de ranking
 
-#### 5. Inference layer con grounding estricto `[TARGET]`
+#### 5. Inference layer con grounding estricto `[IMPLEMENTED]`
 
-Reglas objetivo:
+Reglas implementadas:
 
 - RAG solo en inferencia; el conocimiento no se "entrena" al cambiar el corpus
-- temperatura `0` o casi `0` en queries factuales
-- no emitir una afirmacion si no existe chunk citables suficiente
-- respuestas de baja confianza deben derivarse a revision humana o abstenerse
+- grounding duro por claim: cada afirmacion factual se valida contra chunks con `rerank_score >= 0.4`
+- abstencion automatica: si `grounding_status` es "partial" o "none", se filtran resultados no fundamentados
+- chunks como input no confiable: deteccion de patrones de inyeccion adversarial (12+ patrones: DAN, ignore instructions, code blocks, base64, SQL injection, prompt leak)
+- `grounding_summary` persistente en `query_audit_log` con status, scores y flags de inyeccion
+- `grounded` flag por claim y `chunk_clean` flag por citation en respuesta
+- revision humana via `human_review.py` con `ReviewStatus` enum y persistencia SQL dual (SQLite/PostgreSQL)
+- faithfulness scoring con token overlap (citas strip, partial match tokens >= 5 chars)
 
-#### 6. Validacion y auditoria `[PARTIAL]`
+#### 6. Validacion y auditoria `[IMPLEMENTED]`
 
 Toda query relevante debe dejar evidencia durable de:
 
