@@ -78,6 +78,7 @@ from routers import (
     pgc,
     playbooks,
     prospectos,
+    query_audit,
     rd2172008,
     risk_control_matrix,
     screening,
@@ -306,7 +307,9 @@ def create_app() -> FastAPI:
     app.include_router(ai_safety.router)
     app.include_router(human_review.router)
     app.include_router(model_registry.router)
+    app.include_router(model_registry.config_router)
     app.include_router(data_lineage.router)
+    app.include_router(query_audit.router)
     app.include_router(gdpr.router)
     app.include_router(source_manifest.router)
     app.include_router(observability.router)

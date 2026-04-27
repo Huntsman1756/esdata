@@ -99,6 +99,14 @@ def get_current_config() -> dict:
     return config.model_dump()
 
 
+@config_router.get("/history")
+def get_config_history() -> list[dict]:
+    """Get full configuration version history."""
+    registry = get_model_registry()
+    history = registry.get_config_history()
+    return [c.model_dump() for c in history]
+
+
 @config_router.get("/{version_id}")
 def get_config_version(version_id: str) -> dict:
     """Get a specific configuration version by ID."""
@@ -107,14 +115,6 @@ def get_config_version(version_id: str) -> dict:
     if config is None:
         raise HTTPException(status_code=404, detail=f"Config version not found: {version_id}")
     return config.model_dump()
-
-
-@config_router.get("/history")
-def get_config_history() -> list[dict]:
-    """Get full configuration version history."""
-    registry = get_model_registry()
-    history = registry.get_config_history()
-    return [c.model_dump() for c in history]
 
 
 @config_router.post("/update")

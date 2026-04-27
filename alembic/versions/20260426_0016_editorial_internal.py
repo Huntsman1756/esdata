@@ -168,11 +168,11 @@ def upgrade() -> None:
             'Aplicable a todas las sociedades de valores. Complementa el PGC con requisitos específicos de reporting prudencial.',
             'Las sociedades de valores deben preparar estados de información reservada adicionales a las cuentas anuales PGC.',
             'BOE-A-2009-133',
-            (SELECT id FROM documento_interpretativo WHERE referencia = ''BOE-A-2009-133'' LIMIT 1),
+            (SELECT id FROM documento_interpretativo WHERE referencia = 'BOE-A-2009-133' LIMIT 1),
             'compliance',
             'vigente',
             'resumen_interno'
-        WHERE EXISTS (SELECT 1 FROM documento_interpretativo WHERE referencia = ''BOE-A-2009-133'')
+        WHERE EXISTS (SELECT 1 FROM documento_interpretativo WHERE referencia = 'BOE-A-2009-133')
         """
     )
 
@@ -191,7 +191,7 @@ def upgrade() -> None:
             'compliance',
             'vigente',
             1,
-            ''2026-05-01''::date
+            '2026-05-01'::date
         """
     )
 

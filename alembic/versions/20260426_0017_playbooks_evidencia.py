@@ -30,7 +30,7 @@ def upgrade() -> None:
                    comment="Codigo unico del playbook (ej: PLAYBOOK-CNMV-IR)"),
         sa.Column("nombre", sa.Text(), nullable=False,
                    comment="Nombre descriptivo del procedimiento operativo"),
-        sa.Column("obligacion_codigo", sa.Text(), nullable=False,
+        sa.Column("obligacion_codigo", sa.Text(), nullable=True,
                    comment="FK a obligacion_regulatoria.codigo"),
         sa.Column("descripcion", sa.Text(), nullable=True,
                    comment="Descripcion operativa del playbook completo"),
@@ -207,7 +207,7 @@ def upgrade() -> None:
         """
         CREATE INDEX IF NOT EXISTS idx_evidencia_control_obligatoria
             ON evidencia_control(obligatoria)
-            WHERE obligatoria = 1
+            WHERE obligatoria = true
         """
     )
 
@@ -221,7 +221,7 @@ def upgrade() -> None:
         SELECT
             'PLAYBOOK-CNMV-IR',
             'Preparacion y remision de informacion reservada a la CNMV',
-            'CNMV-IR-RESERVADA',
+            NULL,
             'Procedimiento operativo para la preparacion, revision y remision de los estados de informacion reservada exigidos por la Circular 9/2008 de la CNMV a las entidades supervisadas.',
             'mensual',
             'compliance',
@@ -243,7 +243,7 @@ def upgrade() -> None:
               'Libro mayor, extractos bancarios, registros de tesoreria',
               'Dataset de datos contables del periodo',
               '["Verificar integridad de datos","Conciliar balances","Validar cuentas maestras"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-CNMV-IR''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-CNMV-IR'
         """
     )
 
@@ -255,9 +255,9 @@ def upgrade() -> None:
               'captura', 'contabilidad',
               'Dataset de datos contables del periodo, plantillas CNMV',
               'Estados financieros reservados del periodo',
-              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-CNMV-IR'' AND s.orden = 1),
+              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-CNMV-IR' AND s.orden = 1),
               '["Formato CNMV vigente","Cruce con estados publicos","Notas a cuentas completas"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-CNMV-IR''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-CNMV-IR'
         """
     )
 
@@ -269,9 +269,9 @@ def upgrade() -> None:
               'revision', 'compliance',
               'Estados financieros reservados, normativa CNMV vigente',
               'Informe de revision de compliance firmado',
-              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-CNMV-IR'' AND s.orden = 2),
+              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-CNMV-IR' AND s.orden = 2),
               '["Validar ratios prudenciales","Verificar limites de riesgo","Confirmar cumplimiento normativo"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-CNMV-IR''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-CNMV-IR'
         """
     )
 
@@ -283,9 +283,9 @@ def upgrade() -> None:
               'aprobacion', 'direccion_general',
               'Estados financieros reservados, informe de compliance',
               'Acta de aprobacion de estados reservados',
-              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-CNMV-IR'' AND s.orden = 3),
+              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-CNMV-IR' AND s.orden = 3),
               '["Aprobacion formal por escrito","Registro de aprobacion"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-CNMV-IR''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-CNMV-IR'
         """
     )
 
@@ -297,9 +297,9 @@ def upgrade() -> None:
               'accion', 'compliance',
               'Estados aprobados, certificado digital, canal CNMV',
               'Acuse de recibo de la CNMV',
-              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-CNMV-IR'' AND s.orden = 4),
+              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-CNMV-IR' AND s.orden = 4),
               '["Verificar fecha limite","Confirmar acuse de recibo","Archivar evidencia de envio"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-CNMV-IR''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-CNMV-IR'
         """
     )
 
@@ -312,14 +312,14 @@ def upgrade() -> None:
         )
         SELECT
             'EVID-CNMV-IR-001',
-            (SELECT id FROM playbook_operativo WHERE codigo = ''PLAYBOOK-CNMV-IR''),
+            (SELECT id FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR'),
             'Estados financieros reservados del periodo',
             'Estados de informacion reservada (balance, cuenta de resultados, notas) elaborados conforme a la Circular 9/2008 CNMV.',
             'documento',
             'pdf',
             3650,
             true,
-            ''requerido''
+            'requerido'
         WHERE EXISTS (SELECT 1 FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR')
         """
     )
@@ -332,15 +332,15 @@ def upgrade() -> None:
         )
         SELECT
             'EVID-CNMV-IR-002',
-            (SELECT id FROM playbook_operativo WHERE codigo = ''PLAYBOOK-CNMV-IR''),
-            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-CNMV-IR'' AND s.orden = 3),
+            (SELECT id FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR'),
+            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-CNMV-IR' AND s.orden = 3),
             'Informe de revision de compliance',
             'Informe del responsable de compliance validando el cumplimiento normativo de los estados reservados.',
             'documento',
             'pdf',
             3650,
             true,
-            ''requerido''
+            'requerido'
         WHERE EXISTS (SELECT 1 FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR')
         """
     )
@@ -353,15 +353,15 @@ def upgrade() -> None:
         )
         SELECT
             'EVID-CNMV-IR-003',
-            (SELECT id FROM playbook_operativo WHERE codigo = ''PLAYBOOK-CNMV-IR''),
-            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-CNMV-IR'' AND s.orden = 4),
+            (SELECT id FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR'),
+            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-CNMV-IR' AND s.orden = 4),
             'Acta de aprobacion por direccion',
             'Documento formal de aprobacion de los estados reservados por la direccion general.',
             'aprobacion',
             'pdf',
             3650,
             true,
-            ''requerido''
+            'requerido'
         WHERE EXISTS (SELECT 1 FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR')
         """
     )
@@ -374,15 +374,15 @@ def upgrade() -> None:
         )
         SELECT
             'EVID-CNMV-IR-004',
-            (SELECT id FROM playbook_operativo WHERE codigo = ''PLAYBOOK-CNMV-IR''),
-            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-CNMV-IR'' AND s.orden = 5),
+            (SELECT id FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR'),
+            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-CNMV-IR' AND s.orden = 5),
             'Acuse de recibo CNMV',
             'Confirmacion electronica de envio y recepcion por parte de la CNMV.',
             'log',
             'xml',
             3650,
             true,
-            ''requerido''
+            'requerido'
         WHERE EXISTS (SELECT 1 FROM playbook_operativo WHERE codigo = 'PLAYBOOK-CNMV-IR')
         """
     )
@@ -397,7 +397,7 @@ def upgrade() -> None:
         SELECT
             'PLAYBOOK-SEPBLAC-INDICIO',
             'Comunicacion de operativas sospechosas por indicio (Modelo 19 SEPBLAC)',
-            'SEPBLAC-INDICIO-M19',
+            NULL,
             'Procedimiento operativo para la deteccion, evaluacion y comunicacion de operativas sospechosas a SEPBLAC mediante el Modelo 19.',
             'eventual',
             'compliance',
@@ -419,7 +419,7 @@ def upgrade() -> None:
               'Datos de la operacion, perfil del cliente, historial transaccional',
               'Registro interno del indicio detectado',
               '["Describir el hecho","Identificar las partes involucradas","Documentar la fecha y monto"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO'
         """
     )
 
@@ -431,9 +431,9 @@ def upgrade() -> None:
               'revision', 'compliance',
               'Registro del indicio, analisis de riesgo del cliente, normativa PBCFT',
               'Informe de evaluacion con conclusion',
-              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO'' AND s.orden = 1),
+              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO' AND s.orden = 1),
               '["Analizar patrones","Verificar historial","Consultar lista de riesgos"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO'
         """
     )
 
@@ -445,9 +445,9 @@ def upgrade() -> None:
               'captura', 'compliance',
               'Informe de evaluacion, datos del cliente, datos de la operacion, formulario Modelo 19',
               'Modelo 19 completado y revisado',
-              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO'' AND s.orden = 2),
+              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO' AND s.orden = 2),
               '["Datos completos del sujeto","Descripcion detallada del hecho","Documentacion de soporte"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO'
         """
     )
 
@@ -459,9 +459,9 @@ def upgrade() -> None:
               'accion', 'compliance',
               'Modelo 19 completado, certificado digital, canal SEPBLAC',
               'Confirmacion de envio a SEPBLAC',
-              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO'' AND s.orden = 3),
+              (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO' AND s.orden = 3),
               '["Verificar certificado digital","Confirmar recepcion","Archivar copia"]'
-        FROM playbook_operativo p WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO''
+        FROM playbook_operativo p WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO'
         """
     )
 
@@ -474,14 +474,14 @@ def upgrade() -> None:
         )
         SELECT
             'EVID-SEPBLAC-IND-001',
-            (SELECT id FROM playbook_operativo WHERE codigo = ''PLAYBOOK-SEPBLAC-INDICIO''),
+            (SELECT id FROM playbook_operativo WHERE codigo = 'PLAYBOOK-SEPBLAC-INDICIO'),
             'Registro interno del indicio detectado',
             'Documento interno que registra los hechos que constituyen el indicio de actividad sospechosa.',
             'documento',
             'pdf',
             5475,
             true,
-            ''requerido''
+            'requerido'
         WHERE EXISTS (SELECT 1 FROM playbook_operativo WHERE codigo = 'PLAYBOOK-SEPBLAC-INDICIO')
         """
     )
@@ -494,15 +494,15 @@ def upgrade() -> None:
         )
         SELECT
             'EVID-SEPBLAC-IND-002',
-            (SELECT id FROM playbook_operativo WHERE codigo = ''PLAYBOOK-SEPBLAC-INDICIO''),
-            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO'' AND s.orden = 2),
+            (SELECT id FROM playbook_operativo WHERE codigo = 'PLAYBOOK-SEPBLAC-INDICIO'),
+            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO' AND s.orden = 2),
             'Informe de evaluacion interna',
             'Informe del responsable de compliance con la evaluacion y conclusion sobre la comunicacion obligatoria.',
             'documento',
             'pdf',
             5475,
             true,
-            ''requerido''
+            'requerido'
         WHERE EXISTS (SELECT 1 FROM playbook_operativo WHERE codigo = 'PLAYBOOK-SEPBLAC-INDICIO')
         """
     )
@@ -515,15 +515,15 @@ def upgrade() -> None:
         )
         SELECT
             'EVID-SEPBLAC-IND-003',
-            (SELECT id FROM playbook_operativo WHERE codigo = ''PLAYBOOK-SEPBLAC-INDICIO''),
-            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = ''PLAYBOOK-SEPBLAC-INDICIO'' AND s.orden = 4),
+            (SELECT id FROM playbook_operativo WHERE codigo = 'PLAYBOOK-SEPBLAC-INDICIO'),
+            (SELECT s.id FROM playbook_step s JOIN playbook_operativo p ON p.id = s.playbook_id WHERE p.codigo = 'PLAYBOOK-SEPBLAC-INDICIO' AND s.orden = 4),
             'Confirmacion de envio a SEPBLAC',
             'Acuse de recibo o confirmacion electronica del envio del Modelo 19 a SEPBLAC.',
             'log',
             'xml',
             5475,
             true,
-            ''requerido''
+            'requerido'
         WHERE EXISTS (SELECT 1 FROM playbook_operativo WHERE codigo = 'PLAYBOOK-SEPBLAC-INDICIO')
         """
     )

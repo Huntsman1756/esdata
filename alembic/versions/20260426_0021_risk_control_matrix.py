@@ -45,7 +45,7 @@ def upgrade() -> None:
         sa.Index("ix_riesgo_regulatorio_obligacion", "obligacion_codigo"),
         sa.Index("ix_riesgo_regulatorio_estado", "estado"),
         sa.Index("ix_riesgo_regulatorio_severidad", "severidad"),
-        sa.Index("ix_riesgo_regulatorio_nombre_trgm", "nombre", postgresql_ops={"nombre": "gin_trgm_ops"}),
+        sa.Index("ix_riesgo_regulatorio_nombre_trgm", "nombre", postgresql_using="gin", postgresql_ops={"nombre": "gin_trgm_ops"}),
     )
 
     # --- control_interno ---
@@ -64,7 +64,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.TIMESTAMP(timezone=True), server_default=sa.text("now()")),
         sa.Index("ix_control_interno_codigo", "codigo"),
         sa.Index("ix_control_interno_estado", "estado"),
-        sa.Index("ix_control_interno_nombre_trgm", "nombre", postgresql_ops={"nombre": "gin_trgm_ops"}),
+        sa.Index("ix_control_interno_nombre_trgm", "nombre", postgresql_using="gin", postgresql_ops={"nombre": "gin_trgm_ops"}),
     )
 
     # --- riesgo_control_link (mapping riesgo -> control) ---

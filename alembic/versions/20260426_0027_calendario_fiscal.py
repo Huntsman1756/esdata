@@ -3,6 +3,8 @@
 Crea tabla para fechas reales de presentacion por modelo y campana.
 """
 
+import sqlalchemy as sa
+
 from alembic import op
 
 revision = "20260426_0027_calendario_fiscal"
@@ -14,23 +16,20 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "modelo_fiscal_calendar",
-        op.Column("id", op.Integer(), primary_key=True),
-        op.Column(
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column(
             "campana_id",
-            op.Integer(),
+            sa.Integer(),
+            sa.ForeignKey("modelo_campana.id", ondelete="CASCADE"),
             nullable=False,
-            foreign_key=[
-                "modelo_campana.id",
-            ],
-            ondelete="CASCADE",
         ),
-        op.Column("fecha_inicio_presentacion", op.DateTime(), nullable=False),
-        op.Column("fecha_fin_presentacion", op.DateTime(), nullable=False),
-        op.Column("fecha_fin_prorroga", op.DateTime(), nullable=True),
-        op.Column("observaciones", op.Text(), nullable=True),
-        op.Column("fuente", op.Text(), nullable=True),
-        op.Column("activo", op.Boolean(), nullable=False, server_default="true"),
-        op.UniqueConstraint(
+        sa.Column("fecha_inicio_presentacion", sa.DateTime(), nullable=False),
+        sa.Column("fecha_fin_presentacion", sa.DateTime(), nullable=False),
+        sa.Column("fecha_fin_prorroga", sa.DateTime(), nullable=True),
+        sa.Column("observaciones", sa.Text(), nullable=True),
+        sa.Column("fuente", sa.Text(), nullable=True),
+        sa.Column("activo", sa.Boolean(), nullable=False, server_default="true"),
+        sa.UniqueConstraint(
             "campana_id",
             "fecha_inicio_presentacion",
             name="uq_calendario_campana_fecha",

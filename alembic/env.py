@@ -50,7 +50,7 @@ target_metadata = None
 
 def normalize_db_url(db_url: str) -> str:
     if db_url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + db_url.removeprefix("postgresql://")
+        return "postgresql+psycopg2://" + db_url.removeprefix("postgresql://")
     return db_url
 
 
@@ -80,6 +80,7 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         _widen_existing_version_table_if_needed(connection)
+        connection.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():

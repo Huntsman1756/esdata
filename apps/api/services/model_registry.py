@@ -163,10 +163,20 @@ class ModelRegistry:
             conn.execute(
                 text(
                     """
-                    INSERT OR REPLACE INTO ai_model_registry
+                    INSERT INTO ai_model_registry
                     (model_id, nombre, version, tipo, proveedor, hash_modelo, descripcion, fecha_despliegue, activo, configuracion)
                     VALUES
                     (:model_id, :nombre, :version, :tipo, :proveedor, :hash_modelo, :descripcion, :fecha_despliegue, :activo, :configuracion)
+                    ON CONFLICT (model_id) DO UPDATE SET
+                        nombre = EXCLUDED.nombre,
+                        version = EXCLUDED.version,
+                        tipo = EXCLUDED.tipo,
+                        proveedor = EXCLUDED.proveedor,
+                        hash_modelo = EXCLUDED.hash_modelo,
+                        descripcion = EXCLUDED.descripcion,
+                        fecha_despliegue = EXCLUDED.fecha_despliegue,
+                        activo = EXCLUDED.activo,
+                        configuracion = EXCLUDED.configuracion
                     """
                 ),
                 {

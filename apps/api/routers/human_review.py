@@ -29,6 +29,35 @@ def list_pending_reviews(
     return pending[offset : offset + limit]
 
 
+@router.get("/v1/ai/human-review/stats")
+def get_review_stats():
+    store = get_review_store()
+    counts = store.count_by_status()
+    pending = store.get_pending()
+    return {
+        "total": len(store.get_pending()) + len(store.get_by_status(ReviewStatus.APPROVED)) + len(store.get_by_status(ReviewStatus.REJECTED)) + len(store.get_by_status(ReviewStatus.ESCALATED)),
+        "by_status": counts,
+        "pending_count": len(pending),
+    }
+
+
+@router.get("/v1/ai/human-review/by-status/{status}")
+def get_reviews_by_status(
+    status: ReviewStatus,
+    limit: int = Query(50, ge=1, le=200),
+):
+    store = get_review_store()
+    entries = store.get_by_status(status)
+    return entries[:limit]
+
+
+@router.get("/v1/ai/human-review/by-request/{request_id}")
+def get_reviews_by_request(request_id: str):
+    store = get_review_store()
+    entries = store.get_by_request_id(request_id)
+    return entries
+
+
 @router.get("/v1/ai/human-review/{review_id}")
 def get_review(review_id: str):
     store = get_review_store()
@@ -59,32 +88,3 @@ def check_if_review_needed(
     auto_threshold: float = Query(0.95, ge=0.0, le=1.0),
 ):
     return check_review_required(ai_confidence, confidence_threshold, auto_threshold)
-
-
-@router.get("/v1/ai/human-review/stats")
-def get_review_stats():
-    store = get_review_store()
-    counts = store.count_by_status()
-    pending = store.get_pending()
-    return {
-        "total": len(store.get_pending()) + len(store.get_by_status(ReviewStatus.APPROVED)) + len(store.get_by_status(ReviewStatus.REJECTED)) + len(store.get_by_status(ReviewStatus.ESCALATED)),
-        "by_status": counts,
-        "pending_count": len(pending),
-    }
-
-
-@router.get("/v1/ai/human-review/by-status/{status}")
-def get_reviews_by_status(
-    status: ReviewStatus,
-    limit: int = Query(50, ge=1, le=200),
-):
-    store = get_review_store()
-    entries = store.get_by_status(status)
-    return entries[:limit]
-
-
-@router.get("/v1/ai/human-review/by-request/{request_id}")
-def get_reviews_by_request(request_id: str):
-    store = get_review_store()
-    entries = store.get_by_request_id(request_id)
-    return entries

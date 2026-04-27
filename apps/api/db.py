@@ -15,9 +15,12 @@ DATABASE_URL = os.getenv(
     "postgresql+psycopg://esdata:testpass@localhost:5434/esdata",
 )
 
-engine_kwargs = {"future": True, "pool_size": 50, "max_overflow": 100, "pool_pre_ping": True}
+engine_kwargs = {"future": True, "pool_pre_ping": True}
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs["pool_size"] = 50
+    engine_kwargs["max_overflow"] = 100
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)

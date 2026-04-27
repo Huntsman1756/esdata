@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.execute(
         """
         CREATE TABLE IF NOT EXISTS ownership_share (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             titular_id INTEGER NOT NULL,
             titular_tipo TEXT NOT NULL CHECK (titular_tipo IN ('empresa', 'persona')),
@@ -68,7 +68,7 @@ def upgrade() -> None:
     op.execute(
         """
         CREATE TABLE IF NOT EXISTS ownership_relation (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             empresa_origen_id INTEGER NOT NULL REFERENCES empresa(id),
             empresa_destino_id INTEGER NOT NULL REFERENCES empresa(id),
             tipo_relacion TEXT NOT NULL CHECK (tipo_relacion IN (
@@ -118,7 +118,7 @@ def upgrade() -> None:
     op.execute(
         """
         CREATE TABLE IF NOT EXISTS ubo_record (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             nombre_persona TEXT NOT NULL,
             nacionalidad TEXT,
