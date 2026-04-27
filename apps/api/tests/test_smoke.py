@@ -2141,3 +2141,21 @@ async def test_consulta_claim_citations_mapea_por_chunk_id():
                 assert cit["chunk_id"] is not None
                 assert cit["rerank_score"] is not None
                 assert len(cit["excerpt"]) > 0
+                if cit["chunk_id"] == claim_entry["citations"][0]["chunk_id"]:
+                    continue
+
+
+@pytest.mark.asyncio
+async def test_consulta_claim_citations_semantic_scoring():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=deduccion+gastos+representacion+is")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    if data["claim_citations"]:
+        for claim_entry in data["claim_citations"]:
+            citations = claim_entry["citations"]
+            if len(citations) >= 2:
+                scores = [c["rerank_score"] for c in citations]
+                assert scores == sorted(scores, reverse=True), "citations should be sorted by rerank_score desc"

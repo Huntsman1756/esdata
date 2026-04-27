@@ -541,41 +541,67 @@ def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
     ]
 
 
-def _build_claim_citations(resultados: list[dict], ranked_chunks: list) -> list[dict]:
-    citation_map = {}
-    for chunk in ranked_chunks:
-        if chunk.chunk_id in citation_map:
-            citation_map[chunk.chunk_id].append({
-                "chunk_id": chunk.chunk_id,
-                "source_document": chunk.source_document,
-                "article_number": chunk.article_number,
-                "rerank_score": float(chunk.rerank_score),
-                "excerpt": chunk.text[:200],
-            })
-        else:
-            citation_map[chunk.chunk_id] = [{
-                "chunk_id": chunk.chunk_id,
-                "source_document": chunk.source_document,
-                "article_number": chunk.article_number,
-                "rerank_score": float(chunk.rerank_score),
-                "excerpt": chunk.text[:200],
-            }]
+def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: str) -> list[dict]:
+    all_chunks = []
+    seen_ids = set()
+    for resultado in resultados:
+        chunk_id = _result_citation_id(resultado)
+        text = _result_text(resultado)
+        source_document = _result_source_document(resultado)
+        if not chunk_id or not text or not source_document:
+            continue
+        if chunk_id in seen_ids:
+            continue
+        seen_ids.add(chunk_id)
+        all_chunks.append({
+            "chunk_id": chunk_id,
+            "text": text,
+            "source_document": str(source_document),
+            "article_number": _result_article_number(resultado),
+        })
+
+    if not all_chunks or not query:
+        return [
+            {
+                "claim": {
+                    "tipo": r.get("tipo"),
+                    "codigo": r.get("codigo") or r.get("norma") or r.get("referencia"),
+                    "articulo": r.get("articulo"),
+                    "nombre": r.get("nombre") or r.get("titulo"),
+                },
+                "citations": [],
+            }
+            for r in resultados
+            if _result_citation_id(r)
+        ]
+
+    from services.reranker import rerank as semantic_rerank
 
     claim_citations = []
     for resultado in resultados:
         chunk_id = _result_citation_id(resultado)
         if not chunk_id:
             continue
-        if chunk_id in citation_map:
-            claim_citations.append({
-                "claim": {
-                    "tipo": resultado.get("tipo"),
-                    "codigo": resultado.get("codigo") or resultado.get("norma") or resultado.get("referencia"),
-                    "articulo": resultado.get("articulo"),
-                    "nombre": resultado.get("nombre") or resultado.get("titulo"),
-                },
-                "citations": citation_map[chunk_id],
-            })
+        claim_text = _result_text(resultado)
+        if not claim_text:
+            continue
+        ranked = semantic_rerank(claim_text, all_chunks, top_k=3)
+        citations = [{
+            "chunk_id": ch.chunk_id,
+            "source_document": ch.source_document,
+            "article_number": ch.article_number,
+            "rerank_score": float(ch.rerank_score),
+            "excerpt": ch.text[:200],
+        } for ch in ranked]
+        claim_citations.append({
+            "claim": {
+                "tipo": resultado.get("tipo"),
+                "codigo": resultado.get("codigo") or resultado.get("norma") or resultado.get("referencia"),
+                "articulo": resultado.get("articulo"),
+                "nombre": resultado.get("nombre") or resultado.get("titulo"),
+            },
+            "citations": citations,
+        })
     return claim_citations
 
 
@@ -923,7 +949,7 @@ async def consulta_fiscal(
     scored_results = _apply_rerank_scores(scored_results, ranked_chunks)
     scored_results.sort(key=lambda x: x['_relevancia']['score'], reverse=True)
     cited_chunks = _build_cited_chunks(ranked_chunks)
-    claim_citations = _build_claim_citations(scored_results, ranked_chunks)
+    claim_citations = _build_claim_citations(scored_results, ranked_chunks, q)
 
     # Compute confidence
     confianza = _compute_confianza(modelos_detalle, scored_results, q, resolved_modelos)
