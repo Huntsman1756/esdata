@@ -115,16 +115,26 @@ def run_migrations_online() -> None:
     except Exception:
         conn.rollback()
 
-    with conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS alembic_version (
-                version_num VARCHAR(128) NOT NULL PRIMARY KEY
-            )
-        """))
-        context.configure(connection=conn, target_metadata=target_metadata, render_as_batch=True)
-        with context.begin_transaction():
-            context.run_migrations()
+    # Ensure extensions and version table exist BEFORE configuring alembic
+    conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS alembic_version (
+            version_num VARCHAR(128) NOT NULL PRIMARY KEY
+        )
+    """))
+    conn.commit()
+
+    context.configure(
+        connection=conn,
+        target_metadata=target_metadata,
+        render_as_batch=True,
+        transaction_per_migration=True,
+    )
+
+    # Run migrations without wrapping in begin_transaction
+    # Each migration already manages its own transaction
+    context.run_migrations()
 
 
 if context.is_offline_mode():

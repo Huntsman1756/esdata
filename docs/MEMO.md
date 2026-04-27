@@ -16,6 +16,7 @@ Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/groundin
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+| xxxxxxxx | fix(alembic) | fix alembic/env.py: vector extension, transaction_per_migration, no begin_transaction wrapper | alembic/env.py, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | docs | Fase 30.15 — Dependabot advisory: 26 dependency vulns (21 pypdf, pytest, dotenv, lychee, postcss) | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | docs | Fase 30.14 — security audit: CORS, plaintext password, Docker hardening, SQL injection pattern | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | feat(api) | Fase 30.4 — graph connectivity (recursive CTEs, 7 entity types), markdown lint + link check, 5 new Prometheus metrics | apps/api/services/graph_connectivity.py, apps/api/routers/connectivity.py, apps/api/schemas.py, apps/api/middleware/metrics.py, apps/api/routers/consulta.py, apps/api/requirements.txt, scripts/maintenance/verify-doc-artifacts.py, apps/api/tests/test_graph_connectivity.py |
