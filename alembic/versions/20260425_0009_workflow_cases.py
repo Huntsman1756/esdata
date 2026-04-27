@@ -34,8 +34,8 @@ def upgrade() -> None:
         sa.Column("resultado_revision", sa.Text(), nullable=True),
         sa.Column("notas", sa.Text(), nullable=True),
         sa.Column("accion_recomendada_confirmada", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("NOW()")),
         sa.PrimaryKeyConstraint("id"),
     )
 
@@ -64,7 +64,8 @@ def upgrade() -> None:
         INSERT INTO workflow_cases (
             workflow_id, cambio_codigo, obligacion_codigo, estado, owner_rol,
             fecha_objetivo, evidencia_requerida, checklist
-        ) VALUES (
+        )
+        SELECT
             'WF-001',
             'CAMBIO-CNMV-001',
             'CNMV-IR-RESERVADA',
@@ -73,8 +74,9 @@ def upgrade() -> None:
             '2026-05-05'::date,
             ARRAY['analisis_impacto', 'actualizacion_calendario'],
             ARRAY['validar impacto normativo', 'asignar responsable', 'confirmar fecha objetivo']
+        WHERE NOT EXISTS (
+            SELECT 1 FROM workflow_cases WHERE workflow_id = 'WF-001'
         )
-        WHERE NOT EXISTS (SELECT 1 FROM workflow_cases WHERE workflow_id = 'WF-001')
         """
     )
 

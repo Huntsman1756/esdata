@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Informe de Cuentas</title>
+</head>
+<body>
+  <h1>Informe Anual 2025</h1>
+  <p>Datos financieros en formato iXBRL.</p>
+
+  <div id="xbrl-content">
+    <xbrli:xbrl
+        xmlns:xbrli="http://www.xbrl.org/2003/instance"
+        xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
+        xmlns:ex="http://example.com/xbrl/test">
+      <xbrli:context id="ctx_2025">
+        <xbrli:entity>
+          <xbrli:identifier scheme="http://example.com/entity-id">ES_TEST_0001</xbrli:identifier>
+        </xbrli:entity>
+        <xbrli:period>
+          <xbrli:startDate>2025-01-01</xbrli:startDate>
+          <xbrli:endDate>2025-12-31</xbrli:endDate>
+        </xbrli:period>
+      </xbrli:context>
+      <xbrli:unit id="EUR">
+        <xbrli:measure>iso4217:EUR</xbrli:measure>
+      </xbrli:unit>
+      <ex:Revenue contextRef="ctx_2025" unitRef="EUR" decimals="0">2500000</ex:Revenue>
+      <ex:ProfitLoss contextRef="ctx_2025" unitRef="EUR" decimals="0">350000</ex:ProfitLoss>
+      <ex:Assets contextRef="ctx_2025" unitRef="EUR" decimals="0">8000000</ex:Assets>
+    </xbrli:xbrl>
+  </div>
+
+  <p>Fin del informe.</p>
+</body>
+</html>

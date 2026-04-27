@@ -29,13 +29,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.exec_driver_sql("SET check_function_bodies = false")
+    op.execute(sa.text("SET check_function_bodies = false"))
 
     # ── eval_run: one row per evaluation session ──────────────────────
     op.create_table(
         "eval_run",
         sa.Column("id", sa.dialects.postgresql.UUID(), nullable=False, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("run_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("run_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("NOW()")),
         sa.Column("api_url", sa.Text(), nullable=True),
         sa.Column("golden_version", sa.Text(), nullable=True),
         sa.Column("global_score", sa.Float(), nullable=True),
@@ -79,7 +79,7 @@ def upgrade() -> None:
     op.create_index("ix_eval_query_dominio", "eval_query", ["dominio"])
     op.create_index("ix_eval_query_query_id", "eval_query", ["query_id"])
 
-    op.exec_driver_sql("SET check_function_bodies = true")
+    op.execute(sa.text("SET check_function_bodies = true"))
 
 
 def downgrade() -> None:

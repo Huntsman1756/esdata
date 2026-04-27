@@ -34,6 +34,7 @@ ignore = [
     "E501",     # line length handled by formatter
     "S101",     # assert used (needed for tests)
     "S603",     # subprocess with shell=False (default)
+    "S608",     # false positive: all queries are parameterized with :param
     "S311",     # random (used in some workers)
     "PT011",    # pytest.raises without match
     "RUF012",   # mutable class attributes (acceptable in SQLAlchemy)
@@ -50,3 +51,7 @@ known-first-party = ["esdata_common"]
 quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
+
+[lint.per-file-ignores]
+"apps/workers/**/*.py" = ["T201", "E402"]
+"scripts/**/*.py" = ["T201"]

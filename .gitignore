@@ -1,11 +1,28 @@
 .pytest_cache/
 .ruff_cache/
 .qwen/
+.venv/
+tmp/
+logs/
+apps/web/node_modules/
+apps/web/.next/
+apps/web/.env.local
+api_server.log
+server_err.log
+server_out.log
+COMMIT_MSG.txt
+Qwen_html_20260425_z5a965dpd.html
+test_debug.sqlite3
 **/__pycache__/
 *.pyc
 apps/api/tests/test_esdata.sqlite3
 script.py
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 .worktrees/
 
 # Logs and local artifacts

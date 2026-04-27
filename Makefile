@@ -76,19 +76,19 @@ db-current:
 	$(ALEMBIC) current
 
 smoke-check:
-	python scripts/smoke-check.py --base-url "$(API_BASE)"
+	python scripts/ops/smoke-check.py --base-url "$(API_BASE)"
 
 eval:
-	@python scripts/eval_phase3.py --base-url "$(ESDATA_API_URL:http://localhost:8001)"
+	@python scripts/eval/eval_phase3.py --base-url "$(ESDATA_API_URL:http://localhost:8001)"
 
 eval-local:
-	@python scripts/eval_phase3.py --local
+	@python scripts/eval/eval_phase3.py --local
 
 eval-summary:
-	@python scripts/eval_phase3.py --summary-only
+	@python scripts/eval/eval_phase3.py --summary-only
 
 eval-ci:
 	@$(PYTEST) scripts/tests/test_eval_phase3.py -v --tb=short
 
 eval-gate:
-	@python scripts/eval_phase3.py --base-url "$(ESDATA_API_URL:http://localhost:8001)" --baseline scripts/baseline.json
+	@python scripts/eval/eval_phase3.py --base-url "$(ESDATA_API_URL:http://localhost:8001)" --baseline scripts/baseline.json
