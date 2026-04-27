@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+
+from conftest import engine
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
@@ -67,6 +70,59 @@ def test_query_audit_can_filter_by_path():
 
     assert len(filtered) == 1
     assert filtered[0].request_id == "req-query-010"
+
+
+def test_query_audit_repairs_legacy_postgres_columns():
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS query_audit_log"))
+        conn.execute(
+            text(
+                """
+                CREATE TABLE query_audit_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entry_id TEXT NOT NULL UNIQUE,
+                    request_id TEXT NOT NULL,
+                    user_id TEXT,
+                    path TEXT NOT NULL,
+                    query_text TEXT NOT NULL,
+                    retrieved_chunks TEXT NOT NULL DEFAULT '[]',
+                    response_summary TEXT NOT NULL DEFAULT '',
+                    model_version TEXT,
+                    config_version TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+        )
+
+    service = QueryAuditService()
+    created = service.record_query(
+        request_id="req-query-legacy-001",
+        user_id="auditor-legacy",
+        path="/v1/consulta",
+        query_text="plazo prescripcion lgt",
+        retrieved_chunks=[{"chunk_id": "chk-legacy-1"}],
+        response_summary="resultados=1",
+        grounding_status="full",
+        prompt_injection_detected=False,
+        grounding_summary={"grounding_status": "full", "total_claims": 1},
+    )
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT grounding_status, prompt_injection_detected, grounding_summary
+                FROM query_audit_log
+                WHERE entry_id = :entry_id
+                """
+            ),
+            {"entry_id": created.entry_id},
+        ).mappings().one()
+
+    assert row["grounding_status"] == "full"
+    assert row["prompt_injection_detected"] == 0
+    assert row["grounding_summary"]
 
 
 @pytest.mark.asyncio

@@ -12,6 +12,17 @@ La documentacion de contrato debe consultarse siempre en OpenAPI, pero este capi
 - `GET /status`
 - `GET /openapi.json`
 
+## Superficies de busqueda
+
+| Endpoint | Que busca | Ejemplo |
+|---|---|---|
+| `/v1/consulta` | Legislacion + modelos, con grounding y abstencion | `?q=tipo+reducido+IVA` |
+| `/v1/buscar` | Legislacion indexada unicamente | `?q=prescripcion+LGT` |
+| `/v1/modelos/` | Modelos tributarios (303, 349, 100...) | `/v1/modelos/303` |
+| `/mcp` | Protocolo MCP para agentes | SSE con `Accept: text/event-stream` |
+
+`/v1/buscar?q=modelo+303` devuelve vacio por diseno: los modelos tributarios no son legislacion y se sirven desde `/v1/modelos/`.
+
 ## Ejemplos rapidos
 
 Consulta fiscal agregada:
@@ -87,11 +98,13 @@ Conectividad derivada por obligacion:
 curl -s http://127.0.0.1:8000/v1/connectivity/obligaciones/IRNR_FACTA
 ```
 
-Busqueda general:
+Busqueda general de legislacion:
 
 ```bash
 curl -G -s http://127.0.0.1:8000/v1/buscar --data-urlencode "q=iva intracomunitario"
 ```
+
+Si la necesidad es recuperar un modelo AEAT concreto, usa `GET /v1/modelos/{codigo}` o `GET /v1/consulta` en lugar de `GET /v1/buscar`.
 
 Busqueda de legislacion:
 

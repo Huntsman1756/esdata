@@ -7,6 +7,9 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
+- **xxxxxxxx** `fix(api)` — harden fiscal retrieval end-to-end: repair legacy query_audit columns at runtime, abstain when key query terms are uncovered, document `/v1/buscar` as legislation-only, verify CNMV corpus is empty in Compose, and add `DRIFT_AEAT` guard so new AEAT campaigns with zero casillas do not silently pass as healthy syncs
+- **xxxxxxxx** `docs` — Fase 31: expansion regulatoria MiCA/DAC8/DAC9/Ley 10/2010/Ley 11/2021 — data models ausentes documentados, 7 subfases planificadas (casp, crypto_asset, dac_reports, pbc_obligated_subject, fraud_prevention)
+- **xxxxxxxx** `docs` — roadmap cleanup: mark alembic-chain-repair as COMPLETA (81 tables, head reached, 4/4 tests), fix stale headers for Fases 16/23/30 (EN CURSO -> COMPLETA), update executive state to mark Fases 25/26/27/30 as complete, all planned phases 22-30 now complete — no pending phase, next line of work to be defined with user
 - **xxxxxxxx** `fix(alembic)` — fix alembic/env.py: create vector extension before migrations, use transaction_per_migration=True, remove context.begin_transaction() wrapper that caused full rollback on migration error; 81 tables persist to DB after clean upgrade head
 - **xxxxxxxx** `docs` — Fase 30.15: Dependabot security advisory — 26 vulns documented (23 medium, 3 low): 21 pypdf DoS/RAM exhaustion in workers, 1 pytest tmpdir, 1 python-dotenv symlink, 1 lychee-action code injection, 1 postcss XSS
 - **xxxxxxxx** `docs` — Fase 30.14: security audit findings — CORS allow_credentials+origin risk, plaintext DB password in docker-compose, missing Docker healthchecks/non-root/SHA digests, fragile SQL injection pattern in router where_clause filters, hardcoded test API keys

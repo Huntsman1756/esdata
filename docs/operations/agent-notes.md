@@ -33,6 +33,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-04-27 - Drift de HTML AEAT en modelos
+
+- Scope: `apps/workers/modelos.py`, `apps/workers/modelos_support.py`, `apps/workers/tests/test_modelos.py`
+- Hallazgo: el worker de modelos puede detectar una campana nueva y scrapea casillas/claves/instrucciones desde HTML AEAT, pero si AEAT cambia la estructura del HTML una campana nueva puede devolver `0` casillas aunque el modelo tuviera casillas validas en campanas previas.
+- Impacto: sin guardrail explicito, el fallo parece un sync "correcto" pero deja la campana nueva sin contenido util y el problema solo aparece despues en runtime cuando una consulta por casilla devuelve vacio sin contexto.
+- Regla practica: cuando una campana nueva devuelve `0` casillas y el modelo ya tenia casillas historicas, tratarlo como `DRIFT_AEAT`, registrar error explicito y no considerar la extraccion como sync sano hasta revisar manualmente el HTML de AEAT.
+
 ### 2026-04-26 - Integration tests API
 
 - Scope: `apps/api/tests/test_integration.py`, `apps/api/tests/conftest.py`

@@ -584,6 +584,22 @@ def get_campaign_row(conn, modelo_id: int, campana: str):
     ).fetchone()
 
 
+def get_previous_campaign_casillas_count(conn, modelo_id: int, campana: str) -> int:
+    row = conn.execute(
+        text(
+            """
+            SELECT COUNT(mc.id) AS total
+            FROM modelo_campana cmp
+            JOIN modelo_casilla mc ON mc.campana_id = cmp.id
+            WHERE cmp.modelo_id = :modelo_id
+              AND cmp.campana <> :campana
+            """
+        ),
+        {"modelo_id": modelo_id, "campana": campana},
+    ).mappings().first()
+    return int(row["total"]) if row and row["total"] is not None else 0
+
+
 def upsert_casillas(conn, campana_id: int, casillas: list[dict]) -> int:
     count = 0
     for casilla in casillas:

@@ -146,10 +146,40 @@ def _ddl_statements_for_dialect(dialect: str) -> list[str]:
     return [statement.format(id_column=id_column) for statement in DDL_TEMPLATE]
 
 
+def _ensure_query_audit_log_columns(conn) -> None:
+    dialect = conn.engine.dialect.name
+    if dialect == "sqlite":
+        rows = conn.execute(text("PRAGMA table_info(query_audit_log)"))
+        existing = {row[1] for row in rows}
+    else:
+        rows = conn.execute(
+            text(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'query_audit_log'
+                """
+            )
+        )
+        existing = {row[0] for row in rows}
+
+    missing = []
+    if "grounding_status" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_status TEXT DEFAULT ''")
+    if "prompt_injection_detected" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN prompt_injection_detected INTEGER NOT NULL DEFAULT 0")
+    if "grounding_summary" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_summary TEXT NOT NULL DEFAULT '{}' ")
+
+    for statement in missing:
+        conn.execute(text(statement))
+
+
 def ensure_governance_tables() -> None:
     with engine.begin() as conn:
         for statement in _ddl_statements_for_dialect(conn.engine.dialect.name):
             conn.execute(text(statement))
+        _ensure_query_audit_log_columns(conn)
 
 
 def dumps_json(value) -> str:

@@ -123,6 +123,62 @@ def test_extract_keywords_ignores_substring_matches_inside_words():
     assert "iva" not in keywords
 
 
+def test_grounding_abstention_rejects_results_when_a_query_term_is_missing_from_all_results():
+    from routers.consulta import _apply_grounding_abstention_if_needed
+
+    resultados = [
+        {
+            "tipo": "normativa",
+            "norma": "LIS",
+            "articulo": "69",
+            "texto": "Artículo 69. Tipo de gravamen del grupo fiscal.",
+            "fragmento": "Artículo 69. Tipo de gravamen del grupo fiscal.",
+            "source_url": "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2014-12328",
+            "source_hash": "hash-lis-69",
+            "chunk_id": None,
+            "evidencia": {
+                "source_url": "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2014-12328",
+                "source_hash": "hash-lis-69",
+                "fragmento_exacto": "Artículo 69. Tipo de gravamen del grupo fiscal.",
+            },
+            "_relevancia": {
+                "nivel": "media",
+                "score": 0.48,
+                "coincidencia": "coincidencia media con terminos relevantes",
+                "terminos_encontrados": ["normativa", "fiscal"],
+                "terminos_faltantes": ["marte"],
+            },
+        }
+    ]
+    confianza = {
+        "faithfulness_score": 1.0,
+        "review_required": False,
+        "aviso": None,
+    }
+    cited_chunks = [
+        {
+            "chunk_id": "hash-lis-69",
+            "source_document": "LIS",
+            "article_number": "69",
+            "rerank_score": 10.8,
+            "excerpt": "Artículo 69. Tipo de gravamen del grupo fiscal.",
+        }
+    ]
+
+    final_results, updated_confianza, updated_cited_chunks = _apply_grounding_abstention_if_needed(
+        "normativa fiscal de Marte",
+        resultados,
+        [],
+        [],
+        confianza,
+        cited_chunks,
+    )
+
+    assert final_results == []
+    assert updated_cited_chunks == []
+    assert "evidencia insuficiente" in (updated_confianza.get("aviso") or "").lower()
+
+
 @pytest.mark.asyncio
 async def test_consulta_includes_cited_chunks():
     from httpx import ASGITransport, AsyncClient

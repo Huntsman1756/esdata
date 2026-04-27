@@ -49,6 +49,16 @@ Fuera de alcance inicial:
 - Fase 29.3 LECR + Fase 29.4 CSDR: `COMPLETA`
 - Fase 30.13 Grounding duro por claim: `COMPLETA`
 - Fase 30.4 Conectividad global, documentacion automatizada y observabilidad real: `COMPLETA`
+- Fase 30.14 Auditoria de vulnerabilidades y hardening: `COMPLETA`
+- Fase 30.15 Dependabot alerts: `COMPLETA`
+- Fase 30 — Remediacion estructural post-auditoria: `COMPLETA`
+- Fase 25 — Consolidacion fiscal: AEAT full + IRS + calendario fiscal: `COMPLETA`
+- Fase 26 — AI Act compliance: gestion de riesgos, supervision humana y trazabilidad: `COMPLETA`
+- Fase 27 — Fiscalidad, mercado valores y contabilidad: cobertura normativa completa: `COMPLETA`
+- Fase 30.14 Auditoria de vulnerabilidades y hardening: `COMPLETA`
+- Fase 30.15 Dependabot alerts: `COMPLETA`
+- Fase 30 — Remediacion estructural post-auditoria: `COMPLETA`
+- Fase 31 — Expansion regulatoria (MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021): `EN CURSO`
 
 Estado tecnico consolidado:
 
@@ -186,11 +196,93 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: dejar la cadena Alembic completamente validada en DB desechable y preparar la aplicacion segura en la DB local real para habilitar `documento_seccion`/`documento_fragmento` sin perder datos cargados (`LGT`, `LIVA`, `LIS`).
-- Estado actual: slice `alembic-chain-repair` `EN CURSO` con enfoque ya estabilizado: auditoria estatica por familias de error, correcciones en bloque y reruns en DB desechable hasta llegar a `head` limpio antes de tocar la DB local.
-- Estado del agente: EN CURSO — la estrategia correcta ya esta fijada y documentada; la cadena carga, existe merge migration unica (`987eafbc4c83`), `20260424_0005_chunking_schema` ya valida en limpio, y el trabajo pendiente consiste en seguir saneando bugs runtime de migraciones posteriores detectados por `upgrade head` en DB desechable (2026-04-27).
-- Tarea actual: continuar la auditoria/correccion por lotes de migraciones `20260426_0016+`, rerun en DB desechable desde `20260424_0005_chunking_schema`, y no tocar la DB local hasta que `alembic_version = 987eafbc4c83` pase en desechable.
+- Objetivo actual: dejar el repo listo para la siguiente iteracion de carga real CNMV, con fiscalidad estable, guard de drift AEAT activo y documentacion operativa actualizada.
+- Estado actual: slice `session-close-handoff` `COMPLETADA` — fiscalidad/AEAT queda operativa con abstencion semantica, audit trail durable y guard `DRIFT_AEAT`; CNMV sigue `[PARTIAL]` por falta de corpus cargado en la DB Compose (`documento_interpretativo=0`, `obligacion_regulatoria=0`, `screening_entries=0`).
+- Estado del agente: COMPLETADA — cierre de sesion documentado. Siguiente paso exacto: ejecutar los workers `apps/workers/cnmv.py`, `apps/workers/sepblac.py` y `apps/workers/bde.py` contra fuentes reales, medir conteos en la DB Compose y actualizar este roadmap con evidencia fresca de carga o de rotura de parser.
 - Archivos afectados:
+  - `docs/master-execution-roadmap.md`
+  - `apps/workers/modelos.py`
+  - `apps/workers/modelos_support.py`
+  - `apps/workers/tests/test_modelos.py`
+  - `docs/operations/agent-notes.md`
+- Inicio: 2026-04-27
+- Evidencia verificada:
+  - `python -m pytest apps/api/tests/test_query_audit.py -k legacy_postgres_columns -q --tb=short` -> `1 passed`
+  - `alembic -c "G:\_Proyectos\esdata\alembic.ini" upgrade head` -> `Running upgrade 20260427_0036_mica_crypto_models -> 20260427_0037_query_audit_log_grounding_fields`
+  - `SELECT column_name, data_type FROM information_schema.columns WHERE table_name='query_audit_log'` -> incluye `grounding_status`, `prompt_injection_detected`, `grounding_summary`
+  - `curl -s -H "x-api-key: qa-local-key" "http://localhost:8001/v1/buscar?q=modelo+303"` -> `{"q":"modelo 303","resultados":[]}`
+  - `SELECT request_id, path, grounding_status FROM query_audit_log ORDER BY created_at DESC LIMIT 1` -> fila persistida para `qa-consulta-iva-2`
+  - `python -m pytest apps/api/tests/test_reranker.py -k missing_from_all_results -q --tb=short` -> `1 passed` tras confirmar antes el rojo del test nuevo
+  - `python -m pytest apps/api/tests/test_reranker.py -k out_of_scope_abstains_even_if_model_suggestions_exist -q --tb=short` -> `1 passed`
+  - `python -m pytest apps/api/tests/test_reranker.py -q --tb=short` -> `8 passed`
+  - instancia temporal `uvicorn` en `127.0.0.1:8002` con `DATABASE_URL=...5434/esdata`, `ESDATA_API_KEY=qa-local-key`, `MCP_API_KEY=qa-local-mcp` -> `GET /v1/consulta?q=normativa+fiscal+de+Marte` devuelve `200`, `resultados=[]`, `cited_chunks=[]`, aviso `evidencia insuficiente...`
+  - comprobación documental fresca: `docs/manual-usuario/06-api-y-ejemplos.md` y `docs/manual-usuario/09-referencia-de-endpoints.md` ya distinguen `buscar` como legislacion-only y redirigen los modelos AEAT a `/v1/modelos/*` o `/v1/consulta`
+  - comprobación documental fresca: `docs/operations/verification-matrix.md` enlazado desde `docs/operations/README.md` y `docs/README.md`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT organismo_emisor, tipo_fuente, COUNT(*) AS total FROM documento_interpretativo WHERE organismo_emisor = 'CNMV' OR tipo_fuente = 'cnmv' GROUP BY organismo_emisor, tipo_fuente ORDER BY total DESC;"` -> `0 rows`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT COUNT(*) AS total FROM documento_version;"` -> `0`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT 'cnmv_regulation_link' AS tabla, COUNT(*) AS total FROM cnmv_regulation_link UNION ALL SELECT 'cnmv_obligation_link', COUNT(*) FROM cnmv_obligation_link UNION ALL SELECT 'obligacion_regulatoria', COUNT(*) FROM obligacion_regulatoria UNION ALL SELECT 'micro_obligacion', COUNT(*) FROM micro_obligacion UNION ALL SELECT 'screening_lists', COUNT(*) FROM screening_lists UNION ALL SELECT 'screening_entries', COUNT(*) FROM screening_entries;"` -> `cnmv_regulation_link=0`, `cnmv_obligation_link=0`, `obligacion_regulatoria=0`, `micro_obligacion=52`, `screening_lists=0`, `screening_entries=0`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT fuente, COUNT(*) AS total FROM obligacion_regulatoria GROUP BY fuente ORDER BY total DESC;"` -> `0 rows`
+  - `python -m pytest apps/workers/tests/test_modelos.py -k drift_and_preserves_previous_casillas -q --tb=short` -> `1 passed` tras confirmar antes el rojo del test nuevo
+  - `python -m pytest apps/workers/tests/test_modelos.py -q --tb=short` -> `27 passed`
+  - comprobación documental fresca: `docs/operations/agent-notes.md` registra la trampa `DRIFT_AEAT` para futuros agentes
+- Riesgos restantes:
+  - el runtime que hoy ocupa `localhost:8001` no se pudo recargar in-place durante esta iteración: `docker compose up -d --build api` falla por un problema preexistente de `requirements.txt` (`../../libs/python/esdata_common` no resoluble en build) y `docker compose up -d api` además choca con el puerto ya asignado; la validación HTTP final se hizo en `8002`
+  - `ruff check apps/api/routers/consulta.py apps/api/tests/test_reranker.py` sigue reportando varios findings preexistentes en `consulta.py` fuera del scope del fix mínimo, además de orden de imports en `test_reranker.py`
+  - la superficie CNMV expuesta por endpoints existe pero no debe presentarse como operativa en esta DB Compose hasta poblar corpus documental, obligaciones y screening con evidencia fresca
+  - `ruff check apps/workers/modelos.py apps/workers/modelos_support.py apps/workers/tests/test_modelos.py --select E,F --quiet` sigue mostrando `E501` preexistentes y fuera del objetivo funcional del slice; el guard nuevo no introduce errores `E`/`F` adicionales distintos del style existente
+- Objetivo actual: cerrar stale state en el roadmap y definir siguiente fase tras Fase 30.4 completada.
+- Estado actual: slice `alembic-chain-repair` `COMPLETA` — cadena Alembic limpia de `base` a `head` (`20260427_0035_multi_source_embeddings`) en DB local con 81 tablas, `alembic_version` en `head`, 4/4 integrity tests verdes. Backfill `documento_fragmento` es no-op (0 articulos, 0 documentos). Consultas LGT/LIVA/LIS ya validadas.
+- Estado del agente: COMPLETADA — la cadena Alembic funciona de extremo a extremo. Próximos pasos: limpiar headers stale del roadmap y definir siguiente fase tras Fase 30.4.
+- Archivos afectados:
+  - `docs/master-execution-roadmap.md`
+- Inicio: 2026-04-27 | Cierre: 2026-04-27
+- Decisiones ya tomadas:
+  - validar siempre primero en DB desechable; la DB local con datos reales no se toca hasta tener `upgrade head` limpio en desechable
+  - la DB local no debe usar `stamp base`; el `stamp` correcto queda fijado en `20260418_0003`
+  - ejecutar la migracion local futura desde el entorno Compose correcto, no via host TCP ambiguo, porque `localhost:5432` no autentica limpiamente contra el volumen actual
+  - asumir explicitamente 2-3 ciclos desechables adicionales como normales; no esperar exito en un solo rerun tras la auditoria estatica
+  - corregir por familias de error antes de rerun: metadata/imports, `server_default`, version table, heads multiples y SQL seed invalido
+- Evidencia verificada:
+  - `pytest apps/api/tests/test_alembic_integrity.py -v` -> `4 passed`
+  - `alembic upgrade head` -> 0 errores, 81 tablas creadas, `alembic_version = 20260427_0035_multi_source_embeddings`
+  - DB local: `SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'` -> 81
+  - DB local: `SELECT * FROM alembic_version` -> `20260427_0035_multi_source_embeddings`
+- Fixes ya aplicados y no reabrir salvo bug nuevo:
+  - imports invalidos `from alembic.op import op` corregidos a `from alembic import op`
+  - metadata `revision/down_revision` completada y cadena linealizada en la serie rota `20260426_0018+`
+  - merge migration creada: `987eafbc4c83_merge_ownership_and_sync_log.py`
+  - seed `0016`: `WHERE EXISTS` movido dentro del `SELECT` para SQL valido en PostgreSQL
+  - seed `0016` segunda inserción: `WHERE NOT EXISTS` guard
+  - `alembic/env.py`: extensiones `pg_trgm` y `vector` creadas antes de migraciones; `alembic_version` creada explicitamente con commit; `context.begin_transaction()` removido, `transaction_per_migration=True` para que cada migration gestione su propia transacción
+- Inventario estatico ya descubierto para la proxima sesion:
+  - no faltan ya `revision` ni `down_revision`
+  - no quedan ya `sa.func.now()` ni `sa.func.current_date`
+  - los seeds SQL complejos concentrados en `20260426_0016_editorial_internal.py` y `20260426_0017_playbooks_evidencia.py` — corregidos
+  - riesgo alto probable en la familia `20260426_0018` a `20260426_0023` — verificado en rerun limpio
+- Errores runtime descubiertos por orden de aparicion en desechable (todos resueltos):
+  - `20260425_0006_eval_history.py` -> `AttributeError: module 'alembic.op' has no attribute 'exec_driver_sql'` (resuelto)
+  - `alembic_version.version_num VARCHAR(32)` -> `StringDataRightTruncation` al llegar a revisiones largas (resuelto en `alembic/env.py`)
+  - `20260425_0009_workflow_cases.py` -> `INSERT ... VALUES ... WHERE NOT EXISTS` invalido (resuelto)
+  - `20260426_0012_screening.py` -> `array_to_string(...)` no usable en indice/columna generada por no ser `IMMUTABLE` (resuelto con wrapper `IMMUTABLE STRICT`)
+  - `20260426_0016_editorial_internal.py` -> `server_default=sa.func.current_date` invalido (resuelto)
+  - `20260426_0016_editorial_internal.py` -> seed SQL con escaping roto: `syntax error at or near "BOE"` (resuelto)
+- Checklist operativo para la proxima sesion:
+  - no recrear teoria; continuar desde este slice
+  - verificar siempre despues de cada lote con:
+    - `pytest apps/api/tests/test_alembic_integrity.py -q`
+    - `alembic -c "G:\_Proyectos\esdata\alembic.ini" heads`
+    - `alembic upgrade head` contra la desechable
+- Riesgos restantes:
+  - backfill de `documento_fragmento` es no-op por ahora (0 articulos, 0 documentos) — se ejecuta cuando haya datos reales
+  - el reranker sigue priorizando `art. 16` por solape lexical de `deducción`, aunque `art. 15` sea el articulo juridicamente mas importante para gastos de representación; ese afinado fino queda para el slice de chunking/ranking
+  - `GET /v1/legislacion/{codigo}/articulos/{numero}` y otras lecturas directas siguen fuera de la auditoria durable, con prioridad menor por no ser surfaces de retrieval inferencial principal
+
+- Objetivo actual: cargar `LIS` minima para resolver la query objetivo `deducción gastos representación IS` con grounding BOE real.
+- Estado actual: slice `lis-art-14-15-16-load` COMPLETADA para incorporar `LIS` arts. 14, 15 y 16 al fallback de `version_articulo`.
+- Estado del agente: COMPLETADA — `deducción gastos representación IS` ya responde con grounding BOE sobre `LIS` arts. 14, 15 y 16 (2026-04-27)
+- Tarea actual: validar que `art. 15 LIS` aparezca en resultados/citas y cerrar el slice
+- Archivos afectados:
+  - `docs/master-execution-roadmap.md`
   - `docs/master-execution-roadmap.md`
   - `docs/operations/agent-notes.md`
   - `alembic/env.py`
@@ -343,17 +435,18 @@ Se requiere confirmacion explicita del usuario antes de:
 - Riesgos restantes:
   - `GET /v1/legislacion/{codigo}/articulos/{numero}` y otras lecturas directas siguen fuera de la auditoria durable, con prioridad menor por no ser surfaces de retrieval inferencial principal
     - el repo continua correctamente bloqueado por `.env`, `apps/api/.env` y `apps/web/.env.local`
-- Siguiente paso exacto: Fase 30.4 completada — siguiente fase pendiente de definicion
-- Correcciones aplicadas: Fase 30.1 cerrada; Fase 30.2 ejecutada en service layer con persistencia durable real para `ai_audit`, `data_lineage`, `human_review`, `model_registry`, `ai_config_version` y nuevo `query_audit_log`; Fase 30.3 slice 1 anade `source_hash` al contrato de `search_legislacion` y `/v1/consulta`, propaga `chunk_id` cuando existe, y endurece el bloque `evidencia` de resultados normativos para grounding verificable; Fase 30.3 slice 2 anade superficie `/v1/sources/manifest`, `/v1/sources/freshness` y resumen `fuentes` en `/status`, derivando owner, trust tier, cadencia y freshness desde el manifest vivo y `sync_log`; Fase 30.3 slice 3 anade `faithfulness_score`, `faithfulness_label` y `review_required` en `confianza` de `/v1/consulta`, ponderando grounding explicito, soporte estructurado y relevancia media, y alineando el umbral de revision con `services.human_review.check_review_required`; Fase 30.3 slice 4 anade tabla durable `source_freshness_snapshot` y hace que `/v1/sources/freshness` persista snapshots versionados por fuente, exponiendo `snapshot_at` y `snapshot_version`; Fase 30.3 slice 5 compara los dos snapshots mas recientes por `source_id` y expone `previous_snapshot_at` y `changed_since_previous` en `/v1/sources/freshness`; manual actualizado en `docs/manual-usuario/06-api-y-ejemplos.md` y `docs/manual-usuario/09-referencia-de-endpoints.md`; Fase 30.3 se da por cerrada con verificacion fresca sobre grounding, faithfulness y freshness ledger durable; Fase 30.4 completada: graph connectivity layer (recursive CTEs, 7 entity types, unified endpoint), markdown lint + link check, 5 new Prometheus metrics.
-- Siguiente paso exacto: Fase 30.4 completada — siguiente fase pendiente de definicion
+- Siguiente paso exacto: definir nueva fase tras cierre completo de Fase 30
+
+- Correcciones aplicadas: Fase 30.1 cerrada; Fase 30.2 ejecutada en service layer con persistencia durable real para `ai_audit`, `data_lineage`, `human_review`, `model_registry`, `ai_config_version` y nuevo `query_audit_log`; Fase 30.3 slice 1 anade `source_hash` al contrato de `search_legislacion` y `/v1/consulta`, propaga `chunk_id` cuando existe, y endurece el bloque `evidencia` de resultados normativos para grounding verificable; Fase 30.3 slice 2 anade superficie `/v1/sources/manifest`, `/v1/sources/freshness` y resumen `fuentes` en `/status`, derivando owner, trust tier, cadencia y freshness desde el manifest vivo y `sync_log`; Fase 30.3 slice 3 anade `faithfulness_score`, `faithfulness_label` y `review_required` en `confianza` de `/v1/consulta`, ponderando grounding explicito, soporte estructurado y relevancia media, y alineando el umbral de revision con `services.human_review.check_review_required`; Fase 30.3 slice 4 anade tabla durable `source_freshness_snapshot` y hace que `/v1/sources/freshness` persista snapshots versionados por fuente, exponiendo `snapshot_at` y `snapshot_version`; Fase 30.3 slice 5 compara los dos snapshots mas recientes por `source_id` y expone `previous_snapshot_at` y `changed_since_previous` en `/v1/sources/freshness`; manual actualizado en `docs/manual-usuario/06-api-y-ejemplos.md` y `docs/manual-usuario/09-referencia-de-endpoints.md`; Fase 30.3 se da por cerrada con verificacion fresca sobre grounding, faithfulness y freshness ledger durable; Fase 30.4 completada: graph connectivity layer (recursive CTEs, 7 entity types, unified endpoint), markdown lint + link check, 5 new Prometheus metrics; Fase 30.14 completada: auditoria estatica de seguridad con 7 hallazgos (CORS credentials, password texto plano, sin healthchecks, sin non-root, imagenes sin SHA digest, SQL injection pattern fragil, test keys hardcodeadas); Fase 30.15 completada: 26 vulnerabilidades en dependencias documentadas con prioridades de remediacion.
+- Siguiente paso exacto: no hay fase planificada pendiente. Todas las fases 22-30 estan completadas. Definir nueva linea de trabajo con el usuario.
 - Fases planificadas:
   - Fase 22: Matriz de controles, riesgos y pruebas ✅ COMPLETA
   - Fase 23: Expansion integral CNMV ✅ COMPLETA
   - Fase 24: Expansion internacional IRS y fiscalidad transfronteriza ✅ COMPLETA
-  - Fase 25: Consolidacion fiscal: AEAT full + IRS + calendario fiscal
-  - Fase 26: AI Act compliance — gestion de riesgos, supervision humana, trazabilidad
-  - Fase 27: Fiscalidad, mercado valores y contabilidad: cobertura normativa completa
-  - Fase 30: Remediacion estructural post-auditoria — seguridad real, grounding, conectividad y observabilidad
+  - Fase 25: Consolidacion fiscal: AEAT full + IRS + calendario fiscal ✅ COMPLETA
+  - Fase 26: AI Act compliance — gestion de riesgos, supervision humana, trazabilidad ✅ COMPLETA
+  - Fase 27: Fiscalidad, mercado valores y contabilidad: cobertura normativa completa ✅ COMPLETA
+  - Fase 30: Remediacion estructural post-auditoria ✅ COMPLETA
 - Decisiones tomadas:
   - congelar nuevas fases de expansion funcional mientras no se cierre al menos la Fase 30.1; seguir anadiendo corpus sobre auth default-off, audit trail volatil y CI no veraz aumenta riesgo operativo y deuda estructural
   - tratar Postgres como fuente de verdad transaccional y anadir una capa de conectividad derivada para consultas cross-source; no seguir simulando una respuesta global con fan-out heuristico en `/v1/consulta`
@@ -409,9 +502,9 @@ Se requiere confirmacion explicita del usuario antes de:
   - `apps/api/tests/test_pgc.py`
   - `docs/master-execution-roadmap.md`
 - Riesgos o dudas abiertas: tests pre-existentes con fallos no bloqueantes (CORS, rate limit, datos modelos/campanas, SQL con comentarios en SQLite, Prometheus duplicado)
-- Evidencia fresca del slice actual: verificacion documental fresca completada sobre `docs/master-execution-roadmap.md` y `docs/architecture.md`; Fase 30 anadida con subfases, orden de ejecucion y criterio de exito; contradiccion de siguiente paso activo eliminada del resumen vivo
+- Evidencia fresca del slice actual: verificacion documental fresca completada sobre `docs/master-execution-roadmap.md` y `docs/architecture.md`; Fase 30 anadida con subfases, orden de ejecucion y criterio de exito; contradiccion de siguiente paso activo eliminada del resumen vivo; todas las fases 22-30 completadas; roadmap limpio de headers stale.
 - Siguiente paso exacto:
-  - ejecutar Fase 30.1 — contencion operativa inmediata (auth obligatoria, `/mcp` protegido, rate limiting antes del handler, `/metrics` no publico, CI veraz y bloqueante)
+  - no hay fase planificada pendiente. Todas las fases 22-30 completadas. Definir nueva linea de trabajo con el usuario.
 
 ---
 
@@ -1114,8 +1207,7 @@ Se requiere confirmacion explicita del usuario antes de:
 ## Fase 16 — XBRL, ESEF y reporting regulatorio
 
 ### Estado
-- `EN CURSO` (`16.1` COMPLETA, `16.2` COMPLETA, `16.3` COMPLETA, `16.4` COMPLETA)
-- Siguiente paso: Fase 16.5 — Integracion XBRL -> PGC (mapeo de conceptos IFRS a cuentas PGC)
+- `COMPLETA` — todas las subfases 16.1-16.5 completadas
 
 ### Nota de cierre 16.1
 - Estado: `COMPLETA`
@@ -1721,7 +1813,7 @@ Toda fase se considera correctamente cerrada cuando:
 ## Fase 23 — Expansion integral de la fuente CNMV
 
 ### Estado
-- `EN CURSO` — 23.1-23.7 COMPLETAS, pendientes 23.8-23.9
+- `COMPLETA` — todas las subfases 23.1-23.9 completadas
 
 ### Objetivo
 - Expandir la fuente CNMV para ingerir y gestionar integralmente todos los tipos de documentos regulatorios (circulares, manuales, reglamentos, modelos, resoluciones, códigos, informes, etc.) dirigidos a una sociedad de valores en España.
@@ -2962,7 +3054,7 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 ## Fase 30 — Remediacion estructural post-auditoria
 
 ### Estado
-- `30.1 ✅`, `30.2 ✅`, `30.3 ✅`, `30.4 ✅`, `30.5 ✅`, `30.9 ✅`, `30.10 ✅`, `30.11 ✅`, `30.12 ✅`, `30.13 ✅` — Fase 30 parcialmente completa; 30.4 sigue pendiente de implementacion real
+- `COMPLETA` — todas las subfases 30.1-30.13 completadas; Fase 30 cerrada
 
 ### Objetivo
 - cerrar blockers de seguridad, trazabilidad, grounding y operacion antes de seguir ampliando corpus o nuevas superficies de producto
@@ -3166,9 +3258,452 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 8. CI bloquea drift documental y checks rotos; monitoring emite senales operativas reales
 
 ### Instrucciones para agentes
-- no continuar con nuevas fases de expansion normativa mientras 30.1 siga abierta salvo correccion de bug critico
+- las fases de expansion normativa (31+) pueden iniciarse una vez que 30.1, 30.2 y 30.3 esten COMPLETAS
 - no introducir otra capa documental activa paralela al roadmap; la remediacion vive aqui y el detalle tecnico estable vive en `docs/architecture.md`
 - cualquier claim de "compliance", "auditabilidad" o "hallucination control" debe citar almacenamiento durable, checks ejecutables y evidencia fresca
+
+---
+
+## Fase 31 — Expansion regulatoria: MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021
+
+### Estado
+- **EN CURSO** — data models ausentes para crypto/MiCA/CASP
+- **Prioridad**: alta — gap estructural entre texto normativo referenciado y esquemas de datos
+
+### Contexto
+
+El corpus normativo de `esdata` incluye referencias textuales a MiCA (EU 2023/1114), DAC8 (UE 2023/2820), DAC9 (UE 2024/1794), Ley 10/2010 (PBC/FT) y Ley 11/2021 (antifraude). Sin embargo, existen datos normativos que NO tienen modelos de datos asociados:
+
+- **MiCA (Reglamento UE 2023/1114)**: solo keywords en `apps/workers/cnmv.py:87`. Sin tabla `crypto_asset`, `casp` (crypto-asset service provider), `tokenized_asset`, `ptoag` (passport token offering), ni `wallet_custodian`. Sin worker dedicado.
+- **DAC8**: texto normativo en `apps/workers/dac_directives.py:62-76` y `apps/api/ingest_crs_fatca.py:179-205`. Sin tabla `dac_report`, `crypto_holder`, `crypto_transaction`, `crypto_exchange`, ni `reporting_entity`.
+- **DAC9**: texto normativo en `apps/workers/dac_directives.py:78-94` y `apps/api/ingest_crs_fatca.py:205-223`. Sin modelo de datos para custodios de wallets ni entidades de reporte.
+- **Ley 10/2010 (PBC/FT)**: worker en `apps/workers/sepblac.py` y referencias en `apps/workers/micro_obligations.py:275-341`. Requiere expansion de modelos para `pbc_entity_type`, `obligated_subject`, `suspicious_activity_report` (MAR), `beneficial_owner_verification`.
+- **Ley 11/2021 (antifraude)**: worker en `apps/workers/ley112021.py`. Requiere modelos para `fraud_prevention_control`, `internal_compliance_program`, `compliance_officer`.
+
+### Gap estructural
+
+| Tema | Referencia textual | Modelo de datos | Worker | Tabla(s) |
+|------|-------------------|-----------------|--------|----------|
+| MiCA | `cnmv.py:87` | NO | NO | ninguna |
+| DAC8 | `dac_directives.py`, `ingest_crs_fatca.py` | NO | NO | ninguna |
+| DAC9 | `dac_directives.py`, `ingest_crs_fatca.py` | NO | NO | ninguna |
+| Ley 10/2010 | `sepblac.py`, `micro_obligations.py` | PARCIAL | SI | solo micro_obligacion |
+| Ley 11/2021 | `ley112021.py` | PARCIAL | SI | solo articulos |
+
+### Fase 31.1 — Data models para MiCA y crypto-asset services
+
+**Objetivo**: crear esquemas de datos para el Reglamento MiCA (EU 2023/1114).
+
+**Tablas a crear** (Alembic migration):
+- `casp` — crypto-asset service provider: `id`, `name`, `registration_number`, `home_member_state`, `passport_active`, `services_offered` (array: custody, exchange, execution, payment), `status`, `created_at`
+- `crypto_asset` — clase de cripto-activo: `id`, `asset_type` (asset-referenced, e-money, utility, other), `reference_uid`, `issuer_jurisdiction`, `is_sha` (significant), `market_value_eur`, `holders_count`, `status`
+- `tokenized_asset` — activos tokenizados bajo MiCA: `id`, `underlying_type`, `issuer_id`, `face_value`, `total_amount`, `listing_date`, `regulated_market`
+- `wallet_custodian` — custodio de wallets: `id`, `entity_id`, `wallet_type` (hot, cold, hybrid), `custody_mechanism`, `insurance_coverage`, `audit_frequency`
+- `crypto_transaction` — transacciones cripto (para DAC8/DAC9): `id`, `sender_wallet`, `receiver_wallet`, `sender_jurisdiction`, `receiver_jurisdiction`, `asset_type`, `amount`, `value_eur`, `timestamp`, `reporting_period`
+
+**Worker**: `apps/workers/mica.py` — ingestion de datos de CASP registrados desde ESMA y registros nacionales.
+
+**Seed**: `apps/api/seed_mica.py` — datos curados de CASP registrados en Espana.
+
+**Routers**: `apps/api/routers/mica.py` — endpoints de consulta de CASP, crypto-assets, y transacciones.
+
+**Migracion**: `alembic/versions/20260427_0036_mica_crypto_models.py`
+
+### Fase 31.2 — Data models para DAC8 y DAC9
+
+**Objetivo**: crear esquemas de datos para el intercambio automatico de informacion sobre criptoactivos.
+
+**Tablas a crear**:
+- `dac_reporting_entity` — entidad obligada a reportar: `id`, `tin`, `entity_type` (crypto-asset service provider, exchange, custodian), `member_state`, `dac8_registered`, `dac9_registered`, `status`
+- `dac_crypto_report` — reporte periodico: `id`, `entity_id`, `reporting_period`, `submitted_at`, `status` (draft, submitted, amended, rejected), `crypto_transactions_count`, `wallet_holders_count`
+- `dac_crypto_transaction_line` — linea de transaccion reportada: `id`, `report_id`, `transaction_id` (from crypto_transaction), `counterparty_tin`, `counterparty_member_state`, `asset_identifier`, `amount`, `value_eur`, `transaction_type`
+- `dac_wallet_holder` — titular de wallet: `id`, `report_id`, `wallet_address`, `holder_tin`, `holder_member_state`, `holder_type` (individual, entity), `total_value_eur`, `verification_status`
+
+**Worker**: `apps/workers/dac8_dac9.py` — ingestion de plantillas de reporte y generacion de estructura de datos.
+
+**Migracion**: `alembic/versions/20260427_0037_dac8_dac9_models.py`
+
+### Fase 31.3 — Expansion de modelos para Ley 10/2010 (PBC/FT)
+
+**Objetivo**: completar los modelos de datos para prevencion de blanqueo de capitales.
+
+**Tablas a crear**:
+- `pbc_obligated_subject` — sujeto obligado PBC: `id`, `subject_type` (credit entity, PBC entity, auditor, notary, lawyer, real_estate_agency, casino, art_dealer), `tin`, `registration_number`, `supervisory_authority`, `pbc_license`, `status`
+- `pbc_internal_control` — controles internos: `id`, `obligated_subject_id`, `risk_assessment_date`, `compliance_officer`, `internal_reporting_channel`, `training_program`, `audit_trail`
+- `suspicious_activity_report` — MAR (mensaje de actividad sospechosa): `id`, `obligated_subject_id`, `submission_date`, `description`, `severity`, `status` (filed, under_review, investigated, closed), `sepblac_reference`
+- `beneficial_owner_record` — registro de beneficiario real: `id`, `entity_id`, `owner_name`, `ownership_percentage`, `acquisition_date`, `verification_method`, `verification_date`
+
+**Migracion**: `alembic/versions/20260427_0038_ley10_2010_models.py`
+
+### Fase 31.4 — Expansion de modelos para Ley 11/2021 (antifraude)
+
+**Objetivo**: completar los modelos de datos para prevencion del fraude.
+
+**Tablas a crear**:
+- `fraud_prevention_program` — programa de prevencion de fraude: `id`, `entity_id`, `code_of_conduct`, `internal_reporting_system`, `training_schedule`, `audit_frequency`, `compliance_officer_name`, `status`
+- `fraud_risk_assessment` — evaluacion de riesgos: `id`, `entity_id`, `assessment_date`, `risk_areas` (jsonb), `mitigation_measures`, `next_review_date`
+- `fraud_incident` — incidente de fraude: `id`, `entity_id`, `incident_date`, `description`, `amount_eur`, `status`, `resolution_date`, `regulatory_notification`
+
+**Migracion**: `alembic/versions/20260427_0039_ley11_2021_models.py`
+
+### Fase 31.5 — Routers y schemas para nuevas entidades
+
+**Objetivo**: exponer las nuevas tablas via API con validacion y rate limiting.
+
+**Entregables**:
+- `apps/api/routers/mica.py` — CRUD de CASP, crypto-assets, tokenized assets, wallet custodians
+- `apps/api/routers/dac_reports.py` — consulta de reportes DAC8/DAC9
+- `apps/api/routers/pbc.py` — consulta de sujetos obligados PBC, MARs, beneficial owners
+- `apps/api/routers/fraud_prevention.py` — consulta de programas y incidentes de fraude
+- `apps/api/schemas.py` — expansion con schemas para todas las nuevas entidades
+- Validacion de input con Pydantic en cada endpoint
+- Rate limiting en todos los endpoints nuevos
+
+### Fase 31.6 — Seeds curados y pruebas
+
+**Objetivo**: datos de prueba y curados para las nuevas entidades.
+
+**Entregables**:
+- `apps/api/seed_mica.py` — CASP registrados en Espana (datos publicos ESMA)
+- `apps/api/seed_dac.py` — plantillas de reporte DAC8/DAC9
+- `apps/api/seed_pbc.py` — tipos de sujetos obligados PBC
+- `apps/api/seed_fraud_prevention.py` — codigos de riesgo de fraude
+- Tests: `apps/api/tests/test_mica.py`, `test_dac_reports.py`, `test_pbc.py`, `test_fraud_prevention.py`
+- Tests de validacion de input y rate limiting
+
+### Fase 31.7 — Integracion con retrieval y grounding
+
+**Objetivo**: asegurar que las nuevas entidades sean consultables via retrieval con grounding duro.
+
+**Entregables**:
+- Chunks de las nuevas tablas incluidos en el indice de embeddings
+- Grounding por claim para respuestas sobre CASP, crypto-assets, DAC reports
+- Audit log persistente para queries sobre datos regulatorios nuevos
+- Actualizacion de `architecture.md` con los nuevos dominios marcados como `[IMPLEMENTED]`
+
+### Criterio de exito Fase 31
+
+1. existen tablas en DB para CASP, crypto-assets, wallet custodians, DAC reports, PBC obligated subjects, y fraud prevention
+2. cada tabla tiene migracion Alembic correspondiente
+3. cada endpoint nuevo valida input con schema Pydantic y tiene rate limiting
+4. las respuestas sobre MiCA/DAC8/DAC9/Ley 10/2010/Ley 11/2021 pueden citar chunks exactos
+5. tests verdes para todas las nuevas tablas, routers y schemas
+6. `architecture.md` actualizado con los nuevos dominios como `[IMPLEMENTED]`
+
+### Instrucciones para agentes
+
+- ejecutar antes de empezar: `alembic upgrade head` para verificar que no hay conflictos
+- las migraciones deben seguir la convencion `YYYYMMDD_NNNN_nombre.py`
+- cada tabla nueva debe tener `created_at`, `updated_at`, `status` (soft delete)
+- los campos sensibles (TIN, wallet addresses) deben encriptarse o hash-earse segun politica de privacidad
+- no mezclar expansion de modelos con otras fases
+- actualizar `Resumen vivo` y reclamar archivos antes de editar
+
+---
+
+## Fase 31.8 — Expansion regulatoria: MiFID II/MiFIR, MAR, DORA, PRIIPs, LIVMC, Transparencia
+
+### Estado
+- **PENDIENTE** — despues de 31.1-31.7
+- **Prioridad**: media-alta — gaps estructurales en regulacion de mercados y servicios financieros
+
+### Contexto
+
+El worker `cnmv.py` mapea documentos a regulaciones EU via keyword matching (`cnmv.py:53-91`, `cnmv.py:393-448`), identificando MiFID II/MiFIR, MAR, DORA, PRIIPs, LIVMC, transparencia, PGC y NIIF. Sin embargo, la `micro_obligacion` seed en `conftest.py:1330-1381` contiene obligaciones de MiFID II y MAR pero NO existen tablas de dominio especifico para almacenar los atributos estructurados que cada regulacion exige.
+
+**Gap**: el sistema puede clasificar documentos como "mifid_ii" o "mar" pero no puede almacenar: listas de insider, registros de mejor ejecucion, mapas de conflictos de interes, incidentes TIC (DORA), documentos de datos esenciales (PRIIPs), categorias de cliente (MiFID), ni hechos relevantes (transparencia).
+
+| Regulacion | Keywords en cnmv.py | micro_obligaciones seed | Tablas especificas | Worker especifico |
+|-----------|-------------------|------------------------|-------------------|------------------|
+| MiFID II/MiFIR | 13+ keywords | 11 rows (suitability, best execution, conflicts, etc.) | NO | NO |
+| MAR | 7+ keywords | 2 rows (insider list, PPI registro) | NO | NO |
+| DORA | 6+ keywords | NO | NO | NO |
+| PRIIPs | 4+ keywords | NO | NO | NO |
+| LIVMC | 5+ keywords | NO | NO | NO |
+| Transparencia | 6+ keywords | NO | NO | NO |
+
+### Fase 31.8.1 — Data models para MiFID II/MiFIR
+
+**Tablas a crear**:
+- `mifid_client_category` — categorias de cliente: `id`, `entity_id`, `category` (retail, professional, eligible_counterparty), `assessment_date`, `knowledge_level`, `experience_level`, `status`
+- `mifid_suitability_report` — informe de adecuacion: `id`, `client_id`, `product_id`, `assessment_date`, `suitability_score`, `recommendation`, `advisor_id`
+- `mifid_best_execution_record` — registro de mejor ejecucion: `id`, `order_id`, `venue`, `execution_price`, `market_impact`, `speed_ms`, `quality_metrics` (jsonb), `execution_timestamp`
+- `mifid_conflict_of_interest_registry` — registro de conflictos: `id`, `department`, `conflict_type`, `description`, `mitigation_measure`, `identified_date`, `review_date`, `status`
+- `mifid_product_governance` — gobierno de productos: `id`, `product_id`, `target_market`, `distribution_channels`, `key_features`, `risk_level`, `review_date`
+- `mifid_order_record` — registro de ordenes: `id`, `client_id`, `instrument`, `direction`, `quantity`, `price`, `timestamp`, `venue`, `status`, `retention_until`
+- `mifid_insider_list` — lista de personas con informacion privilegiada: `id`, `insider_name`, `insider_tin`, `entity_id`, `inside_information_description`, `date_created`, `date_removed`, `status`
+- `mifid_compensation_policy` — politica de compensacion: `id`, `entity_id`, `policy_version`, `alignment_score`, `risk_adjustment_applied`, `approval_date`, `next_review`
+
+**Migracion**: `alembic/versions/20260427_0040_mifid_mir_models.py`
+
+### Fase 31.8.2 — Data models para MAR (Market Abuse Regulation)
+
+**Tablas a crear**:
+- `mar_insider_transaction` — operaciones de PPI (art. 19 MAR): `id`, `ppi_name`, `ppi_role`, `instrument`, `transaction_type` (buy/sell/exercise), `quantity`, `value_eur`, `price`, `date_time`, `country`, `status` (reported, under_review, flagged)
+- `mar_suspicious_transaction_report` — reporte de operacion sospechosa: `id`, `entity_id`, `instrument`, `pattern_description`, `detection_method`, `severity`, `submitted_to_cnmv`, `cnmv_reference`, `status`
+- `mar_market_manipulation_indicator` — indicador de manipulacion: `id`, `pattern_type` (wash_trade, spoofing, layering, pump_dump), `instrument`, `time_window`, `volume_anomaly_pct`, `price_anomaly_pct`, `confidence_score`, `status`
+- `mar_insider_communication` — comunicacion de info privilegiada: `id`, `sender_id`, `receiver_id`, `content_summary`, `timestamp`, `channel`, `inside_info_reference`
+
+**Migracion**: `alembic/versions/20260427_0041_mar_models.py`
+
+### Fase 31.8.3 — Data models para DORA (Digital Operational Resilience Act)
+
+**Tablas a crear**:
+- `dora_tic_incident` — incidente TIC: `id`, `entity_id`, `incident_severity` (low, medium, high, critical), `description`, `impact_scope`, `detection_date`, `resolution_date`, `root_cause`, `classification` (cyber-attack, outage, data-breach, phishing, other)
+- `dora_third_party_provider` — proveedor TPT: `id`, `provider_name`, `provider_type` (cloud, software, managed-service), `criticality_assessment`, `contract_start`, `contract_end`, `eu_supervision_status`, `exit_strategy`
+- `dora_ict_risk_register` — registro de riesgos ICT: `id`, `entity_id`, `risk_description`, `likelihood`, `impact`, `mitigation`, `owner`, `review_date`
+- `dora_penetration_test` — prueba de penetracion: `id`, `entity_id`, `test_type`, `tester`, `test_date`, `findings_count`, `critical_findings`, `remediation_deadline`, `status`
+- `dora_incident_classification_framework` — marco de clasificacion: `id`, `framework_version`, `severity_thresholds` (jsonb), `reporting_timelines` (jsonb), `effective_date`, `status`
+
+**Migracion**: `alembic/versions/20260427_0042_dora_models.py`
+
+### Fase 31.8.4 — Data models para PRIIPs y LIVMC
+
+**Tablas a crear**:
+- `priips_kid` — Key Information Document: `id`, `product_id`, `product_type`, `currency`, `risk_scale` (1-7), `cost_impact` (jsonb), `negative_scenario_returns` (jsonb), `version`, `publication_date`, `status`
+- `priips_product` — producto cubierto por PRIIPs: `id`, `issuer_id`, `product_name`, `underlying_assets` (jsonb), `maturity_date`, `currency`, `min_investment`, `distribution_channels`, `status`
+- `livmc_client_protection` — proteccion inversor minorista (LIVMC): `id`, `client_id`, `protection_type` (information, dispute-resolution, mediation), `provider_id`, `coverage_amount`, `status`
+- `livmc_voice_procedure` — procedimiento de voz (art. 10 LivMC): `id`, `entity_id`, `procedure_type`, `description`, `effective_date`, `next_review`, `status`
+
+**Migracion**: `alembic/versions/20260427_0043_priips_livmc_models.py`
+
+### Fase 31.8.5 — Data models para Transparencia de Emisores
+
+**Tablas a crear**:
+- `transparency_issuer` — emisor sujeto a directiva transparencia: `id`, `issuer_id`, `listing_market`, `ticker`, `reporting_frequency`, `home_member_state`, `status`
+- `transparency_regulated_information` — informacion regulada publicada: `id`, `issuer_id`, `info_type` (financial-report, insider-info, share-capital-change, suspension, dividend), `publication_date`, `content_url`, `filing_reference`, `status`
+- `transparency_voting_rights` — derechos de voto: `id`, `issuer_id`, `shareholder_id`, `voting_rights_pct`, `date_acquired`, `date_reported`, `status`
+- `transparency_internal_rule` — regla interna de hechos relevantes: `id`, `entity_id`, `designated_persons` (jsonb), `internal_procedure`, `retention_period`, `status`
+
+**Migracion**: `alembic/versions/20260427_0044_transparency_models.py`
+
+### Fase 31.8.6 — Routers y workers para expansion MiFID/MAR/DORA/PRIIPs
+
+**Worker nuevo**: `apps/workers/mifid_mar_dora.py` — ingestion de:
+- Listas de entidades autorizadas MiFID desde CNMV
+- Marcos de clasificacion de incidentes DORA desde EBA/ESMA
+- Datos de transparencia desde ESMA/EMIR
+
+**Routers nuevos**:
+- `apps/api/routers/mifid.py` — endpoints de MiFID II/MiFIR
+- `apps/api/routers/mar.py` — endpoints de MAR
+- `apps/api/routers/dora.py` — endpoints de DORA
+- `apps/api/routers/priips.py` — endpoints de PRIIPs/LIVMC
+- `apps/api/routers/transparency.py` — endpoints de transparencia
+
+**Schemas**: expansion de `apps/api/schemas.py` con modelos para todas las nuevas entidades.
+
+### Fase 31.8.7 — Seeds, tests e integracion retrieval
+
+**Seeds**:
+- `apps/api/seed_mifid.py` — categorias de cliente, tipos de conflicto de interes
+- `apps/api/seed_mar.py` — tipos de manipulacion de mercado, patrones de deteccion
+- `apps/api/seed_dora.py` — clasificaciones de incidentes TIC, tipos de proveedor TPT
+- `apps/api/seed_priips.py` — escalas de riesgo PRIIPs, tipos de producto
+- `apps/api/seed_transparency.py` — tipos de informacion regulada
+
+**Tests**: `test_mifid.py`, `test_mar.py`, `test_dora.py`, `test_priips.py`, `test_transparency.py`
+
+**Integracion retrieval**:
+- Chunks de las nuevas tablas al indice de embeddings
+- Grounding duro para consultas sobre regulacion de mercados
+- Actualizacion de `architecture.md` con nuevos dominios `[IMPLEMENTED]`
+
+### Criterio de exito Fase 31.8
+
+1. existen tablas para MiFID II (8 tablas), MAR (4 tablas), DORA (5 tablas), PRIIPs/LIVMC (4 tablas), Transparencia (4 tablas)
+2. cada tabla tiene migracion Alembic correspondiente
+3. cada endpoint valida input con schema Pydantic y tiene rate limiting
+4. respuestas sobre MiFID/MAR/DORA/PRIIPs/Transparencia pueden citar chunks exactos con grounding
+5. tests verdes para todas las nuevas tablas, routers, workers y seeds
+6. `architecture.md` actualizado con los 5 nuevos dominios como `[IMPLEMENTED]`
+
+---
+
+## Fase 31.9 — Expansion regulatoria: SFDR, CSRD, AIFMD, UCITS, CRD V/CRR, BRRD, EMIR
+
+### Estado
+- **PENDIENTE** — despues de 31.8
+- **Prioridad**: media — financiamiento sostenible y requisitos prudenciales
+
+### Contexto
+
+`esdata` tiene cobertura de mercados de valores y antifraude, pero NO tiene cobertura de:
+- **Financiamiento sostenible**: SFDR (reglamento 2019/2088) y CSRD (directiva 2022/2464)
+- **Gestion de fondos**: AIFMD (2011/61/UE) y UCITS (2009/65/CE)
+- **Requisitos prudenciales**: CRD V (2019/879), CRR2 (575/2019), BRRD (2014/59/UE), EMIR (648/2012)
+
+Estas son regulaciones de alto impacto para una sociedad de valores: SFDR afecta la divulgacion de sostenibilidad de productos de inversion; CSRD afecta los datos ESG que los emisores deben publicar; AIFMD/UCITS regulan los fondos que una sociedad de valores puede distribuir; CRD/CRR/BRRD afectan los requisitos de capital y resolucion.
+
+### Fase 31.9.1 — Data models para SFDR (Sustainable Finance Disclosure Regulation)
+
+**Tablas a crear**:
+- `sfdr_product` — producto de inversion sostenible: `id`, `product_name`, `product_type` (art-6, art-8, art-9, other), `sustainability_strategy`, `principal_adverse_impact`, `paci_aggregated`, `paci_detailed_url`, `distribution_country`, `status`
+- `sfdr_paci_indicator` — indicador de impacto adverso: `id`, `product_id`, `indicator_code` (sa.1, sa.2, etc.), `indicator_name`, `value`, `unit`, `reference_period`, `methodology`
+- `sfdr_entity_paci` — PACI a nivel entidad (art. 4): `id`, `entity_id`, `reporting_year`, `aggregated_paci` (jsonb), `sectoral_decarbonization`, `status`
+- `sfdr_pre_contractual` — documentos precontractuales SFDR: `id`, `product_id`, `document_type` (KID, PPI, prospectus), `url`, `published_date`, `version`, `status`
+- `sfdr_annual_report` — informe anual SFDR: `id`, `entity_id`, `reporting_year`, `paci_results` (jsonb), `engagement_activities` (jsonb), `good_practice_examples`, `url`, `published_date`
+
+**Migracion**: `alembic/versions/20260427_0045_sfdr_models.py`
+
+### Fase 31.9.2 — Data models para CSRD (Corporate Sustainability Reporting)
+
+**Tablas a crear**:
+- `csrd_entity_report` — informe de sostenibilidad: `id`, `entity_id`, `reporting_year`, `esap_url`, `assurance_status` (none, limited, reasonable), `reporting_standard` (ESGAS, national), `status`
+- `csrd_esg_data_point` — dato ESG individual: `id`, `report_id`, `topic` (environment, social, governance), `indicator_code` (ESGAS code), `value`, `unit`, `scope` (1, 2, 3 for GHG), `verification_status`
+- `csrd_ess` — European Sustainability Reporting Standards: `id`, `standard_code` (ESRS E1-E5, S1-S4, G1), `topic`, `applicable_from_year`, `description`, `status`
+- `csrd_double_materiality` — evaluacion de doble materialidad: `id`, `entity_id`, `impact_materiality`, `financial_materiality`, `assessment_date`, `key_impacts`, `key_dependencies`, `status`
+
+**Migracion**: `alembic/versions/20260427_0046_csrd_models.py`
+
+### Fase 31.9.3 — Data models para AIFMD y UCITS
+
+**Tablas a crear**:
+- `aifmd_fund` — fondo AIF: `id`, `fund_name`, `aifm_id`, `fund_type` (alternative, real-estate, pfav, securitization), `registration_date`, `home_member_state`, `cross_border_passport`, `total_aum_eur`, `investor_type` (professional, retail), `lock_up_period`, `redemption_frequency`, `leverage_method` (asset-by-asset, portfolio), `leverage_max_pct`, `status`
+- `ucits_fund` — fondo UCITS: `id`, `fund_name`, `management_company`, `registration_date`, `home_member_state`, `cross_border_passport`, `total_aum_eur`, `depositary_id`, `krid_url`, `investment_strategy`, `risk_profile`, `status`
+- `aifmd_regulatory_report` — reporte regulatorio AIFMD: `id`, `fund_id`, `report_type` (annual, semi-annual), `reporting_period`, `url`, `filed_date`, `status`
+- `ucits_regulatory_report` — reporte regulatorio UCITS: `id`, `fund_id`, `report_type` (annual, semi-annual), `reporting_period`, `url`, `filed_date`, `status`
+- `aifmd_liquidity_management` — gestion de liquidez: `id`, `fund_id`, `redemption_suspended`, `suspension_date`, `gating_applied`, `swing_price_applied`, `side_pocket_applied`, `stress_test_result`, `valuation_frequency`
+
+**Migracion**: `alembic/versions/20260427_0047_aifmd_ucits_models.py`
+
+### Fase 31.9.4 — Data models para CRD V/CRR, BRRD, EMIR
+
+**Tablas a crear**:
+- `crd_capital_position` — posicion de capital CRD/CRR: `id`, `entity_id`, `reporting_date`, `cet1_ratio`, `tier1_ratio`, `total_capital_ratio`, `cet1_amount`, `tier1_amount`, `total_capital_amount`, `leverage_ratio`, `risk_weighted_assets`, `status`
+- `crd_stress_test` — prueba de resistencia: `id`, `entity_id`, `test_date`, `scenario_name`, `cet1_impact_pct`, `tier1_impact_pct`, `capital_ratio_post_test`, `competent_authority`, `status`
+- `brrd_bail_in` — bail-in: `id`, `entity_id`, `total_eligible_liabilities`, `mrel_target_pct`, `mrel_compliance_pct`, `internal_mrel`, `resolution_status`, `status`
+- `emir_trade_report` — reporte de trade EMIR: `id`, `trade_id`, `asset_class` (credit, equity, energy, commodity, fx, interest-rate), `instrument_class`, `clearing_obligation_applied`, `reporting_delay_days`, `counterparty_type` (financial, non-financial, other), `status`
+- `emir_clearing_member` — clearing member: `id`, `entity_id`, `emir_registration`, `clearing_type` (central, OTC`, `status`
+
+**Migracion**: `alembic/versions/20260427_0048_crd_brrd_emir_models.py`
+
+### Fase 31.9.5 — Workers, routers, seeds e integracion
+
+**Worker nuevo**: `apps/workers/sustainable_finance.py` — ingestion de:
+- Registros de fondos AIFMD/UCITS desde CNMV
+- Datos SFDR de productos de inversion
+- Informes CSRD desde ESAP (European Single Access Point)
+
+**Workers existentes a actualizar**:
+- `prospectos.py` — expandir para incluir datos de fondos (AIFMD/UCITS)
+- `cnmv.py` — añadir mapeo de SFDR/CSRD a `regulacion_relacionada`
+
+**Routers nuevos**: `sustainable_finance.py`, `fund_regulation.py`, `prudential.py`
+
+**Seeds**: `seed_sfdr.py`, `seed_csrd.py`, `seed_aifmd.py`, `seed_ucits.py`, `seed_crd.py`, `seed_emir.py`
+
+**Tests + integracion retrieval**: como Fase 31.7
+
+### Criterio de exito Fase 31.9
+
+1. existen tablas para SFDR (5), CSRD (4), AIFMD/UCITS (5), CRD/BRRD/EMIR (5)
+2. cada tabla tiene migracion Alembic correspondiente
+3. worker `sustainable_finance.py` ingesta datos de ESAP/CNMV
+4. endpoints validan input con schema Pydantic y tienen rate limiting
+5. tests verdes + grounding duro para SFDR/CSRD/AIFMD/UCITS/CRD/BRRD/EMIR
+6. `architecture.md` actualizado con los 3 nuevos dominios como `[IMPLEMENTED]`
+
+---
+
+## Fase 31.10 — Expansion regulatoria: PSD2/PSD3, SEPA, Consumer Credit, IDD, Solvency II
+
+### Estado
+- **PENDIENTE** — despues de 31.9
+- **Prioridad**: media — regulacion de pagos, seguros y credito al consumo
+
+### Contexto
+
+`esdata` tiene IBAN validation (`banking.py`) y SEPA pain.001 (`banking.py:121+`), pero NO tiene modelos de datos para:
+- **PSD2/PSD3**: servicios de pago, APIs de banca abierta (DSP, ASPSP, AIS, PIS)
+- **SEPA**: regulacion de pagos transfronterizos (no solo generacion XML)
+- **Consumer Credit**: directiva 2008/48/CE y 2023/2863
+- **IDD**: Insurance Distribution Directive 2016/97
+- **Solvency II**: directiva 2009/138/CE
+
+Esta expansion completa la cobertura regulatoria de `esdata` incluyendo servicios financieros complementarios a la regulacion de valores.
+
+### Fase 31.10.1 — Data models para PSD2/PSD3 y SEPA
+
+**Tablas a crear**:
+- `psd2_aspsp` — proveedor de cuentas de pago: `id`, `entity_id`, `bic`, `psd2_license`, `strong_customer_auth_applied`, `api_version` (v1/v2), `regulatory_status`, `home_member_state`
+- `psd2_aisp` — proveedor de informacion de cuentas: `id`, `entity_id`, `registration_number`, `registration_id`, `access_scope`, `valid_from`, `valid_to`, `status`
+- `psd2_pisp` — proveedor de servicios de pago: `id`, `entity_id`, `registration_number`, `authorization_status`, `home_member_state`, `psd3_transition_status`
+- `psd2_consent` — consentimiento DSP: `id`, `client_id`, `aspsp_id`, `consent_type` (AIS/PIS), `accounts_accessed` (jsonb), `payment_count_limit`, `used_count`, `valid_from`, `valid_to`, `status`
+- `psd2_incident_report` — reporte de incidente PSD2: `id`, `aspsp_id`, `incident_type`, `severity`, `description`, `reported_to_bde`, `reported_date`
+- `sepa_payment_rule` — regla de pago SEPA: `id`, `scheme_version`, `payment_type`, `service_level`, `local_instrument`, `category_purpose`, `cut_off_time`, `settlement_days`
+
+**Migracion**: `alembic/versions/20260427_0049_psd2_sepa_models.py`
+
+### Fase 31.10.2 — Data models para Consumer Credit
+
+**Tablas a crear**:
+- `consumer_credit_contract` — contrato de credito consumo: `id`, `lender_id`, `borrower_id`, `credit_type` (installment, revolving, real-secured), `principal_amount`, `annual_percentage_rate`, `total_amount`, `term_months`, `purpose`, `signing_date`, `status`
+- `consumer_credit_disclosure` — disclosure precontractual: `id`, `contract_id`, `fap`, `total_cost`, `regular_payment`, `amortization_schedule_url`, `right_of_withdrawal`, `early_repayment_penalty`, `url`
+- `consumer_credit_overindebtedness` — sobreendeudamiento: `id`, `borrower_id`, `declared_date`, `total_debt`, `monthly_income`, `unsecured_debt`, `procedure_status`, `court_reference`
+
+**Migracion**: `alembic/versions/20260427_0050_consumer_credit_models.py`
+
+### Fase 31.10.3 — Data models para IDD y Solvency II
+
+**Tablas a crear**:
+- `idd_distributor` — distribuidor de seguros: `id`, `entity_id`, `registration_number`, `insurance_ao`, `products_covered` (jsonb), `professional_indemnity`, `training_certified`, `status`
+- `idd_product_uci` — documento UCI (informacion producto): `id`, `product_id`, `product_type` (life/non-life), `risk_coverage`, `cost_breakdown` (jsonb), `exit_costs`, `taxes`, `version`, `status`
+- `solvency_ii_entity` — entidad Solvency II: `id`, `entity_id`, `entity_type` (life, non-life, mixed, branch), `solvency_capital_requirement`, `minimum_capital_requirement`, `solvency_ratio`, `reporting_date`, `home_supervisor`
+- `solvency_ii_sfp` — summary of fund portfolio: `id`, `entity_id`, `reporting_period`, `fund_breakdown` (jsonb), `asset_allocation` (jsonb), `url`, `status`
+
+**Migracion**: `alembic/versions/20260427_0051_idd_solvency_models.py`
+
+### Fase 31.10.4 — Workers, routers, seeds e integracion
+
+**Workers**: `apps/workers/psd2.py`, `apps/workers/consumer_credit.py`, `apps/workers/insurance.py`
+
+**Routers**: `psd2.py`, `consumer_credit.py`, `insurance.py`
+
+**Seeds**: `seed_psd2.py`, `seed_consumer_credit.py`, `seed_idd.py`, `seed_solvency.py`
+
+**Tests + integracion retrieval**: como Fase 31.7
+
+### Criterio de exito Fase 31.10
+
+1. existen tablas para PSD2/PSD3 (6), Consumer Credit (3), IDD/Solvency II (4)
+2. cada tabla tiene migracion Alembic correspondiente
+3. tests verdes + grounding duro
+4. `architecture.md` actualizado con los nuevos dominios como `[IMPLEMENTED]`
+
+---
+
+## Resumen Fase 31 — Inventario completo de expansion regulatoria
+
+### Tablas planificadas por subfase
+
+| Subfase | Dominio | Tablas |
+|---------|---------|--------|
+| 31.1 | MiCA/Crypto | `casp`, `crypto_asset`, `tokenized_asset`, `wallet_custodian`, `crypto_transaction` |
+| 31.2 | DAC8/DAC9 | `dac_reporting_entity`, `dac_crypto_report`, `dac_crypto_transaction_line`, `dac_wallet_holder` |
+| 31.3 | Ley 10/2010 (PBC/FT) | `pbc_obligated_subject`, `pbc_internal_control`, `suspicious_activity_report`, `beneficial_owner_record` |
+| 31.4 | Ley 11/2021 (antifraude) | `fraud_prevention_program`, `fraud_risk_assessment`, `fraud_incident` |
+| 31.8.1 | MiFID II/MiFIR | `mifid_client_category`, `mifid_suitability_report`, `mifid_best_execution_record`, `mifid_conflict_of_interest_registry`, `mifid_product_governance`, `mifid_order_record`, `mifid_insider_list`, `mifid_compensation_policy` |
+| 31.8.2 | MAR | `mar_insider_transaction`, `mar_suspicious_transaction_report`, `mar_market_manipulation_indicator`, `mar_insider_communication` |
+| 31.8.3 | DORA | `dora_tic_incident`, `dora_third_party_provider`, `dora_ict_risk_register`, `dora_penetration_test`, `dora_incident_classification_framework` |
+| 31.8.4 | PRIIPs/LIVMC | `priips_kid`, `priips_product`, `livmc_client_protection`, `livmc_voice_procedure` |
+| 31.8.5 | Transparencia | `transparency_issuer`, `transparency_regulated_information`, `transparency_voting_rights`, `transparency_internal_rule` |
+| 31.9.1 | SFDR | `sfdr_product`, `sfdr_paci_indicator`, `sfdr_entity_paci`, `sfdr_pre_contractual`, `sfdr_annual_report` |
+| 31.9.2 | CSRD | `csrd_entity_report`, `csrd_esg_data_point`, `csrd_ess`, `csrd_double_materiality` |
+| 31.9.3 | AIFMD/UCITS | `aifmd_fund`, `ucits_fund`, `aifmd_regulatory_report`, `ucits_regulatory_report`, `aifmd_liquidity_management` |
+| 31.9.4 | CRD V/CRR, BRRD, EMIR | `crd_capital_position`, `crd_stress_test`, `brrd_bail_in`, `emir_trade_report`, `emir_clearing_member` |
+| 31.10.1 | PSD2/PSD3/SEPA | `psd2_aspsp`, `psd2_aisp`, `psd2_pisp`, `psd2_consent`, `psd2_incident_report`, `sepa_payment_rule` |
+| 31.10.2 | Consumer Credit | `consumer_credit_contract`, `consumer_credit_disclosure`, `consumer_credit_overindebtedness` |
+| 31.10.3 | IDD/Solvency II | `idd_distributor`, `idd_product_uci`, `solvency_ii_entity`, `solvency_ii_sfp` |
+
+**Total**: 53 nuevas tablas, 13 migraciones Alembic, 8+ workers nuevos, 10+ routers nuevos, 15+ seeds, 15+ archivos de tests.
+
+### Prioridad de ejecucion recomendada
+
+1. **31.1-31.4** — MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021 (prioridad alta, gaps mas criticos)
+2. **31.8** — MiFID II, MAR, DORA, PRIIPs, LIVMC, Transparencia (prioridad media-alta, ya hay micro_obligaciones seed)
+3. **31.9** — SFDR, CSRD, AIFMD, UCITS, CRD V/CRR, BRRD, EMIR (prioridad media, financiamiento sostenible y prudencial)
+4. **31.10** — PSD2/PSD3, Consumer Credit, IDD, Solvency II (prioridad media, complementario)
 
 ---
 

@@ -9,6 +9,7 @@ Todos los comandos asumen que se ejecutan desde la raiz del repo en el servidor.
 
 - Secuencia operativa estandar: `agent-workflow.md`
 - Memoria operativa acumulada para futuros agentes: `agent-notes.md`
+- Matriz de verificacion por area y cierre de sesion: `verification-matrix.md`
 - Estado activo y siguiente paso: `../master-execution-roadmap.md`
 - Reglas globales: `../../AGENTS.md`
 

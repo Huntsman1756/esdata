@@ -35,6 +35,8 @@ Si no se puede reclamar de forma segura, no empezar.
 
 Ejecutar una prueba o check del scope afectado:
 
+Referencia reusable: `verification-matrix.md`
+
 - test puntual
 - reproduccion del bug
 - `ruff check` del modulo
@@ -66,6 +68,8 @@ Actualizar el roadmap con:
 - siguiente paso exacto
 
 ## Politica de verificacion
+
+Para una matriz concreta por area del repo, bateria minima antes de commit y cierre de sesion, usar `verification-matrix.md`.
 
 ### Python
 

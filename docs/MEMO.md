@@ -6,9 +6,11 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ## main
 
-**Estado:** activa — ultimo commit: xxxxxxxx (Fase 30.15 Dependabot advisory)
+**Estado:** activa — ultimo commit: xxxxxxxx (fiscal retrieval and AEAT drift guard handoff)
 
 ### Resumen
+Fase 30 completada (30.1-30.15): remediacion estructural post-auditoria cerrada. Todas las fases planificadas 22-30 ahora completas. Roadmap limpio de headers stale (Fases 16, 23, 30). Fase 31 planificada: expansion regulatoria con data models para MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021 — 7 subfases documentadas con tablas, workers, routers, migrations y seeds.
+
 Fase 30.4 completada: capa de conectividad global con grafo local SQL (recursive CTEs, 7 entity types: articulo, documento, obligacion, norma, modelo, empresa, screening_entry), endpoint unificado `/v1/connectivity/graph/{node_type}/{identifier}`, lint de markdown + verificacion de enlaces en `verify-doc-artifacts.py` con exclusiones para docs historicos, 5 nuevas metricas Prometheus (retrieval latency P95/P99, component errors, query tokens, RAM/VRAM per query, faithfulness histogram) con integracion en `/v1/consulta`. 148 tests pasando (15 graph connectivity + 94 smoke + 33 grounding + 6 metrics).
 
 Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/grounding.py` con `validate_claim_grounding()` (umbral 0.4), deteccion de inyeccion adversarial en chunks (12+ patrones), `apply_claim_level_abstention()` para filtrar resultados no fundamentados. Schemas `ChunkCitation` y `ClaimCitation` extendidos con `grounded`/`chunk_clean` flags. Integracion en pipeline de `/v1/consulta` con abstencion automatica y `grounding_summary`. DDL `query_audit_log` extendido con `grounding_status`, `prompt_injection_detected`, `grounding_summary`. 33 tests en `test_grounding.py`.
@@ -16,6 +18,9 @@ Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/groundin
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+| xxxxxxxx | fix(api) | harden fiscal retrieval end-to-end: legacy query_audit runtime repair, semantic abstention for uncovered terms, `/v1/buscar` legislation-only docs, CNMV corpus verification in Compose, `DRIFT_AEAT` guard for zero-casilla campaigns | apps/api/routers/consulta.py, apps/api/services/persistence.py, apps/api/tests/test_query_audit.py, apps/api/tests/test_reranker.py, apps/workers/modelos.py, apps/workers/modelos_support.py, apps/workers/tests/test_modelos.py, docs/manual-usuario/06-api-y-ejemplos.md, docs/manual-usuario/09-referencia-de-endpoints.md, docs/operations/verification-matrix.md, docs/operations/README.md, docs/operations/agent-notes.md, docs/operations/agent-workflow.md, docs/README.md, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
+| xxxxxxxx | docs | Fase 31: expansion regulatoria MiCA/DAC8/DAC9/Ley 10/2010/Ley 11/2021 — 7 subfases, 15+ tablas nuevas planificadas | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
+| xxxxxxxx | docs | roadmap cleanup: alembic-chain-repair COMPLETA, headers stale Fases 16/23/30 corregidos, estado ejecutivo actualizado, todas fases 22-30 completas | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | fix(alembic) | fix alembic/env.py: vector extension, transaction_per_migration, no begin_transaction wrapper | alembic/env.py, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | docs | Fase 30.15 — Dependabot advisory: 26 dependency vulns (21 pypdf, pytest, dotenv, lychee, postcss) | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | docs | Fase 30.14 — security audit: CORS, plaintext password, Docker hardening, SQL injection pattern | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |

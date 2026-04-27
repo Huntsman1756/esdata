@@ -17,6 +17,7 @@ from modelos_support import (
     get_model_id,
     get_model_metadata,
     get_model_rows,
+    get_previous_campaign_casillas_count,
     log_sync_result,
     scrape_casillas_from_page,
     scrape_claves_from_page,
@@ -54,6 +55,7 @@ def _scrape_campaign(engine, modelo_id: int, modelo_codigo: str, campana: str, u
             return
 
         campana_id, campaign_instruction_url = campaign_row
+        previous_casillas_count = get_previous_campaign_casillas_count(conn, modelo_id, campana)
 
     url_to_fetch = campaign_instruction_url or url_instrucciones_fallback or url_info
     html = _fetch_instruction_page(url_to_fetch) or _fetch_model_page(url_info)
@@ -62,6 +64,16 @@ def _scrape_campaign(engine, modelo_id: int, modelo_codigo: str, campana: str, u
         return
 
     scraped_casillas = scrape_casillas_from_page(html, modelo_codigo)
+    if not scraped_casillas and previous_casillas_count > 0:
+        message = (
+            f"DRIFT_AEAT: modelo {modelo_codigo} campana {campana} devolvio 0 casillas "
+            f"tras scraping, pero existen {previous_casillas_count} casillas en campanas previas. "
+            "Verificar HTML de AEAT manualmente y no sustituir datos previos con vacio."
+        )
+        logger.error(message)
+        result.errors.append(message)
+        return
+
     if scraped_casillas:
         with engine.begin() as conn:
             count = upsert_casillas(conn, campana_id, scraped_casillas)

@@ -611,6 +611,41 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
     return claim_citations
 
 
+def _collect_uncovered_query_terms(query: str, resultados: list[dict]) -> set[str]:
+    query_terms = set(re.findall(r"[a-záéíóúñ0-9]{3,}", (query or "").lower()))
+    if not query_terms or not resultados:
+        return query_terms
+
+    covered_terms: set[str] = set()
+    for resultado in resultados:
+        searchable_parts = [
+            resultado.get("norma"),
+            resultado.get("codigo"),
+            resultado.get("referencia"),
+            resultado.get("nombre"),
+            resultado.get("titulo"),
+            resultado.get("texto"),
+            resultado.get("fragmento"),
+            resultado.get("tipo_obligacion"),
+            resultado.get("fuente"),
+            resultado.get("organismo"),
+            resultado.get("motivo_ranking"),
+        ]
+        evidencia = resultado.get("evidencia") or {}
+        searchable_parts.extend(
+            [
+                evidencia.get("fragmento_exacto"),
+                evidencia.get("fuente_norma"),
+            ]
+        )
+        searchable_text = " ".join(str(part).lower() for part in searchable_parts if part)
+        for term in query_terms:
+            if term in searchable_text:
+                covered_terms.add(term)
+
+    return query_terms - covered_terms
+
+
 def _apply_grounding_abstention_if_needed(
     query: str,
     resultados: list[dict],
@@ -624,6 +659,12 @@ def _apply_grounding_abstention_if_needed(
 
     if resolved_modelos:
         return resultados, confianza, cited_chunks
+
+    uncovered_terms = _collect_uncovered_query_terms(query, resultados)
+    if uncovered_terms:
+        confianza = dict(confianza)
+        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        return [], confianza, []
 
     if not cited_chunks:
         confianza = dict(confianza)
@@ -971,7 +1012,6 @@ async def consulta_fiscal(
         except Exception:
             db.rollback()
 
-    # Deduplicate results
     seen = set()
     unique_results = []
     for r in results:
@@ -1131,3 +1171,21 @@ async def consulta_fiscal(
             db.rollback()
 
     # Deduplicate results
+    seen = set()
+    deduped = []
+    for r in final_results:
+        key = getattr(r, "id", None) or getattr(r, "chunk_id", None) or str(r)
+        if key not in seen:
+            seen.add(key)
+            deduped.append(r)
+
+    return ConsultaFiscalResponse(
+        consulta=q or "",
+        modelos=modelos_detalle if modelos_detalle else [],
+        resultados=deduped,
+        total_resultados=len(deduped),
+        relevancia=relevancia,
+        confianza=confianza if isinstance(confianza, dict) else None,
+        cited_chunks=cited_chunks if cited_chunks else [],
+        claim_citations=claim_citations if claim_citations else [],
+    )

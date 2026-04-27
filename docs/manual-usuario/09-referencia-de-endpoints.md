@@ -20,7 +20,7 @@ Este capitulo no sustituye OpenAPI. Sirve como mapa rapido de que exponer y para
 - `GET /v1/connectivity/articulos/{codigo_norma}/{numero}` — conectividad cross-source derivada para un articulo: modelos, doctrina y obligaciones enlazadas
 - `GET /v1/connectivity/documentos/{referencia}` — conectividad derivada para un documento: articulos y obligaciones enlazadas
 - `GET /v1/connectivity/obligaciones/{codigo}` — conectividad derivada para una obligacion: documentos y articulos enlazados
-- `GET /v1/buscar` — busqueda principal sobre legislacion consolidada
+- `GET /v1/buscar` — busqueda principal sobre legislacion consolidada unicamente; no devuelve modelos tributarios
 - `GET /v1/legislacion/buscar` — alias funcional de la busqueda legislativa
 - `GET /v1/legislacion/buscar/hybrid` — busqueda hibrida con peso vectorial configurable
 - `GET /v1/legislacion` — listado de normas
@@ -35,7 +35,8 @@ Uso recomendado:
 - usa `consulta` cuando quieras una respuesta agregada sobre modelos, obligaciones, normativa y doctrina con senal resumida de confianza
 - usa `connectivity/articulos` cuando quieras explorar relaciones cross-source explicitamente en vez de inferirlas desde varios endpoints sueltos
 - usa `connectivity/documentos` o `connectivity/obligaciones` cuando el nodo raiz de tu analisis no sea el articulo sino el documento doctrinal o la obligacion operativa
-- usa `buscar` para descubrimiento inicial
+- usa `buscar` para descubrimiento inicial de legislacion
+- usa `modelos` o `consulta` cuando la pregunta sea sobre modelos AEAT como `303`, `349` o `100`
 - usa `get_norma` y `get_articulo` para detalle trazable
 - usa `historial` cuando importe el estado historico de un articulo
 

@@ -31,6 +31,7 @@
 - `deployment/server-installation.md`
 - `deployment/rollback.md`
 - `operations/README.md`
+- `operations/verification-matrix.md`
 - `operations/agent-notes.md`
 - `REMEDIATION.md`
 - `POLICY_PATCHES.md`

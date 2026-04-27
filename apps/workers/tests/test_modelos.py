@@ -4,6 +4,8 @@ Tests for the modelos worker (AEAT model content scraper).
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from sqlalchemy import create_engine, text
 
@@ -20,6 +22,7 @@ from modelos_support import (
     upsert_campaign_operativa,
     upsert_instructions,
 )
+import modelos
 
 
 # ---------------------------------------------------------------------------
@@ -540,3 +543,52 @@ class TestActiveCampaignSelection:
 
         assert result.campaigns_created == 0
         assert rows == [("2026", 1), ("2025", 0)]
+
+
+class TestAeatDriftGuard:
+    def test_sync_model_logs_drift_and_preserves_previous_casillas_when_new_campaign_scrapes_zero(self):
+        result = SimpleNamespace(
+            models_checked=0,
+            campaigns_created=0,
+            casillas_upserted=0,
+            claves_upserted=0,
+            instrucciones_upserted=0,
+            operativa_upserted=0,
+            operativa_skipped=0,
+            errors=[],
+        )
+
+        class FakeBegin:
+            def __enter__(self):
+                return object()
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        class FakeEngine:
+            def begin(self):
+                return FakeBegin()
+
+        drift_logs = []
+
+        with (
+            patch.object(modelos, "get_model_id", return_value=1),
+            patch.object(modelos, "_fetch_model_page", return_value="<html>2026</html>"),
+            patch.object(modelos, "detect_campaigns", return_value=["2026"]),
+            patch.object(modelos, "ensure_campaigns"),
+            patch.object(modelos, "get_campaign_row", return_value=(99, "https://example.com/2026")),
+            patch.object(modelos, "_fetch_instruction_page", return_value="<html>sin casillas</html>"),
+            patch.object(modelos, "scrape_casillas_from_page", return_value=[]),
+            patch.object(modelos, "scrape_claves_from_page", return_value=[]),
+            patch.object(modelos, "scrape_instructions_from_page", return_value=[]),
+            patch.object(modelos, "upsert_casillas") as upsert_casillas,
+            patch.object(modelos, "get_previous_campaign_casillas_count", return_value=12),
+            patch.object(modelos.logger, "error", side_effect=lambda message, *args: drift_logs.append(message % args)),
+        ):
+            modelos.sync_model(FakeEngine(), "303", "https://example.com/modelo-303", None, result)
+
+        assert result.models_checked == 1
+        assert result.casillas_upserted == 0
+        assert upsert_casillas.called is False
+        assert any("DRIFT_AEAT" in entry for entry in drift_logs)
+        assert any("303" in entry and "2026" in entry for entry in drift_logs)
