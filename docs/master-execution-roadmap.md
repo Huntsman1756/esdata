@@ -2985,12 +2985,12 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 - infra y docs alineadas: `docker-compose.prod.yml` exige `ESDATA_API_KEY` y `MCP_API_KEY`; `DGT_SSL_VERIFY` pasa a `true` por defecto; `docs/environment-variables.md` y `docs/manual-usuario/04-operacion-tecnica.md` reflejan el nuevo contrato operativo
 - evidencia fresca: `pytest apps/api/tests/test_security.py apps/api/tests/test_mcp_private.py -v --tb=short` -> `21 passed`
 
-#### Fase 30.2 — Persistencia durable y audit trail real ✅ PARCIALMENTE COMPLETA
-- persistir en DB: query audit log, AI audit log, human review y data lineage
-- registrar por query: actor, timestamp, request_id, chunks recuperados, configuracion de modelo, respuesta emitida y errores
-- introducir versionado de configuracion de modelos y retrieval para poder reconstruir una respuesta historica
-- prohibir documentar como "cumplimiento" cualquier control que siga en memoria o sin retencion verificable
-- estado actual: service layer durable implementado y verificado con tests; pendiente decidir si se amplian tests HTTP/integracion antes de dar la fase por cerrada del todo
+#### Fase 30.2 — Persistencia durable y audit trail real ✅ COMPLETA
+- persistir en DB: query audit log, AI audit log, human review y data lineage ✅
+- registrar por query: actor, timestamp, request_id, chunks recuperados, configuracion de modelo, respuesta emitida y errores ✅
+- introducir versionado de configuracion de modelos y retrieval para poder reconstruir una respuesta historica ✅
+- prohibir documentar como "cumplimiento" cualquier control que siga en memoria o sin retencion verificable ✅
+- estado actual: service layer durable implementado y verificado; 21 HTTP integration tests pasando (test_governance_http.py 16 tests + test_query_audit_http.py 5 tests); fixes aplicados: SQLite engine kwargs en db.py, route order en config_router, duplicate routes en human_review, PostgreSQL ON CONFLICT en model_registry service, DDL ordering en test setup
 
 #### Fase 30.3 — Grounding, freshness e incremental indexing
 - anadir manifiesto de fuentes con owner, trust tier, cadencia, ultima actualizacion y modo de deteccion de cambios

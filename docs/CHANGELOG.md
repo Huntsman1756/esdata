@@ -7,9 +7,7 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
-- **pending** `fix(api)` — fix SQLite engine kwargs in db.py, route order in model_registry config_router, duplicate routes in human_review, and PostgreSQL ON CONFLICT in model_registry service
-- **pending** `feat(api)` — add query_audit HTTP router with GET /v1/ai/query-audit and GET /v1/ai/query-audit/{request_id} endpoints
-- **pending** `test(api)` — add 21 HTTP integration tests for AI audit log, human review, data lineage, model registry config, and query audit
+- **3462824** `fix(api)` — fix SQLite engine kwargs in db.py, route order in model_registry config_router, duplicate routes in human_review, PostgreSQL ON CONFLICT in model_registry service, Alembic migration SQLite/Postgres compat, add query_audit HTTP router and 21 HTTP integration tests
 - **17062bd** `docs` — add multi-machine sync and commit-per-fix discipline
 - **8cafe5d** `feat(api)` — add 60+ new routers, services, middleware and tests (banking, PGX, fiscal, AI governance, screening, XBRL, ownership)
 - **f5fb40b** `feat(workers)` — add 20+ ingestion workers (AEAT, BOE, CNMV, PGX, XBRL, screening, DGT, fiscal laws)
