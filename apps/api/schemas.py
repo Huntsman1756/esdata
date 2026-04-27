@@ -467,6 +467,11 @@ class ChunkCitation(BaseModel):
     excerpt: str = Field(description="Extracto corto del chunk para verificacion humana")
 
 
+class ClaimCitation(BaseModel):
+    claim: dict = Field(description="Identificador del claim (resultado)")
+    citations: list[ChunkCitation] = Field(description="Chunks que respaldan este claim")
+
+
 class ConsultaFiscalResponse(BaseModel):
     consulta: str = Field(description="Consulta resuelta o resumen de parámetros")
     modelos: list[ConsultaModelo] = Field(default_factory=list, description="Modelos resueltos para la consulta")
@@ -475,6 +480,7 @@ class ConsultaFiscalResponse(BaseModel):
     relevancia: Relevancia | None = Field(default=None, description="Información de relevancia de la respuesta")
     confianza: ConsultaConfianza | None = Field(default=None, description="Información de confianza de la respuesta")
     cited_chunks: list[ChunkCitation] = Field(default_factory=list, description="Chunks o anclajes priorizados para justificar la respuesta")
+    claim_citations: list[ClaimCitation] = Field(default_factory=list, description="Mapeo claim-to-chunk para grounding por afirmacion")
 
 
 # ---------------------------------------------------------------------------

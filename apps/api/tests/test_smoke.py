@@ -2099,3 +2099,45 @@ async def test_fairness_report_disabled():
     data = r.json()
     assert data["report"]["overall_severity"] == "skipped"
     assert data["report"]["bias_detected"] is False
+
+
+@pytest.mark.asyncio
+async def test_consulta_expone_claim_citations():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=tipo+reducido+iva")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert "claim_citations" in data
+    assert isinstance(data["claim_citations"], list)
+
+    if data["claim_citations"]:
+        first = data["claim_citations"][0]
+        assert "claim" in first
+        assert "citations" in first
+        assert isinstance(first["citations"], list)
+        assert len(first["citations"]) > 0
+        citation = first["citations"][0]
+        assert "chunk_id" in citation
+        assert "source_document" in citation
+        assert "rerank_score" in citation
+        assert "excerpt" in citation
+
+
+@pytest.mark.asyncio
+async def test_consulta_claim_citations_mapea_por_chunk_id():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=deduccion+gastos+representacion+is")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    if data["claim_citations"]:
+        for claim_entry in data["claim_citations"]:
+            claim = claim_entry["claim"]
+            assert claim.get("tipo") in ("normativa", "modelo", "obligacion", "doctrina")
+            for cit in claim_entry["citations"]:
+                assert cit["chunk_id"] is not None
+                assert cit["rerank_score"] is not None
+                assert len(cit["excerpt"]) > 0
