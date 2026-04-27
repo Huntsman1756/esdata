@@ -19,9 +19,14 @@ def create_metrics_middleware():
     Returns a middleware function that tracks:
     - http_requests_total: Counter by method, endpoint, status
     - http_request_duration_seconds: Histogram of request durations
+    - retrieval_latency_seconds: Histogram of retrieval-only latency (P95/P99)
+    - component_errors_total: Counter by component and error type
+    - query_tokens_total: Counter of input/output tokens per query
+    - query_memory_bytes: Gauge of RAM/VRAM used per query
+    - faithfulness_score: Histogram of faithfulness scores for trending
     """
     try:
-        from prometheus_client import Counter, Gauge, Histogram, generate_latest, REGISTRY
+        from prometheus_client import REGISTRY, Counter, Gauge, Histogram, generate_latest
     except ImportError:
         logger.warning("prometheus_client not installed, metrics disabled")
         return None
@@ -33,11 +38,21 @@ def create_metrics_middleware():
     REQUEST_DURATION: Histogram | None = None
     CONSULTA_REVIEW_REQUIRED: Counter | None = None
     CONSULTA_FAITHFULNESS_SCORE: Gauge | None = None
+    RETRIEVAL_LATENCY: Histogram | None = None
+    COMPONENT_ERRORS: Counter | None = None
+    QUERY_TOKENS: Counter | None = None
+    QUERY_MEMORY: Gauge | None = None
+    FAITHFULNESS_HISTOGRAM: Histogram | None = None
     if _reuse:
         REQUEST_COUNT = _collector_by_name(REGISTRY, "http_requests_total")
         REQUEST_DURATION = _collector_by_name(REGISTRY, "http_request_duration_seconds")
         CONSULTA_REVIEW_REQUIRED = _collector_by_name(REGISTRY, "consulta_review_required_total")
         CONSULTA_FAITHFULNESS_SCORE = _collector_by_name(REGISTRY, "consulta_faithfulness_score")
+        RETRIEVAL_LATENCY = _collector_by_name(REGISTRY, "retrieval_latency_seconds")
+        COMPONENT_ERRORS = _collector_by_name(REGISTRY, "component_errors_total")
+        QUERY_TOKENS = _collector_by_name(REGISTRY, "query_tokens_total")
+        QUERY_MEMORY = _collector_by_name(REGISTRY, "query_memory_bytes")
+        FAITHFULNESS_HISTOGRAM = _collector_by_name(REGISTRY, "faithfulness_score")
     else:
         REQUEST_COUNT = Counter(
             "http_requests_total",
@@ -50,15 +65,41 @@ def create_metrics_middleware():
             ["method", "endpoint"],
             buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
         )
-        CONSULTA_REVIEW_REQUIRED = Counter(
+        CONSULTA_REVIEW_REQUIRED = Counter(  # noqa: F841
             "consulta_review_required_total",
             "Total consulta responses grouped by review requirement",
             ["endpoint", "review_required"],
         )
-        CONSULTA_FAITHFULNESS_SCORE = Gauge(
+        CONSULTA_FAITHFULNESS_SCORE = Gauge(  # noqa: F841
             "consulta_faithfulness_score",
             "Latest faithfulness score observed for consulta endpoint",
             ["endpoint"],
+        )
+        RETRIEVAL_LATENCY = Histogram(  # noqa: F841
+            "retrieval_latency_seconds",
+            "Retrieval-only latency in seconds (P95/P99)",
+            ["endpoint", "source"],
+            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+        )
+        COMPONENT_ERRORS = Counter(  # noqa: F841
+            "component_errors_total",
+            "Component errors by source and type",
+            ["component", "error_type"],
+        )
+        QUERY_TOKENS = Counter(  # noqa: F841
+            "query_tokens_total",
+            "Input and output tokens per query",
+            ["query_type", "token_phase"],
+        )
+        QUERY_MEMORY = Gauge(  # noqa: F841
+            "query_memory_bytes",
+            "RAM/VRAM used per query in bytes",
+            ["component"],
+        )
+        FAITHFULNESS_HISTOGRAM = Histogram(  # noqa: F841
+            "faithfulness_score",
+            "Faithfulness score distribution for trending",
+            buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         )
 
     async def metrics_middleware(request, call_next):
@@ -114,7 +155,7 @@ def _is_uuid_like(s: str) -> bool:
 
 def record_consulta_metrics(endpoint: str, confianza: dict[str, Any] | None) -> None:
     try:
-        from prometheus_client import Counter, Gauge, REGISTRY
+        from prometheus_client import REGISTRY, Counter, Gauge
     except ImportError:
         return
 
@@ -146,7 +187,7 @@ def record_consulta_metrics(endpoint: str, confianza: dict[str, Any] | None) -> 
 
 def record_worker_metrics(worker: str, stale: bool, lag_seconds: float | None) -> None:
     try:
-        from prometheus_client import Gauge, REGISTRY
+        from prometheus_client import REGISTRY, Gauge
     except ImportError:
         return
 
@@ -173,7 +214,7 @@ def record_worker_metrics(worker: str, stale: bool, lag_seconds: float | None) -
 
 def record_source_freshness_metrics(sources: list[dict[str, Any]]) -> None:
     try:
-        from prometheus_client import Gauge, REGISTRY
+        from prometheus_client import REGISTRY, Gauge
     except ImportError:
         return
 
@@ -201,13 +242,99 @@ def record_source_freshness_metrics(sources: list[dict[str, Any]]) -> None:
         changed_gauge.labels(source_id=source_id).set(1.0 if source.get("changed_since_previous") else 0.0)
 
 
+def record_retrieval_latency(endpoint: str, source: str, duration: float) -> None:
+    """Record retrieval-only latency for P95/P99 tracking."""
+    try:
+        from prometheus_client import REGISTRY, Histogram
+    except ImportError:
+        return
+
+    histogram = _collector_by_name(REGISTRY, "retrieval_latency_seconds")
+    if histogram is None:
+        histogram = Histogram(
+            "retrieval_latency_seconds",
+            "Retrieval-only latency in seconds (P95/P99)",
+            ["endpoint", "source"],
+            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+        )
+    histogram.labels(endpoint=endpoint, source=source).observe(duration)
+
+
+def record_component_error(component: str, error_type: str) -> None:
+    """Record component error for error rate tracking."""
+    try:
+        from prometheus_client import REGISTRY, Counter
+    except ImportError:
+        return
+
+    counter = _collector_by_name(REGISTRY, "component_errors_total")
+    if counter is None:
+        counter = Counter(
+            "component_errors_total",
+            "Component errors by source and type",
+            ["component", "error_type"],
+        )
+    counter.labels(component=component, error_type=error_type).inc()
+
+
+def record_query_tokens(query_type: str, phase: str, count: int) -> None:
+    """Record input/output tokens per query for cost tracking."""
+    try:
+        from prometheus_client import REGISTRY, Counter
+    except ImportError:
+        return
+
+    counter = _collector_by_name(REGISTRY, "query_tokens_total")
+    if counter is None:
+        counter = Counter(
+            "query_tokens_total",
+            "Input and output tokens per query",
+            ["query_type", "token_phase"],
+        )
+    counter.labels(query_type=query_type, token_phase=phase).inc(count)
+
+
+def record_query_memory(component: str, bytes_used: float) -> None:
+    """Record RAM/VRAM used per query for resource tracking."""
+    try:
+        from prometheus_client import REGISTRY, Gauge
+    except ImportError:
+        return
+
+    gauge = _collector_by_name(REGISTRY, "query_memory_bytes")
+    if gauge is None:
+        gauge = Gauge(
+            "query_memory_bytes",
+            "RAM/VRAM used per query in bytes",
+            ["component"],
+        )
+    gauge.labels(component=component).set(bytes_used)
+
+
+def record_faithfulness_histogram(score: float) -> None:
+    """Record faithfulness score in histogram for trending."""
+    try:
+        from prometheus_client import REGISTRY, Histogram
+    except ImportError:
+        return
+
+    histogram = _collector_by_name(REGISTRY, "faithfulness_score")
+    if histogram is None:
+        histogram = Histogram(
+            "faithfulness_score",
+            "Faithfulness score distribution for trending",
+            buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        )
+    histogram.observe(float(score))
+
+
 def create_metrics_endpoint():
     """Create /metrics endpoint handler.
 
     Returns an async function that serves Prometheus metrics in text format.
     """
     try:
-        from prometheus_client import generate_latest, REGISTRY
+        from prometheus_client import REGISTRY, generate_latest
     except ImportError:
         logger.warning("prometheus_client not installed, metrics endpoint disabled")
         return None

@@ -6,14 +6,17 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ## main
 
-**Estado:** activa — ultimo commit: a2e21eb (Fase 30.11 embedding versioning)
+**Estado:** activa — ultimo commit: xxxxxxxx (Fase 30.4 connectivity + observability + doc lint)
 
 ### Resumen
+Fase 30.4 completada: capa de conectividad global con grafo local SQL (recursive CTEs, 7 entity types: articulo, documento, obligacion, norma, modelo, empresa, screening_entry), endpoint unificado `/v1/connectivity/graph/{node_type}/{identifier}`, lint de markdown + verificacion de enlaces en `verify-doc-artifacts.py` con exclusiones para docs historicos, 5 nuevas metricas Prometheus (retrieval latency P95/P99, component errors, query tokens, RAM/VRAM per query, faithfulness histogram) con integracion en `/v1/consulta`. 148 tests pasando (15 graph connectivity + 94 smoke + 33 grounding + 6 metrics).
+
 Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/grounding.py` con `validate_claim_grounding()` (umbral 0.4), deteccion de inyeccion adversarial en chunks (12+ patrones), `apply_claim_level_abstention()` para filtrar resultados no fundamentados. Schemas `ChunkCitation` y `ClaimCitation` extendidos con `grounded`/`chunk_clean` flags. Integracion en pipeline de `/v1/consulta` con abstencion automatica y `grounding_summary`. DDL `query_audit_log` extendido con `grounding_status`, `prompt_injection_detected`, `grounding_summary`. 33 tests en `test_grounding.py`.
 
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+| xxxxxxxx | feat(api) | Fase 30.4 — graph connectivity (recursive CTEs, 7 entity types), markdown lint + link check, 5 new Prometheus metrics | apps/api/services/graph_connectivity.py, apps/api/routers/connectivity.py, apps/api/schemas.py, apps/api/middleware/metrics.py, apps/api/routers/consulta.py, apps/api/requirements.txt, scripts/maintenance/verify-doc-artifacts.py, apps/api/tests/test_graph_connectivity.py |
 | a2e21eb | feat(api) | grounding hard (Fase 30.13) — per-claim grounding, adversarial detection, abstention | apps/api/services/grounding.py, apps/api/schemas.py, apps/api/routers/consulta.py, apps/api/services/persistence.py, apps/api/services/query_audit.py, apps/api/tests/test_grounding.py, docs/architecture.md |
 | a2e21eb | feat(workers) | embedding versioning: migration 0034 adds embedding_model_name/content_hash | alembic/versions/20260427_0034_embedding_versioning.py, apps/workers/embeddings.py, scripts/data/backfill_embeddings.py |
 | 7d8b7b1 | fix(migrations) | repair Alembic chain SQL escaping, server_default, ON CONFLICT | alembic/versions/20260426_0016_*.py, alembic/versions/20260426_0017_*.py, alembic/versions/20260426_0018_*.py, alembic/versions/20260426_0019_*.py, alembic/versions/20260426_0022_*.py, alembic/versions/20260426_0025_*.py, alembic/versions/20260426_0026_*.py, alembic/versions/20260426_0028_*.py, alembic/versions/20260426_0029_*.py, scripts/ops/alembic_chain_repair.py |

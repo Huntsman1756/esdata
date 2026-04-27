@@ -11,3 +11,4 @@ fastapi-mcp==0.4.0
 sentence-transformers==4.1.0
 prometheus-client==0.23.1
 sentry-sdk[fastapi]==2.26.1
+psutil==7.0.0

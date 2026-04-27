@@ -1,7 +1,6 @@
 """Tests for grounding hard — per-claim citation validation and chunk injection detection (Fase 30.13)."""
 
-
-from apps.api.services.grounding import (
+from services.grounding import (
     GROUNDING_THRESHOLD,
     _has_sufficient_evidence,
     _is_chunk_clean,

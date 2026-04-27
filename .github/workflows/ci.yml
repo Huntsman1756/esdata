@@ -30,6 +30,17 @@ jobs:
       - name: Run ruff format check
         run: ruff format --check apps/ libs/ scripts/
 
+  lint-markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v18
+        with:
+          globs: "docs/**/*.md"
+          config: .markdownlint-cli2.yaml
+
   type-check:
     runs-on: ubuntu-latest
     steps:
@@ -262,3 +273,19 @@ jobs:
 
       - name: Audit workers dependencies
         run: pip-audit -r apps/workers/requirements.txt --fail-on=vulnerability
+
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Link Checker
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: >-
+            --config .lychee.toml
+            --no-progress
+            --format detailed
+            "docs/**/*.md"
+        env:
+          LYCHEE_CACHE_DIR: /tmp/lychee-cache

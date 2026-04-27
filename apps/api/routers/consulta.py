@@ -1,11 +1,14 @@
 """Consulta fiscal inteligente — responde preguntas naturales devolviendo modelos, obligaciones y normativa."""
 
 import re
-from fastapi import APIRouter, Query, Request
-from sqlalchemy import text
 
 from db import db_session
-from middleware.metrics import record_consulta_metrics
+from fastapi import APIRouter, Query, Request
+from middleware.metrics import (
+    record_consulta_metrics,
+    record_faithfulness_histogram,
+    record_query_memory,
+)
 from schemas import ConsultaFiscalResponse
 from services.ai_disclaimer import get_ai_version
 from services.faithfulness import compute_faithfulness
@@ -14,6 +17,7 @@ from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
+from sqlalchemy import text
 
 # ── Sinonimos juridicos para expansion semantica ──────────────────────────
 SINONIMOS_JURIDICOS = {
@@ -195,7 +199,7 @@ def _resolve_modelos(keywords: list[str]) -> list[str]:
     # Group keywords by specificity: longer keywords first, then by position
     # This ensures "irnr" (matched from query) beats "renta" (generic)
     sorted_keywords = sorted(keywords, key=lambda k: (len(k), keywords.index(k)), reverse=True)
-    
+
     # Track how many models each keyword contributes
     keyword_models = {}
     seen = set()
@@ -253,16 +257,16 @@ def _score_resultado(r: dict, q: str, expanded_keywords: list[str]) -> dict:
     - terminos_faltantes: list
     """
     q_lower = q.lower()
-    q_terms = set(re.findall(r'[a-záéíóúñ]{3,}', q_lower))
+    q_terms = set(re.findall(r"[a-záéíóúñ]{3,}", q_lower))
     if not q_terms:
-        r['_relevancia'] = {'nivel': 'baja', 'score': 0.0, 'coincidencia': 'sin terminos relevantes', 'terminos_encontrados': [], 'terminos_faltantes': list(q_terms)}
+        r["_relevancia"] = {"nivel": "baja", "score": 0.0, "coincidencia": "sin terminos relevantes", "terminos_encontrados": [], "terminos_faltantes": list(q_terms)}
         return r
 
-    texto_para_buscar = ''
-    for k in ['nombre', 'titulo', 'texto', 'fragmento', 'tipo_obligacion', 'fuente', 'organismo', 'motivo_ranking']:
+    texto_para_buscar = ""
+    for k in ["nombre", "titulo", "texto", "fragmento", "tipo_obligacion", "fuente", "organismo", "motivo_ranking"]:
         val = r.get(k)
         if val:
-            texto_para_buscar += f' {val}'
+            texto_para_buscar += f" {val}"
     texto_lower = texto_para_buscar.lower()
 
     terminos_encontrados = []
@@ -272,40 +276,40 @@ def _score_resultado(r: dict, q: str, expanded_keywords: list[str]) -> dict:
 
     terminos_faltantes = list(q_terms - set(terminos_encontrados))
 
-    tipo = r.get('tipo', '')
+    tipo = r.get("tipo", "")
     tipo_boost = RESULTADO_BOOST.get(tipo, 0.5)
 
     score = 0.0
-    coincidencia = ''
+    coincidencia = ""
 
     if terminos_encontrados:
         proporcion = len(terminos_encontrados) / len(q_terms)
         score = proporcion * tipo_boost
 
-        if proporcion >= 0.7 and tipo in ('modelo', 'normativa'):
+        if proporcion >= 0.7 and tipo in ("modelo", "normativa"):
             score = min(score, 1.0)
-            coincidencia = 'coincidencia alta con terminos clave'
+            coincidencia = "coincidencia alta con terminos clave"
         elif proporcion >= 0.4:
             score = min(score, 0.8)
-            coincidencia = 'coincidencia media con terminos relevantes'
+            coincidencia = "coincidencia media con terminos relevantes"
         else:
             score = min(score, 0.5)
-            coincidencia = 'coincidencia parcial'
+            coincidencia = "coincidencia parcial"
     else:
         score = 0.1 * tipo_boost
-        coincidencia = 'sin coincidencia directa de terminos'
+        coincidencia = "sin coincidencia directa de terminos"
 
-    rank = r.get('rank')
+    rank = r.get("rank")
     if rank is not None and rank > 0:
         rank_normalized = min(rank / 5.0, 1.0)
         score = score * 0.6 + rank_normalized * 0.4
 
-    r['_relevancia'] = {
-        'nivel': 'alta' if score >= 0.6 else ('media' if score >= 0.3 else 'baja'),
-        'score': round(score, 4),
-        'coincidencia': coincidencia,
-        'terminos_encontrados': terminos_encontrados,
-        'terminos_faltantes': terminos_faltantes,
+    r["_relevancia"] = {
+        "nivel": "alta" if score >= 0.6 else ("media" if score >= 0.3 else "baja"),
+        "score": round(score, 4),
+        "coincidencia": coincidencia,
+        "terminos_encontrados": terminos_encontrados,
+        "terminos_faltantes": terminos_faltantes,
     }
 
     return r
@@ -321,44 +325,44 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
     tipos_conteo = {}
 
     for r in resultados:
-        tipo = r.get('tipo', 'desconocido')
+        tipo = r.get("tipo", "desconocido")
         tipos_conteo[tipo] = tipos_conteo.get(tipo, 0) + 1
 
-        fuente = r.get('fuente_norma') or r.get('fuente') or r.get('organismo') or r.get('tipo_doc')
+        fuente = r.get("fuente_norma") or r.get("fuente") or r.get("organismo") or r.get("tipo_doc")
         if fuente and fuente not in fuentes:
             fuentes.append(fuente)
 
     if modelos:
-        fuentes.append('aeat_modelos')
+        fuentes.append("aeat_modelos")
     if resolved_modelos:
         for m in resolved_modelos:
             if m not in fuentes:
-                fuentes.append(f'modelo_{m}')
+                fuentes.append(f"modelo_{m}")
 
     nivel = 0
-    nivel_texto = 'baja'
+    nivel_texto = "baja"
     aviso = None
 
-    if tipos_conteo.get('modelo', 0) > 0 and tipos_conteo.get('normativa', 0) > 0:
+    if tipos_conteo.get("modelo", 0) > 0 and tipos_conteo.get("normativa", 0) > 0:
         nivel = 2
-        nivel_texto = 'alta'
-    elif tipos_conteo.get('modelo', 0) > 0 or tipos_conteo.get('normativa', 0) > 0:
+        nivel_texto = "alta"
+    elif tipos_conteo.get("modelo", 0) > 0 or tipos_conteo.get("normativa", 0) > 0:
         nivel = 1
-        nivel_texto = 'media'
+        nivel_texto = "media"
         if len(resultados) <= 2:
-            aviso = 'pocos resultados, considerar ampliar la consulta'
+            aviso = "pocos resultados, considerar ampliar la consulta"
     elif len(resultados) > 0:
         nivel = 1
-        nivel_texto = 'media'
+        nivel_texto = "media"
     else:
         nivel = 0
-        nivel_texto = 'baja'
-        aviso = 'no se encontraron resultados relevantes'
+        nivel_texto = "baja"
+        aviso = "no se encontraron resultados relevantes"
 
     if not q:
         nivel = 0
-        nivel_texto = 'baja'
-        aviso = 'consulta vacia'
+        nivel_texto = "baja"
+        aviso = "consulta vacia"
 
     if not q:
         faithfulness_score = 0.0
@@ -378,7 +382,7 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         answer_proxy = " ".join(filter(None, [_result_text(resultado) for resultado in resultados[:3]]))
         faithfulness_score = compute_faithfulness(answer_proxy, chunks_para_faithfulness)
 
-    faithfulness_label = 'alta' if faithfulness_score >= 0.75 else ('media' if faithfulness_score >= FAITHFULNESS_REVIEW_THRESHOLD else 'baja')
+    faithfulness_label = "alta" if faithfulness_score >= 0.75 else ("media" if faithfulness_score >= FAITHFULNESS_REVIEW_THRESHOLD else "baja")
     review_check = check_review_required(
         faithfulness_score,
         confidence_threshold=FAITHFULNESS_REVIEW_THRESHOLD,
@@ -386,15 +390,15 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
     )
 
     return {
-        'nivel': nivel,
-        'nivel_texto': nivel_texto,
-        'fuentes': fuentes,
-        'aviso': aviso,
-        'modelos_cubiertos': [m for m in resolved_modelos if m],
-        'resultados_clasificados': tipos_conteo,
-        'faithfulness_score': faithfulness_score,
-        'faithfulness_label': faithfulness_label,
-        'review_required': review_check['requires_review'],
+        "nivel": nivel,
+        "nivel_texto": nivel_texto,
+        "fuentes": fuentes,
+        "aviso": aviso,
+        "modelos_cubiertos": [m for m in resolved_modelos if m],
+        "resultados_clasificados": tipos_conteo,
+        "faithfulness_score": faithfulness_score,
+        "faithfulness_label": faithfulness_label,
+        "review_required": review_check["requires_review"],
     }
 
 
@@ -681,8 +685,8 @@ def _apply_claim_level_abstention(
 
     filtered = []
     for r in resultados:
-        articulo_val = r.get('articulo', '') or ''
-        codigo_val = r.get('codigo', r.get('referencia', r.get('norma', '')) or '')
+        articulo_val = r.get("articulo", "") or ""
+        codigo_val = r.get("codigo", r.get("referencia", r.get("norma", "")) or "")
         key = f"{r['tipo']}:{codigo_val}:{articulo_val}"
         if key in grounded_keys:
             filtered.append(r)
@@ -821,7 +825,6 @@ async def consulta_fiscal(
                 })
         except Exception:
             db.rollback()
-            pass
 
         # ── 3. Buscar legislación relevante (via search_legislacion service) ─
         if q:
@@ -857,7 +860,6 @@ async def consulta_fiscal(
                     })
             except Exception:
                 db.rollback()
-                pass
 
         # ── 4. Buscar doctrina DGT/TEAC ─────────────────────────────────────
         try:
@@ -900,7 +902,6 @@ async def consulta_fiscal(
                     })
         except Exception:
             db.rollback()
-            pass
 
     # ── 5. Obtener detalle completo de modelos ──────────────────────────
     try:
@@ -951,14 +952,13 @@ async def consulta_fiscal(
                 })
     except Exception:
         db.rollback()
-        pass
 
     # Deduplicate results
     seen = set()
     unique_results = []
     for r in results:
-        articulo_val = r.get('articulo', '') or ''
-        codigo_val = r.get('codigo', r.get('referencia', r.get('norma', '')) or '')
+        articulo_val = r.get("articulo", "") or ""
+        codigo_val = r.get("codigo", r.get("referencia", r.get("norma", "")) or "")
         key = f"{r['tipo']}:{codigo_val}:{articulo_val}"
         if key not in seen:
             seen.add(key)
@@ -974,7 +974,7 @@ async def consulta_fiscal(
     rerank_candidates = _build_rerank_candidates(scored_results)
     ranked_chunks = rerank(q, rerank_candidates, top_k=RERANK_TOP_K) if q else []
     scored_results = _apply_rerank_scores(scored_results, ranked_chunks)
-    scored_results.sort(key=lambda x: x['_relevancia']['score'], reverse=True)
+    scored_results.sort(key=lambda x: x["_relevancia"]["score"], reverse=True)
     cited_chunks = _build_cited_chunks(ranked_chunks)
     claim_citations = _build_claim_citations(scored_results, ranked_chunks, q)
 
@@ -1022,33 +1022,33 @@ async def consulta_fiscal(
     # Build top-level relevancia
     total_scored = len(scored_results)
     if final_results:
-        avg_score = sum(r['_relevancia']['score'] for r in final_results) / len(final_results)
-        alta_count = sum(1 for r in final_results if r['_relevancia']['nivel'] == 'alta')
-        relevancia_nivel = 'alta' if avg_score >= 0.6 else ('media' if avg_score >= 0.3 else 'baja')
+        avg_score = sum(r["_relevancia"]["score"] for r in final_results) / len(final_results)
+        alta_count = sum(1 for r in final_results if r["_relevancia"]["nivel"] == "alta")
+        relevancia_nivel = "alta" if avg_score >= 0.6 else ("media" if avg_score >= 0.3 else "baja")
         relevancia_coins = []
         todos_terminos = set()
         encontrados = set()
         for r in final_results:
-            for t in r['_relevancia'].get('terminos_encontrados', []):
+            for t in r["_relevancia"].get("terminos_encontrados", []):
                 encontrados.add(t)
-            for t in r['_relevancia'].get('terminos_faltantes', []):
+            for t in r["_relevancia"].get("terminos_faltantes", []):
                 todos_terminos.add(t)
         todos_terminos = todos_terminos | encontrados
         faltantes = todos_terminos - encontrados
         relevancia = {
-            'nivel': relevancia_nivel,
-            'score': round(avg_score, 4),
-            'coincidencia': f'{alta_count}/{len(final_results)} resultados con relevancia alta',
-            'terminos_encontrados': list(encontrados),
-            'terminos_faltantes': list(faltantes),
+            "nivel": relevancia_nivel,
+            "score": round(avg_score, 4),
+            "coincidencia": f"{alta_count}/{len(final_results)} resultados con relevancia alta",
+            "terminos_encontrados": list(encontrados),
+            "terminos_faltantes": list(faltantes),
         }
     else:
         relevancia = {
-            'nivel': 'baja',
-            'score': 0.0,
-            'coincidencia': 'sin resultados',
-            'terminos_encontrados': [],
-            'terminos_faltantes': list(re.findall(r'[a-záéíóúñ]{3,}', q.lower())) if q else [],
+            "nivel": "baja",
+            "score": 0.0,
+            "coincidencia": "sin resultados",
+            "terminos_encontrados": [],
+            "terminos_faltantes": list(re.findall(r"[a-záéíóúñ]{3,}", q.lower())) if q else [],
         }
 
     request_id = request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown"
@@ -1068,6 +1068,24 @@ async def consulta_fiscal(
         prompt_injection_detected=not grounding_summary.get("all_chunks_clean", True),
         grounding_summary=grounding_summary,
     )
+
+    # ── Observability metrics ──────────────────────────────────────────
+    try:
+        import logging
+
+        import psutil
+
+        logger = logging.getLogger(__name__)
+        process = psutil.Process()
+        mem_info = process.memory_info()
+        record_query_memory("api", mem_info.rss)
+    except Exception:
+        pass
+
+    # Faithfulness histogram
+    faith = confianza.get("faithfulness_score", 0.0)
+    if isinstance(faith, (int, float)):
+        record_faithfulness_histogram(float(faith))
 
     record_consulta_metrics("/v1/consulta", confianza)
 

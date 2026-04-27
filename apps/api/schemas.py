@@ -389,7 +389,7 @@ class ResultadoEvidencia(BaseModel):
 
 
 class ConsultaResultado(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra="allow")
 
     tipo: str = Field(description="Tipo de resultado agregado")
     codigo: str | None = Field(default=None, description="Código del modelo u obligación si aplica")
@@ -830,6 +830,29 @@ class ConnectivityObligacionResponse(BaseModel):
     articulos: list[ArticuloRelacionado] = Field(default_factory=list, description="Articulos conectados via documentos de la obligacion")
     totales: dict[str, int] = Field(description="Totales agregados por tipo de conexion")
     seccion: ChunkSeccion | None = Field(default=None, description="Sección padre")
+
+
+class ConnectivityGraphNode(BaseModel):
+    type: str = Field(description="Tipo de nodo en el grafo (articulo, documento, obligacion, etc.)")
+    id: str = Field(description="Identificador unico del nodo")
+    label: str = Field(description="Etiqueta legible del nodo")
+    properties: dict = Field(description="Propiedades del nodo")
+
+
+class ConnectivityGraphEdge(BaseModel):
+    type: str = Field(description="Tipo de relacion (references, cites, relates_to, etc.)")
+    source: str = Field(description="Nodo origen en formato tipo/id")
+    target: str = Field(description="Nodo destino en formato tipo/id")
+    properties: dict = Field(description="Propiedades de la relacion")
+
+
+class ConnectivityGraphResponse(BaseModel):
+    root: ConnectivityGraphNode = Field(description="Nodo raiz de la traversal")
+    nodes: list[ConnectivityGraphNode] = Field(default_factory=list, description="Nodos descubiertos en la traversal")
+    edges: list[ConnectivityGraphEdge] = Field(default_factory=list, description="Relaciones descubiertas")
+    depth: int = Field(description="Profundidad alcanzada en la traversal")
+    max_depth: int = Field(description="Profundidad maxima solicitada")
+    stats: dict[str, int] = Field(description="Estadisticas: total_nodes, total_edges")
 
 
 class ChunkDetailResponse(BaseModel):
