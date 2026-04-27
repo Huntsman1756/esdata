@@ -1,15 +1,11 @@
 # ============================================
-# DESPLIEGUE: Railway DEPRECATED
+# DESPLIEGUE ACTIVO: Docker Compose
 # ============================================
-# Railway YA NO se usa como plataforma de despliegue para este proyecto.
-# Despliegue de referencia: Docker Compose (infra/deploy/docker-compose.prod.yml)
+# El despliegue de referencia de este proyecto es Docker Compose.
 #
-# CUALQUIER referencia a Railway en este documento o en el repo es HISTORICA.
-# No proponer cambios que asuman Railway, no modificar railway.toml,
-# no usar comandos "railway", no mencionar Railway como plataforma valida.
-#
-# Si un markdown menciona Railway y no tiene etiqueta [HISTORICAL] o [DEPRECATED],
-# corregirlo: marcar como historico o eliminar la referencia.
+# No mantener workflows, config ni comandos activos de plataformas antiguas.
+# Si una referencia antigua aparece en el repo, debe vivir en `docs/archive/`
+# y quedar marcada como [HISTORICAL] o [DEPRECATED].
 # ============================================
 
 <!-- karpathy-guidelines:begin -->
@@ -37,6 +33,24 @@ Compatible con Codex/OpenAI y alineado con la base existente de `CLAUDE.md`.
 ## Mision
 
 Prevenir vulnerabilidades de "vibe coding" con arquitectura backend-first y zero-trust.
+
+---
+
+## Mapa modular del repo
+
+- `apps/api/` — backend FastAPI, contratos, middleware y superficies MCP/API. Ver `apps/api/AGENTS.md`
+- `apps/web/` — UI interna Next.js. Ver `apps/web/AGENTS.md`
+- `apps/workers/` — ingestion y normalizacion por fuente. Ver `apps/workers/AGENTS.md`
+- `scripts/` — tooling, ops, evaluacion, mantenimiento y seeds. Ver `scripts/AGENTS.md`
+- `docs/` — documentacion viva y archivo historico. Ver `docs/AGENTS.md`
+- `infra/` — despliegue y configuracion operativa. Ver `infra/AGENTS.md`
+
+## Flujos cross-domain
+
+- `apps/web` consume `apps/api`; no contiene logica de negocio ni acceso DB.
+- `apps/workers` pueblan y enriquecen datos consumidos por `apps/api`.
+- `scripts/` ejecuta tareas operativas o de mantenimiento fuera del runtime.
+- `docs/master-execution-roadmap.md` es la unica fuente activa de estado.
 
 ---
 
@@ -93,6 +107,40 @@ Prevenir vulnerabilidades de "vibe coding" con arquitectura backend-first y zero
 - Definir `permissions` minimos explicitos.
 - Preferir OIDC a llaves cloud estaticas.
 
+12. Secretos y ficheros de entorno:
+- Prohibido crear o mantener `.env` anidados en cualquier subdirectorio del repo.
+- Prohibido commitear o conservar en el workspace archivos `.env*` distintos de `.env.example` como estado normal de trabajo.
+- `.env.example` es el unico template permitido dentro del repo; cualquier secreto real vive fuera del repo o en gestor de secretos local.
+- Si aparece un `.env` runtime en el repo, la tarea pasa a `BLOQUEADA` hasta corregirlo o recibir instruccion explicita del usuario.
+
+13. Retrieval y auditoria persistente:
+- Ningun endpoint nuevo o modificado de retrieval, consulta o MCP puede mergearse sin auditoria persistente end-to-end.
+- La auditoria minima obligatoria por request es: `request_id`, actor, query, chunks recuperados, version de modelo, version de config y resultado de revision humana si aplica.
+- Si el cableado runtime de auditoria no existe, documentarlo como bloqueo; no vender el endpoint como fiable.
+
+14. Parsing e ingestion de ficheros:
+- Prohibido introducir parsing directo de ficheros remotos o subidos en workers o API como estado aceptable final.
+- Todo parsing de PDF/DOCX/HTML remoto debe pasar por allowlist de tipo, validacion de firma/MIME, limites de tamano y mecanismo de cuarentena o sandbox cuando exista.
+- Si el flujo actual no cumple esto, debe marcarse explicitamente como `[PARTIAL]` o `TARGET`; no presentarlo como resuelto.
+
+15. Grounding duro y respuestas factuales:
+- Prohibido devolver respuestas factuales nuevas o modificadas sin citas exactas por claim o sin abstencion/revision cuando falte evidencia suficiente.
+- Un score agregado de faithfulness no cuenta como control fuerte por si solo.
+- Los chunks recuperados deben tratarse como input no confiable y revisarse contra prompt injection antes de llegar a un modelo.
+
+16. Veracidad documental:
+- Ningun documento puede describir como implementado algo que solo existe en roadmap, tests aislados o codigo sin cableado runtime.
+- En docs de arquitectura y controles usar marcadores explicitos: `[IMPLEMENTED]`, `[PARTIAL]`, `[TARGET]`.
+- Si una PR exagera el estado real del sistema, debe bloquearse hasta corregir la documentacion.
+
+17. Corpus autoritativo:
+- Prohibido indexar o tratar texto generado por LLM como corpus autoritativo.
+- La sintesis LLM solo puede existir como derivado citando fuentes de nivel superior y nunca como fuente de verdad.
+
+18. Esquema y migraciones:
+- Prohibido introducir cambios de esquema sin migracion Alembic correspondiente.
+- Prohibido depender de `CREATE TABLE IF NOT EXISTS` en runtime como sustituto de migraciones oficiales para nuevas capacidades de producto.
+
 ---
 
 ## Compliance check obligatorio (antes de generar codigo)
@@ -102,6 +150,9 @@ Prevenir vulnerabilidades de "vibe coding" con arquitectura backend-first y zero
 3. Estoy creando policy publica/anon?
 4. Estoy exponiendo secretos en cliente?
 5. Estoy procesando webhooks sin firma?
+6. Estoy anadiendo retrieval/consulta/MCP sin auditoria persistente?
+7. Estoy aceptando parsing remoto inseguro como normal?
+8. Estoy documentando target-state como si estuviera implementado?
 
 Si alguna respuesta es "si", detener y refactorizar.
 
@@ -111,6 +162,28 @@ Si alguna respuesta es "si", detener y refactorizar.
 
 - Nunca logica de negocio en app movil.
 - Pricing, permisos, creditos y suscripciones deben vivir en backend controlado.
+
+---
+
+## Commit por cada fix y sincronizacion multi-maquina
+
+- Cada fix, cambio funcional o correccion debe ir en un commit atomico y autocontenido.
+- Usar conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, `perf:`, `ci:`, `build:`.
+- El message debe describir el que, no el como: `fix(api): validate input before DB write` en vez de `fix: x`.
+- Nunca commits vacios ni commits que mezclen cambios no relacionados.
+- Si un fix requiere multiples archivos, todos van en un solo commit atomico.
+- Al terminar una tarea, hacer commit antes de cualquier otra modificacion.
+- Sincronizacion multi-maquina:
+  - Trabajar siempre desde `main` con `git pull --rebase` al empezar.
+  - Hacer `git push` despues de cada commit atomico para mantener el remote actualizado.
+  - Si dos maquinas trabajan en paralelo, rebase antes de push: `git pull --rebase origin main`.
+  - Nunca hacer `git push --force` sobre `main`.
+  - Si hay conflictos, resolverlos localmente y rebase antes de push.
+- Verificacion antes de push:
+  - `git status` limpio (solo cambios intencionales).
+  - Tests relevant pass si hay tests disponibles.
+  - Build/lint si el cambio es estructural.
+  - Solo push tras verificar.
 
 ---
 
@@ -133,6 +206,77 @@ Si alguna respuesta es "si", detener y refactorizar.
 3. Cambios minimos y reversibles.
 4. Validacion con tests/lint/build disponibles.
 5. Reporte final con evidencia y riesgos restantes.
+
+## Protocolo operativo por tarea
+
+Todo agente debe seguir esta secuencia exacta al empezar y cerrar una tarea:
+
+### 1. Antes de tocar archivos
+
+1. leer `AGENTS.md`
+2. leer `docs/master-execution-roadmap.md`
+3. identificar fase actual, tarea actual y criterio de exito
+4. comprobar si el archivo ya esta reclamado por otro agente
+5. reducir contexto a solo lo necesario
+
+### 2. Reclamar la tarea
+
+Antes de editar, anotar en `docs/master-execution-roadmap.md`:
+
+- fase o slice activo
+- tarea concreta
+- archivos afectados
+- estado `EN CURSO`
+- inicio
+
+Si no se puede reclamar de forma segura, no empezar.
+
+### 3. Verificar antes del cambio
+
+Antes de implementar, ejecutar o definir al menos una prueba de evidencia:
+
+- test puntual si existe
+- comando de reproduccion del bug
+- build/lint del modulo si el cambio es estructural
+- comprobacion documental si el cambio es solo de docs
+
+Nunca afirmar que algo esta roto o arreglado sin evidencia fresca.
+
+### 4. Ejecutar el cambio
+
+- hacer el cambio minimo correcto
+- no mezclar refactors no relacionados
+- no mover archivos por estetica si no mejora estructura real o coste de contexto
+- si el cambio toca comportamiento visible, actualizar el manual o justificar por que no aplica
+
+### 5. Verificar despues del cambio
+
+Ejecutar las verificaciones minimas del modulo afectado. Como regla:
+
+- codigo Python: `pytest` del scope afectado y `ruff check` si aplica
+- web: `npm test` y `npm build` del scope afectado si aplica
+- scripts: test del script o `--help`/`--dry-run`/caso controlado
+- docs: comprobar rutas, enlaces y consistencia con roadmap/manual
+
+### 6. Cerrar la tarea
+
+Actualizar `docs/master-execution-roadmap.md` con:
+
+- estado final: `COMPLETADA` o `BLOQUEADA`
+- evidencia concreta de verificacion
+- archivos realmente tocados
+- riesgos restantes
+- siguiente paso exacto
+
+### 7. Reportar al usuario
+
+El reporte final debe incluir:
+
+- que se hizo
+- que se verifico y con que evidencia
+- que queda pendiente o bloqueado
+
+Si no hubo verificacion, debe decirse explicitamente.
 
 ---
 
@@ -182,6 +326,24 @@ Antes de modificar cualquier archivo, el agente debe:
 
 - Si un agente no puede reclamar una tarea porque ya esta en curso, debe reportarlo al usuario y sugerir otra tarea o esperar.
 - No silenciar el conflicto ni empezar trabajo duplicado.
+
+### Regla para documentacion funcional y manual de usuario vivo
+
+- Existe una fuente permanente y acumulativa para el manual de usuario: `docs/manual-usuario/`.
+- Punto de entrada obligatorio del manual: `docs/manual-usuario/README.md`.
+- El manual debe mantenerse por capitulos pequenos para reducir colisiones entre agentes. No concentrar todo en un unico markdown largo.
+- Antes de editar cualquier capitulo del manual, el agente debe reclamar ese archivo exacto en `docs/master-execution-roadmap.md` igual que cualquier otro archivo de codigo o doc.
+- Si otro agente ya tiene un capitulo del manual en `EN CURSO`, no editar ese mismo archivo. Esperar o trabajar en otro capitulo no reclamado.
+- Toda tarea que cambie comportamiento visible, forma de uso, setup, limitaciones, endpoints, MCP, flujos operativos o capacidades del producto debe actualizar en la misma iteracion el capitulo correspondiente del manual.
+- Si el cambio no requiere actualizar el manual, el agente debe decirlo explicitamente en el reporte final con una razon concreta.
+- Si no existe un capitulo adecuado, crear uno nuevo dentro de `docs/manual-usuario/`, anadirlo al indice `docs/manual-usuario/README.md` y mantener nombres estables y descriptivos.
+- El manual debe separar claramente:
+  - uso funcional para usuario
+  - interfaces disponibles (`API`, `MCP`, UI interna, CLI si aplica)
+  - operacion tecnica minima
+  - limites, alcance actual y exclusiones
+- No duplicar estado operativo del roadmap dentro del manual. El roadmap sigue siendo la fuente activa de fase/estado; el manual explica capacidades, uso y limites para humanos.
+- Al cerrar una tarea, el agente debe indicar que archivos del manual actualizo.
 
 ### Ejemplo de reclamo en el roadmap maestro
 
@@ -369,11 +531,12 @@ Antes de empezar cualquier tarea, reducir el contexto a:
 Secuencia obligatoria:
 
 1. identificar fase y siguiente paso exacto
-2. anadir o ejecutar verificacion
-3. hacer el cambio minimo
-4. volver a verificar
-5. actualizar el estado vivo
-6. dejar escrito el siguiente paso exacto
+2. reclamar la tarea y archivos
+3. anadir o ejecutar verificacion inicial
+4. hacer el cambio minimo
+5. volver a verificar
+6. actualizar el estado vivo
+7. dejar escrito el siguiente paso exacto
 
 ### Regla de no duplicacion operativa
 
@@ -409,23 +572,26 @@ Contenido que solo puede vivir en un sitio activo:
 2. **Extraer y conservar un resumen breve**: no arrastrar el contenido completo de documentos en iteraciones posteriores.
 3. **Identificar la fase actual**: la primera fase no completada o la fase marcada como activa en el documento maestro.
 4. **Revisar solo la seccion necesaria** del plan o spec de detalle si el documento maestro lo exige para la tarea actual.
-5. **Confirmar con el usuario** que la fase identificada es correcta antes de codificar.
+5. **Reclamar la tarea y los archivos** antes de editar.
+6. **Definir como se verificara** la tarea antes de implementar.
+7. **Confirmar con el usuario** la fase solo cuando el cambio implique nueva fase, migraciones sensibles o redireccion importante.
 
 ### Durante la ejecución
 
-6. **Trabajar fase a fase**: nunca saltar a la siguiente fase sin terminar la actual.
-7. **Cambios minimos y reversibles**: cada commit debe ser un paso lógico dentro de la fase.
-8. **No asumir contexto historico**: si un archivo menciona Railway sin [HISTORICAL]/[DEPRECATED], corregirlo.
+8. **Trabajar fase a fase**: nunca saltar a la siguiente fase sin terminar la actual.
+9. **Cambios minimos y reversibles**: cada commit debe ser un paso lógico dentro de la fase.
+10. **Verificar despues de cada slice** antes de declarar avance real.
+11. **No asumir contexto historico**: si un archivo menciona una plataforma antigua sin [HISTORICAL]/[DEPRECATED], corregirlo.
 
 ### Al terminar una fase
 
-9. **Actualizar el documento maestro**: editar `docs/master-execution-roadmap.md`
+12. **Actualizar el documento maestro**: editar `docs/master-execution-roadmap.md`
    - Marcar la fase o subfase como completa cuando aplique
    - Actualizar `Resumen vivo`
    - Actualizar `Fase activa` y `Siguiente paso exacto`
    - Reflejar scores/metrics si aplica
-10. **Confirmar al usuario** que la fase esta completa y que el documento maestro fue actualizado.
-11. **Preguntar si continuar** con la siguiente fase o cambiar de direccion.
+13. **Confirmar al usuario** que la fase esta completa y que el documento maestro fue actualizado.
+14. **Preguntar si continuar** con la siguiente fase o cambiar de direccion.
 
 ### Estructura de actualizacion del documento maestro
 
