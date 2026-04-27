@@ -6,25 +6,25 @@ to skip already-chunked documents on re-run.
 
 Usage:
     # Dry-run for all documentos
-    python scripts/backfill_chunks.py --dry-run
+    python scripts/data/backfill_chunks.py --dry-run
 
     # Backfill doctrina (documento_interpretativo)
-    python scripts/backfill_chunks.py --corpus doctrina
+    python scripts/data/backfill_chunks.py --corpus doctrina
 
     # Backfill legislación
-    python scripts/backfill_chunks.py --corpus legislacion
+    python scripts/data/backfill_chunks.py --corpus legislacion
 
     # Backfill everything
-    python scripts/backfill_chunks.py --corpus all
+    python scripts/data/backfill_chunks.py --corpus all
 
     # Backfill a single document by reference
-    python scripts/backfill_chunks.py --reference V0000-26
+    python scripts/data/backfill_chunks.py --reference V0000-26
 
     # Backfill a single document by DB id
-    python scripts/backfill_chunks.py --doc-id 42
+    python scripts/data/backfill_chunks.py --doc-id 42
 
     # Backfill with custom chunk size (default 1500)
-    python scripts/backfill_chunks.py --corpus doctrina --chunk-size 2000
+    python scripts/data/backfill_chunks.py --corpus doctrina --chunk-size 2000
 """
 
 from __future__ import annotations

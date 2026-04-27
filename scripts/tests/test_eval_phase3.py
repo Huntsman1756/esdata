@@ -1,4 +1,4 @@
-"""Tests pytest para scripts/eval_phase3.py.
+"""Tests pytest para scripts/eval/eval_phase3.py.
 
 Permite ejecutar el evaluador como tests pytest:
 
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-# Asegurar que scripts/eval_phase3.py es importable
-_EVAL_DIR = Path(__file__).resolve().parent.parent
+# Asegurar que scripts/eval/eval_phase3.py es importable
+_EVAL_DIR = Path(__file__).resolve().parent.parent / "eval"
 sys.path.insert(0, str(_EVAL_DIR))
 
 from eval_phase3 import (  # noqa: E402

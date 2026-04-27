@@ -3,7 +3,7 @@
 Validate first production run of cron-teac-weekly and cron-dgt-weekly.
 
 Usage:
-    python scripts/validate-cron-run.py [--db-url URL] [--after DATETIME]
+    python scripts/maintenance/validate-cron-run.py [--db-url URL] [--after DATETIME]
 
 Defaults to DATABASE_PUBLIC_URL from .env if available.
 """

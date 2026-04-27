@@ -6,22 +6,22 @@ Idempotent: skips rows that already have non-null embeddings.
 
 Usage:
     # Dry-run for all tables
-    python scripts/backfill_embeddings.py --dry-run
+    python scripts/data/backfill_embeddings.py --dry-run
 
     # Backfill legislation articles
-    python scripts/backfill_embeddings.py --corpus legislacion
+    python scripts/data/backfill_embeddings.py --corpus legislacion
 
     # Backfill doctrine chunks
-    python scripts/backfill_embeddings.py --corpus doctrina
+    python scripts/data/backfill_embeddings.py --corpus doctrina
 
     # Backfill all tables
-    python scripts/backfill_embeddings.py --corpus all
+    python scripts/data/backfill_embeddings.py --corpus all
 
     # Limit batch size (default 32)
-    python scripts/backfill_embeddings.py --batch-size 64
+    python scripts/data/backfill_embeddings.py --batch-size 64
 
     # Override database URL
-    python scripts/backfill_embeddings.py --database-url postgresql://...
+    python scripts/data/backfill_embeddings.py --database-url postgresql://...
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from typing import Any
 from sqlalchemy import create_engine, text
 
 # Import from workers package
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "apps" / "workers"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "workers"))
 from embeddings import embed_single
 
 

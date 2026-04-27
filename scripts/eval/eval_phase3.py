@@ -5,10 +5,10 @@ Carga el golden dataset, ejecuta cada pregunta contra los endpoints,
 calcula métricas por dominio y exporta JSON + resumen legible.
 
 Uso:
-    python scripts/eval_phase3.py                          # SQLite local
-    python scripts/eval_phase3.py --base-url http://localhost:8001  # PG remoto
-    python scripts/eval_phase3.py --baseline old_results.json  # comparar
-    python scripts/eval_phase3.py --summary-only           # solo resumen sin ejecutar
+    python scripts/eval/eval_phase3.py                          # SQLite local
+    python scripts/eval/eval_phase3.py --base-url http://localhost:8001  # PG remoto
+    python scripts/eval/eval_phase3.py --baseline old_results.json  # comparar
+    python scripts/eval/eval_phase3.py --summary-only           # solo resumen sin ejecutar
 """
 
 from __future__ import annotations
@@ -29,10 +29,11 @@ from httpx import AsyncClient as HttpxAsyncClient
 
 # ── Paths ──────────────────────────────────────────────────────────────
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-GOLDEN_PATH = ROOT_DIR / "scripts" / "golden_queries.json"
-TELEMETRY_FILE = ROOT_DIR / "scripts" / "telemetry" / "eval_failures.jsonl"
-OUTPUT_DIR = ROOT_DIR / "scripts" / "eval_results"
+ROOT_DIR = Path(__file__).resolve().parents[2]
+SCRIPTS_DIR = ROOT_DIR / "scripts"
+GOLDEN_PATH = SCRIPTS_DIR / "golden_queries.json"
+TELEMETRY_FILE = SCRIPTS_DIR / "telemetry" / "eval_failures.jsonl"
+OUTPUT_DIR = SCRIPTS_DIR / "eval_results"
 
 # ── Umbrales por dominio (80% minimal, 90% fuerte) ────────────────────
 

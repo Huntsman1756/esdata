@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "version": "2.0",
-    "created": "2026-04-25",
-    "description": "Golden dataset para evaluación de retrieval en esdata. 52 queries en 8 dominios (iva, irpf_is, internacional, compliance, mixto, lgt, borme, bdns). Incluye queries semánticas, chunk-based, BORME/BDNS, edge-cases y sinónimos.",
+    "version": "3.0",
+    "created": "2026-04-26",
+    "description": "Golden dataset para evaluación de retrieval en esdata. Incluye queries en 9 dominios originales (iva, irpf_is, internacional, compliance, mixto, lgt, borme, bdns, rendimientos_mobiliarios) + 7 nuevas normas de Fase 27 (ley112021, trlmv, ley62018, leysoc, ley222010, rd2172008, nrv9) + prospectos ETI de Fase 29.2 + Ley 13/2023 de IA de Fase 28.1. Incluye queries semánticas, chunk-based, BORME/BDNS, edge-cases, sinónimos, lgt y rendimientos mobiliarios DGT.",
     "thresholds": {
       "fuerte": 0.9,
       "aceptable": 0.8,
@@ -14,7 +14,10 @@
       "borme_bdns_queries": 3,
       "edge_cases": 3,
       "synonym_queries": 3,
-      "lgt_queries": 7
+      "lgt_queries": 7,
+      "fase27_queries": 31,
+      "prospectos_eti_queries": 5,
+      "ley13_2023_queries": 5
     }
   },
   "queries": [
@@ -1036,6 +1039,682 @@
         "modelo_esperado": "216"
       },
       "respuesta_esperada": "Debe devolver LIRNR sobre modelo 216 de facturas a no residentes."
+    },
+    {
+      "id": "dgt-rend-001",
+      "dominio": "rendimientos_mobiliarios",
+      "pregunta": "Devoluciones bonos V0091-18 doctrina DGT",
+      "criterios": {
+        "fuente_esperada": ["LIRPF"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": true
+      },
+      "respuesta_esperada": "Debe devolver consulta vinculante V0091-18 sobre devoluciones de bonos y su tratamiento como rendimientos mobiliarios."
+    },
+    {
+      "id": "dgt-rend-002",
+      "dominio": "rendimientos_mobiliarios",
+      "pregunta": "Imputacion temporal rendimientos mobiliarios V2424-20",
+      "criterios": {
+        "fuente_esperada": ["LIRPF"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": true
+      },
+      "respuesta_esperada": "Debe devolver consulta vinculante V2424-20 sobre imputacion temporal de rendimientos mobiliarios."
+    },
+    {
+      "id": "dgt-rend-003",
+      "dominio": "rendimientos_mobiliarios",
+      "pregunta": "Retenciones 19% dividendos V2965-17 doctrina DGT",
+      "criterios": {
+        "fuente_esperada": ["LIRPF"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": true
+      },
+      "respuesta_esperada": "Debe devolver consulta vinculante V2965-17 sobre retenciones del 19% en dividendos."
+    },
+    {
+      "id": "dgt-rend-004",
+      "dominio": "rendimientos_mobiliarios",
+      "pregunta": "Rendimientos capital mobiliario dividendo interes IRPF",
+      "criterios": {
+        "fuente_esperada": ["LIRPF"],
+        "articulo_esperado": "30",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LIRPF art. 30 sobre rendimientos del capital mobiliario (dividendos e intereses)."
+    },
+    {
+      "id": "dgt-rend-005",
+      "dominio": "rendimientos_mobiliarios",
+      "pregunta": "Retencion dividendos no residentes IRNR modelo 216",
+      "criterios": {
+        "fuente_esperada": ["IRNR"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": true
+      },
+      "respuesta_esperada": "Debe devolver normativa IRNR sobre retenciones en dividendos para no residentes y modelo 216."
+    },
+    {
+      "id": "rirnr-001",
+      "dominio": "irnr",
+      "pregunta": "RIRNR articulo 31 dividendos intereses no residentes",
+      "criterios": {
+        "fuente_esperada": ["RIRNR"],
+        "articulo_esperado": "31",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RIRNR art. 31 sobre rendimientos del capital mobiliario (dividendos e intereses) para no residentes."
+    },
+    {
+      "id": "rirnr-002",
+      "dominio": "irnr",
+      "pregunta": "Tipo retencion dividendos no residentes 15% 24% RIRNR",
+      "criterios": {
+        "fuente_esperada": ["RIRNR"],
+        "articulo_esperado": "32",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RIRNR art. 32 con tipos de retencion: 15% UE/EEE, 24% resto, y convenios DTA."
+    },
+    {
+      "id": "rirnr-003",
+      "dominio": "irnr",
+      "pregunta": "Ganancias patrimoniales no residentes RIRNR articulo 33",
+      "criterios": {
+        "fuente_esperada": ["RIRNR"],
+        "articulo_esperado": "33",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RIRNR art. 33 sobre ganancias patrimoniales obtenidas en Espana por no residentes."
+    },
+    {
+      "id": "rirnr-004",
+      "dominio": "irnr",
+      "pregunta": "Retencion ganancias patrimoniales RIRNR 19 por ciento",
+      "criterios": {
+        "fuente_esperada": ["RIRNR"],
+        "articulo_esperado": "34",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RIRNR art. 34 sobre retencion en ganancias patrimoniales (19% general, 7% valores UE)."
+    },
+    {
+      "id": "rirnr-005",
+      "dominio": "irnr",
+      "pregunta": "Convenios doble imposicion RIRNR precedence tipos retencion",
+      "criterios": {
+        "fuente_esperada": ["RIRNR"],
+        "articulo_esperado": "35",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RIRNR art. 35 sobre convenios de doble imposicion y su precedence sobre tipos generales."
+    },
+    {
+      "id": "rirnr-006",
+      "dominio": "irnr",
+      "pregunta": "Diferencia IRNR ley RIRNR reglamento retenciones",
+      "criterios": {
+        "fuente_esperada": ["IRNR", "RIRNR"],
+        "articulo_esperado": null,
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver IRNR (ley) y RIRNR (reglamento) sobre retenciones en dividendos e intereses para no residentes."
+    },
+    {
+      "id": "ley112021-001",
+      "dominio": "ley112021",
+      "pregunta": "Limite pagos en efectivo Ley 11 2021 prevencion fraude",
+      "criterios": {
+        "fuente_esperada": ["LEY112021"],
+        "articulo_esperado": "1",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY112021 art. 1 sobre limitaciones de pagos en efectivo (limite 1.000 EUR)."
+    },
+    {
+      "id": "ley112021-002",
+      "dominio": "ley112021",
+      "pregunta": "Obligaciones software factorial Ley prevencion fraude",
+      "criterios": {
+        "fuente_esperada": ["LEY112021"],
+        "articulo_esperado": "3",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY112021 art. 3 sobre obligaciones de software factorial para registrar facturas."
+    },
+    {
+      "id": "ley112021-003",
+      "dominio": "ley112021",
+      "pregunta": "Registro de facturas recibidas expedidas Ley 11 2021",
+      "criterios": {
+        "fuente_esperada": ["LEY112021"],
+        "articulo_esperado": "5",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY112021 art. 5 sobre registro de facturas recibidas y expedidas."
+    },
+    {
+      "id": "ley112021-004",
+      "dominio": "ley112021",
+      "pregunta": "Obligacion conservacion documentos Ley 11 2021 cuatro anos",
+      "criterios": {
+        "fuente_esperada": ["LEY112021"],
+        "articulo_esperado": "11",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY112021 art. 11 sobre obligacion de conservacion de documentos al menos cuatro anos."
+    },
+    {
+      "id": "ley112021-005",
+      "dominio": "ley112021",
+      "pregunta": "Sanciones Ley prevencion fraude incumplimiento obligaciones",
+      "criterios": {
+        "fuente_esperada": ["LEY112021"],
+        "articulo_esperado": "18",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY112021 art. 18 sobre regimen sancionador por incumplimiento."
+    },
+    {
+      "id": "trlmv-001",
+      "dominio": "trlmv",
+      "pregunta": "Sociedades de valores autorizacion constitucion TRLMV",
+      "criterios": {
+        "fuente_esperada": ["TRLMV"],
+        "articulo_esperado": "63",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver TRLMV art. 63 sobre sociedades de valores: constitucion, organizacion y actividad."
+    },
+    {
+      "id": "trlmv-002",
+      "dominio": "trlmv",
+      "pregunta": "Obligaciones transparencia emissores valores cotizados TRLMV",
+      "criterios": {
+        "fuente_esperada": ["TRLMV"],
+        "articulo_esperado": "215",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver TRLMV art. 215 sobre obligaciones de transparencia de emissores de valores cotizados."
+    },
+    {
+      "id": "trlmv-003",
+      "dominio": "trlmv",
+      "pregunta": "Gobierno corporativo emissores valores TRLMV codigo buen gobierno",
+      "criterios": {
+        "fuente_esperada": ["TRLMV"],
+        "articulo_esperado": "228",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver TRLMV art. 228 sobre gobierno corporativo y codigo de buen gobierno."
+    },
+    {
+      "id": "trlmv-004",
+      "dominio": "trlmv",
+      "pregunta": "Autorizacion entidades sociedades valores mercado valores",
+      "criterios": {
+        "fuente_esperada": ["TRLMV"],
+        "articulo_esperado": "50",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver TRLMV art. 50 sobre autorizacion de entidades y sociedades de valores."
+    },
+    {
+      "id": "ley62018-001",
+      "dominio": "ley62018",
+      "pregunta": "Servicios de inversion MiFID catalogo Ley 6 2018",
+      "criterios": {
+        "fuente_esperada": ["LEY62018"],
+        "articulo_esperado": "3",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY62018 art. 3 sobre servicios de inversion: recepcion/transmision, ejecucion, gestion de cartera."
+    },
+    {
+      "id": "ley62018-002",
+      "dominio": "ley62018",
+      "pregunta": "Servicio asesoramiento requisitos deberes empresas inversion",
+      "criterios": {
+        "fuente_esperada": ["LEY62018"],
+        "articulo_esperado": "7",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY62018 art. 7 sobre servicio de asesoramiento y deberes en inversion."
+    },
+    {
+      "id": "ley62018-003",
+      "dominio": "ley62018",
+      "pregunta": "Conflictos interes empresas servicios inversion MiFID",
+      "criterios": {
+        "fuente_esperada": ["LEY62018"],
+        "articulo_esperado": "12",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY62018 art. 12 sobre identificacion, prevencion y gestion de conflictos de interes."
+    },
+    {
+      "id": "ley62018-004",
+      "dominio": "ley62018",
+      "pregunta": "Funcion compliance empresa servicios inversion",
+      "criterios": {
+        "fuente_esperada": ["LEY62018"],
+        "articulo_esperado": "15",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY62018 art. 15 sobre funcion de cumplimiento normativo en ESIs."
+    },
+    {
+      "id": "mercantil-001",
+      "dominio": "mercantil",
+      "pregunta": "Libro inventario obligacion Ley Sociedades Capital art 28",
+      "criterios": {
+        "fuente_esperada": ["LEYSOC"],
+        "articulo_esperado": "28",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEYSOC art. 28 sobre obligacion de llevar libro de inventario."
+    },
+    {
+      "id": "mercantil-002",
+      "dominio": "mercantil",
+      "pregunta": "Libro diario registro cronologico operaciones contables",
+      "criterios": {
+        "fuente_esperada": ["LEYSOC"],
+        "articulo_esperado": "30",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEYSOC art. 30 sobre obligacion de llevar libro de diario."
+    },
+    {
+      "id": "mercantil-003",
+      "dominio": "mercantil",
+      "pregunta": "Legalizacion libros Registro Mercantil Ley Sociedades Capital",
+      "criterios": {
+        "fuente_esperada": ["LEYSOC"],
+        "articulo_esperado": "33",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEYSOC art. 33 sobre legalizacion y registro de libros ante el Registro Mercantil."
+    },
+    {
+      "id": "mercantil-004",
+      "dominio": "mercantil",
+      "pregunta": "Libro balances situacion annual cierre ejercicio social",
+      "criterios": {
+        "fuente_esperada": ["LEYSOC"],
+        "articulo_esperado": "31",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEYSOC art. 31 sobre obligacion de elaborar balance de situacion annual."
+    },
+    {
+      "id": "ley222010-001",
+      "dominio": "ley222010",
+      "pregunta": "Modificaciones TRLIS Ley 22 2010 sujetos pasivos",
+      "criterios": {
+        "fuente_esperada": ["LEY222010"],
+        "articulo_esperado": "1",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY222010 art. 1 sobre modificaciones del TRLIS y ambito de aplicacion."
+    },
+    {
+      "id": "ley222010-002",
+      "dominio": "ley222010",
+      "pregunta": "Obligaciones informativas operaciones paises sin tributarios",
+      "criterios": {
+        "fuente_esperada": ["LEY222010"],
+        "articulo_esperado": "5",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY222010 art. 5 sobre obligaciones informativas de operaciones con paises no tributarios."
+    },
+    {
+      "id": "ley222010-003",
+      "dominio": "ley222010",
+      "pregunta": "Sanciones CNMV régimen infractor multas",
+      "criterios": {
+        "fuente_esperada": ["LEY222010"],
+        "articulo_esperado": "10",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY222010 art. 10 sobre sanciones CNMV y graduacion de multas."
+    },
+    {
+      "id": "ley222010-004",
+      "dominio": "ley222010",
+      "pregunta": "Precios de transferencia documentacion justificativa Ley 22 2010",
+      "criterios": {
+        "fuente_esperada": ["LEY222010"],
+        "articulo_esperado": "18",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY222010 art. 18 sobre precios de transferencia y documentacion justificativa."
+    },
+    {
+      "id": "rd2172008-001",
+      "dominio": "rd2172008",
+      "pregunta": "Provisiones riesgos gastos bancos normas contables RD 217 2008",
+      "criterios": {
+        "fuente_esperada": ["RD2172008"],
+        "articulo_esperado": "3",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RD2172008 art. 3 sobre provisiones para riesgos y gastos en entidades bancarias."
+    },
+    {
+      "id": "rd2172008-002",
+      "dominio": "rd2172008",
+      "pregunta": "Activos financieros clasificacion valoracion deterioro RD 217 2008",
+      "criterios": {
+        "fuente_esperada": ["RD2172008"],
+        "articulo_esperado": "5",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RD2172008 art. 5 sobre clasificacion, valoracion y deterioro de activos financieros."
+    },
+    {
+      "id": "rd2172008-003",
+      "dominio": "rd2172008",
+      "pregunta": "Instrumentos derivados valor razonable cobertura riesgos",
+      "criterios": {
+        "fuente_esperada": ["RD2172008"],
+        "articulo_esperado": "10",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RD2172008 art. 10 sobre instrumentos derivados, valor razonable y cobertura de riesgos."
+    },
+    {
+      "id": "rd2172008-004",
+      "dominio": "rd2172008",
+      "pregunta": "Estados financieros balance cuenta perdidas ganancias RD 217 2008",
+      "criterios": {
+        "fuente_esperada": ["RD2172008"],
+        "articulo_esperado": "15",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RD2172008 art. 15 sobre estados financieros: balance, cuenta de pérdidas y ganancias."
+    },
+    {
+      "id": "rd2172008-005",
+      "dominio": "rd2172008",
+      "pregunta": "Normas consolidacion estados financieros grupo bancario",
+      "criterios": {
+        "fuente_esperada": ["RD2172008"],
+        "articulo_esperado": "20",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver RD2172008 art. 20 sobre normas de consolidacion de estados financieros del grupo."
+    },
+    {
+      "id": "nrv9-001",
+      "dominio": "nrv9",
+      "pregunta": "Alcance NRV 9 instrumentos financieros PGC",
+      "criterios": {
+        "fuente_esperada": ["NRV9"],
+        "articulo_esperado": "1",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver NRV9 art. 1 sobre alcance: instrumentos financieros y contratos a precio futuro."
+    },
+    {
+      "id": "nrv9-002",
+      "dominio": "nrv9",
+      "pregunta": "Clasificacion inicial activos pasivos financieros valor razonable",
+      "criterios": {
+        "fuente_esperada": ["NRV9"],
+        "articulo_esperado": "3",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver NRV9 art. 3 sobre clasificacion inicial de instrumentos a valor razonable."
+    },
+    {
+      "id": "nrv9-003",
+      "dominio": "nrv9",
+      "pregunta": "Valor razonable jerarquia valores mercado NRV 9 PGC",
+      "criterios": {
+        "fuente_esperada": ["NRV9"],
+        "articulo_esperado": "6",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver NRV9 art. 6 sobre valor razonable y jerarquia de valores de mercado."
+    },
+    {
+      "id": "nrv9-004",
+      "dominio": "nrv9",
+      "pregunta": "Deterioro valor perdidas crediticias instrumentos financieros",
+      "criterios": {
+        "fuente_esperada": ["NRV9"],
+        "articulo_esperado": "7",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver NRV9 art. 7 sobre reconocimiento y medicion de perdidas por deterioro crediticio."
+    },
+    {
+      "id": "nrv9-005",
+      "dominio": "nrv9",
+      "pregunta": "Reclasificacion instrumentos financieros modelo de negocio NRV 9",
+      "criterios": {
+        "fuente_esperada": ["NRV9"],
+        "articulo_esperado": "5",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver NRV9 art. 5 sobre reclasificacion de instrumentos cuando cambia el modelo de negocio."
+    },
+    {
+      "id": "prospectos-001",
+      "dominio": "prospectos_eti",
+      "pregunta": "Obligatoriedad prospecto oferta publica valores mercado regulado",
+      "criterios": {
+        "fuente_esperada": ["PROSPECTOS_2017_1129"],
+        "articulo_esperado": "3",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver PROSPECTOS_2017_1129 art. 3 sobre obligatoriedad del prospecto para ofertas publicas o admision a mercado regulado."
+    },
+    {
+      "id": "prospectos-002",
+      "dominio": "prospectos_eti",
+      "pregunta": "Exencion prospecto oferta menos de 8 millones euros",
+      "criterios": {
+        "fuente_esperada": ["PROSPECTOS_2017_1129"],
+        "articulo_esperado": "1",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver PROSPECTOS_2017_1129 art. 1 sobre exenciones del requisito de prospecto para ofertas inferiores a 8 millones."
+    },
+    {
+      "id": "prospectos-003",
+      "dominio": "prospectos_eti",
+      "pregunta": "Informacion esencial resumen prospecto emisor valores",
+      "criterios": {
+        "fuente_esperada": ["PROSPECTOS_2017_1129"],
+        "articulo_esperado": "10",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver PROSPECTOS_2017_1129 art. 10 sobre contenido del resumen con informacion clave del emisor y los valores."
+    },
+    {
+      "id": "prospectos-004",
+      "dominio": "prospectos_eti",
+      "pregunta": "Prospecto simplificado ETI empresa transicion sostenible",
+      "criterios": {
+        "fuente_esperada": ["PROSPECTOS_2017_1129"],
+        "articulo_esperado": "21",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver PROSPECTOS_2017_1129 art. 21 sobre prospecto simplificado para empresas de transicion sostenible."
+    },
+    {
+      "id": "prospectos-005",
+      "dominio": "prospectos_eti",
+      "pregunta": "Reglamento UE 2017/1129 bonos deuda publica exencion",
+      "criterios": {
+        "fuente_esperada": ["PROSPECTOS_2017_1129"],
+        "articulo_esperado": "4",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver PROSPECTOS_2017_1129 art. 4 sobre exenciones del requisito de prospecto para bonos de deuda publica y qualified investors."
+    },
+    {
+      "id": "ley13-2023-001",
+      "dominio": "ley13_2023",
+      "pregunta": "Ley 13 2023 inteligencia artificial objeto ambito aplicacion",
+      "criterios": {
+        "fuente_esperada": ["LEY13_2023"],
+        "articulo_esperado": "1",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY13_2023 art. 1 sobre objeto y ámbito de aplicación: regulación de IA y medios de defensa de la justicia con medidas antifraude UE."
+    },
+    {
+      "id": "ley13-2023-002",
+      "dominio": "ley13_2023",
+      "pregunta": "Definiciones sistema inteligencia artificial operador plataforma digital Ley 13 2023",
+      "criterios": {
+        "fuente_esperada": ["LEY13_2023"],
+        "articulo_esperado": "2",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY13_2023 art. 2 sobre definiciones: sistema de IA, operador de plataforma digital y términos clave."
+    },
+    {
+      "id": "ley13-2023-003",
+      "dominio": "ley13_2023",
+      "pregunta": "Sistemas IA riesgo inaceptable prohibidos Ley 13 2023",
+      "criterios": {
+        "fuente_esperada": ["LEY13_2023"],
+        "articulo_esperado": "4",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY13_2023 art. 4 sobre sistemas de riesgo inaceptable prohibidos: scoring social, detección emocional en educación y trabajo."
+    },
+    {
+      "id": "ley13-2023-004",
+      "dominio": "ley13_2023",
+      "pregunta": "Obligaciones operadores plataforma digital DAC7 informacion usuarios",
+      "criterios": {
+        "fuente_esperada": ["LEY13_2023"],
+        "articulo_esperado": "6",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY13_2023 art. 6 sobre obligaciones de operadores de plataforma: recabar y transmitir información sobre usuarios profesionales según DAC7."
+    },
+    {
+      "id": "ley13-2023-005",
+      "dominio": "ley13_2023",
+      "pregunta": "Sanciones infracciones Ley 13 2023 clasificacion multas",
+      "criterios": {
+        "fuente_esperada": ["LEY13_2023"],
+        "articulo_esperado": "10",
+        "vigencia_necesaria": false,
+        "chunk_esperado": false,
+        "doctrina_esperada": false
+      },
+      "respuesta_esperada": "Debe devolver LEY13_2023 art. 10 sobre régimen sancionador: infracciones leves/graves/muy graves con multas hasta el 7% del volumen de negocio."
     }
   ]
 }

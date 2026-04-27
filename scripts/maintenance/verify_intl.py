@@ -1,0 +1,20 @@
+import psycopg
+DB = 'postgresql://esdata:esdata_dev@postgres:5432/esdata'
+with psycopg.connect(DB) as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM norma WHERE jurisdiccion = 'internacional'")
+    print(f'Normas internacionales: {cur.fetchone()[0]}')
+    cur.execute("SELECT COUNT(*) FROM norma WHERE tipo_documento = 'convenio'")
+    print(f'Convenios: {cur.fetchone()[0]}')
+    cur.execute("SELECT COUNT(*) FROM norma WHERE codigo LIKE 'TIN_%'")
+    print(f'TIN paises: {cur.fetchone()[0]}')
+    cur.execute("SELECT COUNT(*) FROM norma WHERE codigo IN ('CRS', 'FATCA', 'DAC6', 'DAC1', 'DAC2', 'DAC3', 'DAC4', 'DAC5', 'DAC7', 'DAC8', 'DAC9', 'DAC10', 'DAC11')")
+    print(f'CRS/FATCA/DAC: {cur.fetchone()[0]}')
+    cur.execute("SELECT COUNT(*) FROM materia WHERE slug IN ('tin_internacional', 'convenios_doble_tributacion', 'fatca', 'crs', 'dac_directivas', 'w8_formularios', 'giin_ffn', 'intracomunitario_ue')")
+    print(f'Materias internacionales: {cur.fetchone()[0]}')
+    cur.execute("SELECT COUNT(*) FROM norma WHERE jurisdiccion = 'ue'")
+    print(f'Normas UE: {cur.fetchone()[0]}')
+    cur.execute("SELECT COUNT(*) FROM articulo")
+    print(f'Articulos totales: {cur.fetchone()[0]}')
+    cur.execute("SELECT COUNT(*) FROM version_articulo")
+    print(f'Versiones articulo: {cur.fetchone()[0]}')

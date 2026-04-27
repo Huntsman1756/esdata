@@ -5,9 +5,9 @@ Produces a spec containing only the 7 endpoints relevant for the GPT,
 with clean descriptions and (optionally) OpenAPI 3.0.x compatibility.
 
 Usage:
-    python scripts/export-gpt-openapi.py                  # default: 3.1.0
-    python scripts/export-gpt-openapi.py --openapi 3.0.3  # force 3.0.x
-    python scripts/export-gpt-openapi.py --output docs/openapi-gpt.json
+    python scripts/ops/export-gpt-openapi.py                  # default: 3.1.0
+    python scripts/ops/export-gpt-openapi.py --openapi 3.0.3  # force 3.0.x
+    python scripts/ops/export-gpt-openapi.py --output docs/openapi-gpt.json
 """
 
 import json
@@ -17,7 +17,7 @@ import sys
 from copy import deepcopy
 
 # Allow importing from apps/api
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "api"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
 from main import app
 
@@ -245,8 +245,8 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
         "info": spec.get("info", {}),
         "servers": [
             {
-                "url": "https://esdata-production.up.railway.app",
-                "description": "Production API on Railway",
+                "url": "https://api.esdata.org",
+                "description": "Production API",
             }
         ],
         "paths": filtered_paths,
@@ -270,6 +270,8 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
         )
     else:
         print(json.dumps(curated, indent=2, ensure_ascii=False))
+
+    return curated
 
 
 def main():
