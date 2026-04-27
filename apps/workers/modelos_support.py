@@ -640,11 +640,13 @@ def log_sync_result(conn, result: SyncResult) -> None:
                 worker, started_at, finished_at, status,
                 bloques_processed, articulos_upserted,
                 documentos_processed, documentos_upserted,
-                doctrina_links_created, error_msg
+                doctrina_links_created, error_msg,
+                rows_processed, errors, duration_ms
             ) VALUES (
                 'modelos', now(), now(),
                 CASE WHEN :errors = 0 THEN 'ok' ELSE 'error' END,
-                :models, :casillas, 0, 0, 0, :error_msg
+                :models, :casillas, 0, 0, 0, :error_msg,
+                :rows_processed, :errors, 0
             )
             """
         ),
@@ -653,5 +655,6 @@ def log_sync_result(conn, result: SyncResult) -> None:
             "models": result.models_checked,
             "casillas": result.casillas_upserted,
             "error_msg": "; ".join(result.errors) if result.errors else None,
+            "rows_processed": max(result.models_checked, result.casillas_upserted),
         },
     )

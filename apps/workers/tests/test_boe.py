@@ -293,6 +293,88 @@ def test_run_sync_ingests_itpajd_article_and_version():
     )
 
 
+def test_run_sync_honors_boe_only_block_ids(monkeypatch):
+    from boe import run_sync
+
+    class FakeResponse:
+        def __init__(self, *, json_data=None, text_data=""):
+            self._json_data = json_data
+            self.text = text_data
+            self.status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._json_data
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, headers=None):
+            if url.endswith("/id/BOE-A-1992-28740/metadatos"):
+                return FakeResponse(
+                    json_data={
+                        "data": [
+                            {
+                                "titulo": "Ley 37/1992",
+                                "fecha_vigencia": "19930101",
+                                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
+                            }
+                        ]
+                    }
+                )
+            if url.endswith("/id/BOE-A-1992-28740/texto/indice"):
+                return FakeResponse(
+                    json_data={
+                        "data": [
+                            {
+                                "bloque": [
+                                    {"id": "a91", "titulo": "Artículo 91", "fecha_actualizacion": "20240101"},
+                                    {"id": "a92", "titulo": "Artículo 92", "fecha_actualizacion": "20240101"},
+                                ]
+                            }
+                        ]
+                    }
+                )
+            if url.endswith("/id/BOE-A-1992-28740/texto/bloque/a91"):
+                return FakeResponse(
+                    text_data="""
+                    <response><data><bloque id="a91" tipo="precepto" titulo="Artículo 91">
+                      <version id_norma="BOE-A-1992-28740" fecha_publicacion="19921229" fecha_vigencia="19930101">
+                        <p class="articulo">Artículo 91. Tipos reducidos.</p>
+                        <p class="parrafo">Se aplicará el tipo reducido en los supuestos previstos legalmente.</p>
+                      </version>
+                    </bloque></data></response>
+                    """
+                )
+            if url.endswith("/id/BOE-A-1992-28740/texto/bloque/a92"):
+                raise AssertionError("El worker no debe pedir bloques fuera de BOE_ONLY_BLOCK_IDS")
+            raise AssertionError(f"Unexpected URL requested: {url}")
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+    monkeypatch.setenv("BOE_ONLY_BLOCK_IDS", "a91")
+
+    with patch("boe.httpx.Client", return_value=FakeClient()):
+        with patch("boe.create_engine", return_value=engine):
+            result = run_sync(["LIVA"])
+
+    assert result == {"bloques": 1, "articulos": 1}
+
+    with engine.begin() as conn:
+        articulos = conn.execute(
+            text(
+                "SELECT a.numero FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIVA' ORDER BY a.numero"
+            )
+        ).fetchall()
+
+    assert articulos == [("91",)]
+
+
 def test_upsert_norma_inserts_record():
     engine = create_engine("sqlite:///:memory:", future=True)
 

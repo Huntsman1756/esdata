@@ -3,9 +3,14 @@
 import argparse
 import os
 import re
+import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
+
+_workers_dir = Path(__file__).resolve().parent
+if str(_workers_dir) not in sys.path:
+    sys.path.insert(0, str(_workers_dir))
 
 from runtime import configure_logging, get_database_url
 
@@ -84,7 +89,7 @@ def _upsert_norma(conn, parsed: dict) -> tuple[int, int]:
                 tipo_documento, ambito, estado_cobertura, vigente_desde
             )
             VALUES (
-                :codigo, :titulo, NULL, :eli_uri, 'es', :tipo_fuente,
+                :codigo, :titulo, :boe_id, :eli_uri, 'es', :tipo_fuente,
                 :tipo_documento, :ambito, :estado_cobertura, :vigente_desde
             )
             """
@@ -92,6 +97,7 @@ def _upsert_norma(conn, parsed: dict) -> tuple[int, int]:
         {
             "codigo": parsed["codigo"],
             "titulo": parsed["titulo"],
+            "boe_id": parsed["source_path"],
             "eli_uri": parsed["source_path"],
             "tipo_fuente": parsed["tipo_fuente"],
             "tipo_documento": parsed["tipo_documento"],

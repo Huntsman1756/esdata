@@ -34,6 +34,12 @@ DEFAULT_NORMAS = {
     "RIS": "BOE-A-2014-12531",
     "RD1080": "BOE-A-2015-12843",
     "LIVA_IGIC": "BOE-A-2022-5689",
+    "TRLMV": "BOE-A-2011-14568",
+    "LEY62018": "BOE-A-2018-10582",
+    "NRV9": "BOE-A-2008-10273",
+    "LEY222010": "BOE-A-2010-16380",
+    "RD2172008": "BOE-A-2008-500",
+    "LECR": "BOE-A-2014-11230",
 }
 
 NORMA_CLASSIFICATIONS = {
@@ -77,6 +83,10 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto",
         "ambito": "tributario",
     },
+    "RIRNR": {
+        "tipo_documento": "real_decreto",
+        "ambito": "tributario",
+    },
     "RIS": {
         "tipo_documento": "real_decreto",
         "ambito": "tributario",
@@ -88,6 +98,26 @@ NORMA_CLASSIFICATIONS = {
     "LIVA_IGIC": {
         "tipo_documento": "ley",
         "ambito": "tributario_canarias",
+    },
+    "TRLMV": {
+        "tipo_documento": "real_decreto_legislativo",
+        "ambito": "mercado_valores",
+    },
+    "LEY62018": {
+        "tipo_documento": "ley",
+        "ambito": "mercado_valores",
+    },
+    "LEY222010": {
+        "tipo_documento": "ley",
+        "ambito": "mercado_valores",
+    },
+    "RD2172008": {
+        "tipo_documento": "real_decreto",
+        "ambito": "contable",
+    },
+    "LECR": {
+        "tipo_documento": "ley",
+        "ambito": "capital_riesgo",
     },
 }
 
@@ -105,6 +135,14 @@ LAW_TO_NORMA = {
     "173/2014": "RIS",
     "1080/2015": "RD1080",
     "10/2022": "LIVA_IGIC",
+    "1/2010": "LEYSOC",
+    "1514/2006": "NRV9",
+    "11/2021": "LEY112021",
+    "4/2015": "TRLMV",
+    "6/2018": "LEY62018",
+    "22/2010": "LEY222010",
+    "217/2008": "RD2172008",
+    "22/2014": "LECR",
 }
 
 
@@ -845,6 +883,8 @@ def log_sync(
     started_at: str | None = None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
+    effective_started_at = started_at or now
+    duration_ms = max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(effective_started_at)).total_seconds() * 1000))
     _ensure_sync_log_table(conn)
     conn.execute(
         text(
@@ -859,7 +899,10 @@ def log_sync(
                 documentos_processed,
                 documentos_upserted,
                 doctrina_links_created,
-                error_msg
+                error_msg,
+                rows_processed,
+                errors,
+                duration_ms
             )
             VALUES (
                 :worker,
@@ -871,13 +914,16 @@ def log_sync(
                 :documentos_processed,
                 :documentos_upserted,
                 :doctrina_links_created,
-                :error_msg
+                :error_msg,
+                :rows_processed,
+                :errors,
+                :duration_ms
             )
             """
         ),
         {
             "worker": worker,
-            "started_at": started_at or now,
+            "started_at": effective_started_at,
             "finished_at": now,
             "status": status,
             "bloques_processed": bloques,
@@ -886,6 +932,9 @@ def log_sync(
             "documentos_upserted": documentos_upserted,
             "doctrina_links_created": doctrina_links_created,
             "error_msg": error_msg,
+            "rows_processed": max(bloques, articulos, documentos_processed, documentos_upserted, doctrina_links_created),
+            "errors": 0 if not error_msg else 1,
+            "duration_ms": duration_ms,
         },
     )
 
@@ -998,6 +1047,9 @@ def _ensure_schema(conn) -> None:
             "documentos_processed",
             "documentos_upserted",
             "doctrina_links_created",
+            "rows_processed",
+            "errors",
+            "duration_ms",
         )
         if column not in column_names
     ]

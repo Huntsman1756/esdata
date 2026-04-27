@@ -1,11 +1,14 @@
 import argparse
 from datetime import UTC, datetime, timezone
 from html import unescape
+from io import BytesIO
 import os
 import re
 import time
+from urllib.parse import urlparse
 
 import httpx
+from pypdf import PdfReader
 from sqlalchemy import create_engine, text
 
 from boe import _ensure_sync_log_table, log_sync
@@ -63,6 +66,17 @@ def _detect_ambito(text_value: str) -> str:
     return "proteccion_datos_general"
 
 
+def extract_pdf_text(content: bytes) -> str:
+    reader = PdfReader(BytesIO(content))
+    chunks = []
+    for page in reader.pages:
+        text_value = page.extract_text() or ""
+        cleaned = _normalize_whitespace(text_value)
+        if cleaned:
+            chunks.append(cleaned)
+    return "\n".join(chunks)
+
+
 def extract_text(content: bytes) -> str:
     html = content.decode("utf-8", errors="ignore")
     html = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
@@ -72,17 +86,27 @@ def extract_text(content: bytes) -> str:
     return _normalize_whitespace(unescape(text_value))
 
 
+def _is_pdf(content: bytes) -> bool:
+    return content[:5] == b"%PDF-"
+
+
 def build_document_payload(url: str, content: bytes) -> dict[str, str]:
-    text_value = extract_text(content)
-    if not text_value:
-        raise ValueError(f"Could not extract text from AEPD document: {url}")
+    if _is_pdf(content):
+        text_value = extract_pdf_text(content)
+        if not text_value:
+            raise ValueError(f"Could not extract text from AEPD PDF: {url}")
+    else:
+        text_value = extract_text(content)
+        if not text_value:
+            raise ValueError(f"Could not extract text from AEPD document: {url}")
 
     referencia = _extract_reference(url, text_value)
+    first_line = next((line.strip() for line in text_value.splitlines() if line.strip()), "")
 
     return {
         "referencia": referencia,
         "fecha": datetime.now(UTC).date().isoformat(),
-        "titulo": f"{_detect_document_type(text_value)} - {referencia}",
+        "titulo": first_line or referencia,
         "texto": text_value,
         "url_fuente": url,
         "tipo_documento": _detect_document_type(text_value),
@@ -111,9 +135,9 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
             )
             VALUES (
                 :tipo_documento,
-                :organismo_emisor,
-                :jurisdiccion,
-                :tipo_fuente,
+                'AEPD',
+                'es',
+                'aepd',
                 :ambito,
                 :referencia,
                 :fecha,
@@ -123,7 +147,6 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
             )
             ON CONFLICT (referencia) DO UPDATE SET
                 tipo_documento = excluded.tipo_documento,
-                organismo_emisor = excluded.organismo_emisor,
                 ambito = excluded.ambito,
                 fecha = excluded.fecha,
                 titulo = excluded.titulo,
