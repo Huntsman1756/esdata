@@ -69,6 +69,7 @@ from routers import (
     materias,
     mercantil,
     micro_obligaciones,
+    mica,
     model_registry,
     modelos,
     nrv9,
@@ -321,6 +322,7 @@ def create_app() -> FastAPI:
     app.include_router(ley112009_socimi.router)
     app.include_router(ley222014_lecr.router)
     app.include_router(csdr.router)
+    app.include_router(mica.router)
     global MCP_HTTP_TRANSPORT
     MCP_HTTP_TRANSPORT = mount_mcp(app)
 

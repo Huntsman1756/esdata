@@ -3265,3 +3265,140 @@ async def _seed_ley13_2023():
               AND NOT EXISTS (SELECT 1 FROM version_articulo WHERE articulo_id = a.id AND boe_bloque_id = 'ley13-5')
         """))
     yield
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _seed_mica():
+    """Create MiCA/crypto tables and seed test data for all tests."""
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS casp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                registration_number TEXT NOT NULL UNIQUE,
+                home_member_state TEXT NOT NULL,
+                passport_active BOOLEAN NOT NULL DEFAULT 0,
+                services_offered TEXT DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS crypto_asset (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_type TEXT NOT NULL,
+                reference_uid TEXT NOT NULL,
+                issuer_jurisdiction TEXT,
+                is_sha BOOLEAN NOT NULL DEFAULT 0,
+                market_value_eur REAL,
+                holders_count INTEGER,
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS tokenized_asset (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                underlying_type TEXT NOT NULL,
+                issuer_id INTEGER,
+                face_value REAL,
+                total_amount REAL,
+                listing_date DATE,
+                regulated_market TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS wallet_custodian (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_id INTEGER,
+                wallet_type TEXT NOT NULL,
+                custody_mechanism TEXT,
+                insurance_coverage REAL,
+                audit_frequency TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS crypto_transaction (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender_wallet TEXT NOT NULL,
+                receiver_wallet TEXT NOT NULL,
+                sender_jurisdiction TEXT,
+                receiver_jurisdiction TEXT,
+                asset_type TEXT NOT NULL,
+                amount REAL NOT NULL,
+                value_eur REAL,
+                timestamp TIMESTAMP NOT NULL,
+                reporting_period TEXT,
+                status TEXT NOT NULL DEFAULT 'reported',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+
+        # Seed CASP data
+        conn.execute(text("""
+            INSERT OR IGNORE INTO casp (name, registration_number, home_member_state, passport_active, services_offered, status)
+            VALUES ('Bit2Me S.L.', 'ES-CASP-2024-001', 'ES', 0, '["exchange", "payment"]', 'active')
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO casp (name, registration_number, home_member_state, passport_active, services_offered, status)
+            VALUES ('Coinbase Europe Ltd. (sucursal Espana)', 'ES-CASP-2024-002', 'IE', 1, '["exchange", "custody", "execution"]', 'active')
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO casp (name, registration_number, home_member_state, passport_active, services_offered, status)
+            VALUES ('Kraken Europe Ltd. (sucursal Espana)', 'ES-CASP-2024-004', 'MT', 1, '["exchange", "execution", "payment"]', 'active')
+        """))
+
+        # Seed crypto assets
+        conn.execute(text("""
+            INSERT OR IGNORE INTO crypto_asset (asset_type, reference_uid, issuer_jurisdiction, is_sha, market_value_eur, holders_count, status)
+            VALUES ('utility', 'UNI-Ethereum', 'US', 0, 8500000000.00, 520000, 'active')
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO crypto_asset (asset_type, reference_uid, issuer_jurisdiction, is_sha, market_value_eur, holders_count, status)
+            VALUES ('asset-referenced', 'USDC-Ethereum', 'US', 1, 42000000000.00, 2100000, 'active')
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO crypto_asset (asset_type, reference_uid, issuer_jurisdiction, is_sha, market_value_eur, holders_count, status)
+            VALUES ('e-money', 'EURC-Ethereum', 'IE', 1, 180000000.00, 45000, 'active')
+        """))
+
+        # Seed tokenized assets
+        conn.execute(text("""
+            INSERT OR IGNORE INTO tokenized_asset (underlying_type, issuer_id, face_value, total_amount, listing_date, regulated_market, status)
+            VALUES ('bond', NULL, 1000.00, 50000000.00, '2025-06-15', 'BME', 'active')
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO tokenized_asset (underlying_type, issuer_id, face_value, total_amount, listing_date, regulated_market, status)
+            VALUES ('equity', NULL, 10.00, 10000000.00, '2025-09-01', 'Euronext Madrid', 'active')
+        """))
+
+        # Seed wallet custodians
+        conn.execute(text("""
+            INSERT OR IGNORE INTO wallet_custodian (entity_id, wallet_type, custody_mechanism, insurance_coverage, audit_frequency, status)
+            VALUES (NULL, 'cold', 'multi-sig', 250000000.00, 'quarterly', 'active')
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO wallet_custodian (entity_id, wallet_type, custody_mechanism, insurance_coverage, audit_frequency, status)
+            VALUES (NULL, 'hybrid', 'MPC', 150000000.00, 'monthly', 'active')
+        """))
+
+        # Seed crypto transactions
+        conn.execute(text("""
+            INSERT OR IGNORE INTO crypto_transaction (sender_wallet, receiver_wallet, sender_jurisdiction, receiver_jurisdiction, asset_type, amount, value_eur, timestamp, reporting_period, status)
+            VALUES ('0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a00', '0x9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f00', 'ES', 'DE', 'utility', 1500.00, 12750.00, '2025-10-15 14:30:00+00', '2025-10', 'reported')
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO crypto_transaction (sender_wallet, receiver_wallet, sender_jurisdiction, receiver_jurisdiction, asset_type, amount, value_eur, timestamp, reporting_period, status)
+            VALUES ('0x2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b11', '0x8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e22', 'FR', 'ES', 'asset-referenced', 50000.00, 50000.00, '2025-11-02 09:15:00+00', '2025-11', 'reported')
+        """))
+    yield

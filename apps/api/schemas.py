@@ -2553,3 +2553,148 @@ class EvidenciaControlUpdate(BaseModel):
 class EvidenciaControlListResponse(BaseModel):
     evidencias: list[EvidenciaControlSummary]
     total: int = Field(description="Total de evidencias que coinciden con la consulta")
+
+
+# ---------------------------------------------------------------------------
+# MiCA / Crypto-asset services (Fase 31.1)
+# ---------------------------------------------------------------------------
+
+class CASPSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    name: str = Field(description="Nombre del proveedor de servicios de criptoactivos")
+    registration_number: str | None = Field(default=None, description="Numero de registro")
+    home_member_state: str | None = Field(default=None, description="Estado miembro de origen (ISO 3166-1 alpha-2)")
+    passport_active: bool = Field(description="Si tiene passport activo para operar en la UE")
+    services_offered: list[str] = Field(default_factory=list, description="Servicios: custody, exchange, execution, payment")
+    status: str = Field(description="Estado: active, suspended, revoked")
+
+
+class CASPDetail(CASPSummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion (ISO 8601)")
+    updated_at: str | None = Field(default=None, description="Fecha de ultima actualizacion (ISO 8601)")
+
+
+class CryptoAssetSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    asset_type: str = Field(description="Tipo: asset-referenced, e-money, utility, other")
+    reference_uid: str | None = Field(default=None, description="Identificador unico del emisor")
+    issuer_jurisdiction: str | None = Field(default=None, description="Jurisdiccion del emisor (ISO 3166-1 alpha-2)")
+    is_sha: bool = Field(description="Si es criptoactivo significativo (SHA)")
+    market_value_eur: float | None = Field(default=None, description="Valor de mercado en EUR")
+    holders_count: int | None = Field(default=None, description="Numero de titulares")
+    status: str = Field(description="Estado del activo")
+
+
+class CryptoAssetDetail(CryptoAssetSummary):
+    created_at: str | None = Field(default=None)
+    updated_at: str | None = Field(default=None)
+
+
+class TokenizedAssetSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    underlying_type: str = Field(description="Activo subyacente: equity, bond, fund, real-estate, other")
+    issuer_id: int | None = Field(default=None, description="ID del emisor")
+    face_value: float | None = Field(default=None, description="Valor facial")
+    total_amount: float | None = Field(default=None, description="Cantidad total emitida")
+    listing_date: str | None = Field(default=None, description="Fecha de cotizacion (YYYY-MM-DD)")
+    regulated_market: str | None = Field(default=None, description="Mercado regulado donde cotiza")
+    status: str = Field(description="Estado")
+
+
+class TokenizedAssetDetail(TokenizedAssetSummary):
+    created_at: str | None = Field(default=None)
+    updated_at: str | None = Field(default=None)
+
+
+class WalletCustodianSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de entidad vinculada")
+    wallet_type: str = Field(description="Tipo de wallet: hot, cold, hybrid")
+    custody_mechanism: str | None = Field(default=None, description="Mecanismo de custodia")
+    insurance_coverage: float | None = Field(default=None, description="Cobertura de seguro en EUR")
+    audit_frequency: str | None = Field(default=None, description="Frecuencia de auditoria")
+    status: str = Field(description="Estado")
+
+
+class WalletCustodianDetail(WalletCustodianSummary):
+    created_at: str | None = Field(default=None)
+    updated_at: str | None = Field(default=None)
+
+
+class CryptoTransactionSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    sender_wallet: str | None = Field(default=None, description="Wallet remitente (pseudonimizada)")
+    receiver_wallet: str | None = Field(default=None, description="Wallet destinataria (pseudonimizada)")
+    sender_jurisdiction: str | None = Field(default=None, description="Jurisdiccion remitente")
+    receiver_jurisdiction: str | None = Field(default=None, description="Jurisdiccion destinataria")
+    asset_type: str = Field(description="Tipo de activo transferido")
+    amount: float = Field(description="Cantidad transferida")
+    value_eur: float | None = Field(default=None, description="Valor en EUR")
+    timestamp: str = Field(description="Fecha y hora (ISO 8601)")
+    reporting_period: str | None = Field(default=None, description="Periodo de reporte DAC8 (YYYY-MM)")
+    status: str = Field(description="Estado: reported, amended, rejected")
+
+
+class CryptoTransactionDetail(CryptoTransactionSummary):
+    created_at: str | None = Field(default=None)
+    updated_at: str | None = Field(default=None)
+
+
+class CASPCreate(BaseModel):
+    name: str = Field(description="Nombre del proveedor")
+    registration_number: str | None = Field(default=None)
+    home_member_state: str | None = Field(default=None)
+    passport_active: bool = Field(default=False)
+    services_offered: list[str] = Field(default_factory=list)
+
+
+class CASPUpdate(BaseModel):
+    passport_active: bool | None = Field(default=None)
+    services_offered: list[str] | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class CryptoAssetCreate(BaseModel):
+    asset_type: str = Field(description="asset-referenced, e-money, utility, other")
+    reference_uid: str | None = Field(default=None)
+    issuer_jurisdiction: str | None = Field(default=None)
+    is_sha: bool = Field(default=False)
+    market_value_eur: float | None = Field(default=None)
+    holders_count: int | None = Field(default=None)
+
+
+class CryptoTransactionCreate(BaseModel):
+    sender_wallet: str | None = Field(default=None)
+    receiver_wallet: str | None = Field(default=None)
+    sender_jurisdiction: str | None = Field(default=None)
+    receiver_jurisdiction: str | None = Field(default=None)
+    asset_type: str = Field(description="asset-referenced, e-money, utility, other")
+    amount: float = Field(description="Cantidad")
+    value_eur: float | None = Field(default=None)
+    timestamp: str = Field(description="Fecha/hora (ISO 8601)")
+    reporting_period: str | None = Field(default=None)
+
+
+class CASPListResponse(BaseModel):
+    total: int = Field(description="Total de CASPs que coinciden con los filtros")
+    casps: list[CASPSummary] = Field(default_factory=list)
+
+
+class CryptoAssetListResponse(BaseModel):
+    total: int = Field(description="Total de criptoactivos que coinciden con los filtros")
+    assets: list[CryptoAssetSummary] = Field(default_factory=list)
+
+
+class TokenizedAssetListResponse(BaseModel):
+    total: int = Field(description="Total de activos tokenizados que coinciden con los filtros")
+    assets: list[TokenizedAssetSummary] = Field(default_factory=list)
+
+
+class WalletCustodianListResponse(BaseModel):
+    total: int = Field(description="Total de custodios que coinciden con los filtros")
+    custodians: list[WalletCustodianSummary] = Field(default_factory=list)
+
+
+class CryptoTransactionListResponse(BaseModel):
+    total: int = Field(description="Total de transacciones que coinciden con los filtros")
+    transactions: list[CryptoTransactionSummary] = Field(default_factory=list)

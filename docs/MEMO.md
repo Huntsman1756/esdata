@@ -6,7 +6,7 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ## main
 
-**Estado:** activa — ultimo commit: PENDING (regulatory worker hardening and TEAC test/runtime alignment)
+**Estado:** activa — ultimo commit: ee12bd3 (regulatory worker hardening and TEAC test/runtime alignment)
 
 ### Resumen
 Fase 30 completada (30.1-30.15): remediacion estructural post-auditoria cerrada. Todas las fases planificadas 22-30 ahora completas. Roadmap limpio de headers stale (Fases 16, 23, 30). Fase 31 planificada: expansion regulatoria con data models para MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021 — 7 subfases documentadas con tablas, workers, routers, migrations y seeds.
@@ -18,7 +18,7 @@ Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/groundin
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
-| PENDING | fix(workers) | harden regulatory workers with source-revision locking, CNMV BOE HTML follow-up, entity-scoped invalidation, and TEAC test/runtime alignment while recording production monitoring and DGT discovery next steps | apps/workers/bde.py, apps/workers/change_detection.py, apps/workers/cnmv.py, apps/workers/sepblac.py, apps/workers/tests/test_bde.py, apps/workers/tests/test_change_detection.py, apps/workers/tests/test_cnmv.py, apps/workers/tests/test_sepblac.py, apps/workers/tests/test_teac.py, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
+| ee12bd3 | fix(workers) | harden regulatory workers with source-revision locking, CNMV BOE HTML follow-up, entity-scoped invalidation, and TEAC test/runtime alignment while recording production monitoring and DGT discovery next steps | apps/workers/bde.py, apps/workers/change_detection.py, apps/workers/cnmv.py, apps/workers/sepblac.py, apps/workers/tests/test_bde.py, apps/workers/tests/test_change_detection.py, apps/workers/tests/test_cnmv.py, apps/workers/tests/test_sepblac.py, apps/workers/tests/test_teac.py, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | PENDING | config | add verified CENDOJ and AEPD seeds to env templates, fix TEAC logger crash, and document TEAC parser date guard as the next isolated task | .env.example, infra/deploy/compose.env.example, apps/workers/teac.py, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | e5d5f3f | docs(config) | persist verified CNMV, SEPBLAC and BDE worker seeds in `.env.example` and record the deployment handoff in the roadmap | .env.example, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | 1b5ecb8 | fix(api) | harden fiscal retrieval end-to-end: legacy query_audit runtime repair, semantic abstention for uncovered terms, `/v1/buscar` legislation-only docs, CNMV corpus verification in Compose, `DRIFT_AEAT` guard for zero-casilla campaigns | apps/api/routers/consulta.py, apps/api/services/persistence.py, apps/api/tests/test_query_audit.py, apps/api/tests/test_reranker.py, apps/workers/modelos.py, apps/workers/modelos_support.py, apps/workers/tests/test_modelos.py, docs/manual-usuario/06-api-y-ejemplos.md, docs/manual-usuario/09-referencia-de-endpoints.md, docs/operations/verification-matrix.md, docs/operations/README.md, docs/operations/agent-notes.md, docs/operations/agent-workflow.md, docs/README.md, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
