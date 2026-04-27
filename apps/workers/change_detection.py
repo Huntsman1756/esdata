@@ -171,29 +171,104 @@ def invalidate_old_embeddings(
 ) -> int:
     """Invalidate (NULL) old embeddings for entities whose content changed.
 
+    Convenience wrapper around invalidate_old_embeddings_by_entity()
+    for the version_articulo table (BOE worker).
+
+    Returns count of invalidated rows.
+    """
+    return invalidate_old_embeddings_by_entity(
+        conn,
+        entity_table="version_articulo",
+        entity_id_column="boe_bloque_id",
+        entity_id_value=source_entity_id,
+    )
+
+
+def invalidate_old_embeddings_by_entity(
+    conn: Connection,
+    entity_table: str,
+    entity_id_column: str,
+    entity_id_value: str,
+) -> int:
+    """Invalidate (NULL) old embeddings for a specific entity.
+
+    Sets embedding = NULL, embedding_model_name = NULL, content_hash = NULL
+    for all rows matching the entity identifier.
+
     Returns count of invalidated rows.
     """
     # Count rows that will be invalidated before updating.
-    # This works on both SQLite and PostgreSQL and avoids the
-    # RETURNING/rowcount differences between dialects.
     count = conn.execute(
-        text("""
-            SELECT COUNT(*) FROM version_articulo
-            WHERE boe_bloque_id = :block_id
+        text(f"""
+            SELECT COUNT(*) FROM {entity_table}
+            WHERE {entity_id_column} = :entity_id
               AND embedding IS NOT NULL
         """),
-        {"block_id": source_entity_id},
+        {"entity_id": entity_id_value},
     ).scalar()
 
     if count > 0:
         conn.execute(
-            text("""
-                UPDATE version_articulo
-                SET embedding = NULL
-                WHERE boe_bloque_id = :block_id
+            text(f"""
+                UPDATE {entity_table}
+                SET embedding = NULL,
+                    embedding_model_name = NULL,
+                    content_hash = NULL
+                WHERE {entity_id_column} = :entity_id
                   AND embedding IS NOT NULL
             """),
-            {"block_id": source_entity_id},
+            {"entity_id": entity_id_value},
         )
 
     return count
+
+
+def record_embedding_version(
+    conn: Connection,
+    entity_table: str,
+    entity_id: int,
+    model_name: str,
+    content_hash: str,
+    dimensions: int,
+) -> None:
+    """Record an embedding version in embedding_version for audit trail.
+
+    Inserts a new row marking this as the current active version.
+    If a previous active version exists for this entity+model,
+    marks it as invalidated_at.
+    """
+    conn.execute(
+        text("""
+            INSERT INTO embedding_version (entity_table, entity_id, model_name, content_hash, dimensions, invalidated_at)
+            VALUES (:entity_table, :entity_id, :model_name, :content_hash, :dimensions, NULL)
+            ON CONFLICT (entity_table, entity_id, model_name, content_hash) DO NOTHING
+        """),
+        {
+            "entity_table": entity_table,
+            "entity_id": entity_id,
+            "model_name": model_name,
+            "content_hash": content_hash,
+            "dimensions": dimensions,
+        },
+    )
+
+    # Mark old active versions for this entity+model as invalidated
+    dialect_name = conn.engine.dialect.name
+    ts_func = "CURRENT_TIMESTAMP" if dialect_name != "sqlite" else "datetime('now')"
+    conn.execute(
+        text(f"""
+            UPDATE embedding_version
+            SET invalidated_at = {ts_func}
+            WHERE entity_table = :entity_table
+              AND entity_id = :entity_id
+              AND model_name = :model_name
+              AND invalidated_at IS NULL
+              AND content_hash != :content_hash
+        """),
+        {
+            "entity_table": entity_table,
+            "entity_id": entity_id,
+            "model_name": model_name,
+            "content_hash": content_hash,
+        },
+    )

@@ -15,6 +15,8 @@ from change_detection import (
     compute_content_hash,
     ensure_source_revision_table,
     invalidate_old_embeddings,
+    invalidate_old_embeddings_by_entity,
+    record_embedding_version,
     record_revision,
 )
 
@@ -139,12 +141,14 @@ def test_invalidate_old_embeddings(engine):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 boe_bloque_id TEXT,
                 texto TEXT,
-                embedding TEXT
+                embedding TEXT,
+                embedding_model_name TEXT,
+                content_hash TEXT
             )
         """))
         conn.execute(text("""
-            INSERT INTO version_articulo (boe_bloque_id, texto, embedding)
-            VALUES ('bloque-1', 'text with embedding', '[0.1, 0.2, 0.3]')
+            INSERT INTO version_articulo (boe_bloque_id, texto, embedding, embedding_model_name, content_hash)
+            VALUES ('bloque-1', 'text with embedding', '[0.1, 0.2, 0.3]', 'MiniLM-L12-v2', 'hash1')
         """))
         conn.execute(text("""
             INSERT INTO version_articulo (boe_bloque_id, texto, embedding)
@@ -156,6 +160,107 @@ def test_invalidate_old_embeddings(engine):
 
     with engine.begin() as conn:
         row = conn.execute(
-            text("SELECT embedding FROM version_articulo WHERE boe_bloque_id = 'bloque-1'")
+            text("SELECT embedding, embedding_model_name, content_hash FROM version_articulo WHERE boe_bloque_id = 'bloque-1'")
         ).fetchone()
     assert row[0] is None
+    assert row[1] is None
+    assert row[2] is None
+
+
+def test_invalidate_old_embeddings_by_entity(engine):
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS documento_fragmento"))
+        conn.execute(text("""
+            CREATE TABLE documento_fragmento (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                seccion TEXT,
+                embedding TEXT,
+                embedding_model_name TEXT,
+                content_hash TEXT
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO documento_fragmento (seccion, embedding, embedding_model_name, content_hash)
+            VALUES ('sec-1', '[0.1]', 'MiniLM', 'hash1')
+        """))
+        conn.execute(text("""
+            INSERT INTO documento_fragmento (seccion, embedding)
+            VALUES ('sec-2', NULL)
+        """))
+
+        count = invalidate_old_embeddings_by_entity(
+            conn, "documento_fragmento", "seccion", "sec-1"
+        )
+    assert count == 1
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT embedding, embedding_model_name, content_hash FROM documento_fragmento WHERE seccion = 'sec-1'")
+        ).fetchone()
+    assert row[0] is None
+    assert row[1] is None
+    assert row[2] is None
+
+
+def test_record_embedding_version(engine):
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS embedding_version"))
+        conn.execute(text("""
+            CREATE TABLE embedding_version (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_table TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                model_name TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                dimensions INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT (datetime('now')),
+                invalidated_at TIMESTAMP,
+                UNIQUE(entity_table, entity_id, model_name, content_hash)
+            )
+        """))
+
+        record_embedding_version(
+            conn, "version_articulo", 1, "MiniLM", "hash1", 384
+        )
+
+        row = conn.execute(
+            text("SELECT model_name, content_hash, dimensions, invalidated_at FROM embedding_version WHERE entity_id = 1")
+        ).fetchone()
+    assert row[0] == "MiniLM"
+    assert row[1] == "hash1"
+    assert row[2] == 384
+    assert row[3] is None
+
+
+def test_record_embedding_version_invalidates_old(engine):
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS embedding_version"))
+        conn.execute(text("""
+            CREATE TABLE embedding_version (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_table TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                model_name TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                dimensions INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT (datetime('now')),
+                invalidated_at TIMESTAMP,
+                UNIQUE(entity_table, entity_id, model_name, content_hash)
+            )
+        """))
+
+        record_embedding_version(
+            conn, "version_articulo", 1, "MiniLM", "hash1", 384
+        )
+        record_embedding_version(
+            conn, "version_articulo", 1, "MiniLM", "hash2", 384
+        )
+
+        old_row = conn.execute(
+            text("SELECT invalidated_at FROM embedding_version WHERE content_hash = 'hash1'")
+        ).fetchone()
+        new_row = conn.execute(
+            text("SELECT invalidated_at FROM embedding_version WHERE content_hash = 'hash2'")
+        ).fetchone()
+    assert old_row[0] is not None
+    assert new_row[0] is None

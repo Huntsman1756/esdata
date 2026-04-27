@@ -7,7 +7,9 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
-- **xxxxxxx** `feat(workers)` — incremental reindexing: shared change_detection module, source_revision table, integrate into 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr), 9 tests
+- **xxxxxxxx** `feat(workers)` — embedding versioning: migration 0034 adds embedding_model_name/content_hash columns to 3 tables + embedding_version tracking table, backfill_embeddings.py stores model+hash, 12 change_detection tests
+- **xxxxxxxx** `feat(ops)` — CI drift blocking: verify-doc-artifacts.py adds docs-vs-roadmap drift check, undocumented workers detection, endpoint documentation coverage check
+- **xxxxxxxx** `feat(workers)` — incremental reindexing: shared change_detection module, source_revision table, integrate into 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr), 12 tests
 
 ### main
 - **def5678** `feat(api)` — semantic reranker per claim: _build_claim_citations scores each chunk against claim text via cross-encoder, citations sorted by rerank_score, 1 new test

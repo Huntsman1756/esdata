@@ -36,7 +36,7 @@ from sqlalchemy import create_engine, text
 
 # Import from workers package
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "workers"))
-from embeddings import embed_single
+from embeddings import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME, compute_embedding_hash, embed_single
 
 
 def backfill_embeddings(
@@ -56,7 +56,7 @@ def backfill_embeddings(
 
     with engine.connect() as conn:
         if corpus in ("legislacion", "all"):
-            n = _backfill_version_articulo(conn, batch_size, dry_run, counts)
+            n = _backfill_version_articulo(conn, batch_size, dry_run, counts, EMBEDDING_MODEL_NAME)
             counts["processed"] += n
             counts["updated"] += n
             counts["skipped"] += _count_null_embeddings(
@@ -64,14 +64,14 @@ def backfill_embeddings(
             )
 
         if corpus in ("doctrina", "all"):
-            n = _backfill_documento_fragmento(conn, batch_size, dry_run, counts)
+            n = _backfill_documento_fragmento(conn, batch_size, dry_run, counts, EMBEDDING_MODEL_NAME)
             counts["processed"] += n
             counts["updated"] += n
             counts["skipped"] += _count_null_embeddings(
                 conn, "documento_fragmento", "embedding"
             )
 
-            n2 = _backfill_documento_interpretativo(conn, batch_size, dry_run, counts)
+            n2 = _backfill_documento_interpretativo(conn, batch_size, dry_run, counts, EMBEDDING_MODEL_NAME)
             counts["processed"] += n2
             counts["updated"] += n2
 
@@ -94,19 +94,21 @@ def _backfill_version_articulo(
     batch_size: int,
     dry_run: bool,
     counts: dict[str, int],
+    model_name: str,
 ) -> int:
     """Backfill embeddings for version_articulo.texto."""
     query = text(
-        """
+        f"""
         SELECT id, texto
         FROM version_articulo
-        WHERE embedding IS NULL AND texto IS NOT NULL AND LENGTH(texto) > 0
+        WHERE (embedding IS NULL OR embedding_model_name != :model)
+          AND texto IS NOT NULL AND LENGTH(texto) > 0
         ORDER BY id
         LIMIT 1000
         """
     )
 
-    rows = conn.execute(query).mappings()
+    rows = conn.execute(query, {"model": model_name}).mappings()
     updated = 0
     batch = []
 
@@ -140,19 +142,21 @@ def _backfill_documento_fragmento(
     batch_size: int,
     dry_run: bool,
     counts: dict[str, int],
+    model_name: str,
 ) -> int:
     """Backfill embeddings for documento_fragmento.texto."""
     query = text(
-        """
+        f"""
         SELECT id, texto
         FROM documento_fragmento
-        WHERE embedding IS NULL AND texto IS NOT NULL AND LENGTH(texto) > 0
+        WHERE (embedding IS NULL OR embedding_model_name != :model)
+          AND texto IS NOT NULL AND LENGTH(texto) > 0
         ORDER BY id
         LIMIT 5000
         """
     )
 
-    rows = conn.execute(query).mappings()
+    rows = conn.execute(query, {"model": model_name}).mappings()
     updated = 0
     batch = []
 
@@ -185,19 +189,21 @@ def _backfill_documento_interpretativo(
     batch_size: int,
     dry_run: bool,
     counts: dict[str, int],
+    model_name: str,
 ) -> int:
     """Backfill embeddings for documento_interpretativo.texto."""
     query = text(
-        """
+        f"""
         SELECT id, texto
         FROM documento_interpretativo
-        WHERE embedding IS NULL AND texto IS NOT NULL AND LENGTH(texto) > 0
+        WHERE (embedding IS NULL OR embedding_model_name != :model)
+          AND texto IS NOT NULL AND LENGTH(texto) > 0
         ORDER BY id
         LIMIT 1000
         """
     )
 
-    rows = conn.execute(query).mappings()
+    rows = conn.execute(query, {"model": model_name}).mappings()
     updated = 0
     batch = []
 
@@ -247,9 +253,10 @@ def _process_batch(
         for item, emb in zip(batch, embeddings_list):
             if not dry_run:
                 try:
+                    content_hash = compute_embedding_hash(item["text"])
                     conn.execute(
-                        text(f"UPDATE {table} SET {column} = :vec WHERE id = :id"),
-                        {"vec": emb, "id": item["id"]},
+                        text(f"UPDATE {table} SET {column} = :vec, embedding_model_name = :model, content_hash = :hash WHERE id = :id"),
+                        {"vec": emb, "model": EMBEDDING_MODEL_NAME, "hash": content_hash, "id": item["id"]},
                     )
                 except Exception:
                     counts["errors"] += 1
@@ -258,9 +265,10 @@ def _process_batch(
         # Single text already embedded
         if not dry_run:
             try:
+                content_hash = compute_embedding_hash(batch[0]["text"])
                 conn.execute(
-                    text(f"UPDATE {table} SET {column} = :vec WHERE id = :id"),
-                    {"vec": embeddings, "id": batch[0]["id"]},
+                    text(f"UPDATE {table} SET {column} = :vec, embedding_model_name = :model, content_hash = :hash WHERE id = :id"),
+                    {"vec": embeddings, "model": EMBEDDING_MODEL_NAME, "hash": content_hash, "id": batch[0]["id"]},
                 )
             except Exception:
                 counts["errors"] += 1

@@ -17,7 +17,11 @@ Fase 30.9 completada: claim_citations en /v1/consulta. Nueva funcion `_build_cla
 
 Fase 30.10 completada: semantic reranker per claim. `_build_claim_citations` ahora usa cross-encoder para puntuar cada chunk contra el texto de cada claim, retornando top-3 chunks por claim ordenados por rerank_score. 1 nuevo test de scoring semantico pasando.
 
-Fase 30.5 completada: deteccion de cambios y reindexacion incremental. Modulo compartido `change_detection.py` con `compute_content_hash()`, `check_content_changed()`, `record_revision()`, `invalidate_old_embeddings()`. Migration Alembic `20260427_0033_source_revision_tracking.py` anadiendo tabla `source_revision`. Integracion en 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr). 9 tests pasando en `test_change_detection.py`.
+Fase 30.5 completada: deteccion de cambios y reindexacion incremental. Modulo compartido `change_detection.py` con `compute_content_hash()`, `check_content_changed()`, `record_revision()`, `invalidate_old_embeddings()`. Migration Alembic `20260427_0033_source_revision_tracking.py` anadiendo tabla `source_revision`. Integracion en 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr). 12 tests pasando en `test_change_detection.py`.
+
+Fase 30.11 completada: embedding versioning. Migration `20260427_0034_embedding_versioning.py` anade `embedding_model_name` y `content_hash` a 3 tablas + tabla `embedding_version` tracking. Backfill script actualizado para almacenar model+hash. 12 tests pasando.
+
+Fase 30.12 completada: CI drift blocking fortalecido. `verify-doc-artifacts.py` anade verificacion docs-vs-roadmap, deteccion workers no documentados, cobertura docs de endpoints.
 
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |

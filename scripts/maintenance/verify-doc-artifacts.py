@@ -148,6 +148,125 @@ def find_forbidden_env_files(root: Path) -> list[str]:
     return findings
 
 
+def verify_docs_vs_roadmap() -> list[str]:
+    """Verify that docs don't claim implemented state for target-state features.
+
+    Checks master-execution-roadmap.md for [PARTIAL] or [TARGET] markers and
+    cross-references docs to ensure they don't describe those features as [IMPLEMENTED].
+    """
+    errors: list[str] = []
+    roadmap_path = DOCS_DIR / "master-execution-roadmap.md"
+    if not roadmap_path.exists():
+        return errors
+
+    roadmap_content = roadmap_path.read_text(encoding="utf-8")
+
+    # Find features marked as [PARTIAL] or [TARGET] in the roadmap
+    partial_target_features = set(re.findall(r"\[(?:PARTIAL|TARGET)\]", roadmap_content))
+    if not partial_target_features:
+        return errors
+
+    # Check docs for claims of these features being fully implemented
+    for doc_path in DOCS_DIR.rglob("*.md"):
+        if "archive" in doc_path.parts or "manual-usuario" in doc_path.parts:
+            continue
+        doc_content = doc_path.read_text(encoding="utf-8")
+        # Look for overly confident claims about features that are still partial/target
+        for feature_marker in partial_target_features:
+            # If docs claim something is implemented but roadmap says partial/target
+            if "[IMPLEMENTED]" in doc_content and feature_marker:
+                # Only flag if the same section/topic appears in both
+                doc_topic = doc_path.relative_to(DOCS_DIR).with_suffix("")
+                if doc_topic.as_posix() in roadmap_content:
+                    errors.append(
+                        f"docs drift: {doc_path.relative_to(ROOT)} claims [IMPLEMENTED] "
+                        f"but roadmap has {feature_marker} for overlapping topic "
+                        f"'{doc_topic}'"
+                    )
+
+    return errors
+
+
+def verify_workers_documented() -> list[str]:
+    """Verify that all workers in apps/workers/ are referenced in docs."""
+    errors: list[str] = []
+    workers_dir = ROOT / "apps" / "workers"
+    if not workers_dir.exists():
+        return errors
+
+    # Find worker modules (excluding __pycache__, __init__, tests, shared modules)
+    worker_modules = set()
+    for py_file in workers_dir.glob("*.py"):
+        name = py_file.stem
+        if name.startswith("_") or name in ("embeddings", "entity_identity", "db", "base"):
+            continue
+        if name.startswith("test_"):
+            continue
+        worker_modules.add(name)
+
+    if not worker_modules:
+        return errors
+
+    # Check docs for worker references
+    docs_content = ""
+    for doc_path in DOCS_DIR.rglob("*.md"):
+        docs_content += doc_path.read_text(encoding="utf-8") + "\n"
+
+    # Check manual-usuario specifically
+    manual_dir = DOCS_DIR / "manual-usuario"
+    if manual_dir.exists():
+        manual_content = ""
+        for doc_path in manual_dir.rglob("*.md"):
+            manual_content += doc_path.read_text(encoding="utf-8") + "\n"
+    else:
+        manual_content = ""
+
+    undocumented = sorted(worker_modules - {w for w in worker_modules if w in docs_content})
+    if undocumented:
+        errors.append(
+            f"undocumented workers ({len(undocumented)}): {', '.join(undocumented[:10])}"
+        )
+
+    return errors
+
+
+def verify_endpoints_documented() -> list[str]:
+    """Verify that API router endpoints are referenced in docs."""
+    errors: list[str] = []
+    routers_dir = ROOT / "apps" / "api" / "routers"
+    if not routers_dir.exists():
+        return errors
+
+    # Find router files
+    router_files = list(routers_dir.glob("*.py"))
+    if not router_files:
+        return errors
+
+    # Extract endpoint paths from router files
+    endpoint_paths = set()
+    for router_file in router_files:
+        content = router_file.read_text(encoding="utf-8")
+        for match in re.finditer(r'@(?:get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']', content):
+            endpoint_paths.add(match.group(1))
+
+    if not endpoint_paths:
+        return errors
+
+    # Check docs for endpoint references
+    docs_content = ""
+    for doc_path in DOCS_DIR.rglob("*.md"):
+        docs_content += doc_path.read_text(encoding="utf-8") + "\n"
+
+    undocumented = sorted(p for p in endpoint_paths if "/" not in p or p not in docs_content)
+    if len(undocumented) > len(endpoint_paths) * 0.3:
+        errors.append(
+            f"undocumented endpoints ({len(undocumented)}/{len(endpoint_paths)}): "
+            f"more than 30% of endpoints not referenced in docs"
+        )
+
+    return errors
+
+
 def run() -> list[str]:
     errors: list[str] = []
     for artifact in ARTIFACTS:
@@ -157,6 +276,9 @@ def run() -> list[str]:
     errors.extend(verify_env_documentation(ENV_EXAMPLE, ENV_DOC))
     for forbidden in find_forbidden_env_files(ROOT):
         errors.append(f"forbidden env file: {forbidden}")
+    errors.extend(verify_docs_vs_roadmap())
+    errors.extend(verify_workers_documented())
+    errors.extend(verify_endpoints_documented())
     return errors
 
 

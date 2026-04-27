@@ -14,7 +14,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+EMBEDDING_DIMENSIONS = 384
+
 _model: object | None = None
+
+
+def get_model_name() -> str:
+    """Return the name of the current embedding model."""
+    return EMBEDDING_MODEL_NAME
 
 
 def get_model():
@@ -24,7 +32,7 @@ def get_model():
         try:
             from sentence_transformers import SentenceTransformer
             _model = SentenceTransformer(
-                "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+                EMBEDDING_MODEL_NAME,
                 device="cpu",
             )
         except ImportError:
@@ -72,3 +80,9 @@ def embed_single(text: str) -> list[float] | None:
     if results is None or len(results) < 1:
         return None
     return results[0]
+
+
+def compute_embedding_hash(text: str) -> str:
+    """Compute SHA-256 hash of the text that will be embedded."""
+    import hashlib
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
