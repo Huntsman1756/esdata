@@ -38,6 +38,8 @@ async def _seed_dac():
         conn.execute(text(
             "DELETE FROM norma WHERE codigo IN ('DAC6', 'DAC7', 'DAC1')"
         ))
+        # Reset autoincrement para que las nuevas normas/articulos queden con IDs <= 200
+        conn.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('norma', 'articulo', 'version_articulo')"))
 
         # DAC6 — con articulos
         conn.execute(text(

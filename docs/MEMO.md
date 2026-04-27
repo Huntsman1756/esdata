@@ -14,6 +14,7 @@ Fase 30.2 completada: HTTP integration tests para AI audit log, human review, da
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+| WIP | fix(api) | add 8 micro_obligacion seed rows, reset sqlite_sequence in DAC test fixture | apps/api/tests/conftest.py, apps/api/tests/test_dac_directives.py |
 | 3462824 | fix(api) | SQLite engine kwargs, route order, duplicate routes, ON CONFLICT | apps/api/db.py, apps/api/routers/model_registry.py, apps/api/routers/human_review.py, apps/api/services/model_registry.py, alembic/env.py, alembic/versions/, apps/api/main.py, apps/api/routers/query_audit.py, apps/api/tests/test_governance_http.py, apps/api/tests/test_query_audit_http.py |
 | 17062bd | docs | add multi-machine sync and commit-per-fix discipline | AGENTS.md |
 | 8cafe5d | feat(api) | add 60+ new routers, services, middleware and tests | apps/api/routers/, apps/api/services/, apps/api/middleware/, apps/api/tests/, apps/api/banking/, apps/api/pgc_data.py, apps/api/pgc_utils.py, apps/api/AGENTS.md |

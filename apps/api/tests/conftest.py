@@ -1745,6 +1745,27 @@ STATEMENTS = [
     WHERE o.fuente = 'boe' AND m.regulacion_relacionada IN ('lecr', 'socimi', 'csdr', 'doctrina_dgt', 'cnmv_ecr')
     """,
     """
+    INSERT INTO micro_obligacion (codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad) VALUES ('LECR_SAFETY_VALVE', 'Aplicacion safety valve LECR', 'Aplicar mecanismo safety valve para inversiones en instrumentos financieros (art. 26 LECR)', 'lecr', 'ecr_regulatorio', 'periodicidad', 'anual', 'finanzas', 'media')
+    """,
+    """
+    INSERT INTO micro_obligacion (codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad) VALUES ('LECR_TAX_COMPLIANCE', 'Cumplimiento fiscal LECR', 'Cumplir obligaciones fiscales derivadas de la condicion de ECR (art. 31 LECR)', 'lecr', 'tributario', 'periodicidad', 'anual', 'finanzas', 'media')
+    """,
+    """
+    INSERT INTO micro_obligacion (codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad) VALUES ('CSDR_CASH_ALLOCATION', 'Alocacion liquida CSDR', 'Comunicar alocacion de liquida en operaciones CSDR (Reglamento 909/2014)', 'csdr', 'infraestructuras_csd', 'ejecucion_orden', 'continua', 'operaciones', 'media')
+    """,
+    """
+    INSERT INTO micro_obligacion (codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad) VALUES ('CSDR_PARTICIPATION', 'Participacion CSDR y T2S', 'Participar en infraestructuras CSD y T2S (Reglamento 909/2014)', 'csdr', 'infraestructuras_csd', 'continuo', 'continua', 'operaciones', 'media')
+    """,
+    """
+    INSERT INTO micro_obligacion (codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad) VALUES ('CNMV_ECR_GOBIERNO', 'Gobierno ECR CNMV', 'Implementar gobierno interno para registros ECR (Circular 6/2014)', 'cnmv_ecr', 'reporting_cnmv_ecr', 'continuo', 'continua', 'compliance', 'alta')
+    """,
+    """
+    INSERT INTO micro_obligacion (codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad) VALUES ('DGT_SOCIMI_CONTRATOS', 'Doctrina DGT contratos arrendamiento SOCIMI', 'Interpretar doctrina DGT sobre requisitos de contratos de arrendamiento para SOCIMI', 'doctrina_dgt', 'doctrina_dgt', 'continuo', 'continua', 'finanzas', 'alta')
+    """,
+    """
+    INSERT INTO micro_obligacion (codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad) VALUES ('DGT_SOCIMI_ENTIDADES', 'Doctrina DGT SOCIMI y entidades participadas', 'Aplicar doctrina DGT sobre SOCIMI con participaciones en entidades', 'doctrina_dgt', 'doctrina_dgt', 'periodicidad', 'anual', 'finanzas', 'alta')
+    """,
+    """
     INSERT INTO empresa (nombre, nif, domicilio, fuente_inicial)
     VALUES (
         'ALVAREZ GARCIA GANADERIA, S.L.',
