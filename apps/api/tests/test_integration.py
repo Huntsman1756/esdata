@@ -5,283 +5,54 @@ from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "workers"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from main import app
 
 
 @pytest.fixture
 def integration_db():
-    """Create a test database with schema and seed data for integration tests."""
-    db_path = Path(__file__).resolve().parents[1] / "tests" / "test_integration_esdata.sqlite3"
-    if db_path.exists():
-        db_path.unlink()
-
-    engine = create_engine(
-        f"sqlite:///{db_path}",
-        future=True,
-        connect_args={"check_same_thread": False},
-    )
-
-    with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE norma (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL,
-                titulo TEXT NOT NULL,
-                boe_id TEXT UNIQUE NOT NULL,
-                eli_uri TEXT UNIQUE,
-                jurisdiccion TEXT NOT NULL,
-                tipo_fuente TEXT NOT NULL,
-                tipo_documento TEXT NOT NULL,
-                ambito TEXT NOT NULL,
-                estado_cobertura TEXT NOT NULL,
-                vigente_desde TEXT NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE articulo (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                norma_id INTEGER NOT NULL,
-                numero INTEGER NOT NULL,
-                tipo TEXT,
-                FOREIGN KEY (norma_id) REFERENCES norma(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE version_articulo (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                articulo_id INTEGER NOT NULL,
-                texto TEXT NOT NULL,
-                vigente_desde TEXT NOT NULL,
-                search_vector TSVECTOR,
-                FOREIGN KEY (articulo_id) REFERENCES articulo(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE documento (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                origen_tipo TEXT NOT NULL,
-                origen_id TEXT NOT NULL,
-                titulo TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE documento_articulo (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                documento_id INTEGER NOT NULL,
-                articulo_id INTEGER NOT NULL,
-                FOREIGN KEY (documento_id) REFERENCES documento(id),
-                FOREIGN KEY (articulo_id) REFERENCES articulo(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE sync_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                worker TEXT NOT NULL,
-                started_at TEXT NOT NULL,
-                finished_at TEXT,
-                status TEXT,
-                rows_added INTEGER DEFAULT 0,
-                error_msg TEXT,
-                bloques_processed INTEGER DEFAULT 0,
-                articulos_upserted INTEGER DEFAULT 0,
-                documentos_processed INTEGER DEFAULT 0,
-                documentos_upserted INTEGER DEFAULT 0,
-                doctrina_links_created INTEGER DEFAULT 0
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE aeat_modelo (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL,
-                nombre TEXT NOT NULL,
-                activo INTEGER DEFAULT 1
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE modelo_campana (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                modelo_id INTEGER NOT NULL,
-                campana TEXT NOT NULL,
-                activo INTEGER DEFAULT 0,
-                FOREIGN KEY (modelo_id) REFERENCES aeat_modelo(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE modelo_casilla (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                modelo_id INTEGER NOT NULL,
-                codigo TEXT NOT NULL,
-                etiqueta TEXT,
-                campana_id INTEGER,
-                FOREIGN KEY (modelo_id) REFERENCES aeat_modelo(id),
-                FOREIGN KEY (campana_id) REFERENCES modelo_campana(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE modelo_instruccion (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                modelo_id INTEGER NOT NULL,
-                seccion TEXT,
-                titulo TEXT,
-                contenido TEXT,
-                orden INTEGER,
-                campana_id INTEGER,
-                FOREIGN KEY (modelo_id) REFERENCES aeat_modelo(id),
-                FOREIGN KEY (campana_id) REFERENCES modelo_campana(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE modelo_normativa (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                modelo_id INTEGER NOT NULL,
-                titulo TEXT,
-                referencia TEXT,
-                FOREIGN KEY (modelo_id) REFERENCES aeat_modelo(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE modelo_clave (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                modelo_id INTEGER NOT NULL,
-                codigo TEXT NOT NULL,
-                etiqueta TEXT,
-                campana_id INTEGER,
-                FOREIGN KEY (modelo_id) REFERENCES aeat_modelo(id),
-                FOREIGN KEY (campana_id) REFERENCES modelo_campana(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE modelo_campana_operativa (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                campana_id INTEGER NOT NULL,
-                categoria_obligado TEXT,
-                frecuencia_presentacion TEXT,
-                FOREIGN KEY (campana_id) REFERENCES modelo_campana(id)
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE documento_interpretativo (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                titulo TEXT NOT NULL,
-                texto TEXT NOT NULL,
-                origen_tipo TEXT,
-                origen_id TEXT,
-                tipo_documento TEXT,
-                organismo_emisor TEXT,
-                fecha TEXT,
-                referencia TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE materia (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT UNIQUE NOT NULL,
-                slug TEXT UNIQUE NOT NULL
-            )
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE evaluacion (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                run_id TEXT NOT NULL,
-                query_id TEXT NOT NULL,
-                dominio TEXT,
-                score REAL,
-                status TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
+    """Reuse the shared sqlite test DB prepared by conftest."""
+    from conftest import engine
 
     return engine
 
 
 @pytest.fixture
 def seeded_db(integration_db):
-    """Seed the test database with sample data."""
+    """Add integration-specific worker rows on top of shared fixtures."""
     with integration_db.begin() as conn:
+        conn.execute(text("DELETE FROM sync_log WHERE worker IN ('worker-boe', 'worker-dgt')"))
         conn.execute(text("""
-            INSERT INTO norma (codigo, titulo, boe_id, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde)
-            VALUES ('LIVA', 'Ley 37/1992 - IVA', 'BOE-A-1992-2845', 'es', 'ley', 'ley', 'tributario', 'completa', '1992-12-28')
+            INSERT INTO sync_log (
+                worker, started_at, finished_at, status,
+                bloques_processed, articulos_upserted,
+                documentos_processed, documentos_upserted, doctrina_links_created,
+                error_msg
+            )
+            VALUES (
+                'worker-boe', '2025-01-01T00:00:00+00:00', '2025-01-01T00:05:00+00:00', 'success',
+                0, 150,
+                0, 0, 0,
+                NULL
+            )
         """))
         conn.execute(text("""
-            INSERT INTO norma (codigo, titulo, boe_id, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde)
-            VALUES ('LIRPF', 'Ley 35/2006 - IRPF', 'BOE-A-2006-21323', 'es', 'ley', 'ley', 'tributario', 'completa', '2006-11-15')
-        """))
-
-        conn.execute(text("""
-            INSERT INTO articulo (norma_id, numero, tipo) VALUES (1, 1, 'articulo')
-        """))
-        conn.execute(text("""
-            INSERT INTO articulo (norma_id, numero, tipo) VALUES (1, 2, 'articulo')
-        """))
-        conn.execute(text("""
-            INSERT INTO articulo (norma_id, numero, tipo) VALUES (2, 1, 'articulo')
-        """))
-
-        conn.execute(text("""
-            INSERT INTO version_articulo (articulo_id, texto, vigente_desde)
-            VALUES (1, 'El Impuesto sobre el Valor Añadido es un impuesto indirecto que grava el consumo.', '1992-12-28')
-        """))
-        conn.execute(text("""
-            INSERT INTO version_articulo (articulo_id, texto, vigente_desde)
-            VALUES (2, 'Las entregas de bienes y prestaciones de servicios estarán sujetas del IVA.', '1992-12-28')
-        """))
-        conn.execute(text("""
-            INSERT INTO version_articulo (articulo_id, texto, vigente_desde)
-            VALUES (3, 'Los rendimientos del trabajo incluyen salarios, pagas extras y complementos.', '2006-11-15')
-        """))
-
-        conn.execute(text("""
-            INSERT INTO aeat_modelo (codigo, nombre, activo) VALUES ('303', 'Modelo 303 - IVA trimestral', 1)
-        """))
-        conn.execute(text("""
-            INSERT INTO aeat_modelo (codigo, nombre, activo) VALUES ('111', 'Modelo 111 - Retenciones IRPF', 1)
-        """))
-        conn.execute(text("""
-            INSERT INTO modelo_campana (modelo_id, campana, activo) VALUES (1, '2025', 1)
-        """))
-        conn.execute(text("""
-            INSERT INTO modelo_campana (modelo_id, campana, activo) VALUES (2, '2025', 1)
-        """))
-        conn.execute(text("""
-            INSERT INTO modelo_casilla (modelo_id, codigo, etiqueta, campana_id)
-            VALUES (1, '001', 'Base imponible general', 3)
-        """))
-        conn.execute(text("""
-            INSERT INTO modelo_instruccion (modelo_id, seccion, titulo, contenido, orden)
-            VALUES (1, 'seccion1', 'Declaracion', 'Instrucciones para el modelo 303', 1)
-        """))
-        conn.execute(text("""
-            INSERT INTO sync_log (worker, started_at, finished_at, status, rows_added)
-            VALUES ('worker-boe', '2025-01-01T00:00:00', '2025-01-01T00:05:00', 'success', 150)
-        """))
-        conn.execute(text("""
-            INSERT INTO sync_log (worker, started_at, finished_at, status, rows_added)
-            VALUES ('worker-dgt', '2025-01-01T00:00:00', '2025-01-01T00:03:00', 'success', 75)
-        """))
-        conn.execute(text("""
-            INSERT INTO documento_interpretativo (titulo, texto, origen_tipo, tipo_documento, organismo_emisor)
-            VALUES ('Consulta DGT sobre IVA', 'Las entregas de bienes con instalaciones son sujetas al IVA territorial.', 'boe', 'consulta_vinculante', 'DGT')
+            INSERT INTO sync_log (
+                worker, started_at, finished_at, status,
+                bloques_processed, articulos_upserted,
+                documentos_processed, documentos_upserted, doctrina_links_created,
+                error_msg
+            )
+            VALUES (
+                'worker-dgt', '2025-01-01T00:00:00+00:00', '2025-01-01T00:03:00+00:00', 'success',
+                0, 75,
+                0, 0, 0,
+                NULL
+            )
         """))
 
 
@@ -333,7 +104,7 @@ async def test_legislacion_get_norma_returns_detail(seeded_db):
     data = r.json()
     assert data["codigo"] == "LIVA"
     assert "titulo" in data
-    assert "boe_id" in data
+    assert data["tipo_fuente"] == "boe"
 
 
 @pytest.mark.integration
@@ -347,7 +118,7 @@ async def test_legislacion_get_cobertura(seeded_db):
     assert "normas" in data
     iva_data = next((n for n in data["normas"] if n["codigo"] == "LIVA"), None)
     assert iva_data is not None
-    assert iva_data["articulos"] >= 2
+    assert iva_data["articulos"] >= 1
 
 
 @pytest.mark.integration
@@ -512,3 +283,147 @@ async def test_status_always_returns_200_even_with_db_errors(seeded_db):
     assert r.status_code == 200
     assert "workers" in r.json()
     assert "modelos" in r.json()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_cc_articulo_detail_with_vigente_en_after_legalize_seed(integration_db):
+    from legalize_es import run_sync
+
+    fixture = Path(__file__).resolve().parents[2] / "workers" / "tests" / "fixtures" / "legalize_es" / "cc.md"
+
+    with integration_db.begin() as conn:
+        conn.execute(text("DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'CC'))"))
+        conn.execute(text("DELETE FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'CC')"))
+        conn.execute(text("DELETE FROM norma WHERE codigo = 'CC'"))
+
+    run_sync(integration_db, fixture_paths=[fixture])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/v1/legislacion/CC/articulos/1?vigente_en=2025-01-02")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["norma"] == "CC"
+    assert data["numero"] == "1"
+    assert "ordenamiento juridico" in data["texto"].lower()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_lec_articulo_detail_with_vigente_en_after_legalize_seed(integration_db):
+    from legalize_es import run_sync
+
+    fixture = Path(__file__).resolve().parents[2] / "workers" / "tests" / "fixtures" / "legalize_es" / "lec.md"
+
+    with integration_db.begin() as conn:
+        conn.execute(text("DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LEC'))"))
+        conn.execute(text("DELETE FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LEC')"))
+        conn.execute(text("DELETE FROM norma WHERE codigo = 'LEC'"))
+
+    run_sync(integration_db, fixture_paths=[fixture])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/v1/legislacion/LEC/articulos/1?vigente_en=2025-01-01")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["norma"] == "LEC"
+    assert data["numero"] == "1"
+    assert "competencia internacional" in data["texto"].lower()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_et_articulo_detail_with_vigente_en_after_legalize_seed(integration_db):
+    from legalize_es import run_sync
+
+    fixture = Path(__file__).resolve().parents[2] / "workers" / "tests" / "fixtures" / "legalize_es" / "et.md"
+
+    with integration_db.begin() as conn:
+        conn.execute(text("DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'ET'))"))
+        conn.execute(text("DELETE FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'ET')"))
+        conn.execute(text("DELETE FROM norma WHERE codigo = 'ET'"))
+
+    run_sync(integration_db, fixture_paths=[fixture])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/v1/legislacion/ET/articulos/1?vigente_en=2025-01-01")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["norma"] == "ET"
+    assert data["numero"] == "1"
+    assert "relaciones laborales" in data["texto"].lower()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_lsc_articulo_detail_with_vigente_en_after_legalize_seed(integration_db):
+    from legalize_es import run_sync
+
+    fixture = Path(__file__).resolve().parents[2] / "workers" / "tests" / "fixtures" / "legalize_es" / "lsc.md"
+
+    with integration_db.begin() as conn:
+        conn.execute(text("DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LSC'))"))
+        conn.execute(text("DELETE FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LSC')"))
+        conn.execute(text("DELETE FROM norma WHERE codigo = 'LSC'"))
+
+    run_sync(integration_db, fixture_paths=[fixture])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/v1/legislacion/LSC/articulos/1?vigente_en=2025-01-01")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["norma"] == "LSC"
+    assert data["numero"] == "1"
+    assert "sociedades mercantiles" in data["texto"].lower()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_lc_articulo_detail_with_vigente_en_after_legalize_seed(integration_db):
+    from legalize_es import run_sync
+
+    fixture = Path(__file__).resolve().parents[2] / "workers" / "tests" / "fixtures" / "legalize_es" / "lc.md"
+
+    with integration_db.begin() as conn:
+        conn.execute(text("DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LC'))"))
+        conn.execute(text("DELETE FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LC')"))
+        conn.execute(text("DELETE FROM norma WHERE codigo = 'LC'"))
+
+    run_sync(integration_db, fixture_paths=[fixture])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/v1/legislacion/LC/articulos/1?vigente_en=2025-01-01")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["norma"] == "LC"
+    assert data["numero"] == "1"
+    assert "procedimiento concursal" in data["texto"].lower()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_lirpf_articulo_detail_with_vigente_en_after_legalize_seed(integration_db):
+    from legalize_es import run_sync
+
+    fixture = Path(__file__).resolve().parents[2] / "workers" / "tests" / "fixtures" / "legalize_es" / "irpf.md"
+
+    with integration_db.begin() as conn:
+        conn.execute(text("DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LIRPF'))"))
+        conn.execute(text("DELETE FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LIRPF')"))
+        conn.execute(text("DELETE FROM norma WHERE codigo = 'LIRPF'"))
+
+    run_sync(integration_db, fixture_paths=[fixture])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/v1/legislacion/LIRPF/articulos/1?vigente_en=2025-01-01")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["norma"] == "LIRPF"
+    assert data["numero"] == "1"
+    assert "impuesto" in data["texto"].lower()

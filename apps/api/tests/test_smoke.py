@@ -11,7 +11,11 @@ from main import app
 
 
 def _client():
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    return AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    )
 
 
 @pytest.mark.asyncio
@@ -38,6 +42,95 @@ async def test_privacy_policy_endpoint_serves_text():
         r = await c.get("/privacy")
     assert r.status_code == 200
     assert "privacy policy" in r.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_metrics_expone_rutas_de_consulta_y_connectivity():
+    async with _client() as c:
+        consulta = await c.get("/v1/consulta?q=tipo+reducido+iva")
+        connectivity = await c.get("/v1/connectivity/articulos/LIVA/91")
+        metrics = await c.get("/metrics")
+
+    assert consulta.status_code == 200
+    assert connectivity.status_code == 200
+    assert metrics.status_code == 200
+    body = metrics.text
+    assert 'http_requests_total{endpoint="/v1/consulta",method="GET",status="200"}' in body
+    assert 'http_requests_total{endpoint="/v1/connectivity/articulos/LIVA/{}",method="GET",status="200"}' in body
+
+
+@pytest.mark.asyncio
+async def test_metrics_expone_faithfulness_y_review_required_en_consulta():
+    async with _client() as c:
+        consulta = await c.get("/v1/consulta?q=tipo+reducido+iva")
+        metrics = await c.get("/metrics")
+
+    assert consulta.status_code == 200
+    assert metrics.status_code == 200
+    body = metrics.text
+    assert 'consulta_faithfulness_score' in body
+    assert 'consulta_review_required_total{endpoint="/v1/consulta",review_required="false"}' in body
+
+
+@pytest.mark.asyncio
+async def test_observability_dashboard_resume_consulta_workers_y_fuentes():
+    async with _client() as c:
+        await c.get("/v1/consulta?q=tipo+reducido+iva")
+        await c.get("/v1/connectivity/articulos/LIVA/91")
+        await c.get("/v1/sources/freshness")
+        await c.get("/status")
+        r = await c.get("/v1/observability/dashboard")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert "consulta" in data
+    assert "workers" in data
+    assert "fuentes" in data
+    assert data["consulta"]["faithfulness_score"] >= 0.0
+    assert "worker-dgt" in data["workers"]
+    assert "cnmv" in data["fuentes"]
+    assert "summary" in data
+    assert "stale_workers" in data["summary"]
+    assert "stale_sources" in data["summary"]
+
+
+@pytest.mark.asyncio
+async def test_observability_alerts_deriva_alertas_operativas():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM sync_log WHERE worker = 'worker-dgt'"))
+        conn.execute(
+            text(
+                """
+                INSERT INTO sync_log (
+                    worker, started_at, finished_at, status,
+                    bloques_processed, articulos_upserted,
+                    documentos_processed, documentos_upserted, doctrina_links_created,
+                    error_msg
+                ) VALUES (
+                    'worker-dgt', '2026-04-11T10:00:00+00:00', '2026-04-11T10:05:00+00:00', 'ok',
+                    0, 0,
+                    12, 9, 7,
+                    NULL
+                )
+                """
+            )
+        )
+
+    async with _client() as c:
+        await c.get("/v1/consulta?q=tipo+reducido+iva")
+        await c.get("/status")
+        await c.get("/v1/sources/freshness")
+        r = await c.get("/v1/observability/alerts")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert "alerts" in data
+    assert "summary" in data
+    assert data["summary"]["warning"] >= 1
+    assert any(alert["domain"] == "workers" for alert in data["alerts"])
+    assert any(alert["domain"] == "sources" for alert in data["alerts"])
 
 
 @pytest.mark.asyncio
@@ -134,6 +227,41 @@ async def test_status_expone_metricas_dgt_si_existen():
 
 
 @pytest.mark.asyncio
+async def test_metrics_expone_staleness_y_lag_de_workers():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM sync_log WHERE worker = 'worker-dgt'"))
+        conn.execute(
+            text(
+                """
+                INSERT INTO sync_log (
+                    worker, started_at, finished_at, status,
+                    bloques_processed, articulos_upserted,
+                    documentos_processed, documentos_upserted, doctrina_links_created,
+                    error_msg
+                ) VALUES (
+                    'worker-dgt', '2026-04-11T10:00:00+00:00', '2026-04-11T10:05:00+00:00', 'ok',
+                    0, 0,
+                    12, 9, 7,
+                    NULL
+                )
+                """
+            )
+        )
+
+    async with _client() as c:
+        status = await c.get("/status")
+        metrics = await c.get("/metrics")
+
+    assert status.status_code == 200
+    assert metrics.status_code == 200
+    body = metrics.text
+    assert 'worker_stale_status{worker="worker-dgt"}' in body
+    assert 'worker_lag_seconds{worker="worker-dgt"}' in body
+
+
+@pytest.mark.asyncio
 async def test_status_expone_bloque_modelos():
     async with _client() as c:
         r = await c.get("/status")
@@ -143,6 +271,214 @@ async def test_status_expone_bloque_modelos():
     assert "campanas_activas" in data["modelos"]
     assert "ultima_actualizacion" in data["modelos"]
     assert data["modelos"]["estado"] in {"ok", "sin_datos"}
+
+
+@pytest.mark.asyncio
+async def test_status_expone_bloque_fuentes():
+    async with _client() as c:
+        r = await c.get("/status")
+    assert r.status_code == 200
+    data = r.json()
+    assert "fuentes" in data
+    assert "total" in data["fuentes"]
+    assert "stale" in data["fuentes"]
+    assert data["fuentes"]["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_source_manifest_lista_fuentes_con_owner_y_trust_tier():
+    async with _client() as c:
+        r = await c.get("/v1/sources/manifest")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total"] >= 1
+    fuente = data["sources"][0]
+    assert "source_id" in fuente
+    assert "owner" in fuente
+    assert "trust_tier" in fuente
+    assert "cadencia" in fuente
+    assert "modo_deteccion_cambios" in fuente
+
+
+@pytest.mark.asyncio
+async def test_source_manifest_expone_freshness_ledger():
+    async with _client() as c:
+        r = await c.get("/v1/sources/freshness")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total"] >= 1
+    fuente = data["sources"][0]
+    assert "source_id" in fuente
+    assert "last_success_at" in fuente
+    assert "stale" in fuente
+    assert "last_status" in fuente
+    assert "snapshot_at" in fuente
+    assert "snapshot_version" in fuente
+
+
+@pytest.mark.asyncio
+async def test_source_manifest_persiste_snapshot_durable_por_fuente():
+    from conftest import engine
+
+    async with _client() as c:
+        r = await c.get("/v1/sources/freshness")
+
+    assert r.status_code == 200
+    payload = r.json()
+    assert payload["total"] >= 1
+
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT source_id, snapshot_version, snapshot_at
+                FROM source_freshness_snapshot
+                ORDER BY source_id ASC, snapshot_at DESC
+                """
+            )
+        ).mappings().all()
+
+    assert len(rows) >= payload["total"]
+    assert rows[0]["source_id"]
+    assert rows[0]["snapshot_version"] == "v1"
+    assert rows[0]["snapshot_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_source_manifest_detecta_cambio_frente_a_snapshot_anterior():
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM source_freshness_snapshot WHERE source_id = 'cnmv'"))
+        conn.execute(
+            text(
+                """
+                INSERT INTO source_freshness_snapshot (
+                    snapshot_id,
+                    source_id,
+                    snapshot_version,
+                    snapshot_at,
+                    last_success_at,
+                    last_status,
+                    stale,
+                    cadencia,
+                    modo_deteccion_cambios,
+                    manifest_hash,
+                    payload
+                ) VALUES (
+                    'snap-prev-cnmv',
+                    'cnmv',
+                    'v1',
+                    '2026-04-26T10:00:00+00:00',
+                    NULL,
+                    'never_run',
+                    1,
+                    'weekly',
+                    'sha256',
+                    :manifest_hash,
+                    :payload
+                )
+                """
+            ),
+            {
+                "manifest_hash": "manifest-prev",
+                "payload": '{"last_status":"never_run","stale":true}',
+            },
+        )
+
+    async with _client() as c:
+        r = await c.get("/v1/sources/freshness")
+
+    assert r.status_code == 200
+    data = r.json()
+    cnmv = next(source for source in data["sources"] if source["source_id"] == "cnmv")
+    assert cnmv["previous_snapshot_at"] == "2026-04-26T10:00:00+00:00"
+    assert isinstance(cnmv["changed_since_previous"], bool)
+    assert cnmv["changed_since_previous"] is True
+
+
+@pytest.mark.asyncio
+async def test_metrics_expone_freshness_por_fuente():
+    async with _client() as c:
+        freshness = await c.get("/v1/sources/freshness")
+        metrics = await c.get("/metrics")
+
+    assert freshness.status_code == 200
+    assert metrics.status_code == 200
+    body = metrics.text
+    assert 'source_freshness_stale_status{source_id="cnmv"}' in body
+    assert 'source_freshness_changed_since_previous{source_id="cnmv"}' in body
+
+
+@pytest.mark.asyncio
+async def test_connectivity_articulo_expone_conexiones_cross_source():
+    async with _client() as c:
+        r = await c.get("/v1/connectivity/articulos/LIVA/91")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert data["articulo"]["norma"] == "LIVA"
+    assert data["articulo"]["numero"] == "91"
+    assert data["totales"]["modelos"] >= 1
+    assert data["totales"]["doctrina"] >= 1
+    assert data["totales"]["obligaciones"] >= 1
+    assert any(item["codigo"] == "100" for item in data["modelos"])
+    assert any(item["referencia"] == "V0000-26" for item in data["doctrina"])
+    assert any(item["codigo"] == "IRNR_FACTA" for item in data["obligaciones"])
+
+
+@pytest.mark.asyncio
+async def test_connectivity_articulo_irnr_expone_modelos_y_obligaciones():
+    async with _client() as c:
+        r = await c.get("/v1/connectivity/articulos/IRNR/14")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    codigos = {item["codigo"] for item in data["modelos"]}
+    assert {"124", "216", "296"}.issubset(codigos)
+    assert data["totales"]["obligaciones"] == 0
+
+
+@pytest.mark.asyncio
+async def test_connectivity_articulo_inexistente_devuelve_404():
+    async with _client() as c:
+        r = await c.get("/v1/connectivity/articulos/LIVA/9999")
+
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_connectivity_documento_expone_articulos_y_obligaciones():
+    async with _client() as c:
+        r = await c.get("/v1/connectivity/documentos/V0000-26")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert data["documento"]["referencia"] == "V0000-26"
+    assert any(item["norma"] == "LIVA" and item["numero"] == "91" for item in data["articulos"])
+    assert any(item["codigo"] == "IRNR_FACTA" for item in data["obligaciones"])
+    assert data["totales"]["articulos"] >= 1
+    assert data["totales"]["obligaciones"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_connectivity_obligacion_expone_documentos_y_articulos():
+    async with _client() as c:
+        r = await c.get("/v1/connectivity/obligaciones/IRNR_FACTA")
+
+    assert r.status_code == 200
+    data = r.json()
+
+    assert data["obligacion"]["codigo"] == "IRNR_FACTA"
+    assert any(item["referencia"] == "V0000-26" for item in data["documentos"])
+    assert any(item["norma"] == "LIVA" and item["numero"] == "91" for item in data["articulos"])
+    assert data["totales"]["documentos"] >= 1
+    assert data["totales"]["articulos"] >= 1
 
 
 @pytest.mark.asyncio
@@ -659,6 +995,20 @@ async def test_consulta_incluye_evidencia_normativa_estructurada():
 
 
 @pytest.mark.asyncio
+async def test_consulta_incluye_chunk_id_y_source_hash_en_evidencia_normativa():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=tipo+reducido")
+
+    assert r.status_code == 200
+    data = r.json()
+    normativa = next(item for item in data["resultados"] if item["tipo"] == "normativa")
+
+    assert "chunk_id" in normativa["evidencia"]
+    assert normativa["evidencia"]["source_hash"]
+    assert len(normativa["evidencia"]["source_hash"]) == 64
+
+
+@pytest.mark.asyncio
 async def test_consulta_respeta_vigente_en_en_resultados_normativos():
     from conftest import engine
 
@@ -743,6 +1093,33 @@ async def test_cnmv_lista_y_detalle():
     assert detalle.json()["ambito"] == "reporting_financiero"
     assert "estados de información reservada" in detalle.json()["texto"].lower()
     assert len(filtrada.json()["documentos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_cnmv_obligaciones_endpoint():
+    async with _client() as c:
+        resp = await c.get("/v1/cnmv/BOE-A-2009-133/obligaciones")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["referencia"] == "BOE-A-2009-133"
+    assert "obligaciones" in data
+    assert "total" in data
+    assert isinstance(data["obligaciones"], list)
+
+
+@pytest.mark.asyncio
+async def test_cnmv_filtro_obligacion():
+    async with _client() as c:
+        lista = await c.get("/v1/cnmv")
+        filtrada = await c.get("/v1/cnmv?obligacion=reporting_prudencial")
+
+    assert lista.status_code == 200
+    assert filtrada.status_code == 200
+    referencias = [item["referencia"] for item in lista.json()["documentos"]]
+    filtradas_refs = [item["referencia"] for item in filtrada.json()["documentos"]]
+    for ref in filtradas_refs:
+        assert ref in referencias
 
 
 @pytest.mark.asyncio
@@ -1569,13 +1946,14 @@ async def test_modelo_sin_campana_devuelve_la_activa_mas_nueva():
 @pytest.mark.asyncio
 async def test_consulta_expone_relevancia_y_confianza():
     async with _client() as c:
-        r = await c.get("/v1/consulta?q=tipo+reducido+iva")
+        r = await c.get("/v1/consulta?q=modelo+100+irpf")
 
     assert r.status_code == 200
     data = r.json()
 
     assert "relevancia" in data
     assert "confianza" in data
+    assert "cited_chunks" in data
 
     relevancia = data["relevancia"]
     assert relevancia["nivel"] in {"alta", "media", "baja"}
@@ -1592,6 +1970,17 @@ async def test_consulta_expone_relevancia_y_confianza():
     assert isinstance(confianza["fuentes"], list)
     assert isinstance(confianza["modelos_cubiertos"], list)
     assert isinstance(confianza["resultados_clasificados"], dict)
+    assert isinstance(confianza["faithfulness_score"], float)
+    assert 0.0 <= confianza["faithfulness_score"] <= 1.0
+    assert confianza["faithfulness_label"] in {"alta", "media", "baja"}
+    assert isinstance(confianza["review_required"], bool)
+    assert isinstance(data["cited_chunks"], list)
+    assert len(data["cited_chunks"]) > 0
+    citation = data["cited_chunks"][0]
+    assert "chunk_id" in citation
+    assert "source_document" in citation
+    assert "rerank_score" in citation
+    assert "excerpt" in citation
 
 
 @pytest.mark.asyncio
@@ -1620,7 +2009,38 @@ async def test_consulta_confianza_baja_consulta_vacia():
     confianza = data["confianza"]
     assert confianza["nivel"] == 0
     assert confianza["nivel_texto"] == "baja"
+    assert confianza["faithfulness_score"] == 0.0
+    assert confianza["faithfulness_label"] == "baja"
+    assert confianza["review_required"] is True
     assert "consulta vacia" in (confianza["aviso"] or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_consulta_baja_confianza_abstiene_y_expone_disclaimer():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=zzzxxyyqqq")
+
+    assert r.status_code == 200
+    assert "X-AI-Disclaimer" in r.headers
+    data = r.json()
+    confianza = data["confianza"]
+    assert confianza["faithfulness_score"] < 0.5
+    assert confianza["review_required"] is True
+    assert data["resultados"] == []
+    assert data["cited_chunks"] == []
+    assert "evidencia insuficiente" in (confianza["aviso"] or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_consulta_confianza_alta_no_requiere_revision_humana():
+    async with _client() as c:
+        r = await c.get("/v1/consulta?q=tipo+reducido+iva")
+
+    assert r.status_code == 200
+    confianza = r.json()["confianza"]
+
+    assert confianza["faithfulness_score"] > 0.5
+    assert confianza["review_required"] is False
 
 
 @pytest.mark.asyncio
@@ -1639,3 +2059,43 @@ async def test_consulta_resultados_tienen_relevancia_interna():
         assert isinstance(rev["coincidencia"], str)
         assert isinstance(rev["terminos_encontrados"], list)
         assert isinstance(rev["terminos_faltantes"], list)
+
+
+@pytest.mark.asyncio
+async def test_fairness_report_endpoint_returns_report():
+    async with _client() as c:
+        r = await c.get("/v1/ai/fairness-report")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert "report" in data
+    assert "results_evaluated" in data
+    assert data["results_evaluated"] >= 0
+    report = data["report"]
+    assert "biases" in report
+    assert "overall_severity" in report
+    assert "bias_detected" in report
+    assert "recommendations" in report
+
+
+@pytest.mark.asyncio
+async def test_fairness_report_with_query():
+    async with _client() as c:
+        r = await c.get("/v1/ai/fairness-report?q=IRPF")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["query"] == "IRPF"
+    assert "report" in data
+    assert len(data["report"]["biases"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_fairness_report_disabled():
+    async with _client() as c:
+        r = await c.get("/v1/ai/fairness-report?enabled=false")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["report"]["overall_severity"] == "skipped"
+    assert data["report"]["bias_detected"] is False

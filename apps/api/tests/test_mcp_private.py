@@ -28,6 +28,7 @@ def _make_mcp_app(**overrides):
     from mcp_security import guard_mcp_http
 
     base_env = {
+        "APP_ENV": "production",
         "MCP_API_KEY": "secret",
         "MCP_RATE_LIMIT_PER_MINUTE": "20",
     }
@@ -77,10 +78,10 @@ def test_mcp_http_rejects_wrong_api_key():
     assert r.status_code == 401
 
 
-def test_mcp_http_no_key_when_env_empty():
+def test_mcp_http_rejects_when_key_is_not_configured():
     client = _make_mcp_app(MCP_API_KEY="", MCP_RATE_LIMIT_PER_MINUTE="20")
     r = client.get("/mcp")
-    assert r.status_code == 200
+    assert r.status_code == 401
 
 
 def test_mcp_http_non_mcp_path_unprotected():

@@ -6,6 +6,18 @@ Verifies:
 - Validation functions work correctly
 """
 
+import importlib.util
+import sys
+from pathlib import Path
+
+# Explicitly load apps/api/vocabulary to avoid collision with apps/workers/vocabulary
+API_DIR = Path(__file__).resolve().parents[1]
+vocab_path = API_DIR / "vocabulary.py"
+_spec = importlib.util.spec_from_file_location("vocabulary", vocab_path)
+api_vocabulary = importlib.util.module_from_spec(_spec)
+sys.modules["vocabulary"] = api_vocabulary
+_spec.loader.exec_module(api_vocabulary)
+
 from vocabulary import (
     VOCABULARY,
     TOTAL_VALUES,
@@ -14,9 +26,11 @@ from vocabulary import (
     AMBITOS,
     ESTADOS_VIGENCIA,
     TIPOS_OBLIGACION,
+    TIPOS_MICRO_OBLIGACION,
     ORGANISMOS_EMISORES,
     ESTADOS_COBERTURA,
     JURISDICCIONES,
+    REGULACIONES_RELACIONADAS,
     validate_field,
     validate_payload,
     validate_payload_strict,
@@ -30,20 +44,22 @@ from vocabulary import (
 
 def test_total_value_count():
     """Vocabulary should cover all known values."""
-    assert TOTAL_VALUES == 121, f"Expected 121 total values, got {TOTAL_VALUES}"
+    assert TOTAL_VALUES == 216, f"Expected 216 total values, got {TOTAL_VALUES}"
 
 
 def test_vocabulary_has_all_fields():
-    """VOCABULARY dict should have exactly 8 fields."""
+    """VOCABULARY dict should have exactly 10 fields."""
     expected_fields = {
         "tipo_fuente",
         "tipo_documento",
         "ambito",
         "estado_vigencia",
         "tipo_obligacion",
+        "tipo_micro_obligacion",
         "organismo_emisor",
         "estado_cobertura",
         "jurisdiccion",
+        "regulacion_relacionada",
     }
     assert set(VOCABULARY.keys()) == expected_fields
 
@@ -53,11 +69,11 @@ def test_tipo_fuente_count():
 
 
 def test_tipo_documento_count():
-    assert len(TIPOS_DOCUMENTO) == 48
+    assert len(TIPOS_DOCUMENTO) == 60
 
 
 def test_ambitos_count():
-    assert len(AMBITOS) == 37
+    assert len(AMBITOS) == 57
 
 
 def test_estado_vigencia_count():
@@ -78,6 +94,14 @@ def test_estado_cobertura_count():
 
 def test_jurisdiccion_count():
     assert len(JURISDICCIONES) == 2
+
+
+def test_tipo_micro_obligacion_count():
+    assert len(TIPOS_MICRO_OBLIGACION) == 53
+
+
+def test_regulaciones_relacionadas_count():
+    assert len(REGULACIONES_RELACIONADAS) == 10
 
 
 # ---------------------------------------------------------------------------

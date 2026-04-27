@@ -1,18 +1,4 @@
-"""API key authentication middleware for esdata API.
-
-Validates requests via the `X-API-Key` header against the value of
-the `ESDATA_API_KEY` environment variable.
-
-Public (unprotected) paths:
-- /health
-- /metrics (if exposed)
-- /gpt-actions/*
-
-Protected paths:
-- Everything else, including all /v1/* endpoints and /mcp.
-
-When auth is enabled and the key is missing or invalid, returns 401.
-"""
+"""API key authentication middleware for esdata API."""
 
 import logging
 import os
@@ -24,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 logger = logging.getLogger(__name__)
 
 # Paths that do NOT require authentication
-PUBLIC_PATHS = ("/health", "/metrics", "/gpt-actions")
+PUBLIC_PATHS = ("/health", "/gpt-actions/modelos/openapi.json", "/privacy")
 
 
 def _is_public(path: str) -> bool:
@@ -32,19 +18,26 @@ def _is_public(path: str) -> bool:
     return path.startswith(PUBLIC_PATHS)
 
 
+def _is_mcp_path(path: str) -> bool:
+    """MCP uses its own dedicated guard and key."""
+    return path.startswith("/mcp")
+
+
 class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
     """Validate X-API-Key header on protected endpoints."""
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        # Read env vars on every request so tests can change them
-        auth_enabled = os.environ.get("ESDATA_AUTH_ENABLED", "").lower() == "true"
+        app_env = os.environ.get("APP_ENV", "development").lower()
         api_key = os.environ.get("ESDATA_API_KEY", "")
 
-        # If auth is disabled entirely, skip all checks
-        if not auth_enabled:
+        # Tests can opt into isolated bypasses; runtime stays fail-closed.
+        if app_env == "test" and os.environ.get("ESDATA_ALLOW_INSECURE_TEST_AUTH", "").lower() == "true":
             return await call_next(request)
 
         path = request.url.path
+
+        if _is_mcp_path(path):
+            return await call_next(request)
 
         # Public paths are always allowed
         if _is_public(path):

@@ -1,9 +1,16 @@
+import hashlib
 import re
 import unicodedata
 
 from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 
 from db import db_session
+
+
+def _build_source_hash(*parts: object) -> str:
+    payload = "|".join("" if part is None else str(part) for part in parts)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _is_postgres(db) -> bool:
@@ -374,7 +381,19 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
 
     query_with_binds = query.bindparams(**{k: v for k, v in params.items() if k in ('tsq', 'accents')})
     remaining_params = {k: v for k, v in params.items() if k not in ('tsq', 'accents')}
-    rows = db.execute(query_with_binds, remaining_params).mappings()
+    try:
+        rows = db.execute(query_with_binds, remaining_params).mappings()
+    except ProgrammingError as exc:
+        message = str(exc).lower()
+        if "documento_fragmento" in message and "does not exist" in message:
+            db.rollback()
+            return {
+                "q": q,
+                "resultados": _search_version_articulo_pg(
+                    db, q, norma, fuente, ambito, tipo, vigente_en, params, vig_subquery_params
+                ),
+            }
+        raise
     results = []
     for row in rows:
         rank = row.get("rank")
@@ -404,6 +423,14 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
                 f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
                 if row.get("boe_id")
                 else row.get("eli_uri")
+            ),
+            "chunk_id": row.get("chunk_id"),
+            "source_hash": _build_source_hash(
+                row["codigo"],
+                row["numero"],
+                row.get("chunk_id"),
+                row.get("chunk_texto") or row["texto"],
+                row.get("boe_id") or row.get("eli_uri"),
             ),
             "motivo_ranking": (
                 f"ts_rank={round(float(rank), 4)}"
@@ -517,6 +544,13 @@ def _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, 
                 if row.get("boe_id")
                 else row.get("eli_uri")
             ),
+            "chunk_id": None,
+            "source_hash": _build_source_hash(
+                row["codigo"],
+                row["numero"],
+                row["texto"],
+                row.get("boe_id") or row.get("eli_uri"),
+            ),
             "motivo_ranking": (
                 f"ts_rank={round(rank, 4)}"
                 if rank is not None
@@ -585,6 +619,13 @@ def _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en):
                 if row.get("boe_id")
                 else row.get("eli_uri")
             ),
+            "chunk_id": None,
+            "source_hash": _build_source_hash(
+                row["codigo"],
+                row["numero"],
+                row["texto"],
+                row.get("boe_id") or row.get("eli_uri"),
+            ),
             "motivo_ranking": "ILIKE match",
             "confianza": {
                 "nivel": 1,
@@ -597,6 +638,3 @@ def _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en):
         "q": q,
         "resultados": results,
     }
-
-
-

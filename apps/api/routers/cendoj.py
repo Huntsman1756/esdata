@@ -10,7 +10,7 @@ router = APIRouter(prefix="/v1/cendoj", tags=["cendoj"])
 @router.get("", response_model=CNMVListResponse, operation_id="listar_cendoj")
 async def listar_cendoj(
     q: str | None = Query(None, description="Filtrar por texto o título"),
-    court: str | None = Query(None, description="Filtrar por tribunal (tribunal_supremo, audiencia_nacional, tsj)"),
+    tribunal: str | None = Query(None, description="Filtrar por tribunal (tribunal_supremo, audiencia_nacional, tsj)"),
     tipo: str | None = Query(None, description="Filtrar por tipo de documento (sentencia, auto, providencia)"),
     organismo: str | None = Query(None, description="Filtrar por organismo emisor"),
 ):
@@ -25,9 +25,9 @@ async def listar_cendoj(
         )
         params["term"] = f"%{q}%"
 
-    if court:
-        filters.append("LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:court_term)")
-        params["court_term"] = f"%{court.replace('_', ' ')}%"
+    if tribunal:
+        filters.append("LOWER(COALESCE(d.organismo_emisor, '')) LIKE LOWER(:court_term)")
+        params["court_term"] = f"%{tribunal.replace('_', ' ')}%"
 
     if tipo:
         filters.append("d.tipo_documento = :tipo")

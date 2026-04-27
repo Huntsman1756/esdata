@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -8,7 +8,24 @@ from schemas import (
     DoctrinaSearchResponse,
 )
 from services.search import _build_tsquery_sql, _chunk_rank_boost, _build_fragment
+from services.query_audit import get_query_audit_service
 from services.semantic_search import hybrid_search_doctrina
+
+def _build_doctrina_audit_chunks(result: dict) -> list[dict]:
+    chunks: list[dict] = []
+    for item in result.get("resultados", []):
+        chunks.append(
+            {
+                "referencia": item.get("referencia"),
+                "tipo_documento": item.get("tipo_documento"),
+                "organismo_emisor": item.get("organismo_emisor"),
+                "source_url": item.get("source_url"),
+                "norma": item.get("norma"),
+                "numero": item.get("numero"),
+            }
+        )
+    return chunks
+
 
 router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
 
@@ -20,6 +37,7 @@ router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
     summary="Buscar doctrina interpretativa",
 )
 async def buscar_doctrina(
+    request: Request,
     q: str = Query(
         ..., min_length=1, description="Termino de busqueda en texto de doctrina"
     ),
@@ -40,6 +58,14 @@ async def buscar_doctrina(
         else:
             result = _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor)
 
+        get_query_audit_service().record_query(
+            request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
+            user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+            path="/v1/doctrina/buscar",
+            query_text=q,
+            retrieved_chunks=_build_doctrina_audit_chunks(result),
+            response_summary=f"resultados={len(result.get('resultados', []))}",
+        )
         return result
 
 

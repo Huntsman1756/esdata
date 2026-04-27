@@ -1,9 +1,32 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
 from services.search import search_legislacion
 from services.semantic_search import hybrid_search_legislacion
+from services.query_audit import get_query_audit_service
 from schemas import LegislacionSearchResponse
+
+def _build_legislacion_audit_chunks(result: dict) -> list[dict]:
+    chunks: list[dict] = []
+    for item in result.get("resultados", []):
+        chunk_id = item.get("chunk_id")
+        source_hash = item.get("source_hash")
+        source_url = item.get("source_url")
+        if not any([chunk_id, source_hash, source_url]):
+            continue
+        chunks.append(
+            {
+                "norma": item.get("norma"),
+                "numero": item.get("numero"),
+                "chunk_id": chunk_id,
+                "source_hash": source_hash,
+                "source_url": source_url,
+                "motivo_ranking": item.get("motivo_ranking"),
+                "rank": item.get("rank"),
+            }
+        )
+    return chunks
+
 
 router = APIRouter(tags=["buscar"])
 
@@ -11,6 +34,7 @@ router = APIRouter(tags=["buscar"])
 @router.get("/v1/buscar", operation_id="buscar", response_model=LegislacionSearchResponse,
             summary="Buscar en legislacion consolidada")
 async def buscar(
+    request: Request,
     q: str = Query(..., min_length=1, description="Termino de busqueda"),
     fuente: str | None = Query(None, description="Filtrar por fuente (boe, autonomica, etc.)"),
     ambito: str | None = Query(None, description="Filtrar por ambito (tributario, etc.)"),
@@ -18,7 +42,16 @@ async def buscar(
     norma: str | None = Query(None, description="Filtrar por codigo de norma (LIVA, LIRPF, etc.)"),
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
 ):
-    return search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
+    result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
+    get_query_audit_service().record_query(
+        request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
+        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        path="/v1/buscar",
+        query_text=q,
+        retrieved_chunks=_build_legislacion_audit_chunks(result),
+        response_summary=f"resultados={len(result.get('resultados', []))}",
+    )
+    return result
 
 
 @router.get("/v1/legislacion/buscar", operation_id="buscar_legislacion",

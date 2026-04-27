@@ -1,0 +1,137 @@
+"""Tests for persistent query audit log service."""
+
+import sys
+from pathlib import Path
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+API_DIR = Path(__file__).resolve().parents[1]
+if str(API_DIR) not in sys.path:
+    sys.path.insert(0, str(API_DIR))
+
+from main import app
+from services.query_audit import QueryAuditService, reset_query_audit_service
+
+
+def setup_function():
+    reset_query_audit_service()
+
+
+def teardown_function():
+    reset_query_audit_service()
+
+
+def test_query_audit_persists_entries_across_service_instances():
+    service = QueryAuditService()
+    created = service.record_query(
+        request_id="req-query-001",
+        user_id="auditor-1",
+        path="/v1/consulta",
+        query_text="iva deducible",
+        retrieved_chunks=[{"chunk_id": "chk-1", "score": 0.93}],
+        response_summary="2 resultados relevantes",
+        model_version="llm-v1",
+        config_version="cfg-v1",
+    )
+
+    fresh_service = QueryAuditService()
+    entries = fresh_service.get_by_request_id("req-query-001")
+
+    assert created.entry_id
+    assert len(entries) == 1
+    assert entries[0].query_text == "iva deducible"
+    assert entries[0].retrieved_chunks[0]["chunk_id"] == "chk-1"
+
+
+def test_query_audit_can_filter_by_path():
+    service = QueryAuditService()
+    service.record_query(
+        request_id="req-query-010",
+        user_id="u1",
+        path="/v1/consulta",
+        query_text="consulta 1",
+        retrieved_chunks=[],
+        response_summary="ok",
+    )
+    service.record_query(
+        request_id="req-query-011",
+        user_id="u2",
+        path="/v1/search",
+        query_text="consulta 2",
+        retrieved_chunks=[],
+        response_summary="ok",
+    )
+
+    filtered = service.get_entries(path="/v1/consulta")
+
+    assert len(filtered) == 1
+    assert filtered[0].request_id == "req-query-010"
+
+
+@pytest.mark.asyncio
+async def test_consulta_runtime_persists_query_audit_entry():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": "req-consulta-audit-001", "x-user-id": "internal-user"},
+    ) as client:
+        response = await client.get("/v1/consulta?q=tipo+reducido+iva")
+
+    assert response.status_code == 200
+
+    service = QueryAuditService()
+    entries = service.get_by_request_id("req-consulta-audit-001")
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.path == "/v1/consulta"
+    assert entry.user_id == "internal-user"
+    assert "tipo reducido iva" in entry.query_text.lower()
+    assert entry.response_summary
+    assert entry.model_version == "esdata-ai-v1"
+    assert entry.config_version == "consulta-faithfulness-v1"
+
+
+@pytest.mark.asyncio
+async def test_buscar_runtime_persists_query_audit_entry():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-audit-001", "x-user-id": "internal-search-user"},
+    ) as client:
+        response = await client.get("/v1/buscar?q=tipo+reducido+iva")
+
+    assert response.status_code == 200
+
+    service = QueryAuditService()
+    entries = service.get_by_request_id("req-buscar-audit-001")
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.path == "/v1/buscar"
+    assert entry.user_id == "internal-search-user"
+    assert "tipo reducido iva" in entry.query_text.lower()
+    assert entry.response_summary
+
+
+@pytest.mark.asyncio
+async def test_doctrina_buscar_runtime_persists_query_audit_entry():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": "req-doctrina-audit-001", "x-user-id": "internal-doctrina-user"},
+    ) as client:
+        response = await client.get("/v1/doctrina/buscar?q=tipo+reducido+iva")
+
+    assert response.status_code == 200
+
+    service = QueryAuditService()
+    entries = service.get_by_request_id("req-doctrina-audit-001")
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.path == "/v1/doctrina/buscar"
+    assert entry.user_id == "internal-doctrina-user"
+    assert "tipo reducido iva" in entry.query_text.lower()
+    assert entry.response_summary

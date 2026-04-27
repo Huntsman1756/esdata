@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
-
-from fastapi import APIRouter
-from sqlalchemy import text
+from datetime import UTC, datetime
 
 from db import db_session
+from fastapi import APIRouter
+from middleware.metrics import record_worker_metrics
 from services.modelos import get_modelos_status
+from services.source_manifest import get_source_manifest_summary
+from sqlalchemy import text
 
 router = APIRouter()
 
@@ -42,7 +43,7 @@ async def status():
     result = {
         "workers": {},
         "api": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     with db_session() as db:
@@ -51,6 +52,12 @@ async def status():
         except Exception:
             db.rollback()
             result["modelos"] = {"error": "unavailable"}
+
+        try:
+            result["fuentes"] = get_source_manifest_summary(db)
+        except Exception:
+            db.rollback()
+            result["fuentes"] = {"total": 0, "stale": 0, "ok": 0}
 
         for worker in WORKERS:
             try:
@@ -66,7 +73,10 @@ async def status():
                             documentos_processed,
                             documentos_upserted,
                             doctrina_links_created,
-                            error_msg
+                            error_msg,
+                            rows_processed,
+                            errors,
+                            duration_ms
                         FROM sync_log
                         WHERE worker = :worker
                         ORDER BY started_at DESC
@@ -77,6 +87,8 @@ async def status():
                 ).fetchone()
 
                 if row:
+                    stale = _is_stale(worker, row.finished_at)
+                    lag_seconds = _compute_lag_seconds(row.finished_at)
                     result["workers"][worker] = {
                         "last_run": _serialize_datetime(row.started_at),
                         "finished_at": _serialize_datetime(row.finished_at),
@@ -86,14 +98,20 @@ async def status():
                         "documentos_processed": row.documentos_processed,
                         "documentos_upserted": row.documentos_upserted,
                         "doctrina_links_created": row.doctrina_links_created,
+                        "rows_processed": _coalesce_rows_processed(row),
+                        "errors": _coalesce_errors(row),
+                        "duration_ms": row.duration_ms,
                         "error": row.error_msg,
-                        "stale": _is_stale(worker, row.finished_at),
+                        "stale": stale,
                     }
+                    record_worker_metrics(worker, stale=stale, lag_seconds=lag_seconds)
                 else:
                     result["workers"][worker] = {"status": "never_run", "stale": True}
+                    record_worker_metrics(worker, stale=True, lag_seconds=None)
             except Exception:
                 db.rollback()
                 result["workers"][worker] = {"status": "error", "stale": True}
+                record_worker_metrics(worker, stale=True, lag_seconds=None)
 
     return result
 
@@ -120,7 +138,7 @@ def _is_stale(worker: str, finished_at) -> bool:
     if not finished_at_dt:
         return True
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     age_hours = (now - finished_at_dt).total_seconds() / 3600
     thresholds = {
         "worker-boe": 25,
@@ -149,6 +167,33 @@ def _is_stale(worker: str, finished_at) -> bool:
         "cron-aepd-weekly": 24 * 8,
     }
     return age_hours > thresholds.get(worker, 25)
+
+
+def _compute_lag_seconds(finished_at) -> float | None:
+    finished_at_dt = _coerce_datetime(finished_at)
+    if not finished_at_dt:
+        return None
+    return max(0.0, (datetime.now(UTC) - finished_at_dt).total_seconds())
+
+
+def _coalesce_rows_processed(row) -> int | None:
+    if getattr(row, "rows_processed", None) is not None:
+        return row.rows_processed
+    for value in (
+        getattr(row, "bloques_processed", None),
+        getattr(row, "articulos_upserted", None),
+        getattr(row, "documentos_processed", None),
+        getattr(row, "documentos_upserted", None),
+    ):
+        if value is not None:
+            return value
+    return None
+
+
+def _coalesce_errors(row) -> int:
+    if getattr(row, "errors", None) is not None:
+        return row.errors
+    return 0 if not getattr(row, "error_msg", None) else 1
 
 
 @router.get("/health")

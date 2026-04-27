@@ -1,8 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from db import db_session
-from schemas import CNMVDetail, CNMVListResponse
+from fastapi import APIRouter, HTTPException, Query
+from schemas import (
+    CNMVDetail,
+    CNMVListResponse,
+    CNMVObligationLinkResponse,
+    CNMVRegulationLinkResponse,
+    CNMVVersionResponse,
+)
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/cnmv", tags=["cnmv"])
 
@@ -11,6 +16,14 @@ router = APIRouter(prefix="/v1/cnmv", tags=["cnmv"])
 async def listar_cnmv(
     q: str | None = Query(None, description="Filtrar por texto o título"),
     ambito: str | None = Query(None, description="Filtrar por ámbito regulatorio"),
+    tipo_documento: str | None = Query(None, description="Filtrar por tipo de documento"),
+    vigencia: str | None = Query(None, description="Filtrar por estado de vigencia"),
+    regulacion: str | None = Query(None, description="Filtrar por regulación EU/ES relacionada (mifid_ii, mifir, mar, dora, priips, LIVMC)"),
+    obligacion: str | None = Query(None, description="Filtrar por tipo de obligación (presentacion_modelo, remision_informacion, control_interno, comunicacion_indicio, reporting_prudencial)"),
+    skip: int = Query(0, ge=0, description="Offset de paginación"),
+    limit: int = Query(20, ge=1, le=100, description="Número de resultados (máx 100)"),
+    order_by: str = Query("fecha", description="Campo de ordenación: fecha, referencia, titulo"),
+    order_dir: str = Query("desc", description="Dirección de ordenación: asc, desc"),
 ):
     filters = [
         "d.organismo_emisor = 'CNMV'",
@@ -28,34 +41,192 @@ async def listar_cnmv(
         filters.append("d.ambito = :ambito")
         params["ambito"] = ambito
 
+    if tipo_documento:
+        filters.append("d.tipo_documento = :tipo_documento")
+        params["tipo_documento"] = tipo_documento
+
+    if vigencia:
+        filters.append("d.estado_vigencia = :vigencia")
+        params["vigencia"] = vigencia
+
+    if regulacion:
+        filters.append(
+            "(d.ambito = :regulacion OR LOWER(d.texto) LIKE LOWER(:reg_term))"
+        )
+        params["regulacion"] = regulacion
+        params["reg_term"] = f"%{regulacion}%"
+
+    if obligacion:
+        filters.append("d.referencia IN (SELECT documento_referencia FROM cnmv_obligation_link WHERE tipo_obligacion = :obligacion)")
+        params["obligacion"] = obligacion
+
+    # Validate order_by
+    allowed_orders = {"fecha", "referencia", "titulo"}
+    if order_by not in allowed_orders:
+        order_by = "fecha"
+    if order_dir not in ("asc", "desc"):
+        order_dir = "desc"
+
     with db_session() as db:
         rows = db.execute(
             text(
-                """
-                SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente
+                f"""
+                SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente, estado_vigencia
                 FROM documento_interpretativo d
-                WHERE {where_clause}
-                ORDER BY fecha DESC, referencia DESC
-                LIMIT 20
-                """.format(where_clause=" AND ".join(filters))
+                WHERE { ' AND '.join(filters) }
+                ORDER BY {order_by} {order_dir}
+                LIMIT :limit OFFSET :skip
+                """.strip()
             ),
-            params,
+            {**params, "limit": limit, "skip": skip},
         ).mappings()
 
+        docs = [
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "tipo_documento": row["tipo_documento"],
+                "ambito": row["ambito"],
+                "fragmento": (row["texto"] or "")[:220]
+                + ("..." if (row["texto"] or "") and len(row["texto"]) > 220 else ""),
+                "url_fuente": row["url_fuente"],
+                "estado_vigencia": row.get("estado_vigencia"),
+            }
+            for row in rows
+        ]
+
+        # Get total count for pagination
+        total_rows = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) as cnt
+                FROM documento_interpretativo d
+                WHERE { ' AND '.join(filters) }
+                """.strip()
+            ),
+            params,
+        ).mappings().first()
+
+        total = total_rows["cnt"] if total_rows else 0
+
         return {
-            "documentos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
-                    "ambito": row["ambito"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
+            "documentos": docs,
+            "skip": skip,
+            "limit": limit,
+            "total": total,
+        }
+
+
+@router.get("/{referencia:path}/versions", response_model=CNMVVersionResponse, operation_id="get_cnmv_versions")
+async def get_cnmv_versions(referencia: str):
+    """Get version history for a CNMV document (Fase 23.6)."""
+    with db_session() as db:
+        rows = (
+            db.execute(
+                text(
+                    """
+                    SELECT documento_referencia, version_num, texto, cambio_tipo,
+                           fecha_version, nota, url_version
+                    FROM documento_version
+                    WHERE documento_referencia = :referencia
+                    ORDER BY version_num ASC
+                    """
+                ),
+                {"referencia": referencia},
+            )
+            .mappings()
+            .all()
+        )
+
+        if not rows:
+            raise HTTPException(status_code=404, detail={"error": "Historial de versiones no encontrado"})
+
+        versions = [
+            {
+                "version_num": row["version_num"],
+                "cambio_tipo": row["cambio_tipo"],
+                "fecha_version": str(row["fecha_version"]) if row["fecha_version"] else None,
+                "nota": row.get("nota"),
+                "url_version": row.get("url_version"),
+                "texto": row["texto"],
+            }
+            for row in rows
+        ]
+
+        return {
+            "referencia": referencia,
+            "versiones": versions,
+            "total": len(versions),
+        }
+
+
+@router.get("/{referencia:path}/relaciones", response_model=CNMVRegulationLinkResponse, operation_id="get_cnmv_regulation_links")
+async def get_cnmv_regulation_links(referencia: str):
+    """Get regulation links for a CNMV document (Fase 23.7)."""
+    with db_session() as db:
+        rows = (
+            db.execute(
+                text(
+                    """
+                    SELECT documento_referencia, regulacion_id, relacion_tipo, nota
+                    FROM cnmv_regulation_link
+                    WHERE documento_referencia = :referencia
+                    """
+                ),
+                {"referencia": referencia},
+            )
+            .mappings()
+            .all()
+        )
+
+        links = [
+            {
+                "regulacion_id": row["regulacion_id"],
+                "relacion_tipo": row["relacion_tipo"],
+                "nota": row.get("nota"),
+            }
+            for row in rows
+        ]
+
+        return {
+            "referencia": referencia,
+            "regulaciones": links,
+            "total": len(links),
+        }
+
+
+@router.get("/{referencia:path}/obligaciones", response_model=CNMVObligationLinkResponse, operation_id="get_cnmv_obligation_links")
+async def get_cnmv_obligation_links(referencia: str):
+    """Get obligation links for a CNMV document (Fase 23.9)."""
+    with db_session() as db:
+        rows = (
+            db.execute(
+                text(
+                    """
+                    SELECT documento_referencia, tipo_obligacion, nota
+                    FROM cnmv_obligation_link
+                    WHERE documento_referencia = :referencia
+                    """
+                ),
+                {"referencia": referencia},
+            )
+            .mappings()
+            .all()
+        )
+
+        links = [
+            {
+                "tipo_obligacion": row["tipo_obligacion"],
+                "nota": row.get("nota"),
+            }
+            for row in rows
+        ]
+
+        return {
+            "referencia": referencia,
+            "obligaciones": links,
+            "total": len(links),
         }
 
 
@@ -66,7 +237,8 @@ async def get_cnmv(referencia: str):
             db.execute(
                 text(
                     """
-                    SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente
+                    SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente,
+                           estado_vigencia, numero_circular, fecha_publicacion, referencia_boe
                     FROM documento_interpretativo d
                     WHERE d.organismo_emisor = 'CNMV'
                       AND d.tipo_fuente = 'cnmv'
@@ -91,4 +263,8 @@ async def get_cnmv(referencia: str):
             "ambito": row["ambito"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
+            "estado_vigencia": row.get("estado_vigencia"),
+            "numero_circular": row.get("numero_circular"),
+            "fecha_publicacion": row.get("fecha_publicacion"),
+            "referencia_boe": row.get("referencia_boe"),
         }

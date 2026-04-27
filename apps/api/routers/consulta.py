@@ -1,11 +1,17 @@
 """Consulta fiscal inteligente — responde preguntas naturales devolviendo modelos, obligaciones y normativa."""
 
 import re
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from sqlalchemy import text
 
 from db import db_session
+from middleware.metrics import record_consulta_metrics
 from schemas import ConsultaFiscalResponse
+from services.ai_disclaimer import get_ai_version
+from services.faithfulness import compute_faithfulness
+from services.human_review import check_review_required
+from services.query_audit import get_query_audit_service
+from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
 
 # ── Sinonimos juridicos para expansion semantica ──────────────────────────
@@ -37,6 +43,12 @@ RESULTADO_BOOST = {
     "obligacion": 1.3,
     "doctrina": 1.0,
 }
+
+FAITHFULNESS_REVIEW_THRESHOLD = 0.5
+FAITHFULNESS_AUTO_APPROVE_THRESHOLD = 0.95
+QUERY_AUDIT_CONFIG_VERSION = "consulta-faithfulness-v1"
+RERANK_TOP_K = 5
+GROUNDING_THRESHOLD = 0.4
 
 router = APIRouter(prefix="", tags=["consulta"])
 
@@ -160,7 +172,8 @@ def _extract_keywords(q: str, sujeto: str) -> list[str]:
 
     sorted_kw = sorted(KEYWORD_MODELOS.keys(), key=len, reverse=True)
     for kw in sorted_kw:
-        if kw in q_lower:
+        pattern = rf"(?<!\w){re.escape(kw.lower())}(?!\w)"
+        if re.search(pattern, q_lower):
             keywords.append(kw)
 
     if sujeto:
@@ -346,6 +359,31 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         nivel_texto = 'baja'
         aviso = 'consulta vacia'
 
+    if not q:
+        faithfulness_score = 0.0
+    else:
+        chunks_para_faithfulness = []
+        for resultado in resultados:
+            texto = _result_text(resultado)
+            if not texto:
+                continue
+            chunks_para_faithfulness.append(
+                {
+                    "chunk_id": _result_citation_id(resultado) or "unknown",
+                    "text": texto,
+                }
+            )
+
+        answer_proxy = " ".join(filter(None, [_result_text(resultado) for resultado in resultados[:3]]))
+        faithfulness_score = compute_faithfulness(answer_proxy, chunks_para_faithfulness)
+
+    faithfulness_label = 'alta' if faithfulness_score >= 0.75 else ('media' if faithfulness_score >= FAITHFULNESS_REVIEW_THRESHOLD else 'baja')
+    review_check = check_review_required(
+        faithfulness_score,
+        confidence_threshold=FAITHFULNESS_REVIEW_THRESHOLD,
+        auto_threshold=FAITHFULNESS_AUTO_APPROVE_THRESHOLD,
+    )
+
     return {
         'nivel': nivel,
         'nivel_texto': nivel_texto,
@@ -353,7 +391,212 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         'aviso': aviso,
         'modelos_cubiertos': [m for m in resolved_modelos if m],
         'resultados_clasificados': tipos_conteo,
+        'faithfulness_score': faithfulness_score,
+        'faithfulness_label': faithfulness_label,
+        'review_required': review_check['requires_review'],
     }
+
+
+def _build_query_audit_chunks(resultados: list[dict]) -> list[dict]:
+    chunks: list[dict] = []
+    for resultado in resultados:
+        evidencia = resultado.get("evidencia") or {}
+        chunk_id = evidencia.get("chunk_id") or resultado.get("chunk_id")
+        source_hash = evidencia.get("source_hash") or resultado.get("source_hash")
+        source_url = evidencia.get("source_url") or resultado.get("source_url")
+        if not any([chunk_id, source_hash, source_url]):
+            continue
+        chunks.append(
+            {
+                "tipo": resultado.get("tipo"),
+                "norma": resultado.get("norma"),
+                "articulo": resultado.get("articulo"),
+                "codigo": resultado.get("codigo"),
+                "referencia": resultado.get("referencia"),
+                "chunk_id": chunk_id,
+                "source_hash": source_hash,
+                "source_url": source_url,
+                "rerank_score": resultado.get("_rerank_score"),
+                "motivo_ranking": evidencia.get("motivo_ranking") or resultado.get("motivo_ranking"),
+                "rank": resultado.get("rank"),
+            }
+        )
+    return chunks
+
+
+def _result_text(resultado: dict) -> str | None:
+    evidencia = resultado.get("evidencia") or {}
+    return (
+        evidencia.get("fragmento_exacto")
+        or resultado.get("fragmento")
+        or resultado.get("texto")
+        or resultado.get("nombre")
+        or resultado.get("titulo")
+    )
+
+
+def _result_source_document(resultado: dict) -> str | None:
+    return (
+        resultado.get("norma")
+        or resultado.get("referencia")
+        or resultado.get("codigo")
+        or resultado.get("fuente_norma")
+        or resultado.get("fuente")
+        or resultado.get("organismo")
+        or resultado.get("tipo")
+    )
+
+
+def _result_article_number(resultado: dict) -> str | None:
+    value = resultado.get("articulo") or resultado.get("numero")
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
+def _result_citation_id(resultado: dict) -> str | None:
+    evidencia = resultado.get("evidencia") or {}
+    value = (
+        evidencia.get("chunk_id")
+        or resultado.get("chunk_id")
+        or evidencia.get("source_hash")
+        or resultado.get("source_hash")
+        or resultado.get("referencia")
+        or resultado.get("codigo")
+        or (
+            f"{resultado.get('norma')}:{resultado.get('articulo')}"
+            if resultado.get("norma") and resultado.get("articulo")
+            else None
+        )
+        or resultado.get("norma")
+    )
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
+def _build_rerank_candidates(resultados: list[dict]) -> list[dict]:
+    candidates: list[dict] = []
+    seen_ids: set[str] = set()
+    for resultado in resultados:
+        chunk_id = _result_citation_id(resultado)
+        text = _result_text(resultado)
+        source_document = _result_source_document(resultado)
+        if not chunk_id or not text or not source_document:
+            continue
+        if chunk_id in seen_ids:
+            continue
+        seen_ids.add(chunk_id)
+        candidates.append(
+            {
+                "chunk_id": chunk_id,
+                "text": text,
+                "source_document": str(source_document),
+                "article_number": _result_article_number(resultado),
+            }
+        )
+    return candidates
+
+
+def _apply_rerank_scores(resultados: list[dict], ranked_chunks: list) -> list[dict]:
+    score_map = {chunk.chunk_id: chunk.rerank_score for chunk in ranked_chunks}
+    rescored: list[dict] = []
+    for resultado in resultados:
+        chunk_id = _result_citation_id(resultado)
+        rerank_score = score_map.get(chunk_id)
+        if rerank_score is None:
+            rescored.append(resultado)
+            continue
+
+        updated = dict(resultado)
+        relevancia = dict(updated.get("_relevancia") or {})
+        normalized = normalize_rerank_score(rerank_score)
+        base_score = float(relevancia.get("score", 0.0))
+        combined_score = round(min(1.0, (base_score * 0.6) + (normalized * 0.4)), 4)
+        relevancia["score"] = combined_score
+        relevancia["rerank_score"] = float(rerank_score)
+        relevancia["rerank_score_normalized"] = round(normalized, 4)
+        if combined_score >= 0.6:
+            relevancia["nivel"] = "alta"
+        elif combined_score >= 0.3:
+            relevancia["nivel"] = "media"
+        else:
+            relevancia["nivel"] = "baja"
+        updated["_relevancia"] = relevancia
+        updated["_rerank_score"] = float(rerank_score)
+        rescored.append(updated)
+    return rescored
+
+
+def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
+    return [
+        {
+            "chunk_id": chunk.chunk_id,
+            "source_document": chunk.source_document,
+            "article_number": chunk.article_number,
+            "rerank_score": float(chunk.rerank_score),
+            "excerpt": chunk.text[:200],
+        }
+        for chunk in ranked_chunks
+    ]
+
+
+def _apply_grounding_abstention_if_needed(
+    query: str,
+    resultados: list[dict],
+    modelos: list[dict],
+    resolved_modelos: list[str],
+    confianza: dict,
+    cited_chunks: list[dict],
+) -> tuple[list[dict], dict, list[dict]]:
+    if not query:
+        return resultados, confianza, []
+
+    if resolved_modelos:
+        return resultados, confianza, cited_chunks
+
+    if not cited_chunks:
+        confianza = dict(confianza)
+        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        return [], confianza, []
+
+    has_full_article_evidence = any(
+        resultado.get("tipo") == "normativa"
+        and not (resultado.get("chunk_id") or (resultado.get("evidencia") or {}).get("chunk_id"))
+        and (
+            resultado.get("source_hash")
+            or (resultado.get("evidencia") or {}).get("source_hash")
+        )
+        and (
+            resultado.get("source_url")
+            or (resultado.get("evidencia") or {}).get("source_url")
+        )
+        for resultado in resultados
+    )
+    if has_full_article_evidence and confianza.get("faithfulness_score", 0.0) >= FAITHFULNESS_REVIEW_THRESHOLD:
+        return resultados, confianza, cited_chunks
+
+    best_score = normalize_rerank_score(cited_chunks[0]["rerank_score"])
+    if best_score >= GROUNDING_THRESHOLD:
+        return resultados, confianza, cited_chunks
+
+    confianza = dict(confianza)
+    confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+    return [], confianza, []
+
+
+def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tuple[list[dict], dict]:
+    if confianza.get("faithfulness_score", 0.0) >= FAITHFULNESS_REVIEW_THRESHOLD:
+        return resultados, confianza
+
+    confianza = dict(confianza)
+    aviso_actual = (confianza.get("aviso") or "").strip().lower()
+    if aviso_actual == "consulta vacia":
+        return [], confianza
+    confianza["aviso"] = (
+        "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+    )
+    return [], confianza
 
 
 @router.get(
@@ -379,6 +622,7 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
     ),
 )
 async def consulta_fiscal(
+    request: Request,
     q: str = Query("", description="Pregunta fiscal en lenguaje natural (ej: 'facta no residente', 'irpf dividendos ue', 'iva entregas intracomunitarias')"),
     sujeto: str = Query("", description="Tipo de sujeto: contribuyente, no_residente, empresa, retenedor, etc."),
     pais: str = Query("", description="País/territorio: es, ue, intracomunitario, fuera_ue, etc."),
@@ -501,6 +745,8 @@ async def consulta_fiscal(
                         "fuente_norma": row.get("fuente_norma"),
                         "fragmento_exacto": row.get("fragmento"),
                         "motivo_ranking": row.get("motivo_ranking"),
+                        "chunk_id": row.get("chunk_id"),
+                        "source_hash": row.get("source_hash"),
                     }
                     results.append({
                         "tipo": "normativa",
@@ -513,6 +759,8 @@ async def consulta_fiscal(
                         "rank": row["rank"],
                         "source_url": row.get("source_url"),
                         "fuente_norma": row.get("fuente_norma"),
+                        "chunk_id": row.get("chunk_id"),
+                        "source_hash": row.get("source_hash"),
                         "motivo_ranking": row.get("motivo_ranking"),
                         "evidencia": evidencia,
                     })
@@ -632,21 +880,36 @@ async def consulta_fiscal(
         scored_r = _score_resultado(r, q, expanded_keywords)
         scored_results.append(scored_r)
 
+    rerank_candidates = _build_rerank_candidates(scored_results)
+    ranked_chunks = rerank(q, rerank_candidates, top_k=RERANK_TOP_K) if q else []
+    scored_results = _apply_rerank_scores(scored_results, ranked_chunks)
     scored_results.sort(key=lambda x: x['_relevancia']['score'], reverse=True)
+    cited_chunks = _build_cited_chunks(ranked_chunks)
 
     # Compute confidence
     confianza = _compute_confianza(modelos_detalle, scored_results, q, resolved_modelos)
+    final_results, confianza, cited_chunks = _apply_grounding_abstention_if_needed(
+        q,
+        scored_results,
+        modelos_detalle,
+        resolved_modelos,
+        confianza,
+        cited_chunks,
+    )
+    final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
+    if not final_results:
+        cited_chunks = []
 
     # Build top-level relevancia
     total_scored = len(scored_results)
-    if total_scored > 0:
-        avg_score = sum(r['_relevancia']['score'] for r in scored_results) / total_scored
-        alta_count = sum(1 for r in scored_results if r['_relevancia']['nivel'] == 'alta')
+    if final_results:
+        avg_score = sum(r['_relevancia']['score'] for r in final_results) / len(final_results)
+        alta_count = sum(1 for r in final_results if r['_relevancia']['nivel'] == 'alta')
         relevancia_nivel = 'alta' if avg_score >= 0.6 else ('media' if avg_score >= 0.3 else 'baja')
         relevancia_coins = []
         todos_terminos = set()
         encontrados = set()
-        for r in scored_results:
+        for r in final_results:
             for t in r['_relevancia'].get('terminos_encontrados', []):
                 encontrados.add(t)
             for t in r['_relevancia'].get('terminos_faltantes', []):
@@ -656,7 +919,7 @@ async def consulta_fiscal(
         relevancia = {
             'nivel': relevancia_nivel,
             'score': round(avg_score, 4),
-            'coincidencia': f'{alta_count}/{total_scored} resultados con relevancia alta',
+            'coincidencia': f'{alta_count}/{len(final_results)} resultados con relevancia alta',
             'terminos_encontrados': list(encontrados),
             'terminos_faltantes': list(faltantes),
         }
@@ -669,11 +932,29 @@ async def consulta_fiscal(
             'terminos_faltantes': list(re.findall(r'[a-záéíóúñ]{3,}', q.lower())) if q else [],
         }
 
+    request_id = request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown"
+    user_id = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
+    retrieved_chunks = _build_query_audit_chunks(scored_results)
+    response_summary = f"resultados={len(final_results)} faithfulness={confianza.get('faithfulness_score', 0.0):.4f} review_required={confianza.get('review_required', False)}"
+    get_query_audit_service().record_query(
+        request_id=request_id,
+        user_id=user_id,
+        path="/v1/consulta",
+        query_text=q or sujeto or tipo_operacion or pais,
+        retrieved_chunks=retrieved_chunks,
+        response_summary=response_summary,
+        model_version=get_ai_version(),
+        config_version=QUERY_AUDIT_CONFIG_VERSION,
+    )
+
+    record_consulta_metrics("/v1/consulta", confianza)
+
     return {
         "consulta": q or sujeto or tipo_operacion or pais,
         "modelos": modelos_detalle,
-        "resultados": scored_results,
-        "total_resultados": len(scored_results),
+        "resultados": final_results,
+        "total_resultados": len(final_results),
         "relevancia": relevancia,
         "confianza": confianza,
+        "cited_chunks": cited_chunks,
     }

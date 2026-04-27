@@ -8,12 +8,16 @@ Adds standard security headers to every response:
 - Permissions-Policy: camera=(), microphone=(), geolocation=()
 - Strict-Transport-Security (when ESDATA_HSTS_ENABLED=true)
 - X-Request-ID: generated UUID if not provided
+- X-Generated-By: AI component version (when AI-assisted)
+- X-AI-Disclaimer: legal disclaimer for AI-generated content
 """
 
 import logging
+import os
 import uuid
 
 from fastapi import Request, Response
+from services.ai_disclaimer import get_ai_headers
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
@@ -43,7 +47,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "max-age=31536000; includeSubDomains"
             )
 
+        # AI labeling headers (only for AI-component responses)
+        ai_headers = get_ai_headers(
+            path=request.url.path,
+            headers={k.lower(): v for k, v in request.headers.items()},
+        )
+        for key, value in ai_headers.items():
+            response.headers[key] = value
+
         return response
-
-
-import os
