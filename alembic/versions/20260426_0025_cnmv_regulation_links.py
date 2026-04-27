@@ -26,7 +26,7 @@ def upgrade():
         sa.Column('id', sa.Integer(), primary_key=True),
         sa.Column('documento_referencia', sa.Text(), nullable=False),
         sa.Column('regulacion_id', sa.Text(), nullable=False),
-        sa.Column('relacion_tipo', sa.Text(), nullable=False, server_default='implementa'),
+        sa.Column('relacion_tipo', sa.Text(), nullable=False, server_default=sa.text("'implementa'::text")),
         sa.Column('nota', sa.Text(), nullable=True),
         sa.ForeignKeyConstraint(
             ['documento_referencia'],

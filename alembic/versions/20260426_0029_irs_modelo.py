@@ -24,7 +24,7 @@ def upgrade() -> None:
         sa.Column("periodo", sa.Text(), nullable=True),
         sa.Column("impuesto", sa.Text(), nullable=True),
         sa.Column("url_info", sa.Text(), nullable=True),
-        sa.Column("activo", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("activo", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("creado_en", sa.DateTime(), server_default=sa.text("NOW()")),
         sa.Column("actualizado_en", sa.DateTime(), server_default=sa.text("NOW()")),
     )

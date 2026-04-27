@@ -25,7 +25,7 @@ def upgrade() -> None:
         sa.Column("vigente_desde", sa.Date(), nullable=False),
         sa.Column("vigente_hasta", sa.Date(), nullable=True),
         sa.Column("descripcion", sa.Text(), nullable=True),
-        sa.Column("estado", sa.String(50), nullable=False, server_default="activo"),
+        sa.Column("estado", sa.String(50), nullable=False, server_default=sa.text("'activo'::character varying")),
         sa.Column("creado_en", sa.DateTime(), server_default=sa.text("NOW()")),
         sa.Column("actualizado_en", sa.DateTime(), server_default=sa.text("NOW()")),
     )

@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("tipo_retencion", sa.Float(), nullable=False),
         sa.Column("articulo_referencia", sa.Text(), nullable=True),
         sa.Column("fuente_texto", sa.Text(), nullable=True),
-        sa.Column("activo", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("activo", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("creado_en", sa.DateTime(), server_default=sa.text("NOW()")),
         sa.Column("actualizado_en", sa.DateTime(), server_default=sa.text("NOW()")),
     )
