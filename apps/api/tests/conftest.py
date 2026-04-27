@@ -367,7 +367,10 @@ PGC_SCHEMA_STATEMENTS = [
         tipo_cuenta TEXT,
         vigente INTEGER NOT NULL DEFAULT 1,
         nota TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        embedding_384 TEXT,
+        embedding_model_name TEXT,
+        content_hash TEXT
     )
     """,
     """
@@ -564,7 +567,10 @@ STATEMENTS = [
         estado_cobertura TEXT NOT NULL,
         regulacion_relacionada TEXT,
         vigente_desde TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        embedding_384 TEXT,
+        embedding_model_name TEXT,
+        content_hash TEXT
     )
     """,
     """
@@ -573,7 +579,11 @@ STATEMENTS = [
         norma_id INTEGER NOT NULL REFERENCES norma(id),
         numero TEXT NOT NULL,
         titulo TEXT,
+        contenido TEXT,
         tipo TEXT NOT NULL,
+        embedding_384 TEXT,
+        embedding_model_name TEXT,
+        content_hash TEXT,
         UNIQUE (norma_id, numero)
     )
     """,
@@ -946,6 +956,9 @@ STATEMENTS = [
         domicilio TEXT,
         fuente_inicial TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        embedding_384 TEXT,
+        embedding_model_name TEXT,
+        content_hash TEXT,
         UNIQUE (nombre)
     )
     """,
@@ -1876,7 +1889,10 @@ STATEMENTS = [
         periodo TEXT,
         impuesto TEXT,
         url_info TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        embedding_384 TEXT,
+        embedding_model_name TEXT,
+        content_hash TEXT
     )
     """,
     """
@@ -2438,6 +2454,9 @@ STATEMENTS = [
         activo INTEGER NOT NULL DEFAULT 1,
         metadata_json TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        embedding_384 TEXT,
+        embedding_model_name TEXT,
+        content_hash TEXT,
         UNIQUE (list_id, entidad_id)
     )
     """,

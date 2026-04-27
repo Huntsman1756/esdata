@@ -17,6 +17,7 @@ from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
+from services.unified_multi_source_search import unified_multi_source_search
 from sqlalchemy import text
 
 # ── Sinonimos juridicos para expansion semantica ──────────────────────────
@@ -723,6 +724,8 @@ async def consulta_fiscal(
     pais: str = Query("", description="País/territorio: es, ue, intracomunitario, fuera_ue, etc."),
     tipo_operacion: str = Query("", description="Tipo de operación: entrega_bienes, prestacion_servicios, dividendos, retencion, etc."),
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
+    sources: str | None = Query(None, description="Filtrar fuentes por tipo, separadas por coma. Valores: legislacion, doctrina, pgc, modelos, screening, entities, norms, articles. Si no se indica, usa todas las fuentes por defecto."),
+    hybrid_weight: float = Query(0.3, ge=0.0, le=1.0, description="Peso del componente vectorial (0.0=fulltext, 0.3=hibrido, 1.0=vectorial)"),
 ):
     results = []
     modelos_codigo = []
@@ -953,6 +956,21 @@ async def consulta_fiscal(
     except Exception:
         db.rollback()
 
+    # ── 6. Integrated unified multi-source search (if sources filter specified) ─
+    if sources and q:
+        try:
+            source_list = [s.strip() for s in sources.split(",") if s.strip()]
+            unified = unified_multi_source_search(
+                q=q,
+                sources=source_list,
+                hybrid_weight=hybrid_weight,
+                limit=20,
+            )
+            for item in unified.get("resultados", []):
+                results.append(item)
+        except Exception:
+            db.rollback()
+
     # Deduplicate results
     seen = set()
     unique_results = []
@@ -1089,14 +1107,27 @@ async def consulta_fiscal(
 
     record_consulta_metrics("/v1/consulta", confianza)
 
-    return {
-        "consulta": q or sujeto or tipo_operacion or pais,
-        "modelos": modelos_detalle,
-        "resultados": final_results,
-        "total_resultados": len(final_results),
-        "relevancia": relevancia,
-        "confianza": confianza,
-        "cited_chunks": cited_chunks,
-        "claim_citations": claim_citations,
-        "grounding_summary": grounding_summary,
-    }
+    # ── Build unified search metadata ──────────────────────────────────
+    unified_meta = {}
+    if sources and q:
+        try:
+            source_list = [s.strip() for s in sources.split(",") if s.strip()]
+            unified = unified_multi_source_search(
+                q=q,
+                sources=source_list,
+                hybrid_weight=hybrid_weight,
+                limit=20,
+            )
+            unified_meta = {
+                "sources_requested": source_list,
+                "sources_with_results": unified.get("sources_with_results", []),
+                "source_breakdown": unified.get("source_breakdown", {}),
+                "search_mode": unified.get("search_mode", "fulltext"),
+                "weights": unified.get("weights", {}),
+            }
+            for item in unified.get("resultados", []):
+                results.append(item)
+        except Exception:
+            db.rollback()
+
+    # Deduplicate results
