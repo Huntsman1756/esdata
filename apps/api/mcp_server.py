@@ -1,9 +1,52 @@
+import asyncio
+
 from fastapi_mcp import FastApiMCP
+from starlette.responses import Response
 
 
-def mount_mcp(app) -> None:
+def _patch_http_transport_readiness(http_transport) -> None:
+    if http_transport is None:
+        return
+
+    original_ensure_started = http_transport._ensure_session_manager_started
+    original_handle_request = http_transport.handle_fastapi_request
+
+    async def _ensure_started_and_ready() -> None:
+        await original_ensure_started()
+
+        session_manager = getattr(http_transport, "_session_manager", None)
+        if session_manager is None:
+            return
+
+        for _ in range(50):
+            if getattr(session_manager, "_task_group", None) is not None:
+                return
+            manager_task = getattr(http_transport, "_manager_task", None)
+            if manager_task is not None and manager_task.done():
+                await manager_task
+            await asyncio.sleep(0.01)
+
+        raise RuntimeError("MCP HTTP session manager did not initialize task group in time")
+
+    http_transport._ensure_session_manager_started = _ensure_started_and_ready
+
+    async def _handle_fastapi_request(request):
+        accepts_sse = "text/event-stream" in (request.headers.get("accept") or "").lower()
+        if request.method == "GET" and not accepts_sse:
+            return Response(
+                content="Not Acceptable: Client must accept text/event-stream",
+                status_code=406,
+                media_type="text/plain",
+            )
+        return await original_handle_request(request)
+
+    http_transport.handle_fastapi_request = _handle_fastapi_request
+
+
+def mount_mcp(app):
     mcp = FastApiMCP(
         app,
+        headers=["authorization", "x-request-id", "x-user-id"],
         include_operations=[
             # Consulta fiscal inteligente (principal)
             "consulta_fiscal",
@@ -58,3 +101,6 @@ def mount_mcp(app) -> None:
         ],
     )
     mcp.mount_http(mount_path="/mcp")
+    http_transport = getattr(mcp, "_http_transport", None)
+    _patch_http_transport_readiness(http_transport)
+    return http_transport

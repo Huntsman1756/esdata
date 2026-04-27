@@ -18,6 +18,10 @@ def _required_api_key() -> str:
     return os.getenv("MCP_API_KEY", "").strip()
 
 
+def _is_test_env() -> bool:
+    return os.getenv("APP_ENV", "development").lower() == "test"
+
+
 def _rate_limit() -> int:
     return int(os.getenv("MCP_RATE_LIMIT_PER_MINUTE", "60"))
 
@@ -28,6 +32,9 @@ async def guard_mcp_http(request: Request, call_next):
 
     required_key = _required_api_key()
     provided_key = request.headers.get("X-API-Key", "")
+
+    if not required_key and not _is_test_env():
+        return JSONResponse({"detail": "MCP API key not configured"}, status_code=401)
 
     if required_key and provided_key != required_key:
         return JSONResponse({"detail": "Invalid or missing MCP API key"}, status_code=401)

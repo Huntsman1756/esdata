@@ -6,9 +6,11 @@ This module is the single source of truth for allowed values in:
 - ambito
 - estado_vigencia
 - tipo_obligacion
+- tipo_micro_obligacion
 - organismo_emisor
 - estado_cobertura
 - jurisdiccion
+- regulacion_relacionada
 
 All workers, routers, and seeds must use only these values.
 New values require updating this file and adding tests in test_vocabulary.py.
@@ -74,6 +76,18 @@ TIPOS_DOCUMENTO_CNMV: frozenset[str] = frozenset({
     "manual_cnmv",
     "guia_cnmv",
     "documento_cnmv",
+    "resolucion_cnmv",
+    "codigo_autoregulacion_cnmv",
+    "informe_anual_cnmv",
+    "instruccion_tecnica_cnmv",
+    "dictamen_cnmv",
+    "modelo_comunicacion_cnmv",
+    "decision_supervision_cnmv",
+    "estadistica_mercado_cnmv",
+    "codigo_conducta_cnmv",
+    "circ_asesoramiento_cnmv",
+    "informe_cnmv",
+    "reglamento_cnmv",
 })
 
 TIPOS_DOCUMENTO_SEPBLAC: frozenset[str] = frozenset({
@@ -196,6 +210,45 @@ AMBITOS_OTROS: frozenset[str] = frozenset({
     "subvenciones",
 })
 
+# Nuevos ambitos para LECR, SOCIMI, CSDR, CNMV ECR, Doctrina DGT
+AMBITOS_ECR: frozenset[str] = frozenset({
+    "ecr_regulatorio",
+})
+
+AMBITOS_SOCIMI: frozenset[str] = frozenset({
+    "societario_fiscal",
+})
+
+AMBITOS_CSDR: frozenset[str] = frozenset({
+    "infraestructuras_csd",
+})
+
+AMBITOS_CNMV_ECR: frozenset[str] = frozenset({
+    "reporting_cnmv_ecr",
+})
+
+AMBITOS_CNMV_EXPANDIDOS: frozenset[str] = frozenset({
+    "mifid_ii",
+    "mifir",
+    "mar",
+    "dora",
+    "priips",
+    "pgc_cnmv",
+    "niif_cnmv",
+    "transparencia_emisores",
+    "gobierno_corporativo",
+    "reporting_regulatorio_cnmv",
+    "reporting_financiero_cnmv",
+    "mercados_cnmv",
+    "infraestructuras_cnmv",
+    "proteccion_inversor_cnmv",
+    "sanciones_cnmv",
+})
+
+AMBITOS_DGT: frozenset[str] = frozenset({
+    "doctrina_dgt",
+})
+
 # Union of all ambito values
 AMBITOS: frozenset[str] = frozenset({
     *AMBITOS_TRIBUTARIO,
@@ -206,6 +259,12 @@ AMBITOS: frozenset[str] = frozenset({
     *AMBITOS_PROTECCION_DATOS,
     *AMBITOS_BDE,
     *AMBITOS_OTROS,
+    *AMBITOS_ECR,
+    *AMBITOS_SOCIMI,
+    *AMBITOS_CSDR,
+    *AMBITOS_CNMV_ECR,
+    *AMBITOS_CNMV_EXPANDIDOS,
+    *AMBITOS_DGT,
 })
 
 # ---------------------------------------------------------------------------
@@ -269,6 +328,83 @@ JURISDICCIONES: frozenset[str] = frozenset({
 })
 
 # ---------------------------------------------------------------------------
+# tipo_micro_obligacion — 28 values (Fase 20)
+# ---------------------------------------------------------------------------
+
+TIPOS_MICRO_OBLIGACION: frozenset[str] = frozenset({
+    "suitability",
+    "appropriateness",
+    "best_execution",
+    "conflicts_of_interest",
+    "inducements",
+    "product_governance",
+    "mifir_reporting",
+    "insider_list",
+    "order_recording",
+    "client_categorization",
+    "compensation_policy",
+    "market_abuse_detection",
+    "cnmv_reporting_reserved",
+    "transparency",
+    "corporate_governance",
+    "own_instruments_ops",
+    "material_events_communication",
+    "insider_ops_registration",
+    "financial_reconciliation",
+    "information_documents",
+    "kyc_due_diligence",
+    "continuous_monitoring",
+    "suspicious_transaction_reporting",
+    "operation_suspension",
+    "pep_screening",
+    "document_retention",
+    "aml_training",
+    "internal_aml_controls",
+    "risk_mitigation_policy",
+    "annual_sepblac_reporting",
+    "ecr_registration",
+    "ecr_sgeic",
+    "ecr_diversification",
+    "ecr_miid_diversification",
+    "ecr_conduct_rules",
+    "ecr_fiscal_non_resident",
+    "socimi_asset_composition",
+    "socimi_distribution",
+    "socimi_tax_undistributed",
+    "socimi_tax_regime",
+    "socimi_tributary_regime",
+    "csdr_settlement",
+    "csdr_reporting",
+    "csdr_settlement_failure",
+    "cnmv_ecr_reporting",
+    "cnmv_ecr_xml_format",
+    "cnmv_ecr_active_list",
+    "cnmv_ecr_faqs",
+    "dgt_socimi_gravamenes",
+    "dgt_socimi_distribucion",
+    "dgt_eti_emisores",
+    "dgt_fcr_exenciones",
+    "socimi_80_20_rule",
+})
+
+# ---------------------------------------------------------------------------
+# regulacion_relacionada — 5 values (Fase 20)
+# ---------------------------------------------------------------------------
+
+REGULACIONES_RELACIONADAS: frozenset[str] = frozenset({
+    "mifid_ii",
+    "mifir",
+    "mar",
+    "cnmv_lmcv",
+    "pblcft",
+    "lecr",
+    "socimi",
+    "csdr",
+    "doctrina_dgt",
+    "cnmv_ecr",
+})
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
@@ -279,9 +415,11 @@ VOCABULARY: dict[str, frozenset[str]] = {
     "ambito": AMBITOS,
     "estado_vigencia": ESTADOS_VIGENCIA,
     "tipo_obligacion": TIPOS_OBLIGACION,
+    "tipo_micro_obligacion": TIPOS_MICRO_OBLIGACION,
     "organismo_emisor": ORGANISMOS_EMISORES,
     "estado_cobertura": ESTADOS_COBERTURA,
     "jurisdiccion": JURISDICCIONES,
+    "regulacion_relacionada": REGULACIONES_RELACIONADAS,
 }
 
 # Total count
