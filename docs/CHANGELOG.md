@@ -7,6 +7,7 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
+- **PENDING** `docs(config)` — persist verified CNMV, SEPBLAC and BDE worker seeds in `.env.example` and record the active deployment handoff in the roadmap so fresh environments inherit the validated regulatory sources
 - **1b5ecb8** `fix(api)` — harden fiscal retrieval end-to-end: repair legacy query_audit columns at runtime, abstain when key query terms are uncovered, document `/v1/buscar` as legislation-only, verify CNMV corpus is empty in Compose, and add `DRIFT_AEAT` guard so new AEAT campaigns with zero casillas do not silently pass as healthy syncs
 - **xxxxxxxx** `docs` — Fase 31: expansion regulatoria MiCA/DAC8/DAC9/Ley 10/2010/Ley 11/2021 — data models ausentes documentados, 7 subfases planificadas (casp, crypto_asset, dac_reports, pbc_obligated_subject, fraud_prevention)
 - **xxxxxxxx** `docs` — roadmap cleanup: mark alembic-chain-repair as COMPLETA (81 tables, head reached, 4/4 tests), fix stale headers for Fases 16/23/30 (EN CURSO -> COMPLETA), update executive state to mark Fases 25/26/27/30 as complete, all planned phases 22-30 now complete — no pending phase, next line of work to be defined with user

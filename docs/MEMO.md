@@ -6,7 +6,7 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ## main
 
-**Estado:** activa — ultimo commit: 1b5ecb8 (fiscal retrieval and AEAT drift guard handoff)
+**Estado:** activa — ultimo commit: PENDING (persist verified regulatory worker seed configuration)
 
 ### Resumen
 Fase 30 completada (30.1-30.15): remediacion estructural post-auditoria cerrada. Todas las fases planificadas 22-30 ahora completas. Roadmap limpio de headers stale (Fases 16, 23, 30). Fase 31 planificada: expansion regulatoria con data models para MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021 — 7 subfases documentadas con tablas, workers, routers, migrations y seeds.
@@ -18,6 +18,7 @@ Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/groundin
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+| PENDING | docs(config) | persist verified CNMV, SEPBLAC and BDE worker seeds in `.env.example` and record the deployment handoff in the roadmap | .env.example, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | 1b5ecb8 | fix(api) | harden fiscal retrieval end-to-end: legacy query_audit runtime repair, semantic abstention for uncovered terms, `/v1/buscar` legislation-only docs, CNMV corpus verification in Compose, `DRIFT_AEAT` guard for zero-casilla campaigns | apps/api/routers/consulta.py, apps/api/services/persistence.py, apps/api/tests/test_query_audit.py, apps/api/tests/test_reranker.py, apps/workers/modelos.py, apps/workers/modelos_support.py, apps/workers/tests/test_modelos.py, docs/manual-usuario/06-api-y-ejemplos.md, docs/manual-usuario/09-referencia-de-endpoints.md, docs/operations/verification-matrix.md, docs/operations/README.md, docs/operations/agent-notes.md, docs/operations/agent-workflow.md, docs/README.md, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | docs | Fase 31: expansion regulatoria MiCA/DAC8/DAC9/Ley 10/2010/Ley 11/2021 — 7 subfases, 15+ tablas nuevas planificadas | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | xxxxxxxx | docs | roadmap cleanup: alembic-chain-repair COMPLETA, headers stale Fases 16/23/30 corregidos, estado ejecutivo actualizado, todas fases 22-30 completas | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |

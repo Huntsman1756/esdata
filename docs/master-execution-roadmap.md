@@ -196,17 +196,52 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: dejar el repo listo para la siguiente iteracion de carga real CNMV, con fiscalidad estable, guard de drift AEAT activo y documentacion operativa actualizada.
-- Estado actual: slice `session-close-handoff` `COMPLETADA` — fiscalidad/AEAT queda operativa con abstencion semantica, audit trail durable y guard `DRIFT_AEAT`; CNMV sigue `[PARTIAL]` por falta de corpus cargado en la DB Compose (`documento_interpretativo=0`, `obligacion_regulatoria=0`, `screening_entries=0`).
-- Estado del agente: COMPLETADA — cierre de sesion documentado. Siguiente paso exacto: ejecutar los workers `apps/workers/cnmv.py`, `apps/workers/sepblac.py` y `apps/workers/bde.py` contra fuentes reales, medir conteos en la DB Compose y actualizar este roadmap con evidencia fresca de carga o de rotura de parser.
+- Objetivo actual: dejar persistidas en `.env.example` las seeds verificadas de los workers regulatorios productivos.
+- Estado actual: slice `worker-seed-config-persistence` `COMPLETADA` — `.env.example` ya documenta las seeds verificadas de `CNMV`, `SEPBLAC` y `BDE`; runtime y compose productivo siguen leyendolas desde variables de entorno, sin fallbacks hardcodeados en codigo para `SEPBLAC` y `BDE`.
+- Estado del agente: COMPLETADA — configuracion minima persistida sin introducir secretos ni defaults duplicados. Siguiente paso exacto: propagar `CNMV_SEED_URLS`, `SEPBLAC_SEED_URLS` y `BDE_SEED_URLS` al entorno Compose/productivo real que consuma `infra/deploy/docker-compose.prod.yml`.
 - Archivos afectados:
   - `docs/master-execution-roadmap.md`
+  - `.env.example`
+  - `apps/workers/change_detection.py`
+  - `apps/workers/tests/test_change_detection.py`
+  - `apps/workers/cnmv.py`
+  - `apps/workers/sepblac.py`
+  - `apps/workers/bde.py`
   - `apps/workers/modelos.py`
   - `apps/workers/modelos_support.py`
   - `apps/workers/tests/test_modelos.py`
   - `docs/operations/agent-notes.md`
 - Inicio: 2026-04-27
 - Evidencia verificada:
+  - `grep -n "CNMV_SEED_URLS\|SEPBLAC_SEED_URLS" apps/workers/cnmv.py apps/workers/sepblac.py` -> ambos workers consumen seeds desde variables de entorno
+  - `.env.example` actualizado con `CNMV_SEED_URLS=https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133`
+  - `.env.example` actualizado con `SEPBLAC_SEED_URLS=https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/`
+  - `grep -rn "BDE_SEED_URLS" . --include="*.env" --include="*.yml" --include="*.yaml" --include="*.py" --include="*.toml"` -> referencias solo en `apps/workers/bde.py`, `.env.example` e `infra/deploy/docker-compose.prod.yml`
+  - lectura de `.env.example` + `infra/deploy/docker-compose.prod.yml` -> el valor activo debe venir de env; no existe fallback hardcodeado en `apps/workers/bde.py`
+  - `.env.example` actualizado a `BDE_SEED_URLS=https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/`
+  - `grep -n "SEED|BASE_URL|START_URL|url|discover|run_sync" apps/workers/bde.py` + lectura de `apps/workers/bde.py` -> `bde.py` no hace discovery; consume `BDE_SEED_URLS` directos y soporta PDF/HTML
+  - prueba de candidatas en paralelo: solo `https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/` dejo fila `ok | 1 | 1`; los otros dos resultados quedaron contaminados por ejecucion paralela sobre el mismo worker/tabla `source_revision`
+  - `python apps/workers/bde.py --run-once` con `DATABASE_URL=postgresql+psycopg://esdata:esdata_dev@localhost:5434/esdata` y `BDE_SEED_URLS=https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/` -> `  [SKIP] BDE-20260427 unchanged` + `[run-once] Documentos procesados: 1, almacenados: 0`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT COUNT(*) AS total FROM documento_interpretativo WHERE organismo_emisor = 'Banco de España' OR tipo_fuente = 'bde';"` -> `1`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT referencia, tipo_documento, ambito, left(titulo, 120) AS titulo, url_fuente FROM documento_interpretativo WHERE organismo_emisor = 'Banco de España' OR tipo_fuente = 'bde' ORDER BY id DESC LIMIT 3;"` -> `BDE-20260427 | informe_bde | estabilidad_financiera | ... | https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT worker, status, documentos_processed, documentos_upserted, left(coalesce(error_msg,''), 220) AS error_excerpt, started_at, finished_at FROM sync_log WHERE worker = 'cron-bde-weekly' ORDER BY id DESC LIMIT 4;"` -> ultima fila `cron-bde-weekly | ok | 1 | 0` y fila previa `cron-bde-weekly | ok | 1 | 1`; los dos `deadlock detected` anteriores quedan atribuidos a la prueba paralela, no al flujo secuencial real
+  - `grep -n "BDE_SEED_URLS" -g "docker-compose*.yml"` -> referencia encontrada en `infra/deploy/docker-compose.prod.yml`; la persistencia de la seed correcta queda pendiente de config/entorno, no de codigo runtime
+  - `grep -n "asyncio|ThreadPool|gather|executor" apps/workers/sepblac.py` -> sin concurrencia interna en el worker
+  - `python -m pytest apps/workers/tests/test_change_detection.py -k advisory_lock_before_upsert -q --tb=short` -> primero `1 failed`, luego `1 passed` tras anadir el lock transaccional por entidad
+  - `python -m pytest apps/workers/tests/test_sepblac.py apps/workers/tests/test_change_detection.py -q --tb=short` -> `18 passed`
+  - `ruff check apps/workers/change_detection.py apps/workers/tests/test_change_detection.py --select F` -> `All checks passed!`
+  - `python apps/workers/sepblac.py --run-once` con `DATABASE_URL=postgresql+psycopg://esdata:esdata_dev@localhost:5434/esdata` y `SEPBLAC_SEED_URLS=https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/` -> `[run-once] Documentos procesados: 2, almacenados: 2`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT 'documento_interpretativo_cnmv' AS metric, COUNT(*) AS total ..."` -> `documento_interpretativo_cnmv=1`, `documento_interpretativo_sepblac=2`, `documento_interpretativo_bde=0`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT worker, status, documentos_processed, documentos_upserted, left(coalesce(error_msg,''), 220) AS error_excerpt, started_at, finished_at FROM sync_log ..."` -> ultima fila `cron-sepblac-weekly | ok | 2 | 2`; deadlock anterior queda como evidencia historica previa al fix
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT referencia, tipo_documento, ambito, url_fuente FROM documento_interpretativo WHERE organismo_emisor = 'SEPBLAC' OR tipo_fuente = 'sepblac' ORDER BY id DESC LIMIT 5;"` -> `SEPBLAC-publicaciones | normativa_sepblac | aml_cft`; `SEPBLAC-COMUNICACION-INDICIO | guia_operativa_sepblac | aml_cft_reporting`
+  - `python -m pytest apps/workers/tests/test_change_detection.py -q --tb=short` -> `14 passed`
+  - `python -m pytest apps/workers/tests/test_cnmv.py apps/workers/tests/test_sepblac.py apps/workers/tests/test_bde.py apps/workers/tests/test_change_detection.py -q --tb=short` -> `81 passed`
+  - `ruff check apps/workers/cnmv.py apps/workers/sepblac.py apps/workers/bde.py apps/workers/change_detection.py apps/workers/tests/test_cnmv.py apps/workers/tests/test_sepblac.py apps/workers/tests/test_bde.py apps/workers/tests/test_change_detection.py --select F` -> `All checks passed!`
+  - `python apps/workers/cnmv.py --run-once` con `DATABASE_URL=postgresql+psycopg://esdata:esdata_dev@localhost:5434/esdata` y `CNMV_SEED_URLS=https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133` -> `[run-once] URLs descubiertas: 1, Documentos procesados: 1, almacenados: 1`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT 'documento_interpretativo_cnmv' AS metric, COUNT(*) AS total ..."` -> `documento_interpretativo_cnmv=1`, `documento_interpretativo_sepblac=0`, `documento_interpretativo_bde=0`, `documento_version=0`, `cnmv_regulation_link=0`, `cnmv_obligation_link=0`, `obligacion_regulatoria=0`, `screening_lists=0`, `screening_entries=0`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT referencia, tipo_documento, ambito, referencia_boe, url_fuente FROM documento_interpretativo WHERE organismo_emisor = 'CNMV' OR tipo_fuente = 'cnmv' ORDER BY id DESC LIMIT 3;"` -> `BOE-A-2009-133 | circular_cnmv | dora | BOE-A-2009-133 | https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133`
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT worker, status, documentos_processed, documentos_upserted, left(coalesce(error_msg,''), 220) AS error_excerpt, started_at, finished_at FROM sync_log ..."` -> `cron-cnmv-weekly | ok | 1 | 1`; `cron-sepblac-weekly | error | 1 | 0 | deadlock detected`; `cron-bde-weekly | error | 0 | 0 | 404 Not Found`
+  - `docker compose ps` -> `postgres` `Up` en `0.0.0.0:5434->5432/tcp`
   - `python -m pytest apps/api/tests/test_query_audit.py -k legacy_postgres_columns -q --tb=short` -> `1 passed`
   - `alembic -c "G:\_Proyectos\esdata\alembic.ini" upgrade head` -> `Running upgrade 20260427_0036_mica_crypto_models -> 20260427_0037_query_audit_log_grounding_fields`
   - `SELECT column_name, data_type FROM information_schema.columns WHERE table_name='query_audit_log'` -> incluye `grounding_status`, `prompt_injection_detected`, `grounding_summary`
@@ -226,9 +261,11 @@ Se requiere confirmacion explicita del usuario antes de:
   - `python -m pytest apps/workers/tests/test_modelos.py -q --tb=short` -> `27 passed`
   - comprobación documental fresca: `docs/operations/agent-notes.md` registra la trampa `DRIFT_AEAT` para futuros agentes
 - Riesgos restantes:
+  - las seeds correctas de `CNMV`, `SEPBLAC` y `BDE` ya estan persistidas en `.env.example`, pero aun hay que propagarlas al entorno Compose/productivo real que inyecta variables a `infra/deploy/docker-compose.prod.yml`; si ese entorno sigue usando valores antiguos, reapareceran los fallos observados en validacion
+  - `documento_interpretativo` para CNMV ya tiene 1 registro, SEPBLAC 2 y BDE 1, pero `documento_version`, `cnmv_regulation_link`, `cnmv_obligation_link`, `obligacion_regulatoria`, `screening_lists` y `screening_entries` siguen a `0`; la superficie regulatoria sigue `[PARTIAL]`.
   - el runtime que hoy ocupa `localhost:8001` no se pudo recargar in-place durante esta iteración: `docker compose up -d --build api` falla por un problema preexistente de `requirements.txt` (`../../libs/python/esdata_common` no resoluble en build) y `docker compose up -d api` además choca con el puerto ya asignado; la validación HTTP final se hizo en `8002`
   - `ruff check apps/api/routers/consulta.py apps/api/tests/test_reranker.py` sigue reportando varios findings preexistentes en `consulta.py` fuera del scope del fix mínimo, además de orden de imports en `test_reranker.py`
-  - la superficie CNMV expuesta por endpoints existe pero no debe presentarse como operativa en esta DB Compose hasta poblar corpus documental, obligaciones y screening con evidencia fresca
+  - la superficie CNMV expuesta por endpoints existe y ahora tiene 1 documento real en Compose, pero no debe presentarse como operativa de forma completa hasta poblar corpus documental, obligaciones y screening con evidencia fresca
   - `ruff check apps/workers/modelos.py apps/workers/modelos_support.py apps/workers/tests/test_modelos.py --select E,F --quiet` sigue mostrando `E501` preexistentes y fuera del objetivo funcional del slice; el guard nuevo no introduce errores `E`/`F` adicionales distintos del style existente
 - Objetivo actual: cerrar stale state en el roadmap y definir siguiente fase tras Fase 30.4 completada.
 - Estado actual: slice `alembic-chain-repair` `COMPLETA` — cadena Alembic limpia de `base` a `head` (`20260427_0035_multi_source_embeddings`) en DB local con 81 tablas, `alembic_version` en `head`, 4/4 integrity tests verdes. Backfill `documento_fragmento` es no-op (0 articulos, 0 documentos). Consultas LGT/LIVA/LIS ya validadas.
