@@ -3044,6 +3044,52 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 - `architecture.md` actualizado: inference layer `[IMPLEMENTED]`, validacion y auditoria `[IMPLEMENTED]` ✅
 - `test_grounding.py` — 33 tests: chunk injection detection (14 tests), sufficient evidence (6 tests), grounding validation (8 tests), claim-level abstention (4 tests) ✅
 
+#### Fase 30.14 — Auditoria de vulnerabilidades y hardening ✅ COMPLETA
+- **Hallazgos 2026-04-27** (auditoria estatica de seguridad):
+
+**MEDIA — CORS con allow_credentials=True y origen configurable**:
+- `apps/api/main.py:232-236`: `CORSMiddleware` usa `allow_credentials=True` con `allow_methods=["*"]` y `allow_headers=["*"]`. El valor de `ESDATA_CORS_ORIGINS` se lee desde env y por defecto es `http://localhost:3000,http://localhost:8000`, pero en tests se usa `ESDATA_CORS_ORIGINS="*"` y en produccion alguien podria setear `*`.
+- `allow_credentials=True` + `allow_origins=["*"]` es una combinacion invalida en navegadores y vulnerabilidad en produccion (expone credenciales a dominios arbitrarios).
+- **Remediacion**: Rechazar `ESDATA_CORS_ORIGINS=*` cuando `allow_credentials=True`. Validar que los origenes sean una lista explícita de dominios.
+
+**MEDIA — Contraseña de PostgreSQL en texto plano**:
+- `docker-compose.yml:7`: `POSTGRES_PASSWORD: esdata_dev` y `docker-compose.yml:43`: `DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata` en texto plano.
+- **Remediacion**: Usar variable de entorno para la contraseña: `POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-esdata_dev}` y referenciarla en `DATABASE_URL` via `${POSTGRES_PASSWORD}`.
+
+**MEDIA — Sin healthchecks en Docker**:
+- Ningun servicio en `docker-compose.yml` tiene `healthcheck`. Docker no sabe si los servicios estan listos antes de conectar.
+- **Remediacion**: Añadir healthchecks para postgres (pg_isready), redis (redis-cli ping), y api (HTTP GET /health).
+
+**MEDIA — Sin non-root en Docker**:
+- Ningun servicio especifica `user:` para ejecutar como non-root (regla 9 de AGENTS.md).
+- **Remediacion**: Añadir `user: "1000:1000"` a servicios de api, web y workers.
+
+**MEDIA — Imagenes sin SHA digest**:
+- `docker-compose.yml:3`: `pgvector/pgvector:pg16` y `docker-compose.yml:27`: `redis:7-alpine` usan tags que pueden actualizar.
+- **Remediacion**: Usar digests SHA (`sha256:...`) para imagenes en produccion.
+
+**BAJA — SQL injection pattern frágil (pero seguro actualmente)**:
+- `apps/api/routers/{playbooks,criterio,risk_control_matrix,editorial,dac_directives,ley13_2023,editorial_posiciones,screening}.py` construyen `where_clause` con `text(f"SELECT ... WHERE {where_clause}")`.
+- Los filtros actuales son seguros porque solo aceptan columnas de una lista allowlistada y los valores se pasan como parametros `:nombre`. Pero el patrón `f-string` es frágil si alguien añade un filtro nuevo sin allowlist.
+- **Remediacion**: Documentar que todos los filtros nuevos deben ir en la lista allowlistada. Preferir ORM o funciones de validacion centralizada.
+
+**BAJA — Test API keys hardcodeadas (aceptable en tests)**:
+- `apps/api/tests/conftest.py:26-27`: `test-secret-key` y `test-mcp-key` hardcodeados. Aceptable para tests pero no debe propagarse a produccion.
+- El codigo de produccion (`main.py:137-149`) correctamente exige las keys fuera de `APP_ENV=test`.
+
+**Lo que NO tiene el repo (positivo)**:
+- ✅ No hay secretos hardcodeados en codigo de produccion
+- ✅ No hay archivos `.env` commiteados
+- ✅ No hay `NEXT_PUBLIC_*` con secrets
+- ✅ No hay Supabase keys expuestas en API
+- ✅ No hay funciones SQL sin revoke de execute a public
+- ✅ No hay debug mode activo
+- ✅ Hay API key auth middleware en produccion
+- ✅ Hay rate limiting middleware
+- ✅ Hay input validation con Pydantic
+- ✅ No hay webhooks sin verificacion (no hay endpoints de webhooks)
+- ✅ Sentry DSN se lee desde env var de entorno
+
 ### Entregables esperados
 - auth y rate limiting seguros por defecto
 - tablas durables para audit/lineage/review/query logs

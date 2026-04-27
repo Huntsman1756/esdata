@@ -7,6 +7,9 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
+- **xxxxxxxx** `docs` — Fase 30.14: security audit findings — CORS allow_credentials+origin risk, plaintext DB password in docker-compose, missing Docker healthchecks/non-root/SHA digests, fragile SQL injection pattern in router where_clause filters, hardcoded test API keys
+
+### main
 - **xxxxxxxx** `feat(api)` — Fase 30.4: graph connectivity layer (recursive CTE-based SQL traversal, 7 entity types, unified /v1/connectivity/graph endpoint), Python-based markdown lint + link check in verify-doc-artifacts.py with exclusion patterns, 5 new Prometheus metrics (retrieval latency P95/P99, component errors, query tokens, RAM/VRAM per query, faithfulness histogram), psutil added to requirements
 - **xxxxxxxx** `feat(workers)` — embedding versioning: migration 0034 adds embedding_model_name/content_hash columns to 3 tables + embedding_version tracking table, backfill_embeddings.py stores model+hash, 12 change_detection tests
 - **xxxxxxxx** `feat(api)` — grounding hard (Fase 30.13): services/grounding.py with per-claim grounding validation (threshold 0.4), 12+ adversarial chunk injection patterns, claim-level abstention, ChunkCitation/ClaimCitation schemas extended with grounded/chunk_clean flags, query_audit_log DDL extended with grounding fields, 33 tests
