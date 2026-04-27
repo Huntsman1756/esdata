@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from change_detection import (
     check_content_changed,
     ensure_source_revision_table,
-    invalidate_old_embeddings,
+    invalidate_old_embeddings_by_entity,
     record_revision,
 )
 from pypdf import PdfReader
@@ -119,8 +119,6 @@ def _discover_new_urls(seed_urls: list[str] | None = None) -> list[str]:
 
     Returns a list of URLs to fetch. Falls back to seed URLs if scraping fails.
     """
-    urls = seed_urls or SEED_URLS
-
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
             # Try CNMV circulares page
@@ -723,13 +721,40 @@ def extract_pdf_text(content: bytes) -> str:
     return "\n".join(chunks)
 
 
+def extract_html_text(content: bytes) -> str:
+    soup = BeautifulSoup(content.decode("utf-8", errors="ignore"), "html.parser")
+    return _normalize_whitespace(soup.get_text(" ", strip=True))
+
+
+def _resolve_boe_document_url(url: str, content: bytes, content_type: str) -> str:
+    if "boe.es" not in url:
+        return url
+    if "pdf" in content_type.lower() or content.startswith(b"%PDF-"):
+        return url
+
+    soup = BeautifulSoup(content.decode("utf-8", errors="ignore"), "html.parser")
+    txt_link = soup.find("a", href=re.compile(r"txt\.php\?id=BOE-A-"))
+    if txt_link and txt_link.get("href"):
+        return str(httpx.URL(url).join(txt_link["href"]))
+
+    iframe = soup.find("iframe", src=re.compile(r"txt\.php\?id=BOE-A-"))
+    if iframe and iframe.get("src"):
+        return str(httpx.URL(url).join(iframe["src"]))
+
+    return url
+
+
 # ---------------------------------------------------------------------------
 # Document payload builder (23.2 — enriched metadata)
 # ---------------------------------------------------------------------------
 
 
-def build_document_payload(url: str, content: bytes) -> dict[str, str]:
-    text_value = extract_pdf_text(content)
+def build_document_payload(url: str, content: bytes, content_type: str = "") -> dict[str, str]:
+    if "pdf" in content_type.lower() or content.startswith(b"%PDF-"):
+        text_value = extract_pdf_text(content)
+    else:
+        text_value = extract_html_text(content)
+
     if not text_value:
         raise ValueError(f"Could not extract text from CNMV document: {url}")
 
@@ -960,7 +985,21 @@ def run_sync(
                 try:
                     response = client.get(url)
                     response.raise_for_status()
-                    payload = build_document_payload(url, response.content)
+                    resolved_url = _resolve_boe_document_url(
+                        str(response.url),
+                        response.content,
+                        response.headers.get("content-type", ""),
+                    )
+                    if resolved_url != str(response.url):
+                        response = client.get(resolved_url)
+                        response.raise_for_status()
+                        url = resolved_url
+
+                    payload = build_document_payload(
+                        url,
+                        response.content,
+                        response.headers.get("content-type", ""),
+                    )
                     processed += 1
 
                     change = check_content_changed(
@@ -971,7 +1010,12 @@ def run_sync(
                         print(f"  [SKIP] {payload['referencia']} unchanged")
                         continue
 
-                    invalidated = invalidate_old_embeddings(conn, payload["referencia"])
+                    invalidated = invalidate_old_embeddings_by_entity(
+                        conn,
+                        entity_table="documento_interpretativo",
+                        entity_id_column="referencia",
+                        entity_id_value=payload["referencia"],
+                    )
                     if invalidated:
                         print(
                             f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"
@@ -996,6 +1040,7 @@ def run_sync(
                 "ok",
                 documentos_processed=processed,
                 documentos_upserted=stored,
+                started_at=sync_start,
             )
 
         return {"processed": processed, "stored": stored, "discovered": discovered}
@@ -1007,8 +1052,8 @@ def run_sync(
                 "error",
                 documentos_processed=processed,
                 documentos_upserted=stored,
-                urls_discovered=discovered,
                 error_msg=str(exc),
+                started_at=sync_start,
             )
         raise
 

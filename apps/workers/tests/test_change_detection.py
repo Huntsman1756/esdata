@@ -10,7 +10,6 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from change_detection import (
-    SourceChange,
     check_content_changed,
     compute_content_hash,
     ensure_source_revision_table,
@@ -133,6 +132,56 @@ def test_check_content_changed_preserves_stored_revision_on_no_change(engine):
     assert row[0] == compute_content_hash("original")
 
 
+def test_record_revision_accepts_bytes_content(engine):
+    with engine.begin() as conn:
+        ensure_source_revision_table(conn)
+
+        record_revision(conn, "worker-bde", "documento", "doc-bytes-1", b"binary-pdf-content")
+
+        row = conn.execute(
+            text(
+                "SELECT content_hash_sha256, content_length FROM source_revision WHERE source_entity_id = 'doc-bytes-1'"
+            )
+        ).fetchone()
+
+    assert row[0] == compute_content_hash(b"binary-pdf-content")
+    assert row[1] == len(b"binary-pdf-content")
+
+
+def test_record_revision_acquires_postgres_advisory_lock_before_upsert(monkeypatch):
+    calls = []
+
+    class FakeDialect:
+        name = "postgresql"
+
+    class FakeEngine:
+        dialect = FakeDialect()
+
+    class FakeConn:
+        engine = FakeEngine()
+
+        def execute(self, stmt, params=None):
+            sql = str(stmt)
+            calls.append((sql, params))
+
+            class Result:
+                def fetchone(self):
+                    return None
+
+                def scalar(self):
+                    return None
+
+            return Result()
+
+    conn = FakeConn()
+
+    record_revision(conn, "worker-sepblac", "documento", "SEPBLAC-COMUNICACION-INDICIO", "body")
+
+    assert "pg_advisory_xact_lock" in calls[0][0]
+    assert calls[0][1]["lock_key"] == "worker-sepblac:documento:SEPBLAC-COMUNICACION-INDICIO"
+    assert "INSERT INTO source_revision" in calls[1][0]
+
+
 def test_invalidate_old_embeddings(engine):
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS version_articulo"))
@@ -200,6 +249,35 @@ def test_invalidate_old_embeddings_by_entity(engine):
     assert row[0] is None
     assert row[1] is None
     assert row[2] is None
+
+
+def test_invalidate_old_embeddings_by_entity_returns_zero_when_embedding_column_missing(engine):
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS documento_interpretativo"))
+        conn.execute(text("""
+            CREATE TABLE documento_interpretativo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referencia TEXT,
+                embedding_model_name TEXT,
+                content_hash TEXT
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO documento_interpretativo (referencia, embedding_model_name, content_hash)
+            VALUES ('DOC-1', 'MiniLM', 'hash-doc-1')
+        """))
+
+        count = invalidate_old_embeddings_by_entity(
+            conn, "documento_interpretativo", "referencia", "DOC-1"
+        )
+
+    assert count == 0
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT embedding_model_name, content_hash FROM documento_interpretativo WHERE referencia = 'DOC-1'")
+        ).fetchone()
+    assert row == ("MiniLM", "hash-doc-1")
 
 
 def test_record_embedding_version(engine):

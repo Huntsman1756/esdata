@@ -139,7 +139,10 @@ def test_run_sync_persists_teac_document_and_metrics(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )
@@ -278,7 +281,10 @@ def test_run_sync_uses_default_seed_urls(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )
@@ -338,6 +344,21 @@ def test_teac_run_once_flag_accepts_argparse():
     assert result.returncode == 0
     assert "--run-once" in result.stdout
     assert "--interval" in result.stdout
+
+
+def test_run_sync_handles_fetch_errors_without_nameerror(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    monkeypatch.setattr("teac.create_engine", lambda *args, **kwargs: engine)
+
+    def _raise_timeout(url):
+        raise TimeoutError("upstream timeout")
+
+    monkeypatch.setattr("teac.fetch_resolution_html", _raise_timeout)
+
+    result = run_sync(seed_urls=["https://example.com/teac"])
+
+    assert result == {"processed": 0, "stored": 0}
 
 
 def test_run_sync_teac_creates_contextual_liva_link(monkeypatch):
@@ -422,7 +443,10 @@ def test_run_sync_teac_creates_contextual_liva_link(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )
@@ -549,7 +573,10 @@ def test_run_sync_teac_creates_contextual_regimen_especial_link(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )
@@ -678,7 +705,10 @@ def test_run_sync_teac_creates_contextual_recargo_link(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )
@@ -808,7 +838,10 @@ def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )

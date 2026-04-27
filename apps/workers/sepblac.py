@@ -12,7 +12,7 @@ from boe import _ensure_sync_log_table, log_sync
 from change_detection import (
     check_content_changed,
     ensure_source_revision_table,
-    invalidate_old_embeddings,
+    invalidate_old_embeddings_by_entity,
     record_revision,
 )
 from pypdf import PdfReader
@@ -163,7 +163,6 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(UTC).isoformat()
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
@@ -185,7 +184,12 @@ def run_sync(
                     print(f"  [SKIP] {payload['referencia']} unchanged")
                     continue
 
-                invalidated = invalidate_old_embeddings(conn, payload["referencia"])
+                invalidated = invalidate_old_embeddings_by_entity(
+                    conn,
+                    entity_table="documento_interpretativo",
+                    entity_id_column="referencia",
+                    entity_id_value=payload["referencia"],
+                )
                 if invalidated:
                     print(
                         f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"

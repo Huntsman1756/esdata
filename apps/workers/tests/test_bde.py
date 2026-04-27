@@ -149,7 +149,10 @@ def test_run_sync_persists_bde_document_and_metrics(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )

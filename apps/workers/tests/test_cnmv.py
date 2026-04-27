@@ -70,6 +70,14 @@ startxref
 %%EOF
 """
 
+BOE_DOC_HTML = b"""
+<html>
+  <body>
+    <iframe src="/diario_boe/txt.php?id=BOE-A-2009-133"></iframe>
+  </body>
+</html>
+"""
+
 
 # ---------------------------------------------------------------------------
 # Document type detection (23.3)
@@ -243,6 +251,99 @@ def test_build_document_payload_minimal():
     assert payload["referencia_boe"] is None
 
 
+def test_run_sync_follows_boe_html_seed_to_pdf(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT,
+                    numero_circular TEXT,
+                    fecha_publicacion TEXT,
+                    referencia_boe TEXT,
+                    estado_vigencia TEXT,
+                    embedding_model_name TEXT,
+                    content_hash TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    urls_discovered INTEGER,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/buscar/doc.php":
+            return httpx.Response(
+                200,
+                content=BOE_DOC_HTML,
+                headers={"content-type": "text/html; charset=utf-8"},
+            )
+        if request.url.path == "/diario_boe/txt.php":
+            return httpx.Response(
+                200,
+                content=MINIMAL_CNMV_PDF,
+                headers={"content-type": "application/pdf"},
+            )
+        raise AssertionError(f"Unexpected URL requested: {request.url}")
+
+    monkeypatch.setattr("cnmv.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr(
+        "cnmv._discover_new_urls",
+        lambda seed_urls=None: seed_urls or ["https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133"],
+    )
+
+    result = run_sync(seed_urls=["https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133"])
+
+    assert result["processed"] == 1
+    assert result["stored"] == 1
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT referencia, url_fuente FROM documento_interpretativo WHERE referencia = 'BOE-A-2009-133'")
+        ).fetchone()
+
+    assert row == ("BOE-A-2009-133", "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2009-133")
+
+
 # ---------------------------------------------------------------------------
 # Upsert
 # ---------------------------------------------------------------------------
@@ -360,7 +461,10 @@ def test_run_sync_persists_cnmv_document_and_metrics(monkeypatch):
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
                     error_msg TEXT,
-                    urls_discovered INTEGER
+                    urls_discovered INTEGER,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )

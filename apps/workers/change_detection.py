@@ -52,7 +52,6 @@ def ensure_source_revision_table(conn: Connection) -> None:
                 UNIQUE(worker_name, source_entity_tipo, source_entity_id)
             )
         """
-        default_ts = "datetime('now')"
     else:
         ddl = """
             CREATE TABLE IF NOT EXISTS source_revision (
@@ -68,7 +67,6 @@ def ensure_source_revision_table(conn: Connection) -> None:
                 UNIQUE(worker_name, source_entity_tipo, source_entity_id)
             )
         """
-        default_ts = "now()"
 
     conn.execute(text(ddl))
     conn.execute(text("""
@@ -111,8 +109,6 @@ def check_content_changed(
         return SourceChange(changed=True, new_hash=new_hash, etag=etag, last_modified=last_modified)
 
     old_hash = row[0]
-    old_etag = row[1]
-    old_lm = row[2]
 
     if new_hash == old_hash:
         return SourceChange(changed=False, old_hash=old_hash)
@@ -137,9 +133,15 @@ def record_revision(
 ) -> None:
     """Record a revision after processing content. Upserts atomically."""
     new_hash = compute_content_hash(content)
-    content_length = len(content) if isinstance(content, str) else len(content.encode("utf-8"))
+    content_length = len(content.encode("utf-8")) if isinstance(content, str) else len(content)
     dialect_name = conn.engine.dialect.name
     ts_func = "datetime('now')" if dialect_name == "sqlite" else "now()"
+
+    if dialect_name == "postgresql":
+        conn.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+            {"lock_key": f"{worker_name}:{source_entity_tipo}:{source_entity_id}"},
+        )
 
     conn.execute(text("""
         INSERT INTO source_revision (
@@ -197,6 +199,30 @@ def invalidate_old_embeddings_by_entity(
 
     Returns count of invalidated rows.
     """
+    dialect_name = conn.engine.dialect.name
+    if dialect_name == "sqlite":
+        cols = conn.execute(text(f"PRAGMA table_info({entity_table})")).fetchall()
+        has_embedding = any(row[1] == "embedding" for row in cols)
+    else:
+        has_embedding = bool(
+            conn.execute(
+                text(
+                    """
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = :table_name
+                      AND column_name = 'embedding'
+                    LIMIT 1
+                    """
+                ),
+                {"table_name": entity_table},
+            ).scalar()
+        )
+
+    if not has_embedding:
+        return 0
+
     # Count rows that will be invalidated before updating.
     count = conn.execute(
         text(f"""

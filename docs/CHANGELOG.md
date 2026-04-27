@@ -7,6 +7,7 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
+- **PENDING** `fix(workers)` — harden regulatory workers with source-revision advisory locking, BOE HTML follow-up for CNMV, entity-scoped embedding invalidation, and TEAC test/runtime alignment while documenting deterministic production monitoring and DGT discovery prework in the roadmap
 - **PENDING** `config` — add verified CENDOJ and AEPD seeds to env templates, fix TEAC logger crash in the runtime error path, and document that TEAC parser date extraction remains pending against the real Hacienda HTML
 - **e5d5f3f** `docs(config)` — persist verified CNMV, SEPBLAC and BDE worker seeds in `.env.example` and record the active deployment handoff in the roadmap so fresh environments inherit the validated regulatory sources
 - **1b5ecb8** `fix(api)` — harden fiscal retrieval end-to-end: repair legacy query_audit columns at runtime, abstain when key query terms are uncovered, document `/v1/buscar` as legislation-only, verify CNMV corpus is empty in Compose, and add `DRIFT_AEAT` guard so new AEAT campaigns with zero casillas do not silently pass as healthy syncs
