@@ -283,6 +283,18 @@ Se requiere confirmacion explicita del usuario antes de:
   - `ruff check apps/api/routers/consulta.py apps/api/tests/test_reranker.py` sigue reportando varios findings preexistentes en `consulta.py` fuera del scope del fix mínimo, además de orden de imports en `test_reranker.py`
   - la superficie CNMV expuesta por endpoints existe y ahora tiene 1 documento real en Compose, pero no debe presentarse como operativa de forma completa hasta poblar corpus documental, obligaciones y screening con evidencia fresca
   - `ruff check apps/workers/modelos.py apps/workers/modelos_support.py apps/workers/tests/test_modelos.py --select E,F --quiet` sigue mostrando `E501` preexistentes y fuera del objetivo funcional del slice; el guard nuevo no introduce errores `E`/`F` adicionales distintos del style existente
+
+## Reentrada multi-maquina
+
+- Rama estable verificada: `main` en `ee12bd3` (`fix(workers): harden regulatory ingestion paths`)
+- Rama WIP remota para continuidad de `MiCA`: `wip/mica-2026-04-27` en `de03ca9` (`wip(mica): checkpoint local mica and audit schema work`)
+- Secuencia exacta en el otro ordenador:
+  - `git fetch origin`
+  - `git checkout main`
+  - `git pull origin main`
+  - `git checkout wip/mica-2026-04-27`
+  - `git pull origin wip/mica-2026-04-27`
+- Usar `main` para continuar con trabajo verificado de workers/regulatorio y `wip/mica-2026-04-27` para continuar `MiCA` sin mezclar slices.
 - Objetivo actual: cerrar stale state en el roadmap y definir siguiente fase tras Fase 30.4 completada.
 - Estado actual: slice `alembic-chain-repair` `COMPLETA` — cadena Alembic limpia de `base` a `head` (`20260427_0035_multi_source_embeddings`) en DB local con 81 tablas, `alembic_version` en `head`, 4/4 integrity tests verdes. Backfill `documento_fragmento` es no-op (0 articulos, 0 documentos). Consultas LGT/LIVA/LIS ya validadas.
 - Estado del agente: COMPLETADA — la cadena Alembic funciona de extremo a extremo. Próximos pasos: limpiar headers stale del roadmap y definir siguiente fase tras Fase 30.4.
