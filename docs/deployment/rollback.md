@@ -47,7 +47,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic current
 # 1. Restaurar backup de base de datos
 #    (buscar backup anterior al deploy fallido)
 gunzip -c /backups/esdata_20260425_030000.sql.gz | \
-  docker compose -f infra/deploy/docker-compose.prod.yml exec -T db psql -U esdata esdata
+  docker compose -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata esdata
 
 # 2. Revertir aplicacion
 git checkout <tag_anterior>
@@ -56,7 +56,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml down api
 docker compose -f infra/deploy/docker-compose.prod.yml up -d api
 
 # 3. Verificar integridad
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT COUNT(*) FROM version_articulo; SELECT COUNT(*) FROM norma;"
 ```
 
@@ -73,7 +73,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml down -v
 
 # 3. Restaurar desde backup
 gunzip -c /backups/esdata_20260425_030000.sql.gz | \
-  docker compose -f infra/deploy/docker-compose.prod.yml exec -T db psql -U esdata esdata
+  docker compose -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata esdata
 
 # 4. Reconstruir schema si es necesario
 docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic upgrade head

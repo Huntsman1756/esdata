@@ -1,5 +1,7 @@
 # Estructura del repositorio
 
+> Este documento describe la estructura viva del repo. El estado activo sigue viviendo solo en `docs/master-execution-roadmap.md`.
+
 ## Arbol de directorios
 
 ```
@@ -9,9 +11,12 @@ esdata/
 |   |   |-- main.py                   # Entry point FastAPI (lifespan, routers)
 |   |   |-- schemas.py                # Pydantic models (677 lineas, 40+ modelos)
 |   |   |-- db.py                     # Engine SQLAlchemy, db_session
+|   |   |-- AGENTS.md                 # Reglas locales del backend
 |   |   |-- requirements.txt          # Dependencias API
 |   |   |-- Dockerfile                # Imagen Docker API (python:3.12-slim)
 |   |   |-- mcp_server.py             # MCP server mounting
+|   |   |-- banking/                  # Utilidades bancarias del dominio
+|   |   |-- middleware/               # Middleware de seguridad, auth y metrics
 |   |   |-- routers/                  # Endpoints REST
 |   |   |   |-- status.py             # Healthcheck
 |   |   |   |-- buscar.py             # /v1/legislacion/buscar + hybrid
@@ -73,13 +78,14 @@ esdata/
 |       |-- 20260424_0005_chunking_schema.py  # Tablas chunking
 |       |-- 20260425_0006_eval_history.py      # Tablas evaluacion
 |       |-- 20260425_0007_critical_indexes.py  # Indices criticos
-|-- scripts/                          # Scripts de operacion
+|-- scripts/                          # Tooling no-runtime
 |   |-- golden_queries.json           # Dataset 52 queries para evaluacion
-|   |-- eval_phase3.py                # Evaluador automatico
-|   |-- test_eval_phase3.py           # Tests unitarios del evaluador (47 tests)
 |   |-- baseline.json                 # Baseline score 0.8764
-|   |-- backfill_chunks.py            # Backfill de chunks
-|   |-- backfill_embeddings.py        # Backfill de embeddings
+|   |-- dev/                          # Wrappers y pruebas manuales locales
+|   |-- data/                         # Backfills, seeds y scripts de datos
+|   |-- eval/                         # Evaluacion y quality gates
+|   |-- ops/                          # Utilidades operativas y despliegue
+|   |-- maintenance/                  # Verificaciones y saneamiento
 |   |-- benchmark_hybrid.py           # Benchmark de hybrid_weight
 |   |-- telemetry/                    # Datos de telemetria
 |       |-- eval_failures.jsonl       # Fallos de evaluacion
@@ -89,10 +95,11 @@ esdata/
 |   |-- architecture.md               # Arquitectura del sistema
 |   |-- repository-structure.md       # Este archivo
 |   |-- environment-variables.md      # Variables de entorno
-|   |-- infrastructure-handoff.md     # Handoff de infraestructura
-|   |-- professionalization-roadmap.md # Roadmap de profesionalizacion
-|   |-- next-session-handoff-2026-04-25.md # Handoff de sesiones
-|   |-- plan-fase2-chunking.md        # Plan Fase 2 chunking
+|   |-- archive/                      # Historicos, handoffs y planes cerrados
+|   |   |-- infra/
+|   |   |-- handoffs/
+|   |   |-- plans/
+|   |   `-- status/
 |   |-- openapi-gpt-minimal-modelos.json # OpenAPI para GPT Actions
 |-- infra/deploy/                     # Despliegue de produccion
 |   |-- docker-compose.prod.yml       # Docker Compose produccion
@@ -107,9 +114,6 @@ esdata/
 |-- .env                              # Variables de entorno locales (no commit)
 |-- .gitignore                        # Git ignore
 |-- README.md                         # README principal
-|-- railway.toml                      # DEPRECATED - Railway (no usar)
-|-- DEPLOY_CHECKLIST.md               # HISTORICO - Checklist de despliegue
-|-- STRUCTURE.md                      # Estructura del repo (referencia rapida)
 ```
 
 ## Responsabilidades por modulo
@@ -121,6 +125,7 @@ esdata/
 - **db.py**: Engine SQLAlchemy, session factory, `db_session()` context manager
 - **routers/**: 19 routers REST, cada uno con sus endpoints GET/POST
 - **services/**: Logica de busqueda (fulltext + hibrida RRF), logica de negocio
+- **boundary**: seeds, backfills, wrappers y verificaciones manuales ya no viven en `apps/api`, sino en `scripts/`
 
 ### apps/workers
 
@@ -129,6 +134,7 @@ esdata/
 - **modelos.py**: Ingesta modelos AEAT (303, 100, 216, etc.)
 - **embeddings.py**: Generacion de embeddings con sentence-transformers
 - **bdns.py**, **borme.py**, **cnmv.py**, **sepblac.py**, **dgt.py**, **teac.py**, **aepd.py**, **bde.py**, **cendoj.py**, **eurlex.py**: Workers de fuentes especificas
+- **boundary**: tooling manual, seeds y verificaciones no pertenecen a `apps/workers`; viven en `scripts/`
 
 ### infra/
 
@@ -137,11 +143,15 @@ esdata/
 
 ### scripts/
 
-- **eval_phase3.py**: Evaluador automatico con golden dataset, benchmarks, quality gate
+- **eval/eval_phase3.py**: Evaluador automatico con golden dataset, benchmarks y quality gate
+- **dev/run_api_local.py** y **dev/server_wrapper.py**: arranque local manual del API
 - **golden_queries.json**: 52 queries de evaluacion en 8 dominios
 - **baseline.json**: Score baseline 0.8764
-- **backfill_chunks.py**: Genera chunks en `documento_fragmento`
-- **backfill_embeddings.py**: Genera embeddings en columnas vector(1536)
+- **data/backfill_chunks.py**: Genera chunks en `documento_fragmento`
+- **data/backfill_embeddings.py**: Genera embeddings en columnas vectoriales
+- **data/quick_backfill_embeddings.py**: backfill rapido orientado a embeddings y tablas con columna `embedding`
+- **ops/export-gpt-openapi.py**: Export de OpenAPI reducida
+- **maintenance/verify_schema.py**: Verificacion de esquema
 
 ## Convenciones de nombres
 

@@ -133,7 +133,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-modelos p
 
 ```bash
 # Contar documentos ingeridos
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT COUNT(*) FROM version_articulo; SELECT COUNT(*) FROM norma;"
 ```
 
@@ -158,7 +158,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml --profile cron up -d
 crontab -e
 
 # Backup diario a las 3am
-0 3 * * * cd /opt/esdata && docker compose -f infra/deploy/docker-compose.prod.yml exec db pg_dump -U esdata esdata | gzip > /backups/esdata_$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz
+0 3 * * * cd /opt/esdata && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata | gzip > /backups/esdata_$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz
 0 3 * * * find /backups -name "esdata_*.sql.gz" -mtime +30 -delete
 ```
 

@@ -164,19 +164,19 @@ make worker-boe
 
 ```bash
 # 1. Levantar infra completa
-docker compose -f infra/deploy/docker-compose.prod.yml up -d db
+docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres api
 
 # 2. Esperar a que Postgres este listo
-docker compose -f infra/deploy/docker-compose.prod.yml exec db pg_isready
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres pg_isready
 
 # 3. Aplicar schema
 docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic upgrade head
 
 # 4. Aplicar pgvector (una vez, primera vez)
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -f /docker-entrypoint-initdb.d/060_pgvector.sql
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -f /docker-entrypoint-initdb.d/060_pgvector.sql
 
 # 5. Iniciar workers
-docker compose -f infra/deploy/docker-compose.prod.yml up -d workers
+docker compose -f infra/deploy/docker-compose.prod.yml up -d worker-boe worker-dgt worker-teac worker-modelos
 ```
 
 ## Backup y restore
@@ -194,7 +194,7 @@ pg_dump --schema-only "$DATABASE_URL" > schema_backup.sql
 pg_dump "$DATABASE_URL" | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
 
 # Backup via Docker Compose
-docker compose exec db pg_dump -U esdata esdata > backup.sql
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata > backup.sql
 ```
 
 ### Restore
@@ -207,7 +207,7 @@ psql "$DATABASE_URL" < backup_20260425_120000.sql
 gunzip -c backup_20260425_120000.sql.gz | psql "$DATABASE_URL"
 
 # Restore via Docker Compose
-cat backup.sql | docker compose exec -T db psql -U esdata esdata
+cat backup.sql | docker compose -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata esdata
 ```
 
 ### Backup automatizado (cron)
@@ -251,5 +251,4 @@ psql "$DATABASE_URL" -c "
 - `alembic/env.py` — logica de ejecucion de migraciones
 - `alembic/versions/` — historial de migraciones
 - `infra/sql/` — SQL historico de referencia
-- `docker-compose.yml` — Postgres en `db` (puerto 5432)
-- `infra/deploy/docker-compose.prod.yml` — Postgres en produccion
+- `infra/deploy/docker-compose.prod.yml` — servicio `postgres` de referencia en despliegue

@@ -7,8 +7,8 @@
   },
   "servers": [
     {
-      "url": "https://esdata-production.up.railway.app",
-      "description": "Production API on Railway"
+      "url": "https://api.esdata.org",
+      "description": "Production API"
     }
   ],
   "paths": {
@@ -93,9 +93,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegislacionSearchResponse"
-                }
+                "schema": {}
               }
             }
           }
@@ -387,6 +385,11 @@
             "title": "Vigente Hasta",
             "description": "Fecha de fin de vigencia (YYYY-MM-DD)"
           },
+          "fuente_norma": {
+            "type": "string",
+            "title": "Fuente Norma",
+            "description": "Identificador BOE/ELI de la norma"
+          },
           "confianza": {
             "$ref": "#/components/schemas/ConfianzaInfo",
             "description": "Información de confianza del dato"
@@ -607,6 +610,11 @@
             "type": "string",
             "title": "Fragmento",
             "description": "Fragmento del texto con el término buscado"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL directa al documento doctrinal"
           }
         },
         "type": "object",
@@ -1044,6 +1052,16 @@
             "title": "Titulo",
             "description": "Título completo de la norma"
           },
+          "boe_id": {
+            "type": "string",
+            "title": "Boe Id",
+            "description": "ID de referencia en BOE/CELEX"
+          },
+          "eli_uri": {
+            "type": "string",
+            "title": "Eli Uri",
+            "description": "URI ELI de la norma"
+          },
           "jurisdiccion": {
             "type": "string",
             "title": "Jurisdiccion",
@@ -1068,6 +1086,11 @@
             "type": "string",
             "title": "Estado Cobertura",
             "description": "Estado de cobertura (ingestada, parcial, etc.)"
+          },
+          "regulacion_relacionada": {
+            "type": "string",
+            "title": "Regulacion Relacionada",
+            "description": "Regulación relacionada (ej: dac_directives)"
           }
         },
         "type": "object",
@@ -1123,6 +1146,21 @@
             "type": "number",
             "title": "Rank",
             "description": "Puntuación de relevancia (ts_rank)"
+          },
+          "fuente_norma": {
+            "type": "string",
+            "title": "Fuente Norma",
+            "description": "Identificador BOE/ELI de la norma"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL directa al documento fuente"
+          },
+          "motivo_ranking": {
+            "type": "string",
+            "title": "Motivo Ranking",
+            "description": "Explicación del ranking obtenido"
           },
           "confianza": {
             "$ref": "#/components/schemas/ConfianzaInfo",

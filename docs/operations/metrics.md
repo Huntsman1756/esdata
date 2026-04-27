@@ -88,7 +88,7 @@ ORDER BY consecutive_errors DESC;
 docker compose -f infra/deploy/docker-compose.prod.yml --profile cron ps
 
 # Verificar que cron jobs se ejecutaron hoy
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT worker, COUNT(*) as runs_today FROM sync_log
    WHERE started_at > CURRENT_DATE
    GROUP BY worker ORDER BY runs_today DESC;"
@@ -227,14 +227,14 @@ curl -s -o /dev/null -w "Health: %{http_code} (%{time_total}s)\n" \
 
 echo ""
 echo "--- Workers (ultimas 24h) ---"
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -t -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -t -c \
   "SELECT worker, COUNT(*) as runs, ROUND(100.0 * COUNT(*) FILTER (WHERE error IS NULL) / COUNT(*), 1) as pct
    FROM sync_log WHERE started_at > NOW() - INTERVAL '24 hours'
    GROUP BY worker ORDER BY worker;"
 
 echo ""
 echo "--- Cobertura de datos ---"
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -t -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -t -c \
   "SELECT 'version_articulo', COUNT(*) FROM version_articulo
    UNION ALL SELECT 'norma', COUNT(*) FROM norma
    UNION ALL SELECT 'documento', COUNT(*) FROM documento;"
@@ -245,7 +245,7 @@ df -h / | tail -1
 
 echo ""
 echo "--- Errores recientes ---"
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -t -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -t -c \
   "SELECT worker, error, COUNT(*) FROM sync_log
    WHERE error IS NOT NULL AND started_at > NOW() - INTERVAL '24 hours'
    GROUP BY worker, error ORDER BY COUNT(*) DESC LIMIT 10;"

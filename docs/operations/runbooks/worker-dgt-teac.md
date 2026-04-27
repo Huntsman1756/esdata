@@ -32,7 +32,7 @@ Sincronizan doctrina interpretativa y enlazan documentos con articulos.
    - `python apps/workers/dgt.py --run-once`
    - `python apps/workers/teac.py --run-once`
 4. validar con:
-   - `python scripts/validate-cron-run.py --db-url ...`
+   - `python scripts/maintenance/validate-cron-run.py --db-url ...`
 
 ## Recuperación básica
 

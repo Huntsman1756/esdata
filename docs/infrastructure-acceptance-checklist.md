@@ -48,7 +48,7 @@ Checklist final para validar que `esdata` queda aceptado por el equipo de infrae
 - [ ] `GET /v1/legislacion/cobertura` devuelve datos
 - [ ] `GET /v1/modelos` devuelve datos
 - [ ] frontend carga correctamente
-- [ ] `scripts/smoke-check.py --base-url ...` pasa
+- [ ] `scripts/ops/smoke-check.py --base-url ...` pasa
 
 ## Operación
 

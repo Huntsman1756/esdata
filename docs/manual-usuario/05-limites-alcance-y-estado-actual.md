@@ -1,0 +1,61 @@
+# Limites, alcance y estado actual
+
+## Alcance actual
+
+`esdata` esta orientado a datos y consulta fiscal-regulatoria con foco actual en `sociedad de valores` en Espana.
+
+El producto no esta planteado como terminal de mercados, herramienta de trading ni sistema de ejecucion financiera.
+
+## Estado funcional actual a alto nivel
+
+Segun el roadmap activo del repo, el sistema ya tiene operativas capas de:
+
+- retrieval y chunking
+- corpus regulatorio prioritario
+- perfil regulatorio y aplicabilidad inicial
+- obligaciones operativas enriquecidas
+- change impact
+- workflow de compliance
+- UI interna minima
+- PGC
+- ingestion `legalize-es`
+
+Esto no significa que todos los dominios esten completos al mismo nivel de profundidad. Significa que existen slices funcionales ya implementados y consultables.
+
+## Fuera de alcance inicial
+
+- legal horizontal generalista
+- litigacion civil o laboral amplia
+- mezclar conocimiento privado del cliente con el corpus publico base sin una capa separada
+
+## Limitaciones practicas importantes
+
+- la cobertura real depende de las fuentes ya normalizadas y expuestas por API
+- algunas capas estan orientadas a consulta y trazabilidad, no a automatizacion cerrada extremo a extremo
+- el roadmap puede tener fases futuras planificadas que todavia no deben asumirse como disponibles para usuario final
+- `MCP` y `API` no sustituyen validacion experta humana en escenarios legales o regulatorios sensibles
+- la UI interna existe, pero el backend sigue siendo la capa canonica
+
+## Regla sobre cobertura
+
+No asumir que cualquier tema legal o financiero esta soportado por el producto solo porque exista infraestructura generica. La cobertura real depende de las fases implementadas y de la documentacion permanente del repo.
+
+## Donde ver el estado vivo
+
+Para saber:
+
+- que fase esta activa
+- que esta completado
+- que sigue pendiente
+- que decision estructural esta vigente
+
+consultar siempre `../master-execution-roadmap.md`.
+
+## Regla de mantenimiento
+
+Cuando una tarea cambie el alcance util para el usuario, habilite una capacidad nueva, retire una anterior o introduzca una limitacion relevante, este capitulo debe actualizarse.
+
+Referencias utiles:
+
+- `../master-execution-roadmap.md`
+- `../../README.md`

@@ -5,6 +5,13 @@
 Este documento cubre la operación diaria de esdata en producción.
 Todos los comandos asumen que se ejecutan desde la raiz del repo en el servidor.
 
+## Workflow del agente
+
+- Secuencia operativa estandar: `agent-workflow.md`
+- Memoria operativa acumulada para futuros agentes: `agent-notes.md`
+- Estado activo y siguiente paso: `../master-execution-roadmap.md`
+- Reglas globales: `../../AGENTS.md`
+
 ## Monitoreo de salud
 
 ### Ver estado de todos los servicios
@@ -77,10 +84,10 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic log --re
 
 ```bash
 # Backup completo
-docker compose -f infra/deploy/docker-compose.prod.yml exec db pg_dump -U esdata esdata > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Backup con gzip
-docker compose -f infra/deploy/docker-compose.prod.yml exec db pg_dump -U esdata esdata | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
 
 # Backup con cron (ya configurado en server-installation.md)
 ```
@@ -89,28 +96,28 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec db pg_dump -U esdata
 
 ```bash
 # Restaurar desde archivo SQL
-gunzip -c backup_20260425_030000.sql.gz | docker compose -f infra/deploy/docker-compose.prod.yml exec -T db psql -U esdata esdata
+gunzip -c backup_20260425_030000.sql.gz | docker compose -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata esdata
 
 # Restaurar desde archivo sin gzip
-cat backup_20260425_030000.sql | docker compose -f infra/deploy/docker-compose.prod.yml exec -T db psql -U esdata esdata
+cat backup_20260425_030000.sql | docker compose -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata esdata
 ```
 
 ### Verificacion de integridad
 
 ```bash
 # Contar documentos por tabla
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT 'version_articulo' AS tabla, COUNT(*) FROM version_articulo
    UNION ALL SELECT 'norma', COUNT(*) FROM norma
    UNION ALL SELECT 'documento', COUNT(*) FROM documento
    UNION ALL SELECT 'modelo_aeat', COUNT(*) FROM modelo_aeat;"
 
 # Verificar extensiones
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT extname FROM pg_extension WHERE extname IN ('pg_trgm', 'vector');"
 
 # Verificar tamanio de DB
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT pg_size_pretty(pg_database_size('esdata'));"
 ```
 
@@ -118,14 +125,14 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d
 
 ```bash
 # Detectar indices corruptos
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT indexrelid::regclass AS indice, indrelid::regclass AS tabla
    FROM pg_index i
    JOIN pg_class c ON c.oid = i.indexrelid
    WHERE NOT c.relhasindex;"
 
 # Reconstruir indice
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "REINDEX INDEX indice_corrupto;"
 ```
 
@@ -182,7 +189,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml logs api | grep ERROR
 ```bash
 # Verificar que la API puede conectar a Postgres
 docker compose -f infra/deploy/docker-compose.prod.yml exec api python -c \
-  "from esdata_common.db import SessionLocal; SessionLocal().execute('SELECT 1'); print('OK')"
+  "from db import SessionLocal; SessionLocal().execute('SELECT 1'); print('OK')"
 ```
 
 ## Operaciones de Web
@@ -272,16 +279,16 @@ docker compose -f infra/deploy/docker-compose.prod.yml restart api
 
 ```bash
 # 1. Verificar tamanio de tablas
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname || '.' || tablename)) AS size
    FROM pg_tables ORDER BY pg_total_relation_size(schemaname || '.' || tablename) DESC LIMIT 10;"
 
 # 2. Limpiar tablas temporales si existen
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "DELETE FROM tabla_temporal WHERE fecha < NOW() - INTERVAL '30 days';"
 
 # 3. Vacuum
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "VACUUM ANALYZE;"
 ```
 

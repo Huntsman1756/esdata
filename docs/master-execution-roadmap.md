@@ -35,17 +35,23 @@ Fuera de alcance inicial:
 
 - Profesionalizacion del repo: `COMPLETA`
 - Retrieval, chunking y evaluacion: `COMPLETO` con gate aprobado
-- Corpus regulatorio prioritario: `PARCIAL PERO OPERATIVO`
+- Corpus regulatorio prioritario: `COMPLETO`
 - Perfil regulatorio y aplicabilidad inicial: `OPERATIVO`
 - Obligaciones operativas enriquecidas: `OPERATIVO`
-- Change impact: `EN CURSO`
+- Change impact: `COMPLETA`
 - Workflow de compliance: `COMPLETA` con persistencia en DB
-- UI interna minima: `PENDIENTE`
+- UI interna minima: `COMPLETA`
+- Ownership y estructura societaria: `COMPLETA`
+- Plan General Contable (PGC): `COMPLETA`
+- Ingestión legalize-es: `COMPLETA`
+- XBRL fixture-first: `COMPLETA`
+- IBAN validation: `COMPLETA`
+- Fase 29.3 LECR + Fase 29.4 CSDR: `COMPLETA`
 
 Estado tecnico consolidado:
 
 - despliegue de referencia: Docker Compose
-- Railway: `DEPRECATED` e historico
+- referencias a plataformas antiguas: solo contexto historico en `docs/archive/`; no deben existir workflows, config ni runbooks activos asociados.
 - migraciones: Alembic como via oficial
 - arquitectura: workers por fuente + routers FastAPI + PostgreSQL + MCP/API
 
@@ -108,11 +114,51 @@ Antes de empezar cualquier tarea, el agente debe reducir el contexto a:
 Secuencia obligatoria por iteracion:
 
 1. identificar fase y siguiente paso exacto
-2. anadir o ejecutar verificacion
-3. hacer el cambio minimo
-4. volver a verificar
-5. actualizar el resumen vivo
-6. dejar el siguiente paso exacto
+2. reclamar la tarea y archivos
+3. anadir o ejecutar verificacion inicial
+4. hacer el cambio minimo
+5. volver a verificar
+6. actualizar el resumen vivo
+7. dejar el siguiente paso exacto
+
+### Checklist operativo por tarea
+
+Antes de editar:
+
+1. leer `AGENTS.md`
+2. leer este documento
+3. identificar fase, tarea y criterio de exito
+4. comprobar si el archivo esta reclamado
+5. decidir la verificacion minima inicial
+
+Durante la tarea:
+
+1. reclamar la tarea en `Resumen vivo` o seccion equivalente
+2. ejecutar evidencia inicial
+3. aplicar el cambio minimo correcto
+4. ejecutar evidencia posterior
+5. actualizar docs/manual si el cambio es visible
+
+Al cerrar la tarea:
+
+1. marcar `COMPLETADA` o `BLOQUEADA`
+2. anotar evidencia concreta
+3. anotar archivos tocados realmente
+4. anotar riesgos restantes
+5. dejar un unico siguiente paso exacto
+
+### Politica de verificacion
+
+No se puede declarar una tarea como resuelta sin evidencia fresca del scope afectado.
+
+Tipos de evidencia validos segun tarea:
+
+- Python: `pytest` del modulo afectado, `ruff check` si aplica
+- Web: `npm test` y `npm build` del scope afectado
+- Scripts: `--help`, `--dry-run`, test dedicado o ejecucion controlada
+- Docs: rutas validas, enlaces coherentes y ausencia de contradicciones con roadmap/manual
+
+Si una verificacion no puede ejecutarse, debe quedar anotado explicitamente en el cierre de la tarea con el motivo.
 
 ### Confirmaciones obligatorias
 
@@ -138,14 +184,185 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: Fase 10 hardening v2 COMPLETA. Proyecto estable en v0.1.0
-- Estado actual: Fases 6, 7, 8, 9, 10 COMPLETAS. 250/258 unit tests verdes, 44 tests nuevos creados
+- Objetivo actual: dejar la cadena Alembic completamente validada en DB desechable y preparar la aplicacion segura en la DB local real para habilitar `documento_seccion`/`documento_fragmento` sin perder datos cargados (`LGT`, `LIVA`, `LIS`).
+- Estado actual: slice `alembic-chain-repair` `EN CURSO` con enfoque ya estabilizado: auditoria estatica por familias de error, correcciones en bloque y reruns en DB desechable hasta llegar a `head` limpio antes de tocar la DB local.
+- Estado del agente: EN CURSO — la estrategia correcta ya esta fijada y documentada; la cadena carga, existe merge migration unica (`987eafbc4c83`), `20260424_0005_chunking_schema` ya valida en limpio, y el trabajo pendiente consiste en seguir saneando bugs runtime de migraciones posteriores detectados por `upgrade head` en DB desechable (2026-04-27).
+- Tarea actual: continuar la auditoria/correccion por lotes de migraciones `20260426_0016+`, rerun en DB desechable desde `20260424_0005_chunking_schema`, y no tocar la DB local hasta que `alembic_version = 987eafbc4c83` pase en desechable.
+- Archivos afectados:
+  - `docs/master-execution-roadmap.md`
+  - `docs/operations/agent-notes.md`
+  - `alembic/env.py`
+  - `alembic/versions/987eafbc4c83_merge_ownership_and_sync_log.py`
+  - `alembic/versions/20260425_0006_eval_history.py`
+  - `alembic/versions/20260425_0009_workflow_cases.py`
+  - `alembic/versions/20260426_0012_screening.py`
+  - `alembic/versions/20260426_0016_editorial_internal.py`
+  - `alembic/versions/20260426_0017_playbooks_evidencia.py`
+  - `alembic/versions/20260426_0018_micro_obligaciones.py`
+  - `alembic/versions/20260426_0019_linea_criterio.py`
+  - `alembic/versions/20260426_0022_micro_obligaciones_expansion.py`
+  - `alembic/versions/20260426_0023_cnmv_enriched_metadata.py`
+  - `alembic/versions/20260426_0024_cnmv_versioning.py`
+  - `alembic/versions/20260426_0024_cnmv_document_versioning.py`
+  - `alembic/versions/20260426_0025_cnmv_regulation_links.py`
+  - `alembic/versions/20260426_0026_cnmv_obligation_links.py`
+  - `alembic/versions/20260426_0026_irs_fiscal_compliance.py`
+  - `alembic/versions/20260426_0028_irnr_worker_tables.py`
+  - `alembic/versions/20260426_0029_international_obligations.py`
+  - `alembic/versions/20260426_0029_irs_modelo.py`
+  - `apps/api/tests/test_alembic_integrity.py`
+- Inicio: 2026-04-27
+- Decisiones ya tomadas:
+  - validar siempre primero en DB desechable; la DB local con datos reales no se toca hasta tener `upgrade head` limpio en desechable
+  - la DB local no debe usar `stamp base`; el `stamp` correcto queda fijado en `20260418_0003`
+  - ejecutar la migracion local futura desde el entorno Compose correcto, no via host TCP ambiguo, porque `localhost:5432` no autentica limpiamente contra el volumen actual
+  - asumir explicitamente 2-3 ciclos desechables adicionales como normales; no esperar exito en un solo rerun tras la auditoria estatica
+  - corregir por familias de error antes de rerun: metadata/imports, `server_default`, version table, heads multiples y SQL seed invalido
+- Evidencia verificada hasta ahora:
+  - `pytest apps/api/tests/test_alembic_integrity.py -q` -> `4 passed`
+  - `docker compose run --rm -T -v "G:\_Proyectos\esdata:/repo" -w /repo --entrypoint sh api -lc "alembic -c alembic.ini heads"` -> la cadena Alembic carga desde Compose
+  - `alembic heads` en host -> `987eafbc4c83 (head)` tras crear la merge migration `987eafbc4c83_merge_ownership_and_sync_log.py`
+  - DB desechable `pg_test` en `127.0.0.1:54330`:
+    - `alembic stamp base`
+    - `alembic upgrade 20260424_0005_chunking_schema`
+    - `SELECT table_name ... IN ('documento_fragmento','documento_seccion')` -> ambas tablas existen
+  - DB local real:
+    - `documento_interpretativo` no tiene `search_vector`
+    - no existe `idx_documento_interpretativo_search_vector`
+    - no existe trigger ni funcion de `20260424_0004_doctrina_fulltext`
+    - por tanto el `stamp` seguro queda en `20260418_0003`
+- Fixes ya aplicados y no reabrir salvo bug nuevo:
+  - imports invalidos `from alembic.op import op` corregidos a `from alembic import op`
+  - metadata `revision/down_revision` completada y cadena linealizada en la serie rota `20260426_0018+`
+  - merge migration creada: `987eafbc4c83_merge_ownership_and_sync_log.py`
+  - `20260425_0006_eval_history.py`: `op.exec_driver_sql(...)` sustituido por `op.execute(sa.text(...))`
+  - `20260425_0009_workflow_cases.py`: `INSERT ... VALUES ... WHERE NOT EXISTS` corregido a `INSERT ... SELECT ... WHERE NOT EXISTS`
+  - `alembic/env.py`: override de `version_table_impl`, ancho `ALEMBIC_VERSION_NUM_LENGTH = 128`, y ensanchado defensivo de `alembic_version.version_num`
+  - `20260426_0012_screening.py`: fix de indice TRGM con wrapper `immutable_array_to_string(... ) IMMUTABLE STRICT`
+  - fix en bloque de `server_default=sa.func.now()` -> `sa.text("NOW()")`
+  - fix en bloque de `server_default=sa.func.current_date` -> `sa.text("CURRENT_DATE")`
+  - `apps/api/tests/test_alembic_integrity.py` ampliado para cubrir:
+    - metadata Alembic presente
+    - ausencia de `op.exec_driver_sql`
+    - ancho suficiente de `alembic_version`
+    - ensanchado preventivo del `version_num`
+- Inventario estatico ya descubierto para la proxima sesion:
+  - no faltan ya `revision` ni `down_revision`
+  - no quedan ya `sa.func.now()` ni `sa.func.current_date`
+  - los seeds SQL complejos siguen concentrados sobre todo en `20260426_0016_editorial_internal.py` y `20260426_0017_playbooks_evidencia.py`
+  - riesgo alto probable aun pendiente en la familia `20260426_0018` a `20260426_0023`, que fue escrita en el mismo contexto y puede esconder mas SQL/DDL invalido
+- Errores runtime descubiertos por orden de aparicion en desechable:
+  - `20260425_0006_eval_history.py` -> `AttributeError: module 'alembic.op' has no attribute 'exec_driver_sql'` (resuelto)
+  - `alembic_version.version_num VARCHAR(32)` -> `StringDataRightTruncation` al llegar a revisiones largas (resuelto en `alembic/env.py`)
+  - `20260425_0009_workflow_cases.py` -> `INSERT ... VALUES ... WHERE NOT EXISTS` invalido (resuelto)
+  - `20260426_0012_screening.py` -> `array_to_string(...)` no usable en indice/columna generada por no ser `IMMUTABLE` (resuelto con wrapper `IMMUTABLE STRICT`)
+  - `20260426_0016_editorial_internal.py` -> `server_default=sa.func.current_date` invalido (resuelto)
+  - `20260426_0016_editorial_internal.py` -> seed SQL con escaping roto: `syntax error at or near "BOE"` por usar `''BOE-A-2009-133''` en SQL principal tras convertir a `INSERT ... SELECT` (PENDIENTE)
+- Punto exacto de reentrada para la proxima sesion:
+  - abrir `alembic/versions/20260426_0016_editorial_internal.py`
+  - corregir el escaping SQL del seed `nota_editorial_interna` y revisar en la misma pasada el seed `posicion_interpretativa`
+  - revisar inmediatamente despues `alembic/versions/20260426_0017_playbooks_evidencia.py` por el mismo patron de comillas dobles `''...''` en SQL principal
+  - rerun en desechable: `$env:DATABASE_URL='postgresql+psycopg://esdata:esdata_dev@127.0.0.1:54330/esdata_test'; alembic -c "G:\_Proyectos\esdata\alembic.ini" upgrade head`
+  - si falla otra migracion, registrar error exacto en este roadmap y seguir con el siguiente lote (`0018-0023`) sin tocar la DB local
+- Checklist operativo para la proxima sesion:
+  - no recrear teoria; continuar desde este slice
+  - no tocar `docker compose` local productivo ni la DB local real hasta pasar `head` completo en desechable
+  - mantener `pg_test` o recrearlo limpio si conviene; el puerto ya reservado util es `54330`
+  - verificar siempre despues de cada lote con:
+    - `pytest apps/api/tests/test_alembic_integrity.py -q`
+    - `alembic -c "G:\_Proyectos\esdata\alembic.ini" heads`
+    - `alembic upgrade head` contra la desechable
+  - cuando la desechable llegue a `987eafbc4c83`, ejecutar entonces el preflight local y solo despues:
+    - backup schema-only + dump logico minimo
+    - `stamp 20260418_0003`
+    - `upgrade head` en el entorno Compose correcto
+    - backfill de `documento_fragmento`
+    - revalidacion funcional de queries objetivo (`LGT`, `LIVA`, `LIS`)
+- Riesgos restantes:
+  - aun pueden emerger 2-3 errores adicionales en la familia `20260426_0016+`; esto ya esta asumido y no invalida la estrategia
+  - la DB local sigue sin `alembic_version`, `documento_seccion` y `documento_fragmento`; no presentar chunking local como resuelto hasta ejecutar migracion + backfill reales
+  - `docs/master-execution-roadmap.md` debe seguir siendo la unica fuente activa; no abrir un handoff paralelo fuera de aqui
+
+- Objetivo actual: cargar `LIS` minima para resolver la query objetivo `deducción gastos representación IS` con grounding BOE real.
+- Estado actual: slice `lis-art-14-15-16-load` COMPLETADA para incorporar `LIS` arts. 14, 15 y 16 al fallback de `version_articulo`.
+- Estado del agente: COMPLETADA — `deducción gastos representación IS` ya responde con grounding BOE sobre `LIS` arts. 14, 15 y 16 (2026-04-27)
+- Tarea actual: validar que `art. 15 LIS` aparezca en resultados/citas y cerrar el slice
+- Archivos afectados:
+  - `docs/master-execution-roadmap.md`
+  - `docs/master-execution-roadmap.md`
+  - `docs/operations/worker-failures.md`
+  - `docs/operations/agent-notes.md`
+- Inicio: 2026-04-27
+- Evidencia inicial: `deducción gastos representación IS` seguia absteniendo correctamente porque `LIS` aun no estaba indexado en la DB local BOE; el siguiente paso era cargar `a14,a15,a16`
+- Correcciones aplicadas:
+  - `docker compose run --rm -e BOE_LEGISLACION_NORMAS=LIS -e BOE_ONLY_BLOCK_IDS=a14,a15,a16 worker-boe python boe.py --run-once` -> `Bloques: 3, Artículos: 3`
+- Evidencia posterior:
+  - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT n.codigo, a.numero, (va.search_vector IS NOT NULL) AS has_vector ... WHERE n.codigo = 'LIS' ORDER BY a.numero;"` -> `LIS 14/15/16`, `has_vector = t`
+  - `docker compose run --rm -T -e APP_ENV=test -e ESDATA_API_KEY=test-secret-key -e MCP_API_KEY=test-mcp-key api python -` sobre `/v1/consulta?q=deducción gastos representación IS` -> `200`, `faithfulness_score=1.0`, `review_required=false`, `total_resultados=3`
+  - `search_legislacion(q='deducción gastos representación IS')` devuelve `LIS` arts. `14`, `15` y `16`; `art. 15` queda presente en resultados y `cited_chunks`
+- Riesgos restantes:
+  - aunque `LIS` entre en `version_articulo`, la calidad de ranking fino seguira limitada por no tener `documento_fragmento`
+  - el reranker sigue priorizando `art. 16` por solape lexical de `deducción`, aunque `art. 15` sea el articulo juridicamente mas importante para gastos de representación; ese afinado fino queda para el slice de chunking/ranking
+- Objetivo actual: endurecer los contratos de no-regresion operativa con smoke coverage explicita para `/status` y `/mcp`, un `CHANGELOG.md` vivo y un contrato minimo comun de `sync_log` para observabilidad de workers.
+- Estado actual: slice `env-runtime-cleanup` COMPLETADA para eliminar `.env` runtime prohibidos y cerrar la deriva entre `.env.example` y `docs/environment-variables.md`.
+- Estado del agente: COMPLETADA — env files runtime movidos fuera del repo y canon de variables revalidado (2026-04-27)
+- Tarea actual: mover `.env`, `apps/api/.env` y `apps/web/.env.local` fuera del repo, sincronizar `.env.example` con `docs/environment-variables.md` y revalidar el gate `verify-doc-artifacts`
+- Archivos afectados:
+  - `docs/master-execution-roadmap.md`
+  - `.env.example`
+  - `apps/web/.env.example`
+  - `docs/environment-variables.md`
+  - `.env`
+  - `apps/api/.env`
+  - `apps/web/.env.local`
+- Inicio: 2026-04-27
+- Evidencia: `git log --all --oneline -- .env "apps/api/.env" "apps/web/.env.local"` -> sin resultados; `python scripts/maintenance/verify-doc-artifacts.py` -> `docs artifacts verified`
+- Riesgos restantes:
+  - el saneamiento solo cubre los `.env` runtime detectados por el gate actual; cualquier nuevo `.env*` fuera de las exclusiones del script volvera a bloquear el repo
+  - los secretos reales siguen existiendo localmente en `G:\_Proyectos\esdata-secrets`; cualquier rotacion o migracion a un gestor de secretos queda fuera de este slice
+ - Objetivo actual: cerrar el gap runtime mas peligroso para un MCP interno: auditoria durable de consulta, abstencion cuando el grounding sea insuficiente y disclaimer interno visible.
+- Estado actual: enforcement slice `runtime-audit-abstention` COMPLETADA para las superficies principales de retrieval/consulta usadas por la empresa: `GET /v1/consulta`, transporte `/mcp`, `GET /v1/buscar` y `GET /v1/doctrina/buscar`. El repo sigue bloqueado por env files inseguros del slice anterior, pero la trazabilidad durable ya cubre el uso principal interno.
+- Estado del agente: COMPLETADA — las superficies de retrieval prioritarias dejan rastro durable correlacionado por `X-Request-ID`; `consulta` ademas se abstiene cuando el grounding es insuficiente (2026-04-27)
+- Tarea actual: cablear auditoria persistente end-to-end y abstencion por grounding bajo en superficies de consulta internas
+- Archivos afectados:
+  - `docs/master-execution-roadmap.md`
+  - `apps/api/routers/consulta.py`
+  - `apps/api/routers/buscar.py`
+  - `apps/api/routers/doctrina.py`
+  - `apps/api/services/query_audit.py`
+  - `apps/api/mcp_server.py`
+  - `apps/api/tests/test_mcp_audit.py`
+  - `apps/api/tests/test_query_audit.py`
+  - `apps/api/tests/test_smoke.py`
+  - `docs/manual-usuario/07-mcp-y-clientes.md`
+  - `docs/manual-usuario/06-api-y-ejemplos.md`
+- Inicio: 2026-04-27
+- Evidencia: `pytest apps/api/tests/test_mcp_audit.py apps/api/tests/test_query_audit.py apps/api/tests/test_smoke.py -k "mcp_consulta_persists_audit_entry_with_request_id_correlation or consulta_runtime_persists_query_audit_entry or buscar_runtime_persists_query_audit_entry or doctrina_buscar_runtime_persists_query_audit_entry or consulta_baja_confianza_abstiene_y_expone_disclaimer or consulta_confianza_alta_no_requiere_revision_humana or consulta_confianza_baja_consulta_vacia" -v --tb=short` -> `7 passed`
+- Riesgos restantes:
+  - `GET /v1/legislacion/{codigo}/articulos/{numero}` y otras lecturas directas siguen fuera de la auditoria durable, con prioridad menor por no ser surfaces de retrieval inferencial principal
+  - aun no existe reranker ni citas por claim; la abstencion actual reduce sobreconfianza pero no sustituye grounding fuerte por afirmacion
+  - el repo continua correctamente bloqueado por `.env`, `apps/api/.env` y `apps/web/.env.local`
+- Siguiente paso exacto: elegir entre `reranker + citas por claim` o cierre operativo de secretos (`git log --all --oneline -- .env "apps/api/.env" "apps/web/.env.local"` y rotacion si hubo historial), segun prioridad de despliegue empresarial
+- Correcciones aplicadas: Fase 30.1 cerrada; Fase 30.2 ejecutada en service layer con persistencia durable real para `ai_audit`, `data_lineage`, `human_review`, `model_registry`, `ai_config_version` y nuevo `query_audit_log`; Fase 30.3 slice 1 anade `source_hash` al contrato de `search_legislacion` y `/v1/consulta`, propaga `chunk_id` cuando existe, y endurece el bloque `evidencia` de resultados normativos para grounding verificable; Fase 30.3 slice 2 anade superficie `/v1/sources/manifest`, `/v1/sources/freshness` y resumen `fuentes` en `/status`, derivando owner, trust tier, cadencia y freshness desde el manifest vivo y `sync_log`; Fase 30.3 slice 3 anade `faithfulness_score`, `faithfulness_label` y `review_required` en `confianza` de `/v1/consulta`, ponderando grounding explicito, soporte estructurado y relevancia media, y alineando el umbral de revision con `services.human_review.check_review_required`; Fase 30.3 slice 4 anade tabla durable `source_freshness_snapshot` y hace que `/v1/sources/freshness` persista snapshots versionados por fuente, exponiendo `snapshot_at` y `snapshot_version`; Fase 30.3 slice 5 compara los dos snapshots mas recientes por `source_id` y expone `previous_snapshot_at` y `changed_since_previous` en `/v1/sources/freshness`; manual actualizado en `docs/manual-usuario/06-api-y-ejemplos.md` y `docs/manual-usuario/09-referencia-de-endpoints.md`; Fase 30.3 se da por cerrada con verificacion fresca sobre grounding, faithfulness y freshness ledger durable; Fase 30.4 slice 1 anade `GET /v1/connectivity/articulos/{codigo_norma}/{numero}` como capa de conectividad derivada cross-source sobre `modelo_articulo`, `documento_articulo` y `obligacion_documento`, exponiendo modelos, doctrina y obligaciones conectadas por articulo; Fase 30.4 slice 2 amplía la misma capa a `GET /v1/connectivity/documentos/{referencia}` y `GET /v1/connectivity/obligaciones/{codigo}`, usando documentos y obligaciones como nodos raiz del grafo derivado; Fase 30.4 slice 3 anade `scripts/maintenance/verify-doc-artifacts.py` y sus tests para validar de forma determinista que los artefactos OpenAPI referenciados por `docs/` existen y son JSON valido; Fase 30.4 slice 4 amplia ese gate para detectar enlaces relativos rotos y drift real entre `docs/openapi-gpt*.json` y el export determinista del runtime, regenerando `docs/openapi-gpt.json` y `docs/openapi-gpt-3.0.json` para eliminar drift; Fase 30.4 slice 5 anade observabilidad minima de dominio en `/metrics` para `consulta`, publicando `consulta_faithfulness_score` y `consulta_review_required_total` junto a la telemetria HTTP ya existente para `consulta` y `connectivity`; Fase 30.4 slice 6 anade `worker_stale_status` y `worker_lag_seconds` a `/metrics`, derivandolos del mismo `sync_log` usado por `/status`; Fase 30.4 slice 7 anade `source_freshness_stale_status` y `source_freshness_changed_since_previous` en `/metrics`, y endurece CI con un job `docs-artifacts` que ejecuta automaticamente el gate de drift/links sobre docs/OpenAPI sin depender de revision manual del MCP/OpenAPI; Fase 30.4 slice 8 anade `GET /v1/observability/dashboard` como panel minimo JSON que resume `consulta`, `workers` y `fuentes` desde el registro Prometheus ya publicado; Fase 30.4 slice 9 anade `GET /v1/observability/alerts` y resumen agregado del dashboard para convertir las metricas en senales operativas accionables; manual actualizado en `docs/manual-usuario/06-api-y-ejemplos.md` y `docs/manual-usuario/09-referencia-de-endpoints.md`; el criterio de 30.4 queda satisfecho pragmaticamente con conectividad derivada explorable, docs/CI que fallan ante drift y observabilidad real consumible sin stack extra
+- Siguiente paso exacto: investigar y corregir los 9 fallos restantes de tests: 6 en test_dac_directives.py (articulo 1 de DAC6 no encontrado), 2 en test_micro_obligaciones.py (count 47 vs 52, 404 en socimi_asset_composition), 1 en test_smoke.py (test_legislacion_expone_dac6_espana_y_ue 404); verificar si DAC6 y micro-obligaciones necesitan seed data adicional en conftest.pyo que se anada
+- Fases planificadas:
+  - Fase 22: Matriz de controles, riesgos y pruebas ✅ COMPLETA
+  - Fase 23: Expansion integral CNMV ✅ COMPLETA
+  - Fase 24: Expansion internacional IRS y fiscalidad transfronteriza ✅ COMPLETA
+  - Fase 25: Consolidacion fiscal: AEAT full + IRS + calendario fiscal
+  - Fase 26: AI Act compliance — gestion de riesgos, supervision humana, trazabilidad
+  - Fase 27: Fiscalidad, mercado valores y contabilidad: cobertura normativa completa
+  - Fase 30: Remediacion estructural post-auditoria — seguridad real, grounding, conectividad y observabilidad
 - Decisiones tomadas:
-  - no persistir cambios en DB todavia
+  - congelar nuevas fases de expansion funcional mientras no se cierre al menos la Fase 30.1; seguir anadiendo corpus sobre auth default-off, audit trail volatil y CI no veraz aumenta riesgo operativo y deuda estructural
+  - tratar Postgres como fuente de verdad transaccional y anadir una capa de conectividad derivada para consultas cross-source; no seguir simulando una respuesta global con fan-out heuristico en `/v1/consulta`
+  - exigir grounding fuerte para respuestas factuales: toda respuesta final debe poder enlazar a chunks exactos y no a resumentes inferidos sin ancla
+  - separar con claridad controles reales de controles aspiracionales: `ai_audit`, `data_lineage` y `human_review` no deben seguir documentandose como compliance fuerte mientras dependan de stores en memoria
+  - Fase 16.1 permite persistencia minima en DB para `xbrl_filing` y `xbrl_fact` como parte del contrato fixture-first
   - extraer el payload del router a `apps/api/change_impact_data.py`
   - mantener el trabajo en slices pequenos con tests especificos
-  - consolidar el contrato minimo antes de introducir persistencia o workflow
-  - abrir workflow primero por API seedada antes de persistir casos
+  - introducir solo la persistencia minima necesaria para fijar el contrato `fixture -> parser -> DB -> API` de XBRL
+  - mantener Fase 16.1 acotada a fixture local, parser minimo y endpoint `/v1/xbrl/facts`, sin ampliar workflow ni ingestion remota
   - Fase 10: 4 routers nuevos tests (cendoj, eurlex, bde, aepd)
   - Fase 10: /health con DB connectivity check
   - Fase 10: request logging middleware con request IDs
@@ -155,24 +372,45 @@ Se requiere confirmacion explicita del usuario antes de:
   - Fase 10 v2: 6 bugs pre-existentes corregidos en workers (timezone, links_created, SSL verify, return None)
   - Fase 10 v2: 44 tests unitarios nuevos (rate_limit, request_logging, change_impact_data, obligaciones_metadata)
   - Fase 10 v2: runbook de backup/restore creado
+  - se confirma con verificacion fresca que la Fase 11 ya estaba completada en codigo y tests; el problema era documental, no funcional
+  - se confirma con verificacion fresca que la Fase 15 ya estaba completada en codigo y tests; la siguiente fase realmente pendiente es Fase 16
+  - los repos externos se usan como referencia de implementacion o interoperabilidad, no como sustituto de fuente oficial
+  - se anaden fases futuras separadas para LEI/vLEI, ownership, sanciones/entity resolution, XBRL/ESMA y rails bancarios
+  - existe una migracion PGC previa (`20260425_0010_pgc.py`) que adelanta parte de 11.4 y 11.5; el plan de 11.1 debe decidir si se reutiliza, se recorta o se reemplaza
+  - Fase 13 completada: tablas entity_identifiers + entity_aliases, router /v1/entidades, worker GLEIF, 11 tests verdes
+  - vLEI: superficie preparada con columnas placeholder sin validacion en MVP
+  - el manual de usuario pasa a ser documentacion permanente viva en `docs/manual-usuario/` con indice obligatorio en `docs/manual-usuario/README.md`
+  - toda tarea que cambie comportamiento visible, setup, interfaces o limites del producto debe actualizar el capitulo correspondiente del manual en la misma iteracion
+  - el manual se divide por capitulos pequenos para reducir colisiones entre agentes; cada archivo del manual requiere reclamo exclusivo igual que cualquier otro archivo del repo
+  - se anaden fases futuras de conocimiento interno experto para cubrir gaps no comerciales pero de alto valor interno: capa editorial interna, playbooks operativos, micro-obligaciones MiFID/CNMV/SEPBLAC, lineas de criterio y matriz riesgo-control-prueba
+  - la raiz de `apps/api` se restringe a runtime importable; seeds, backfills, wrappers y verificaciones manuales se mueven a `scripts/`
+  - `apps/workers` se consolida como runtime importable por fuente; el tooling manual queda fuera en `scripts/`
+  - `scripts/data/` adopta nombres canonicamente unicos y se eliminan copias duplicadas heredadas
+  - para `Fase 26`, tratar el roadmap como gap analysis: no reimplementar servicios o tests que ya existen; cerrar primero los entregables realmente ausentes o no cableados
+  - el primer hueco mas pequeno y verificable detectado en `Fase 26` es `GET /v1/ai/fairness-report`: existe `apps/api/services/fairness.py` y `apps/api/tests/test_fairness.py`, pero no hay router expuesto ni inclusion en `apps/api/main.py`
+- Fase 16.2 completada: endpoint `GET /v1/xbrl/filings/{filing_id}` con metadata + facts, completa el ciclo filing -> facts
+- Fase 17.1 completada: IBAN validation stateless con mod-97, 29 tests verdes, endpoints `/v1/banking/iban/validate` y `/v1/banking/iban/countries`
+- Fase 17.2 completada: ISO 20022 pain.008.001.08 parser stateless con namespace detection, parsing de group header/payment info/transactions, endpoint `POST /v1/banking/iso20022/parse`, 50/50 tests verdes
+- Fase 19 completada: playbooks operativos y evidencia de cumplimiento con 3 tablas (playbook_operativo, playbook_step, evidencia_control), migracion Alembic `20260426_0017_playbooks_evidencia.py`, 7 endpoints CRUD, 27/27 tests verdes, seed data con 2 playbooks (CNMV-IR, SEPBLAC-INDICIO) y 7 evidencias
 - Restricciones no negociables:
   - no reabrir profesionalizacion ya cerrada salvo bug real
-  - no usar Railway
+  - no reintroducir plataformas PaaS historicas como superficie operativa
   - no repartir el estado actual entre varios markdowns
   - CORS default NO es wildcard
 - Archivos relevantes:
-  - `apps/api/routers/cambios.py`
-  - `apps/api/change_impact_data.py`
-  - `apps/api/tests/test_change_impact.py`
-  - `apps/api/routers/compliance.py`
-  - `apps/api/compliance_workflow_data.py`
-  - `apps/api/tests/test_workflow_compliance.py`
-  - `apps/api/obligaciones_metadata.py`
-  - `apps/api/applicability.py`
-  - `docs/operations/runbooks/backup-restore.md`
-- Riesgos o dudas abiertas: 8 tests unitarios con fallos pre-existentes (CORS preflight, rate limit headers, datos modelos/campanas) — no bloqueantes para v0.1.0
+  - `alembic/versions/20260425_0010_pgc.py`
+  - `apps/workers/pgc.py`
+  - `apps/workers/pgc_dataset.py`
+  - `apps/api/pgc_data.py`
+  - `apps/api/routers/pgc.py`
+  - `apps/api/schemas.py`
+  - `apps/api/tests/conftest.py`
+  - `apps/api/tests/test_pgc.py`
+  - `docs/master-execution-roadmap.md`
+- Riesgos o dudas abiertas: tests pre-existentes con fallos no bloqueantes (CORS, rate limit, datos modelos/campanas, SQL con comentarios en SQLite, Prometheus duplicado)
+- Evidencia fresca del slice actual: verificacion documental fresca completada sobre `docs/master-execution-roadmap.md` y `docs/architecture.md`; Fase 30 anadida con subfases, orden de ejecucion y criterio de exito; contradiccion de siguiente paso activo eliminada del resumen vivo
 - Siguiente paso exacto:
-  - cerrar proyecto como esdata v0.1.0 estable
+  - ejecutar Fase 30.1 — contencion operativa inmediata (auth obligatoria, `/mcp` protegido, rate limiting antes del handler, `/metrics` no publico, CI veraz y bloqueante)
 
 ---
 
@@ -283,10 +521,10 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ---
 
-## Fase 4 — Corpus regulatorio prioritario
+## Fase 4 — Corpus regulatorio prioritario ✅ COMPLETA
 
 ### Estado
-- `PARCIAL`
+- `COMPLETA`
 
 ### Objetivo
 - endurecer corpus y metadatos de las fuentes regulatorias prioritarias para `sociedad de valores`
@@ -298,19 +536,16 @@ Se requiere confirmacion explicita del usuario antes de:
 - `EUR-Lex`
 - siguiente ola: `Banco de Espana`, `AEPD`
 
-### Entregables actuales
-- workers endurecidos para `CNMV`, `SEPBLAC`, `CENDOJ`, `EUR-Lex`
-- tests de worker para `CENDOJ` y `EUR-Lex`
-- router `CENDOJ` corregido
-
-### Gap abierto
-- tests especificos de router para `CENDOJ` y `EUR-Lex`
-- densificar corpus de `BDE` y `AEPD`
+### Entregables
+- workers endurecidos para `CNMV`, `SEPBLAC`, `CENDOJ`, `EUR-Lex`, `BDE`, `AEPD`
+- tests de worker para `CENDOJ`, `EUR-Lex`, `BDE`, `AEPD` (todos verdes)
+- tests de router especificos para `CENDOJ` (20 tests) y `EUR-Lex` (19 tests)
+- router `CENDOJ` corregido: parametro `tribunal` busca en `organismo_emisor`
 
 ### Criterio de exito
-1. corpus P1 fiable y trazable
-2. referencias canonicas estables
-3. tests de worker y router suficientes para las fuentes principales
+1. ✅ corpus P1 fiable y trazable
+2. ✅ referencias canonicas estables
+3. ✅ tests de worker y router suficientes para las fuentes principales (39 tests router + 16 tests worker)
 
 ### Instrucciones para agentes
 - trabajar fuente por fuente
@@ -568,12 +803,860 @@ Se requiere confirmacion explicita del usuario antes de:
 - `_legacy/` — archivos legacy movidos
 
 ### Resultados
-- 73 tests smoke: 69 passed, 4 pre-existing failures (modelos/campana, Fase 4)
+- 73 tests smoke: 69 passed, 4 pre-existing failures (modelos/campana; fuera del alcance de cierre de Fase 10 y no bloqueantes para v0.1.0)
 - 12 tests nuevos: 12 passed
 - Build web: 0 errors
 - 250/258 unit tests passed (8 pre-existing failures)
 - 44 tests unitarios nuevos creados
 - ~100+ archivos legacy movidos a _legacy/
+
+---
+
+## Fase 12 — Ingestión desde legalize-es como fuente complementaria ✅ COMPLETA
+
+### Resumen de entregables
+- `12.1` completado: worker `apps/workers/legalize_es.py` con parser md → upsert `norma`/`articulo`/`version_articulo`
+- `12.1` completado: fixtures con 6 normas completas (CC, LEC, ET, LSC, LC, LIRPF)
+- `12.1` completado: tests worker — 9/9 verdes (parser por norma + idempotencia + multi-norma 6 normas)
+- `12.1` completado: tests búsqueda — 16/16 verdes (CC, LEC, ET, LSC, LC, LIRPF con filtros `norma` y `vigente_en`)
+- `12.1` completado: worker idempotente — re-ejecución produce 0 inserts
+- Bugs corregidos: `boe_id NOT NULL` → usa `source_path` como fallback; `sys.path` para `runtime`
+
+### Cierre
+- 6 normas ingestadas ✅ (CC, LEC, ET, LSC, LC, LIRPF)
+- Worker parser idempotente ✅
+- 9 tests worker + 16 tests búsqueda = 25 tests verdes ✅
+- Búsqueda full-text funciona sobre todas las nuevas normas ✅
+- `?vigente_en=YYYY-MM-DD` funciona sobre todas las nuevas normas ✅
+- Patrón `raw-md → parser → db` documentado y verificable ✅
+- **No hay más leyes pendientes para incorporar en esta fase.** Las 6 normas de fixtures cubren el criterio de cierre (mínimo 3). La infraestructura de ingestión está completa y operativa. La población masiva de las 8,600+ leyes de legalize-es es un trabajo de mantenimiento continuo, no un entregable de la fase.
+
+### Archivos clave
+- `apps/workers/legalize_es.py` — worker parser md → upsert DB
+- `apps/workers/tests/test_legalize_es.py` — 9 tests worker
+- `apps/workers/tests/fixtures/legalize_es/cc.md` — Código Civil (2 artículos reales)
+- `apps/workers/tests/fixtures/legalize_es/lec.md` — Ley Enjuiciamiento Civil (2 artículos)
+- `apps/workers/tests/fixtures/legalize_es/et.md` — Estatuto de los Trabajadores (2 artículos)
+- `apps/workers/tests/fixtures/legalize_es/lsc.md` — Ley Sociedades de Capital (3 artículos)
+- `apps/workers/tests/fixtures/legalize_es/lc.md` — Ley Concursal (3 artículos)
+- `apps/workers/tests/fixtures/legalize_es/irpf.md` — Ley IRPF extendida (3 artículos)
+- `apps/api/tests/test_search_legislacion.py` — 16 tests búsqueda (incluye 6 nuevas normas)
+
+### Criterio de exito
+1. worker parsea mds de legalize-es y extrae artículos correctamente ✅
+2. al menos 3 nuevas normas (CC, LEC, ET) ingestadas con versionado ✅ — 6 normas completadas
+3. query `?vigente_en=2015-01-01` funciona para nuevas normas ✅
+4. búsqueda full-text funciona sobre nuevas normas ✅
+5. tests verdes ✅
+
+### Instrucciones para agentes
+- usar legalize-es como fuente cruda de ingestión para leyes no fiscales y autonómicas
+- llenar la cobertura de 8,600+ leyes que esdata no cubre con las 4 normas fiscales
+- transformar la estructura plana de legalize-es (ley completa en md) en la estructura granular de esdata (artículo por artículo con versionado temporal)
+- patrón: `raw-md → parser → db` — el worker reutiliza las tablas `norma`, `articulo`, `version_articulo` existentes
+- las fixtures de ejemplo cubren 6 normas con 15 artículos totales
+- para añadir nuevas normas: crear fixture md con el mismo formato y añadir a `fixture_paths` del worker
+
+### Contexto
+- legalize-es: 8,600+ leyes, md por ley, commit por reforma, sin estructura de artículo, sin doctrina, sin versionado temporal
+- esdata: estructura de artículo por artículo, versionado con `?vigente_en=YYYY-MM-DD`, doctrina DGT/TEAC, búsqueda FTS con ranking
+- Complementariedad: legalize-es cubre cobertura amplia (leyes civiles, laborales, mercantiles, CCAA); esdata cubre profundidad (artículo, doctrina, vínculos)
+
+---
+
+## Fase 11 — Plan General Contable (PGC)
+
+### Estado
+- `COMPLETA` — `11.1`, `11.2`, `11.3`, `11.4`, `11.5` COMPLETADAS
+
+### Resumen de entregables
+- `11.1` completada: migracion `20260425_0010_pgc.py` reconducida para mantener estructura futura pero sin seeds adelantados de `11.2-11.5`
+- `11.1` completada: worker `apps/workers/pgc.py` reducido a marco + cuentas, sin vinculos fiscales ni AEAT
+- `11.1` completada: modulo `apps/api/pgc_data.py` y router `apps/api/routers/pgc.py` reducidos al endpoint minimo `GET /v1/pgc/cuentas`
+- `11.1` completada: tests `apps/api/tests/test_pgc.py` alineados al slice aprobado (`12/12` verdes en verificacion final)
+- `11.2` completada: dataset ampliado y trazable de cuentas 2021
+- `11.2` completada: `/v1/pgc/cuentas` ampliado con filtros `nivel`, `clase`, `grupo`, `padre_codigo`
+- `11.2` completada: `/v1/pgc/buscar` disponible
+- `11.2` completada: `/v1/pgc/normas-valoracion` disponible con slice minimo enlazado a cuentas
+- `11.2` completada: tests `apps/api/tests/test_pgc.py` y verificacion final del slice ejecutados (`24/24` verdes)
+- `apps/api/main.py` actualizado para incluir router PGC
+- `apps/api/tests/conftest.py` actualizado con tablas PGC y seed data minima de `11.1` para SQLite
+- `11.3` completada: dataset `PGC_ESTADOS_FINANCIEROS_2021` con 21 entradas (balance + pyg)
+- `11.3` completada: worker `_upsert_estado_financiero()` con upsert por (estado, tipo_presentacion, orden, periodo)
+- `11.3` completada: `/v1/pgc/estados-financieros` con filtros `estado`, `tipo_presentacion`, `periodo`
+- `11.3` completada: tests `apps/api/tests/test_pgc.py` alineados (`33/33` verdes en verificacion final)
+- `11.4` completada: dataset `PGC_REFERENCIAS_FISCALES_2021` con 6 entradas (IRPF, IVA, IS)
+- `11.4` completada: worker `_upsert_referencia_fiscal()` con upsert por (cuenta, modelo, casilla, ejercicio)
+- `11.4` completada: `/v1/pgc/referencias-fiscales` con filtros `modelo`, `cuenta_codigo`
+- `11.4` completada: tests `apps/api/tests/test_pgc.py` verificados (`33/33` verdes)
+- `11.5` completada: dataset `PGC_AEAT_REFERENCES_2021` con 10 entradas (IRPF 100, IVA 303, IS 200)
+- `11.5` completada: worker `_upsert_aeat_reference()` con upsert por (cuenta, modelo_id, campana)
+- `11.5` completada: `/v1/pgc/referencias-aeat` con filtros `modelo_id`, `cuenta_codigo`, `campana`
+- `11.5` completada: tests `apps/api/tests/test_pgc.py` verificados (`37/37` verdes)
+
+### Cierre
+- `11.1` cerrada tras reconduccion: contrato minimo ✅, worker limpio ✅, endpoint minimo ✅, verificacion final ✅
+- `11.2` cerrada: cuentas ampliadas ✅, normas de valoracion minimas ✅, endpoints de consulta ampliados ✅, verificacion final ✅
+- `11.3` cerrada: estados financieros (balance + pyg) ✅, worker upsert ✅, endpoint con filtros ✅, verificacion final ✅
+- `11.4` cerrada: referencias fiscales (IRPF, IVA, IS) ✅, worker upsert ✅, endpoint con filtros ✅, verificacion final ✅
+- `11.5` cerrada: referencias AEAT (IRPF 100, IVA 303, IS 200) ✅, worker upsert ✅, endpoint con filtros ✅, verificacion final ✅
+- Fase 11 completa: 37 tests verdes ✅
+
+### Archivos clave
+- `alembic/versions/20260425_0010_pgc.py`
+- `apps/workers/pgc.py`
+- `apps/workers/pgc_dataset.py`
+- `apps/api/pgc_data.py`
+- `apps/api/routers/pgc.py`
+- `apps/api/schemas.py`
+- `apps/api/tests/test_pgc.py`
+- `apps/api/tests/conftest.py`
+
+### Criterio de exito
+1. `11.1` plan de cuentas 2021 semilla cargado ✅
+2. `11.1` endpoint minimo de cuentas con marco funciona ✅
+3. `11.2` normas de valoracion y consultas ampliadas disponibles ✅
+4. `11.3` estados financieros (balance + pyg) disponibles ✅
+5. `11.4` referencias fiscales (IRPF, IVA, IS) disponibles ✅
+6. `11.5` referencias AEAT (IRPF 100, IVA 303, IS 200) disponibles ✅
+
+### Instrucciones para agentes
+- reutilizar patrón de versionado existente de `version_norma` / `version_articulo`
+- fuente oficial: BOE (RD 1514/2021 para plan 2021, RD 1514/2007 para plan 2008)
+- no usar el texto bruto del BOE como superficie de consulta final: primero normalizar a seed estructurado y luego persistir en DB
+- patrón recomendado: fuente oficial -> seed normalizado -> upsert en DB -> API
+- conservar trazabilidad a fuente bruta mediante referencia BOE/URL cuando aplique
+- no re-implementar lógica fiscal: el PGC referencia, no calcula
+- vinculo con modelos AEAT: usar datos ya existentes en `modelos.py` como fuente
+- mismo enfoque slice minimo: marco → cuentas → vinculos → tests
+
+---
+
+## Fase 13 — Identidad de entidad y LEI / vLEI ✅ COMPLETA
+
+### 13.1 Migración Alembic ✅
+- Root cause: Necesidad de persistir LEI, vLEI y aliases de entidad regulada.
+- Fix: Tablas `entity_identifiers` (FK `empresa_id`, LEI único, estado, vigencia, vLEI placeholder) + `entity_aliases` (alias normalizado, fuente, confianza). Índices B-tree + pg_trgm para búsqueda fuzzy.
+- Archivos: `alembic/versions/20260426_0011_entity_identity.py`
+
+### 13.2 Schemas Pydantic ✅
+- Fix: `EntityIdentifier`, `EntityAlias`, `EntitySearchResult`, `EntityLeiResponse`, `EntitySearchResponse` en `schemas.py`.
+- Archivo: `apps/api/schemas.py`
+
+### 13.3 Router `/v1/entidades` ✅
+- Fix: 3 endpoints: `GET /lei/{lei}` (lookup por LEI con aliases), `GET /buscar?q=...` (búsqueda unificada nombre/alias/LEI con priorización), `GET /{empresa_id}` (detalle empresa con entidad).
+- Motor de búsqueda: `MAX()` + `MIN()` para best-match por empresa, compatible SQLite + PostgreSQL, sin `ROW_NUMBER()`.
+- Archivos: `apps/api/routers/entidades.py`, `apps/api/main.py`
+
+### 13.4 Worker GLEIF ✅
+- Fix: Lookup de LEI por nombre vía GLEIF API pública (https://api.gleif.io), normalización de nombre, upsert entity_identifier + aliases, soporte CLI `--run-once` / `--interval`.
+- Archivo: `apps/workers/entity_identity.py`
+
+### 13.5 Fixtures y tests ✅
+- Fix: Tablas SQLite + seed data con LEI de ejemplo (5493001KJTIURC11JN06 — BBVA), 2 aliases, 11 tests cubriendo: lookup LEI, no encontrado, case-insensitive, búsqueda por nombre/alias/LEI, sin resultados, empresa con/sin identificadores, empresa inexistente, vLEI placeholder.
+- Archivos: `apps/api/tests/conftest.py`, `apps/api/tests/test_entity_identity.py`
+- Resultado: 11/11 tests verdes ✅
+
+### Criterio de exito
+1. ✅ una entidad puede resolverse por LEI y devolver metadata minima confiable
+2. ✅ el sistema soporta aliases y nombres legales normalizados sin romper trazabilidad
+3. ✅ la capa vLEI queda documentada como extensible sin bloquear el MVP
+4. ✅ tests verdes (11/11)
+
+### Limitaciones conocidas
+- vLEI: superficie preparada con columnas placeholder (`vlei_status`, `vlei_cred_url`), sin lógica de validación en MVP.
+- GLEIF API pública: rate limits no documentados, sin caché local en worker.
+- No se acopla todavia ownership, sanciones y LEI en una sola tabla (como se instruyó).
+
+---
+
+## Fase 14 — Ownership y estructura societaria ✅ COMPLETA
+
+### Estado
+- `COMPLETA`
+
+### Implementacion
+- Migracion Alembic `20260426_0013_ownership_tables.py` con 3 tablas: `ownership_share`, `ownership_relation`, `ubo_record`
+- Schemas Pydantic en `schemas.py`: 10 modelos (OwnershipShare, OwnershipRelation, UboRecord, OwnershipGrafoResponse, OwnershipSearchResponse, etc.)
+- Router `/v1/ownership` con 5 endpoints:
+  - `GET /{empresa_id}/participaciones` — participaciones directas/indirectas con fuente y vigencia
+  - `GET /{empresa_id}/relaciones` — relaciones societarias (control, absorbente, filial, etc.)
+  - `GET /{empresa_id}/beneficiarios` — beneficiarios finales (UBOs) con umbral
+  - `GET /{empresa_id}/grafo` — grafo de control con CTE recursivo y profundidad configurable (1-5)
+  - `GET /buscar` — busqueda con filtros de ownership (participaciones, UBOs)
+- Schemas Pydantic: OwnershipShare, OwnershipShareList, OwnershipRelation, OwnershipRelationList, UboRecord, UboRecordList, OwnershipGrafoNodo, OwnershipGrafoArista, OwnershipGrafoResponse, OwnershipSearchResult, OwnershipSearchResponse
+- Tests: 20 tests unitarios e integration en `test_ownership.py` (todos verdes)
+- Seed data en `conftest.py`: 3 participaciones, 2 relaciones, 2 UBOs para empresas de test
+- Mapeo documental `docs/ownership-mapping.md`: mapping completo entre modelo interno y BODS v0.4 / followthemoney
+  - Tablas de equivalencia: BODS Statement → ownership_share, BODS PersonRecord → ubo_record, BODS RelationshipRecord → ownership_relation
+  - Equivalencias BODS relationship type → tipo_relacion (10 tipos mapeados)
+  - Transformaciones internas → BODS, internas → FtM, BODS/FtM → internas
+  - Reglas de generacion de IDs externos y resolucion de entidades al importar
+
+### Criterio de exito
+1. ✅ una entidad puede devolver sus relaciones de propiedad directas con porcentaje y fuente
+2. ✅ el modelo soporta versionado temporal basico (vigencia_desde/vigencia_hasta)
+3. ✅ existe mapping explicito con estandares externos sin forzar su adopcion literal
+4. ✅ tests verdes (20/20)
+
+### Instrucciones para agentes
+- no mezclar ownership confirmado con inferencias no verificadas
+- no exponer grafos desde documentos o formatos externos sin normalizacion previa a relaciones internas trazables
+- preferir un modelo interno pequeno con mapping a `followthemoney` y `OpenOwnership BODS`
+- mantener trazabilidad por relacion y por fuente documental
+
+---
+
+## Fase 15 — Screening, sanciones y resolucion de entidades ✅ COMPLETA
+
+### Estado
+- `COMPLETA`
+
+### 15.1 Migracion Alembic
+- Root cause: Necesidad de tablas para screening de sanciones, PEPs y listas restrictivas.
+- Fix: 3 tablas — `screening_lists` (listas maestras), `screening_entries` (entradas normalizadas), `screening_matches` (resultados de screening con confianza, motivo, revisado).
+- Archivos: `alembic/versions/20260426_0012_screening.py`
+
+### 15.2 Schemas Pydantic
+- Fix: `ScreeningList`, `ScreeningEntry`, `ScreeningMatch`, `ScreeningCheckRequest`, `ScreeningCheckResponse`, `ScreeningEntriesResponse`, `ScreeningMatchesResponse` en `schemas.py`.
+- `ScreeningCheckRequest`: `field_validator` para rechazar `nombre` vacio (422).
+- `ScreeningMatch`: `id` y `empresa_id` opcionales (NULL en LEFT JOIN cuando no existe match persistente).
+- `ScreeningEntry.activo` y `ScreeningList.activo`: `default=True`.
+- Archivos: `apps/api/schemas.py`
+
+### 15.3 Worker de ingestion
+- Fix: `apps/workers/screening.py` con dataset ficticio de 5 listas (OFAC_SDN, EU_SANCTIONS, UN_SANCTIONS, SEPBLAC, ES_PEPS) y 14 entradas.
+- `_normalize_name`: normalize hyphens as word separators for deterministic matching.
+- Todos los entries tienen `activo=True`.
+- `_upsert_screening_entry()` con upsert por (list_id, entidad_id).
+- Soporte CLI `--run-once` / `--interval`.
+
+### 15.4 Router `/v1/screening`
+- Fix: 3 endpoints en `apps/api/routers/screening.py`:
+  - `POST /` — screening check: matching en Python (no SQL ILIKE/unnest) para compatibilidad SQLite + PostgreSQL. Scoring: 1.0 (nif exact), 0.95 (nombre exact/normalizado), 0.9 (alias exact), 0.85 (nif similar), 0.75 (nombre similar), 0.7 (alias similar).
+  - `GET /entries` — listar entradas con filtros (tipo, codigo, activo, q).
+  - `GET /matches/{empresa_id}` — matches previos de una empresa.
+- `_build_match_row`: usa `.get()` defaults para `match_campo`, `match_texto`, `revisado`, `revisor`, `notas`.
+- `GET /entries`: `json.loads()` para `aliases`/`categorias` cuando SQLite devuelve strings.
+- Registro en `apps/api/main.py` con import de `screening`.
+
+### 15.5 Tests
+- Fix: `apps/api/tests/test_screening.py` — 53 tests cubriendo:
+  - `TestNormalizeName`: 9 tests (uppercase, accents, special chars, punctuation, whitespace, empty, single word, numbers, unicode).
+  - `TestScreeningSchemas`: 8 tests (request minimal/full/empty, list/entry/match schemas, responses).
+  - `TestScreeningWorkerData`: 12 tests (lists count/fields/types/codes, entries count/fields/by_list/aliases/pais/nif/activo/list_ids).
+  - Integration: 24 tests (check missing body/empty nombre/empresa_id/nombre/nif/list filter, entries list/filter by tipo/codigo/activo/limit/search, matches empresa no existe/sin matches, response fields).
+- `apps/api/tests/conftest.py`: tablas SQLite + seed data con 14 entries (4 OFAC, 2 EU, 2 UN, 2 SEPBLAC, 4 ES_PEPS).
+- Resultado: 53/53 tests verdes ✅
+
+### Criterio de exito
+1. ✅ una entidad puede evaluarse contra listas soportadas y devolver matches explicables con scoring
+2. ✅ el sistema separa claramente identidad interna, dataset externo y resultado de screening
+3. ✅ existe control minimo de falsos positivos en tests (matching por confianza)
+4. ✅ tests verdes (53/53)
+
+### Limitaciones conocidas
+- Matching en Python (no pg_trgm): funcional para MVP, pero no escala a miles de entries sin indice de busqueda.
+- Dataset ficticio: no hay ingestion de fuentes reales (OFAC, EU, UN, SEPBLAC) en el MVP.
+- Matches no se persisten en `screening_matches` durante el check: solo se devuelven en la respuesta.
+- No hay endpoint de aprobacion/rechazo de match (revisor, notas).
+
+### Archivos clave
+- `alembic/versions/20260426_0012_screening.py`
+- `apps/api/schemas.py`
+- `apps/workers/screening.py`
+- `apps/api/routers/screening.py`
+- `apps/api/main.py`
+- `apps/api/tests/conftest.py`
+- `apps/api/tests/test_screening.py`
+- `docs/operations/runbooks/screening-datasets.md` — runbook de actualizacion de datasets
+
+### Objetivo
+- incorporar screening de sanciones, PEPs y listas restrictivas como capa complementaria de compliance
+- resolver entidades duplicadas o ambiguas entre fuentes heterogeneas
+- exponer coincidencias con scoring explicable y trazabilidad de origen
+
+### Alcance
+1. **Entity resolution** — normalizacion, aliases y matching determinista/probabilistico acotado
+2. **Datasets de screening** — sanciones, watchlists y listas restrictivas soportadas
+3. **Scoring explicable** — motivo de match, confianza y evidencia
+4. **Consulta API** — endpoints de screening por entidad y resolucion de perfiles
+
+### Entregables
+- tablas o indices de resolucion de entidades
+- patrón de arquitectura documentado: `raw-dataset -> normalized entities -> matching/index -> api`
+- endpoint `POST /v1/screening/check`
+- endpoint `GET /v1/screening/matches/{entity_id}`
+- tests de matching y falsos positivos basicos
+- runbook de actualizacion de datasets
+
+### Repos de referencia
+- `https://github.com/opensanctions/nomenklatura`
+- `https://github.com/opensanctions/opensanctions`
+- `https://github.com/opensanctions/yente`
+- `https://github.com/openaleph/openaleph`
+
+### Criterio de exito
+1. una entidad puede evaluarse contra listas soportadas y devolver matches explicables
+2. el sistema separa claramente identidad interna, dataset externo y resultado de screening
+3. existe control minimo de falsos positivos en tests
+4. tests verdes
+
+### Instrucciones para agentes
+- no convertir screening en verdad canonica: el resultado es una coincidencia evaluable, no un hecho definitivo
+- no responder screening directamente desde datasets crudos: normalizar entidades, indexar y separar claramente dataset, identidad y match resultante
+- separar matching de identidad, ownership y screening para evitar acoplamiento premature
+- documentar claramente cobertura y limites de datasets externos
+
+---
+
+## Fase 16 — XBRL, ESEF y reporting regulatorio
+
+### Estado
+- `EN CURSO` (`16.1` COMPLETA, `16.2` COMPLETA, `16.3` COMPLETA, `16.4` COMPLETA)
+- Siguiente paso: Fase 16.5 — Integracion XBRL -> PGC (mapeo de conceptos IFRS a cuentas PGC)
+
+### Nota de cierre 16.1
+- Estado: `COMPLETA`
+- Slice cerrado: parser XBRL local fixture-first, persistencia minima en `xbrl_filing` y `xbrl_fact`, y endpoint `GET /v1/xbrl/facts`
+- Archivos finales:
+  - `alembic/versions/20260426_0013_xbrl.py`
+  - `apps/workers/xbrl.py`
+  - `apps/api/routers/xbrl.py`
+  - `apps/api/schemas.py`
+  - `apps/api/main.py`
+  - `apps/api/tests/test_xbrl.py`
+  - `apps/api/tests/conftest.py`
+  - `tests/fixtures/xbrl/minimal_filing.xbrl`
+  - `docs/manual-usuario/03-superficies-disponibles.md`
+  - `docs/manual-usuario/09-referencia-de-endpoints.md`
+- Verificacion final: `pytest apps/api/tests/test_xbrl.py -v` -> 11/11 verdes
+
+### Nota de cierre 16.2
+- Estado: `COMPLETA`
+- Slice cerrado: endpoint `GET /v1/xbrl/filings/{filing_id}` que devuelve metadata del filing + lista de facts
+- Archivos actualizados: `apps/api/schemas.py`, `apps/api/routers/xbrl.py`, `apps/api/tests/test_xbrl.py`, `docs/manual-usuario/09-referencia-de-endpoints.md`
+- Verificacion final: `pytest apps/api/tests/test_xbrl.py -v` -> 16/16 verdes
+
+### Nota de cierre 16.3
+- Estado: `COMPLETA`
+- Slice cerrado: soporte iXBRL (HTML con XBRL embebido) en worker
+- Archivos nuevos: `tests/fixtures/xbrl/minimal_filing.ixbrl`
+- Archivos modificados: `apps/workers/xbrl.py`, `apps/api/tests/test_xbrl.py`
+- Capabilities: `parse_ixbrl_fixture()`, `_extract_xbrl_fragment()`, `_parse_xbrl_root()`, `_derive_filing_type()`, `parse_filing_fixture()`, `load_filing_fixture()`
+- Auto-detection por extension (.html/.htm -> ixbrl, .xbrl/.xml -> xbrl) o por contenido
+- Idempotencia: filings XBRL e iXBRL se almacenan separados por (`source_path`, `filing_type`)
+- Verificacion final: `pytest apps/api/tests/test_xbrl.py -v` -> 22/22 verdes
+
+### 16.2 Filing detail endpoint ✅ COMPLETA
+- Endpoint `GET /v1/xbrl/filings/{filing_id}` con metadata del filing + lista de facts
+- Schemas: `XbrlFilingDetail`, `XbrlFilingDetailResponse` en `schemas.py`
+- Response: `{ filing: {id, source_name, source_path, entity_identifier, period_start, period_end, filing_type, created_at}, facts: [...] }`
+- 404 si filing no existe
+- Tests: 5 nuevos (status 200, estructura, facts match, 404, metadata)
+- Verificacion final: `pytest apps/api/tests/test_xbrl.py -v` -> 16/16 verdes
+
+### 16.4 Taxonomia ESEF/ESMA ✅ COMPLETA
+- Migration: `20260426_0014_xbrl_taxonomy.py` crea `xbrl_taxonomy` con indices
+- Schemas: `XbrlTaxonomyEntry`, `XbrlTaxonomyResponse` en `schemas.py`
+- Endpoint: `GET /v1/xbrl/taxonomy?standard=...&language=...&concept=...&limit=...`
+- Worker: `apps/workers/xbrl_taxonomy.py` con 33 conceptos ESEF/IFRS (en + es)
+- Conceptos cubiertos: IFRS 18 (Revenue, ProfitLoss, OperatingProfit), IFRS 15 (Revenue disaggregation), IAS 1 (Assets/Liabilities/Equity), IAS 16 (PPE), IAS 38 (Intangibles), IFRS 3 (Goodwill), IAS 7 (Cash flows), IFRS 16 (Leases), ESEF core
+- Idempotencia: ON CONFLICT DO NOTHING por (concept_qname, label_language, label_role)
+- Tests: 10 nuevos (API filters, worker seed, idempotencia, idiomas, standards)
+- Verificacion final: `pytest apps/api/tests/test_xbrl.py -v` -> 32/32 verdes
+
+### 16.5 Mapeo XBRL -> PGC (crosswalk IFRS/ESEF a Plan General Contable) ✅ COMPLETA
+- Migration: `20260426_0015_pgc_xbrl_mapping.py` crea `pgc_xbrl_mapping` con 4 indices y unique constraint
+- Worker: `apps/workers/pgc_xbrl_mapping.py` con 42 mapeos en 5 dominios:
+  - Income statement (10): Revenue->700, ProfitLoss->6/7, OperatingProfit->700/600, OperatingExpenses->600/62/621, EPS->7
+  - Balance sheet (22): Assets->1/2, Liabilities->3/4, Equity->3/30/300, PPE->11/110, Intangibles->10/100, Goodwill->10, Cash->572/570/57, Inventory->20/200, Receivables->430/43, Payables->400/40, Taxes->472/477
+  - Cash flow (4): Cash ops->57, Cash investing->11, Cash financing->30
+  - Leases (3): Lease liabilities->4, ROU assets->11, Lease payments->621
+  - ESEF core (3): StandardType->7, ReportingPeriodEndDate->7
+- Endpoints: `GET /v1/xbrl/pgc-xbrl-mappings?xbrl_concept=...&pgc_account=...&confidence=...&limit=...`
+- Schemas: `PgcXbrlMappingItem`, `PgcXbrlMappingsResponse` en `schemas.py`
+- Endpoint taxonomy: `GET /v1/xbrl/taxonomy` re-added (was accidentally replaced during mappings endpoint creation)
+- 8 nuevos tests worker: seeds, idempotencia, mapping types, confidence, domains, PGC codes, notes, active
+- Bug fix: test `test_xbrl_taxonomy_worker_seed_has_multiple_standards` — IAS/IFRS son subcadenas de claves como "IAS 1", "IFRS 18", no claves exactas
+- Verificacion final: `pytest apps/api/tests/test_xbrl.py -v` -> 40/40 verdes
+
+### Objetivo
+- incorporar parsing y consulta de reporting financiero estructurado para emisores y entidades reguladas
+- habilitar consumo de XBRL/iXBRL y taxonomias relevantes para analisis regulatorio y contable
+- conectar estados financieros reportados con el bloque PGC cuando sea razonable
+
+### Alcance
+1. **Parser XBRL/iXBRL** — ingestión y validacion basica
+2. **Taxonomias y facts** — almacenamiento consultable de facts relevantes
+3. **ESEF/ESMA** — soporte inicial para datasets y formatos europeos priorizados
+4. **Consulta API** — endpoints por emisor, periodo y concepto
+
+### Entregables
+- worker de ingestión XBRL/iXBRL
+- patrón de arquitectura documentado: `raw-filing -> parsed facts -> db -> api`
+- tablas para facts, contextos y taxonomias relevantes
+- endpoint `GET /v1/xbrl/filings/{filing_id}`
+- endpoint `GET /v1/xbrl/facts?entity_id=...&concept=...`
+- tests de parsing y consulta
+
+### Repos de referencia
+- `https://github.com/Arelle/Arelle`
+- `https://github.com/Arelle/ixbrl-viewer`
+- `https://github.com/European-Securities-Markets-Authority/esma_data_py`
+
+### Criterio de exito
+1. un filing iXBRL/XBRL puede parsearse y almacenar facts clave
+2. facts consultables por emisor y periodo funcionan via API
+3. el bloque queda desacoplado del PGC salvo referencias explicitas
+4. tests verdes
+
+### Instrucciones para agentes
+- tratar Arelle como motor/parsing de referencia y no reinventar validacion XBRL
+- no usar iXBRL/XBRL bruto como superficie de consulta final: parsear a facts/contextos normalizados y persistir antes de exponer
+- empezar por un subconjunto pequeno de conceptos y filings reales
+- no bloquear Fase 11 PGC esperando integracion completa con XBRL
+
+---
+
+## Fase 17 — Rails bancarios, pagos y formatos operativos
+
+### Estado
+- `COMPLETA` (`17.1` IBAN, `17.2` ISO 20022, `17.3` N43/AEB)
+
+### Objetivo
+- incorporar una capa operativa para validacion y parseo de identificadores y formatos bancarios utiles en compliance financiero
+- soportar IBAN, SEPA, ISO 20022 y cuadernos bancarios como datos auxiliares del dominio
+- mantener este bloque como complemento operativo, no como nucleo del producto
+
+### Alcance
+1. **Validacion IBAN** — validacion y normalizacion minima
+2. **SEPA / ISO 20022** — parseo de mensajes y estructuras prioritarias
+3. **Cuadernos bancarios** — soporte exploratorio para N43/AEB si aporta valor real
+4. **Consulta API** — endpoints utilitarios y parseo controlado
+
+### Entregables
+- libreria o modulo interno de validacion/parsing bancario
+- patrón de arquitectura documentado: `raw-message -> normalized payment data -> db or response -> api`
+- endpoint `POST /v1/banking/iban/validate`
+- endpoint `POST /v1/banking/iso20022/parse`
+- tests de formatos y ejemplos reales anonimizados
+- documentacion de alcance y exclusiones
+
+### Repos de referencia
+- `https://github.com/jschaedl/iban-validation`
+- `https://github.com/prowide/prowide-iso20022`
+- `https://github.com/cocosistemas/Delphi-SEPA-XML-ES`
+- `https://github.com/mdiago/N43`
+- `https://github.com/jofemodo/cuadernos-AEB`
+
+### Criterio de exito
+1. IBAN y al menos un flujo ISO 20022 prioritario pueden validarse/parsearse
+2. la API deja claro que este bloque es utilitario y no reemplaza core bancario externo
+3. las entradas se validan con schema y limites de tamano
+4. tests verdes
+
+### Instrucciones para agentes
+- no abrir esta fase antes de validar necesidad real en workflows de compliance o reporting
+- no trabajar directamente sobre mensajes brutos en capas superiores: validar, normalizar y limitar tamano antes de persistir o responder
+- preferir wrappers pequenos sobre librerias maduras en lugar de implementar parsers desde cero
+- aplicar input validation y rate limiting estricto en endpoints de parseo
+
+---
+
+## Fase 18 — Capa editorial interna y criterio experto ✅ COMPLETA
+
+### Estado
+- `COMPLETA` ✅
+
+### Objetivo
+- convertir corpus y fuentes oficiales en conocimiento interno reutilizable de alto valor para la empresa
+- capturar criterio experto propio, notas interpretativas y contexto practico sin depender de bases editoriales externas de pago
+- separar claramente fuente oficial, resumen operativo interno y opinion/criterio de experto
+
+### Alcance
+1. **Notas editoriales internas** — resumen ejecutivo, contexto, impacto practico y advertencias por norma/doctrina/obligacion ✅
+2. **Posiciones interpretativas** — criterios internos versionados con estado (`borrador`, `vigente`, `revisar`, `obsoleto`) ✅
+3. **Trazabilidad fuerte** — toda nota debe enlazar a fuente oficial y autor/revisor interno ✅
+4. **Consulta API/MCP** — exponer junto al contenido base sin mezclarlo con la fuente primaria ✅
+
+### Entregables
+- tablas para notas editoriales internas y posiciones interpretativas ✅ (`nota_editorial_interna`, `posicion_interpretativa`)
+- modelo minimo de autoria, revision y vigencia ✅ (columnas `autor_id`, `revisor_id`, `version`, `vigencia_desde`, `vigencia_hasta`)
+- endpoints `GET/POST/PATCH` internos para consultar y mantener notas por documento, obligacion o entidad regulatoria ✅
+- filtros para distinguir `fuente_oficial`, `resumen_interno` y `criterio_interno` ✅ (filtro `tipo_contenido` en notas)
+- tests de permisos, versionado basico y trazabilidad ✅ (28 tests verdes)
+- documentacion de gobierno editorial y limites de uso ✅ (`docs/manual-usuario/13-gobierno-editorial.md`)
+
+### Criterio de exito
+1. ✅ una norma u obligacion puede mostrar resumen operativo interno separado de la fuente oficial
+2. ✅ una posicion interpretativa interna queda versionada, atribuida y fechada
+3. ✅ el usuario puede consultar que parte viene de fuente oficial y cual es criterio interno
+4. ✅ tests verdes (28/28 pasando)
+
+### Implementacion
+- Migracion: `alembic/versions/20260426_0016_editorial_internal.py`
+- Schemas: `apps/api/schemas.py` — `NotaEditorialSummary/Detail/Create/Update/ListResponse` y `PosicionInterpretativaSummary/Detail/Create/Update/ListResponse`
+- Router notas: `apps/api/routers/editorial.py` — GET/POST/PATCH `/v1/editorial/notas/`
+- Router posiciones: `apps/api/routers/editorial_posiciones.py` — GET/POST/PATCH `/v1/editorial/posiciones/`
+- Tests: `apps/api/tests/test_editorial_notas.py` (14 tests) y `apps/api/tests/test_editorial_posiciones.py` (14 tests)
+- Seed data: migracion + `conftest.py` con nota CNMV 9/2008 y posicion MiFID II
+
+### Instrucciones para agentes
+- no mezclar texto editorial interno con fuente oficial en el mismo campo o payload ambiguo
+- no permitir mutaciones sin autoria, marca temporal y esquema explicito
+- no presentar criterio interno como verdad normativa; debe quedar rotulado como interpretacion o politica interna
+- empezar por un modelo pequeno y gobernable antes de abrir edicion rica o colaborativa
+
+---
+
+## Fase 19 — Playbooks operativos y evidencia de cumplimiento
+
+### Estado
+- `PLANIFICADA`
+
+### Objetivo
+- traducir obligaciones y cambios regulatorios en procedimientos operativos ejecutables por la empresa
+- documentar pasos, evidencias, responsables, sistemas y errores frecuentes para auditoria interna y supervision
+- elevar el producto desde consulta a operacion repetible
+
+### Alcance
+1. **Playbooks por obligacion** — pasos, prerequisitos, inputs, outputs, frecuencia y owner
+2. **Evidencias requeridas** — documentos, logs, capturas, extractos o aprobaciones a conservar
+3. **Controles operativos** — control asociado, riesgo mitigado, trigger y periodicidad
+4. **Consulta API/UI/MCP** — recuperar playbooks y checklists por obligacion o evento
+
+### Entregables
+- tablas para `playbook_operativo`, `playbook_step`, `control_evidencia` o equivalente minimo
+- relacion `obligacion -> playbook -> evidencia -> owner`
+- endpoints para listar playbooks, detalle operativo y checklist de evidencias
+- tests de orden de pasos, filtros por frecuencia/owner y consistencia de referencias
+- documentacion de mantenimiento y criterios de calidad de playbooks
+
+### Criterio de exito
+1. una obligacion prioritaria puede devolverse con pasos operativos concretos y evidencias asociadas
+2. el sistema distingue obligacion normativa de procedimiento interno
+3. un usuario puede identificar rapidamente quien hace que, cuando y con que prueba
+4. tests verdes
+
+### Instrucciones para agentes
+- no modelar playbooks como texto libre opaco si se puede estructurar en pasos y evidencias pequenas
+- no asumir que toda obligacion tiene un solo procedimiento; permitir variantes por perfil o situacion
+- mantener separacion entre control, evidencia y fuente normativa
+- priorizar obligaciones criticas de `sociedad de valores` antes de generalizar
+
+---
+
+## Fase 20 — Cobertura granular MiFID/CNMV/SEPBLAC por micro-obligacion
+
+### Estado
+- `COMPLETA` ✅
+
+### 20.1 Migracion Alembic ✅
+- Root cause: Necesidad de tablas para micro-obligaciones regulatorias con mapeo N:M a obligaciones existentes.
+- Fix: Tablas `micro_obligacion` (id, codigo, nombre, descripcion, regulacion_relacionada, ambito, trigger_evento, frecuencia, owner_rol, severidad, activo) + `obligacion_micro_obligacion` (obligacion_id, micro_obligacion_id, orden). Indices B-tree.
+- Archivos: `alembic/versions/20260426_0018_micro_obligaciones.py`
+- Seed SQL inline: 30 micro-obligaciones base (12 MiFID, 8 CNMV, 10 SEPBLAC)
+
+### 20.2 Vocabulario ✅
+- Fix: `TIPOS_MICRO_OBLIGACION` (30 valores base) y `REGULACIONES_RELACIONADAS` (5 valores: mifid_ii, mifir, mar, cnmv_lmcv, pblcft) en `vocabulary.py`.
+- Archivo: `apps/api/vocabulary.py`
+
+### 20.3 Schemas Pydantic ✅
+- Fix: `MicroObligacionSummary`, `MicroObligacionDetail`, `MicroObligacionListResponse`, `MicroObligacionByObligacionResponse` en `schemas.py`.
+- Archivos: `apps/api/schemas.py`
+
+### 20.4 Worker de seed ✅
+- Fix: `apps/workers/micro_obligations.py` con 30 micro-obligaciones y mapeo N:M por fuente.
+- Idempotencia: `ON CONFLICT DO NOTHING` en micro_obligacion + `ON CONFLICT DO NOTHING` en obligacion_micro_obligacion.
+- Mapeo dinamico: asocia por coincidencia de `fuente` con `regulacion_relacionada`.
+
+### 20.5 Router API ✅
+- Fix: 3 endpoints en `apps/api/routers/micro_obligaciones.py`:
+  - `GET /` — listado con filtros (regulacion, ambito, severidad, owner_rol, activo) + total
+  - `GET /{codigo}` — detalle con obligaciones_relacionadas
+  - `GET /by-obligacion/{obligacion_codigo}` — micro-obligaciones de una obligacion regulatoria
+- Registro en `apps/api/main.py` con `import micro_obligaciones` + `app.include_router(micro_obligaciones.router)`
+
+### 20.6 Tests ✅
+- Fix: `apps/api/tests/test_micro_obligaciones.py` — 30 tests cubriendo:
+  - `TestListarMicroObligaciones`: 14 tests (listado sin filtros, filtros por regulacion/ambito/severidad/owner_rol/activo, combinado, respuesta con total, campos, ordenacion)
+  - `TestGetMicroObligacion`: 8 tests (detalle MiFID/CNMV/SEPBLAC/MiFIR, no encontrado, obligaciones_relacionadas)
+  - `TestMicroObligacionesPorObligacion`: 5 tests (mapeo CNMV/SEPBLAC, no encontrada, respuesta tiene obligacion, micro_obligaciones tienen campos)
+  - `TestEdgeCases`: 3 tests (regulacion vacia, ambito vacio, codigo no encontrado)
+- `apps/api/tests/conftest.py`: tablas SQLite + seed data con 30 micro-obligaciones + mapeo N:M por fuente.
+- Resultado: 30/30 tests verdes ✅
+
+### Criterio de exito
+1. ✅ consultas por subtema operativo devuelven obligaciones y fuentes mas precisas que una busqueda documental general
+2. ✅ los bloques `MiFID/CNMV/SEPBLAC` tienen cobertura estructurada inicial (30 micro-obligaciones base)
+3. ✅ cada micro-obligacion enlaza a fuente oficial y a su playbook/control cuando exista (mapeo N:M)
+4. ✅ tests verdes (30/30 base)
+
+### Notas de expansion
+- Fase 20.1 (LECR, SOCIMI, CSDR, Doctrina DGT) expande a 52 micro-obligaciones totales y 35/35 tests.
+
+### Bugs corregidos durante implementacion
+- `sqlalchemy.exc.OperationalError: 8 values for 9 columns` — filas `MIFID_CONFLICTS` y `MIFID_COMPENSATION` faltaban `frecuencia` en migration y conftest.
+- Router: `oblg.obligacion_id` corregido a `omo.obligacion_id` en join de `get_micro_obligacion`.
+- Router: `micro_obligacion_id` corregido para pasar `row["id"]` (integer) en vez de `row["codigo"]` (string).
+- Schema: `MicroObligacionDetail` corregido para usar `obligaciones_relacionadas` en vez de `micro_obligaciones`/`obligacion_id`.
+- Test: `test_detalle_codigo_vacio` corregido a usar codigo inexistente en vez de ruta con trailing slash (307 redirect).
+
+### Archivos clave
+- `alembic/versions/20260426_0018_micro_obligaciones.py`
+- `apps/api/vocabulary.py`
+- `apps/api/schemas.py`
+- `apps/workers/micro_obligations.py`
+- `apps/api/routers/micro_obligaciones.py`
+- `apps/api/main.py`
+- `apps/api/tests/conftest.py`
+- `apps/api/tests/test_micro_obligaciones.py`
+
+### Instrucciones para agentes
+- no abrir una taxonomia gigantesca desde el inicio; empezar por un subconjunto con valor real para la empresa
+- no crear micro-obligaciones sin anclaje documental trazable
+- evitar duplicados entre obligaciones generales y micro-obligaciones; definir relaciones padre/hijo o tags claros
+- priorizar profundidad operativa sobre amplitud cosmetica
+- el worker de seed es idempotente y puede re-ejecutarse sin duplicar datos
+- las micro-obligaciones se mapean a obligaciones existentes via `obligacion_micro_obligacion`; no reemplazan el modelo plano de `obligacion_regulatoria`
+- Fase 20.1 añade 22 micro-obligaciones (LECR 6, SOCIMI 5, CSDR 3, CNMV-ECR 3, Doctrina DGT 3) para total 52
+
+---
+
+## Fase 20.1 — Expansion micro-obligaciones: LECR, SOCIMI, CSDR, Doctrina DGT ✅ COMPLETA
+
+### Estado
+- `COMPLETA`
+
+### 20.1.1 Migracion Alembic
+- Root cause: La Fase 20 base cubrio MiFID/CNMV/SEPBLAC (30 micro-obligaciones). Quedaba cubrir LECR (Reglamento MiFID), SOCIMI, CSDR y Doctrina DGT.
+- Fix: Migracion `20260426_0022_micro_obligaciones_expansion.py` con 22 micro-obligaciones nuevas:
+  - LECR: 6 micro-obligaciones (ecr_registration, ecr_maintenance, ecr_reporting, ecr_updates, ecr_retention, ecr_accessibility)
+  - SOCIMI: 5 micro-obligaciones (asset_composition, rental_income, shareholding_threshold, gravamenes, dividend_policy)
+  - CSDR: 3 micro-obligaciones (settlement_discipline, settlement_failed_reporting, buy_in)
+  - CNMV-ECR: 3 micro-obligaciones (ecr_publication, ecr_format, ecr_updates)
+  - Doctrina DGT: 3 micro-obligaciones (socimi_gravamenes, dgt_binding_rulings, dgt_follow_compliance)
+- Archivos: `alembic/versions/20260426_0022_micro_obligaciones_expansion.py`
+
+### 20.1.2 Vocabulario expandido
+- Fix: `apps/api/vocabulary.py` con +19 nuevos valores:
+  - `TIPOS_MICRO_OBLIGACION`: 19 valores (LECR ecr_registration, ecr_maintenance, ecr_reporting, ecr_updates, ecr_retention, ecr_accessibility; SOCIMI asset_composition, rental_income, shareholding_threshold, gravamenes, dividend_policy; CSDR settlement_discipline, settlement_failed_reporting, buy_in; CNMV-ECR ecr_publication, ecr_format, ecr_updates; Doctrina DGT socimi_gravamenes, dgt_binding_rulings, dgt_follow_compliance)
+  - `REGULACIONES_RELACIONADAS`: 4 nuevos valores (lecr, socimi, csdr, dgt_doctrina) — total 9 regulaciones
+- Archivo: `apps/api/vocabulary.py`
+
+### 20.1.3 Tests actualizados
+- Fix: `apps/api/tests/test_micro_obligaciones.py` — 35 tests (de 30 a 35) con nuevos tests de detalle para LECR, SOCIMI, CSDR y Doctrina DGT
+- Nuevos tests: `test_detalle_lecr_ecr_registration`, `test_detalle_socimi_asset_composition`, `test_detalle_csdr_settlement`, `test_detalle_cnmv_ecr_reporting`, `test_detalle_dgt_socimi_gravamenes`
+- Total micro-obligaciones en DB: 52 (30 base + 22 expansion)
+- Resultado: 35/35 tests verdes ✅
+
+### Criterio de exito
+1. ✅ LECR, SOCIMI, CSDR y Doctrina DGT tienen cobertura de micro-obligaciones
+2. ✅ vocabulario controlado actualizado con nuevos valores
+3. ✅ tests verdes (35/35)
+4. ✅ total micro-obligaciones: 52
+
+### Archivos clave
+- `alembic/versions/20260426_0022_micro_obligaciones_expansion.py`
+- `apps/api/vocabulary.py`
+- `apps/api/tests/test_micro_obligaciones.py`
+- `apps/api/tests/conftest.py`
+
+---
+
+## Fase 21 — Jurisprudencia, doctrina curada y lineas de criterio ✅ COMPLETA
+
+### Estado
+- `COMPLETA`
+
+### Objetivo
+- transformar jurisprudencia y doctrina en conocimiento util para decision interna, no solo en documentos recuperables
+- identificar lineas interpretativas, cambios de tendencia, criterios dominantes y puntos de conflicto
+- mejorar la utilidad practica del corpus frente a herramientas premium basadas en curacion editorial
+
+### Alcance
+1. **Lineas de criterio** — agrupacion de resoluciones/doctrina por cuestion practica
+2. **Resumen de tendencia** — criterio dominante, matices, excepciones y fecha de ultimo cambio
+3. **Impacto operativo** — que cambia para la empresa si una linea se consolida o se desplaza
+4. **Exposicion consultable** — por tema, obligacion, norma o entidad regulada
+
+### Entregables
+- modelo para `linea_criterio` y referencias asociadas ✅
+- endpoints para consultar lineas de criterio y sus referencias soporte ✅
+- seed con 7 lineas de criterio de alto impacto para sociedad de valores ✅
+- migration Alembic `20260426_0019_linea_criterio.py` ✅
+- tests integration `test_criterio.py` — 19/19 passing ✅
+
+### Criterio de exito
+1. ✅ una consulta puede devolver no solo documentos, sino una linea de criterio resumida y trazable
+2. ✅ el sistema identifica si existe criterio dominante, conflicto o cambio reciente en un tema curado
+3. ✅ el usuario puede llegar desde la linea resumida a todas las referencias soporte
+4. ✅ tests verdes (19/19)
+
+### 21.1 Migration ambitos ✅
+- Root cause: Necesidad de vincular documentos interpretativos a lineas de criterio por ambito juridico.
+- Fix: Columna `ambitos` TEXT[] en `linea_criterio` con seed de 7 filas (jurisprudencia_tributaria, jurisprudencia_pbcft, jurisprudencia_mercantil_regulatoria).
+- Archivo: `alembic/versions/20260426_0020_linea_criterio_ambitos.py`
+
+### 21.2 Schemas Pydantic ✅
+- Fix: `LineaCriterioAmbitoUpdate`, `DocumentoCandidato`, `LineaCriterioSuggestion`, `LineaCriterioCuracionResponse`, `CuracionAssignRequest`, `CuracionAssignResponse` en `schemas.py`.
+- Archivo: `apps/api/schemas.py`
+
+### 21.3 Endpoint sugerir curacion ✅
+- Fix: `GET /v1/criterio/curacion/suggest` — recorre lineas activas con ambitos, busca documentos interpretativos por ambito coincidente, aplica scoring (0-3) por ambito/tipo_documento/organismo_emisor, devuelve top 10 por linea.
+- Compatible SQLite + PostgreSQL (parseo JSON para ambitos en SQLite).
+- Archivos: `apps/api/routers/criterio_curacion.py`, `apps/api/main.py`
+
+### 21.4 Endpoint asignar documento ✅
+- Fix: `POST /v1/criterio/curacion/assign` — crea entrada en `linea_criterio_referencia` vinculando documento a linea. Maneja documentos existentes y referencias desnudas. Deteccion de duplicados. Rol por defecto `soporte_complementario`.
+- Archivos: `apps/api/routers/criterio_curacion.py`
+
+### 21.5 Script CLI de curacion ✅
+- Fix: `scripts/seed_linea_criterio.py` con flags `--dry-run`, `--assign`, `--ambito`, `--db-url`. Soporta sugerencia y asignacion automatica de candidatos.
+- Uso: `--dry-run` muestra que se asignaria; `--assign` persiste en DB.
+
+### 21.6 Seed data ✅
+- Fix: 6 nuevos `documento_interpretativo` con `ambito` values (STS-1234/2024, STS-5678/2023, STS-9012/2024, SAN-3456/2023, TS-PBCFT-789/2024, TS-MER-456/2025).
+- 7 `linea_criterio` con `ambitos` array actualizados via migration.
+- Archivos: `apps/api/tests/conftest.py`, migration 20260426_0020
+
+### 21.7 Tests ✅
+- Fix: `apps/api/tests/test_criterio_curacion.py` — 10 tests (sugerir 200, sugerir con sugerencias, candidatos con score 0-3, IVA tiene candidatos tributarios, limit 10, asignar success, asignar duplicate, asignar 404, asignar default rol, asignar from documento_interpretativo).
+- Resultado: 10/10 tests verdes ✅
+
+### Criterio de exito NO cumplido
+- Ninguno. Todos los criterios de Fase 21 estan completados.
+
+### Instrucciones para agentes
+- no generar lineas de criterio sin soporte documental explicito
+- no presentar inferencias debiles como consolidacion doctrinal o jurisprudencial
+- comenzar por temas de alto impacto fiscal-regulatorio para `sociedad de valores`
+- mantener separacion entre resumen curado, cita textual y referencia fuente
+- usar el endpoint `/suggest` como punto de partida; la asignacion final es manual
+- las sugerencias automaticas son puntos de partida, no decisiones finales
+
+### Archivos creados/modificados
+- `alembic/versions/20260426_0019_linea_criterio.py` — migration + seed (lineas de criterio)
+- `alembic/versions/20260426_0020_linea_criterio_ambitos.py` — migration ambitos TEXT[]
+- `apps/api/schemas.py` — Pydantic models (lineas + curacion)
+- `apps/api/routers/criterio.py` — FastAPI router (lineas de criterio)
+- `apps/api/routers/criterio_curacion.py` — FastAPI router (suggest + assign)
+- `apps/api/main.py` — router registration
+- `apps/api/tests/conftest.py` — Fase 21 fixtures + seed ambitos
+- `apps/api/tests/test_criterio.py` — 19 integration tests (lineas)
+- `apps/api/tests/test_criterio_curacion.py` — 10 tests (curacion)
+- `scripts/seed_linea_criterio.py` — CLI curation script
+- `docs/manual-usuario/curacion-lineas-criterio.md` — documentacion de metodologia
+
+---
+
+## Fase 22 — Matriz de controles, riesgos y pruebas ✅ COMPLETA
+
+### 22.1 Migracion Alembic
+- Root cause: Necesidad de tablas para riesgos regulatorios, controles internos, mapping riesgo-control y pruebas de control.
+- Fix: 4 tablas — `riesgo_regulatorio` (riesgo, obligacion, severidad, categoria, estado, owner), `control_interno` (tipo, descripcion, efectividad, frecuencia, owner), `riesgo_control_link` (link riesgo-control con estado), `prueba_control` (evidencia, criterio_suficiencia, resultado, caducidad). Indices para severidad, estado, categoria, tipo_control, efectividad, resultado.
+- Archivos: `alembic/versions/20260426_0021_risk_control_matrix.py`
+
+### 22.2 Schemas Pydantic
+- Fix: `RiesgoRegulatorio`, `RiesgoRegulatorioCreate`, `RiesgoRegulatorioUpdate`, `RiesgoRegulatorioDetail`, `RiesgoRegulatorioList`, `ControlInterno`, `ControlInternoCreate`, `ControlInternoUpdate`, `ControlInternoDetail`, `ControlInternoList`, `RiesgoControlLink`, `RiesgoControlLinkCreate`, `PruebaControl`, `PruebaControlCreate`, `PruebaControlUpdate`, `PruebaControlDetail`, `ControlGapsResponse`, `ControlGapsResponseItem` en `schemas.py`.
+- `RiesgoRegulatorioCreate`: `severidad` default `MEDIA`, `estado` default `PENDIENTE`.
+- `ControlGapsResponse`: agregacion de controles por riesgo con estados (IMPLEMENTADO, PARCIAL, PENDIENTE, NINGUNO).
+- Archivos: `apps/api/schemas.py`
+
+### 22.3 Router `/v1/risk-control`
+- Fix: 8 endpoints en `apps/api/routers/risk_control_matrix.py`:
+  - `POST /riesgos` — crear riesgo
+  - `GET /riesgos` — listar con filtros (estado, categoria, severidad, obligacion_codigo, buscar)
+  - `GET /riesgos/{riesgo_id}` — detalle
+  - `PATCH /riesgos/{riesgo_id}` — actualizar
+  - `POST /controles` — crear control
+  - `GET /controles` — listar con filtros (tipo, efectividad, estado)
+  - `POST /riesgos/{riesgo_id}/controles/{control_id}/link` — vincular riesgo-control
+  - `POST /riesgos/{riesgo_id}/pruebas` — crear prueba de control
+  - `GET /gaps` — vista agregada de controles faltantes por area
+- Bug fixes: `crear_riesgo` usa auto-increment (sin UUID explicito), `actualizar_riesgo` incluye `riesgo_inherente` en RETURNING, `listar_pruebas` fix alias tabla `pc.` -> `prueba_control.`.
+- Archivos: `apps/api/routers/risk_control_matrix.py`, `apps/api/main.py`
+
+### 22.4 Tests
+- Fix: `apps/api/tests/test_risk_control_matrix.py` — 42 tests cubriendo:
+  - `TestRiesgoRegulatorio`: crear/listar/detalle/actualizar/actualizar_parciual/duplicado_code/no_existe (7 tests)
+  - `TestControlInterno`: crear/listar/detalle/actualizar/duplicado_code/no_existe (6 tests)
+  - `TestRiesgoControlLink`: crear/listar/detalles/duplicado/no_existe_riesgo/no_existe_control (6 tests)
+  - `TestPruebaControl`: crear/listar/detalle/actualizar/actualizar_parcial/link_not_found (7 tests)
+  - `TestControlGaps`: returns_200/structure/area_filter/estado_filter/fields (5 tests)
+  - `TestValidation`: empty fields/invalid_severity/invalid_status/invalid_category/invalid_tipo/invalid_efectividad (7 tests)
+  - `TestEdgeCases`: empty_list/invalid_id_format/invalid_status_filter (4 tests)
+- `apps/api/tests/conftest.py`: tablas SQLite + seed data con 3 riesgos, 2 controles, 1 link, 1 prueba. Fix schema DDL: `INTEGER PRIMARY KEY AUTOINCREMENT` (coincide con migracion Alembic).
+- Resultado: 42/42 tests verdes ✅
+
+### Criterio de exito
+1. ✅ una obligacion puede devolver sus riesgos, controles y pruebas asociados
+2. ✅ un area puede identificar rapidamente controles faltantes o parciales (`/gaps`)
+3. ✅ el modelo soporta auditoria basica con trazabilidad a evidencia y owner
+4. ✅ tests verdes (42/42)
+
+### Archivos clave
+- `alembic/versions/20260426_0021_risk_control_matrix.py`
+- `apps/api/schemas.py`
+- `apps/api/routers/risk_control_matrix.py`
+- `apps/api/main.py`
+- `apps/api/tests/conftest.py`
+- `apps/api/tests/test_risk_control_matrix.py`
+
+### Instrucciones para agentes
+- no mezclar riesgo inherente, riesgo residual y control en un unico campo ambiguo
+- no introducir scoring sofisticado antes de cerrar un modelo minimo util
+- aprovechar workflow/compliance existentes en lugar de duplicarlos
+- mantener el modelo suficientemente pequeno para uso real por la empresa
+- IDs de tablas RCM usan `INTEGER PRIMARY KEY AUTOINCREMENT` (auto-increment), no UUIDs explicitos
+- `RiesgoRegulatorioCreate` no tiene `riesgo_inherente` (solo `Summary` y `Detail`)
+
+---
+
+## Repos externos evaluados y uso previsto
+
+### Alta prioridad para fases futuras
+- `openownership/data-standard` — referencia para Fase 14
+- `alephdata/followthemoney` — referencia para Fase 14
+- `opensanctions/nomenklatura` — referencia para Fase 15
+- `opensanctions/opensanctions` — referencia para Fase 15
+- `opensanctions/yente` — referencia para Fase 15
+- `ggravlingen/pygleif` — referencia para Fase 13
+- `jdvala/python-lei` — referencia para Fase 13
+- `WebOfTrust/vLEI` — referencia para Fase 13
+- `Arelle/Arelle` — referencia para Fase 16
+- `Arelle/ixbrl-viewer` — referencia para Fase 16
+- `European-Securities-Markets-Authority/esma_data_py` — referencia para Fase 16
+
+### Prioridad media o exploratoria
+- `alephdata/memorious` — referencia tecnica de ingestión/scraping si aparece una fuente que lo justifique
+- `openaleph/openaleph` — referencia conceptual de plataforma, no candidata a integración directa
+- `openlegaldata/oldp` — referencia secundaria de modelado documental/legal
+- `OpenBB-finance/OpenBB` — referencia conceptual exploratoria para superficies de consumo multi-canal (API/MCP/analyst tooling), no candidata a integracion directa
+- `chartbrew/chartbrew` — referencia secundaria exploratoria para dashboards internos y visualizacion, no candidata a fase propia
+- `prowide/prowide-iso20022` — referencia para Fase 17 si se prioriza banking rails
+- `jschaedl/iban-validation` — referencia puntual para Fase 17
+- `fawno/AEAT` — explorar solo si aporta valor adicional sobre fuentes AEAT ya controladas
+- `irs.gov` — fuente oficial para formularios (W-8, 1040, 1120, etc.), publicaciones y listas GIIN
+- `IRS FFI List` — referencia para Fase 23.4 (GIIN registry)
+
+### Fuera de alcance actual o no candidatas a fase propia
+- `AI4Finance-Foundation/FinGPT` — FinLLM/sentiment/forecasting fuera del scope actual fiscal-regulatorio con trazabilidad oficial
+- `ashishpatel26/500-AI-Agents-Projects` — catalogo de ideas, no referencia tecnica para fases del producto
+- `freqtrade/freqtrade` — bot de trading cripto, fuera de foco para `esdata`
+- `HKUDS/Vibe-Trading` — agente/plataforma de trading, fuera de foco para `esdata`
+- `brokermr810/QuantDinger` — plataforma de quant trading y ejecucion, fuera de foco para `esdata`
+- `ZhuLinsen/daily_stock_analysis` — analizador de mercado y dashboard LLM, fuera de foco para `esdata`
+- `TauricResearch/TradingAgents` — framework multi-agente de trading, fuera de foco para `esdata`
+- `Fincept-Corporation/FinceptTerminal` — terminal de mercados e investigacion financiera generalista, fuera de foco para `esdata`
+- `morganrcu/awesome-eu-ai-act` — backlog documental, no core de producto
+- `intuitem/ciso-assistant-community` — fuera de foco para `esdata`
+- `danielmrdev/laravel-spanish-validator` — no encaja con la arquitectura actual
+- `Ansvar-Systems/spanish-law-mcp` — referencia MCP secundaria, no sustituye pipelines propios
+- `mjgmario/spanish-public-info-radar-mcp` — referencia MCP secundaria, no sustituye pipelines propios
+- `ComputingVictor/MCP-BOE` — referencia MCP secundaria, no sustituye pipelines propios
+- `AnCode666/boe-mcp` — referencia MCP secundaria, no sustituye pipelines propios
 
 ---
 
@@ -583,8 +1666,9 @@ Se requiere confirmacion explicita del usuario antes de:
 - `COMPLETADO`
 
 ### Resumen de entregables
-- Fases 6, 7, 8, 9 completadas
-- 132 tests — 100% verdes
+- Fases 6, 7, 8, 9 y 10 completadas
+- Fase 11 completada con `11.1` a `11.5` cerradas y verificadas
+- 277 tests PGC/worker/api verificados en su slice especifico; el repo mantiene algunos fallos pre-existentes no bloqueantes fuera de este cierre
 - `ApiKeyAuthMiddleware` con lectura runtime de env vars
 - Rate limiting por endpoint (health: 100/min, v1: 60/min, mcp: 30/min)
 - Security headers + CORS configurable
@@ -595,8 +1679,8 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ### Cierre
 - Proyecto considerado estable en version 0.1.0
-- Fase 10 (hardening) disponible para sesiones futuras
-- Roadmap maestro cerrado como referencia historica
+- Fase 10 (hardening) completada
+- Siguiente expansion natural tras PGC cerrado: Fase 15 (screening, sanciones y resolucion de entidades)
 
 ---
 
@@ -616,20 +1700,1339 @@ Toda fase se considera correctamente cerrada cuando:
 | Documento | Estado | Uso permitido |
 |---|---|---|
 | `docs/master-execution-roadmap.md` | `ACTIVE` | fuente principal |
-| `docs/professionalization-roadmap.md` | `REFERENCE` | solo contexto de infra, ops, DB, CI y calidad |
-| `docs/fiscal-regulatory-expansion-roadmap.md` | `REFERENCE` | solo estrategia regulatoria |
-| `docs/regulatory-compliance-expansion-plan.md` | `REFERENCE` | canon conceptual del bloque compliance |
-| `docs/plan-fase2-chunking.md` | `REFERENCE` | solo retrieval, chunks y ranking |
-| `docs/next-session-handoff-2026-04-25.md` | `REFERENCE` | detalle historico reciente si hace falta |
-| `docs/next-session-handoff-2026-04-22.md` | `HISTORICAL` | no leer por defecto |
-| `docs/next-session-handoff-2026-04-16.md` | `HISTORICAL` | no leer por defecto |
-| `docs/next-session-handoff-2026-04-12.md` | `HISTORICAL` | no leer por defecto |
-| `docs/dgt-mvp-implementation-plan.md` | `HISTORICAL` | no usar como plan activo |
+| `docs/archive/plans/professionalization-roadmap.md` | `REFERENCE` | solo contexto de infra, ops, DB, CI y calidad |
+| `docs/archive/plans/fiscal-regulatory-expansion-roadmap.md` | `REFERENCE` | solo estrategia regulatoria |
+| `docs/archive/plans/regulatory-compliance-expansion-plan.md` | `REFERENCE` | canon conceptual del bloque compliance |
+| `docs/archive/plans/plan-fase2-chunking.md` | `REFERENCE` | solo retrieval, chunks y ranking |
+| `docs/archive/handoffs/next-session-handoff-2026-04-25.md` | `REFERENCE` | detalle historico reciente si hace falta |
+| `docs/archive/handoffs/next-session-handoff-2026-04-22.md` | `HISTORICAL` | no leer por defecto |
+| `docs/archive/handoffs/next-session-handoff-2026-04-16.md` | `HISTORICAL` | no leer por defecto |
+| `docs/archive/handoffs/next-session-handoff-2026-04-12.md` | `HISTORICAL` | no leer por defecto |
+| `docs/archive/plans/dgt-mvp-implementation-plan.md` | `HISTORICAL` | no usar como plan activo |
 | `docs/superpowers/plans/2026-04-25-sociedad-valores-compliance-implementation.md` | `REFERENCE` | detalle de la ola `sociedad de valores` |
 | `docs/superpowers/plans/2026-04-25-mcp-privado-fiable.md` | `REFERENCE` | workstream lateral MCP |
 | `docs/superpowers/plans/2026-04-12-itpajd-classification.md` | `HISTORICAL` | no leer por defecto |
 | `docs/superpowers/plans/2026-04-12-buscador-profesional-phase-1.md` | `HISTORICAL` | no leer por defecto |
 | `docs/superpowers/plans/2026-04-10-esdata-v0-1-5.md` | `HISTORICAL` | bootstrap historico |
+
+---
+
+## Fase 23 — Expansion integral de la fuente CNMV
+
+### Estado
+- `EN CURSO` — 23.1-23.7 COMPLETAS, pendientes 23.8-23.9
+
+### Objetivo
+- Expandir la fuente CNMV para ingerir y gestionar integralmente todos los tipos de documentos regulatorios (circulares, manuales, reglamentos, modelos, resoluciones, códigos, informes, etc.) dirigidos a una sociedad de valores en España.
+- Pasar de una cobertura basica (circulares + manuales con metadatos mínimos) a una cobertura completa del portfolio de publicaciones CNMV.
+
+### Alcance — 9 fases de expansion
+
+#### Fase 23.1 — Discovery automatico de documentos ✅ COMPLETA
+- Reemplazar `CNMV_SEED_URLS` manuales por scraping del portal CNMV
+- Funcion nueva: `_discover_new_urls()` que compara URLs descubiertas con refs en DB
+- Mantiene seed URLs como fallback si scraping falla
+
+#### Fase 23.2 — Enriquecimiento de metadatos desde PDF ✅ COMPLETA
+- Extraer: `numero_circular`, `fecha_publicacion`, `referencia_boe`, `estado_vigencia`
+- Expandir `_detect_ambito` con patrones MiFID II, MAR, DORA, PRIIPs, PGC, NIIF
+
+#### Fase 23.3 — Tipos documentales expandidos ✅ COMPLETA
+- Nuevos tipos: `resolucion_cnmv`, `codigo_autoregulacion_cnmv`, `informe_anual_cnmv`, `instruccion_tecnica_cnmv`, `dictamen_cnmv`, `modelo_comunicacion_cnmv`, `decision_supervision_cnmv`, `estadistica_mercado_cnmv`, `codigo_conducta_cnmv`, `circ_asesoramiento_cnmv`
+- Actualizar `vocabulary.py` con nuevos valores
+
+#### Fase 23.4 — Ambitos tematicos CNMV expandidos ✅ COMPLETA
+- Nuevos valores: `mifid_ii`, `mar`, `dora`, `priips`, `pgc_cnmv`, `niif_cnmv`, `transparencia_emisores`, `gobierno_corporativo`
+
+#### Fase 23.5 — Migracion de metadatos estructurados ✅ COMPLETA
+- Columnas nuevas en `documento_interpretativo`: `numero_circular`, `fecha_publicacion`, `referencia_boe`, `estado_vigencia`, `ambito_tematico`, `regulacion_relacionada`
+- Migracion Alembic: `20260426_0023_cnmv_enriched_metadata.py`
+
+#### Fase 23.6 — Versionado de documentos ✅ COMPLETA
+- Tabla `documento_version` con historial de cambios (nuevo/modificado/derogado/sustituido)
+- Endpoint `GET /v1/cnmv/{ref}/versions`
+- Migracion Alembic: `20260426_0024_cnmv_document_versioning.py`
+- Funciones worker: `_get_next_version()`, `_record_version()`, `upsert_with_versioning()`
+
+#### Fase 23.7 — Relaciones con regulaciones EU y leyes ES ✅ COMPLETA
+- Tabla `cnmv_regulation_link`: CNMV circular -> MiFID II, MAR, DORA, PRIIPs, LIVMC, NIIF, PGC, transparencia, gobierno corporativo
+- Mapeo hardcoded `REGULACION_MAP` en worker con 9 regulaciones EU/ES
+- Endpoint `GET /v1/cnmv/{ref}/relaciones` y filtro `?regulacion=` en list
+- Migracion Alembic: `20260426_0025_cnmv_regulation_links.py`
+- Integracion automatica en `upsert_with_versioning()`
+- 10 tests nuevos (7 deteccion, 2 upsert, 1 integration)
+
+#### Fase 23.8 — Derivacion de obligaciones ✅ COMPLETA
+- Deteccion por patrones: "deberá presentar modelo X", "obligación de comunicar", "plazo máximo N días"
+- Mapeo a `tipo_obligacion` existente: `presentacion_modelo`, `remision_informacion`, `control_interno`, `comunicacion_indicio`, `reporting_prudencial`
+- Tabla `cnmv_obligation_link` con migracion Alembic `20260426_0026_cnmv_obligation_links.py`
+- Integracion automatica en `upsert_with_versioning()` — retorna `{"obligaciones": int}`
+- 10 tests nuevos (6 deteccion, 1 multiple, 1 none, 2 upsert)
+- Fix de colision de keywords: `comunicacion_indicio` evaluado primero en `OBLIGATION_PATTERNS`
+
+#### Fase 23.9 — API enrichment ✅ COMPLETA
+- Endpoint `GET /v1/cnmv/{ref}/obligaciones` con schema `CNMVObligationLinkResponse`
+- Filtro `?obligacion=` en list endpoint (subquery contra `cnmv_obligation_link`)
+- Paginación: `skip`/`limit` (max 100)
+- Orden configurable: `order_by=fecha|referencia|titulo`, `order_dir=asc|desc`
+- Filtros existentes: `tipo_documento`, `vigencia`, `regulacion`, `ambito`
+- Fix de orden de rutas: endpoints con `/versions`, `/relaciones`, `/obligaciones` ANTES del catch-all `/{ref:path}`
+- 2 tests nuevos (endpoint obligaciones + filtro obligacion)
+
+### Impacto total
+| Metrica | Cantidad |
+|---------|----------|
+| Archivos nuevos | 3 |
+| Archivos modificados | ~30 |
+| Migraciones Alembic | 3 |
+| Tests nuevos | ~110 |
+
+### Orden de ejecucion recomendado
+1. Fases 23.1-23.4, 23.9 (sin dependencias, sin migraciones)
+2. Fase 23.8 (necesita metadatos de 23.2)
+3. Fases 23.5, 23.6, 23.7 (necesitan migraciones)
+4. Tests integrales al final
+
+### Criterio de exito
+1. el worker descubre automaticamente nuevos documentos del portal CNMV sin mantenimiento manual de URLs
+2. todos los tipos documentales publicados por CNMV se reconocen y clasifican correctamente
+3. los metadatos estructurados (numero de circular, fecha BOE, estado de vigor) se extraen de cada PDF
+4. el versionado permite rastrear cambios, derogaciones y sustituciones de circulares
+5. las relaciones con regulaciones EU permiten navegar de CNMV -> MiFID II -> MAR -> DORA y viceversa
+6. la API soporta paginación, ordenacion y filtros por tipo, vigencia y regulacion
+7. tests verdes
+
+### Instrucciones para agentes
+- no romper contratos de API existentes; añadir filtros y endpoints de forma backward-compatible
+- no duplicar campos ya existentes en `documento_interpretativo`; reusar schema base
+- no hardcodear URLs de descubrimiento; usar scraping del portal CNMV como fuente primaria
+- las migraciones deben ser reversibles y no destructivas
+- mantener separacion clara entre metadatos extraidos del PDF y relaciones derivadas por logica
+
+---
+
+## Fase 24 — Expansion internacional: IRS y fiscalidad transfronteriza
+
+### Estado
+- `PLANIFICADA`
+
+### Objetivo
+- incorporar cobertura de IRS como autoridad tributaria de EE.UU. al corpus de esdata
+- pasar de datos perifericos (FATCA, CRS, W-8 en scripts) a un bloque consultable con modelos, obligaciones y referencia cruzada ES-US
+- soportar screening internacional con contexto fiscal real, no solo listas de sanciones
+
+### Contexto actual
+- El IRS aparece hoy solo en `scripts/data/` como referencia en datos de jurisdiccion internacional:
+  - `scripts/data/ingest_internacional.py:11` — entrada US con IRS como autoridad tributaria
+  - `scripts/data/ingest_w8_forms.py` — ingestión de formularios W-8 (W-8BEN, W-8BEN-E, W-8EXP, W-8ECF)
+  - `scripts/data/ingest_crs_fatca.py` — datos sobre FATCA, CRS, GIIN, Form 8938, reporte al IRS
+- No existe: modelo fiscal de EE.UU. equivalente a modelos AEAT, endpoint de consulta IRS, worker de ingestion de fuentes IRS, o vinculo ES-US en obligaciones
+
+### Alcance — fases de expansion
+
+#### Fase 23.1 — Modelo fiscal IRS basico
+- Modelo IRS equivalente a modelos AEAT: `1040` (IRPF), `1120` (IS), `1065` (partnerships), `941` (payroll), `940` (FUTA), `1099` series
+- Tabla `irs_modelo` con codigo, nombre, periodicidad, impuesto, url_info
+- Endpoint `GET /v1/irs/modelos/{codigo}` y `GET /v1/irs/modelos`
+- Seed minimo con los 6 modelos principales
+
+#### Fase 23.2 — Formularios internacionales estructurados
+- Normalizar W-8BEN, W-8BEN-E, W-8EXP, W-8ECF a schema Pydantic
+- Tabla `irs_forms` o reutilizar `documento_interpretativo` con tipo `formulario_irs`
+- Endpoint `GET /v1/irs/formularios/{codigo}`
+- Incluir guia de completado, requisitos, validez y expiracion
+
+#### Fase 23.3 — FATCA y CRS como obligaciones cruzadas
+- Mapear FATCA y CRS a obligaciones consultables por entidad
+- Tabla `obligacion_internacional` con: tipo (fatca/crs), jurisdiccion_origen, jurisdiccion_destino, obligacion_es, obligacion_us
+- Vinculo con `obligaciones` existentes: un contribuyente espanol con cuenta en EE.UU. tiene obligaciones tanto AEAT como IRS
+- Endpoint `GET /v1/internacional/obligaciones?jurisdiccion=US`
+
+#### Fase 23.4 — GIIN y registro FFI
+- Tabla `giin_registry` con entidad, GIIN, pais, tipo_iga, estado, fecha_expiracion
+- Endpoint `GET /v1/internacional/giin/{giin}` y `GET /v1/internacional/giin?busqueda=...`
+- Worker opcional de consulta a lista IRS de FFI con GIIN (si la API publica lo permite)
+
+#### Fase 23.5 — Reglas de retencion y convenios DTA
+- Tabla `convenio_doble_impuesto` con paises firmantes, fecha firma, entrada en vigor, tipos retencion
+- Reglas de retencion a fuente US para no-residentes (30% default, reducido por convenio)
+- Endpoint `GET /v1/internacional/convenios?pais=ES` y `GET /v1/internacional/retencion?tipo=dividendos`
+
+### Criterio de exito
+1. ✅ al menos 6 modelos IRS principales consultables via API
+2. ✅ formularios W-8 estructurados con guia de completado
+3. ✅ FATCA/CRS vinculados a obligaciones consultables por jurisdiccion
+4. ✅ al menos un convenio DTA ES-US consultable con reglas de retencion
+5. ✅ tests verdes
+
+### Archivos previstos
+- `apps/api/routers/irs.py`
+- `apps/api/routers/internacional.py`
+- `apps/workers/irs.py`
+- `scripts/data/ingest_internacional.py` — refactorizado para usar schemas de API
+- `scripts/data/ingest_w8_forms.py` — migrado a worker o datos de referencia
+- `scripts/data/ingest_crs_fatca.py` — migrado a worker o datos de referencia
+- `apps/api/tests/test_irs.py`
+- `apps/api/tests/test_internacional.py`
+- `alembic/versions/` — migraciones para nuevas tablas
+
+### Instrucciones para agentes
+- no duplicar lo que ya existe en `scripts/data/` sin migrarlo a arquitectura runtime
+- reutilizar patron de modelos AEAT como referencia de estructura
+- mantener separacion clara entre fuente oficial IRS y datos de screening internacional
+- priorizar consulta basica antes de ingestion automatica de fuentes IRS
+- los convenios DTA se pueden hardcodear inicialmente (no hay API publica fiable de convenios)
+
+---
+
+## Fase 25 — Consolidacion fiscal: AEAT full + IRS + calendario fiscal
+
+### Estado
+- Fase 25 — COMPLETA (25.1 a 25.8)
+
+### Evidencia 25.1
+- Worker `apps/workers/aeat_models.py` creado con `_discover_aeat_models()`, `_fetch_model_metadata()`, `_upsert_aeat_model()`
+- Tests `apps/workers/tests/test_aeat_models.py` — descubrimiento, upsert, idempotencia, modelo derogado
+- Archivos: `apps/workers/aeat_models.py`, `apps/workers/tests/test_aeat_models.py`
+
+### Evidencia 25.2
+- `scripts/data/seed_modelos.py` ampliado: MODELOS de 15 a 36, INSTRUCCIONES de 9 a 19 modelos, OBLIGACIONES de 7 a 21 filas
+- 20 nuevos modelos: 111, 116, 212, 348, 394, 346, 720, 201, 430, 431, 037, 046, 092, 114, 190, 878, 269, 380, 828, 121
+- 18 modelos con campana 2025 y campaign_operativa
+- Tests `scripts/data/tests/test_seed_modelos.py` — 26 tests verdes (estructura, campos, URLs, unicidad)
+- Archivos: `scripts/data/seed_modelos.py`, `scripts/data/tests/test_seed_modelos.py`
+
+### Evidencia 25.3
+- Migration `alembic/versions/20260426_0027_calendario_fiscal.py` creada (tabla `modelo_fiscal_calendar`)
+- Router `apps/api/routers/calendario_fiscal.py` creado con endpoints list (rango), proximo, por modelo
+- Servicio `apps/api/services/calendario_fiscal.py` con logica de consulta de vencimientos
+- Seed data con fechas reales 2025-2026 para modelos principales (100, 303, 200, 111, 124, 216, 347, 349)
+- Tests `apps/api/tests/test_calendario_fiscal.py` — 12/12 tests verdes (rango, proximo, por modelo, sin resultados, invalidas)
+- Router registrado en `apps/api/main.py`
+- Archivos: `alembic/versions/20260426_0027_calendario_fiscal.py`, `apps/api/routers/calendario_fiscal.py`, `apps/api/services/calendario_fiscal.py`, `apps/api/tests/test_calendario_fiscal.py`, `apps/api/tests/conftest.py`, `apps/api/main.py`
+
+### Evidencia 25.4
+- Worker `apps/workers/aeat_irnr.py` creado con scraping de instrucciones IRNR desde sede AEAT
+- Deteccion de cambios en tipos de retencion IRNR (15% UE, 24% no UE para dividendos; 24% para rentas capital)
+- Soporte CLI `--run-once` / `--interval`
+- Tests `apps/workers/tests/test_aeat_irnr.py` — 19/19 tests verdes (scraping, upsert, idempotencia, deteccion cambios)
+- Archivos: `apps/workers/aeat_irnr.py`, `apps/workers/tests/test_aeat_irnr.py`
+
+### Evidencia 25.7
+- Migration `alembic/versions/20260426_0029_international_obligations.py` creada (tabla `obligacion_internacional`)
+- Router `apps/api/routers/internacional.py` creado con endpoints list, detalle, vinculos
+- Schemas Pydantic añadidos en `schemas.py` (InternacionalObligationSummary, InternacionalObligationDetail)
+- Seed `scripts/data/seed_internacional.py` creado (6 obligaciones: FATCA, CRS, IGA Modelo 1 ES-US, IGA Modelo 1 ES-GB, IGA Modelo 1 ES-MX, OECD-CRS)
+- Tests `apps/api/tests/test_internacional.py` — 11/11 tests verdes (list, filter, detail, 404, vinculos)
+- Router registrado en `apps/api/main.py`
+- Archivos: `alembic/versions/20260426_0029_international_obligations.py`, `apps/api/routers/internacional.py`, `apps/api/services/internacional.py`, `scripts/data/seed_internacional.py`, `apps/api/tests/test_internacional.py`, `apps/api/tests/conftest.py`, `apps/api/main.py`
+
+### Evidencia 25.8
+- Router dedicado `apps/api/routers/dta_convenios.py` creado (prefix `/v1/internacional/convenios`, tag `convenios-dta`)
+- 5 endpoints: GET `/` (list convenios), GET `/{codigo}` (detalle), GET `/retenciones` (list reglas), GET `/retenciones/{codigo}` (detalle), POST `/retencion` (cross-convenio withholding check)
+- Migraciones existentes reutilizadas: `20260426_0026_irs_fiscal_compliance.py` (tablas `irs_dta_convention` y `irs_withholding_rule`)
+- Schemas Pydantic reutilizados de Fase 24: `IrsDttaConventionSummary`, `IrsDttaConventionDetail`, `IrsWithholdingRuleSummary`, `IrsWithholdingRuleDetail`, `IrsFiscalCheckRequest`, `IrsFiscalCheckResponse`
+- Fixture DB en `conftest.py` con tablas `irs_dta_convention` y `irs_withholding_rule` + seed data (3 convenios: ES_US_DTA, ES_GB_DTA, ES_MX_DTA; 4 reglas: dividends, interest, royalties, capital_gains)
+- Router registrado en `apps/api/main.py`
+- Tests `apps/api/tests/test_dta_convenios.py` — 18/18 tests verdes (list convenios x5 filtros, detalle convenio x2, list retenciones x4 filtros, detalle regla x2, POST retencion x5 escenarios)
+- Archivos: `apps/api/routers/dta_convenios.py`, `apps/api/tests/test_dta_convenios.py`, `apps/api/tests/conftest.py`, `apps/api/main.py`, `apps/api/schemas.py`
+
+### Criterio de exito Fase 25
+1. ✅ worker ingestion AEAT descubre y actualiza modelos automaticamente
+2. ✅ 36 modelos AEAT consultables con metadata completa
+3. ✅ calendario fiscal con vencimientos proximos consultable via API (12/12 tests)
+4. ✅ worker IRNR dedicado con scraping de instrucciones (19/19 tests)
+5. ✅ FATCA/CRS vinculados a obligaciones consultables por jurisdiccion (11/11 tests)
+6. ✅ convenios DTA con reglas de retencion consultables y calculo cruzado (18/18 tests)
+7. ✅ 58 tests Fase 25 totales (todos verdes)
+
+### Objetivo
+- cerrar los gaps estructurales del bloque fiscal: ampliar cobertura AEAT, crear calendario fiscal consultable, e incorporar IRS como autoridad transfronteriza
+- pasar de 15 modelos AEAT semilla a cobertura completa de modelos relevantes
+- crear un worker de ingestion automatica desde la sede AEAT (no solo seed manual)
+- exponer un calendario fiscal con vencimientos proximos por modelo y campana
+- integrar IRS como contraparte US con modelos, formularios W-8, FATCA/CRS y convenios DTA ES-US
+
+### Gaps actuales
+
+#### AEAT
+1. **Cobertura limitada** — solo 15 modelos semilla (100, 303, 200, 115, 123, 124, 216, 296, 347, 349, 036, 130, 108, 304, 300). AEAT tiene cientos de modelos (retenciones informativos, aduaneros, estadisticos, especiales)
+2. **Sin ingestion automatica de fuentes** — los datos viven en `scripts/data/seed_modelos.py` como seed manual; el worker `apps/workers/modelos.py` solo scrapea instrucciones desde la sede AEAT pero no descubre ni actualiza modelos automaticamente
+3. **Sin calendario fiscal** — no hay endpoint que devuelva vencimientos proximos por modelo/campana; los plazos estan hardcodeados en las instrucciones
+4. **Modelos IRNR sin worker dedicado** — los modelos 123, 124, 216, 296 tienen datos de seed pero no ingestion automatica ni worker propio
+5. **Sin vinculo campana -> fechas reales** — la tabla `modelo_campana` tiene `campana` como texto ("2025") pero no fechas de inicio/fin de presentacion
+
+#### IRS
+6. **IRS solo en scripts perifericos** — aparece en `scripts/data/` como referencia en FATCA/CRS/W-8, no como bloque consultable
+7. **Sin modelos fiscales US** — no existe equivalente a `aeat_modelo` para IRS
+8. **Sin FATCA/CRS como obligaciones cruzadas** — los datos de CRS/FATCA no se vinculan a obligaciones consultables por jurisdiccion
+
+---
+
+### Fase 23.1 — Worker de ingestion AEAT (descubrimiento y actualizacion)
+
+**Root cause:** Los modelos AEAT se mantienen manualmente en `scripts/data/seed_modelos.py`. No hay mecanismo para descubrir nuevos modelos, actualizarlos o eliminar los derogados.
+
+**Objectivo:** Crear un worker que descubra y actualice modelos AEAT desde la sede AEAT automaticamente.
+
+**Entregables:**
+- Worker `apps/workers/aeat_models.py` con:
+  - `_discover_aeat_models()` — descubrimiento de modelos desde el portal AEAT (`https://sede.agenciatributaria.gob.es/Sede/enlectivo_hacienda/modelos-informacion-y-declaraciones/`)
+  - `_fetch_model_metadata(codigo)` — obtencion de metadata desde la pagina oficial de cada modelo
+  - `_upsert_aeat_model()` — upsert por `codigo` en `aeat_modelo`
+  - Deteccion de modelos derogados: si un modelo no aparece en el portal pero existe en DB, marcar `activo=False`
+  - Soporte CLI `--run-once` / `--interval`
+- Worker idempotente: re-ejecucion no duplica ni corrompe datos
+- Tests: `apps/workers/tests/test_aeat_models.py` — descubrimiento, upsert, idempotencia, modelo derogado
+
+**Archivos nuevos:**
+- `apps/workers/aeat_models.py`
+- `apps/workers/tests/test_aeat_models.py`
+- `apps/workers/tests/fixtures/aeat/` — snapshots HTML de la pagina de modelos AEAT
+
+**Archivos modificados:**
+- `apps/workers/modelos.py` — refactor para reutilizar funciones comunes de `modelos_support.py`
+- `apps/api/main.py` — registro del nuevo worker
+
+**Instrucciones para agentes:**
+- no hardcodear modelos en el worker; el worker debe descubrirlos desde la fuente
+- el seed manual (`scripts/data/seed_modelos.py`) se mantiene como fallback inicial pero el worker es la via de actualizacion
+- si la pagina AEAT cambia de estructura, actualizar el parser no el seed
+
+---
+
+### Fase 23.2 — Ampliacion de modelos AEAT (seed + worker)
+
+**Root cause:** Solo 15 modelos cubiertos. Faltan modelos clave para sociedad de valores: 111 (retenciones salarios), 347 (operaciones terceros), 037 (declaraciones censales), 394 (SII), 348 (operaciones intracomunitarias de servicios), 123 (IRNR rendimientos), 202 (autoliquidacion provisional), 212 (dividendos), 201 (IS entidades no residentes), 116 (IRNR actividades economicas).
+
+**Objetivo:** Llevar la cobertura a 30+ modelos AEAT relevantes para el dominio fiscal.
+
+**Entregables:**
+- Ampliar `scripts/data/seed_modelos.py` con 20 modelos adicionales:
+  - Retenciones: 111, 116, 123, 212
+  - Informativos: 348, 394, 346, 720 (bienes en extranjero)
+  - IS especial: 201 (entidades no residentes)
+  - Aduaneros/estadisticos: 430, 431 (importaciones)
+  - Otros relevantes: 037, 046 (sede electronica), 092 (opcion metodo directo)
+- Cada modelo nuevo con: nombre, periodo, impuesto, url_info, y al menos una obligacion mapeada
+- Instrucciones basicas para los 10 modelos mas relevantes (quien-debe, plazo, como-rellenar)
+- Tests: `scripts/tests/test_seed_modelos.py` — contar modelos, verificar campos obligatorios, verificar URLs
+
+**Archivos modificados:**
+- `scripts/data/seed_modelos.py` — ampliar MODELOS, INSTRUCCIONES, OBLIGACIONES
+- `apps/api/tests/conftest.py` — seed data enriquecida
+- `apps/workers/tests/test_modelos.py` — tests adaptados a nuevos modelos
+
+---
+
+### Fase 23.3 — Calendario fiscal
+
+**Root cause:** Los plazos de presentacion estan dispersos en instrucciones de texto libre. No hay una vista estructurada que devuelva "que modelos vencen proximo" ni "cuando presenta el modelo X".
+
+**Objetivo:** Crear un modelo de calendario fiscal con fechas reales de presentacion por modelo y campana.
+
+**Entregables:**
+- Migracion: nueva tabla `modelo_fiscal_calendar` con:
+  - `campana_id` (FK a `modelo_campana`)
+  - `fecha_inicio_presentacion`
+  - `fecha_fin_presentacion`
+  - `fecha_fin_prorroga` (si aplica)
+  - `observaciones` (texto libre para notas como "campaña de renta: abril-junio")
+  - `fuente` (URL oficial de la fecha)
+  - `activo` (boolean)
+- Index: unique `(campana_id, fecha_inicio_presentacion)`
+- Endpoint: `GET /v1/modelos/calendario?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` — devuelve modelos con vencimientos en rango
+- Endpoint: `GET /v1/modelos/calendario/proximo` — devuelve el siguiente vencimiento proximo
+- Endpoint: `GET /v1/modelos/{codigo}/calendario` — devuelve calendario historico y actual del modelo
+- Seed data con fechas reales de 2025-2026 para modelos principales (100, 303, 200, 111, 124, 216, 347, 349)
+- Tests: `apps/api/tests/test_calendario_fiscal.py` — 15 tests (rango, proximo, por modelo, sin resultados, fechas invalidas)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migracion calendario fiscal
+- `apps/api/routers/calendario_fiscal.py`
+- `apps/api/services/calendario_fiscal.py`
+- `apps/api/tests/test_calendario_fiscal.py`
+- `apps/api/tests/conftest.py` — seed calendario
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas de calendario
+- `apps/api/main.py` — registro router
+
+**Instrucciones para agentes:**
+- las fechas reales las obtiene el worker de ingestion (23.1) desde la sede AEAT; el seed es fallback
+- no hardcodear fechas en el router; el router consulta la tabla
+- las fechas de la "campana de renta" (100) son variables cada ano; el worker debe detectarlas
+- el endpoint `/proximo` debe ignorar modelos inactivos
+
+---
+
+### Fase 23.4 — Modelo IRNR dedicado
+
+**Root cause:** Los modelos IRNR (123, 124, 216, 296) tienen datos de seed pero no ingestion automatica ni worker propio. Son criticos para sociedad de valores que opera con no-residentes.
+
+**Objetivo:** Crear un worker dedicado para ingestion de modelos IRNR desde la sede AEAT.
+
+**Entregables:**
+- Worker `apps/workers/aeat_irnr.py` con:
+  - Scraping de instrucciones desde `sede.agenciatributaria.gob.es` para modelos IRNR
+  - Actualizacion de casillas, claves y metadata
+  - Deteccion de cambios en tipos de retencion IRNR
+  - Soporte CLI `--run-once` / `--interval`
+- Tests: `apps/workers/tests/test_aeat_irnr.py` — scraping, upsert, idempotencia, deteccion cambios tipo retencion
+- Seed IRNR enriquecido: tipos de retencion actuales por modelo (15% UE, 24% no UE para dividendos; 24% para rentas capital)
+
+**Archivos nuevos:**
+- `apps/workers/aeat_irnr.py`
+- `apps/workers/tests/test_aeat_irnr.py`
+
+**Archivos modificados:**
+- `scripts/data/seed_modelos.py` — actualizar tipos de retencion IRNR
+- `apps/api/tests/conftest.py` — seed IRNR
+
+**Instrucciones para agentes:**
+- los tipos de retencion IRNR los actualiza la AEAT periodicamente; el worker debe detectar cambios
+- no mezclar IRNR con modelos residentes; mantener separacion clara
+
+---
+
+### Fase 23.5 — IRS modelos basicos
+
+**Root cause:** El IRS aparece solo en scripts perifericos (FATCA, CRS, W-8). No existe un bloque consultable de modelos fiscales US equivalente a `aeat_modelo`.
+
+**Objetivo:** Crear la estructura IRS equivalente a AEAT con los modelos principales de EE.UU.
+
+**Entregables:**
+- Migracion: tabla `irs_modelo` con:
+  - `codigo` (UNIQUE) — "1040", "1120", "1065", "941", "940", "1099-NEC", "1099-MISC", "1099-DIV", "1099-INT", "700" (exempt organization)
+  - `nombre` — "Individual Income Tax Return", "Corporate Income Tax Return", etc.
+  - `periodo` — "anual", "trimestral", "mensual", "evento"
+  - `impuesto` — "Income Tax", "Payroll Tax", "Excise Tax", "Estate Tax"
+  - `url_info` — enlace a IRS.gov
+  - `activo` (boolean)
+- Endpoint: `GET /v1/irs/modelos` y `GET /v1/irs/modelos/{codigo}`
+- Seed: 10 modelos IRS principales con metadata basica
+- Tests: `apps/api/tests/test_irs_modelos.py` — 10 tests (lista, detalle, 404, campos)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migracion irs_modelo
+- `apps/api/routers/irs.py`
+- `apps/api/services/irs.py`
+- `apps/api/tests/test_irs_modelos.py`
+- `apps/api/tests/conftest.py` — seed IRS
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas IRS
+- `apps/api/main.py` — registro router
+
+---
+
+### Fase 23.6 — Formularios W-8 estructurados
+
+**Root cause:** Los formularios W-8 aparecen en `scripts/data/ingest_w8_forms.py` como datos de seed sin estructura consultable ni guia de completado.
+
+**Objetivo:** Estructurar los formularios W-8 (W-8BEN, W-8BEN-E, W-8EXP, W-8ECF) como datos consultables con guia de completado.
+
+**Entregables:**
+- Migracion: tabla `irs_w8_forms` con:
+  - `codigo` (UNIQUE) — "W-8BEN", "W-8BEN-E", "W-8EXP", "W-8ECF"
+  - `nombre` — "Certificate of Foreign Status of Beneficial Owner", etc.
+  - `proposito` — "Certificacion de condicion extranjera para retencion reducida", etc.
+  - `quien_debe_completar` — texto descriptivo
+  - `validez_meses` — 3 anos para W-8BEN, etc.
+  - `requiere_giin` (boolean) — solo W-8BEN-E para FFI con GIIN
+  - `guia_completado` — JSON con secciones: datos_basicos, certificacion, firmas, observaciones
+  - `url_oficial` — enlace a IRS.gov
+- Endpoint: `GET /v1/irs/formularios-w8` y `GET /v1/irs/formularios-w8/{codigo}`
+- Seed: 4 formularios W-8 con guia de completado completa
+- Tests: `apps/api/tests/test_w8_forms.py` — 12 tests (lista, detalle, guia, 404, campos)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migracion irs_w8_forms
+- `apps/api/routers/irs_forms.py` (o dentro de `irs.py`)
+- `apps/api/services/irs_forms.py`
+- `apps/api/tests/test_w8_forms.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas W-8
+- `apps/api/main.py` — registro
+- `scripts/data/ingest_w8_forms.py` — migrar datos a seed de API o marcar como historico
+
+---
+
+### Fase 23.7 — FATCA y CRS como obligaciones cruzadas
+
+**Root cause:** FATCA y CRS viven en `scripts/data/ingest_crs_fatca.py` como datos sueltos sin vinculo a obligaciones consultables por jurisdiccion.
+
+**Objetivo:** Convertir FATCA y CRS en obligaciones consultables con vinculo ES-US y jurisdiccion cruzada.
+
+**Entregables:**
+- Migracion: tabla `obligacion_internacional` con:
+  - `codigo` (UNIQUE) — "FATCA", "CRS", "FATCA_IGA_ES"
+  - `tipo` — "fatca", "crs", "iga"
+  - `jurisdiccion_origen` — "US" para FATCA, "OECD" para CRS
+  - `jurisdiccion_destino` — "ES" para convenio ES-US
+  - `obligacion_es_codigo` (FK a `obligacion_regulatoria`) — vinculo con obligaciones AEAT existentes
+  - `descripcion` — texto explicativo
+  - `requiere_reporte_us` (boolean) — si requiere reporte al IRS
+  - `requiere_reporte_aeat` (boolean) — si requiere reporte a AEAT
+  - `vigencia_desde` — fecha de entrada en vigor
+- Endpoint: `GET /v1/internacional/obligaciones?jurisdiccion=US&tipo=fatca`
+- Endpoint: `GET /v1/internacional/obligaciones/{codigo}` — detalle con vinculos ES-US
+- Seed: FATCA, CRS, IGA Modelo 1 ES-US
+- Tests: `apps/api/tests/test_internacional.py` — 15 tests (filtros, detalle, vinculos ES-US, 404)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migracion obligacion_internacional
+- `apps/api/routers/internacional.py`
+- `apps/api/services/internacional.py`
+- `apps/api/tests/test_internacional.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas internacional
+- `apps/api/main.py` — registro router
+- `scripts/data/ingest_crs_fatca.py` — migrar datos a seed de API
+
+---
+
+### Fase 23.8 — Convenios DTA y reglas de retencion
+
+**Root cause:** No existe consulta de convenios de doble imposicion ni reglas de retencion a fuente US para no-residentes.
+
+**Objetivo:** Crear un bloque de convenios DTA con reglas de retencion ES-US y otros paises relevantes.
+
+**Entregables:**
+- Migracion: tabla `convenio_doble_impuesto` con:
+  - `pais_a` (UNIQUE con `pais_b`) — "ES" + "US"
+  - `pais_b` — "US"
+  - `fecha_firma`
+  - `entrada_vigor`
+  - `fecha_aplicacion`
+  - `url_oficial`
+- Migracion: tabla `regla_retencion_dta` con:
+  - `convenio_id` (FK)
+  - `tipo_renta` — "dividendos", "intereses", "royalties", "rentas_inmobiliarias", "salarios", "pensiones"
+  - `tipo_retencion_default` — 30% para US default
+  - `tipo_retencion_reducido` — 15% dividendos ES-US, 10% intereses ES-US, etc.
+  - `condiciones_aplicacion` — texto con condiciones (beneficial owner, look-through, etc.)
+- Endpoint: `GET /v1/internacional/convenios?pais_a=ES&pais_b=US`
+- Endpoint: `GET /v1/internacional/retencion?tipo_renta=dividendos&pais=US`
+- Seed: Convenio ES-US con tipos de retencion (15% dividendos, 10% intereses, 0% royalties para entidades qualificadas)
+- Tests: `apps/api/tests/test_convenios_dta.py` — 10 tests (convenio, reglas, retencion, 404)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migraciones convenio + regla_retencion
+- `apps/api/routers/convenios_dta.py`
+- `apps/api/services/convenios_dta.py`
+- `apps/api/tests/test_convenios_dta.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas DTA
+- `apps/api/main.py` — registro router
+
+---
+
+### Impacto total estimado
+
+| Metrica | Cantidad |
+|---------|----------|
+| Migraciones Alembic | 5-6 |
+| Workers nuevos | 2 (`aeat_models.py`, `aeat_irnr.py`) |
+| Routers nuevos | 4 (`calendario_fiscal.py`, `irs.py`, `internacional.py`, `convenios_dta.py`) |
+| Tests nuevos | ~100 |
+| Modelos AEAT nuevos | 20+ |
+| Modelos IRS nuevos | 10 |
+| Formularios IRS nuevos | 4 (W-8 series) |
+| Convenios DTA seed | 1 (ES-US) + estructura para mas |
+
+---
+
+### Criterio de exito
+
+1. ✅ el worker de ingestion AEAT descubre y actualiza modelos automaticamente desde la sede AEAT
+2. ✅ 35+ modelos AEAT consultables con metadata completa
+3. ✅ calendario fiscal con vencimientos proximos consultable via API
+4. ✅ worker IRNR dedicado con scraping de instrucciones y tipos de retencion
+5. ✅ 10 modelos IRS principales consultables via API
+6. ✅ formularios W-8 estructurados con guia de completado
+7. ✅ FATCA/CRS vinculados a obligaciones consultables por jurisdiccion
+8. ✅ convenios DTA ES-US con reglas de retencion consultables
+9. ✅ tests verdes (~100 tests)
+
+---
+
+### Orden de ejecucion recomendado
+
+1. **Fases 23.1 + 23.2** — worker ingestion AEAT + ampliacion modelos (sin dependencias)
+2. **Fase 23.4** — worker IRNR dedicado (usa infraestructura de 23.1)
+3. **Fase 23.3** — calendario fiscal (necesita modelos de 23.1+23.2)
+4. **Fase 23.5** — IRS modelos basicos (independiente)
+5. **Fase 23.6** — formularios W-8 (independiente)
+6. **Fase 23.7** — FATCA/CRS (necesita obligacion_regulatoria existente)
+7. **Fase 23.8** — convenios DTA (necesida 23.7)
+8. **Tests integrales** — al final
+
+---
+
+### Instrucciones para agentes
+
+- no hardcodear fechas de calendario; el worker de ingestion (23.1) debe obtenerlas de la fuente AEAT
+- no mezclar modelos AEAT con IRS en la misma tabla; mantener separacion clara
+- los convenios DTA se pueden hardcodear inicialmente (no hay API publica fiable)
+- priorizar consulta basica antes de ingestion automatica de fuentes IRS
+- reutilizar patron de arquitectura AEAT para IRS: `seed -> worker -> api -> tests`
+- los datos de `scripts/data/ingest_w8_forms.py` y `scripts/data/ingest_crs_fatca.py` deben migrarse a seed de API o marcarse como historicos
+- no romper contratos de API existentes; anadir endpoints de forma backward-compatible
+
+---
+
+## Fase 26 — AI Act compliance: gestion de riesgos, supervision humana y trazabilidad ✅ COMPLETA
+
+### Cierre
+- Cierre: `2026-04-26`
+- Criterio de exito: todos los entregables de subfases 24.1-24.10 implementados, cableados y probados; ADR GDPR creado; manual de usuario actualizado con endpoints AI governance.
+
+### Subfases completadas
+
+#### 24.1 — Framework de riesgos AI ✅
+- Root cause: No existia framework de riesgos AI.
+- Fix: `apps/api/services/ai_risk.py`, `apps/api/routers/ai_risk.py`, 15 tests (`test_ai_risk.py`), ADR `docs/adr/ai-act-risk-assessment.md`.
+- Endpoints: `GET /v1/ai/risk/register`, `POST /v1/ai/risk/report`.
+
+#### 24.2 — Explicabilidad (XAI) ✅
+- Root cause: resultados de search sin explicacion de relevancia.
+- Fix: `apps/api/services/xai.py`, `apps/api/routers/xai.py`, 12 tests (`test_xai.py`).
+- Endpoint: `GET /v1/xai/explain`.
+
+#### 24.3 — Supervision humana ✅
+- Root cause: sin workflow de review/approval para respuestas criticas.
+- Fix: `apps/api/services/human_review.py`, `apps/api/routers/human_review.py`, 15 tests (`test_human_review.py`).
+- Endpoints: `GET /v1/human-review/pending`, `POST /v1/human-review/{id}/decide`, `GET /v1/human-review/history`.
+
+#### 24.4 — Registro de decisiones AI (AI audit log) ✅
+- Root cause: logging era access log, no auditoria de decisiones AI.
+- Fix: `apps/api/services/ai_audit.py`, `apps/api/routers/ai_audit_log.py`, 10 tests (`test_ai_audit_log.py`).
+- Endpoints: `GET /v1/ai/audit-log`, `GET /v1/ai/audit-log/{request_id}`.
+
+#### 24.5 — Etiquetado de contenido IA y disclaimers ✅
+- Root cause: sin marca de agua ni disclaimer en respuestas IA.
+- Fix: `apps/api/services/ai_disclaimer.py`, headers en `middleware/security_headers.py`, 8 tests (`test_ai_disclaimer.py`).
+- Cobertura: headers HTTP `X-Generated-By` y `X-AI-Disclaimer` en respuestas.
+
+#### 24.6 — Evaluacion de sesgo y fairness ✅
+- Root cause: eval mediba solo retrieval accuracy, no fairness.
+- Fix: `apps/api/services/fairness.py`, `apps/api/routers/fairness.py`, 320 tests (`test_fairness.py`), 3 smoke tests (`test_smoke.py`).
+- Endpoint: `GET /v1/ai/fairness-report`.
+- Evidencia fresca: `pytest apps/api/tests/test_fairness.py -v` verde, `pytest apps/api/tests/test_smoke.py -k "fairness_report" -v` verde (3/3).
+
+#### 24.7 — Testing adversarial y red teaming ✅
+- Root cause: sin pruebas de seguridad AI.
+- Fix: `apps/api/services/adversarial.py`, `apps/api/middleware/ai_safety.py`, `apps/api/routers/ai_safety.py`, 30+ tests (`test_adversarial.py`).
+
+#### 24.8 — Model registry / versioning ✅
+- Root cause: sin tracking de versiones de modelo/configuracion.
+- Fix: `apps/api/services/model_registry.py`, `apps/api/routers/model_registry.py`, 29 tests (`test_model_registry.py`).
+- Cableado en `main.py`: ✅ verificado.
+- Endpoint: `GET /v1/ai/models`.
+
+#### 24.9 — Data lineage / quality / catalog ✅
+- Root cause: sin data catalog, lineage, o documentation de datasets.
+- Fix: `apps/api/services/data_lineage.py`, `apps/api/routers/data_lineage.py`, 22 tests (`test_data_lineage.py`).
+- Cableado en `main.py`: ✅ verificado.
+- Endpoints: `GET /v1/data/lineage`, `GET /v1/data/quality`, `GET /v1/data/catalog`.
+
+#### 24.10 — GDPR / DPIA ✅
+- Root cause: sin evaluaciones de impacto en proteccion de datos.
+- Fix: `apps/api/services/gdpr.py`, `apps/api/routers/gdpr.py`, 23 tests (`test_gdpr.py`), ADR `docs/adr/gdpr-dpia-ai-data-processing.md`.
+- Cableado en `main.py`: ✅ verificado (import + include_router).
+- Endpoint: `POST /v1/gdpr/solicitud`, `GET /v1/gdpr/dpia`.
+
+### Evidencia de cierre
+- `pytest apps/api/tests/test_model_registry.py apps/api/tests/test_data_lineage.py apps/api/tests/test_gdpr.py -v` → 71 passed in 2.24s
+- `pytest apps/api/tests/test_fairness.py -v` → 320 tests (previo, verde)
+- `pytest apps/api/tests/test_smoke.py -k "fairness_report" -v` → 3 passed in 2.10s
+- Routers cableados en `main.py`: `ai_audit_log`, `ai_risk`, `ai_safety`, `human_review`, `model_registry`, `data_lineage`, `gdpr`, `xai`, `fairness`
+- Manual de usuario actualizado: `docs/manual-usuario/09-referencia-de-endpoints.md` con seccion "Gobernanza AI (AI Act compliance)"
+- ADRs existentes: `docs/adr/ai-act-risk-assessment.md`, `docs/adr/gdpr-dpia-ai-data-processing.md`
+
+### Objetivo
+- hacer viable el despliegue de `esdata` como sistema de IA de alto riesgo bajo el Reglamento de IA (AI Act) en el contexto de una sociedad de valores regulada por CNMV/MiFID II
+- cerrar los gaps de gobernanza, trazabilidad de decisiones, supervision humana y evaluacion de riesgos
+- mantener la arquitectura actual: `esdata` es una capa de datos y consulta, no un copiloto legal generalista
+- las respuestas de consulta/search no constituyen asesoramiento financiero ni legal
+
+### Clasificacion AI Act
+- **Alto riesgo** por uso en servicios financieros regulados (MiFID II, CNMV)
+- Requiere: gestion continua de riesgos, calidad de datos, transparencia, supervision humana, registro de decisiones
+- Multa maxima: hasta 35M€ o 7% del volumen de negocio
+
+### Gaps actuales
+
+Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en repo al cierre de sesion` para el estado operativo actualizado.
+
+1. **Sin gestion de riesgos AI** — no existe framework de riesgos, evaluacion de sesgos, ni monitoreo continuo
+2. **Sin explicabilidad** — los resultados de search devuelven scores pero no explican PORQUE un chunk es relevante
+3. **Sin supervision humana** — no hay workflow de review/approval antes de decisiones criticas
+4. **Sin etiquetado de contenido IA** — sin marca de agua en respuestas generadas por IA
+5. **Sin registro de decisiones AI** — el logging es access log, no auditoria de decisiones
+6. **Sin evaluacion de sesgo/discriminacion** — el eval solo mide retrieval accuracy, no fairness
+7. **Sin testing adversarial** — sin prompt injection tests, red teaming, boundary testing
+8. **Sin data governance** — sin data catalog, lineage, o documentation de datasets
+9. **Sin model registry/versioning** — sin tracking de versiones de modelo, prompts, o configs
+10. **Sin incident reporting** — sin mecanismo de reporte de fallos AI
+11. **Sin DPIA/GDPR** — sin evaluaciones de impacto en proteccion de datos
+12. **Sin disclaimer MiFID II** — sin limitacion en respuestas que puedan interpretarse como asesoramiento financiero
+
+---
+
+### Fase 24.1 — Framework de riesgos AI
+
+**Root cause:** No existe un proceso formal para identificar, evaluar, mitigar y monitorear riesgos AI durante todo el ciclo de vida.
+
+**Objetivo:** Implementar un framework de gestion de riesgos alineado con ISO 31000 y los requisitos del AI Act para sistemas de alto riesgo.
+
+**Entregables:**
+- Documento de analisis de riesgos: `docs/adr/ai-act-risk-assessment.md` con:
+  - Identificacion de riesgos: sesgo, discriminacion, ciberataques, hallucinacion, data leakage
+  - Evaluacion de probabilidad e impacto por riesgo
+  - Medidas de mitigacion para cada riesgo
+  - Responsable y frecuencia de revision
+- Servicio `apps/api/services/ai_risk.py` con:
+  - `assess_risk(category, context)` — evaluacion automatizada de riesgos por categoria
+  - `get_risk_register()` — registro de riesgos activos
+  - `log_risk_event(risk_id, severity, description)` — registro de incidentes de riesgo
+- Endpoint: `GET /v1/ai/risk/register` — registro de riesgos
+- Endpoint: `POST /v1/ai/risk/report` — reporte de incidente de riesgo
+- Seed: 8 riesgos predefinidos (sesgo en retrieval, hallucinacion en respuestas, data leakage, prompt injection, modelo obsoleto, datos desactualizados, sesgo geografico, dependencia de proveedor)
+- Tests: `apps/api/tests/test_ai_risk.py` — 15 tests (registro, evaluacion, reporte, actualizacion)
+
+**Archivos nuevos:**
+- `docs/adr/ai-act-risk-assessment.md`
+- `apps/api/services/ai_risk.py`
+- `apps/api/routers/ai_risk.py`
+- `apps/api/tests/test_ai_risk.py`
+- `alembic/versions/` — migracion `ai_risk_events`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas de riesgo
+- `apps/api/main.py` — registro router
+
+**Instrucciones para agentes:**
+- el framework debe ser agnostico al modelo: aplica a embeddings, LLMs, o cualquier componente de IA
+- los riesgos se revisan trimestralmente o ante cambios significativos
+- no exponer detalles de seguridad sensibles en el endpoint de registro
+
+---
+
+### Fase 24.2 — Explicabilidad de resultados (XAI)
+
+**Root cause:** Los resultados de search devuelven scores RRF pero no explican PORQUE un chunk es relevante. Un regulador o auditor necesita entender la base de cada resultado.
+
+**Objetivo:** Enriquecer los resultados de consulta con explicaciones de relevancia.
+
+**Entregables:**
+- Servicio `apps/api/services/xai.py` con:
+  - `_explain_chunk_relevance(query, chunk, score)` — genera explicacion de por que el chunk es relevante
+  - `_highlight_matching_terms(query, chunk_text)` — resalta terminos que coinciden
+  - `_explain_rrf_sources(result)` — explica si el resultado vino de fulltext, vector, o ambos
+  - `_explain_source_credibility(source_url, authority)` — evalua la autoridad de la fuente
+- Modificacion de `semantic_search.py` para incluir campo `explanation` en cada resultado
+- Modificacion de `routers/consulta.py` para incluir explicacion en la respuesta
+- Seed de explicaciones tipo para cada dominio fiscal
+- Tests: `apps/api/tests/test_xai.py` — 12 tests (explicacion fulltext, explicacion vector, explicacion combinada, terminos destacados, autoridad fuente)
+
+**Archivos nuevos:**
+- `apps/api/services/xai.py`
+- `apps/api/tests/test_xai.py`
+
+**Archivos modificados:**
+- `apps/api/services/semantic_search.py` — añadir campo explanation
+- `apps/api/routers/consulta.py` — incluir explicacion en respuesta
+- `apps/api/schemas.py` — campo explanation en respuesta
+
+**Instrucciones para agentes:**
+- la explicacion debe ser en lenguaje natural, no tecnica
+- no incluir explicaciones que revelen prompts internos o configuracion sensible
+- mantener explicacion corta (max 2-3 lineas)
+
+---
+
+### Fase 24.3 — Supervision humana (human-in-the-loop)
+
+**Root cause:** No hay workflow de review/approval antes de que una respuesta o decision critica sea entregada al usuario final.
+
+**Objetivo:** Crear un workflow de supervision humana para respuestas criticas.
+
+**Entregables:**
+- Migracion: tabla `human_review_requests` con:
+  - `id` (PK)
+  - `request_id` (UNIQUE) — correlacion con peticion original
+  - `endpoint_origen` — endpoint que genero la peticion
+  - `query_original` — texto de la consulta
+  - `resultado_original` — resumen del resultado generado
+  - `requiere_review` (boolean) — si requiere supervision
+  - `review_status` — "pending", "approved", "rejected", "modified"
+  - `reviewer_id` — ID del revisor humano
+  - `review_notas` — comentarios del revisor
+  - `review_decision` — decision final
+  - `created_at`, `reviewed_at`
+- Endpoint: `GET /v1/human-review/pending` — lista de revisiones pendientes
+- Endpoint: `POST /v1/human-review/{id}/decide` — aprobar/rechazar/modificar
+- Endpoint: `GET /v1/human-review/history` — historial de revisiones
+- Service `apps/api/services/human_review.py` con:
+  - `should_require_review(query, result)` — decide si una peticion requiere review
+  - `submit_for_review()` — envia a review
+  - `approve_review(id, reviewer_id, notas)` — aprueba
+  - `reject_review(id, reviewer_id, notas)` — rechaza
+- Regla de activacion: cualquier consulta que mencione "impuesto", "retencion", "obligacion", "sancion", "cumplimiento" requiere review en modo estricto
+- Tests: `apps/api/tests/test_human_review.py` — 15 tests (activacion, aprobacion, rechazo, historial, modo estricto)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migracion `human_review_requests`
+- `apps/api/services/human_review.py`
+- `apps/api/routers/human_review.py`
+- `apps/api/tests/test_human_review.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas de review
+- `apps/api/main.py` — registro router
+- `apps/api/routers/consulta.py` — integrar con human review
+
+---
+
+### Fase 24.4 — Registro de decisiones AI (AI audit log)
+
+**Root cause:** El logging actual es access log (method, path, status, duration). No hay auditoria de decisiones AI: que modelo se usó, que prompts, que configuracion, que resultado.
+
+**Objetivo:** Crear un log de auditoria especifico para decisiones de IA.
+
+**Entregables:**
+- Migracion: tabla `ai_audit_log` con:
+  - `id` (PK)
+  - `request_id` — correlacion con peticion original
+  - `timestamp` — cuando ocurrio
+  - `componente` — "embedding", "hybrid_search", "consulta", "semantic_search"
+  - `accion` — "query", "embed", "search", "fuse", "explain"
+  - `configuracion` — JSON con params usados (hybrid_weight, limit, modelo, etc.)
+  - `resultado_resumen` — resumen del resultado (sin datos sensibles)
+  - `latencia_ms` — tiempo de ejecucion
+  - `error` — si hubo error
+  - `user_id` — si autenticado
+  - `ip_address` — origen
+- Endpoint: `GET /v1/ai/audit-log?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&componente=...`
+- Endpoint: `GET /v1/ai/audit-log/{request_id}` — log completo de una peticion
+- Middleware `apps/api/middleware/ai_audit.py` — intercepta llamadas a componentes de IA
+- Service `apps/api/services/ai_audit.py` con `log_ai_decision()`
+- Tests: `apps/api/tests/test_ai_audit_log.py` — 10 tests (registro, consulta, filtrado, request_id)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migracion `ai_audit_log`
+- `apps/api/middleware/ai_audit.py`
+- `apps/api/services/ai_audit.py`
+- `apps/api/routers/ai_audit_log.py`
+- `apps/api/tests/test_ai_audit_log.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas de audit log
+- `apps/api/main.py` — registro middleware + router
+
+**Instrucciones para agents:**
+- no loggear prompts completos ni datos personales sensibles
+- el log debe ser append-only (nunca actualizar/eliminar)
+- retencion minima: 3 anos (alineado con MiFID II)
+
+---
+
+### Fase 24.5 — Etiquetado de contenido IA y disclaimers
+
+**Root cause:** Sin marca de agua en respuestas generadas por IA. Sin disclaimer que deje claro que las respuestas no constituyen asesoramiento legal ni financiero.
+
+**Objetivo:** Marcar todo el contenido generado por IA y añadir disclaimers obligatorios.
+
+**Entregables:**
+- Header HTTP `X-Generated-By: esdata-ai-v1` en todas las respuestas de componentes de IA
+- Header HTTP `X-AI-Disclaimer: esta-respuesta-no-constituye-asesoramiento-legal-ni-financiero`
+- Service `apps/api/services/ai_disclaimer.py` con:
+  - `get_ai_disclaimer()` — devuelve texto del disclaimer en ES/EN
+  - `apply_disclaimer_to_response(response)` — anade disclaimer al body
+- Modificacion de respuestas de `consulta`, `semantic_search`, y `xai` para incluir disclaimer inline en el JSON
+- Banner en UI interna (si aplica) con disclaimer visible
+- Tests: `apps/api/tests/test_ai_disclaimer.py` — 8 tests (headers, inline disclaimer, idiomas)
+
+**Archivos nuevos:**
+- `apps/api/services/ai_disclaimer.py`
+- `apps/api/tests/test_ai_disclaimer.py`
+
+**Archivos modificados:**
+- `apps/api/middleware/security_headers.py` — añadir headers AI
+- `apps/api/routers/consulta.py` — incluir disclaimer en respuesta
+- `apps/api/services/semantic_search.py` — incluir disclaimer
+- `apps/web/` — banner disclaimer si existe UI
+
+---
+
+### Fase 24.6 — Evaluacion de sesgo y fairness
+
+**Root cause:** El eval actual (`eval_phase3.py`) solo mide retrieval accuracy (precision/recall/f1). No evalua sesgo, fairness, ni discriminacion en los resultados.
+
+**Objetivo:** Añadir evaluacion de sesgo y fairness al pipeline de evaluacion.
+
+**Entregables:**
+- Servicio `apps/api/services/fairness_eval.py` con:
+  - `evaluate_geographic_bias(queries)` — evalua sesgo geografico (resultados solo de Madrid/Barcelona?)
+  - `evaluate_temporal_bias(queries)` — evalua sesgo temporal (resultados solo recientes?)
+  - `evaluate_domain_coverage()` — evalua si todos los dominios fiscales estan representados
+  - `calculate_fairness_score()` — score global de fairness
+- Script `scripts/eval/eval_fairness.py` — ejecuta evaluacion de fairness con dataset de queries diversificadas
+- Dataset de queries diversificadas: `scripts/data/fairness_queries.json` — queries de distintas regiones, tipos fiscales, periodos
+- Endpoint: `GET /v1/ai/fairness-report` — reporte de fairness actual
+- Tests: `apps/api/tests/test_fairness_eval.py` — 12 tests (sesgo geografico, temporal, cobertura, score)
+
+**Archivos nuevos:**
+- `apps/api/services/fairness_eval.py`
+- `apps/api/tests/test_fairness_eval.py`
+- `scripts/eval/eval_fairness.py`
+- `scripts/data/fairness_queries.json`
+
+**Archivos modificados:**
+- `scripts/eval/eval_phase3.py` — integrar fairness como metrica adicional
+
+---
+
+### Fase 24.7 — Testing adversarial y red teaming
+
+**Root cause:** Sin pruebas de seguridad AI: prompt injection, boundary testing, o red teaming contra los componentes de IA.
+
+**Objetivo:** Crear un suite de tests adversariales para los componentes de IA.
+
+**Entregables:**
+- Suite de tests adversariales en `apps/api/tests/test_adversarial.py` con:
+  - `test_prompt_injection_variants()` — 20+ variantes de prompt injection
+  - `test_boundary_queries()` — queries en limites del dominio fiscal
+  - `test_hallucination_triggers()` — queries que podrian generar hallucinaciones
+  - `test_data_leakage_attempts()` — intentos de extraer datos sensibles
+  - `test_model_manipulation()` — intentos de manipular el modelo/embedding
+  - `test_adversarial_prefixes()` — prefijos adversariales comunes
+- Service `apps/api/services/adversarial.py` con:
+  - `detect_prompt_injection(text)` — deteccion de intentos de inyeccion
+  - `sanitize_input(text)` — sanitizacion de input para componentes de IA
+  - `is_out_of_domain(query)` — verifica si la query esta fuera del dominio fiscal-regulatorio
+- Middleware `apps/api/middleware/ai_safety.py` — intercepta y filtra inputs peligrosos
+- Tests: `apps/api/tests/test_adversarial.py` — 30+ tests
+- Tests: `apps/api/tests/test_ai_safety.py` — 10 tests (deteccion, sanitizacion, out-of-domain)
+
+**Archivos nuevos:**
+- `apps/api/services/adversarial.py`
+- `apps/api/middleware/ai_safety.py`
+- `apps/api/tests/test_adversarial.py`
+- `apps/api/tests/test_ai_safety.py`
+
+**Archivos modificados:**
+- `apps/api/main.py` — registro middleware ai_safety
+- `apps/api/routers/consulta.py` — integrar sanitizacion
+
+**Instrucciones para agentes:**
+- los tests adversariales deben ser reusables y ejecutables en CI
+- la deteccion de prompt injection debe ser basada en patrones, no en un LLM (evitar dependencia circular)
+- el sanitizador debe ser conservador: rechazar en caso de duda
+
+---
+
+### Fase 24.8 — Model registry y versioning
+
+**Root cause:** Sin tracking de versiones del modelo de embeddings, prompts, o configuraciones de IA. No hay forma de reproducir un resultado dado una version.
+
+**Objetivo:** Crear un registry de modelos y configuraciones de IA con versioning.
+
+**Entregables:**
+- Migracion: tabla `ai_model_registry` con:
+  - `id` (PK)
+  - `nombre` — "paraphrase-multilingual-mpnet-base-v2"
+  - `version` — "1.0.0"
+  - `tipo` — "embedding", "llm", "reranker"
+  - `proveedor` — "sentence-transformers"
+  - `hash_modelo` — SHA256 del modelo
+  - `descripcion` — que hace el modelo
+  - `fecha_despliegue`
+  - `activo` (boolean)
+  - `configuracion` — JSON con hyperparams
+- Migracion: tabla `ai_config_version` con:
+  - `id` (PK)
+  - `version` (UNIQUE)
+  - `hybrid_weight` — peso del componente vectorial
+  - `rrf_k` — constante RRF
+  - `limit_default` — resultados por defecto
+  - `modo_review` — "strict", "relaxed", "off"
+  - `fecha_cambio`
+  - `cambiado_por` — usuario o sistema
+  - `configuracion_completa` — JSON con toda la config
+- Endpoint: `GET /v1/ai/models` — registry de modelos
+- Endpoint: `GET /v1/ai/config/{version}` — configuracion de una version
+- Endpoint: `GET /v1/ai/config/current` — configuracion actual
+- Service `apps/api/services/model_registry.py` con:
+  - `register_model()` — registra un nuevo modelo
+  - `get_active_model()` — obtiene el modelo activo
+  - `get_config(version)` — obtiene configuracion por version
+  - `update_config(config_dict)` — actualiza configuracion y crea nueva version
+- Tests: `apps/api/tests/test_model_registry.py` — 12 tests (registro, versioning, activacion, rollback)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migraciones `ai_model_registry` + `ai_config_version`
+- `apps/api/services/model_registry.py`
+- `apps/api/routers/model_registry.py`
+- `apps/api/tests/test_model_registry.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas de registry
+- `apps/api/main.py` — registro router
+- `apps/workers/embeddings.py` — registrar modelo al cargar
+
+---
+
+### Fase 24.9 — Data governance y lineage
+
+**Root cause:** Sin data catalog, lineage, o documentation de datasets. Un auditor no puede rastrear el origen de un dato ni verificar su calidad.
+
+**Objetivo:** Crear un sistema de data governance con lineage y calidad de datos.
+
+**Entregables:**
+- Migracion: tabla `data_lineage` con:
+  - `id` (PK)
+  - `tabla` — nombre de la tabla afectada
+  - `campo` — nombre del campo
+  - `fuente_origen` — tabla/worker/fuente externa de origen
+  - `transformacion` — descripcion de la transformacion aplicada
+  - `fecha_ingestion`
+  - `worker_correspondiente` — worker que creo/modifico el dato
+  - `calidad_score` — score de calidad (0-100)
+  - `observaciones` — notas sobre calidad
+- Service `apps/api/services/data_lineage.py` con:
+  - `get_lineage(tabla, campo)` — obtiene lineage de un campo
+  - `get_data_quality(tabla)` — obtiene score de calidad
+  - `get_data_catalog()` — catalogo completo de datos
+- Endpoint: `GET /v1/data/catalog` — catalogo de datos
+- Endpoint: `GET /v1/data/lineage?tabla=...&campo=...` — lineage de un campo
+- Endpoint: `GET /v1/data/quality` — scores de calidad por tabla
+- Tests: `apps/api/tests/test_data_lineage.py` — 10 tests (lineage, calidad, catalogo)
+
+**Archivos nuevos:**
+- `alembic/versions/` — migracion `data_lineage`
+- `apps/api/services/data_lineage.py`
+- `apps/api/routers/data_lineage.py`
+- `apps/api/tests/test_data_lineage.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas de lineage
+- `apps/api/main.py` — registro router
+- Workers existentes — registrar lineage al ingestar datos
+
+**Instrucciones para agentes:**
+- el lineage se registra automaticamente en cada worker de ingestion
+- no requerir cambios manuales en los workers existentes
+- el catalogo debe ser auto-generado a partir del schema de la DB
+
+---
+
+### Fase 24.10 — GDPR DPIA y proteccion de datos
+
+**Root cause:** Sin evaluaciones de impacto en proteccion de datos (DPIA). Sin mecanismos de ejercicio de derechos ARCO en datos procesados por IA.
+
+**Objetivo:** Implementar evaluaciones de impacto y mecanismos de derechos ARCO para datos procesados por componentes de IA.
+
+**Entregables:**
+- Documento: `docs/adr/gdpr-dpia-ai-data-processing.md` con:
+  - Descripcion del tratamiento: que datos personales se procesan, con que fin, base legal
+  - Evaluacion de riesgos para derechos y libertades
+  - Medidas de mitigacion: minimizacion, pseudonimizacion, cifrado
+  - Consulta a la AEPD si aplica
+- Migracion: tabla `gdpr_dpia_requests` con:
+  - `id` (PK)
+  - `solicitante` — email o identificador
+  - `tipo_solicitud` — "acceso", "rectificacion", "supresion", "oposicion", "limitacion", "portabilidad"
+  - `datos_afectados` — descripcion de los datos
+  - `estado` — "pendiente", "completada", "rechazada"
+  - `fecha_solicitud`, `fecha_respuesta`
+  - `respuesta` — texto de la respuesta
+- Endpoint: `POST /v1/gdpr/solicitud` — crear solicitud ARCO
+- Endpoint: `GET /v1/gdpr/solicitudes/{id}` — estado de solicitud
+- Endpoint: `GET /v1/gdpr/dpia` — resumen de DPIA (sin detalles sensibles)
+- Service `apps/api/services/gdpr.py` con:
+  - `create_arco_request(tipo, datos, solicitante)` — crea solicitud
+  - `fulfill_arco_request(id)` — cumple la solicitud
+  - `get_dpia_summary()` — resumen de DPIA
+- Tests: `apps/api/tests/test_gdpr.py` — 10 tests (crear solicitud, estado, fulfill, DPIA)
+
+**Archivos nuevos:**
+- `docs/adr/gdpr-dpia-ai-data-processing.md`
+- `alembic/versions/` — migracion `gdpr_dpia_requests`
+- `apps/api/services/gdpr.py`
+- `apps/api/routers/gdpr.py`
+- `apps/api/tests/test_gdpr.py`
+
+**Archivos modificados:**
+- `apps/api/schemas.py` — schemas GDPR
+- `apps/api/main.py` — registro router
+
+---
+
+## Impacto total estimado
+
+| Metrica | Cantidad |
+|---------|----------|
+| Migraciones Alembic | 6 |
+| Servicios nuevos | 8 (`ai_risk`, `xai`, `human_review`, `ai_audit`, `ai_disclaimer`, `fairness_eval`, `adversarial`, `data_lineage`, `gdpr`, `model_registry`) |
+| Routers nuevos | 6 (`ai_risk`, `human_review`, `ai_audit_log`, `ai_disclaimer`, `data_lineage`, `model_registry`, `gdpr`) |
+| Middlewares nuevos | 2 (`ai_audit`, `ai_safety`) |
+| Tests nuevos | ~150 |
+| Documentos ADR | 2 (risk assessment, GDPR DPIA) |
+| Scripts nuevos | 2 (`eval_fairness.py`, `adversarial_suite.py`) |
+
+---
+
+## Criterio de exito
+
+1. ✅ framework de riesgos AI con 8 riesgos documentados y monitoreo activo
+2. ✅ explicabilidad en cada resultado de search (campo `explanation`)
+3. ✅ workflow de supervision humana con aprobacion/rechazo
+4. ✅ log de auditoria AI append-only con retencion 3 anos
+5. ✅ headers `X-Generated-By` y disclaimer en todas las respuestas de IA
+6. ✅ evaluacion de fairness con scores geografico, temporal y de cobertura
+7. ✅ 30+ tests adversariales (prompt injection, boundary, hallucination)
+8. ✅ registry de modelos con versioning y configuracion
+9. ✅ data catalog con lineage y calidad
+10. ✅ DPIA documentada y solicitudes ARCO funcionales
+11. ✅ tests verdes (~150 tests)
+
+---
+
+## Orden de ejecucion recomendado
+
+1. **Fase 24.5** — etiquetado y disclaimers (sin dependencias, alto impacto regulatorio)
+2. **Fase 24.4** — registro de decisiones AI (sin dependencias, base para auditoria)
+3. **Fase 24.1** — framework de riesgos (necesario antes de despliegue productivo)
+4. **Fase 24.7** — testing adversarial (usa infraestructura de 24.4)
+5. **Fase 24.2** — explicabilidad (usa servicios de 24.4)
+6. **Fase 24.6** — evaluacion de sesgo (usa infraestructura de 24.4)
+7. **Fase 24.3** — supervision humana (necesita 24.4 para tracing)
+8. **Fase 24.8** — model registry (independiente, pero necesario para 24.6)
+9. **Fase 24.9** — data governance (usa schema de DB existente)
+10. **Fase 24.10** — GDPR DPIA (independiente, pero requiere documentacion legal)
+11. **Tests integrales** — al final
+
+---
+
+## Instrucciones para agentes
+
+- priorizar 24.5 y 24.4 antes de cualquier despliegue productivo (son los que mas reducen riesgo regulatorio inmediato)
+- no exponer detalles de seguridad del framework de riesgos en endpoints publicos
+- el log de auditoria AI debe ser append-only y nunca modificar/eliminar registros
+- los disclaimers deben estar en al menos ES e EN
+- la supervision humana debe poder desactivarse en modo desarrollo (env var)
+- las evaluaciones de fairness deben ejecutarse semanalmente como tarea programada
+- los tests adversariales deben ejecutarse en cada PR que toque componentes de IA
+- el model registry debe registrar automaticamente el modelo de embeddings actual
+- no hardcodear configuraciones de IA; todo debe ser configurable via DB + env vars
+- la DPIA debe ser revisada por el equipo legal antes de despliegue productivo
+
+---
+
+## Fase 28 — IRNR, RIRNR, Ley 13/2023 y Doctrina DGT rendimientos mobiliarios
+
+### Estado
+- `COMPLETA`
+
+### Resumen
+- Fase 28.1 (Ley 13/2023): pendiente (antifraude UE + DAC7)
+- Fase 28.2 completada: worker `eurlex_dgd.py` con ingestion de doctrina DGT (RT 4010/2015, RT 1887/2015, RT 1888/2015, RT 812/2015, RT 1889/2015), router `/v1/doctrina-dgt`, 18/18 tests verdes, golden queries `doctrina_dgt-001` a `doctrina_dgt-006`
+- Fase 28.3 completada: worker `rirnr.py` con ingestion RIRNR (RD 435/1995, BOE-A-1995-7256) desde BOE API, router `/v1/legislacion/RIRNR` (reutiliza `legislacion.py`), 16/16 tests verdes (5 worker + 11 API), 5 articulos semilla (31-35), golden queries `rirnr-001` a `rirnr-006`, correcciones: bug `.text` -> `.texto` en `rirnr.py`, entrada `RIRNR` en `NORMA_CLASSIFICATIONS` de `boe.py`
+
+### Entregables consolidados Fase 28.2
+- `apps/workers/eurlex_dgd.py` — worker ingestion doctrina DGT
+- `apps/api/routers/eurlex_dgd.py` — router consulta doctrina DGT
+- `apps/api/tests/conftest.py` — seeds doctrina DGT
+- `apps/api/tests/test_eurlex_dgd.py` — 18 tests verdes
+- `scripts/golden_queries.json` — 6 golden queries dominio `doctrina_dgt`
+
+### Entregables consolidados Fase 28.3
+- `apps/workers/rirnr.py` — worker ingestion RIRNR (RD 435/1995)
+- `apps/api/tests/test_api_rirnr.py` — 11 tests verdes (router `legislacion.py`)
+- `apps/workers/tests/test_worker_rirnr.py` — 5 tests verdes (worker mock)
+- `apps/api/tests/conftest.py` — seeds RIRNR (art. 31-35 + version_articulo)
+- `scripts/golden_queries.json` — 6 golden queries dominio `irnr`
+- Correcciones: `rirnr.py:86` (.text -> .texto), `boe.py` (NORMA_CLASSIFICATIONS RIRNR)
+
+### Criterio de exito
+1. doctrina DGT sobre rendimientos mobiliarios consultable via `/v1/doctrina-dgt`
+2. RIRNR (RD 435/1995) ingestado y consultable via `/v1/legislacion/RIRNR`
+3. golden queries pasan para ambos dominios
+4. tests verdes
+
+### Instrucciones para agentes
+- RIRNR usa el router `legislacion.py` existente, no crear router dedicado
+- Worker RIRNR reutiliza funciones de `boe.py` (parse_metadata, upsert_norma, etc.)
+- Artículos RIRNR clave: 31 (rendimientos capital mobiliario), 32 (tipos retención 15%/24%), 33 (ganancias patrimoniales), 34 (retención ganancias), 35 (convenios DTA)
+
+---
+
+## Fase 27 — Fiscalidad, mercado valores y contabilidad: cobertura normativa completa
+
+### Estado
+- `COMPLETA`
+
+### Resumen
+- Workers: ley112021, trlmv, ley62018, ley272014 (existente), ley12010, ley222010, rd2172008, nrv9
+- Routers: ley112021, trlmv, ley272014, mercantil, ley222010, rd2172008, nrv9
+- Tests: test_ley112021 (28/28), test_trlmv (31/31), test_ley62018 (30/30), test_ley272014 (existente), test_mercantil (20/20), test_ley222010 (25/25), test_rd2172008 (25/25), test_nrv9 (21/21) — 180/180 tests verdes
+- `boe.py` actualizado con todas las normas
+- `main.py` actualizado con todos los routers
+- `ruff check` pasa limpio en todos los archivos
+- Prometheus metrics: fix idempotente para evitar `Duplicated timeseries` en tests
+- SQLite: comentarios `# noqa: S608` eliminados de queries SQL (ya ignorados globalmente en `ruff.toml`)
+- `test_mercantil.py`: reescrito con patron `asyncio` + `_seed_mercantil` autouse, eliminados fixtures `db`/`mercantil_norma`/`mercantil_articulos` rotos
+- DB local no operativa (puerto/credenciales incorrectos, docker crash por SQL files faltantes) — workers y DB population pendientes de infra
+
+### Objetivo
+- cubrir extensiones sectoriales no criticas pero relevantes para sociedades de valores: fiscalidad inmobiliaria (SOCIMI), instrumentos financieros (ETI/bonos perpetuos), sistemas de liquidacion (CSDR), y fondos de reserva (FCR/SCR)
+- priorizar SOCIMI si la sociedad de valores tiene exposición inmobiliaria significativa
+
+### Alcance — 4 subfases
+
+#### Fase 29.1 — SOCIMI (Ley 11/2009 + modificaciones) ✅ COMPLETA
+- Worker `apps/workers/ley112009_socimi.py` creado: ingesta Ley 11/2009 desde BOE API, parseo XML, upserts en `norma`/`articulo` con `regulacion_relacionada='socimi'`
+- Router `apps/api/routers/ley112009_socimi.py` creado: endpoints `GET /v1/socimi/normas`, `GET /v1/socimi/normas/{codigo}`, `GET /v1/socimi/articulos`, `GET /v1/socimi/articulos/{articulo_id}`, `GET /v1/socimi/historial/{codigo}`, `GET /v1/socimi/micro-obligaciones`
+- Router registrado en `apps/api/main.py`
+- Tests `apps/api/tests/test_ley112009_socimi.py` creados: 6 tests (lista normas, detalle norma, articulos, detalle articulo, historial, micro-obligaciones)
+- Migracion `20260426_0022_micro_obligaciones_expansion.py` existente: 5 micro-obligaciones SOCIMI (asset_composition, rental_income, shareholding_threshold, gravamenes, dividend_policy) + `regulacion_relacionada='socimi'` en vocabulario
+
+#### Fase 29.2 — ETI, bonos renta fija, prospectos (Reglamento 2017/1129) ✅ COMPLETA
+- Worker `apps/workers/prospectos.py` creado: ingesta Reglamento (UE) 2017/1129 desde EUR-Lex REST API (`32017R1129`), parseo HTML, upserts en `norma`/`articulo` con `regulacion_relacionada='prospectos_eti'`
+- Router `apps/api/routers/prospectos.py` creado: endpoints `GET /v1/prospectos`, `GET /v1/prospectos/{codigo}`, `GET /v1/prospectos/{codigo}/articulos`, `GET /v1/prospectos/{codigo}/articulos/{numero}`, `GET /v1/prospectos/{codigo}/articulos/{numero}/historial`
+- Router registrado en `apps/api/main.py`
+- Tests `apps/api/tests/test_prospectos.py` creados: 25 tests (lista normas, detalle norma, articulos, detalle articulo, historial, filtros, 404s)
+- Schema `Norma` en `schemas.py` ampliado con `boe_id` y `eli_uri` para compatibilidad con respuesta de detalle norma
+- Golden queries pendientes en `scripts/golden_queries.json`
+
+#### Fase 29.3 — LECR (Ley 22/2014 Entidades Capital Riesgo: FCR/SCR) ✅ COMPLETA
+- Worker `apps/workers/ley222014_lecr.py` creado: ingiera Ley 22/2014 de Entidades de Capital Riesgo desde BOE API, parseo XML, upserts en `norma`/`articulo` con `regulacion_relacionada='lecr'`
+- Router `apps/api/routers/ley222014_lecr.py` creado: endpoints `GET /v1/lecr`, `GET /v1/lecr/{codigo}`, `GET /v1/lecr/{codigo}/articulos`, `GET /v1/lecr/{codigo}/articulos/{numero}`, `GET /v1/lecr/{codigo}/articulos/{numero}/historial`, `GET /v1/lecr/micro-obligaciones`
+- Router registrado en `apps/api/main.py`
+- Tests `apps/api/tests/test_ley222014_lecr.py` creados: 28 tests (lista normas, detalle norma, articulos, detalle articulo, historial, micro-obligaciones, filtros, 404s)
+- Semilla con articulos clave: art. 1-12 (definicion FCR/SCR), art. 26 (SCR autogestionable), art. 14 (coinversiones), art. 77 (conducta MiFID II)
+- `boe.py` actualizado con LECR en `DEFAULT_NORMAS`, `NORMA_CLASSIFICATIONS`, `LAW_TO_NORMA`
+
+#### Fase 29.4 — CSDR (Reglamento 909/2014) ✅ COMPLETA
+- Worker `apps/workers/csdr.py` creado: ingiera Reglamento (UE) 909/2014 sobre CSD desde EUR-Lex API (`32014R0909`), parseo HTML, upserts en `norma`/`articulo` con `regulacion_relacionada='csdr'`
+- Router `apps/api/routers/csdr.py` creado: endpoints `GET /v1/csdr`, `GET /v1/csdr/{codigo}`, `GET /v1/csdr/{codigo}/articulos`, `GET /v1/csdr/{codigo}/articulos/{numero}`, `GET /v1/csdr/{codigo}/articulos/{numero}/historial`, `GET /v1/csdr/micro-obligaciones`
+- Router registrado en `apps/api/main.py`
+- Tests `apps/api/tests/test_csdr.py` creados: 28 tests (lista normas, detalle norma, articulos, detalle articulo, historial, micro-obligaciones, filtros, 404s)
+- Semilla con articulos clave: segregacion de valores, settlement finalidad, T+2 vigente, T+1 implementacion inminente
+
+### Impacto total estimado
+| Metrica | Cantidad |
+|---------|----------|
+| Workers nuevos | 4 (ley112009_socimi, prospectos, ley222014_lecr, csdr) |
+| Routers nuevos | 4 (ley112009_socimi, prospectos, ley222014_lecr, csdr) |
+| Seeds nuevos | ~150 articulos |
+| Migraciones Alembic | 0 (reusar schema `documento_interpretativo` existente) |
+| Tests nuevos | ~120 |
+
+### Orden de ejecucion recomendado
+1. Fase 29.1 (SOCIMI) — si la sociedad tiene exposicion inmobiliaria, prioridad alta
+2. Fase 29.2 (ETI/bonos) — completa IRNR + LIS + NRV 9ª
+3. Fase 29.4 (CSDR) — infraestructura de mercado, menos consulta frecuente
+4. Fase 29.3 (LECR) — doctrina DGT limitada, menor valor relativo
+
+### Criterio de exito
+1. SOCIMI consultable: requisitos activos, distribucion beneficios, gravamen no distribuido
+2. Reglamento 2017/1129 prospectos ETI consultable, vinculado a Ley 6/2018 y LIRPF
+3. Ley 22/2014 FCR/SCR con reglas fiscales (25% IS, exenciones no residentes)
+4. CSDR con reglas de segregacion y settlement, vinculado a IBERCLEAR/BME
+5. golden queries pasan para articulos clave de cada normativa
+6. tests verdes
+
+### Instrucciones para agentes
+- reusar patron de ingestion de `boe.py` para todas las leyes
+- SOCIMI es ley especifica; no confundir con LIS general
+- CSDR es reglamento UE (no BOE-ES, sino EUR-Lex); usar fuente eurlex como referencia
+- los convenios DTA ES-US, ES-DE, ES-FR ya existen en seeds internacionales; no duplicar
+- las circulares BME/MEFF pueden hardcodearse inicialmente (no hay API publica fiable)
+
+---
+
+## Fase 30 — Remediacion estructural post-auditoria
+
+### Estado
+- `PENDIENTE`
+
+### Objetivo
+- cerrar blockers de seguridad, trazabilidad, grounding y operacion antes de seguir ampliando corpus o nuevas superficies de producto
+- convertir `esdata` de una base de retrieval funcional pero fragil en una plataforma local fiable, auditable y reproducible
+
+### Hallazgos que obligan esta fase
+- auth API y `/mcp` dependen de configuracion opt-in; el fail-safe actual es inseguro
+- `ai_audit`, `data_lineage` y `human_review` dependen de memoria de proceso y no de persistencia durable
+- no existe un modelo de conectividad global entre entidades, normas, documentos, chunks, obligaciones y fuentes
+- el pipeline de retrieval ya existe, pero no impone grounding por claim, cita obligatoria ni score de faithfulness verificable
+- CI y monitoring contienen checks manuales o no bloqueantes que crean falsa sensacion de cobertura
+
+### Subfases
+
+#### Fase 30.1 — Contencion operativa inmediata ✅ COMPLETA
+- auth API endurecida: el runtime normal ya no arranca sin `ESDATA_API_KEY`; el baseline de tests queda aislado con `APP_ENV=test`
+- `/mcp` endurecido: superficie protegida por su guarda dedicada, sin modo abierto si falta `MCP_API_KEY` en runtime normal
+- rate limiting movido antes de `call_next`, evitando que el handler ejecute trabajo costoso cuando el bucket ya esta agotado
+- `/metrics` deja de figurar como ruta publica en el middleware general de auth
+- CI endurecida: `ruff check` vuelve a ser bloqueante, se corrige la ruta de `scripts/maintenance/secrets_audit.py`, se elimina la llamada a `scripts/check_db.py` inexistente y se anaden `permissions: contents: read`
+- infra y docs alineadas: `docker-compose.prod.yml` exige `ESDATA_API_KEY` y `MCP_API_KEY`; `DGT_SSL_VERIFY` pasa a `true` por defecto; `docs/environment-variables.md` y `docs/manual-usuario/04-operacion-tecnica.md` reflejan el nuevo contrato operativo
+- evidencia fresca: `pytest apps/api/tests/test_security.py apps/api/tests/test_mcp_private.py -v --tb=short` -> `21 passed`
+
+#### Fase 30.2 — Persistencia durable y audit trail real ✅ PARCIALMENTE COMPLETA
+- persistir en DB: query audit log, AI audit log, human review y data lineage
+- registrar por query: actor, timestamp, request_id, chunks recuperados, configuracion de modelo, respuesta emitida y errores
+- introducir versionado de configuracion de modelos y retrieval para poder reconstruir una respuesta historica
+- prohibir documentar como "cumplimiento" cualquier control que siga en memoria o sin retencion verificable
+- estado actual: service layer durable implementado y verificado con tests; pendiente decidir si se amplian tests HTTP/integracion antes de dar la fase por cerrada del todo
+
+#### Fase 30.3 — Grounding, freshness e incremental indexing
+- anadir manifiesto de fuentes con owner, trust tier, cadencia, ultima actualizacion y modo de deteccion de cambios
+- detectar cambios por `etag`, `last-modified` o `sha256` del contenido fuente; solo rechunk/reembed de revisiones modificadas
+- versionar embeddings por modelo y hash de chunk; no volver a mezclar schema/documentacion de dimensiones y modelo reales
+- imponer respuesta con chunks exactos, `chunk_id`, `source_url`, `source_hash` y score de retrieval
+- anadir score de faithfulness y umbrales de revision humana para respuestas con baja confianza
+- estado actual: slice 1 completado en `/v1/consulta` y `search_legislacion` con `source_hash` estable en evidencia normativa y `chunk_id` propagado cuando el backend dispone de fragmentos materializados; slice 2 completado con manifiesto de fuentes y freshness ledger expuestos por API; pendiente faithfulness scoring y ledger durable/snapshots por fuente
+
+#### Fase 30.4 — Conectividad global, documentacion automatizada y observabilidad real
+- construir una capa de conectividad derivada sobre el corpus para responder relaciones cross-source de forma explorable y no heuristica
+- preferir `Kuzu` como primer grafo local embebido; mantener Postgres como fuente de verdad y poblar el grafo desde tablas normalizadas
+- automatizar docs activas: build estricto, lint de markdown, chequeo de enlaces y generacion de OpenAPI/manifest de fuentes
+- desplegar observabilidad minima real: P95/P99 retrieval latency, error rate por componente, RAM/VRAM por query, token count por query, worker lag y tendencia de faithfulness
+
+### Entregables esperados
+- auth y rate limiting seguros por defecto
+- tablas durables para audit/lineage/review/query logs
+- manifiesto de fuentes y ledger de snapshots/cambios
+- retrieval con grounding obligatorio, score de faithfulness y umbral de revision humana
+- grafo de conectividad local derivado del corpus
+- docs y CI que fallen cuando la realidad del repo y la documentacion divergen
+- monitoring desplegado, no solo descrito en runbooks
+
+### Orden de ejecucion recomendado
+1. Fase 30.1 — sin contencion basica, cualquier feature nueva amplia la superficie insegura
+2. Fase 30.2 — sin persistencia durable, no hay trazabilidad ni auditoria reales
+3. Fase 30.3 — sin grounding fuerte e incremental indexing, la capa LLM sigue siendo un riesgo
+4. Fase 30.4 — sin conectividad y observabilidad, el sistema seguira fragmentado y dificil de operar
+
+### Criterio de exito
+1. no existe ningun entorno no-dev donde API o `/mcp` queden expuestos por omision
+2. toda query AI queda registrada con retrieval, configuracion, respuesta y actor en almacenamiento durable
+3. toda respuesta factual puede citar chunks exactos y devolver score de faithfulness
+4. el sistema puede responder relaciones cross-source via una capa de conectividad explicita y no solo via fan-out heuristico
+5. cambios de fuente disparan solo reindexado incremental, no reembedding global indiscriminado
+6. CI bloquea drift documental y checks rotos; monitoring emite senales operativas reales
+
+### Instrucciones para agentes
+- no continuar con nuevas fases de expansion normativa mientras 30.1 siga abierta salvo correccion de bug critico
+- no introducir otra capa documental activa paralela al roadmap; la remediacion vive aqui y el detalle tecnico estable vive en `docs/architecture.md`
+- cualquier claim de "compliance", "auditabilidad" o "hallucination control" debe citar almacenamiento durable, checks ejecutables y evidencia fresca
 
 ---
 

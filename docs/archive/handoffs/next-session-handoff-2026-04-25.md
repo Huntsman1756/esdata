@@ -1,4 +1,4 @@
-# [REFERENCE] Next Session Handoff - 2026-04-25
+# [HISTORICAL][REFERENCE] Next Session Handoff - 2026-04-25
 
 > Este documento queda como referencia historica reciente. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
 

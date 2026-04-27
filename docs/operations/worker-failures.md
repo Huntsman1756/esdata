@@ -30,12 +30,24 @@ y como resolverlos. Todos los workers comparten el patron base de `boe.py`
 docker compose -f infra/deploy/docker-compose.prod.yml logs worker-boe | tail -50
 
 # Verificar ultimo sync
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT worker, started_at, finished_at, rows_added, error FROM sync_log WHERE worker='boe' ORDER BY started_at DESC LIMIT 5;"
 
 # Ejecutar manualmente
 docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-boe python boe.py --run-once
+
+# Carga acotada de articulos concretos con la pipeline existente
+docker compose -f infra/deploy/docker-compose.prod.yml run --rm \
+  -e BOE_LEGISLACION_NORMAS=LGT,LIVA \
+  -e BOE_ONLY_BLOCK_IDS=a66,a67,a68,a69,a70,a71,a91,a92,a93 \
+  worker-boe python boe.py --run-once
 ```
+
+### Notas especiales
+
+- `apps/workers/boe.py` ya soporta `LGT`, `LIVA` y `LIS` via `DEFAULT_NORMAS`; no hace falta scraper nuevo para estas tres leyes.
+- `BOE_ONLY_BLOCK_IDS` filtra a nivel de bloque BOE (`a91`, `a111`, etc.) antes de descargar el XML de detalle; es la forma segura de hacer una carga incremental o de validacion.
+- Para expansion de corpus, empezar por `LGT` y `LIVA`; `LIS` puede venir despues si el objetivo inmediato es reducir abstenciones en prescripcion, sanciones y tipos IVA.
 
 ## Worker DGT (consultas vinculantes)
 
@@ -55,7 +67,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-boe pytho
 ### Comandos de diagnostico
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='dgt' ORDER BY started_at DESC LIMIT 5;"
 
 docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt python dgt.py --run-once
@@ -73,7 +85,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt pytho
 ### Comandos de diagnostico
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='teac' ORDER BY started_at DESC LIMIT 5;"
 ```
 
@@ -94,7 +106,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d
 ### Comandos de diagnostico
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='modelos' ORDER BY started_at DESC LIMIT 5;"
 ```
 
@@ -121,11 +133,11 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d
 
 ```bash
 # BORME
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='borme' ORDER BY started_at DESC LIMIT 5;"
 
 # CNMV
-docker compose -f infra/deploy/docker-compose.prod.yml exec db psql -U esdata -d esdata -c \
+docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='cnmv' ORDER BY started_at DESC LIMIT 5;"
 ```
 
@@ -189,7 +201,7 @@ Worker falla
             +--- Resolucion: verificar SSL_VERIFY o actualizar CA certs
 ```
 
-## Checklist de diagnostico通用
+## Checklist de diagnostico
 
 Cuando un worker falla:
 
@@ -198,7 +210,7 @@ Cuando un worker falla:
 3. **Reiniciar worker**: `docker compose restart worker-<nombre>`
 4. **Ejecutar manualmente**: `docker compose run --rm worker-<nombre> python <nombre>.py --run-once`
 5. **Verificar fuente externa**: visitar la URL de la fuente manualmente
-6. **Verificar conexiones DB**: `docker compose exec db psql -U esdata -d esdata -c "SELECT 1;"`
+6. **Verificar conexiones DB**: `docker compose exec postgres psql -U esdata -d esdata -c "SELECT 1;"`
 
 ## Referencias
 

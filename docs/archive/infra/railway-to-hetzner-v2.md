@@ -18,7 +18,7 @@ El objetivo no es reescribir la arquitectura. El objetivo es:
 La propuesta inicial iba en la direccion correcta, pero tenia varios desajustes con el repo:
 
 - trataba `worker-boe` como si fuera un job `oneshot`, cuando en realidad es un proceso continuo
-- asumia que el contenedor `api` podia ejecutar `alembic upgrade head` y `scripts/verify_schema.py`, pero la imagen de `apps/api` no contiene `alembic/` ni `scripts/`
+- asumia que el contenedor `api` podia ejecutar `alembic upgrade head` y `scripts/maintenance/verify_schema.py`, pero la imagen de `apps/api` no contiene `alembic/` ni `scripts/`
 - usaba un inventario parcial de servicios, cuando el repo ya tiene slices adicionales (`BDNS`, `BORME`, `CNMV`, `SEPBLAC`, `modelos`)
 - mezclaba nombres de base de datos y usuarios que no coinciden con `compose.env.example`
 
@@ -93,7 +93,7 @@ Archivos:
 - [infra/deploy/Dockerfile.ops](</G:/_Proyectos/esdata/infra/deploy/Dockerfile.ops:1>)
 - [infra/deploy/docker-compose.prod.yml](</G:/_Proyectos/esdata/infra/deploy/docker-compose.prod.yml:1>)
 
-Se crea un contenedor ligero con `alembic`, SQLAlchemy y `scripts/verify_schema.py`.
+Se crea un contenedor ligero con `alembic`, SQLAlchemy y `scripts/maintenance/verify_schema.py`.
 
 Por que:
 
@@ -105,7 +105,7 @@ Por que:
 
 Archivos:
 
-- [scripts/deploy-hetzner.sh](</G:/_Proyectos/esdata/scripts/deploy-hetzner.sh:1>)
+- [scripts/ops/deploy-hetzner.sh](</G:/_Proyectos/esdata/scripts/ops/deploy-hetzner.sh:1>)
 - [.github/workflows/deploy-hetzner.yml](</G:/_Proyectos/esdata/.github/workflows/deploy-hetzner.yml:1>)
 
 El workflow nuevo hace `git pull` en la VM y ejecuta el script local.
@@ -138,7 +138,7 @@ Por que:
 
 ### 6. Backup diario de Postgres
 
-Archivo: [scripts/backup-postgres.sh](</G:/_Proyectos/esdata/scripts/backup-postgres.sh:1>)
+Archivo: [scripts/ops/backup-postgres.sh](</G:/_Proyectos/esdata/scripts/ops/backup-postgres.sh:1>)
 
 Por que:
 
@@ -225,7 +225,7 @@ Por que:
 
 ```bash
 docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm ops alembic upgrade head
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm ops python scripts/verify_schema.py
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm ops python scripts/maintenance/verify_schema.py
 ```
 
 Por que:
@@ -236,7 +236,7 @@ Por que:
 ### 3. Levantar el stack
 
 ```bash
-bash scripts/deploy-hetzner.sh
+bash scripts/ops/deploy-hetzner.sh
 ```
 
 Por que:
@@ -283,7 +283,7 @@ Por que:
 
 ### Backup
 
-- ejecutar manualmente `bash scripts/backup-postgres.sh`
+- ejecutar manualmente `bash scripts/ops/backup-postgres.sh`
 
 ## Riesgos que siguen abiertos
 

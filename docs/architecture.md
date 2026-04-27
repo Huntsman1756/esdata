@@ -2,218 +2,302 @@
 
 ## Resumen
 
-esdata es un sistema de ingesta, almacenamiento y consulta de legislacion fiscal espanola consolidada, doctrina interpretativa y modelos tributarios AEAT. Proporciona una API REST publica y un frontend web, con workers de ingestion asincrona que alimentan una base de datos PostgreSQL.
+`esdata` es una plataforma backend-first para ingesta, normalizacion y consulta fiscal-regulatoria con trazabilidad a fuente oficial.
 
-## Componentes
+La arquitectura operativa actual se apoya en cuatro superficies claras:
 
-### 1. API (apps/api)
+- `apps/api/` — runtime FastAPI y superficies MCP/API
+- `apps/web/` — UI interna y consumo web del backend
+- `apps/workers/` — ingestion y pipelines por fuente
+- `scripts/` — tooling no-runtime: seeds, backfills, ops, evaluacion y mantenimiento
 
-Servidor FastAPI que expone endpoints REST para consulta publica.
+## Principios de diseno
 
-- **Framework**: FastAPI 0.116.1 con Uvicorn
-- **ORM**: SQLAlchemy 2.0.43 con psycopg3
-- **Version**: 0.1.6
-- **Puerto**: 8000 (expuesto como 8001 en local)
-- **Lifespan**: Carga el modelo de embeddings al iniciar para busqueda hibrida
+- backend-first: la logica de negocio vive en backend, no en frontend
+- una sola fuente activa de estado: `docs/master-execution-roadmap.md`
+- boundaries claros entre runtime y tooling
+- cambios pequenos, verificables y reversibles
+- documentacion viva separada de historicos
 
-**Routers registrados**:
+## Mapa modular
 
-| Router | Ruta base | Descripcion |
-|--------|-----------|-------------|
-| `status` | `/v1/status` | Healthcheck y version |
-| `buscar` | `/v1/legislacion/buscar` | Busqueda fulltext de legislacion |
-| `buscar` | `/v1/legislacion/buscar/hybrid` | Busqueda hibrida (fulltext + vector) |
-| `legislacion` | `/v1/legislacion/*` | CRUD de normas, articulos, busqueda |
-| `materias` | `/v1/materias/*` | Listado y detalle de materias |
-| `doctrina` | `/v1/doctrina/*` | Busqueda y detalle de doctrina (DGT, TEAC) |
-| `bdns` | `/v1/bdns/*` | Base de datos de subvenciones |
-| `borme` | `/v1/borme/*` | Boletin oficial del registro mercantil |
-| `cnmv` | `/v1/cnmv/*` | Comision nacional del mercado de valores |
-| `sepblac` | `/v1/sepblac/*` | Servicio de vigilancia de blanqueo de capitales |
-| `obligaciones` | `/v1/obligaciones/*` | Obligaciones regulatorias tributarias |
-| `empresas` | `/v1/empresas/*` | Empresas detectadas en documentos |
-| `modelos` | `/v1/modelos/*` | Modelos tributarios AEAT (303, 216, etc.) |
-| `consulta` | `/v1/consulta` | Consulta fiscal inteligente (agrega multiples fuentes) |
-| `chunks` | `/v1/chunks/*` | Acceso a chunks de legislacion |
-| `cendoj` | `/v1/cendoj/*` | Centro de documentacion del Consejo de Estado |
-| `eurlex` | `/v1/eurlex/*` | Legislacion de la Union Europea |
-| `bde` | `/v1/bde/*` | Banco de Espana |
-| `aepd` | `/v1/aepd/*` | Agencia espanola de proteccion de datos |
+### API (`apps/api`)
 
-**Servicios principales**:
+Contiene solo runtime importable del backend.
 
-- `search.py`: Busqueda fulltext en PostgreSQL con `ts_rank`, `websearch_to_tsquery`, `tsvector`. Incluye chunks, boost, fallback SQLite y deteccion automatica de normas en query.
-- `semantic_search.py`: Busqueda hibrida con RRF (Reciprocal Rank Fusion). Combina fulltext y embeddings vectoriales con pesos configurables.
-- **Schemas**: Pydantic models para todas las respuestas de la API (677 lineas, 40+ modelos de respuesta).
+Estructura principal:
 
-### 2. Workers (apps/workers)
+- `main.py` — entrada FastAPI y montaje de routers
+- `routers/` — endpoints HTTP por dominio
+- `services/` — logica de consulta y orquestacion
+- `middleware/` — seguridad, auth, rate limit, logging y metrics
+- `banking/` — parsing y utilidades bancarias del dominio
+- `schemas.py` — contratos Pydantic
+- `db.py` — acceso SQLAlchemy
+- `mcp_*` — superficies MCP/guardas del backend
+- `tests/` — tests del API
 
-Procesos asincronos de ingestion que descargan, parsean y almacenan datos de fuentes externas.
+Regla:
 
-**Workers activos**:
+- seeds, scripts manuales, wrappers y verificaciones no viven aqui; viven en `scripts/`
 
-| Worker | Fuente | Frecuencia | Descripcion |
-|--------|--------|------------|-------------|
-| `boe.py` | BOE | 1 hora (configurable) | Legislacion consolidada (15 normas tributarias) |
-| `modelos.py` | AEAT | 24 horas | Modelos tributarios (303, 100, 216, etc.) |
-| `bdns.py` | Infosubvenciones | 7 dias | Convocatorias de subvenciones |
-| `borme.py` | BOE BORME | 7 dias | Actos mercantiles |
-| `cnmv.py` | CNMV | 7 dias | Documentos regulatorios |
-| `sepblac.py` | SEPBLAC | 7 dias | Publicaciones anticorrupcion |
-| `dgt.py` | DGT | Segun config | Consultas vinculantes |
-| `teac.py` | TEAC | Segun config | Resoluciones del Tribunal Economico-Administrativo Central |
-| `embeddings.py` | Local | On-demand | Generacion de embeddings con sentence-transformers |
+### Workers (`apps/workers`)
 
-**Worker BOE (principal)**:
-- Descarga XML del BOE API (`/api/legislacion-consolidada`)
-- Parsea articulos, versiones y metadatos
-- Almacena en `articulo`, `version_articulo`, `norma`
-- Clasifica normas por ambito (tributario, local, internacional, UE)
-- Log de sincronizacion en `sync_log` con duracion automatica
+Contiene runtime de ingestion y normalizacion por fuente.
 
-**Worker Embeddings**:
-- Modelo: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (1536-dim, CPU-friendly)
-- Funciones: `embed_single(text)`, `embed_texts(texts)` con batching
-- Genera embeddings para `version_articulo`, `documento_fragmento`, `documento_interpretativo`
+Estructura actual:
 
-**Runtime comun**:
-- `runtime.py`: Utilidades compartidas (parseo de URL DB, intervalos de sincronizacion)
-- Todos los workers heredan patron de `log_sync()` con `started_at`/`finished_at`
+- un modulo por fuente o pipeline principal
+- `runtime.py` — utilidades compartidas
+- `tests/` — tests del modulo
 
-### 3. Web (apps/web)
+Regla:
 
-Frontend Next.js 15 para consulta publica.
+- si algo es un comando manual o de mantenimiento, debe vivir en `scripts/`, no en `apps/workers/`
 
-- **Framework**: Next.js 15
-- **Puerto**: 3000 (expuesto como 3005 en local)
-- **API base**: `ESDATA_API_BASE_URL` (apunta a `http://api:8000` en Docker)
+### Web (`apps/web`)
 
-## Base de datos
+Contiene la UI interna y su consumo del backend.
 
-### Motor
+Regla:
 
-PostgreSQL 16 con extension pgvector.
+- no contiene logica de negocio ni acceso directo a DB
 
-- **Imagen**: `pgvector/pgvector:pg16`
-- **DB**: `esdata`
-- **Usuario**: `esdata`
+### Tooling (`scripts`)
 
-### Tablas principales
+Todo lo que no es runtime de producto vive aqui.
 
-| Tabla | Descripcion |
-|-------|-------------|
-| `norma` | Leyes y normativas (LIVA, LIRPF, LIS, etc.) |
-| `articulo` | Articulos de leyes |
-| `version_articulo` | Versiones historicas con texto vigente |
-| `documento_seccion` | Secciones de documentos para chunking |
-| `documento_fragmento` | Chunks de texto con `tsvector` y `vector(1536)` |
-| `documento_interpretativo` | Doctrina, BORME, BDNS con embedding |
-| `documento_articulo` | Relacion documento-articulo |
-| `sync_log` | Historial de sincronizacion de workers |
-| `articulo_norma` | Relacion articulo-norma |
-| `materia` | Materias tematicas |
-| `eval_run` | Historial de evaluaciones |
-| `eval_query` | Resultados por query de evaluacion |
+Subcarpetas activas:
 
-### Indices
+- `dev/` — wrappers y pruebas manuales locales
+- `data/` — seeds, backfills e ingestas manuales
+- `eval/` — evaluacion y quality gates
+- `ops/` — despliegue y utilidades operativas
+- `maintenance/` — verificaciones y saneamiento
 
-- **Fulltext**: `tsvector` en `documento_fragmento.search_vector`
-- **Vector**: HNSW en `documento_fragmento.embedding`, `version_articulo.embedding`, `documento_interpretativo.embedding` (m=16, ef_construction=64)
-- **Critic**: `articulo(norma_id)`, `version_articulo(articulo_id)`, `documento_articulo(documento_id)`, `documento_fragmento(origen_tipo_id)`, `sync_log(worker, started_at)`
+Regla:
 
-### Migraciones
-
-- **Manual**: SQL en `infra/sql/` (init, fulltext, modelos, chunking, indexes, pgvector)
-- **Alembic**: Migraciones en `alembic/versions/` (chunking, eval_history, indexes)
+- cada tarea operativa debe tener un nombre canonico unico; no mantener copias duplicadas con sufijos heredados como `_api` si hacen lo mismo
+- `tests/` — tests de scripts no triviales
 
 ## Flujo de datos
 
-### Ingestion BOE
+### Ingestion
 
-```
-BOE API (XML) -> worker-boe -> parse XML -> articulo/version_articulo/norma
-  -> sync_log -> documento_fragmento (chunking) -> embedding (workers)
-```
-
-1. `worker-boe` llama a `BOE_API_BASE/datosabiertos/api/legislacion-consolidada`
-2. Descarga XML con articulos y versiones de las 15 normas en `DEFAULT_NORMAS`
-3. Parsea estructura XML: articulos, parrafos, textos, fechas de vigencia
-4. Inserta/actualiza en `norma`, `articulo`, `version_articulo`
-5. Clasifica norma con `NORMA_CLASSIFICATIONS` (tipo_documento, ambito)
-6. Genera chunks en `documento_fragmento` (backfill via `scripts/backfill_chunks.py`)
-7. Genera embeddings (backfill via `scripts/backfill_embeddings.py`)
-
-### Consulta API
-
-```
-Request -> Router -> Service (search/semantic_search) -> PostgreSQL -> Response
+```text
+fuente oficial -> worker -> normalizacion -> PostgreSQL
 ```
 
-1. Router recibe request (ej: `/v1/legislacion/buscar?q=IVA+retencion`)
-2. `search_legislacion()` detecta norma automatica de la query ("IVA" -> "LIVA")
-3. Construye tsquery con `websearch_to_tsquery('spanish', ...)`
-4. Busca en `documento_fragmento` con `ts_rank`, boost por chunks
-5. Fallback a `version_articulo` si `documento_fragmento` esta vacio
-6. Fallback a SQLite si PostgreSQL no disponible
-7. Respuesta con `SearchResult` incluyendo `source_url`, `fuente_norma`, `fragmento`, `confianza`
+### Consulta
 
-### Busqueda hibrida
-
-```
-Request -> Router -> semantic_search.hybrid_search -> RRF merge -> Response
+```text
+cliente/API/MCP -> apps/api -> services/routers -> PostgreSQL -> respuesta trazable
 ```
 
-1. Mismo inicio que busqueda fulltext (tsquery)
-2. Paralelamente: busqueda vectorial por similitud cosine en `embedding`
-3. Fusiona resultados con RRF (Reciprocal Rank Fusion): `score = w_ft * rank_ft/(k+rank_ft) + w_vec * rank_vec/(k+rank_vec)`, k=60
-4. `hybrid_weight=0.3` es optimo: 100% recall con mezcla fulltext+vector
-5. Response incluye `search_mode`, `weights`, `rrf_score`, `rrf_sources`
+## Estado real de la arquitectura actual
 
-### Consulta fiscal inteligente
+La arquitectura actual ya implementa una base util, pero no debe confundirse con una plataforma plenamente fiable de conocimiento conectado.
 
+Capacidades reales hoy:
+
+- [IMPLEMENTED] ingesta multi-fuente por workers especializados
+- [IMPLEMENTED] almacenamiento principal en PostgreSQL
+- [PARTIAL] full-text search, chunking y busqueda vectorial/hibrida sin reranker activo ni grounding duro por claim
+- [IMPLEMENTED] superficies API y MCP para consulta
+
+Limitaciones estructurales vigentes:
+
+- [PARTIAL] la conectividad cross-source global no esta modelada de forma explicita; hoy predomina el fan-out por tablas y fusion heuristica
+- [PARTIAL] existen piezas de AI governance durables, pero la auditoria de consulta end-to-end sigue incompleta mientras `query_audit` no este cableado al runtime
+- [PARTIAL] la trazabilidad de retrieval devuelve `chunk_id` y `source_hash`, pero no impone grounding fuerte por claim ni abstencion dura
+- [PARTIAL] la observabilidad actual cubre salud HTTP, freshness y metricas basicas, pero no retrieval P95/P99, token count, coste ni error budget por componente
+
+## Arquitectura objetivo post-auditoria
+
+Estado de lectura:
+
+- `[IMPLEMENTED]` = presente en runtime activo y verificable
+- `[PARTIAL]` = presente solo en parte, sin cableado completo o sin control suficientemente fuerte
+- `[TARGET]` = direccion deseada, no implementada aun
+
+La direccion tecnica objetivo para `esdata` es:
+
+```text
+fuentes oficiales y locales controladas
+-> ingestion workers
+-> ledger de snapshots y cambios
+-> chunking + embeddings versionados
+-> PostgreSQL (fuente de verdad transaccional)
+-> capa de conectividad derivada
+-> retrieval hibrido + reranking
+-> inferencia LLM con grounding estricto
+-> validacion de salida + respuesta con citas exactas
+-> audit logs + observabilidad + alertas
 ```
-Request `/v1/consulta` -> Router consulta -> Multiples servicios -> Resultados agregados
+
+### Capas objetivo
+
+#### 1. Fuente de verdad transaccional `[IMPLEMENTED]`
+
+- `PostgreSQL` sigue siendo la fuente de verdad para datos ingestados, documentos, chunks, obligaciones, entidades y metadatos
+- toda persistencia de auditoria y lineage debe vivir aqui o en almacenamiento durable equivalente
+
+#### 2. Ledger de ingestion y freshness `[PARTIAL]`
+
+Cada fuente debe producir registros durables de:
+
+- URL o identificador origen
+- timestamp de fetch
+- `etag`, `last-modified` o `sha256` del payload
+- resumen de delta
+- version de chunking aplicada
+- version del modelo de embeddings usada
+
+Objetivo:
+
+- permitir reindexado incremental y reconstruccion historica del estado de una respuesta
+
+#### 3. Capa de conectividad derivada `[PARTIAL]`
+
+`esdata` necesita una capa explicita para responder relaciones del tipo:
+
+- que normas, doctrina, obligaciones y entidades se relacionan con X
+- que fuentes contradicen o complementan una respuesta
+- que documentos referencian o desarrollan un articulo concreto
+
+Direccion recomendada:
+
+- mantener `PostgreSQL` como sistema de registro
+- poblar un grafo derivado local para exploracion y traversal cross-source
+- preferir `Kuzu` como primera opcion por ser local, embebido y con menor complejidad operativa que una base separada mas pesada
+
+Tipos de nodo minimos:
+
+- `Fuente`
+- `Norma`
+- `Articulo`
+- `Documento`
+- `Chunk`
+- `Obligacion`
+- `Entidad`
+- `IdentificadorEntidad`
+
+Relaciones minimas:
+
+- `EMITIDA_POR`
+- `APLICA_A`
+- `CITA_A`
+- `DESARROLLA`
+- `MENCIONA`
+- `SUPERSEDE_A`
+- `ORIGINA`
+- `TIENE_CHUNK`
+
+#### 4. Retrieval fiable `[PARTIAL]`
+
+El retrieval objetivo no debe depender solo de una query SQL o de fusion heuristica.
+
+Minimo esperado:
+
+- full-text / BM25
+- vector similarity
+- reranker
+- seleccion final de chunks citables
+
+Cada resultado factual debe devolver al menos:
+
+- `chunk_id`
+- `source_url`
+- `source_hash` o revision
+- score de retrieval
+- motivo de ranking
+
+#### 5. Inference layer con grounding estricto `[TARGET]`
+
+Reglas objetivo:
+
+- RAG solo en inferencia; el conocimiento no se "entrena" al cambiar el corpus
+- temperatura `0` o casi `0` en queries factuales
+- no emitir una afirmacion si no existe chunk citables suficiente
+- respuestas de baja confianza deben derivarse a revision humana o abstenerse
+
+#### 6. Validacion y auditoria `[PARTIAL]`
+
+Toda query relevante debe dejar evidencia durable de:
+
+- quien consulto
+- que se recupero
+- que modelo/configuracion se uso
+- que se respondio
+- que score de faithfulness y confianza resulto
+- si hubo revision humana
+
+#### 7. Observabilidad minima real `[PARTIAL]`
+
+Metricas minimas objetivo:
+
+- RAM y VRAM por query cuando aplique
+- latencia P95/P99 de retrieval
+- error rate por componente
+- token count por query
+- lag y error rate de workers
+- tendencia de faithfulness / confidence
+
+## Jerarquia de confianza de informacion
+
+Para evitar mezclar corpus heterogeneos sin criterio, toda fuente debe clasificarse en una jerarquia de confianza explicita:
+
+1. fuente oficial primaria
+2. fuente oficial secundaria o portal institucional derivado
+3. curacion interna controlada
+4. fixture local / corpus auxiliar
+5. dato sintetico de test
+6. sintesis LLM
+
+Regla:
+
+- una sintesis LLM nunca es fuente de verdad; solo puede derivarse de fuentes anteriores y debe citar sus anchors
+
+## Regla de remediacion estructural
+
+Mientras la remediacion estructural activa siga abierta en el roadmap maestro:
+
+- no llamar "compliance fuerte" a controles en memoria
+- no seguir ampliando superficie funcional sin cerrar primero la contencion operativa minima
+- no documentar como "knowledge graph" tablas o joins parciales que no permitan traversal cross-source real
+
+### Operacion y mantenimiento
+
+```text
+script manual -> scripts/* -> DB/API/infra segun caso
 ```
 
-1. Recibe query en lenguaje natural
-2. Busca en legislacion, doctrina, modelos AEAT, obligaciones
-3. Agrega resultados con `ConsultaResultado` (tipo, codigo, texto, evidencia)
-4. Calcula relevancia y confianza
-5. Respuesta con `ConsultaFiscalResponse` (modelos, resultados, relevancia, confianza)
+## Base de datos
 
-## Patrones de seguridad
+- motor: PostgreSQL 16
+- migraciones oficiales: Alembic
+- SQL bootstrap y complementos: `infra/sql/`
 
-- Sin autenticacion en endpoints publicos
-- Sin secretos expuestos en frontend (no `NEXT_PUBLIC_*`)
-- Validacion de input en toda mutacion
-- Rate limiting en endpoints publicos
-- Docker: usuario `app` non-root, sin secretos en capas de imagen
-- PostgreSQL: indexes criticos para evitar full table scans
+## Despliegue
 
-## Dependencias externas
+- despliegue activo: Docker Compose
+- docs activas: `docs/deployment/overview.md`, `docs/deployment/server-installation.md`, `docs/deployment/rollback.md`
+- plataformas antiguas: solo contexto historico en `docs/archive/`
 
-| Fuente | URL | Uso |
-|--------|-----|-----|
-| BOE | `boe.es/datosabiertos/api/` | Legislacion consolidada |
-| AEAT | Sede electronica | Modelos tributarios |
-| DGT | `sede.organcp.es` | Consultas vinculantes |
-| TEAC | `hacienda.es` | Resoluciones economico-administrativas |
-| CNMV | `cnmv.es` | Documentos regulatorios |
-| SEPBLAC | `sepblac.es` | Publicaciones anticorrupcion |
-| BORME | `boe.es/borme` | Actos mercantiles |
-| BDNS | `infosubvenciones.es` | Convocatorias subvenciones |
-| EURLEX | `eur-lex.europa.eu` | Legislacion UE |
-| PLACE | `place.boe.es` | Datos administrativos (post-v2) |
-| HuggingFace | `sentence-transformers` | Modelo de embeddings |
+## Documentacion y estado
 
-## Versiones
+- estado activo: `docs/master-execution-roadmap.md`
+- manual vivo: `docs/manual-usuario/`
+- runbooks: `docs/operations/`
+- historicos: `docs/archive/`
 
-- **Python**: 3.12
-- **FastAPI**: 0.116.1
-- **SQLAlchemy**: 2.0.43
-- **psycopg**: 3.2.9 (binary)
-- **Alembic**: 1.16.4
-- **sentence-transformers**: 4.1.0
-- **PostgreSQL**: 16 (pgvector)
-- **Redis**: 7 (alpine)
-- **Next.js**: 15
+## Regla de mantenimiento estructural
+
+Si aparece un archivo nuevo, debe poder responderse rapidamente:
+
+1. es runtime del producto?
+2. es tooling/manual?
+3. es documentacion activa?
+4. es historico?
+
+Si no encaja claramente en una de esas categorias, la estructura esta degradandose y debe corregirse.

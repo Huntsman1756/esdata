@@ -1,57 +1,67 @@
-# Documentación
+# Documentacion
 
-## Objetivo
+## Punto de entrada
 
-Separar claramente la documentación permanente de los snapshots de sesión e informes puntuales.
+- Estado vivo, fase actual y siguiente paso: `master-execution-roadmap.md`
+- Reglas globales del repo: `../AGENTS.md`
+- Reglas documentales locales: `AGENTS.md`
+- Manual funcional vivo: `manual-usuario/README.md`
 
-## Punto de entrada obligatorio
+## Estructura oficial
 
-- Fuente activa unica de roadmap, estado y siguiente paso: `master-execution-roadmap.md`
-- Reglas permanentes del repo: `../AGENTS.md`
-- El resto de roadmaps, handoffs y planes deben tratarse como `REFERENCE` o `HISTORICAL`
+- `master-execution-roadmap.md` — unica fuente activa de estado y ejecucion
+- `manual-usuario/` — manual vivo para usuarios, operadores e integradores
+- `architecture/` — arquitectura, boundaries y mapas tecnicos permanentes
+- `operations/` — runbooks y operacion del sistema
+- `deployment/` — despliegue, instalacion y rollback
+- `adr/` — decisiones estructurales permanentes
+- `reference/` — material de referencia estable y artefactos tecnicos reutilizables
+- `archive/` — historicos, snapshots, planes cerrados y handoffs
+- `superpowers/` — specs y planes de trabajo generados por skills
 
-## Regla de integraciones
-
-- `MCP` se documenta como superficie para uso personal con `OpenCode` y modelos LLM locales.
-- `ChatGPT Business` se documenta como integracion separada via `OpenAPI/Actions`.
-- No mezclar ambas superficies en una misma guia salvo que el documento compare explicitamente ambos flujos.
-
-## Documentación permanente
+## Documentacion activa hoy
 
 - `master-execution-roadmap.md`
+- `manual-usuario/README.md`
 - `architecture.md`
 - `repository-structure.md`
 - `environment-variables.md`
 - `database.md`
-- `modelos-onboarding.md`
-- `infrastructure-handoff.md`
-- `professionalization-roadmap.md` (`REFERENCE`)
-- `regulatory-compliance-expansion-plan.md` (`REFERENCE`)
 - `deployment/overview.md`
 - `deployment/server-installation.md`
 - `deployment/rollback.md`
 - `operations/README.md`
-- `operations/runbooks/`
+- `operations/agent-notes.md`
+- `REMEDIATION.md`
+- `POLICY_PATCHES.md`
+- `operations/bootstrap-hardening-checklist.md`
 
-## Artefactos operativos auxiliares
+## Referencia estable
 
+- `controlled-vocabulary-regulatorio.md`
+- `license-and-sourcing-policy.md`
+- `ownership-mapping.md`
+- `reference-map.md`
+- `sociedad-valores-scope.md`
+- `modelos-onboarding.md`
 - `openapi-gpt.json`
 - `openapi-gpt-3.0.json`
-- `deploy-commands.md`
+- `openapi-gpt-minimal-modelos.json`
+- `openapi-gpt-clipboard.json`
 
-## Snapshots y documentos históricos
+## Archivo historico
 
-Estos archivos siguen siendo útiles como contexto, pero no deben tomarse como fuente principal del estado actual del sistema:
+No usar estos documentos como fuente activa del estado actual. Si se consultan, debe ser por necesidad puntual de contexto o auditoria.
 
-- `next-session-handoff-2026-04-12.md`
-- `next-session-handoff-2026-04-16.md`
-- `session-status-2026-04-13.md`
-- `production-status-2026-04-11.md`
-- `production-status-2026-04-12.md`
-- `postmortem-sprint-2.md`
-- `dgt-mvp-implementation-plan.md`
+- `archive/handoffs/`
+- `archive/status/`
+- `archive/plans/`
+- `archive/infra/`
+- `archive/postmortems/`
 
-## Regla práctica
+## Reglas
 
-Si un documento describe cómo está construido u operado hoy el sistema, debe vivir en la documentación permanente.
-Si describe una sesión, un estado puntual o una entrega concreta, debe tratarse como histórico.
+- Ningun documento historico compite con `master-execution-roadmap.md`.
+- `README.md` del repo no guarda estado vivo.
+- El manual explica capacidades y uso; el roadmap explica ejecucion y siguiente paso.
+- Si un documento deja de ser activo pero sigue siendo util, se mueve a `archive/` y se marca como historico.
