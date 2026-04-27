@@ -17,6 +17,8 @@ Fase 30.9 completada: claim_citations en /v1/consulta. Nueva funcion `_build_cla
 
 Fase 30.10 completada: semantic reranker per claim. `_build_claim_citations` ahora usa cross-encoder para puntuar cada chunk contra el texto de cada claim, retornando top-3 chunks por claim ordenados por rerank_score. 1 nuevo test de scoring semantico pasando.
 
+Fase 30.5 completada: deteccion de cambios y reindexacion incremental. Modulo compartido `change_detection.py` con `compute_content_hash()`, `check_content_changed()`, `record_revision()`, `invalidate_old_embeddings()`. Migration Alembic `20260427_0033_source_revision_tracking.py` anadiendo tabla `source_revision`. Integracion en 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr). 9 tests pasando en `test_change_detection.py`.
+
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
@@ -28,6 +30,7 @@ Fase 30.10 completada: semantic reranker per claim. `_build_claim_citations` aho
 | 17062bd | docs | add multi-machine sync and commit-per-fix discipline | AGENTS.md |
 | 8cafe5d | feat(api) | add 60+ new routers, services, middleware and tests | apps/api/routers/, apps/api/services/, apps/api/middleware/, apps/api/tests/, apps/api/banking/, apps/api/pgc_data.py, apps/api/pgc_utils.py, apps/api/AGENTS.md |
 | f5fb40b | feat(workers) | add 20+ ingestion workers | apps/workers/, apps/workers/AGENTS.md |
+| xxxx | feat(workers) | incremental reindexing — shared change_detection module, source_revision table, integrate into 16 workers | apps/workers/change_detection.py, apps/workers/boe.py, apps/workers/dgt.py, apps/workers/teac.py, apps/workers/eurlex.py, apps/workers/bde.py, apps/workers/bdns.py, apps/workers/borme.py, apps/workers/cendoj.py, apps/workers/cnmv.py, apps/workers/aepd.py, apps/workers/sepblac.py, apps/workers/prospectos.py, apps/workers/rirnr.py, apps/workers/ley13_2023.py, apps/workers/dgt_doctrina.py, apps/workers/csdr.py, apps/workers/tests/test_change_detection.py, alembic/versions/20260427_0033_source_revision_tracking.py |
 | fbbf7c8 | docs | add user manual, ADRs, A-GENTS files, archive old plans | docs/, docs/AGENTS.md |
 | 352ab36 | feat(scripts) | add data seeding, eval, maintenance, ops scripts | scripts/, scripts/AGENTS.md |
 | cdddb46 | feat(infra) | add A-GENTS, fiscal SQL scripts | infra/, infra/AGENTS.md |

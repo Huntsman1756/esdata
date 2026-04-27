@@ -1,15 +1,20 @@
 import argparse
-from datetime import datetime, timezone
-from html import unescape
 import os
 import re
 import time
+from datetime import UTC, datetime
+from html import unescape
 
 import httpx
-from sqlalchemy import create_engine, text
-
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
 from runtime import get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:
@@ -143,16 +148,32 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
         with httpx.Client(timeout=30.0) as client:
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
+                ensure_source_revision_table(conn)
                 for url in urls:
                     html = fetch_resolution_html(url)
                     data = parse_resolution_html(html)
                     processed += 1
+
+                    change = check_content_changed(
+                        conn, worker_name, "documento", data["referencia"], html
+                    )
+
+                    if not change.changed:
+                        print(f"  [SKIP] {data['referencia']} unchanged")
+                        continue
+
+                    invalidated = invalidate_old_embeddings(conn, data["referencia"])
+                    if invalidated:
+                        print(
+                            f"  [INVALIDATE] {invalidated} old embeddings for {data['referencia']}"
+                        )
+
                     upsert_documento_interpretativo(
                         conn,
                         {
@@ -162,6 +183,13 @@ def run_sync(
                             "texto": data["texto"],
                             "url_fuente": url,
                         },
+                    )
+                    record_revision(
+                        conn,
+                        worker_name,
+                        "documento",
+                        data["referencia"],
+                        html,
                     )
                     stored += 1
 

@@ -1,18 +1,23 @@
 import argparse
-from datetime import UTC, datetime, timezone
-from html import unescape
-from io import BytesIO
 import os
 import re
 import time
+from datetime import UTC, datetime
+from html import unescape
+from io import BytesIO
 from urllib.parse import urlparse
 
 import httpx
-from pypdf import PdfReader
-from sqlalchemy import create_engine, text
-
 from boe import _ensure_sync_log_table, log_sync
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
+from pypdf import PdfReader
 from runtime import get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:
@@ -158,29 +163,51 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            with engine.begin() as conn:
-                _ensure_sync_log_table(conn)
-                for url in urls:
-                    response = client.get(url)
-                    response.raise_for_status()
-                    payload = build_document_payload(
-                        url, response.content, response.headers.get("content-type", "")
-                    )
-                    processed += 1
-                    upsert_documento_interpretativo(conn, payload)
-                    stored += 1
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            ensure_source_revision_table(conn)
+            for url in urls:
+                response = client.get(url)
+                response.raise_for_status()
+                payload = build_document_payload(
+                    url, response.content, response.headers.get("content-type", "")
+                )
+                processed += 1
 
-                log_sync(
+                change = check_content_changed(
+                    conn, worker_name, "documento", payload["referencia"], payload["texto"]
+                )
+
+                if not change.changed:
+                    print(f"  [SKIP] {payload['referencia']} unchanged")
+                    continue
+
+                invalidated = invalidate_old_embeddings(conn, payload["referencia"])
+                if invalidated:
+                    print(
+                        f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"
+                    )
+
+                upsert_documento_interpretativo(conn, payload)
+                record_revision(
                     conn,
                     worker_name,
-                    "ok",
-                    documentos_processed=processed,
-                    documentos_upserted=stored,
+                    "documento",
+                    payload["referencia"],
+                    payload["texto"],
                 )
+                stored += 1
+
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                documentos_processed=processed,
+                documentos_upserted=stored,
+            )
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:

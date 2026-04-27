@@ -1,18 +1,22 @@
 import argparse
-from datetime import UTC, datetime, timezone
-from io import BytesIO
 import os
 import re
 import time
+from datetime import UTC, datetime
+from io import BytesIO
 from urllib.parse import urlparse
 
 import httpx
-from pypdf import PdfReader
-from sqlalchemy import create_engine, text
-
 from boe import _ensure_sync_log_table, log_sync
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
+from pypdf import PdfReader
 from runtime import get_database_url, get_interval_seconds
-
+from sqlalchemy import create_engine, text
 
 EVENT_PATTERNS = [
     ("nombramiento", r"\bNombramientos?\b"),
@@ -321,33 +325,55 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            with engine.begin() as conn:
-                _ensure_sync_log_table(conn)
-                for url in urls:
-                    response = client.get(url)
-                    response.raise_for_status()
-                    payload = build_document_payload(url, response.content)
-                    processed += 1
-                    upsert_documento_interpretativo(conn, payload)
-                    empresas = upsert_empresas(conn, payload)
-                    if empresas:
-                        link_documento_empresas(conn, payload["referencia"], empresas)
-                    else:
-                        empresa_id = upsert_empresa(payload=payload, conn=conn)
-                        link_documento_empresa(conn, payload["referencia"], empresa_id)
-                    stored += 1
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            ensure_source_revision_table(conn)
+            for url in urls:
+                response = client.get(url)
+                response.raise_for_status()
+                payload = build_document_payload(url, response.content)
+                processed += 1
 
-                log_sync(
+                change = check_content_changed(
+                    conn, worker_name, "documento", payload["referencia"], response.content
+                )
+
+                if not change.changed:
+                    print(f"  [SKIP] {payload['referencia']} unchanged")
+                    continue
+
+                invalidated = invalidate_old_embeddings(conn, payload["referencia"])
+                if invalidated:
+                    print(
+                        f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"
+                    )
+
+                upsert_documento_interpretativo(conn, payload)
+                empresas = upsert_empresas(conn, payload)
+                if empresas:
+                    link_documento_empresas(conn, payload["referencia"], empresas)
+                else:
+                    empresa_id = upsert_empresa(payload=payload, conn=conn)
+                    link_documento_empresa(conn, payload["referencia"], empresa_id)
+                record_revision(
                     conn,
                     worker_name,
-                    "ok",
-                    documentos_processed=processed,
-                    documentos_upserted=stored,
+                    "documento",
+                    payload["referencia"],
+                    response.content,
                 )
+                stored += 1
+
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                documentos_processed=processed,
+                documentos_upserted=stored,
+            )
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:

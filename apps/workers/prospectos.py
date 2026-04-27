@@ -9,12 +9,17 @@ import argparse
 import os
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import create_engine, text
-
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
 from runtime import get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
 
 EURLEX_BASE = os.getenv(
     "EURLEX_BASE",
@@ -75,7 +80,7 @@ def fetch_index(client: httpx.Client, celex: str) -> list[BloqueIndex]:
         headers={"Accept": "application/json"},
     )
     if response.status_code == 404:
-        print(f"  [WARN] 32017R1129 not found in EUR-Lex API, skipping")
+        print("  [WARN] 32017R1129 not found in EUR-Lex API, skipping")
         return []
     response.raise_for_status()
     return parse_index(response.json())
@@ -154,7 +159,7 @@ def log_sync(
     error_msg: str | None = None,
     started_at: str | None = None,
 ) -> None:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     effective_started_at = started_at or now
     duration_ms = max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(effective_started_at)).total_seconds() * 1000))
     _ensure_sync_log_table(conn)
@@ -370,29 +375,51 @@ def run_sync(
     engine = create_engine(DATABASE_URL, future=True)
     bloques_fetched = 0
     articulos_upserted = 0
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0) as client:
-            with engine.begin() as conn:
-                upsert_prospectos_norma(conn)
+        with httpx.Client(timeout=30.0) as client, engine.begin() as conn:
+            upsert_prospectos_norma(conn)
+            ensure_source_revision_table(conn)
 
-                for item in fetch_index(client, "32017R1129"):
-                    if not _is_supported_block(item.titulo):
-                        continue
-                    bloque = fetch_block(client, item.id)
-                    upsert_articulo(conn, "PROSPECTOS_2017_1129", bloque)
+            for item in fetch_index(client, "32017R1129"):
+                if not _is_supported_block(item.titulo):
+                    continue
+                bloque = fetch_block(client, item.id)
+
+                change = check_content_changed(
+                    conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
+                )
+
+                if not change.changed:
                     bloques_fetched += 1
-                    articulos_upserted += 1
+                    continue
 
-                log_sync(
+                invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
+                if invalidated:
+                    print(
+                        f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
+                    )
+
+                upsert_articulo(conn, "PROSPECTOS_2017_1129", bloque)
+                record_revision(
                     conn,
                     worker_name,
-                    "ok",
-                    bloques=bloques_fetched,
-                    articulos=articulos_upserted,
-                    started_at=sync_start,
+                    "bloque",
+                    bloque.bloque_id,
+                    bloque.texto,
                 )
+                bloques_fetched += 1
+                articulos_upserted += 1
+
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                bloques=bloques_fetched,
+                articulos=articulos_upserted,
+                started_at=sync_start,
+            )
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
         with engine.begin() as conn:
@@ -438,6 +465,6 @@ if __name__ == "__main__":
         while True:
             result = run_sync()
             print(
-                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}"
+                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(UTC).isoformat()}"
             )
             time.sleep(interval)

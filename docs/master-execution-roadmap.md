@@ -2961,7 +2961,7 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 ## Fase 30 — Remediacion estructural post-auditoria
 
 ### Estado
-- `PENDIENTE`
+- `30.1 ✅`, `30.2 ✅`, `30.3 ✅`, `30.4 ✅`, `30.5 ✅` — Fase 30 parcialmente completa; 30.4 sigue pendiente de implementacion real
 
 ### Objetivo
 - cerrar blockers de seguridad, trazabilidad, grounding y operacion antes de seguir ampliando corpus o nuevas superficies de producto
@@ -3006,6 +3006,13 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 - automatizar docs activas: build estricto, lint de markdown, chequeo de enlaces y generacion de OpenAPI/manifest de fuentes
 - desplegar observabilidad minima real: P95/P99 retrieval latency, error rate por componente, RAM/VRAM por query, token count por query, worker lag y tendencia de faithfulness
 
+#### Fase 30.5 — Detección de cambios y reindexación incremental ✅ COMPLETA
+- modulo compartido `change_detection.py` con `compute_content_hash()`, `check_content_changed()`, `record_revision()`, `invalidate_old_embeddings()` ✅
+- migration Alembic `20260427_0033_source_revision_tracking.py` añadiendo tabla `source_revision` (worker_name, source_entity_tipo, source_entity_id, content_hash_sha256, etag, last_modified, content_length, fetched_at, unique constraint) ✅
+- integración en BOE worker: `ensure_source_revision_table()` en `run_sync()`, `check_content_changed()` por bloque, `invalidate_old_embeddings()` en cambio, `record_revision()` tras upsert ✅
+- integración en DGT worker: `ensure_source_revision_table()` en `run_sync()`, `check_content_changed()` por consulta, `invalidate_old_embeddings()` en cambio, `record_revision()` tras upsert ✅
+- 9 tests pasando en `apps/workers/tests/test_change_detection.py` ✅
+
 ### Entregables esperados
 - auth y rate limiting seguros por defecto
 - tablas durables para audit/lineage/review/query logs
@@ -3020,6 +3027,7 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 2. Fase 30.2 — sin persistencia durable, no hay trazabilidad ni auditoria reales
 3. Fase 30.3 — sin grounding fuerte e incremental indexing, la capa LLM sigue siendo un riesgo
 4. Fase 30.4 — sin conectividad y observabilidad, el sistema seguira fragmentado y dificil de operar
+5. Fase 30.5 — sin deteccion de cambios, cada ingestion puede reindexar innecesariamente todo el corpus
 
 ### Criterio de exito
 1. no existe ningun entorno no-dev donde API o `/mcp` queden expuestos por omision

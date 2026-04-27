@@ -9,6 +9,12 @@ from sqlalchemy import create_engine
 from sqlalchemy import text
 
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
+from change_detection import (
+    check_content_changed,
+    record_revision,
+    invalidate_old_embeddings,
+    ensure_source_revision_table,
+)
 from runtime import get_bool_env, get_database_url, get_interval_seconds
 
 
@@ -236,6 +242,7 @@ def run_sync(
         with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client:
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
+                ensure_source_revision_table(conn)
                 for url in urls:
                     num_consulta = _extract_num_consulta(url)
                     search_html = fetch_search_html(client, num_consulta)
@@ -251,17 +258,37 @@ def run_sync(
                     if not document["normas_objetivo"]:
                         continue
 
-                    upsert_documento_interpretativo(
-                        conn,
-                        {
-                            "referencia": document["referencia"],
-                            "fecha": document["fecha"],
-                            "titulo": _build_titulo(document),
-                            "texto": document["texto"],
-                            "url_fuente": url,
-                        },
+                    change = check_content_changed(
+                        conn, worker_name, "consulta", document["referencia"], document_html
                     )
-                    stored += 1
+
+                    if change.changed:
+                        invalidated = invalidate_old_embeddings(conn, document["referencia"])
+                        if invalidated:
+                            print(
+                                f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}"
+                            )
+
+                        upsert_documento_interpretativo(
+                            conn,
+                            {
+                                "referencia": document["referencia"],
+                                "fecha": document["fecha"],
+                                "titulo": _build_titulo(document),
+                                "texto": document["texto"],
+                                "url_fuente": url,
+                            },
+                        )
+                        record_revision(
+                            conn,
+                            worker_name,
+                            "consulta",
+                            document["referencia"],
+                            document_html,
+                        )
+                        stored += 1
+                    else:
+                        print(f"  [SKIP] {document['referencia']} unchanged")
 
                 if stored:
                     links_created = auto_link_doctrina(conn)

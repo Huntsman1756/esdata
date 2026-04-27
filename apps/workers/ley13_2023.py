@@ -12,12 +12,17 @@ import argparse
 import os
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import create_engine, text
-
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
 from runtime import get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
 
 BOE_BASE = os.getenv(
     "BOE_BASE",
@@ -334,7 +339,7 @@ def log_sync(
     error_msg: str | None = None,
     started_at: str | None = None,
 ) -> None:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     effective_started_at = started_at or now
     duration_ms = max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(effective_started_at)).total_seconds() * 1000))
     _ensure_sync_log_table(conn)
@@ -550,42 +555,64 @@ def run_sync(
     engine = create_engine(DATABASE_URL, future=True)
     bloques_fetched = 0
     articulos_upserted = 0
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0) as client:
-            with engine.begin() as conn:
-                upsert_ley13_norma(conn)
+        with httpx.Client(timeout=30.0) as client, engine.begin() as conn:
+            upsert_ley13_norma(conn)
+            ensure_source_revision_table(conn)
 
-                # Intentar fetch desde BOE API
-                index = fetch_index(client, LEY13_2023_NORMA["boe_id"])
+            # Intentar fetch desde BOE API
+            index = fetch_index(client, LEY13_2023_NORMA["boe_id"])
 
-                if index:
-                    # Datos reales del BOE
-                    for item in index:
-                        if not _is_supported_block(item.titulo):
-                            continue
-                        bloque = fetch_block(client, item.id)
-                        upsert_articulo(conn, "LEY13_2023", bloque)
+            if index:
+                # Datos reales del BOE
+                for item in index:
+                    if not _is_supported_block(item.titulo):
+                        continue
+                    bloque = fetch_block(client, item.id)
+
+                    change = check_content_changed(
+                        conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
+                    )
+
+                    if not change.changed:
                         bloques_fetched += 1
-                        articulos_upserted += 1
-                else:
-                    # Fallback: usar dataset sintético
-                    print("  [INFO] Using synthetic dataset for Ley 13/2023")
-                    for item in LEY13_2023_DATASET:
-                        bloque = BloqueTexto(**item)
-                        upsert_articulo(conn, "LEY13_2023", bloque)
-                        bloques_fetched += 1
-                        articulos_upserted += 1
+                        continue
 
-                log_sync(
-                    conn,
-                    worker_name,
-                    "ok",
-                    bloques=bloques_fetched,
-                    articulos=articulos_upserted,
-                    started_at=sync_start,
-                )
+                    invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
+                    if invalidated:
+                        print(
+                            f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
+                        )
+
+                    upsert_articulo(conn, "LEY13_2023", bloque)
+                    record_revision(
+                        conn,
+                        worker_name,
+                        "bloque",
+                        bloque.bloque_id,
+                        bloque.texto,
+                    )
+                    bloques_fetched += 1
+                    articulos_upserted += 1
+            else:
+                # Fallback: usar dataset sintético
+                print("  [INFO] Using synthetic dataset for Ley 13/2023")
+                for item in LEY13_2023_DATASET:
+                    bloque = BloqueTexto(**item)
+                    upsert_articulo(conn, "LEY13_2023", bloque)
+                    bloques_fetched += 1
+                    articulos_upserted += 1
+
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                bloques=bloques_fetched,
+                articulos=articulos_upserted,
+                started_at=sync_start,
+            )
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
         with engine.begin() as conn:
@@ -631,6 +658,6 @@ if __name__ == "__main__":
         while True:
             result = run_sync()
             print(
-                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}"
+                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(UTC).isoformat()}"
             )
             time.sleep(interval)

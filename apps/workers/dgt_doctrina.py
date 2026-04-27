@@ -18,13 +18,18 @@ normas objetivo incluye LIRPF (rendimientos mobiliarios) o IRNR.
 import argparse
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import create_engine, text
-
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
 from runtime import get_bool_env, get_database_url, get_interval_seconds
+from sqlalchemy import create_engine
 
 SEED_URLS = [
     "https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0091-18",
@@ -102,73 +107,94 @@ def run_sync(
     stored = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     # Importamos la logica de scraping de dgt.py para reutilizar
     from dgt import (
         _build_document_payload,
-        _clean_html_text,
-        _extract_num_consulta,
         _extract_field,
-        build_search_payload,
+        _extract_num_consulta,
         fetch_document_html,
         fetch_search_html,
-        parse_document_html as _parse_doc_html,
         parse_search_results,
         start_session,
         upsert_documento_interpretativo,
     )
+    from dgt import (
+        parse_document_html as _parse_doc_html,
+    )
 
     try:
-        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client:
-            with engine.begin() as conn:
-                _ensure_sync_log_table(conn)
-                for url in urls:
-                    num_consulta = _extract_num_consulta(url)
-                    start_session(client)
-                    search_html = fetch_search_html(client, num_consulta)
-                    results = parse_search_results(search_html)
-                    if not results:
-                        continue
+        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client, engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            ensure_source_revision_table(conn)
+            for url in urls:
+                num_consulta = _extract_num_consulta(url)
+                start_session(client)
+                search_html = fetch_search_html(client, num_consulta)
+                results = parse_search_results(search_html)
+                if not results:
+                    continue
 
-                    query, order, doc_id = _build_document_payload(results[0])
-                    document_html = fetch_document_html(client, query, order, doc_id)
-                    document = _parse_doc_html(document_html)
+                query, order, doc_id = _build_document_payload(results[0])
+                document_html = fetch_document_html(client, query, order, doc_id)
+                document = _parse_doc_html(document_html)
 
-                    # Ampliar el parsing con normas especificas de rendimiento
-                    normativa = _extract_field(document_html, "NORMATIVA")
-                    texto = document.get("texto")
-                    normas_objetivo = _extract_target_normas_rendimiento(texto, normativa)
-                    document["normas_objetivo"] = normas_objetivo
+                # Ampliar el parsing con normas especificas de rendimiento
+                normativa = _extract_field(document_html, "NORMATIVA")
+                texto = document.get("texto")
+                normas_objetivo = _extract_target_normas_rendimiento(texto, normativa)
+                document["normas_objetivo"] = normas_objetivo
 
-                    processed += 1
+                processed += 1
 
-                    if not normas_objetivo:
-                        continue
+                if not normas_objetivo:
+                    continue
 
-                    upsert_documento_interpretativo(
-                        conn,
-                        {
-                            "referencia": document["referencia"],
-                            "fecha": document["fecha"],
-                            "titulo": f"{document['referencia']} - {document.get('cuestion', 'Rendimientos mobiliarios')}",
-                            "texto": texto,
-                            "url_fuente": url,
-                        },
+                change = check_content_changed(
+                    conn, worker_name, "documento", document["referencia"], document_html
+                )
+
+                if not change.changed:
+                    print(f"  [SKIP] {document['referencia']} unchanged")
+                    continue
+
+                invalidated = invalidate_old_embeddings(conn, document["referencia"])
+                if invalidated:
+                    print(
+                        f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}"
                     )
-                    stored += 1
 
-                if stored:
-                    links_created = auto_link_doctrina(conn)
-
-                log_sync(
+                upsert_documento_interpretativo(
+                    conn,
+                    {
+                        "referencia": document["referencia"],
+                        "fecha": document["fecha"],
+                        "titulo": f"{document['referencia']} - {document.get('cuestion', 'Rendimientos mobiliarios')}",
+                        "texto": texto,
+                        "url_fuente": url,
+                    },
+                )
+                record_revision(
                     conn,
                     worker_name,
-                    "ok",
-                    documentos_processed=processed,
-                    documentos_upserted=stored,
-                    doctrina_links_created=links_created,
+                    "documento",
+                    document["referencia"],
+                    document_html,
                 )
+                stored += 1
+
+            if stored:
+                links_created = auto_link_doctrina(conn)
+
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                documentos_processed=processed,
+                documentos_upserted=stored,
+                doctrina_links_created=links_created,
+            )
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:

@@ -1,18 +1,23 @@
 import argparse
-from datetime import UTC, datetime, timezone
-from io import BytesIO
 import os
 import re
 import time
+from datetime import UTC, datetime
+from io import BytesIO
 from urllib.parse import urlparse
 
 import httpx
-from bs4 import BeautifulSoup
-from pypdf import PdfReader
-from sqlalchemy import create_engine, text
-
 from boe import _ensure_sync_log_table, log_sync
+from bs4 import BeautifulSoup
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
+from pypdf import PdfReader
 from runtime import get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -842,38 +847,38 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     """
     referencia = payload["referencia"]
     texto = payload["texto"]
-    
+
     # Check if document exists
     existing = conn.execute(
         text("SELECT id FROM documento_interpretativo WHERE referencia = :ref"),
         {"ref": referencia},
     ).mappings().first()
-    
+
     if not existing:
         # New document
         upsert_documento_interpretativo(conn, payload)
         _record_version(conn, referencia, texto, "creado")
         return {"action": "created", "version_num": 1}
-    
+
     # Existing document - upsert and record version
     old_row = conn.execute(
         text("SELECT texto FROM documento_interpretativo WHERE referencia = :ref"),
         {"ref": referencia},
     ).mappings().first()
-    
+
     old_texto = old_row["texto"] if old_row else ""
-    
+
     # Detect change type
     if old_texto == texto:
         return {"action": "unchanged", "version_num": None}
-    
+
     cambio_tipo = "modificado"
     vigencia = payload.get("estado_vigencia", "")
     if "derogado" in vigencia.lower() or "deroga" in texto.lower():
         cambio_tipo = "derogado"
     elif "sustituido" in vigencia.lower() or "sustituye" in texto.lower():
         cambio_tipo = "sustituido"
-    
+
     # Build update payload (only non-referencia columns)
     update_payload = {k: v for k, v in payload.items() if k != "referencia"}
     update_payload.setdefault("organismo_emisor", "CNMV")
@@ -884,7 +889,7 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     update_payload.setdefault("fecha", datetime.now(UTC).date().isoformat())
     update_payload.setdefault("titulo", "")
     update_payload.setdefault("url_fuente", "")
-    
+
     columns = [
         "tipo_documento", "organismo_emisor", "jurisdiccion", "tipo_fuente",
         "ambito", "fecha", "titulo", "texto", "url_fuente",
@@ -892,11 +897,11 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     for col in ("numero_circular", "fecha_publicacion", "referencia_boe", "estado_vigencia", "regulacion_relacionada"):
         if col in update_payload:
             columns.append(col)
-    
+
     placeholders = ", ".join(f":{c}" for c in columns)
     cols_str = ", ".join(columns)
     update_cols = ", ".join(f"{c} = excluded.{c}" for c in columns if c != "referencia")
-    
+
     conn.execute(
         text(
             f"""
@@ -908,25 +913,25 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
         ),
         update_payload,
     )
-    
-    nota = f"Cambio detectado en documento existente"
+
+    nota = "Cambio detectado en documento existente"
     if cambio_tipo == "derogado":
         nota = "Documento derogado"
     elif cambio_tipo == "sustituido":
         nota = "Documento sustituido por nueva versión"
-    
+
     _record_version(conn, referencia, texto, cambio_tipo, nota)
-    
+
     new_ver = _get_next_version(conn, referencia)
-    
+
     # Detect and link EU/ES regulations (23.7)
     regulaciones = _detect_regulaciones(texto)
     _upsert_regulation_links(conn, referencia, regulaciones)
-    
+
     # Detect and link obligations (23.8)
     obligaciones = _detect_obligaciones(texto)
     _upsert_obligation_links(conn, referencia, obligaciones)
-    
+
     return {"action": "updated", "version_num": new_ver, "cambio_tipo": cambio_tipo, "regulaciones": len(regulaciones), "obligaciones": len(obligaciones)}
 
 
@@ -945,31 +950,53 @@ def run_sync(
     stored = 0
     discovered = len(urls)
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            with engine.begin() as conn:
-                _ensure_sync_log_table(conn)
-                for url in urls:
-                    try:
-                        response = client.get(url)
-                        response.raise_for_status()
-                        payload = build_document_payload(url, response.content)
-                        processed += 1
-                        upsert_documento_interpretativo(conn, payload)
-                        stored += 1
-                    except Exception as url_exc:
-                        # Log individual URL failure but continue
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            ensure_source_revision_table(conn)
+            for url in urls:
+                try:
+                    response = client.get(url)
+                    response.raise_for_status()
+                    payload = build_document_payload(url, response.content)
+                    processed += 1
+
+                    change = check_content_changed(
+                        conn, worker_name, "documento", payload["referencia"], response.content
+                    )
+
+                    if not change.changed:
+                        print(f"  [SKIP] {payload['referencia']} unchanged")
                         continue
 
-                log_sync(
-                    conn,
-                    worker_name,
-                    "ok",
-                    documentos_processed=processed,
-                    documentos_upserted=stored,
-                )
+                    invalidated = invalidate_old_embeddings(conn, payload["referencia"])
+                    if invalidated:
+                        print(
+                            f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"
+                        )
+
+                    upsert_documento_interpretativo(conn, payload)
+                    record_revision(
+                        conn,
+                        worker_name,
+                        "documento",
+                        payload["referencia"],
+                        response.content,
+                    )
+                    stored += 1
+                except Exception:
+                    # Log individual URL failure but continue
+                    continue
+
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                documentos_processed=processed,
+                documentos_upserted=stored,
+            )
 
         return {"processed": processed, "stored": stored, "discovered": discovered}
     except Exception as exc:

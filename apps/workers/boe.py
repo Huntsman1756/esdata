@@ -10,6 +10,12 @@ import httpx
 from sqlalchemy import create_engine, text
 
 from runtime import get_database_url, get_interval_seconds
+from change_detection import (
+    check_content_changed,
+    record_revision,
+    invalidate_old_embeddings,
+    ensure_source_revision_table,
+)
 
 BOE_API_BASE = os.getenv(
     "BOE_API_BASE",
@@ -1103,6 +1109,7 @@ def run_sync(
         with httpx.Client(timeout=30.0) as client:
             with engine.begin() as conn:
                 _ensure_schema(conn)
+                ensure_source_revision_table(conn)
                 for codigo in target_codes:
                     if codigo in MANUAL_NORMAS:
                         upsert_norma(conn, MANUAL_NORMAS[codigo])
@@ -1117,7 +1124,29 @@ def run_sync(
                         if only_block_ids and item.id not in only_block_ids:
                             continue
                         bloque = fetch_block(client, boe_id, item.id)
+
+                        change = check_content_changed(
+                            conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
+                        )
+
+                        if not change.changed:
+                            bloques_fetched += 1
+                            continue
+
+                        invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
+                        if invalidated:
+                            print(
+                                f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
+                            )
+
                         upsert_articulo(conn, codigo, bloque)
+                        record_revision(
+                            conn,
+                            worker_name,
+                            "bloque",
+                            bloque.bloque_id,
+                            bloque.texto,
+                        )
                         bloques_fetched += 1
                         articulos_upserted += 1
 

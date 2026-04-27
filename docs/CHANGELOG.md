@@ -7,6 +7,9 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
+- **xxxxxxx** `feat(workers)` — incremental reindexing: shared change_detection module, source_revision table, integrate into 16 workers (boe, dgt, teac, eurlex, bde, bdns, borme, cendoj, cnmv, aepd, sepblac, prospectos, rirnr, ley13_2023, dgt_doctrina, csdr), 9 tests
+
+### main
 - **def5678** `feat(api)` — semantic reranker per claim: _build_claim_citations scores each chunk against claim text via cross-encoder, citations sorted by rerank_score, 1 new test
 - **abc1234** `feat(api)` — add claim_citations to /v1/consulta: per-claim-to-chunk mapping, ClaimCitation schema, 2 smoke tests
 - **73c6cc1** `fix(migrations)` — repair Alembic chain: fix SQL escaping in 0016/0017 seed data, fix default→server_default and 'true'→true boolean literals in 0018/0019/0022/0025/0026/0028/0029, add ON CONFLICT DO NOTHING to idempotent seeds, verify full upgrade to head in disposable DB

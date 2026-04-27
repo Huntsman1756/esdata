@@ -19,24 +19,26 @@ de legislacion consolidada.
 
 import argparse
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import create_engine, text
-
 from boe import (
     _create_base_schema,
     _ensure_sync_log_table,
-    _infer_tipo_y_numero,
-    _yyyymmdd_to_iso,
     fetch_block,
     fetch_index,
-    parse_block_xml,
     parse_metadata,
     upsert_articulo,
     upsert_norma,
 )
+from change_detection import (
+    check_content_changed,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
 from runtime import get_bool_env, get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
 
 # RIRNR = Real Decreto 435/1995, de 27 de marzo
 RIRNR_BOE_ID = "BOE-A-1995-7256"
@@ -56,60 +58,80 @@ def run_sync(
     processed = 0
     articulos_upserted = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(timezone.utc).isoformat()
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=60.0, verify=RIRNR_SSL_VERIFY) as client:
-            with engine.begin() as conn:
-                _create_base_schema(conn)
-                _ensure_sync_log_table(conn)
+        with httpx.Client(timeout=60.0, verify=RIRNR_SSL_VERIFY) as client, engine.begin() as conn:
+            _create_base_schema(conn)
+            _ensure_sync_log_table(conn)
+            ensure_source_revision_table(conn)
 
-                # 1. Fetch metadata
-                metadata = parse_metadata(
-                    RIRNR_CODIGO, boe_id,
-                    client.get(
-                        f"https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/{boe_id}/metadatos",
-                        headers={"Accept": "application/json"},
-                    ).json()
+            # 1. Fetch metadata
+            metadata = parse_metadata(
+                RIRNR_CODIGO, boe_id,
+                client.get(
+                    f"https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/{boe_id}/metadatos",
+                    headers={"Accept": "application/json"},
+                ).json()
+            )
+            upsert_norma(conn, metadata)
+            processed += 1
+
+            # 2. Fetch index
+            index = fetch_index(client, boe_id)
+            if not index:
+                raise ValueError(f"No blocks found for {boe_id} in BOE API")
+
+            # 3. Process each block
+            for block_info in index:
+                bloque = fetch_block(client, boe_id, block_info.id)
+
+                # Solo procesar articulos (no titulos, capitulos, etc.)
+                if not bloque.numero or bloque.tipo_articulo not in (
+                    "articulo",
+                    "articulo_transitorio",
+                    "articulo_disposicion_adicional",
+                    "articulo_disposicion_derogatoria",
+                    "articulo_disposicion_final",
+                ):
+                    continue
+
+                change = check_content_changed(
+                    conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                 )
-                upsert_norma(conn, metadata)
-                processed += 1
 
-                # 2. Fetch index
-                index = fetch_index(client, boe_id)
-                if not index:
-                    raise ValueError(f"No blocks found for {boe_id} in BOE API")
+                if not change.changed:
+                    continue
 
-                # 3. Process each block
-                for block_info in index:
-                    bloque = fetch_block(client, boe_id, block_info.id)
+                invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
+                if invalidated:
+                    print(
+                        f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
+                    )
 
-                    # Solo procesar articulos (no titulos, capitulos, etc.)
-                    if not bloque.numero or bloque.tipo_articulo not in (
-                        "articulo",
-                        "articulo_transitorio",
-                        "articulo_disposicion_adicional",
-                        "articulo_disposicion_derogatoria",
-                        "articulo_disposicion_final",
-                    ):
-                        continue
-
-                    upsert_articulo(conn, RIRNR_CODIGO, bloque)
-                    articulos_upserted += 1
-
-                # 4. Link matters
-                links_created = 0  # RIRNR doesn't use auto_link_doctrina
-
-                # 5. Log
-                log_sync(
+                upsert_articulo(conn, RIRNR_CODIGO, bloque)
+                record_revision(
                     conn,
                     worker_name,
-                    "ok",
-                    bloques_processed=processed,
-                    articulos_upserted=articulos_upserted,
-                    doctrina_links_created=links_created,
-                    started_at=sync_start,
+                    "bloque",
+                    bloque.bloque_id,
+                    bloque.texto,
                 )
+                articulos_upserted += 1
+
+            # 4. Link matters
+            links_created = 0  # RIRNR doesn't use auto_link_doctrina
+
+            # 5. Log
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                bloques_processed=processed,
+                articulos_upserted=articulos_upserted,
+                doctrina_links_created=links_created,
+                started_at=sync_start,
+            )
 
         return {"processed": processed, "articulos_upserted": articulos_upserted}
     except Exception as exc:
@@ -129,8 +151,8 @@ def run_sync(
 
 def log_sync(conn, worker_name, status, **kwargs):
     """Escribe un registro en sync_log."""
-    started_at = kwargs.get("started_at") or datetime.now(timezone.utc).isoformat()
-    finished_at = datetime.now(timezone.utc).isoformat()
+    started_at = kwargs.get("started_at") or datetime.now(UTC).isoformat()
+    finished_at = datetime.now(UTC).isoformat()
     duration_ms = max(0, int((datetime.fromisoformat(finished_at) - datetime.fromisoformat(started_at)).total_seconds() * 1000))
     conn.execute(
         text(

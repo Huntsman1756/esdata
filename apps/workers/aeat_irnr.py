@@ -24,6 +24,12 @@ from runtime import (
 )
 from sqlalchemy import create_engine, text
 
+from change_detection import (
+    check_content_changed,
+    record_revision,
+    ensure_source_revision_table,
+)
+
 logger = configure_logging("worker-aeat-irnr")
 
 AEAT_SEDE = "https://sede.agenciatributaria.gob.es"
