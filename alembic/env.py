@@ -5,8 +5,11 @@ from logging.config import fileConfig
 
 from alembic import context
 from alembic.ddl.impl import DefaultImpl
+from alembic.ddl.postgresql import PostgresqlImpl
 from sqlalchemy import create_engine, pool
 from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, String, Table, text
+from sqlalchemy.schema import CreateTable, CreateIndex
+
 
 ALEMBIC_VERSION_NUM_LENGTH = 128
 
@@ -27,6 +30,33 @@ def _version_table_impl(self, *, version_table: str, version_table_schema: str |
 
 
 DefaultImpl.version_table_impl = _version_table_impl
+
+
+# Patch DefaultImpl.create_table to use IF NOT EXISTS for idempotency.
+# This makes all op.create_table() calls safe to re-run.
+_original_create_table = DefaultImpl.create_table
+
+
+def _idempotent_create_table(self, table, *args, **kwargs):
+    # Generate the CREATE TABLE SQL using the normal path
+    create_stmt = CreateTable(table).compile(dialect=self.dialect)
+    sql = str(create_stmt).replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", 1)
+    # Execute as raw SQL
+    self.connection.execute(text(sql))
+
+
+DefaultImpl.create_table = _idempotent_create_table
+
+
+# Patch DefaultImpl.create_index to use IF NOT EXISTS for idempotency.
+def _idempotent_create_index(self, index, **kw):
+    create_stmt = CreateIndex(index).compile(dialect=self.dialect)
+    sql = str(create_stmt).replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", 1)
+    self.connection.execute(text(sql))
+
+
+DefaultImpl.create_index = _idempotent_create_index
+PostgresqlImpl.create_index = _idempotent_create_index
 
 
 def _widen_existing_version_table_if_needed(connection) -> None:
@@ -78,11 +108,21 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     connectable = create_engine(get_url(), poolclass=pool.NullPool, future=True)
 
-    with connectable.connect() as connection:
-        _widen_existing_version_table_if_needed(connection)
-        connection.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-        context.configure(connection=connection, target_metadata=target_metadata)
+    conn = connectable.connect()
+    # Commit any auto-started transaction before we begin
+    try:
+        conn.execute(text("COMMIT"))
+    except Exception:
+        conn.rollback()
 
+    with conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS alembic_version (
+                version_num VARCHAR(128) NOT NULL PRIMARY KEY
+            )
+        """))
+        context.configure(connection=conn, target_metadata=target_metadata, render_as_batch=True)
         with context.begin_transaction():
             context.run_migrations()
 

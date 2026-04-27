@@ -44,10 +44,18 @@ def upgrade() -> None:
         "irnr_withholding_rate",
         ["modelo_id"],
     )
-    op.create_unique_constraint(
-        "uq_irnr_rate_modelo_renta",
-        "irnr_withholding_rate",
-        ["modelo_id", "tipo_renta"],
+    op.execute(
+        r"""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'uq_irnr_rate_modelo_renta'
+            ) THEN
+                ALTER TABLE irnr_withholding_rate
+                ADD CONSTRAINT uq_irnr_rate_modelo_renta UNIQUE (modelo_id, tipo_renta);
+            END IF;
+        END $$;
+        """
     )
 
     # --- irnr_instruccion ---
@@ -71,10 +79,18 @@ def upgrade() -> None:
         "irnr_instruccion",
         ["seccion"],
     )
-    op.create_unique_constraint(
-        "uq_irnr_instruccion_modelo_seccion",
-        "irnr_instruccion",
-        ["modelo_id", "seccion"],
+    op.execute(
+        r"""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'uq_irnr_instruccion_modelo_seccion'
+            ) THEN
+                ALTER TABLE irnr_instruccion
+                ADD CONSTRAINT uq_irnr_instruccion_modelo_seccion UNIQUE (modelo_id, seccion);
+            END IF;
+        END $$;
+        """
     )
 
 

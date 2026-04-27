@@ -59,6 +59,7 @@ def upgrade():
         ('MIFID_CLIENT_CATEGORIES', 'Categorias de cliente', 'Clasificar cliente como minorista/profesional/institucional (art. 52 LMCV)', 'mifid_ii', 'mercados', 'alta_satisfaccion', 'inicial', 'compliance', 'alta', true),
         ('MIFID_COMPENSATION', 'Politica de compensacion', 'Implementar politica de compensacion alineada con riesgos (art. 95 LMCV)', 'mifid_ii', 'mercados', 'continuo', 'anual', 'rrhh', 'media', true),
         ('MIFID_MARKET_ABUSE', 'Deteccion abuso mercado', 'Detectar y reportar operaciones sospechosas de abuso (art. 13 MAR)', 'mar', 'mercados', 'operacion_sospechosa', 'continua', 'compliance', 'alta', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed CNMV micro-obligaciones
@@ -72,6 +73,7 @@ def upgrade():
         ('CNMV_REGISTRO_OPERACIONES_INSIDER', 'Registro operaciones insider', 'Registrar operaciones de PPI (art. 19 MAR)', 'mar', 'mercados', 'operacion_ppi', 'eventual', 'compliance', 'alta', true),
         ('CNMV_CONCILIACION', 'Conciliacion financiera', 'Conciliacion periodica carteras clientes', 'cnmv_lmcv', 'reporting_regulatorio', 'periodicidad', 'mensual', 'back_office', 'media', true),
         ('CNMV_DOCUMENTOS_INFORMACION', 'Documentos de informacion', 'Elaborar y publicar DI (art. 10 RDM)', 'cnmv_lmcv', 'reporting_regulatorio', 'periodicidad', 'continua', 'comercial', 'alta', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed SEPBLAC micro-obligaciones
@@ -87,6 +89,7 @@ def upgrade():
         ('SEPBLAC_GOBIERNO_AML', 'Gobierno AML interno', 'Implementar controles internos prevencion LP (art. 6 Ley 10/2010)', 'pblcft', 'aml_cft', 'continuo', 'continua', 'compliance', 'alta', true),
         ('SEPBLAC_MITIGACION', 'Politica mitigacion riesgos', 'Politica de mitigacion de riesgos LP (art. 5 Ley 10/2010)', 'pblcft', 'aml_cft', 'continuo', 'anual', 'compliance', 'alta', true),
         ('SEPBLAC_REPORTE_ANUAL', 'Reporte anual SEPBLAC', 'Presentar memoria anual de actividades (si aplica)', 'pblcft', 'aml_cft', 'periodicidad', 'anual', 'compliance', 'media', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed mapping: obligacion_regulatoria -> micro_obligacion

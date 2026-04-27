@@ -28,9 +28,11 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "linea_criterio",
-        sa.Column("ambitos", sa.ARRAY(sa.String), nullable=True, server_default="{}"),
+    op.execute(
+        """
+        ALTER TABLE linea_criterio
+        ADD COLUMN IF NOT EXISTS ambitos VARCHAR[] DEFAULT '{}'
+        """
     )
 
     # Seed ambitos on existing seed rows based on cuestion_practica

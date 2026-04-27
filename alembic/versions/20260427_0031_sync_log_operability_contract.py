@@ -15,9 +15,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("sync_log", sa.Column("rows_processed", sa.Integer(), nullable=True))
-    op.add_column("sync_log", sa.Column("errors", sa.Integer(), nullable=True, server_default="0"))
-    op.add_column("sync_log", sa.Column("duration_ms", sa.Integer(), nullable=True))
+    op.execute("""ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS rows_processed INTEGER""")
+    op.execute("""ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS errors INTEGER DEFAULT 0""")
+    op.execute("""ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS duration_ms INTEGER""")
 
     op.execute(
         """

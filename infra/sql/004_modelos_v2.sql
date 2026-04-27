@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS modelo_campana (
     UNIQUE(modelo_id, campana)
 );
 
-CREATE INDEX idx_modelo_campana_modelo ON modelo_campana(modelo_id);
+CREATE INDEX IF NOT EXISTS idx_modelo_campana_modelo ON modelo_campana(modelo_id);
 
 -- Enforce: only ONE active campaign per model at a time.
 -- Postgres supports partial unique indexes for this exact pattern.
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS modelo_casilla (
     UNIQUE(campana_id, codigo)
 );
 
-CREATE INDEX idx_modelo_casilla_campana ON modelo_casilla(campana_id);
+CREATE INDEX IF NOT EXISTS idx_modelo_casilla_campana ON modelo_casilla(campana_id);
 
 -- ---------------------------------------------------------------------------
 -- 3. CLAVES — códigos de rendimiento/régimen/etc. por modelo/campaña
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS modelo_clave (
     UNIQUE(campana_id, codigo)
 );
 
-CREATE INDEX idx_modelo_clave_campana ON modelo_clave(campana_id);
+CREATE INDEX IF NOT EXISTS idx_modelo_clave_campana ON modelo_clave(campana_id);
 
 -- ---------------------------------------------------------------------------
 -- 4. INSTRUCCIONES — contenido paso a paso por modelo/campaña
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS modelo_instruccion (
     creado_at       TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_modelo_instruccion_campana ON modelo_instruccion(campana_id);
+CREATE INDEX IF NOT EXISTS idx_modelo_instruccion_campana ON modelo_instruccion(campana_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_modelo_instruccion_unique
     ON modelo_instruccion(campana_id, seccion, titulo);
 
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS modelo_normativa (
     UNIQUE(modelo_id, boe_id)
 );
 
-CREATE INDEX idx_modelo_normativa_modelo ON modelo_normativa(modelo_id);
+CREATE INDEX IF NOT EXISTS idx_modelo_normativa_modelo ON modelo_normativa(modelo_id);
 
 -- ---------------------------------------------------------------------------
 -- 6. FORMATO — especificaciones de diseño de registro por campaña
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS modelo_formato (
     creado_at       TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_modelo_formato_campana ON modelo_formato(campana_id);
+CREATE INDEX IF NOT EXISTS idx_modelo_formato_campana ON modelo_formato(campana_id);
 
 -- ---------------------------------------------------------------------------
 -- 7. VISTA: modelo_casilla_articulo — vincula casillas con artículos

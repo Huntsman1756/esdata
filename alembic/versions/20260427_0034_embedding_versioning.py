@@ -20,14 +20,12 @@ depends_on = None
 
 def upgrade() -> None:
     # Add embedding_model_name and content_hash to tables with embeddings
-    op.add_column("version_articulo", sa.Column("embedding_model_name", sa.Text(), nullable=True))
-    op.add_column("version_articulo", sa.Column("content_hash", sa.Text(), nullable=True))
-
-    op.add_column("documento_fragmento", sa.Column("embedding_model_name", sa.Text(), nullable=True))
-    op.add_column("documento_fragmento", sa.Column("content_hash", sa.Text(), nullable=True))
-
-    op.add_column("documento_interpretativo", sa.Column("embedding_model_name", sa.Text(), nullable=True))
-    op.add_column("documento_interpretativo", sa.Column("content_hash", sa.Text(), nullable=True))
+    op.execute("""ALTER TABLE version_articulo ADD COLUMN IF NOT EXISTS embedding_model_name TEXT""")
+    op.execute("""ALTER TABLE version_articulo ADD COLUMN IF NOT EXISTS content_hash TEXT""")
+    op.execute("""ALTER TABLE documento_fragmento ADD COLUMN IF NOT EXISTS embedding_model_name TEXT""")
+    op.execute("""ALTER TABLE documento_fragmento ADD COLUMN IF NOT EXISTS content_hash TEXT""")
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS embedding_model_name TEXT""")
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS content_hash TEXT""")
 
     # Create embedding_version tracking table
     op.create_table(

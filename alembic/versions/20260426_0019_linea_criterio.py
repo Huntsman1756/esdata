@@ -65,6 +65,7 @@ def upgrade():
           'Distinguir entre venta al por menor de alimentos (tipo reducido) y servicio de restauracion (tambien reducido pero con requisitos estrictos de prestacion).',
           'No aplica a ventas a granel o productos envasados sin servicio adicional.',
           NULL, 'vigente', 1, 1, true)
+ON CONFLICT DO NOTHING
     """)
 
     # 2. Comisiones de preferencia e indiferencia — MiFID
@@ -76,6 +77,7 @@ def upgrade():
           'Requiere divulgacion previa al cliente y registro documental de las comisiones aplicadas.',
           'No aplica a operaciones institucionales con acuerdos de soft dollar documentados.',
           NULL, 'vigente', 1, 1, true)
+ON CONFLICT DO NOTHING
     """)
 
     # 3. Ejecucion preferente — best execution
@@ -87,6 +89,7 @@ def upgrade():
           'Debe mantener politica de ejecucion documentada y revisar periodicamente los destinos de orden.',
           'Puede ejecutarse por medios exclusivos solo si el cliente acuerda explicitamente.',
           NULL, 'vigente', 1, 1, true)
+ON CONFLICT DO NOTHING
     """)
 
     # 4. Suitability y appropriateness
@@ -98,6 +101,7 @@ def upgrade():
           'Si el cliente proporciona informacion actualizada automaticamente se considera adecuada. No se requiere suitability para servicios de ejecucion no asistida.',
           'Excepcion: clientes institucionales, profesionales automaticos y productos no complejos para apropiateness.',
           NULL, 'vigente', 1, 1, true)
+ON CONFLICT DO NOTHING
     """)
 
     # 5. Informacion privilegiada — insider trading
@@ -109,6 +113,7 @@ def upgrade():
           'Deben existir procedimientos escritos y controles tecnologicos. Las listas deben actualizarse en tiempo real.',
           'Excepcion para M&A con acuerdos de confidencialidad y necesidad de conocimiento justificada.',
           NULL, 'vigente', 1, 1, true)
+ON CONFLICT DO NOTHING
     """)
 
     # 6. Productos prioritarios — product governance
@@ -120,6 +125,7 @@ def upgrade():
           'Revision periodica obligatoria. Si el producto se vende fuera del target, notificar al fabricante y suspender distribucion si es necesario.',
           'No aplica a productos para clientes profesionales o institucionales en la misma medida.',
           NULL, 'vigente', 1, 1, true)
+ON CONFLICT DO NOTHING
     """)
 
     # 7. PBLAFT — deberes de comunicacion
@@ -131,6 +137,7 @@ def upgrade():
           'La comunicacion es confidencial. SEPBLAC puede solicitar informacion complementaria. El deber de comunicacion prevalece sobre secreto profesional o contractual.',
           'Excepcion: abogados y asesores legales con representacion judicial (solo para origen de fondos del cliente).',
           NULL, 'vigente', 1, 1, true)
+ON CONFLICT DO NOTHING
     """)
 
     # Seed referencias — linea 1: IVA restauracion
@@ -191,4 +198,5 @@ def upgrade():
         (7, 'Ley 10/2010 PREV LPFT', 'ley', 'Boe', '2010-07-26', 'base_legal', 1),
         (7, 'RD 289/2022', 'real_decreto', 'Boe', '2022-05-17', 'base_legal', 2),
         (7, 'STS-3456/2024', 'sentencia', 'Tribunal Supremo', '2024-04-10', 'doctrina_principal', 3)
+ON CONFLICT DO NOTHING
     """)

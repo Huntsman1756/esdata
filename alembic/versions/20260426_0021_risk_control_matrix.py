@@ -186,6 +186,7 @@ def upgrade() -> None:
                'evidencia documentada por prueba', 30, true
         FROM riesgo_regulatorio r, control_interno c
         WHERE r.codigo = 'RIESGO-IVA-001' AND c.codigo = 'CTRL-FISCAL-001'
+        ON CONFLICT DO NOTHING
         """
     )
 

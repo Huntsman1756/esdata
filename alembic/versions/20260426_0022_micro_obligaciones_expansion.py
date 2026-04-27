@@ -32,6 +32,7 @@ def upgrade():
         ('LECR_MIID_DIVERSIFICATION', 'Diversificacion MiID >=50%', 'Diversificacion MiID (art. 134 LECR) para fondos de inversion', 'lecr', 'ecr_regulatorio', 'periodicidad', 'trimestral', 'compliance', 'alta', true),
         ('LECR_CONDUCT_RULES', 'Reglas de conducta MiFID II', 'Cumplir reglas de conducta MiFID II (arts. 53-63 LMCV) como ECR', 'lecr', 'ecr_regulatorio', 'continuo', 'continua', 'compliance', 'alta', true),
         ('LECR_FISCAL_NON_RESIDENT', '95% exencion dividendos no residentes', 'Exencion 95% dividendos y plusvalias para no residentes (art. 21 Ley IS + art. 30 Ley 22/2014)', 'lecr', 'tributario', 'periodicidad', 'anual', 'finanzas', 'media', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed SOCIMI micro-obligaciones
@@ -42,6 +43,7 @@ def upgrade():
         ('SOCIMI_TAX_UNDISTRIBUTED', 'Gravamen 15-19% beneficios no distribuidos', 'Gravamen 15-19% sobre beneficios no distribuidos (art. 24 Ley 11/2009)', 'socimi', 'tributario', 'periodicidad', 'anual', 'finanzas', 'media', true),
         ('SOCIMI_TAX_REGIME', 'Regimen fiscal SOCIMI 0% IS', 'Aplicar regimen fiscal SOCIMI con tipo 0% si distribuye >=80% beneficios (art. 23 Ley 11/2009)', 'socimi', 'tributario', 'continuo', 'anual', 'finanzas', 'alta', true),
         ('SOCIMI_80_20_RULE', 'Regla 80/20 SOCIMI', '80% activo inmobiliario arrendado + 20% liquidez maxima (art. 3 Ley 11/2009)', 'socimi', 'societario_fiscal', 'periodicidad', 'anual', 'finanzas', 'alta', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed CSDR micro-obligaciones
@@ -50,6 +52,7 @@ def upgrade():
         ('CSDR_SETTLEMENT', 'T+2 settlement / T+1 inminente', 'Cumplir T+2 settlement vigente, preparar T+1 (Reglamento 909/2014)', 'csdr', 'infraestructuras_csd', 'ejecucion_orden', 'continua', 'operaciones', 'alta', true),
         ('CSDR_REPORTING', 'Segregacion y reporting CSDR', 'Segregacion de posiciones y reporting a CSD (Reglamento 909/2014)', 'csdr', 'infraestructuras_csd', 'periodicidad', 'mensual', 'reporting', 'alta', true),
         ('CSDR_SETTLEMENT_FAILURE', 'Gestion fallidos de settlement CSDR', 'Gestion de fallidos de settlement y multas CSDR (Reglamento 909/2014)', 'csdr', 'infraestructuras_csd', 'fallido_settlement', 'eventual', 'operaciones', 'alta', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed CNMV ECR micro-obligaciones
@@ -59,6 +62,7 @@ def upgrade():
         ('CNMV_ECR_XML_FORMAT', 'XML formatos ECR CNMV', 'Generar XML segun formatos requeridos por CNMV para ECR', 'cnmv_ecr', 'reporting_cnmv_ecr', 'periodicidad', 'trimestral', 'reporting', 'media', true),
         ('CNMV_ECR_ACTIVE_LIST', 'Listado FCR/SCR activos CNMV', 'Mantener listado actualizado de FCR/SCR inscritos en CNMV', 'cnmv_ecr', 'reporting_cnmv_ecr', 'continuo', 'mensual', 'compliance', 'alta', true),
         ('CNMV_ECR_FAQS', 'FAQs criterios interpretativos CNMV', 'Seguir FAQs y criterios interpretativos de CNMV para ECR', 'cnmv_ecr', 'reporting_cnmv_ecr', 'continuo', 'continua', 'compliance', 'media', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed Doctrina DGT micro-obligaciones
@@ -68,6 +72,7 @@ def upgrade():
         ('DGT_SOCIMI_DISTRIBUCION', 'Doctrina DGT distribucion SOCIMI', 'Interpretar doctrina DGT sobre obligacion de distribucion de beneficios en SOCIMI', 'doctrina_dgt', 'doctrina_dgt', 'periodicidad', 'anual', 'finanzas', 'media', true),
         ('DGT_ETI_EMISORES', 'Doctrina DGT ETI emisores MiFID', 'Interpretar doctrina DGT sobre emisores con ETI y folletos MiFID', 'doctrina_dgt', 'doctrina_dgt', 'continuo', 'continua', 'compliance', 'media', true),
         ('DGT_FCR_EXENCIONES', 'Doctrina DGT exenciones FCR/SCR', 'Aplicar doctrina DGT V2424-20 sobre exenciones fiscales similares para FCR/SCR', 'doctrina_dgt', 'doctrina_dgt', 'periodicidad', 'anual', 'finanzas', 'media', true)
+        ON CONFLICT DO NOTHING
     """)
 
     # Seed mapping: obligacion_regulatoria -> micro_obligacion para nuevas regulaciones

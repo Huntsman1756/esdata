@@ -24,30 +24,12 @@ depends_on = None
 
 def upgrade():
     # Add CNMV enriched metadata columns
-    op.add_column(
-        'documento_interpretativo',
-        sa.Column('numero_circular', sa.Text(), nullable=True)
-    )
-    op.add_column(
-        'documento_interpretativo',
-        sa.Column('fecha_publicacion', sa.Text(), nullable=True)
-    )
-    op.add_column(
-        'documento_interpretativo',
-        sa.Column('referencia_boe', sa.Text(), nullable=True)
-    )
-    op.add_column(
-        'documento_interpretativo',
-        sa.Column('estado_vigencia', sa.Text(), nullable=True)
-    )
-    op.add_column(
-        'documento_interpretativo',
-        sa.Column('ambito_tematico', sa.Text(), nullable=True)
-    )
-    op.add_column(
-        'documento_interpretativo',
-        sa.Column('regulacion_relacionada', sa.Text(), nullable=True)
-    )
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS numero_circular TEXT""")
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS fecha_publicacion TEXT""")
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS referencia_boe TEXT""")
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS estado_vigencia TEXT""")
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS ambito_tematico TEXT""")
+    op.execute("""ALTER TABLE documento_interpretativo ADD COLUMN IF NOT EXISTS regulacion_relacionada TEXT""")
 
     # Create indexes for CNMV enriched columns
     op.execute(

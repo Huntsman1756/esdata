@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: esdata_dev
       POSTGRES_DB: esdata
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
