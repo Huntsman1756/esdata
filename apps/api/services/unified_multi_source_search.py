@@ -1,8 +1,10 @@
 """Unified multi-source retrieval with RRF fusion across all data sources.
 
 Searches across legislacion, doctrina, pgc_cuenta, aeat_modelo, screening_entries,
-empresa, norma, and articulo tables. Each source can be filtered via the
-``sources`` parameter. Results are fused via Reciprocal Rank Fusion (RRF).
+empresa, norma, articulo, and Fase 31 regulatory domains (mica, dac, pbc, fraud,
+mifid, mar, dora, priips, transparency).
+Each source can be filtered via the ``sources`` parameter. Results are fused
+via Reciprocal Rank Fusion (RRF).
 
 Supported source types:
     - legislacion: version_articulo + documento_fragmento (fulltext + vector)
@@ -13,6 +15,15 @@ Supported source types:
     - entities: empresa (fulltext + vector)
     - norms: norma (fulltext + vector)
     - articles: articulo (fulltext + vector)
+    - mica: MiCA/Crypto assets (documento_fragmento, fulltext + vector)
+    - dac: DAC8/DAC9 tax reporting (documento_fragmento, fulltext + vector)
+    - pbc: Ley 10/2010 AML (documento_fragmento, fulltext + vector)
+    - fraud: Ley 11/2021 antifraud (documento_fragmento, fulltext + vector)
+    - mifid: MiFID II/MiFIR (documento_fragmento, fulltext + vector)
+    - mar: Market Abuse Regulation (documento_fragmento, fulltext + vector)
+    - dora: Digital Operational Resilience Act (documento_fragmento, fulltext + vector)
+    - priips: PRIIPs/LIVMC (documento_fragmento, fulltext + vector)
+    - transparency: Transparency regulation (documento_fragmento, fulltext + vector)
 """
 
 from __future__ import annotations
@@ -61,6 +72,8 @@ def unified_multi_source_search(
         sources = [
             "legislacion", "doctrina", "pgc", "modelos",
             "screening", "entities", "norms", "articles",
+            "mica", "dac", "pbc", "fraud",
+            "mifid", "mar", "dora", "priips", "transparency",
         ]
 
     with db_session() as db:
@@ -83,6 +96,15 @@ def unified_multi_source_search(
             "entities": _search_entities_source,
             "norms": _search_norms_source,
             "articles": _search_articles_source,
+            "mica": _search_31x_source,
+            "dac": _search_31x_source,
+            "pbc": _search_31x_source,
+            "fraud": _search_31x_source,
+            "mifid": _search_31x_source,
+            "mar": _search_31x_source,
+            "dora": _search_31x_source,
+            "priips": _search_31x_source,
+            "transparency": _search_31x_source,
         }
 
         for source in sources:
@@ -972,6 +994,201 @@ def _articles_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
             "search_text": search_text,
             "similarity": round(sim, 4),
             "chunk_texto": search_text,
+        })
+    return results
+
+
+# ---------------------------------------------------------------------------
+# RRF fusion across multiple sources
+# ---------------------------------------------------------------------------
+
+# Tables per domain — maps source_type to table name
+_31x_TABLES: dict[str, str] = {
+    "mica": "casp",
+    "dac": "dac_reporting_entity",
+    "pbc": "pbc_obligated_subject",
+    "fraud": "fraud_prevention_program",
+    "mifid": "mifid_client_category",
+    "mar": "mar_insider_transaction",
+    "dora": "dora_tic_incident",
+    "priips": "priips_product",
+    "transparency": "transparency_issuer",
+}
+
+# Primary searchable columns per table
+_31x_COLUMNS: dict[str, list[str]] = {
+    "casp": ["name", "registration_number", "home_member_state", "status"],
+    "crypto_asset": ["asset_type", "reference_uid", "issuer_jurisdiction", "status"],
+    "tokenized_asset": ["underlying_type", "regulated_market", "status"],
+    "wallet_custodian": ["wallet_type", "custody_mechanism", "audit_frequency", "status"],
+    "dac_reporting_entity": ["tin", "entity_type", "member_state", "status"],
+    "dac_crypto_report": ["reporting_period", "status"],
+    "dac_wallet_holder": ["wallet_address", "holder_tin", "holder_member_state", "holder_type", "verification_status"],
+    "pbc_obligated_subject": ["subject_type", "tin", "registration_number", "supervisory_authority", "status"],
+    "pbc_internal_control": ["compliance_officer"],
+    "suspicious_activity_report": ["description", "severity", "status", "sepblac_reference"],
+    "beneficial_owner_record": ["owner_name", "ownership_percentage", "verification_method", "verification_date"],
+    "fraud_prevention_program": ["code_of_conduct", "internal_reporting_system", "training_schedule", "audit_frequency", "compliance_officer_name", "status"],
+    "fraud_risk_assessment": ["risk_areas", "mitigation_measures", "next_review_date"],
+    "fraud_incident": ["description", "status", "resolution_date", "regulatory_notification"],
+    "mifid_client_category": ["category", "knowledge_level", "experience_level", "status"],
+    "mifid_suitability_report": ["suitability_score", "recommendation", "status"],
+    "mifid_best_execution_record": ["venue", "execution_price", "market_impact", "status"],
+    "mifid_conflict_of_interest_registry": ["conflict_type", "description", "mitigation_measure", "status"],
+    "mifid_product_governance": ["target_market", "key_features", "risk_level", "status"],
+    "mifid_order_record": ["instrument", "direction", "venue", "status"],
+    "mifid_insider_list": ["insider_name", "insider_tin", "inside_information_description", "status"],
+    "mifid_compensation_policy": ["policy_version", "alignment_score", "status"],
+    "mar_insider_transaction": ["ppi_name", "ppi_role", "instrument", "transaction_type", "status"],
+    "mar_suspicious_transaction_report": ["instrument", "pattern_description", "detection_method", "status"],
+    "mar_market_manipulation_indicator": ["pattern_type", "instrument", "confidence_score", "status"],
+    "mar_insider_communication": ["content_summary", "channel", "inside_info_reference"],
+    "dora_tic_incident": ["incident_severity", "description", "impact_scope", "root_cause", "classification", "status"],
+    "dora_third_party_provider": ["provider_name", "provider_type", "criticality_assessment", "status"],
+    "dora_ict_risk_register": ["risk_description", "likelihood", "impact", "mitigation", "owner", "status"],
+    "dora_penetration_test": ["test_type", "tester", "findings_count", "critical_findings", "status"],
+    "dora_incident_classification_framework": ["framework_version", "severity_thresholds", "reporting_timelines", "status"],
+    "priips_kid": ["product_type", "risk_scale", "cost_impact", "status"],
+    "priips_product": ["product_name", "underlying_assets", "currency", "min_investment", "status"],
+    "livmc_client_protection": ["protection_type", "coverage_amount", "status"],
+    "livmc_voice_procedure": ["procedure_type", "description", "status"],
+    "transparency_issuer": ["listing_market", "ticker", "reporting_frequency", "home_member_state", "status"],
+    "transparency_regulated_information": ["info_type", "content_url", "filing_reference", "status"],
+    "transparency_voting_rights": ["shareholder_id", "voting_rights_pct", "status"],
+    "transparency_internal_rule": ["designated_persons", "internal_procedure", "retention_period", "status"],
+}
+
+# Map source_type -> list of tables
+_31x_SOURCE_TABLES: dict[str, list[str]] = {
+    "mica": ["casp", "crypto_asset", "tokenized_asset", "wallet_custodian"],
+    "dac": ["dac_reporting_entity", "dac_crypto_report", "dac_wallet_holder"],
+    "pbc": ["pbc_obligated_subject", "pbc_internal_control", "suspicious_activity_report", "beneficial_owner_record"],
+    "fraud": ["fraud_prevention_program", "fraud_risk_assessment", "fraud_incident"],
+    "mifid": ["mifid_client_category", "mifid_suitability_report", "mifid_best_execution_record", "mifid_conflict_of_interest_registry", "mifid_product_governance", "mifid_order_record", "mifid_insider_list", "mifid_compensation_policy"],
+    "mar": ["mar_insider_transaction", "mar_suspicious_transaction_report", "mar_market_manipulation_indicator", "mar_insider_communication"],
+    "dora": ["dora_tic_incident", "dora_third_party_provider", "dora_ict_risk_register", "dora_penetration_test", "dora_incident_classification_framework"],
+    "priips": ["priips_kid", "priips_product", "livmc_client_protection", "livmc_voice_procedure"],
+    "transparency": ["transparency_issuer", "transparency_regulated_information", "transparency_voting_rights", "transparency_internal_rule"],
+}
+
+
+def _search_31x_source(
+    db, q: str, is_pg: bool, embed_fn, hybrid_weight: float, limit: int,
+) -> list[dict]:
+    """Search Fase 31.x regulatory domains via documento_fragmento.
+
+    All 31.x domains store their chunks in documento_fragmento with
+    documento_origen_tipo in ('mica','dac','pbc','fraud','mifid','mar','dora','priips','transparency').
+    Fulltext + vector search uses the chunk table, not the raw entity tables.
+    """
+    results: list[dict] = []
+    # Fulltext search on chunks via documento_fragmento filtered by domain_origen_tipo
+    if hybrid_weight < 1.0:
+        ft_results = _31x_fulltext(db, q, limit)
+        for rank, item in enumerate(ft_results, 1):
+            item["rrf_ft_rank"] = rank
+        results.extend(ft_results)
+
+    # Vector search on chunks
+    if hybrid_weight > 0 and embed_fn:
+        vec_results = _31x_vector(db, q, embed_fn, limit)
+        for rank, item in enumerate(vec_results, 1):
+            item["rrf_vec_rank"] = rank
+        results.extend(vec_results)
+
+    return results
+
+
+def _31x_fulltext(db, q: str, limit: int) -> list[dict]:
+    """Fulltext search over documento_fragmento for 31.x domains."""
+    q_lower = q.lower().strip()
+    words = q_lower.split()
+
+    conditions: list[str] = []
+    params: dict = {}
+
+    for i, word in enumerate(words):
+        conditions.append(f"LOWER(t.texto) LIKE :_31x_q{i}")
+        params[f"_31x_q{i}"] = f"%{word}%"
+
+    if not conditions:
+        return []
+
+    sql = text(
+        f"""
+        SELECT df.id, df.documento_origen_tipo, df.documento_origen_id,
+               df.chunk_index, df.chunk_type, df.titulo, df.texto,
+               df.token_count, df.documento_origen_tipo AS source_type
+        FROM documento_fragmento df
+        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency')
+          AND {' OR '.join(conditions)}
+        ORDER BY ts_rank(df.search_vector, plainto_tsquery('spanish', :ts_query)) DESC
+        LIMIT :limit
+        """
+    )
+    params["_31x_ts_query"] = q_lower
+    params["limit"] = limit
+
+    rows = db.execute(sql, params).mappings().fetchall()
+    results = []
+    for row in rows:
+        r = dict(row)
+        results.append({
+            "id": r["id"],
+            "source_type": r["documento_origen_tipo"],
+            "source_id": r["documento_origen_id"],
+            "chunk_index": r["chunk_index"],
+            "chunk_type": r["chunk_type"],
+            "titulo": r["titulo"],
+            "chunk_texto": r["texto"],
+            "search_text": r["texto"],
+            "score": 1.0,
+            "token_count": r["token_count"],
+        })
+    return results
+
+
+def _31x_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
+    """Vector search over documento_fragmento for 31.x domains."""
+    try:
+        query_vec = embed_fn(q)
+    except Exception:
+        return []
+
+    if not query_vec:
+        return []
+
+    query_vec_str = ",".join(f"{v:.6f}" for v in query_vec)
+    sql = text(
+        f"""
+        SELECT df.id, df.documento_origen_tipo, df.documento_origen_id,
+               df.chunk_index, df.chunk_type, df.titulo, df.texto,
+               df.token_count,
+               1.0 - (df.embedding <=> '[{query_vec_str}]') AS similarity
+        FROM documento_fragmento df
+        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency')
+          AND df.embedding IS NOT NULL
+        ORDER BY similarity DESC
+        LIMIT :limit
+        """
+    )
+
+    rows = db.execute(sql, {"limit": limit}).mappings().fetchall()
+    results = []
+    for row in rows:
+        r = dict(row)
+        sim = float(r["similarity"]) if r.get("similarity") is not None else 0.0
+        results.append({
+            "id": r["id"],
+            "source_type": r["documento_origen_tipo"],
+            "source_id": r["documento_origen_id"],
+            "chunk_index": r["chunk_index"],
+            "chunk_type": r["chunk_type"],
+            "titulo": r["titulo"],
+            "chunk_texto": r["texto"],
+            "search_text": r["texto"],
+            "similarity": round(sim, 4),
+            "token_count": r["token_count"],
         })
     return results
 

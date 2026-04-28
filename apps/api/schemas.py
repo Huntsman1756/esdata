@@ -3150,3 +3150,992 @@ class FraudIncidentUpdate(BaseModel):
 class FraudIncidentListResponse(BaseModel):
     incidents: list[FraudIncidentSummary]
     total: int = Field(description="Total de incidentes de fraude que coinciden con la consulta")
+
+
+# ---------------------------------------------------------------------------
+# Fase 31.8 — MiFID II/MiFIR, MAR, DORA, PRIIPs, LIVMC, Transparencia
+# ---------------------------------------------------------------------------
+
+# === MiFID II/MiFIR ===
+
+class MifidClientCategorySummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    category: str = Field(description="Categoria: retail, professional, eligible_counterparty")
+    assessment_date: str | None = Field(default=None, description="Fecha de evaluacion")
+    status: str = Field(description="Estado")
+
+
+class MifidClientCategoryDetail(MifidClientCategorySummary):
+    knowledge_level: str | None = Field(default=None, description="Nivel de conocimiento")
+    experience_level: str | None = Field(default=None, description="Nivel de experiencia")
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class MifidClientCategoryCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    category: str = Field(description="Categoria: retail, professional, eligible_counterparty")
+    assessment_date: str | None = Field(default=None)
+    knowledge_level: str | None = Field(default=None)
+    experience_level: str | None = Field(default=None)
+
+
+class MifidClientCategoryUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    category: str | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    knowledge_level: str | None = Field(default=None)
+    experience_level: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MifidClientCategoryListResponse(BaseModel):
+    items: list[MifidClientCategorySummary]
+    total: int = Field(description="Total de categorias de cliente MiFID II")
+
+
+class MifidSuitabilityReportSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    client_id: int | None = Field(default=None, description="ID del cliente")
+    product_id: int | None = Field(default=None, description="ID del producto")
+    assessment_date: str | None = Field(default=None, description="Fecha de evaluacion")
+    suitability_score: int | None = Field(default=None, description="Puntuacion de adecuacion")
+    recommendation: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MifidSuitabilityReportDetail(MifidSuitabilityReportSummary):
+    recommendation: str | None = Field(default=None)
+    advisor_id: int | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MifidSuitabilityReportCreate(BaseModel):
+    client_id: int | None = Field(default=None)
+    product_id: int | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    suitability_score: int | None = Field(default=None)
+    recommendation: str | None = Field(default=None)
+    advisor_id: int | None = Field(default=None)
+
+
+class MifidSuitabilityReportUpdate(BaseModel):
+    client_id: int | None = Field(default=None)
+    product_id: int | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    suitability_score: int | None = Field(default=None)
+    recommendation: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MifidSuitabilityReportListResponse(BaseModel):
+    items: list[MifidSuitabilityReportSummary]
+    total: int = Field(description="Total de informes de adecuacion MiFID II")
+
+
+class MifidBestExecutionRecordSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    order_id: int | None = Field(default=None)
+    venue: str | None = Field(default=None)
+    execution_price: float | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MifidBestExecutionRecordDetail(MifidBestExecutionRecordSummary):
+    market_impact: float | None = Field(default=None)
+    speed_ms: int | None = Field(default=None)
+    quality_metrics: dict | None = Field(default=None)
+    execution_timestamp: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MifidBestExecutionRecordCreate(BaseModel):
+    order_id: int | None = Field(default=None)
+    venue: str | None = Field(default=None)
+    execution_price: float | None = Field(default=None)
+    market_impact: float | None = Field(default=None)
+    speed_ms: int | None = Field(default=None)
+    quality_metrics: dict | None = Field(default=None)
+    execution_timestamp: str | None = Field(default=None)
+
+
+class MifidBestExecutionRecordUpdate(BaseModel):
+    order_id: int | None = Field(default=None)
+    venue: str | None = Field(default=None)
+    execution_price: float | None = Field(default=None)
+    market_impact: float | None = Field(default=None)
+    speed_ms: int | None = Field(default=None)
+    quality_metrics: dict | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MifidBestExecutionRecordListResponse(BaseModel):
+    items: list[MifidBestExecutionRecordSummary]
+    total: int = Field(description="Total de registros de mejor ejecucion MiFID II")
+
+
+class MifidConflictOfInterestSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    department: str | None = Field(default=None)
+    conflict_type: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MifidConflictOfInterestDetail(MifidConflictOfInterestSummary):
+    description: str | None = Field(default=None)
+    mitigation_measure: str | None = Field(default=None)
+    identified_date: str | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MifidConflictOfInterestCreate(BaseModel):
+    department: str | None = Field(default=None)
+    conflict_type: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    mitigation_measure: str | None = Field(default=None)
+    identified_date: str | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+
+
+class MifidConflictOfInterestUpdate(BaseModel):
+    department: str | None = Field(default=None)
+    conflict_type: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    mitigation_measure: str | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MifidConflictOfInterestListResponse(BaseModel):
+    items: list[MifidConflictOfInterestSummary]
+    total: int = Field(description="Total de registros de conflictos de interes MiFID II")
+
+
+class MifidProductGovernanceSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    product_id: int | None = Field(default=None)
+    target_market: str | None = Field(default=None)
+    risk_level: int | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MifidProductGovernanceDetail(MifidProductGovernanceSummary):
+    distribution_channels: dict | None = Field(default=None)
+    key_features: str | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MifidProductGovernanceCreate(BaseModel):
+    product_id: int | None = Field(default=None)
+    target_market: str | None = Field(default=None)
+    distribution_channels: dict | None = Field(default=None)
+    key_features: str | None = Field(default=None)
+    risk_level: int | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+
+
+class MifidProductGovernanceUpdate(BaseModel):
+    product_id: int | None = Field(default=None)
+    target_market: str | None = Field(default=None)
+    distribution_channels: dict | None = Field(default=None)
+    key_features: str | None = Field(default=None)
+    risk_level: int | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MifidProductGovernanceListResponse(BaseModel):
+    items: list[MifidProductGovernanceSummary]
+    total: int = Field(description="Total de registros de gobierno de productos MiFID II")
+
+
+class MifidOrderRecordSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    client_id: int | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    direction: str | None = Field(default=None)
+    quantity: float | None = Field(default=None)
+    price: float | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MifidOrderRecordDetail(MifidOrderRecordSummary):
+    timestamp: str | None = Field(default=None)
+    venue: str | None = Field(default=None)
+    retention_until: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MifidOrderRecordCreate(BaseModel):
+    client_id: int | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    direction: str | None = Field(default=None)
+    quantity: float | None = Field(default=None)
+    price: float | None = Field(default=None)
+    timestamp: str | None = Field(default=None)
+    venue: str | None = Field(default=None)
+
+
+class MifidOrderRecordUpdate(BaseModel):
+    client_id: int | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    direction: str | None = Field(default=None)
+    quantity: float | None = Field(default=None)
+    price: float | None = Field(default=None)
+    status: str | None = Field(default=None)
+    retention_until: str | None = Field(default=None)
+
+
+class MifidOrderRecordListResponse(BaseModel):
+    items: list[MifidOrderRecordSummary]
+    total: int = Field(description="Total de registros de ordenes MiFID II")
+
+
+class MifidInsiderListSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    insider_name: str | None = Field(default=None)
+    entity_id: int | None = Field(default=None)
+    inside_information_description: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MifidInsiderListDetail(MifidInsiderListSummary):
+    insider_tin: str | None = Field(default=None)
+    date_created: str | None = Field(default=None)
+    date_removed: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MifidInsiderListCreate(BaseModel):
+    insider_name: str | None = Field(default=None)
+    insider_tin: str | None = Field(default=None)
+    entity_id: int | None = Field(default=None)
+    inside_information_description: str | None = Field(default=None)
+    date_created: str | None = Field(default=None)
+
+
+class MifidInsiderListUpdate(BaseModel):
+    insider_name: str | None = Field(default=None)
+    insider_tin: str | None = Field(default=None)
+    entity_id: int | None = Field(default=None)
+    inside_information_description: str | None = Field(default=None)
+    date_removed: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MifidInsiderListResponse(BaseModel):
+    items: list[MifidInsiderListSummary]
+    total: int = Field(description="Total de listas de insider MiFID II/MAR")
+
+
+class MifidCompensationPolicySummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None)
+    policy_version: str | None = Field(default=None)
+    alignment_score: int | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MifidCompensationPolicyDetail(MifidCompensationPolicySummary):
+    risk_adjustment_applied: bool = Field(default=False)
+    approval_date: str | None = Field(default=None)
+    next_review: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MifidCompensationPolicyCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    policy_version: str | None = Field(default=None)
+    alignment_score: int | None = Field(default=None)
+    risk_adjustment_applied: bool = Field(default=False)
+    approval_date: str | None = Field(default=None)
+    next_review: str | None = Field(default=None)
+
+
+class MifidCompensationPolicyUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    policy_version: str | None = Field(default=None)
+    alignment_score: int | None = Field(default=None)
+    risk_adjustment_applied: bool | None = Field(default=None)
+    approval_date: str | None = Field(default=None)
+    next_review: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MifidCompensationPolicyListResponse(BaseModel):
+    items: list[MifidCompensationPolicySummary]
+    total: int = Field(description="Total de politicas de compensacion MiFID II")
+
+
+# === MAR (Market Abuse Regulation) ===
+
+class MarInsiderTransactionSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    ppi_name: str | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    transaction_type: str | None = Field(default=None)
+    value_eur: float | None = Field(default=None)
+    status: str = Field(description="Estado: reported, under_review, flagged")
+
+
+class MarInsiderTransactionDetail(MarInsiderTransactionSummary):
+    ppi_role: str | None = Field(default=None)
+    quantity: float | None = Field(default=None)
+    price: float | None = Field(default=None)
+    date_time: str | None = Field(default=None)
+    country: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MarInsiderTransactionCreate(BaseModel):
+    ppi_name: str | None = Field(default=None)
+    ppi_role: str | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    transaction_type: str | None = Field(default=None)
+    quantity: float | None = Field(default=None)
+    value_eur: float | None = Field(default=None)
+    price: float | None = Field(default=None)
+    date_time: str | None = Field(default=None)
+    country: str | None = Field(default=None)
+
+
+class MarInsiderTransactionUpdate(BaseModel):
+    ppi_name: str | None = Field(default=None)
+    ppi_role: str | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    transaction_type: str | None = Field(default=None)
+    quantity: float | None = Field(default=None)
+    value_eur: float | None = Field(default=None)
+    price: float | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MarInsiderTransactionListResponse(BaseModel):
+    items: list[MarInsiderTransactionSummary]
+    total: int = Field(description="Total de operaciones de PPI MAR")
+
+
+class MarSuspiciousTransactionReportSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    instrument: str | None = Field(default=None)
+    severity: str | None = Field(default=None)
+    submitted_to_cnmv: bool = Field(default=False)
+    cnmv_reference: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MarSuspiciousTransactionReportDetail(MarSuspiciousTransactionReportSummary):
+    entity_id: int | None = Field(default=None)
+    pattern_description: str | None = Field(default=None)
+    detection_method: str | None = Field(default=None)
+    cnmv_reference: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MarSuspiciousTransactionReportCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    pattern_description: str | None = Field(default=None)
+    detection_method: str | None = Field(default=None)
+    severity: str | None = Field(default=None)
+    submitted_to_cnmv: bool = Field(default=False)
+    cnmv_reference: str | None = Field(default=None)
+
+
+class MarSuspiciousTransactionReportUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    pattern_description: str | None = Field(default=None)
+    severity: str | None = Field(default=None)
+    submitted_to_cnmv: bool | None = Field(default=None)
+    cnmv_reference: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MarSuspiciousTransactionReportListResponse(BaseModel):
+    items: list[MarSuspiciousTransactionReportSummary]
+    total: int = Field(description="Total de reportes de operaciones sospechosas MAR")
+
+
+class MarMarketManipulationIndicatorSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    pattern_type: str | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    confidence_score: float | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class MarMarketManipulationIndicatorDetail(MarMarketManipulationIndicatorSummary):
+    time_window: str | None = Field(default=None)
+    volume_anomaly_pct: float | None = Field(default=None)
+    price_anomaly_pct: float | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MarMarketManipulationIndicatorCreate(BaseModel):
+    pattern_type: str | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    time_window: str | None = Field(default=None)
+    volume_anomaly_pct: float | None = Field(default=None)
+    price_anomaly_pct: float | None = Field(default=None)
+    confidence_score: float | None = Field(default=None)
+
+
+class MarMarketManipulationIndicatorUpdate(BaseModel):
+    pattern_type: str | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    confidence_score: float | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class MarMarketManipulationIndicatorListResponse(BaseModel):
+    items: list[MarMarketManipulationIndicatorSummary]
+    total: int = Field(description="Total de indicadores de manipulacion MAR")
+
+
+class MarInsiderCommunicationSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    sender_id: int | None = Field(default=None)
+    receiver_id: int | None = Field(default=None)
+    content_summary: str | None = Field(default=None)
+    channel: str | None = Field(default=None)
+    timestamp: str | None = Field(default=None)
+
+
+class MarInsiderCommunicationDetail(MarInsiderCommunicationSummary):
+    content_summary: str | None = Field(default=None)
+    inside_info_reference: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class MarInsiderCommunicationCreate(BaseModel):
+    sender_id: int | None = Field(default=None)
+    receiver_id: int | None = Field(default=None)
+    content_summary: str | None = Field(default=None)
+    timestamp: str | None = Field(default=None)
+    channel: str | None = Field(default=None)
+    inside_info_reference: str | None = Field(default=None)
+
+
+class MarInsiderCommunicationUpdate(BaseModel):
+    sender_id: int | None = Field(default=None)
+    receiver_id: int | None = Field(default=None)
+    content_summary: str | None = Field(default=None)
+    timestamp: str | None = Field(default=None)
+    channel: str | None = Field(default=None)
+
+
+class MarInsiderCommunicationListResponse(BaseModel):
+    items: list[MarInsiderCommunicationSummary]
+    total: int = Field(description="Total de comunicaciones de insider MAR")
+
+
+# === DORA (Digital Operational Resilience Act) ===
+
+class DoraTicIncidentSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    incident_severity: str | None = Field(default=None)
+    classification: str | None = Field(default=None)
+    status: str = Field(description="Estado: open, in_progress, resolved, closed")
+
+
+class DoraTicIncidentDetail(DoraTicIncidentSummary):
+    entity_id: int | None = Field(default=None)
+    description: str | None = Field(default=None)
+    impact_scope: str | None = Field(default=None)
+    detection_date: str | None = Field(default=None)
+    resolution_date: str | None = Field(default=None)
+    root_cause: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class DoraTicIncidentCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    incident_severity: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    impact_scope: str | None = Field(default=None)
+    detection_date: str | None = Field(default=None)
+    resolution_date: str | None = Field(default=None)
+    root_cause: str | None = Field(default=None)
+    classification: str | None = Field(default=None)
+
+
+class DoraTicIncidentUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    incident_severity: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    impact_scope: str | None = Field(default=None)
+    resolution_date: str | None = Field(default=None)
+    root_cause: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class DoraTicIncidentListResponse(BaseModel):
+    items: list[DoraTicIncidentSummary]
+    total: int = Field(description="Total de incidentes TIC DORA")
+
+
+class DoraThirdPartyProviderSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    provider_name: str | None = Field(default=None)
+    provider_type: str | None = Field(default=None)
+    criticality_assessment: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class DoraThirdPartyProviderDetail(DoraThirdPartyProviderSummary):
+    contract_start: str | None = Field(default=None)
+    contract_end: str | None = Field(default=None)
+    eu_supervision_status: str | None = Field(default=None)
+    exit_strategy: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class DoraThirdPartyProviderCreate(BaseModel):
+    provider_name: str | None = Field(default=None)
+    provider_type: str | None = Field(default=None)
+    criticality_assessment: str | None = Field(default=None)
+    contract_start: str | None = Field(default=None)
+    contract_end: str | None = Field(default=None)
+    eu_supervision_status: str | None = Field(default=None)
+    exit_strategy: str | None = Field(default=None)
+
+
+class DoraThirdPartyProviderUpdate(BaseModel):
+    provider_name: str | None = Field(default=None)
+    provider_type: str | None = Field(default=None)
+    criticality_assessment: str | None = Field(default=None)
+    contract_start: str | None = Field(default=None)
+    contract_end: str | None = Field(default=None)
+    eu_supervision_status: str | None = Field(default=None)
+    exit_strategy: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class DoraThirdPartyProviderListResponse(BaseModel):
+    items: list[DoraThirdPartyProviderSummary]
+    total: int = Field(description="Total de proveedores TPT DORA")
+
+
+class DoraIctRiskRegisterSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    risk_description: str | None = Field(default=None)
+    likelihood: str | None = Field(default=None)
+    impact: str | None = Field(default=None)
+    owner: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class DoraIctRiskRegisterDetail(DoraIctRiskRegisterSummary):
+    entity_id: int | None = Field(default=None)
+    mitigation: str | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class DoraIctRiskRegisterCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    risk_description: str | None = Field(default=None)
+    likelihood: str | None = Field(default=None)
+    impact: str | None = Field(default=None)
+    mitigation: str | None = Field(default=None)
+    owner: str | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+
+
+class DoraIctRiskRegisterUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    risk_description: str | None = Field(default=None)
+    likelihood: str | None = Field(default=None)
+    impact: str | None = Field(default=None)
+    mitigation: str | None = Field(default=None)
+    owner: str | None = Field(default=None)
+    review_date: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class DoraIctRiskRegisterListResponse(BaseModel):
+    items: list[DoraIctRiskRegisterSummary]
+    total: int = Field(description="Total de riesgos ICT DORA")
+
+
+class DoraPenetrationTestSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    test_type: str | None = Field(default=None)
+    tester: str | None = Field(default=None)
+    findings_count: int | None = Field(default=None)
+    critical_findings: int | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class DoraPenetrationTestDetail(DoraPenetrationTestSummary):
+    entity_id: int | None = Field(default=None)
+    test_date: str | None = Field(default=None)
+    remediation_deadline: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class DoraPenetrationTestCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    test_type: str | None = Field(default=None)
+    tester: str | None = Field(default=None)
+    test_date: str | None = Field(default=None)
+    findings_count: int | None = Field(default=None)
+    critical_findings: int | None = Field(default=None)
+    remediation_deadline: str | None = Field(default=None)
+
+
+class DoraPenetrationTestUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    test_type: str | None = Field(default=None)
+    tester: str | None = Field(default=None)
+    test_date: str | None = Field(default=None)
+    findings_count: int | None = Field(default=None)
+    critical_findings: int | None = Field(default=None)
+    remediation_deadline: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class DoraPenetrationTestListResponse(BaseModel):
+    items: list[DoraPenetrationTestSummary]
+    total: int = Field(description="Total de pruebas de penetracion DORA")
+
+
+class DoraIncidentClassificationFrameworkSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    framework_version: str | None = Field(default=None)
+    effective_date: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class DoraIncidentClassificationFrameworkDetail(DoraIncidentClassificationFrameworkSummary):
+    severity_thresholds: dict | None = Field(default=None)
+    reporting_timelines: dict | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class DoraIncidentClassificationFrameworkCreate(BaseModel):
+    framework_version: str | None = Field(default=None)
+    severity_thresholds: dict | None = Field(default=None)
+    reporting_timelines: dict | None = Field(default=None)
+    effective_date: str | None = Field(default=None)
+
+
+class DoraIncidentClassificationFrameworkUpdate(BaseModel):
+    framework_version: str | None = Field(default=None)
+    severity_thresholds: dict | None = Field(default=None)
+    reporting_timelines: dict | None = Field(default=None)
+    effective_date: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class DoraIncidentClassificationFrameworkListResponse(BaseModel):
+    items: list[DoraIncidentClassificationFrameworkSummary]
+    total: int = Field(description="Total de marcos de clasificacion DORA")
+
+
+# === PRIIPs / LIVMC ===
+
+class PriipsKidSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    product_id: int | None = Field(default=None)
+    product_type: str | None = Field(default=None)
+    risk_scale: int | None = Field(default=None)
+    cost_impact: dict | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class PriipsKidDetail(PriipsKidSummary):
+    currency: str | None = Field(default=None)
+    cost_impact: dict | None = Field(default=None)
+    negative_scenario_returns: dict | None = Field(default=None)
+    version: str | None = Field(default=None)
+    publication_date: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class PriipsKidCreate(BaseModel):
+    product_id: int | None = Field(default=None)
+    product_type: str | None = Field(default=None)
+    currency: str | None = Field(default=None)
+    risk_scale: int | None = Field(default=None)
+    cost_impact: dict | None = Field(default=None)
+    negative_scenario_returns: dict | None = Field(default=None)
+    version: str | None = Field(default=None)
+    publication_date: str | None = Field(default=None)
+
+
+class PriipsKidUpdate(BaseModel):
+    product_id: int | None = Field(default=None)
+    product_type: str | None = Field(default=None)
+    risk_scale: int | None = Field(default=None)
+    cost_impact: dict | None = Field(default=None)
+    negative_scenario_returns: dict | None = Field(default=None)
+    version: str | None = Field(default=None)
+    publication_date: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class PriipsKidListResponse(BaseModel):
+    items: list[PriipsKidSummary]
+    total: int = Field(description="Total de documentos KID PRIIPs")
+
+
+class PriipsProductSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    product_name: str | None = Field(default=None)
+    currency: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class PriipsProductDetail(PriipsProductSummary):
+    issuer_id: int | None = Field(default=None)
+    underlying_assets: dict | None = Field(default=None)
+    maturity_date: str | None = Field(default=None)
+    min_investment: float | None = Field(default=None)
+    distribution_channels: dict | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class PriipsProductCreate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    product_name: str | None = Field(default=None)
+    underlying_assets: dict | None = Field(default=None)
+    maturity_date: str | None = Field(default=None)
+    currency: str | None = Field(default=None)
+    min_investment: float | None = Field(default=None)
+    distribution_channels: dict | None = Field(default=None)
+
+
+class PriipsProductUpdate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    product_name: str | None = Field(default=None)
+    underlying_assets: dict | None = Field(default=None)
+    maturity_date: str | None = Field(default=None)
+    currency: str | None = Field(default=None)
+    min_investment: float | None = Field(default=None)
+    distribution_channels: dict | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class PriipsProductListResponse(BaseModel):
+    items: list[PriipsProductSummary]
+    total: int = Field(description="Total de productos PRIIPs")
+
+
+class LivmcClientProtectionSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    client_id: int | None = Field(default=None)
+    protection_type: str | None = Field(default=None)
+    coverage_amount: float | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class LivmcClientProtectionDetail(LivmcClientProtectionSummary):
+    provider_id: int | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class LivmcClientProtectionCreate(BaseModel):
+    client_id: int | None = Field(default=None)
+    protection_type: str | None = Field(default=None)
+    provider_id: int | None = Field(default=None)
+    coverage_amount: float | None = Field(default=None)
+
+
+class LivmcClientProtectionUpdate(BaseModel):
+    client_id: int | None = Field(default=None)
+    protection_type: str | None = Field(default=None)
+    provider_id: int | None = Field(default=None)
+    coverage_amount: float | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class LivmcClientProtectionListResponse(BaseModel):
+    items: list[LivmcClientProtectionSummary]
+    total: int = Field(description="Total de protecciones de cliente LIVMC")
+
+
+class LivmcVoiceProcedureSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None)
+    procedure_type: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    effective_date: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class LivmcVoiceProcedureDetail(LivmcVoiceProcedureSummary):
+    description: str | None = Field(default=None)
+    next_review: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class LivmcVoiceProcedureCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    procedure_type: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    effective_date: str | None = Field(default=None)
+    next_review: str | None = Field(default=None)
+
+
+class LivmcVoiceProcedureUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    procedure_type: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    effective_date: str | None = Field(default=None)
+    next_review: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class LivmcVoiceProcedureListResponse(BaseModel):
+    items: list[LivmcVoiceProcedureSummary]
+    total: int = Field(description="Total de procedimientos de voz LIVMC")
+
+
+# === Transparencia ===
+
+class TransparencyIssuerSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    issuer_id: int | None = Field(default=None)
+    ticker: str | None = Field(default=None)
+    listing_market: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class TransparencyIssuerDetail(TransparencyIssuerSummary):
+    reporting_frequency: str | None = Field(default=None)
+    home_member_state: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class TransparencyIssuerCreate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    listing_market: str | None = Field(default=None)
+    ticker: str | None = Field(default=None)
+    reporting_frequency: str | None = Field(default=None)
+    home_member_state: str | None = Field(default=None)
+
+
+class TransparencyIssuerUpdate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    listing_market: str | None = Field(default=None)
+    ticker: str | None = Field(default=None)
+    reporting_frequency: str | None = Field(default=None)
+    home_member_state: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class TransparencyIssuerListResponse(BaseModel):
+    items: list[TransparencyIssuerSummary]
+    total: int = Field(description="Total de emisores Transparencia")
+
+
+class TransparencyRegulatedInfoSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    issuer_id: int | None = Field(default=None)
+    info_type: str | None = Field(default=None)
+    publication_date: str | None = Field(default=None)
+    filing_reference: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class TransparencyRegulatedInfoDetail(TransparencyRegulatedInfoSummary):
+    content_url: str | None = Field(default=None)
+    filing_reference: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class TransparencyRegulatedInfoCreate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    info_type: str | None = Field(default=None)
+    publication_date: str | None = Field(default=None)
+    content_url: str | None = Field(default=None)
+    filing_reference: str | None = Field(default=None)
+
+
+class TransparencyRegulatedInfoUpdate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    info_type: str | None = Field(default=None)
+    publication_date: str | None = Field(default=None)
+    content_url: str | None = Field(default=None)
+    filing_reference: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class TransparencyRegulatedInfoListResponse(BaseModel):
+    items: list[TransparencyRegulatedInfoSummary]
+    total: int = Field(description="Total de informacion regulada Transparencia")
+
+
+class TransparencyVotingRightsSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    issuer_id: int | None = Field(default=None)
+    shareholder_id: int | None = Field(default=None)
+    voting_rights_pct: float | None = Field(default=None)
+    date_acquired: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class TransparencyVotingRightsDetail(TransparencyVotingRightsSummary):
+    date_reported: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class TransparencyVotingRightsCreate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    shareholder_id: int | None = Field(default=None)
+    voting_rights_pct: float | None = Field(default=None)
+    date_acquired: str | None = Field(default=None)
+    date_reported: str | None = Field(default=None)
+
+
+class TransparencyVotingRightsUpdate(BaseModel):
+    issuer_id: int | None = Field(default=None)
+    shareholder_id: int | None = Field(default=None)
+    voting_rights_pct: float | None = Field(default=None)
+    date_acquired: str | None = Field(default=None)
+    date_reported: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class TransparencyVotingRightsListResponse(BaseModel):
+    items: list[TransparencyVotingRightsSummary]
+    total: int = Field(description="Total de derechos de voto Transparencia")
+
+
+class TransparencyInternalRuleSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None)
+    designated_persons: list | dict | None = Field(default=None)
+    internal_procedure: str | None = Field(default=None)
+    retention_period: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class TransparencyInternalRuleDetail(TransparencyInternalRuleSummary):
+    internal_procedure: str | None = Field(default=None)
+    retention_period: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class TransparencyInternalRuleCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    designated_persons: list | dict | None = Field(default=None)
+    internal_procedure: str | None = Field(default=None)
+    retention_period: str | None = Field(default=None)
+
+
+class TransparencyInternalRuleUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    designated_persons: list | dict | None = Field(default=None)
+    internal_procedure: str | None = Field(default=None)
+    retention_period: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class TransparencyInternalRuleListResponse(BaseModel):
+    items: list[TransparencyInternalRuleSummary]
+    total: int = Field(description="Total de reglas internas Transparencia")
