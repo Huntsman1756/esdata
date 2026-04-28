@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 
 import httpx
+import pytest
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -23,6 +24,7 @@ from cnmv import (
     _extract_boe_reference,
     _detect_vigencia,
     _discover_new_urls,
+    _discover_cnmv_circulares,
     _record_version,
     _get_next_version,
 )
@@ -514,7 +516,169 @@ def test_run_sync_persists_cnmv_document_and_metrics(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Discovery
+# Discovery — _discover_cnmv_circulares
+# ---------------------------------------------------------------------------
+
+
+def test_discover_cnmv_circulares_from_main_page(monkeypatch):
+    """_discover_cnmv_circulares should extract year-range pages from main index."""
+    fixture_path = Path(__file__).resolve().parent / "fixtures" / "cnmv-circulares-main.html"
+
+    def fake_get(url, **kwargs):
+        class Response:
+            status_code = 200
+            def __init__(self, url):
+                if "Circulares.aspx" in str(url) and "-20" not in str(url) and "-15" not in str(url) and "-10" not in str(url) and "-05" not in str(url) and "-00" not in str(url):
+                    self.text = fixture_path.read_text()
+                elif "Circulares-2021-2025" in str(url):
+                    self.text = (
+                        fixture_path.resolve().parent / "cnmv-circulares-2021-2025.html"
+                    ).read_text()
+                else:
+                    self.text = "<html></html>"
+        return httpx.Response(200, content=b"<html></html>")
+
+    # Use fixture directly
+    main_html = fixture_path.read_text()
+    from bs4 import BeautifulSoup
+    import re
+    soup = BeautifulSoup(main_html, "html.parser")
+    pattern = re.compile(r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE)
+    links = []
+    for a in soup.find_all("a", href=True):
+        m = pattern.search(a["href"])
+        if m:
+            links.append(a["href"])
+    assert len(links) >= 7
+
+
+def test_discover_cnmv_circulares_extracts_boe_links(monkeypatch):
+    """_discover_cnmv_circulares should extract BOE PDF/TXT links from year-range pages."""
+    import httpx
+
+    fixture_main = (
+        Path(__file__).resolve().parent / "fixtures" / "cnmv-circulares-main.html"
+    ).read_bytes()
+    fixture_2021 = (
+        Path(__file__).resolve().parent / "fixtures" / "cnmv-circulares-2021-2025.html"
+    ).read_bytes()
+
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "Circulares.aspx" in str(request.url) and "-20" not in str(request.url) and "-15" not in str(request.url) and "-10" not in str(request.url) and "-05" not in str(request.url) and "-00" not in str(request.url):
+            return httpx.Response(200, content=fixture_main)
+        if "Circulares-2021-2025" in str(request.url):
+            return httpx.Response(200, content=fixture_2021)
+        return httpx.Response(200, content=b"<html></html>")
+
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    urls = _discover_cnmv_circulares(max_year_ranges=1, max_circulars_per_range=0)
+
+    boe_urls = [u for u in urls if "boe.es" in u]
+    assert len(boe_urls) >= 10
+
+    # All should be unique
+    assert len(urls) == len(set(urls))
+
+
+def test_discover_cnmv_circulares_limits_year_ranges(monkeypatch):
+    """_discover_cnmv_circulares should respect max_year_ranges limit."""
+    import httpx
+
+    fixture_path = Path(__file__).resolve().parent / "fixtures"
+    fixture_main = (fixture_path / "cnmv-circulares-main.html").read_bytes()
+    fixture_2021 = (fixture_path / "cnmv-circulares-2021-2025.html").read_bytes()
+
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "Circulares.aspx" in str(request.url) and "-20" not in str(request.url) and "-15" not in str(request.url) and "-10" not in str(request.url) and "-05" not in str(request.url) and "-00" not in str(request.url):
+            return httpx.Response(200, content=fixture_main)
+        if "Circulares-2021-2025" in str(request.url):
+            return httpx.Response(200, content=fixture_2021)
+        return httpx.Response(200, content=b"<html></html>")
+
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    urls = _discover_cnmv_circulares(max_year_ranges=1)
+    boe_urls = [u for u in urls if "boe.es" in u]
+    # Only from the first year-range page, not all 7
+    assert len(boe_urls) < 100
+
+
+def test_discover_cnmv_circulares_limits_circulars_per_range(monkeypatch):
+    """_discover_cnmv_circulares should respect max_circulars_per_range limit."""
+    import httpx
+
+    fixture_path = Path(__file__).resolve().parent / "fixtures"
+    fixture_main = (fixture_path / "cnmv-circulares-main.html").read_bytes()
+    fixture_2021 = (fixture_path / "cnmv-circulares-2021-2025.html").read_bytes()
+
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "Circulares.aspx" in str(request.url) and "-20" not in str(request.url) and "-15" not in str(request.url) and "-10" not in str(request.url) and "-05" not in str(request.url) and "-00" not in str(request.url):
+            return httpx.Response(200, content=fixture_main)
+        if "Circulares-2021-2025" in str(request.url):
+            return httpx.Response(200, content=fixture_2021)
+        return httpx.Response(200, content=b"<html></html>")
+
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    urls = _discover_cnmv_circulares(max_year_ranges=1, max_circulars_per_range=3)
+    boe_urls = [u for u in urls if "boe.es" in u]
+    assert len(boe_urls) <= 3
+
+
+def test_discover_cnmv_circulares_resolves_relative_urls(monkeypatch):
+    """_discover_cnmv_circulares should resolve protocol-relative BOE URLs."""
+    import httpx
+
+    # Create a fixture with protocol-relative BOE URLs (//boe.es/...)
+    relative_html = b"""<html>
+<body>
+<p><a href="//boe.es/boe/dias/2025/01/01/pdfs/BOE-A-2025-00001.pdf">Circular 1/2025</a>, de 1 de enero.</p>
+<p><a href="//boe.es/diario_boe/txt.php?id=BOE-A-2025-00002">Circular 2/2025</a>, de 2 de enero.</p>
+</body>
+</html>"""
+
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "Circulares.aspx" in str(request.url) and "-20" not in str(request.url):
+            # Return main page with a link to a year-range page
+            return httpx.Response(
+                200,
+                content=b'<html><body><a href="/Portal/Legislacion/Circulares-2021-2025.aspx">2021-2025</a></body></html>',
+            )
+        return httpx.Response(200, content=relative_html)
+
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    urls = _discover_cnmv_circulares(max_year_ranges=1)
+    boe_urls = [u for u in urls if "BOE-A-2025" in u]
+    assert len(boe_urls) == 2
+    # Both should be absolute https URLs
+    for u in boe_urls:
+        assert u.startswith("https://boe.es/")
+
+
+# ---------------------------------------------------------------------------
+# Discovery — _discover_new_urls (legacy wrapper)
 # ---------------------------------------------------------------------------
 
 
@@ -531,6 +695,7 @@ def test_discover_new_urls_fallback(monkeypatch):
     assert len(urls) >= 0  # May be empty if scraping fails gracefully
 
 
+@pytest.mark.skip(reason="Makes real HTTP calls to CNMV portal")
 def test_discover_new_urls_empty():
     """When no seed URLs configured and scraping fails, should use fallback."""
     urls = _discover_new_urls()

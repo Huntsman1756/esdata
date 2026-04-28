@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import re
 import time
@@ -18,6 +19,8 @@ from change_detection import (
 from pypdf import PdfReader
 from runtime import get_database_url, get_interval_seconds
 from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -39,8 +42,10 @@ DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
 # Portal CNMV URLs for discovery
-CNMV_PORTAL_URL = "https://www.cnmv.es/websistemas/PortalesdeSuministro/Principal.aspx"
-CNMV_CIRCULARES_URL = "https://www.cnmv.es/bin/cnmv/portal/suministros/circulares.jsp"
+CNMV_CIRCULARES_MAIN_URL = "https://www.cnmv.es/portal/Legislacion/Circulares.aspx"
+CNMV_CIRCULARES_PATTERN = re.compile(
+    r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE
+)
 CNMV_SEED_URLS_FALLBACK = [
     "https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133",
 ]
@@ -114,53 +119,96 @@ def _normalize_whitespace(value: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _discover_cnmv_circulares(
+    max_year_ranges: int = 10,
+    max_circulars_per_range: int = 0,
+) -> list[str]:
+    """Discover CNMV circular URLs from the CNMV circulars index pages.
+
+    Iterates year-range index pages (e.g. Circulares-2021-2025.aspx) and
+    extracts BOE PDF links for each circular.
+
+    Args:
+        max_year_ranges: Max number of year-range pages to scrape (0 = unlimited).
+        max_circulars_per_range: Max circulars to extract per page (0 = unlimited).
+
+    Returns:
+        List of unique BOE document URLs.
+    """
+    urls: list[str] = []
+    seen: set[str] = set()
+
+    def _add(url: str) -> None:
+        if url not in seen:
+            seen.add(url)
+            urls.append(url)
+
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        # Step 1: scrape the main circulars index to get year-range pages
+        try:
+            resp = client.get(CNMV_CIRCULARES_MAIN_URL)
+            if resp.status_code != 200:
+                return SEED_URLS or CNMV_SEED_URLS_FALLBACK
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+            year_range_urls: list[str] = []
+            for a_tag in soup.find_all("a", href=True):
+                href = a_tag["href"]
+                match = CNMV_CIRCULARES_PATTERN.search(href)
+                if match:
+                    full_url = httpx.URL(CNMV_CIRCULARES_MAIN_URL).join(href)
+                    year_range_urls.append(str(full_url))
+
+            if not year_range_urls:
+                return SEED_URLS or CNMV_SEED_URLS_FALLBACK
+
+        except Exception:
+            return SEED_URLS or CNMV_SEED_URLS_FALLBACK
+
+        # Step 2: iterate year-range pages and extract circular links
+        for idx, range_url in enumerate(year_range_urls):
+            if max_year_ranges and idx >= max_year_ranges:
+                break
+
+            try:
+                resp = client.get(range_url)
+                if resp.status_code != 200:
+                    continue
+
+                soup = BeautifulSoup(resp.text, "html.parser")
+                for a_tag in soup.find_all("a", href=True):
+                    href = a_tag["href"]
+                    # Accept BOE PDFs and BOE TXT links
+                    if "boe.es" in href and (".pdf" in href or "txt.php" in href):
+                        # Resolve relative URLs, handling boe.es bare paths
+                        if href.startswith("http"):
+                            full_url = href
+                        elif href.startswith("//"):
+                            full_url = "https:" + href
+                        elif href.startswith("/"):
+                            # Absolute path — resolve against CNMV base
+                            base_url = httpx.URL(range_url)
+                            full_url = str(base_url.copy_with(path=href))
+                        else:
+                            full_url = str(httpx.URL(range_url).join(href))
+                        _add(full_url)
+
+                    if max_circulars_per_range and len(urls) >= max_circulars_per_range:
+                        break
+
+            except Exception:
+                logger.warning("Failed to scrape year range page: %s", range_url)
+                continue
+
+    return urls or (SEED_URLS or CNMV_SEED_URLS_FALLBACK)
+
+
 def _discover_new_urls(seed_urls: list[str] | None = None) -> list[str]:
     """Discover CNMV document URLs from the CNMV portal.
 
     Returns a list of URLs to fetch. Falls back to seed URLs if scraping fails.
     """
-    try:
-        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            # Try CNMV circulares page
-            resp = client.get(CNMV_CIRCULARES_URL)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, "html.parser")
-                portal_urls: list[str] = []
-                for a_tag in soup.find_all("a", href=True):
-                    href = a_tag["href"]
-                    # Accept PDFs and BOE links
-                    if href.endswith(".pdf") or "boe.es" in href or "cnmv.es" in href:
-                        # Resolve relative URLs
-                        full_url = httpx.URL(href)
-                        if full_url.is_relative:
-                            full_url = httpx.URL(CNMV_CIRCULARES_URL).join(href)
-                        portal_urls.append(str(full_url))
-
-                if portal_urls:
-                    return portal_urls
-
-            # Fallback: try the main portal search page
-            resp = client.get(CNMV_PORTAL_URL)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, "html.parser")
-                portal_urls = []
-                for a_tag in soup.find_all("a", href=True):
-                    href = a_tag["href"]
-                    if (href.endswith(".pdf") or "boe.es" in href) and "cnmv" in href.lower():
-                        full_url = httpx.URL(href)
-                        if full_url.is_relative:
-                            full_url = httpx.URL(CNMV_PORTAL_URL).join(href)
-                        portal_urls.append(str(full_url))
-
-                if portal_urls:
-                    return portal_urls
-
-    except Exception:
-        # Scraping failed — fall back to seed URLs
-        pass
-
-    # Return seed URLs as fallback
-    return SEED_URLS or CNMV_SEED_URLS_FALLBACK
+    return _discover_cnmv_circulares()
 
 
 # ---------------------------------------------------------------------------
@@ -455,7 +503,7 @@ def _detect_regulaciones(text_value: str) -> list[dict]:
     found = []
     seen_reg_ids = set()
 
-    for key, info in REGULACION_MAP.items():
+    for info in REGULACION_MAP.values():
         if any(kw in lowered for kw in info["keywords"]):
             reg_id = info["regulacion_id"]
             if reg_id not in seen_reg_ids:
