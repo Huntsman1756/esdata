@@ -2,7 +2,7 @@
 
 Searches across legislacion, doctrina, pgc_cuenta, aeat_modelo, screening_entries,
 empresa, norma, articulo, and Fase 31 regulatory domains (mica, dac, pbc, fraud,
-mifid, mar, dora, priips, transparency).
+mifid, mar, dora, priips, transparency, sfdr, csrd, aifmd_ucits, crd_brrd_emir).
 Each source can be filtered via the ``sources`` parameter. Results are fused
 via Reciprocal Rank Fusion (RRF).
 
@@ -24,6 +24,10 @@ Supported source types:
     - dora: Digital Operational Resilience Act (documento_fragmento, fulltext + vector)
     - priips: PRIIPs/LIVMC (documento_fragmento, fulltext + vector)
     - transparency: Transparency regulation (documento_fragmento, fulltext + vector)
+    - sfdr: SFDR sustainable finance disclosures (documento_fragmento, fulltext + vector)
+    - csrd: CSRD corporate sustainability reporting (documento_fragmento, fulltext + vector)
+    - aifmd_ucits: AIFMD/UCITS fund regulation (documento_fragmento, fulltext + vector)
+    - crd_brrd_emir: CRD/CRR, BRRD, EMIR prudential regulation (documento_fragmento, fulltext + vector)
 """
 
 from __future__ import annotations
@@ -31,10 +35,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy import text
-
 from db import db_session
 from services.search import _is_postgres
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +77,7 @@ def unified_multi_source_search(
             "screening", "entities", "norms", "articles",
             "mica", "dac", "pbc", "fraud",
             "mifid", "mar", "dora", "priips", "transparency",
+            "sfdr", "csrd", "aifmd_ucits", "crd_brrd_emir",
         ]
 
     with db_session() as db:
@@ -105,6 +109,10 @@ def unified_multi_source_search(
             "dora": _search_31x_source,
             "priips": _search_31x_source,
             "transparency": _search_31x_source,
+            "sfdr": _search_31x_source,
+            "csrd": _search_31x_source,
+            "aifmd_ucits": _search_31x_source,
+            "crd_brrd_emir": _search_31x_source,
         }
 
         for source in sources:
@@ -1056,6 +1064,25 @@ _31x_COLUMNS: dict[str, list[str]] = {
     "transparency_regulated_information": ["info_type", "content_url", "filing_reference", "status"],
     "transparency_voting_rights": ["shareholder_id", "voting_rights_pct", "status"],
     "transparency_internal_rule": ["designated_persons", "internal_procedure", "retention_period", "status"],
+    "sfdr_product": ["product_name", "product_type", "sustainability_strategy", "principal_adverse_impact", "status"],
+    "sfdr_paci_indicator": ["indicator_code", "indicator_name", "value", "unit", "reference_period", "status"],
+    "sfdr_entity_paci": ["entity_id", "reporting_year", "aggregated_paci", "sectoral_decarbonization", "status"],
+    "sfdr_pre_contractual": ["document_type", "url", "version", "status"],
+    "sfdr_annual_report": ["entity_id", "reporting_year", "paci_results", "engagement_activities", "status"],
+    "csrd_entity_report": ["entity_id", "reporting_year", "esap_url", "assurance_status", "reporting_standard", "status"],
+    "csrd_esg_data_point": ["topic", "indicator_code", "value", "unit", "scope", "verification_status"],
+    "csrd_ess": ["standard_code", "topic", "applicable_from_year", "description", "status"],
+    "csrd_double_materiality": ["entity_id", "impact_materiality", "financial_materiality", "key_impacts", "key_dependencies", "status"],
+    "aifmd_fund": ["fund_name", "fund_type", "home_member_state", "total_aum_eur", "leverage_method", "status"],
+    "ucits_fund": ["fund_name", "management_company", "home_member_state", "total_aum_eur", "investment_strategy", "status"],
+    "aifmd_regulatory_report": ["fund_id", "report_type", "reporting_period", "filed_date", "status"],
+    "ucits_regulatory_report": ["fund_id", "report_type", "reporting_period", "filed_date", "status"],
+    "aifmd_liquidity_management": ["fund_id", "redemption_suspended", "gating_applied", "swing_price_applied", "stress_test_result"],
+    "crd_capital_position": ["entity_id", "reporting_date", "cet1_ratio", "tier1_ratio", "total_capital_ratio", "leverage_ratio", "status"],
+    "crd_stress_test": ["entity_id", "test_date", "scenario_name", "cet1_impact_pct", "competent_authority", "status"],
+    "brrd_bail_in": ["entity_id", "total_eligible_liabilities", "mrel_target_pct", "mrel_compliance_pct", "resolution_status", "status"],
+    "emir_trade_report": ["trade_id", "asset_class", "instrument_class", "clearing_obligation_applied", "counterparty_type", "status"],
+    "emir_clearing_member": ["entity_id", "emir_registration", "clearing_type", "status"],
 }
 
 # Map source_type -> list of tables
@@ -1068,7 +1095,12 @@ _31x_SOURCE_TABLES: dict[str, list[str]] = {
     "mar": ["mar_insider_transaction", "mar_suspicious_transaction_report", "mar_market_manipulation_indicator", "mar_insider_communication"],
     "dora": ["dora_tic_incident", "dora_third_party_provider", "dora_ict_risk_register", "dora_penetration_test", "dora_incident_classification_framework"],
     "priips": ["priips_kid", "priips_product", "livmc_client_protection", "livmc_voice_procedure"],
-    "transparency": ["transparency_issuer", "transparency_regulated_information", "transparency_voting_rights", "transparency_internal_rule"],
+    "transparency": ["transparency_issuer", "transparency_regulated_information",
+                     "transparency_voting_rights", "transparency_internal_rule"],
+    "sfdr": ["sfdr_product", "sfdr_paci_indicator", "sfdr_entity_paci", "sfdr_pre_contractual", "sfdr_annual_report"],
+    "csrd": ["csrd_entity_report", "csrd_esg_data_point", "csrd_ess", "csrd_double_materiality"],
+    "aifmd_ucits": ["aifmd_fund", "ucits_fund", "aifmd_regulatory_report", "ucits_regulatory_report", "aifmd_liquidity_management"],
+    "crd_brrd_emir": ["crd_capital_position", "crd_stress_test", "brrd_bail_in", "emir_trade_report", "emir_clearing_member"],
 }
 
 
@@ -1078,7 +1110,7 @@ def _search_31x_source(
     """Search Fase 31.x regulatory domains via documento_fragmento.
 
     All 31.x domains store their chunks in documento_fragmento with
-    documento_origen_tipo in ('mica','dac','pbc','fraud','mifid','mar','dora','priips','transparency').
+    documento_origen_tipo in ('mica','dac','pbc','fraud','mifid','mar','dora','priips','transparency','sfdr','csrd','aifmd_ucits','crd_brrd_emir').
     Fulltext + vector search uses the chunk table, not the raw entity tables.
     """
     results: list[dict] = []
@@ -1120,7 +1152,7 @@ def _31x_fulltext(db, q: str, limit: int) -> list[dict]:
                df.chunk_index, df.chunk_type, df.titulo, df.texto,
                df.token_count, df.documento_origen_tipo AS source_type
         FROM documento_fragmento df
-        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency')
+        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency', 'sfdr', 'csrd', 'aifmd_ucits', 'crd_brrd_emir')
           AND {' OR '.join(conditions)}
         ORDER BY ts_rank(df.search_vector, plainto_tsquery('spanish', :ts_query)) DESC
         LIMIT :limit
@@ -1166,7 +1198,7 @@ def _31x_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
                df.token_count,
                1.0 - (df.embedding <=> '[{query_vec_str}]') AS similarity
         FROM documento_fragmento df
-        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency')
+        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency', 'sfdr', 'csrd', 'aifmd_ucits', 'crd_brrd_emir')
           AND df.embedding IS NOT NULL
         ORDER BY similarity DESC
         LIMIT :limit
