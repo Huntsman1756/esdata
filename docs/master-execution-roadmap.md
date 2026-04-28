@@ -59,6 +59,7 @@ Fuera de alcance inicial:
 - Fase 30.15 Dependabot alerts: `COMPLETA`
 - Fase 30 — Remediacion estructural post-auditoria: `COMPLETA`
 - Fase 31 — Expansion regulatoria (MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021): `EN CURSO`
+- Fase 32 — Workers: discovery, parser fixes y monitorizacion: `PENDIENTE`
 
 Estado tecnico consolidado:
 
@@ -3769,6 +3770,117 @@ Esta expansion completa la cobertura regulatoria de `esdata` incluyendo servicio
 2. **31.8** — MiFID II, MAR, DORA, PRIIPs, LIVMC, Transparencia (prioridad media-alta, ya hay micro_obligaciones seed)
 3. **31.9** — SFDR, CSRD, AIFMD, UCITS, CRD V/CRR, BRRD, EMIR (prioridad media, financiamiento sostenible y prudencial)
 4. **31.10** — PSD2/PSD3, Consumer Credit, IDD, Solvency II (prioridad media, complementario)
+
+---
+
+## Fase 32 — Workers: discovery, parser fixes y monitorizacion
+
+### Estado
+
+`PENDIENTE`
+
+### Objetivo
+
+Cerrar los gaps operativos de los workers existentes que impiden cobertura real del corpus:
+
+- `DGT`: 13 seeds hardcodeadas sin discovery real → iteracion por año + rate limit + upsert idempotente
+- `TEAC`: parser falla con `None` en fecha → guard + fallback a `fecha_ingesta`
+- `BOE`: solo ingiere seeds fijas → monitorizacion del consolidado via API
+- `CNMV`: 1 documento real ingerido → discovery de circulares e instrucciones desde indice
+
+### Fases planificadas
+
+#### Fase 32.1 — DGT discovery real
+
+- **Archivo:** `apps/workers/dgt.py`
+- **Problema:** 13 URLs hardcodeadas con patrón `V{NNNN}-{YY}` sin discovery
+- **Solucion:**
+  1. Iterar años desde 2017 hasta el año actual
+  2. Para cada año, iterar números desde V0001 hasta el primer 404
+  3. Respetar rate limit de 1 req/segundo
+  4. Saltarse URLs ya presentes en `source_revision` (upsert idempotente via `record_revision()`)
+  5. Mantener el mismo contrato de ingestion que las 13 seeds actuales
+  6. Añadir test de regresión con snapshot HTML real reducido
+- **No cambiar:** interfaz `--run-once`, contrato de `run_sync()`, `record_revision()` de `change_detection.py`
+- **Criterio de exito:**
+  1. `python apps/workers/dgt.py --run-once` procesa >= 5 documentos nuevos (además de los 13 seeds)
+  2. Tests verdes: `pytest apps/workers/tests/test_dgt.py -q --tb=short`
+  3. Rate limit implementado con `time.sleep(1)` entre reqs
+
+#### Fase 32.2 — TEAC parser fix para fecha None
+
+- **Archivo:** `apps/workers/teac.py`
+- **Problema:** `TypeError: strptime() argument 1 must be str, not None`
+- **Solucion:**
+  1. Localizar el selector de fecha en `parse_resolution_html()`
+  2. Añadir guard: si `fecha` es `None` o vacío, usar `datetime.now(UTC).date().isoformat()` como fallback
+  3. Registrar `logger.warning()` con ID del documento cuando se usa fallback
+  4. Añadir test con snapshot HTML real reducido que cubra el caso `None`
+  5. Añadir `TEAC_SEED_URLS` a `.env.example` con la URL estable
+  6. Verificar con `--run-once` que `almacenados >= 1`
+- **No cambiar:** lógica de ingestion, contrato de `SyncResult`, `run_sync()`
+- **Criterio de exito:**
+  1. `python apps/workers/teac.py --run-once` no falla con `TypeError`
+  2. `pytest apps/workers/tests/test_teac.py -q --tb=short` -> todos verdes
+  3. `TEAC_SEED_URLS` persistido en `.env.example` + `infra/deploy/compose.env.example`
+
+#### Fase 32.3 — BOE monitorizacion del consolidado
+
+- **Archivo:** `apps/workers/boe.py`
+- **Problema:** solo consume seeds fijas de `DEFAULT_NORMAS`
+- **Solucion:**
+  1. Consultar periódicamente la API del BOE consolidado: `https://www.boe.es/datosabiertos/api/legislacion-consolidada`
+  2. Para cada norma en DB, verificar si tiene versión consolidada más reciente (campo `fecha_actualizacion`)
+  3. Si hay version nueva, reingerir el documento y actualizar hash en `source_revision`
+  4. No reingerir si el hash no cambió (idempotencia via `record_revision()`)
+  5. Añadir métrica al return de `run_sync`: `documentos_actualizados` separado de `documentos_nuevos`
+  6. Test con mock de la API que simule una actualización detectada
+  7. Rate limit: máximo 10 req/minuto contra la API del BOE
+- **No tocar:** workers de EUR-Lex ni de AEAT
+- **Criterio de exito:**
+  1. `run_sync()` retorna `{"bloques": N, "articulos": N, "actualizados": M}`
+  2. `pytest apps/workers/tests/test_boe.py -q --tb=short` -> todos verdes
+  3. Mock de APIBOE con respuesta de version actualizada -> reingestion detectada
+
+#### Fase 32.4 — CNMV discovery de circulares e instrucciones
+
+- **Archivo:** `apps/workers/cnmv.py`
+- **Problema:** 1 documento real ingerido, seeds hardcodeadas limitadas
+- **Solucion:**
+  1. Inspeccionar HTML de `CNMV_CIRCULARES_URL` y `CNMV_PORTAL_URL`
+  2. Mapear enlaces a documentos individuales desde el indice
+  3. Implementar link discovery que extraiga URLs de documentos individuales
+  4. Para cada documento: fetch, hash, upsert con `record_revision()`
+  5. Respetar rate limit 1 req/segundo
+  6. Test con snapshot del indice HTML real reducido
+  7. Verificar con `--run-once` que `almacenados >= 5`
+- **No cambiar:** `change_detection.py`, contrato actual del worker
+- **Criterio de exito:**
+  1. `python apps/workers/cnmv.py --run-once` -> `almacenados >= 5`
+  2. `pytest apps/workers/tests/test_cnmv.py -q --tb=short` -> todos verdes
+  3. Discovery extrae URLs del indice real (no solo seeds)
+
+### Orden de ejecucion recomendado
+
+1. **32.2 TEAC** — fix minimo, alto impacto (actualmente 0 documentos ingeridos)
+2. **32.1 DGT** — discovery con patron conocido, riesgo medio-bajo
+3. **32.4 CNMV** — discovery desde indice HTML ya explorado en `_discover_new_urls()`
+4. **32.3 BOE** — requiere entender la API consolidada del BOE, mayor complejidad
+
+### Decisiones tomadas
+
+- usar `record_revision()` existente de `change_detection.py` para toda idempotencia
+- no crear nuevas tablas ni migraciones en este ciclo
+- mantener `--run-once` como interfaz de verificacion
+- tests con HTML real reducido (no mocks artificiales) para cobertura real
+- rate limits conservadores: 1 req/seg (DGT, CNMV), 10 req/min (BOE API)
+
+### Riesgos
+
+- DGT puede tener lagunas numericas (V0001, V0500, V1000...) que rallen la iteracion → mitigacion: parar al primer 404 consecutivo de 3 intentos
+- TEAC HTML puede cambiar entre ejecuciones → mitigacion: snapshot en tests, fallback siempre disponible
+- BOE API puede tener limites mas estrictos de los documentados → mitigacion: backoff exponencial con `httpx`
+- CNMV indice puede cambiar estructura → mitigacion: fallback a seeds si discovery retorna 0 URLs
 
 ---
 
