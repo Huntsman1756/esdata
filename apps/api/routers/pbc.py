@@ -60,7 +60,7 @@ async def list_pbc_obligated_subjects(
         params["status"] = status
     if search:
         filters.append(
-            "(ps.tin ILIKE :search OR ps.registration_number ILIKE :search)"
+            "(LOWER(ps.tin) LIKE LOWER(:search) OR LOWER(ps.registration_number) LIKE LOWER(:search))"
         )
         params["search"] = f"%{search}%"
 
@@ -70,14 +70,24 @@ async def list_pbc_obligated_subjects(
                 f"""
                 SELECT id, subject_type, tin, registration_number,
                        supervisory_authority, pbc_license, status
-                FROM pbc_obligated_subject
+                FROM pbc_obligated_subject ps
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"subjects": [dict(r) for r in rows]}
+        subjects = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM pbc_obligated_subject ps
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"subjects": subjects, "total": count}
 
 
 @router.get(
@@ -92,8 +102,8 @@ async def get_pbc_obligated_subject(item_id: int):
                 """
                 SELECT id, subject_type, tin, registration_number,
                        supervisory_authority, pbc_license, status, created_at
-                FROM pbc_obligated_subject
-                WHERE id = :item_id
+                FROM pbc_obligated_subject ps
+                WHERE ps.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -134,14 +144,24 @@ async def list_pbc_internal_controls(
                 SELECT id, obligated_subject_id, risk_assessment_date,
                        compliance_officer, internal_reporting_channel,
                        training_program, audit_trail
-                FROM pbc_internal_control
+                FROM pbc_internal_control ic
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"controls": [dict(r) for r in rows]}
+        controls = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM pbc_internal_control ic
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"controls": controls, "total": count}
 
 
 @router.get(
@@ -157,8 +177,8 @@ async def get_pbc_internal_control(item_id: int):
                 SELECT id, obligated_subject_id, risk_assessment_date,
                        compliance_officer, internal_reporting_channel,
                        training_program, audit_trail, created_at
-                FROM pbc_internal_control
-                WHERE id = :item_id
+                FROM pbc_internal_control ic
+                WHERE ic.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -201,7 +221,7 @@ async def list_suspicious_activity_reports(
         filters.append("sar.severity = :severity")
         params["severity"] = severity
     if search:
-        filters.append("sar.sepblac_reference ILIKE :search")
+        filters.append("LOWER(sar.sepblac_reference) LIKE LOWER(:search)")
         params["search"] = f"%{search}%"
 
     with db_session() as db:
@@ -210,14 +230,24 @@ async def list_suspicious_activity_reports(
                 f"""
                 SELECT id, obligated_subject_id, submission_date, severity,
                        status, sepblac_reference
-                FROM suspicious_activity_report
+                FROM suspicious_activity_report sar
                 WHERE {" AND ".join(filters)}
-                ORDER BY submission_date DESC NULLS LAST
+                ORDER BY sar.submission_date DESC NULLS LAST
                 """
             ),
             params,
         ).mappings()
-        return {"reports": [dict(r) for r in rows]}
+        reports = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM suspicious_activity_report sar
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"reports": reports, "total": count}
 
 
 @router.get(
@@ -232,8 +262,8 @@ async def get_suspicious_activity_report(item_id: int):
                 """
                 SELECT id, obligated_subject_id, submission_date, description,
                        severity, status, sepblac_reference, created_at
-                FROM suspicious_activity_report
-                WHERE id = :item_id
+                FROM suspicious_activity_report sar
+                WHERE sar.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -268,7 +298,7 @@ async def list_beneficial_owners(
         filters.append("bo.entity_id = :entity_id")
         params["entity_id"] = entity_id
     if search:
-        filters.append("bo.owner_name ILIKE :search")
+        filters.append("LOWER(bo.owner_name) LIKE LOWER(:search)")
         params["search"] = f"%{search}%"
 
     with db_session() as db:
@@ -277,14 +307,24 @@ async def list_beneficial_owners(
                 f"""
                 SELECT id, entity_id, owner_name, ownership_percentage,
                        acquisition_date, verification_method, verification_date
-                FROM beneficial_owner_record
+                FROM beneficial_owner_record bo
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"records": [dict(r) for r in rows]}
+        records = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM beneficial_owner_record bo
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"records": records, "total": count}
 
 
 @router.get(
@@ -299,8 +339,8 @@ async def get_beneficial_owner(item_id: int):
                 """
                 SELECT id, entity_id, owner_name, ownership_percentage,
                        acquisition_date, verification_method, verification_date, created_at
-                FROM beneficial_owner_record
-                WHERE id = :item_id
+                FROM beneficial_owner_record bo
+                WHERE bo.id = :item_id
                 LIMIT 1
                 """
             ),

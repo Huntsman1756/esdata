@@ -60,7 +60,7 @@ async def list_casp(
         params["home_state"] = home_state
     if search:
         filters.append(
-            "(c.name ILIKE :search OR c.registration_number ILIKE :search)"
+            "(LOWER(c.name) LIKE LOWER(:search) OR LOWER(c.registration_number) LIKE LOWER(:search))"
         )
         params["search"] = f"%{search}%"
 
@@ -70,14 +70,24 @@ async def list_casp(
                 f"""
                 SELECT id, name, registration_number, home_member_state,
                        passport_active, status
-                FROM casp
+                FROM casp c
                 WHERE {" AND ".join(filters)}
                 ORDER BY name
                 """
             ),
             params,
         ).mappings()
-        return {"casps": [dict(r) for r in rows]}
+        casps = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM casp c
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"casps": casps, "total": count}
 
 
 @router.get(
@@ -92,8 +102,8 @@ async def get_casp(item_id: int):
                 """
                 SELECT id, name, registration_number, home_member_state,
                        passport_active, services_offered, status, created_at
-                FROM casp
-                WHERE id = :item_id
+                FROM casp c
+                WHERE c.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -134,7 +144,7 @@ async def list_crypto_assets(
         params["status"] = status
     if search:
         filters.append(
-            "(ca.reference_uid ILIKE :search OR ca.issuer_jurisdiction ILIKE :search)"
+            "(LOWER(ca.reference_uid) LIKE LOWER(:search) OR LOWER(ca.issuer_jurisdiction) LIKE LOWER(:search))"
         )
         params["search"] = f"%{search}%"
 
@@ -144,14 +154,24 @@ async def list_crypto_assets(
                 f"""
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
                        is_sha, market_value_eur, holders_count, status
-                FROM crypto_asset
+                FROM crypto_asset ca
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"assets": [dict(r) for r in rows]}
+        assets = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM crypto_asset ca
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"assets": assets, "total": count}
 
 
 @router.get(
@@ -166,8 +186,8 @@ async def get_crypto_asset(item_id: int):
                 """
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
                        is_sha, market_value_eur, holders_count, status, created_at
-                FROM crypto_asset
-                WHERE id = :item_id
+                FROM crypto_asset ca
+                WHERE ca.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -208,14 +228,24 @@ async def list_tokenized_assets(
                 f"""
                 SELECT id, underlying_type, face_value, total_amount,
                        listing_date, regulated_market, status
-                FROM tokenized_asset
+                FROM tokenized_asset ta
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"assets": [dict(r) for r in rows]}
+        assets = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM tokenized_asset ta
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"assets": assets, "total": count}
 
 
 @router.get(
@@ -230,8 +260,8 @@ async def get_tokenized_asset(item_id: int):
                 """
                 SELECT id, issuer_id, underlying_type, face_value, total_amount,
                        listing_date, regulated_market, status, created_at
-                FROM tokenized_asset
-                WHERE id = :item_id
+                FROM tokenized_asset ta
+                WHERE ta.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -272,14 +302,24 @@ async def list_wallet_custodians(
                 f"""
                 SELECT id, entity_id, wallet_type, custody_mechanism,
                        insurance_coverage, audit_frequency, status, created_at
-                FROM wallet_custodian
+                FROM wallet_custodian wc
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"custodians": [dict(r) for r in rows]}
+        custodians = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM wallet_custodian wc
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"custodians": custodians, "total": count}
 
 
 @router.get(
@@ -294,8 +334,8 @@ async def get_wallet_custodian(item_id: int):
                 """
                 SELECT id, entity_id, wallet_type, custody_mechanism,
                        insurance_coverage, audit_frequency, status, created_at
-                FROM wallet_custodian
-                WHERE id = :item_id
+                FROM wallet_custodian wc
+                WHERE wc.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -332,10 +372,10 @@ async def list_crypto_transactions(
         filters.append("ct.reporting_period = :reporting_period")
         params["reporting_period"] = reporting_period
     if sender_wallet:
-        filters.append("ct.sender_wallet ILIKE :sender_wallet")
+        filters.append("LOWER(ct.sender_wallet) LIKE LOWER(:sender_wallet)")
         params["sender_wallet"] = f"%{sender_wallet}%"
     if receiver_wallet:
-        filters.append("ct.receiver_wallet ILIKE :receiver_wallet")
+        filters.append("LOWER(ct.receiver_wallet) LIKE LOWER(:receiver_wallet)")
         params["receiver_wallet"] = f"%{receiver_wallet}%"
 
     with db_session() as db:
@@ -344,14 +384,24 @@ async def list_crypto_transactions(
                 f"""
                 SELECT id, sender_wallet, receiver_wallet, asset_type,
                        amount, value_eur, reporting_period
-                FROM crypto_transaction
+                FROM crypto_transaction ct
                 WHERE {" AND ".join(filters)}
-                ORDER BY timestamp DESC NULLS LAST
+                ORDER BY ct.timestamp DESC NULLS LAST
                 """
             ),
             params,
         ).mappings()
-        return {"transactions": [dict(r) for r in rows]}
+        transactions = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM crypto_transaction ct
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"transactions": transactions, "total": count}
 
 
 @router.get(
@@ -367,8 +417,8 @@ async def get_crypto_transaction(item_id: int):
                 SELECT id, sender_wallet, receiver_wallet, sender_jurisdiction,
                        receiver_jurisdiction, asset_type, amount, value_eur,
                        timestamp, reporting_period, created_at
-                FROM crypto_transaction
-                WHERE id = :item_id
+                FROM crypto_transaction ct
+                WHERE ct.id = :item_id
                 LIMIT 1
                 """
             ),

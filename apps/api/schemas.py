@@ -2573,6 +2573,18 @@ class CaspDetail(CaspSummary):
     services_offered: dict | None = Field(default=None, description="Servicios ofrecidos (JSON)")
     created_at: str | None = Field(default=None, description="Fecha de creacion")
 
+    @field_validator("services_offered", mode="before")
+    @classmethod
+    def parse_services_offered(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return v
+        if isinstance(v, str):
+            import json
+            return json.loads(v)
+        return v
+
 
 class CaspCreate(BaseModel):
     name: str = Field(description="Nombre del proveedor")

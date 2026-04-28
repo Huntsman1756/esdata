@@ -63,7 +63,7 @@ async def list_dac_reporting_entities(
         filters.append("de.dac9_registered = :dac9_registered")
         params["dac9_registered"] = dac9_registered
     if search:
-        filters.append("de.tin ILIKE :search")
+        filters.append("LOWER(de.tin) LIKE LOWER(:search)")
         params["search"] = f"%{search}%"
 
     with db_session() as db:
@@ -72,14 +72,24 @@ async def list_dac_reporting_entities(
                 f"""
                 SELECT id, tin, entity_type, member_state,
                        dac8_registered, dac9_registered, status
-                FROM dac_reporting_entity
+                FROM dac_reporting_entity de
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"entities": [dict(r) for r in rows]}
+        entities = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM dac_reporting_entity de
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"entities": entities, "total": count}
 
 
 @router.get(
@@ -94,8 +104,8 @@ async def get_dac_reporting_entity(item_id: int):
                 """
                 SELECT id, tin, entity_type, member_state,
                        dac8_registered, dac9_registered, status, created_at
-                FROM dac_reporting_entity
-                WHERE id = :item_id
+                FROM dac_reporting_entity de
+                WHERE de.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -143,14 +153,24 @@ async def list_dac_crypto_reports(
                 f"""
                 SELECT id, entity_id, reporting_period, status,
                        crypto_transactions_count, wallet_holders_count
-                FROM dac_crypto_report
+                FROM dac_crypto_report cr
                 WHERE {" AND ".join(filters)}
-                ORDER BY id DESC
+                ORDER BY cr.id DESC
                 """
             ),
             params,
         ).mappings()
-        return {"reports": [dict(r) for r in rows]}
+        reports = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM dac_crypto_report cr
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"reports": reports, "total": count}
 
 
 @router.get(
@@ -165,8 +185,8 @@ async def get_dac_crypto_report(item_id: int):
                 """
                 SELECT id, entity_id, reporting_period, submitted_at,
                        status, crypto_transactions_count, wallet_holders_count, created_at
-                FROM dac_crypto_report
-                WHERE id = :item_id
+                FROM dac_crypto_report cr
+                WHERE cr.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -214,7 +234,7 @@ async def list_dac_wallet_holders(
         params["verification_status"] = verification_status
     if search:
         filters.append(
-            "(wh.wallet_address ILIKE :search OR wh.holder_tin ILIKE :search)"
+            "(LOWER(wh.wallet_address) LIKE LOWER(:search) OR LOWER(wh.holder_tin) LIKE LOWER(:search))"
         )
         params["search"] = f"%{search}%"
 
@@ -225,14 +245,24 @@ async def list_dac_wallet_holders(
                 SELECT id, report_id, wallet_address, holder_tin,
                        holder_member_state, holder_type, total_value_eur,
                        verification_status
-                FROM dac_wallet_holder
+                FROM dac_wallet_holder wh
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"holders": [dict(r) for r in rows]}
+        holders = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM dac_wallet_holder wh
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"holders": holders, "total": count}
 
 
 @router.get(
@@ -248,8 +278,8 @@ async def get_dac_wallet_holder(item_id: int):
                 SELECT id, report_id, wallet_address, holder_tin,
                        holder_member_state, holder_type, total_value_eur,
                        verification_status, created_at
-                FROM dac_wallet_holder
-                WHERE id = :item_id
+                FROM dac_wallet_holder wh
+                WHERE wh.id = :item_id
                 LIMIT 1
                 """
             ),
