@@ -1,21 +1,23 @@
 import argparse
+import logging
 import os
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from xml.etree import ElementTree as ET
 
 import httpx
-from sqlalchemy import create_engine, text
-
-from runtime import get_database_url, get_interval_seconds
 from change_detection import (
     check_content_changed,
-    record_revision,
-    invalidate_old_embeddings,
     ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
 )
+from runtime import get_bool_env, get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 BOE_API_BASE = os.getenv(
     "BOE_API_BASE",
@@ -23,6 +25,10 @@ BOE_API_BASE = os.getenv(
 )
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 3600)
+BOE_TRACK_VERSIONS = get_bool_env("BOE_TRACK_VERSIONS", False)
+
+# Rate limit for BOE API: 10 req/min = 6 sec between requests
+BOE_RATE_LIMIT_SECONDS = 6.0
 
 DEFAULT_NORMAS = {
     "LIVA": "BOE-A-1992-28740",
@@ -173,6 +179,7 @@ def _schema_statements(dialect: str) -> list[str]:
             ambito TEXT NOT NULL,
             estado_cobertura TEXT NOT NULL,
             vigente_desde DATE NOT NULL,
+            ultima_verificacion TEXT,
             created_at TIMESTAMPTZ DEFAULT {timestamp_default}
         )
         """,
@@ -888,7 +895,7 @@ def log_sync(
     error_msg: str | None = None,
     started_at: str | None = None,
 ) -> None:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     effective_started_at = started_at or now
     duration_ms = max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(effective_started_at)).total_seconds() * 1000))
     _ensure_sync_log_table(conn)
@@ -1086,6 +1093,114 @@ def _ensure_schema(conn) -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# BOE consolidated API version monitoring (32.3)
+# ---------------------------------------------------------------------------
+
+
+def _fetch_normas_timestamps(
+    client: httpx.Client,
+    boe_ids: set[str] | None = None,
+) -> dict[str, str]:
+    """Fetch fecha_actualizacion for all normas from the BOE consolidated API.
+
+    Returns a dict mapping boe_id -> fecha_actualizacion string.
+    If boe_ids is provided, filters to only those IDs.
+
+    Rate limited: sleeps BOE_RATE_LIMIT_SECONDS between requests.
+    """
+    timestamps: dict[str, str] = {}
+    try:
+        resp = client.get(
+            BOE_API_BASE,
+            headers={"Accept": "application/json"},
+        )
+        if resp.status_code != 200:
+            logger.warning("BOE API root returned status %d", resp.status_code)
+            return timestamps
+
+        data = resp.json()
+        normas = data.get("data", [])
+
+        for norma in normas:
+            boe_id = norma.get("identificador", "")
+            if not boe_id:
+                continue
+            if boe_ids and boe_id not in boe_ids:
+                continue
+            fecha = norma.get("fecha_actualizacion", "")
+            if fecha:
+                timestamps[boe_id] = fecha
+
+    except Exception:
+        logger.warning("Failed to fetch normas timestamps from BOE API")
+
+    return timestamps
+
+
+def _get_stored_timestamps(engine) -> dict[str, str]:
+    """Read last known fecha_actualizacion per boe_id from norma.ultima_verificacion.
+
+    Returns dict mapping boe_id -> fecha_actualizacion.
+    """
+    stored: dict[str, str] = {}
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text(
+                    "SELECT boe_id, ultima_verificacion FROM norma "
+                    "WHERE ultima_verificacion IS NOT NULL"
+                )
+            )
+            for row in result:
+                boe_id = row[0]
+                fecha = row[1]
+                if boe_id and fecha:
+                    stored[boe_id] = fecha
+    except Exception:
+        logger.warning("Failed to read stored timestamps from DB")
+    return stored
+
+
+def _update_stored_timestamps(engine, boe_id: str, fecha: str) -> None:
+    """Persist a fecha_actualizacion for a norma in norma.ultima_verificacion."""
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "UPDATE norma SET ultima_verificacion = :fecha WHERE boe_id = :boe_id"
+                ),
+                {"fecha": fecha, "boe_id": boe_id},
+            )
+    except Exception:
+        logger.warning("Failed to update stored timestamp for %s", boe_id)
+
+
+def _detect_normas_needing_update(
+    api_timestamps: dict[str, str],
+    stored_timestamps: dict[str, str],
+    boe_ids: set[str],
+) -> list[str]:
+    """Return list of boe_ids whose fecha_actualizacion changed.
+
+    A norma needs updating if:
+    - It's in our target set AND
+    - Its timestamp in the API differs from stored (or stored is missing).
+    """
+    needs_update: list[str] = []
+    for boe_id in boe_ids:
+        api_ts = api_timestamps.get(boe_id, "")
+        stored_ts = stored_timestamps.get(boe_id, "")
+        if api_ts and api_ts != stored_ts:
+            needs_update.append(boe_id)
+    return needs_update
+
+
+# ---------------------------------------------------------------------------
+# Sync
+# ---------------------------------------------------------------------------
+
+
 def run_sync(
     codigos: list[str] | None = None,
     worker_name: str = "worker-boe",
@@ -1103,68 +1218,115 @@ def run_sync(
     engine = create_engine(DATABASE_URL, future=True)
     bloques_fetched = 0
     articulos_upserted = 0
-    sync_start = datetime.now(timezone.utc).isoformat()
+    norman_actualizadas = 0
+    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0) as client:
-            with engine.begin() as conn:
-                _ensure_schema(conn)
-                ensure_source_revision_table(conn)
-                for codigo in target_codes:
-                    if codigo in MANUAL_NORMAS:
-                        upsert_norma(conn, MANUAL_NORMAS[codigo])
+        with httpx.Client(timeout=30.0) as client, engine.begin() as conn:
+            _ensure_schema(conn)
+            ensure_source_revision_table(conn)
+
+            # Phase 1: BOE API version monitoring (32.3)
+            if BOE_TRACK_VERSIONS:
+                boe_ids = {DEFAULT_NORMAS[c] for c in target_codes if c in DEFAULT_NORMAS}
+                if boe_ids:
+                    try:
+                        api_timestamps = _fetch_normas_timestamps(client, boe_ids)
+                        stored_timestamps = _get_stored_timestamps(engine)
+                        normas_to_update = _detect_normas_needing_update(
+                            api_timestamps, stored_timestamps, boe_ids
+                        )
+
+                        for boe_id in normas_to_update:
+                            # Find the codigo for this boe_id
+                            codigo_for_id = None
+                            for c, bid in DEFAULT_NORMAS.items():
+                                if bid == boe_id:
+                                    codigo_for_id = c
+                                    break
+                            if not codigo_for_id:
+                                continue
+
+                            print(f"  [UPDATE] Norma {codigo_for_id} ({boe_id}) has new version")
+                            result = _process_norma_from_api(
+                                client, conn, codigo_for_id, boe_id, only_block_ids, worker_name
+                            )
+                            bloques_fetched += result.get("bloques", 0)
+                            articulos_upserted += result.get("articulos", 0)
+                            # Update stored timestamp
+                            api_ts = api_timestamps.get(boe_id, "")
+                            if api_ts:
+                                _update_stored_timestamps(engine, boe_id, api_ts)
+                            norman_actualizadas += 1
+
+                            # Rate limit
+                            time.sleep(BOE_RATE_LIMIT_SECONDS)
+                    except Exception:
+                        logger.warning("Version monitoring failed, continuing with full sync")
+
+            # Phase 2: Full sync for all target normas
+            for codigo in target_codes:
+                if codigo in MANUAL_NORMAS:
+                    upsert_norma(conn, MANUAL_NORMAS[codigo])
+                    continue
+
+                boe_id = DEFAULT_NORMAS[codigo]
+                metadata = fetch_metadata(client, codigo, boe_id)
+                upsert_norma(conn, metadata)
+                for item in fetch_index(client, boe_id):
+                    if not _is_supported_block(item.titulo):
+                        continue
+                    if only_block_ids and item.id not in only_block_ids:
+                        continue
+                    bloque = fetch_block(client, boe_id, item.id)
+
+                    change = check_content_changed(
+                        conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
+                    )
+
+                    if not change.changed:
+                        bloques_fetched += 1
                         continue
 
-                    boe_id = DEFAULT_NORMAS[codigo]
-                    metadata = fetch_metadata(client, codigo, boe_id)
-                    upsert_norma(conn, metadata)
-                    for item in fetch_index(client, boe_id):
-                        if not _is_supported_block(item.titulo):
-                            continue
-                        if only_block_ids and item.id not in only_block_ids:
-                            continue
-                        bloque = fetch_block(client, boe_id, item.id)
-
-                        change = check_content_changed(
-                            conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
+                    invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
+                    if invalidated:
+                        print(
+                            f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
                         )
 
-                        if not change.changed:
-                            bloques_fetched += 1
-                            continue
+                    upsert_articulo(conn, codigo, bloque)
+                    record_revision(
+                        conn,
+                        worker_name,
+                        "bloque",
+                        bloque.bloque_id,
+                        bloque.texto,
+                    )
+                    bloques_fetched += 1
+                    articulos_upserted += 1
 
-                        invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
-                        if invalidated:
-                            print(
-                                f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
-                            )
+                    # Rate limit between blocks
+                    time.sleep(BOE_RATE_LIMIT_SECONDS)
 
-                        upsert_articulo(conn, codigo, bloque)
-                        record_revision(
-                            conn,
-                            worker_name,
-                            "bloque",
-                            bloque.bloque_id,
-                            bloque.texto,
-                        )
-                        bloques_fetched += 1
-                        articulos_upserted += 1
-
-                # Auto-linking post-ingestion
-                materias_linked = auto_link_materias(conn)
-                doctrina_linked = auto_link_doctrina(conn)
-                log_sync(
-                    conn,
-                    worker_name,
-                    "ok",
-                    bloques=bloques_fetched,
-                    articulos=articulos_upserted,
-                    started_at=sync_start,
-                )
-                print(
-                    f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}"
-                )
-        return {"bloques": bloques_fetched, "articulos": articulos_upserted}
+            # Auto-linking post-ingestion
+            materias_linked = auto_link_materias(conn)
+            doctrina_linked = auto_link_doctrina(conn)
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                bloques=bloques_fetched,
+                articulos=articulos_upserted,
+                started_at=sync_start,
+            )
+            print(
+                f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}"
+            )
+        return {
+            "bloques": bloques_fetched,
+            "articulos": articulos_upserted,
+            "actualizados": norman_actualizadas,
+        }
     except Exception as exc:
         with engine.begin() as conn:
             log_sync(
@@ -1176,6 +1338,61 @@ def run_sync(
                 error_msg=str(exc),
             )
         raise
+
+
+def _process_norma_from_api(
+    client: httpx.Client,
+    conn,
+    codigo: str,
+    boe_id: str,
+    only_block_ids: list[str],
+    worker_name: str,
+) -> dict[str, int]:
+    """Process a single norma from the BOE API (used by version monitoring).
+
+    Returns the counts of blocks fetched and articles upserted.
+    """
+    blocks_fetched = 0
+    articulos_upserted = 0
+
+    try:
+        metadata = fetch_metadata(client, codigo, boe_id)
+        upsert_norma(conn, metadata)
+        for item in fetch_index(client, boe_id):
+            if not _is_supported_block(item.titulo):
+                continue
+            if only_block_ids and item.id not in only_block_ids:
+                continue
+            bloque = fetch_block(client, boe_id, item.id)
+
+            change = check_content_changed(
+                conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
+            )
+
+            if not change.changed:
+                blocks_fetched += 1
+                continue
+
+            invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
+            if invalidated:
+                print(
+                    f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
+                )
+
+            upsert_articulo(conn, codigo, bloque)
+            record_revision(
+                conn,
+                worker_name,
+                "bloque",
+                bloque.bloque_id,
+                bloque.texto,
+            )
+            blocks_fetched += 1
+            articulos_upserted += 1
+    except Exception:
+        logger.warning("Failed to process norma %s (%s)", codigo, boe_id)
+
+    return {"bloques": blocks_fetched, "articulos": articulos_upserted}
 
 
 def _yyyymmdd_to_iso(value: str) -> str:
@@ -1244,6 +1461,6 @@ if __name__ == "__main__":
         while True:
             result = run_sync()
             print(
-                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}"
+                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(UTC).isoformat()}"
             )
             time.sleep(interval)
