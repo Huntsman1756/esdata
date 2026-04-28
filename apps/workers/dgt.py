@@ -1,21 +1,22 @@
 import argparse
-from datetime import datetime, timezone
-from html import unescape
+import logging
 import re
 import time
+from datetime import UTC, datetime
+from html import unescape
 
 import httpx
-from sqlalchemy import create_engine
-from sqlalchemy import text
-
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
 from change_detection import (
     check_content_changed,
-    record_revision,
-    invalidate_old_embeddings,
     ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
 )
 from runtime import get_bool_env, get_database_url, get_interval_seconds
+from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 
 SEED_URLS = [
@@ -35,6 +36,7 @@ SEED_URLS = [
 BASE_URL = "https://petete.tributos.hacienda.gob.es"
 DATABASE_URL = get_database_url()
 DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", False)
+DGT_DISCOVERY = get_bool_env("DGT_DISCOVERY", False)
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
 
@@ -227,80 +229,149 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     )
 
 
+def discover_dgt_consultas(
+    start_year: int = 2017,
+    max_consecutive_404: int = 3,
+    end_year: int | None = None,
+) -> list[str]:
+    discovered: list[str] = []
+    if end_year is None:
+        end_year = datetime.now(UTC).year
+
+    for year in range(start_year, end_year + 1):
+        year_str = f"{year % 100:02d}"
+        consecutive_404 = 0
+
+        for num in range(1, 10000):
+            num_str = f"{num:04d}"
+            num_consulta = f"V{num_str}-{year_str}"
+            url = f"{BASE_URL}/consultas/?num_consulta={num_consulta}"
+
+            search_html = fetch_search_html_for_discovery(num_consulta)
+
+            if search_html is None:
+                consecutive_404 += 1
+                if consecutive_404 >= max_consecutive_404:
+                    logger.info(
+                        "DGT discovery: %d consecutive 404s for year %s, stopping number iteration",
+                        max_consecutive_404,
+                        year_str,
+                    )
+                    break
+                continue
+
+            consecutive_404 = 0
+
+            results = parse_search_results(search_html)
+            if results:
+                discovered.append(url)
+                logger.info("DGT discovery: found %s (%d results)", num_consulta, len(results))
+            else:
+                logger.debug("DGT discovery: %s returned no search results", num_consulta)
+
+        logger.info("DGT discovery: year %s complete, %d URLs found so far", year_str, len(discovered))
+
+    logger.info("DGT discovery complete: %d total URLs", len(discovered))
+    return discovered
+
+
+def fetch_search_html_for_discovery(num_consulta: str) -> str | None:
+    try:
+        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client:
+            start_session(client)
+            response = client.post(
+                "/consultas/do/search",
+                data=build_search_payload(num_consulta),
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.text
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        return None
+
+
 def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-dgt",
 ) -> dict[str, int]:
-    urls = seed_urls or SEED_URLS
+    urls = list(seed_urls or SEED_URLS)
+
+    if DGT_DISCOVERY:
+        logger.info("DGT discovery enabled, running discovery phase")
+        discovered = discover_dgt_consultas()
+        known = {u for u in urls}
+        urls.extend(u for u in discovered if u not in known)
+        logger.info("DGT discovery: %d seed + %d discovered = %d total URLs", len(seed_urls or SEED_URLS), len(discovered), len(urls))
     processed = 0
     stored = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(timezone.utc).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client:
-            with engine.begin() as conn:
-                _ensure_sync_log_table(conn)
-                ensure_source_revision_table(conn)
-                for url in urls:
-                    num_consulta = _extract_num_consulta(url)
-                    search_html = fetch_search_html(client, num_consulta)
-                    results = parse_search_results(search_html)
-                    if not results:
-                        continue
+        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client, engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            ensure_source_revision_table(conn)
+            for url in urls:
+                num_consulta = _extract_num_consulta(url)
+                search_html = fetch_search_html(client, num_consulta)
+                results = parse_search_results(search_html)
+                if not results:
+                    continue
 
-                    query, order, doc_id = _build_document_payload(results[0])
-                    document_html = fetch_document_html(client, query, order, doc_id)
-                    document = parse_document_html(document_html)
-                    processed += 1
+                query, order, doc_id = _build_document_payload(results[0])
+                document_html = fetch_document_html(client, query, order, doc_id)
+                document = parse_document_html(document_html)
+                processed += 1
 
-                    if not document["normas_objetivo"]:
-                        continue
+                if not document["normas_objetivo"]:
+                    continue
 
-                    change = check_content_changed(
-                        conn, worker_name, "consulta", document["referencia"], document_html
-                    )
-
-                    if change.changed:
-                        invalidated = invalidate_old_embeddings(conn, document["referencia"])
-                        if invalidated:
-                            print(
-                                f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}"
-                            )
-
-                        upsert_documento_interpretativo(
-                            conn,
-                            {
-                                "referencia": document["referencia"],
-                                "fecha": document["fecha"],
-                                "titulo": _build_titulo(document),
-                                "texto": document["texto"],
-                                "url_fuente": url,
-                            },
-                        )
-                        record_revision(
-                            conn,
-                            worker_name,
-                            "consulta",
-                            document["referencia"],
-                            document_html,
-                        )
-                        stored += 1
-                    else:
-                        print(f"  [SKIP] {document['referencia']} unchanged")
-
-                if stored:
-                    links_created = auto_link_doctrina(conn)
-
-                log_sync(
-                    conn,
-                    worker_name,
-                    "ok",
-                    documentos_processed=processed,
-                    documentos_upserted=stored,
-                    doctrina_links_created=links_created,
+                change = check_content_changed(
+                    conn, worker_name, "consulta", document["referencia"], document_html
                 )
+
+                if change.changed:
+                    invalidated = invalidate_old_embeddings(conn, document["referencia"])
+                    if invalidated:
+                        print(
+                            f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}"
+                        )
+
+                    upsert_documento_interpretativo(
+                        conn,
+                        {
+                            "referencia": document["referencia"],
+                            "fecha": document["fecha"],
+                            "titulo": _build_titulo(document),
+                            "texto": document["texto"],
+                            "url_fuente": url,
+                        },
+                    )
+                    record_revision(
+                        conn,
+                        worker_name,
+                        "consulta",
+                        document["referencia"],
+                        document_html,
+                    )
+                    stored += 1
+                else:
+                    print(f"  [SKIP] {document['referencia']} unchanged")
+
+                time.sleep(1)
+
+            if stored:
+                links_created = auto_link_doctrina(conn)
+
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                documentos_processed=processed,
+                documentos_upserted=stored,
+                doctrina_links_created=links_created,
+            )
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:
