@@ -2966,4 +2966,121 @@ class BeneficialOwnerRecordUpdate(BaseModel):
 class BeneficialOwnerRecordListResponse(BaseModel):
     records: list[BeneficialOwnerRecordSummary]
     total: int = Field(description="Total de registros de beneficiario real que coinciden con la consulta")
->>>>>>> 76b5cec (feat(api,workers): Fase 31.3 — Ley 10/2010 PBC data model (migration 0038, 20 schemas, 8 endpoints, worker + tests))
+
+
+# --- Ley 11/2021 Antifraude schemas ---
+
+
+class FraudPreventionProgramSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    code_of_conduct: bool = Field(description="Codigo de conducta vigente")
+    internal_reporting_system: bool = Field(description="Canal de reporte interno activo")
+    training_schedule: str | None = Field(default=None, description="Plan de formacion")
+    audit_frequency: str | None = Field(default=None, description="Frecuencia de auditoria")
+    compliance_officer_name: str | None = Field(default=None, description="Nombre del oficial de cumplimiento")
+    status: str = Field(description="Estado: active, inactive, suspended")
+
+
+class FraudPreventionProgramDetail(FraudPreventionProgramSummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class FraudPreventionProgramCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    code_of_conduct: bool = Field(default=False)
+    internal_reporting_system: bool = Field(default=False)
+    training_schedule: str | None = Field(default=None)
+    audit_frequency: str | None = Field(default=None)
+    compliance_officer_name: str | None = Field(default=None)
+    status: str = Field(default="active")
+
+
+class FraudPreventionProgramUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    code_of_conduct: bool | None = Field(default=None)
+    internal_reporting_system: bool | None = Field(default=None)
+    training_schedule: str | None = Field(default=None)
+    audit_frequency: str | None = Field(default=None)
+    compliance_officer_name: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class FraudPreventionProgramListResponse(BaseModel):
+    programs: list[FraudPreventionProgramSummary]
+    total: int = Field(description="Total de programas de prevencion de fraude que coinciden con la consulta")
+
+
+class FraudRiskAssessmentSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    assessment_date: str | None = Field(default=None, description="Fecha de evaluacion")
+    risk_areas: str | None = Field(default=None, description="Areas de riesgo (JSON)")
+    mitigation_measures: str | None = Field(default=None, description="Medidas de mitigacion")
+    next_review_date: str | None = Field(default=None, description="Fecha de proxima revision")
+
+
+class FraudRiskAssessmentDetail(FraudRiskAssessmentSummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class FraudRiskAssessmentCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    risk_areas: str | None = Field(default=None)
+    mitigation_measures: str | None = Field(default=None)
+    next_review_date: str | None = Field(default=None)
+
+
+class FraudRiskAssessmentUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    risk_areas: str | None = Field(default=None)
+    mitigation_measures: str | None = Field(default=None)
+    next_review_date: str | None = Field(default=None)
+
+
+class FraudRiskAssessmentListResponse(BaseModel):
+    assessments: list[FraudRiskAssessmentSummary]
+    total: int = Field(description="Total de evaluaciones de riesgo que coinciden con la consulta")
+
+
+class FraudIncidentSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    incident_date: str | None = Field(default=None, description="Fecha del incidente")
+    amount_eur: float | None = Field(default=None, description="Importe en euros")
+    status: str = Field(description="Estado: open, under_investigation, resolved, closed")
+    resolution_date: str | None = Field(default=None, description="Fecha de resolucion")
+    regulatory_notification: bool = Field(description="Notificacion regulatoria realizada")
+
+
+class FraudIncidentDetail(FraudIncidentSummary):
+    description: str | None = Field(default=None, description="Descripcion del incidente")
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class FraudIncidentCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    incident_date: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    amount_eur: float | None = Field(default=None)
+    status: str = Field(default="open")
+    resolution_date: str | None = Field(default=None)
+    regulatory_notification: bool = Field(default=False)
+
+
+class FraudIncidentUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    incident_date: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    amount_eur: float | None = Field(default=None)
+    status: str | None = Field(default=None)
+    resolution_date: str | None = Field(default=None)
+    regulatory_notification: bool | None = Field(default=None)
+
+
+class FraudIncidentListResponse(BaseModel):
+    incidents: list[FraudIncidentSummary]
+    total: int = Field(description="Total de incidentes de fraude que coinciden con la consulta")
+>>>>>>> f96e84e (feat(api,workers): Fase 31.4 — Ley 11/2021 antifraud data model (migration 0039, 15 schemas, 6 endpoints, worker + tests))
