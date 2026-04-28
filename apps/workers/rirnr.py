@@ -151,6 +151,7 @@ def run_sync(
 
 def log_sync(conn, worker_name, status, **kwargs):
     """Escribe un registro en sync_log."""
+    _ensure_sync_log_table(conn)
     started_at = kwargs.get("started_at") or datetime.now(UTC).isoformat()
     finished_at = datetime.now(UTC).isoformat()
     duration_ms = max(0, int((datetime.fromisoformat(finished_at) - datetime.fromisoformat(started_at)).total_seconds() * 1000))

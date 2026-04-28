@@ -277,7 +277,10 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )
@@ -453,7 +456,10 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )
@@ -662,7 +668,10 @@ def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
-                    error_msg TEXT
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
                 )
                 """
             )

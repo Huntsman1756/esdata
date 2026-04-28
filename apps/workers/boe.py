@@ -305,7 +305,10 @@ def _schema_statements(dialect: str) -> list[str]:
             documentos_processed INTEGER,
             documentos_upserted INTEGER,
             doctrina_links_created INTEGER,
-            error_msg TEXT
+            error_msg TEXT,
+            rows_processed INTEGER,
+            errors INTEGER,
+            duration_ms INTEGER
         )
         """,
     ]
@@ -327,7 +330,27 @@ def _create_base_schema(conn) -> None:
 
 
 def _ensure_sync_log_table(conn) -> None:
-    conn.execute(text(_schema_statements(conn.engine.dialect.name)[-1]))
+    dialect = conn.engine.dialect.name
+    _schema_statements(dialect)  # validates dialect
+    if dialect == "sqlite":
+        tables = {row[0] for row in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).fetchall()}
+        if "sync_log" not in tables:
+            conn.execute(text(_schema_statements(dialect)[-1]))
+            return
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(sync_log)")).fetchall()}
+        for col in ("rows_processed", "errors", "duration_ms"):
+            if col not in columns:
+                conn.execute(text(f"ALTER TABLE sync_log ADD COLUMN {col} INTEGER"))
+    else:
+        tables = {row[0] for row in conn.execute(text("""SELECT table_name FROM information_schema.tables WHERE table_name = 'sync_log'""")).fetchall()}
+        if not tables:
+            conn.execute(text(_schema_statements(dialect)[-1]))
+            return
+        cursor = conn.execute(text("""SELECT column_name FROM information_schema.columns WHERE table_name = 'sync_log'""")).fetchall()
+        existing = {row[0] for row in cursor}
+        for col, typ in (("rows_processed", "INTEGER"), ("errors", "INTEGER"), ("duration_ms", "INTEGER")):
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE sync_log ADD COLUMN {col} {typ}"))
 
 
 @dataclass
