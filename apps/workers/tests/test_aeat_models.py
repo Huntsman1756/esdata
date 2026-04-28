@@ -224,6 +224,8 @@ class TestUpsertAeatModel:
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         codigo TEXT UNIQUE NOT NULL,
                         nombre TEXT,
+                        periodo TEXT,
+                        impuesto TEXT,
                         url_info TEXT,
                         activo INTEGER DEFAULT 1,
                         actualizado_at TEXT
@@ -268,7 +270,11 @@ class TestMarkDeprecatedModels:
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         codigo TEXT UNIQUE NOT NULL,
                         nombre TEXT,
-                        activo INTEGER DEFAULT 1
+                        periodo TEXT,
+                        impuesto TEXT,
+                        url_info TEXT,
+                        activo INTEGER DEFAULT 1,
+                        actualizado_at TEXT
                     )
                     """
                 )

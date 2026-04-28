@@ -215,7 +215,7 @@ def _upsert_aeat_model(conn, codigo: str, nombre: str, url_info: str, periodo: s
                     impuesto = COALESCE(EXCLUDED.impuesto, aeat_modelo.impuesto),
                     url_info = EXCLUDED.url_info,
                     activo = true,
-                    actualizado_at = now()
+                    actualizado_at = datetime('now')
                 """
             ),
             {
@@ -235,18 +235,23 @@ def _upsert_aeat_model(conn, codigo: str, nombre: str, url_info: str, periodo: s
 def _mark_deprecated_models(conn, discovered_codes: set[str]) -> int:
     """Marca como inactivos los modelos en DB que no aparecen en el portal."""
     try:
-        result = conn.execute(
+        if not discovered_codes:
+            return 0
+        codes = tuple(discovered_codes)
+        placeholders = ",".join([f":c{i}" for i in range(len(codes))])
+        params = {f"c{i}": code for i, code in enumerate(codes)}
+        conn.execute(
             text(
-                """
+                f"""
                 UPDATE aeat_modelo
-                SET activo = false, actualizado_at = now()
+                SET activo = false
                 WHERE activo = true
-                  AND codigo NOT IN :codes
+                  AND codigo NOT IN ({placeholders})
                 """
             ),
-            {"codes": tuple(discovered_codes) if discovered_codes else ("__none__",)},
+            params,
         )
-        return result.rowcount
+        return conn.execute(text("SELECT changes()")).scalar() or 0
     except Exception as exc:
         logger.warning("Failed to mark deprecated models: %s", exc)
         return 0
