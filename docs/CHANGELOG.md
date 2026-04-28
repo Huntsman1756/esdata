@@ -7,16 +7,11 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
-<<<<<<< HEAD
-<<<<<<< HEAD
 - **ee12bd3** `fix(workers)` — harden regulatory workers with source-revision advisory locking, BOE HTML follow-up for CNMV, entity-scoped embedding invalidation, and TEAC test/runtime alignment while documenting deterministic production monitoring and DGT discovery prework in the roadmap
-=======
-=======
 - **PENDING** `feat(api,workers)` — Fase 31.4: Ley 11/2021 antifraud data model — Alembic migration 0039 creates 3 tables (fraud_prevention_program, fraud_risk_assessment, fraud_incident), 15 Pydantic schemas (Summary/Detail/Create/Update/ListResponse per entity), 6 REST endpoints under /v1/fraud with filters and 404 handling, registered in main.py, worker with seed data (3 programs, 2 assessments, 3 incidents), 3 tests passing
->>>>>>> f96e84e (feat(api,workers): Fase 31.4 — Ley 11/2021 antifraud data model (migration 0039, 15 schemas, 6 endpoints, worker + tests))
 - **PENDING** `feat(api,workers)` — Fase 31.3: Ley 10/2010 PBC data model — Alembic migration 0038 creates 4 tables (pbc_obligated_subject, pbc_internal_control, suspicious_activity_report, beneficial_owner_record), 20 Pydantic schemas (Summary/Detail/Create/Update/ListResponse per entity), 8 REST endpoints under /v1/pbc with filters and 404 handling, registered in main.py, worker with seed data (7 obligated subjects, 3 internal controls, 3 SAR/MAR, 3 beneficial owners), 3 tests passing
+- **PENDING** `feat(api,workers)` — Fase 31.3: Ley 10/2010 PBC data model — Alembic migration 0038 creates 4 tables (pbc_obligated_subject, pbc_internal_control, suspicious_activity_report, beneficial_owner_record), 20 Pydantic schemas (Summary/Detail/Create/Update/ListResponse per entity), 8 REST endpoints under /v1/pbc with filters and 404 handling, registered in main.py (fixed import from ley102010 -> pbc), worker with seed data (7 obligated subjects, 3 internal controls, 3 SAR/MAR, 3 beneficial owners), 3 tests passing
 - **a29fc8d** `feat(workers)` — Fase 31.1: worker apps/workers/mica.py with seed data for CASP providers, crypto assets (MiCA classification), tokenized assets, wallet custodians and DAC8/DAC9 crypto transactions; 3 tests passing (persist all entities, JSON serialization, idempotent upsert)
->>>>>>> 76b5cec (feat(api,workers): Fase 31.3 — Ley 10/2010 PBC data model (migration 0038, 20 schemas, 8 endpoints, worker + tests))
 - **fc31858** `feat(api)` — Fase 31.1: MiCA/crypto data model — Alembic migration 0036 creates 5 tables (casp, crypto_asset, tokenized_asset, wallet_custodian, crypto_transaction), 25 Pydantic schemas (Summary/Detail/Create/Update/ListResponse per entity), 10 REST endpoints under /v1/mica with filters and 404 handling, registered in main.py
 - **a29fc8d** `feat(workers)` — create apps/workers/mica.py with seed data for CASP providers, crypto assets (MiCA classification), tokenized assets, wallet custodians and DAC8/DAC9 crypto transactions; 3 tests passing (persist all entities, JSON serialization, idempotent upsert)
 - **PENDING** `fix(workers)` — harden regulatory workers with source-revision locking, CNMV BOE HTML follow-up, entity-scoped invalidation, and TEAC test/runtime alignment while recording production monitoring and DGT discovery next steps
