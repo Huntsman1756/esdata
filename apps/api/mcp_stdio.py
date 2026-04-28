@@ -1,14 +1,13 @@
 """MCP stdio server for esdata — exposes consulta_fiscal as a tool for LLM clients."""
 
-import asyncio
 import json
 import sys
 from typing import Any
 
+from fastapi.testclient import TestClient
+
 # FastAPI app must be imported before any DB access
 from main import app
-from routers.consulta import consulta_fiscal
-from fastapi.testclient import TestClient
 from mcp_catalog import get_stdio_tool_definitions
 
 client = TestClient(app)
@@ -104,8 +103,6 @@ class MCPStdioServer:
 
         if tool_name == "consulta_fiscal":
             try:
-                from fastapi import Query
-                from contextlib import contextmanager
 
                 q = arguments.get("q", "")
                 sujeto = arguments.get("sujeto", "")
@@ -129,7 +126,7 @@ class MCPStdioServer:
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error executing consulta: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error executing consulta: {e!s}")
         elif tool_name == "listar_obligaciones_operativas":
             try:
                 ambito = arguments.get("ambito")
@@ -152,7 +149,7 @@ class MCPStdioServer:
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error executing listar_obligaciones_operativas: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error executing listar_obligaciones_operativas: {e!s}")
         elif tool_name == "listar_deadlines":
             try:
                 dias_proximo = arguments.get("dias_proximo", 30)
@@ -173,7 +170,7 @@ class MCPStdioServer:
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error executing listar_deadlines: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error executing listar_deadlines: {e!s}")
 
         elif tool_name == "listar_obligaciones_aplicables":
             try:
@@ -194,7 +191,7 @@ class MCPStdioServer:
                     "structuredContent": data,
                 })
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error executing listar_obligaciones_aplicables: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error executing listar_obligaciones_aplicables: {e!s}")
         elif tool_name == "get_obligacion_completa":
             try:
                 codigo = arguments.get("codigo", "")
@@ -211,7 +208,7 @@ class MCPStdioServer:
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error executing get_obligacion_completa: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error executing get_obligacion_completa: {e!s}")
         elif tool_name == "agente_consulta":
             try:
                 q = arguments.get("q", "")
@@ -235,7 +232,7 @@ class MCPStdioServer:
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error executing agente_consulta: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error executing agente_consulta: {e!s}")
         elif tool_name == "agente_monitoreo_status":
             try:
                 from agent_monitor import get_monitor_status
@@ -246,7 +243,7 @@ class MCPStdioServer:
                     "structuredContent": status,
                 })
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error getting monitor status: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error getting monitor status: {e!s}")
         elif tool_name == "agente_compliance_resumen":
             try:
                 estado = arguments.get("estado")
@@ -272,7 +269,644 @@ class MCPStdioServer:
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
-                self._send_error(msg_id, -32603, f"Error executing agente_compliance_resumen: {str(e)}")
+                self._send_error(msg_id, -32603, f"Error executing agente_compliance_resumen: {e!s}")
+        elif tool_name == "list_sfdr_products":
+            try:
+                response = client.get(
+                    "/v1/sfdr/products",
+                    params={
+                        "product_type": arguments.get("product_type"),
+                        "status": arguments.get("status"),
+                        "search": arguments.get("search"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_sfdr_products(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_sfdr_products: {e!s}")
+        elif tool_name == "get_sfdr_product":
+            try:
+                item_id = arguments.get("item_id")
+                response = client.get(f"/v1/sfdr/products/{item_id}")
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_sfdr_product_detail(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_sfdr_product: {e!s}")
+        elif tool_name == "list_sfdr_pacai_indicators":
+            try:
+                response = client.get(
+                    "/v1/sfdr/pacai-indicators",
+                    params={
+                        "product_id": arguments.get("product_id"),
+                        "indicator_code": arguments.get("indicator_code"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_sfdr_pacai(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_sfdr_pacai_indicators: {e!s}")
+        elif tool_name == "get_sfdr_pacai_indicator":
+            try:
+                response = client.get(f"/v1/sfdr/pacai-indicators/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_sfdr_pacai_indicator: {e!s}")
+        elif tool_name == "list_sfdr_entity_paci":
+            try:
+                response = client.get(
+                    "/v1/sfdr/entity-paci",
+                    params={
+                        "entity_id": arguments.get("entity_id"),
+                        "reporting_year": arguments.get("reporting_year"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_sfdr_entity_paci(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_sfdr_entity_paci: {e!s}")
+        elif tool_name == "get_sfdr_entity_paci":
+            try:
+                response = client.get(f"/v1/sfdr/entity-paci/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_sfdr_entity_paci: {e!s}")
+        elif tool_name == "list_sfdr_pre_contractual":
+            try:
+                response = client.get(
+                    "/v1/sfdr/pre-contractual",
+                    params={
+                        "product_id": arguments.get("product_id"),
+                        "document_type": arguments.get("document_type"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_sfdr_pre_contractual(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_sfdr_pre_contractual: {e!s}")
+        elif tool_name == "get_sfdr_pre_contractual":
+            try:
+                response = client.get(f"/v1/sfdr/pre-contractual/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_sfdr_pre_contractual: {e!s}")
+        elif tool_name == "list_sfdr_annual_reports":
+            try:
+                response = client.get(
+                    "/v1/sfdr/annual-reports",
+                    params={
+                        "entity_id": arguments.get("entity_id"),
+                        "reporting_year": arguments.get("reporting_year"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_sfdr_annual_reports(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_sfdr_annual_reports: {e!s}")
+        elif tool_name == "get_sfdr_annual_report":
+            try:
+                response = client.get(f"/v1/sfdr/annual-reports/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_sfdr_annual_report: {e!s}")
+        elif tool_name == "list_csrd_entity_reports":
+            try:
+                response = client.get(
+                    "/v1/csrd/entity-reports",
+                    params={
+                        "entity_id": arguments.get("entity_id"),
+                        "reporting_year": arguments.get("reporting_year"),
+                        "assurance_status": arguments.get("assurance_status"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_csrd_entity_reports(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_csrd_entity_reports: {e!s}")
+        elif tool_name == "get_csrd_entity_report":
+            try:
+                response = client.get(f"/v1/csrd/entity-reports/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_csrd_entity_report: {e!s}")
+        elif tool_name == "list_csrd_esg_data_points":
+            try:
+                response = client.get(
+                    "/v1/csrd/esg-data-points",
+                    params={
+                        "report_id": arguments.get("report_id"),
+                        "topic": arguments.get("topic"),
+                        "indicator_code": arguments.get("indicator_code"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_csrd_esg_data(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_csrd_esg_data_points: {e!s}")
+        elif tool_name == "get_csrd_esg_data_point":
+            try:
+                response = client.get(f"/v1/csrd/esg-data-points/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_csrd_esg_data_point: {e!s}")
+        elif tool_name == "list_csrd_ess":
+            try:
+                response = client.get(
+                    "/v1/csrd/ess",
+                    params={
+                        "topic": arguments.get("topic"),
+                        "applicable_from_year": arguments.get("applicable_from_year"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_csrd_ess(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_csrd_ess: {e!s}")
+        elif tool_name == "get_csrd_ess":
+            try:
+                response = client.get(f"/v1/csrd/ess/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_csrd_ess: {e!s}")
+        elif tool_name == "list_csrd_double_materiality":
+            try:
+                response = client.get(
+                    "/v1/csrd/double-materiality",
+                    params={"entity_id": arguments.get("entity_id")},
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_csrd_double_materiality(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_csrd_double_materiality: {e!s}")
+        elif tool_name == "get_csrd_double_materiality":
+            try:
+                response = client.get(f"/v1/csrd/double-materiality/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_csrd_double_materiality: {e!s}")
+        elif tool_name == "list_aifmd_funds":
+            try:
+                response = client.get(
+                    "/v1/aifmd/funds",
+                    params={
+                        "fund_type": arguments.get("fund_type"),
+                        "status": arguments.get("status"),
+                        "home_member_state": arguments.get("home_member_state"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_aifmd_funds(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_aifmd_funds: {e!s}")
+        elif tool_name == "get_aifmd_fund":
+            try:
+                response = client.get(f"/v1/aifmd/funds/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_aifmd_fund: {e!s}")
+        elif tool_name == "list_aifmd_regulatory_reports":
+            try:
+                response = client.get(
+                    "/v1/aifmd/regulatory-reports",
+                    params={
+                        "fund_id": arguments.get("fund_id"),
+                        "report_type": arguments.get("report_type"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_aifmd_reports(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_aifmd_regulatory_reports: {e!s}")
+        elif tool_name == "get_aifmd_regulatory_report":
+            try:
+                response = client.get(f"/v1/aifmd/regulatory-reports/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_aifmd_regulatory_report: {e!s}")
+        elif tool_name == "list_aifmd_liquidity_management":
+            try:
+                response = client.get(
+                    "/v1/aifmd/liquidity-management",
+                    params={
+                        "fund_id": arguments.get("fund_id"),
+                        "redemption_suspended": arguments.get("redemption_suspended"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_aifmd_liquidity(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_aifmd_liquidity_management: {e!s}")
+        elif tool_name == "get_aifmd_liquidity_management":
+            try:
+                response = client.get(f"/v1/aifmd/liquidity-management/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_aifmd_liquidity_management: {e!s}")
+        elif tool_name == "list_ucits_funds":
+            try:
+                response = client.get(
+                    "/v1/ucits/funds",
+                    params={
+                        "management_company": arguments.get("management_company"),
+                        "status": arguments.get("status"),
+                        "home_member_state": arguments.get("home_member_state"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_ucits_funds(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_ucits_funds: {e!s}")
+        elif tool_name == "get_ucits_fund":
+            try:
+                response = client.get(f"/v1/ucits/funds/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_ucits_fund: {e!s}")
+        elif tool_name == "list_ucits_regulatory_reports":
+            try:
+                response = client.get(
+                    "/v1/ucits/regulatory-reports",
+                    params={
+                        "fund_id": arguments.get("fund_id"),
+                        "report_type": arguments.get("report_type"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_ucits_reports(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_ucits_regulatory_reports: {e!s}")
+        elif tool_name == "get_ucits_regulatory_report":
+            try:
+                response = client.get(f"/v1/ucits/regulatory-reports/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_ucits_regulatory_report: {e!s}")
+        elif tool_name == "list_crd_capital_positions":
+            try:
+                response = client.get(
+                    "/v1/crd/capital-positions",
+                    params={
+                        "entity_id": arguments.get("entity_id"),
+                        "reporting_date": arguments.get("reporting_date"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_crd_capital(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_crd_capital_positions: {e!s}")
+        elif tool_name == "get_crd_capital_position":
+            try:
+                response = client.get(f"/v1/crd/capital-positions/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_crd_capital_position: {e!s}")
+        elif tool_name == "list_crd_stress_tests":
+            try:
+                response = client.get(
+                    "/v1/crd/stress-tests",
+                    params={
+                        "entity_id": arguments.get("entity_id"),
+                        "test_date": arguments.get("test_date"),
+                        "scenario_name": arguments.get("scenario_name"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_crd_stress_tests(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_crd_stress_tests: {e!s}")
+        elif tool_name == "get_crd_stress_test":
+            try:
+                response = client.get(f"/v1/crd/stress-tests/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_crd_stress_test: {e!s}")
+        elif tool_name == "list_brrd_bail_in":
+            try:
+                response = client.get(
+                    "/v1/crd/bail-in",
+                    params={"entity_id": arguments.get("entity_id")},
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_brrd_bail_in(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_brrd_bail_in: {e!s}")
+        elif tool_name == "get_brrd_bail_in":
+            try:
+                response = client.get(f"/v1/crd/bail-in/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_brrd_bail_in: {e!s}")
+        elif tool_name == "list_emir_trade_reports":
+            try:
+                response = client.get(
+                    "/v1/emir/trade-reports",
+                    params={
+                        "asset_class": arguments.get("asset_class"),
+                        "instrument_class": arguments.get("instrument_class"),
+                        "clearing_obligation_applied": arguments.get("clearing_obligation_applied"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_emir_trades(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_emir_trade_reports: {e!s}")
+        elif tool_name == "get_emir_trade_report":
+            try:
+                response = client.get(f"/v1/emir/trade-reports/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_emir_trade_report: {e!s}")
+        elif tool_name == "list_emir_clearing_members":
+            try:
+                response = client.get(
+                    "/v1/emir/clearing-members",
+                    params={
+                        "clearing_type": arguments.get("clearing_type"),
+                        "status": arguments.get("status"),
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    output = self._format_emir_clearing(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_emir_clearing_members: {e!s}")
+        elif tool_name == "get_emir_clearing_member":
+            try:
+                response = client.get(f"/v1/emir/clearing-members/{arguments.get('item_id')}")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing get_emir_clearing_member: {e!s}")
         else:
             self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
 
@@ -285,20 +919,20 @@ class MCPStdioServer:
         relevancia = data.get("relevancia")
         if relevancia:
             lines.append(f"Relevancia: {relevancia.get('nivel', 'N/A')} (score: {relevancia.get('score', 0):.2f})")
-            terminos = relevancia.get('terminos_encontrados', [])
+            terminos = relevancia.get("terminos_encontrados", [])
             if terminos:
                 lines.append(f"  Terminos encontrados: {', '.join(terminos)}")
 
         confianza = data.get("confianza")
         if confianza:
             lines.append(f"Confianza: {confianza.get('nivel_texto', 'N/A')} (nivel: {confianza.get('nivel', 0)})")
-            aviso = confianza.get('aviso')
+            aviso = confianza.get("aviso")
             if aviso:
                 lines.append(f"  Aviso: {aviso}")
-            modelos_cubiertos = confianza.get('modelos_cubiertos', [])
+            modelos_cubiertos = confianza.get("modelos_cubiertos", [])
             if modelos_cubiertos:
                 lines.append(f"  Modelos identificados: {', '.join(modelos_cubiertos)}")
-            clasificados = confianza.get('resultados_clasificados', {})
+            clasificados = confianza.get("resultados_clasificados", {})
             if clasificados:
                 lines.append(f"  Resultados por tipo: {', '.join(f'{k}: {v}' for k, v in clasificados.items())}")
 
@@ -323,7 +957,7 @@ class MCPStdioServer:
             lines.append("")
 
         for resultado in data.get("resultados", []):
-            relevancia_r = resultado.get('_relevancia', {})
+            relevancia_r = resultado.get("_relevancia", {})
             relevancia_str = ""
             if relevancia_r:
                 relevancia_str = f" [relevancia: {relevancia_r.get('nivel', 'N/A')} (score: {relevancia_r.get('score', 0):.2f})]"
@@ -331,8 +965,8 @@ class MCPStdioServer:
             if resultado["tipo"] == "normativa":
                 lines.append(f"  Normativa: {resultado['norma']} art. {resultado['articulo']}{relevancia_str}")
                 lines.append(f"    {resultado.get('texto', '')[:300]}")
-                evidencia = resultado.get('evidencia')
-                if evidencia and evidencia.get('motivo_ranking'):
+                evidencia = resultado.get("evidencia")
+                if evidencia and evidencia.get("motivo_ranking"):
                     lines.append(f"    Motivo: {evidencia['motivo_ranking']}")
             elif resultado["tipo"] == "doctrina":
                 lines.append(f"  Doctrina: {resultado.get('referencia', '')} — {resultado.get('titulo', '')}{relevancia_str}")
@@ -359,32 +993,32 @@ class MCPStdioServer:
             lines.append(f"  Tipo: {obs['tipo_obligacion']} | Sujeto: {obs['sujeto_obligado']}")
             lines.append(f"  Ámbito: {obs['ambito']} | Vigencia: {obs['estado_vigencia']}")
 
-            if obs.get('frecuencia_presentacion'):
+            if obs.get("frecuencia_presentacion"):
                 lines.append(f"  Frecuencia: {obs['frecuencia_presentacion']}")
-            if obs.get('plazo_dias'):
+            if obs.get("plazo_dias"):
                 lines.append(f"  Plazo: {obs['plazo_dias']} días")
-            if obs.get('ventana_presentacion'):
+            if obs.get("ventana_presentacion"):
                 lines.append(f"  Ventana: {obs['ventana_presentacion']}")
-            if obs.get('trigger_presentacion'):
+            if obs.get("trigger_presentacion"):
                 lines.append(f"  Trigger: {obs['trigger_presentacion']}")
-            if obs.get('canal_presentacion'):
+            if obs.get("canal_presentacion"):
                 lines.append(f"  Canal: {obs['canal_presentacion']}")
-            if obs.get('sancion_min') is not None or obs.get('sancion_max') is not None:
-                min_val = obs['sancion_min'] if obs.get('sancion_min') else "N/A"
-                max_val = obs['sancion_max'] if obs.get('sancion_max') else "N/A"
+            if obs.get("sancion_min") is not None or obs.get("sancion_max") is not None:
+                min_val = obs["sancion_min"] if obs.get("sancion_min") else "N/A"
+                max_val = obs["sancion_max"] if obs.get("sancion_max") else "N/A"
                 lines.append(f"  Sanción: {min_val}€ - {max_val}€")
-            if obs.get('recargo_voluntario'):
+            if obs.get("recargo_voluntario"):
                 lines.append(f"  Recargo voluntario: {obs['recargo_voluntario']}")
-            if obs.get('recargo_involuntario'):
+            if obs.get("recargo_involuntario"):
                 lines.append(f"  Recargo involuntario: {obs['recargo_involuntario']}")
-            if obs.get('interes_demora'):
+            if obs.get("interes_demora"):
                 lines.append(f"  Interés demora: {obs['interes_demora']}")
-            if obs.get('prescripcion_anos'):
+            if obs.get("prescripcion_anos"):
                 lines.append(f"  Prescripción: {obs['prescripcion_anos']} años")
-            if obs.get('deposito_previo'):
+            if obs.get("deposito_previo"):
                 lines.append(f"  Depósito previo: {obs['deposito_previo']}")
-            if obs.get('estado_metadato') == 'borrador':
-                lines.append(f"  ⚠️ Estado: borrador (no curado)")
+            if obs.get("estado_metadato") == "borrador":
+                lines.append("  ⚠️ Estado: borrador (no curado)")
             lines.append("")
 
         return "\n".join(lines)
@@ -400,13 +1034,13 @@ class MCPStdioServer:
         for obs in data:
             lines.append(f"=== {obs['codigo']} — {obs['nombre']} ===")
             lines.append(f"  Fuente: {obs['fuente']} | Organismo: {obs['organismo_emisor']}")
-            if obs.get('frecuencia_presentacion'):
+            if obs.get("frecuencia_presentacion"):
                 lines.append(f"  Frecuencia: {obs['frecuencia_presentacion']}")
-            if obs.get('ventana_presentacion'):
+            if obs.get("ventana_presentacion"):
                 lines.append(f"  Ventana: {obs['ventana_presentacion']}")
-            if obs.get('plazo_dias'):
+            if obs.get("plazo_dias"):
                 lines.append(f"  Plazo: {obs['plazo_dias']} días")
-            if obs.get('trigger_presentacion'):
+            if obs.get("trigger_presentacion"):
                 lines.append(f"  Trigger: {obs['trigger_presentacion']}")
             lines.append("")
 
@@ -431,9 +1065,9 @@ class MCPStdioServer:
             lines.append(f"  Fuente: {obs['fuente']} | Organismo: {obs['organismo_emisor']}")
             lines.append(f"  Tipo: {obs['tipo_obligacion']} | Sujeto: {obs['sujeto_obligado']}")
             lines.append(f"  Ámbito: {obs['ambito']} | Vigencia: {obs['estado_vigencia']}")
-            if obs.get('frecuencia_presentacion'):
+            if obs.get("frecuencia_presentacion"):
                 lines.append(f"  Frecuencia: {obs['frecuencia_presentacion']}")
-            if obs.get('ventana_presentacion'):
+            if obs.get("ventana_presentacion"):
                 lines.append(f"  Ventana: {obs['ventana_presentacion']}")
             lines.append("")
 
@@ -449,29 +1083,29 @@ class MCPStdioServer:
         lines.append("")
 
         lines.append("Datos operativos:")
-        if data.get('plazo_dias'):
+        if data.get("plazo_dias"):
             lines.append(f"  Plazo: {data['plazo_dias']} días naturales")
-        if data.get('frecuencia_presentacion'):
+        if data.get("frecuencia_presentacion"):
             lines.append(f"  Frecuencia: {data['frecuencia_presentacion']}")
-        if data.get('ventana_presentacion'):
+        if data.get("ventana_presentacion"):
             lines.append(f"  Ventana: {data['ventana_presentacion']}")
-        if data.get('trigger_presentacion'):
+        if data.get("trigger_presentacion"):
             lines.append(f"  Trigger: {data['trigger_presentacion']}")
-        if data.get('canal_presentacion'):
+        if data.get("canal_presentacion"):
             lines.append(f"  Canal: {data['canal_presentacion']}")
-        if data.get('obligados_resumen'):
+        if data.get("obligados_resumen"):
             lines.append(f"  Obligados: {data['obligados_resumen']}")
-        if data.get('owner_rol_sugerido'):
+        if data.get("owner_rol_sugerido"):
             lines.append(f"  Owner sugerido: {data['owner_rol_sugerido']}")
-        if data.get('criticidad'):
+        if data.get("criticidad"):
             lines.append(f"  Criticidad: {data['criticidad']}")
-        if data.get('control_interno_sugerido'):
+        if data.get("control_interno_sugerido"):
             lines.append(f"  Control interno: {data['control_interno_sugerido']}")
-        if data.get('procedimiento_relacionado'):
+        if data.get("procedimiento_relacionado"):
             lines.append(f"  Procedimiento: {data['procedimiento_relacionado']}")
         lines.append("")
 
-        evidencias = data.get('evidencia_requerida') or []
+        evidencias = data.get("evidencia_requerida") or []
         if evidencias:
             lines.append("Evidencia requerida:")
             for item in evidencias:
@@ -479,36 +1113,36 @@ class MCPStdioServer:
             lines.append("")
 
         lines.append("Sanciones:")
-        if data.get('sancion_min') is not None or data.get('sancion_max') is not None:
-            min_val = data['sancion_min'] if data.get('sancion_min') else "N/A"
-            max_val = data['sancion_max'] if data.get('sancion_max') else "N/A"
+        if data.get("sancion_min") is not None or data.get("sancion_max") is not None:
+            min_val = data["sancion_min"] if data.get("sancion_min") else "N/A"
+            max_val = data["sancion_max"] if data.get("sancion_max") else "N/A"
             lines.append(f"  Rango: {min_val}€ - {max_val}€")
-        if data.get('recargo_voluntario'):
+        if data.get("recargo_voluntario"):
             lines.append(f"  Recargo voluntario: {data['recargo_voluntario']}")
-        if data.get('recargo_involuntario'):
+        if data.get("recargo_involuntario"):
             lines.append(f"  Recargo involuntario: {data['recargo_involuntario']}")
-        if data.get('interes_demora'):
+        if data.get("interes_demora"):
             lines.append(f"  Interés demora: {data['interes_demora']}")
-        if data.get('prescripcion_anos'):
+        if data.get("prescripcion_anos"):
             lines.append(f"  Prescripción: {data['prescripcion_anos']} años")
-        if data.get('deposito_previo'):
+        if data.get("deposito_previo"):
             lines.append(f"  Depósito previo: {data['deposito_previo']}")
         lines.append("")
 
-        if data.get('documento_origen_ref'):
+        if data.get("documento_origen_ref"):
             lines.append(f"Documento origen: {data['documento_origen_tipo']} — {data['documento_origen_ref']}")
-        if data.get('seccion_origen'):
+        if data.get("seccion_origen"):
             lines.append(f"  Sección: {data['seccion_origen']}")
-        if data.get('nota'):
+        if data.get("nota"):
             lines.append(f"  Nota: {data['nota']}")
         lines.append("")
 
-        if data.get('origen_metadato'):
+        if data.get("origen_metadato"):
             lines.append(f"Origen metadato: {data['origen_metadato']} | Estado: {data.get('estado_metadato', 'N/A')}")
 
-        if data.get('documentos'):
+        if data.get("documentos"):
             lines.append(f"Documentos relacionados: {len(data['documentos'])}")
-            for doc in data['documentos']:
+            for doc in data["documentos"]:
                 lines.append(f"  - {doc['referencia']} ({doc['tipo_documento']}) — {doc['tipo_relacion']}")
 
         return "\n".join(lines)
@@ -521,6 +1155,168 @@ class MCPStdioServer:
             "no_residente": "no_residente",
         }
         return mapping.get(tipo_entidad, "contribuyente")
+
+    def _format_sfdr_products(self, data: dict) -> str:
+        items = data.get("items", [])
+        total = data.get("total", 0)
+        lines = [f"Productos SFDR: {total} resultados"]
+        for p in items:
+            paci = "SI" if p.get("principal_adverse_impact") == "true" else "NO"
+            lines.append(f"  [{p.get('id')}] {p.get('product_name')} | {p.get('product_type')} | {p.get('sustainability_strategy', 'N/A')} | PACI: {paci} | {p.get('status')}")
+        return "\n".join(lines)
+
+    def _format_sfdr_product_detail(self, data: dict) -> str:
+        lines = [f"Producto SFDR: {data.get('product_name')}"]
+        lines.append(f"  Tipo: {data.get('product_type')} | Estrategia: {data.get('sustainability_strategy', 'N/A')}")
+        lines.append(f"  PACI: {data.get('principal_adverse_impact')} | Estado: {data.get('status')}")
+        paci_agg = data.get("paci_aggregated")
+        if paci_agg:
+            lines.append(f"  PACI agregado: {json.dumps(paci_agg, ensure_ascii=False)}")
+        dist = data.get("distribution_country")
+        if dist:
+            lines.append(f"  Distribuciòn: {', '.join(dist if isinstance(dist, list) else [])}")
+        return "\n".join(lines)
+
+    def _format_sfdr_pacai(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Indicadores PCAI SFDR: {len(items)} resultados"]
+        for i in items:
+            val = i.get("value")
+            lines.append(f"  [{i.get('id')}] {i.get('indicator_code')} — {i.get('indicator_name')}: {val} {i.get('unit', '')} | ref: {i.get('reference_period', 'N/A')}")
+        return "\n".join(lines)
+
+    def _format_sfdr_entity_paci(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"PCAI Entidad SFDR: {len(items)} resultados"]
+        for p in items:
+            lines.append(f"  [{p.get('id')}] Entidad {p.get('entity_id')} | Ano: {p.get('reporting_year')} | {p.get('status')}")
+        return "\n".join(lines)
+
+    def _format_sfdr_pre_contractual(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Docs precontractuales SFDR: {len(items)} resultados"]
+        for d in items:
+            lines.append(f"  [{d.get('id')}] {d.get('document_type')} | Producto {d.get('product_id')} | Pub: {d.get('published_date', 'N/A')} | {d.get('status')}")
+        return "\n".join(lines)
+
+    def _format_sfdr_annual_reports(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Informes anuales SFDR: {len(items)} resultados"]
+        for r in items:
+            lines.append(f"  [{r.get('id')}] Entidad {r.get('entity_id')} | Ano: {r.get('reporting_year')} | {r.get('status')}")
+        return "\n".join(lines)
+
+    def _format_csrd_entity_reports(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Informes CSRD: {len(items)} resultados"]
+        for r in items:
+            lines.append(f"  [{r.get('id')}] Entidad {r.get('entity_id')} | Ano: {r.get('reporting_year')} | Aseguramiento: {r.get('assurance_status', 'N/A')} | {r.get('status')}")
+        return "\n".join(lines)
+
+    def _format_csrd_esg_data(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Puntos de datos ESG CSRD: {len(items)} resultados"]
+        for d in items:
+            val = d.get("value")
+            lines.append(f"  [{d.get('id')}] {d.get('topic')} | {d.get('indicator_code', 'N/A')}: {val} {d.get('unit', '')} | scope: {d.get('scope', 'N/A')}")
+        return "\n".join(lines)
+
+    def _format_csrd_ess(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Estàndares ESRS CSRD: {len(items)} resultados"]
+        for e in items:
+            lines.append(f"  [{e.get('id')}] {e.get('standard_code')} — {e.get('topic', 'N/A')} | Aplica desde: {e.get('applicable_from_year', 'N/A')} | {e.get('description', '')[:100]}")
+        return "\n".join(lines)
+
+    def _format_csrd_double_materiality(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Evaluaciones doble materialidad CSRD: {len(items)} resultados"]
+        for m in items:
+            lines.append(f"  [{m.get('id')}] Entidad {m.get('entity_id')} | Fecha: {m.get('assessment_date', 'N/A')} | {m.get('status')}")
+            impacts = m.get("key_impacts")
+            if impacts:
+                lines.append(f"    Impactos clave: {impacts[:200]}")
+        return "\n".join(lines)
+
+    def _format_aifmd_funds(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Fondos AIFMD: {len(items)} resultados"]
+        for f in items:
+            aum = f.get("total_aum_eur")
+            aum_str = f"{aum:,.0f} EUR" if aum else "N/A"
+            passport = "SI" if f.get("cross_border_passport") else "NO"
+            lines.append(f"  [{f.get('id')}] {f.get('fund_name')} | {f.get('fund_type')} | AUM: {aum_str} | Passport: {passport} | {f.get('home_member_state', 'N/A')}")
+        return "\n".join(lines)
+
+    def _format_aifmd_reports(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Informes regulatorios AIFMD: {len(items)} resultados"]
+        for r in items:
+            lines.append(f"  [{r.get('id')}] Fondo {r.get('fund_id')} | {r.get('report_type')} | {r.get('reporting_period', 'N/A')} | {r.get('status')}")
+        return "\n".join(lines)
+
+    def _format_aifmd_liquidity(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Gestiòn liquidez AIFMD: {len(items)} resultados"]
+        for item in items:
+            susp = "SI" if item.get("redemption_suspended") else "NO"
+            gate = "SI" if item.get("gating_applied") else "NO"
+            swing = "SI" if item.get("swing_price_applied") else "NO"
+            lines.append(f"  [{item.get('id')}] Fondo {item.get('fund_id')} | Suspensiòn: {susp} | Gate: {gate} | Swing: {swing} | Freq: {item.get('valuation_frequency', 'N/A')}")
+        return "\n".join(lines)
+
+    def _format_ucits_funds(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Fondos UCITS: {len(items)} resultados"]
+        for f in items:
+            aum = f.get("total_aum_eur")
+            aum_str = f"{aum:,.0f} EUR" if aum else "N/A"
+            passport = "SI" if f.get("cross_border_passport") else "NO"
+            lines.append(f"  [{f.get('id')}] {f.get('fund_name')} | Gestor: {f.get('management_company', 'N/A')} | AUM: {aum_str} | Passport: {passport} | {f.get('risk_profile', 'N/A')}")
+        return "\n".join(lines)
+
+    def _format_ucits_reports(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Informes regulatorios UCITS: {len(items)} resultados"]
+        for r in items:
+            lines.append(f"  [{r.get('id')}] Fondo {r.get('fund_id')} | {r.get('report_type')} | {r.get('reporting_period', 'N/A')} | {r.get('status')}")
+        return "\n".join(lines)
+
+    def _format_crd_capital(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Posiciones capital CRD/CRR: {len(items)} resultados"]
+        for p in items:
+            lines.append(f"  [{p.get('id')}] Entidad {p.get('entity_id')} | Fecha: {p.get('reporting_date')} | CET1: {p.get('cet1_ratio')}% | Tier1: {p.get('tier1_ratio')}% | Total: {p.get('total_capital_ratio')}% | Leverage: {p.get('leverage_ratio')}%")
+        return "\n".join(lines)
+
+    def _format_crd_stress_tests(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Pruebas de estrès CRD: {len(items)} resultados"]
+        for t in items:
+            lines.append(f"  [{t.get('id')}] Entidad {t.get('entity_id')} | {t.get('scenario_name', 'N/A')} | Fecha: {t.get('test_date')} | CET1 impact: {t.get('cet1_impact_pct')}% | Autoridad: {t.get('competent_authority', 'N/A')}")
+        return "\n".join(lines)
+
+    def _format_brrd_bail_in(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Bail-in MREL BRRD: {len(items)} resultados"]
+        for b in items:
+            lines.append(f"  [{b.get('id')}] Entidad {b.get('entity_id')} | MREL target: {b.get('mrel_target_pct')}% | Compliance: {b.get('mrel_compliance_pct')}% | Internal MREL: {b.get('internal_mrel')}% | Resolution: {b.get('resolution_status', 'N/A')}")
+        return "\n".join(lines)
+
+    def _format_emir_trades(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Reportes operaciòn EMIR: {len(items)} resultados"]
+        for t in items:
+            clear = "SI" if t.get("clearing_obligation_applied") else "NO"
+            lines.append(f"  [{t.get('id')}] Trade {t.get('trade_id')} | {t.get('asset_class')} | {t.get('instrument_class', 'N/A')} | Clearing: {clear} | Counterparty: {t.get('counterparty_type', 'N/A')} | Delay: {t.get('reporting_delay_days', 'N/A')}d")
+        return "\n".join(lines)
+
+    def _format_emir_clearing(self, data: dict) -> str:
+        items = data.get("items", [])
+        lines = [f"Miembros liquidaciòn EMIR: {len(items)} resultados"]
+        for c in items:
+            lines.append(f"  [{c.get('id')}] Entidad {c.get('entity_id')} | {c.get('emir_registration', 'N/A')} | {c.get('clearing_type')} | {c.get('status')}")
+        return "\n".join(lines)
 
     def _format_compliance_resumen(self, data: list[dict]) -> str:
         if not data:
@@ -542,9 +1338,9 @@ class MCPStdioServer:
             lines.append(f"  Obligacion: {caso.get('obligacion_codigo', 'N/A')}")
             lines.append(f"  Estado: {caso.get('estado', 'N/A')}")
             lines.append(f"  Owner: {caso.get('owner_rol', 'N/A')}")
-            if caso.get('fecha_objetivo'):
+            if caso.get("fecha_objetivo"):
                 lines.append(f"  Fecha objetivo: {caso['fecha_objetivo']}")
-            if caso.get('notas'):
+            if caso.get("notas"):
                 lines.append(f"  Notas: {caso['notas'][:200]}")
             lines.append("")
 

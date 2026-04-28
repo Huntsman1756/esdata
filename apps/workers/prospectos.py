@@ -1,8 +1,16 @@
-"""Worker para Prospectos ETI (Reglamento UE 2017/1129).
+"""Worker para Prospectos ETI, AIFMD y UCITS (Reglamentos y Directivas UE).
 
-Ingesta la normativa de prospectos desde EUR-Lex/BOE, parsea articulos y
-los almacena en las tablas norma/articulo/version_articulo con
-regulacion_relacionada='prospectos_eti'.
+Ingesta normativa desde EUR-Lex/BOE, parsea articulos y los almacena en las
+tablas norma/articulo/version_articulo con regulacion_relacionada adecuada:
+- prospectos_eti: Reglamento (UE) 2017/1129
+- aifmd: Directiva 2011/61/UE
+- ucits: Directiva 2009/65/CE
+
+Usage:
+    python prospectos.py --run-once --domain prospectos
+    python prospectos.py --run-once --domain aifmd
+    python prospectos.py --run-once --domain ucits
+    python prospectos.py --run-once --domain all
 """
 
 import argparse
@@ -29,7 +37,6 @@ DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
 # Reglamento (UE) 2017/1129 de prospectos — CELEX:32017R1129
-# Consolidated version via EUR-Lex
 PROSPECTOS_NORMA = {
     "codigo": "PROSPECTOS_2017_1129",
     "boe_id": "EUR-CELEX-32017R1129",
@@ -40,6 +47,50 @@ PROSPECTOS_NORMA = {
     "tipo_documento": "reglamento",
     "ambito": "mercados_financieros_ue",
     "estado_cobertura": "ingestada",
+}
+
+# Directiva 2011/61/UE — AIFMD (Alternative Investment Fund Managers Directive)
+AIFMD_NORMA = {
+    "codigo": "AIFMD_2011_0061",
+    "boe_id": "EUR-CELEX-32011L0061",
+    "titulo": "Directiva 2011/61/UE sobre gestores de fondos de inversion alternativos (AIFMD)",
+    "eli_uri": "https://eur-lex.europa.eu/eli/dir/2011/61/oj",
+    "jurisdiccion": "ue",
+    "tipo_fuente": "eurlex",
+    "tipo_documento": "directiva",
+    "ambito": "fondos_inversion_ue",
+    "estado_cobertura": "ingestada",
+}
+
+# Directiva 2009/65/CE — UCITS (Undertakings for Collective Investment in Transferable Securities)
+UCITS_NORMA = {
+    "codigo": "UCITS_2009_0065",
+    "boe_id": "EUR-CELEX-32009L0065",
+    "titulo": "Directiva 2009/65/CE sobre la coordinacion de disposiciones legales, reglamentarias y administrativas relativas a ciertos organismos de inversion colectiva en valores (UCITS)",
+    "eli_uri": "https://eur-lex.europa.eu/eli/dir/2009/65/oj",
+    "jurisdiccion": "ue",
+    "tipo_fuente": "eurlex",
+    "tipo_documento": "directiva",
+    "ambito": "fondos_inversion_ue",
+    "estado_cobertura": "ingestada",
+}
+
+DOMAIN_NORMAS = {
+    "prospectos": PROSPECTOS_NORMA,
+    "aifmd": AIFMD_NORMA,
+    "ucits": UCITS_NORMA,
+}
+
+DOMAIN_CELEX = {
+    "prospectos": "32017R1129",
+    "aifmd": "32011L0061",
+    "ucits": "32009L0065",
+}
+
+DOMAIN_TIPO = {
+    "prospectos": "prospectos_eti",
+    "aifmd": "aifmd",
+    "ucits": "ucits",
 }
 
 
@@ -209,8 +260,8 @@ def log_sync(
     )
 
 
-def upsert_prospectos_norma(conn) -> None:
-    """Upsert the prospectos ETI norma record."""
+def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
+    """Upsert a norma record (prospectos, AIFMD or UCITS)."""
     conn.execute(
         text(
             """
@@ -234,11 +285,11 @@ def upsert_prospectos_norma(conn) -> None:
                 vigente_desde = EXCLUDED.vigente_desde
             """
         ),
-        {**PROSPECTOS_NORMA, "vigente_desde": "2017-06-07"},
+        {**norma, "vigente_desde": vigente_desde},
     )
 
 
-def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
+def upsert_articulo(conn, codigo: str, bloque: BloqueTexto, regulacion_relacionada: str) -> None:
     conn.execute(
         text(
             """
@@ -383,18 +434,28 @@ def _yyyymmdd_to_iso(value: str) -> str:
 
 def run_sync(
     worker_name: str = "worker-prospectos",
+    domain: str = "prospectos",
 ) -> dict[str, int]:
     engine = create_engine(DATABASE_URL, future=True)
     bloques_fetched = 0
     articulos_upserted = 0
     sync_start = datetime.now(UTC).isoformat()
+    norma = DOMAIN_NORMAS[domain]
+    celex = DOMAIN_CELEX[domain]
+    tipo = DOMAIN_TIPO[domain]
+    vigente_desde_map = {
+        "prospectos": "2017-06-07",
+        "aifmd": "2013-07-01",
+        "ucits": "2009-08-01",
+    }
+    vigente_desde = vigente_desde_map.get(domain, "2017-06-07")
 
     try:
         with httpx.Client(timeout=30.0) as client, engine.begin() as conn:
-            upsert_prospectos_norma(conn)
+            upsert_norma(conn, norma, vigente_desde)
             ensure_source_revision_table(conn)
 
-            for item in fetch_index(client, "32017R1129"):
+            for item in fetch_index(client, celex):
                 if not _is_supported_block(item.titulo):
                     continue
                 bloque = fetch_block(client, item.id)
@@ -413,7 +474,7 @@ def run_sync(
                         f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
                     )
 
-                upsert_articulo(conn, "PROSPECTOS_2017_1129", bloque)
+                upsert_articulo(conn, norma["codigo"], bloque, tipo)
                 record_revision(
                     conn,
                     worker_name,
@@ -449,7 +510,7 @@ def run_sync(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Prospectos ETI worker: sync Reglamento 2017/1129 from EUR-Lex"
+        description="Prospectos/AIFMD/UCITS worker: sync EU regulations from EUR-Lex"
     )
     parser.add_argument(
         "--run-once", action="store_true", help="Run a single sync cycle and exit"
@@ -460,6 +521,12 @@ if __name__ == "__main__":
         default=None,
         help=f"Seconds between sync cycles in continuous mode (default: {SYNC_INTERVAL_SECONDS})",
     )
+    parser.add_argument(
+        "--domain",
+        choices=["prospectos", "aifmd", "ucits", "all"],
+        default="prospectos",
+        help="Regulation domain to sync (default: prospectos)",
+    )
     args = parser.parse_args()
 
     from runtime import init_sentry
@@ -468,15 +535,20 @@ if __name__ == "__main__":
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 
     if args.run_once:
-        result = run_sync(worker_name="cron-prospectos-weekly")
-        print(
-            f"[run-once] Bloques: {result['bloques']}, Artículos: {result['articulos']}"
-        )
-    else:
-        print(f"Starting Prospectos ETI worker in continuous mode (interval={interval}s)")
-        while True:
-            result = run_sync()
+        domains = ["prospectos", "aifmd", "ucits"] if args.domain == "all" else [args.domain]
+        for d in domains:
+            result = run_sync(worker_name=f"cron-{d}-weekly", domain=d)
             print(
-                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(UTC).isoformat()}"
+                f"[{d}] Bloques: {result['bloques']}, Articulos: {result['articulos']}"
+            )
+    else:
+        domain = args.domain
+        if domain == "all":
+            domain = "prospectos"
+        print(f"Starting {domain} worker in continuous mode (interval={interval}s)")
+        while True:
+            result = run_sync(domain=domain)
+            print(
+                f"Synced {domain}: bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(UTC).isoformat()}"
             )
             time.sleep(interval)
