@@ -58,7 +58,7 @@ Fuera de alcance inicial:
 - Fase 30.14 Auditoria de vulnerabilidades y hardening: `COMPLETA`
 - Fase 30.15 Dependabot alerts: `COMPLETA`
 - Fase 30 — Remediacion estructural post-auditoria: `COMPLETA`
-- Fase 31 — Expansion regulatoria (MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021): `EN CURSO`
+- Fase 31 — Expansion regulatoria (MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021, SFDR, CSRD, AIFMD/UCITS, CRD/CRR/BRRD/EMIR): `COMPLETA`
 - Fase 32 — Workers: discovery, parser fixes y monitorizacion: `COMPLETADA`
 
 Estado tecnico consolidado:
@@ -3606,7 +3606,8 @@ El worker `cnmv.py` mapea documentos a regulaciones EU via keyword matching (`cn
 - **31.9.2 CSRD**: COMPLETADA — DB migration (4 tablas), API endpoints (8), worker, 30 tests, seed data
 - **31.9.3 AIFMD/UCITS**: COMPLETADA — DB migration (5 tablas), API endpoints (10), worker, 33 tests, seed data
 - **31.9.4 CRD V/CRR, BRRD, EMIR**: COMPLETADA — DB migration (5 tablas), API endpoints (20), worker, 37 tests, seed data
-- **31.9.5 Workers/Routers/Seeds**: PENDIENTE — despues de 31.9.4
+- **31.9.5 Workers/Routers/Seeds**: COMPLETADA — unified search handlers, cnbv keywords, backfill chunks, architecture update
+- **31.9.6 Seeds, prospectos expansion, MCP tools**: COMPLETADA — 6 seed scripts, prospectos.py AIFMD/UCITS, 38 MCP tools (HTTP + stdio)
 - **Prioridad**: media — financiamiento sostenible y requisitos prudenciales
 
 ### Contexto
@@ -3678,6 +3679,27 @@ Estas son regulaciones de alto impacto para una sociedad de valores: SFDR afecta
 
 **Tests + integracion retrieval**: como Fase 31.7
 
+### Fase 31.9.6 — Seed scripts, prospectos expansion y MCP tools
+
+**Seed scripts creados** (patrón `psycopg` + `ON CONFLICT`):
+- `seed_sfdr.py` — 5 tablas SFDR (products, PACAI, entity PACI, pre-contractual, annual reports)
+- `seed_csrd.py` — 4 tablas CSRD (reports, ESG data points, ES standards, double materiality)
+- `seed_aifmd.py` — 3 tablas AIFMD (funds, regulatory reports, liquidity management)
+- `seed_ucits.py` — 2 tablas UCITS (funds, regulatory reports)
+- `seed_crd.py` — 3 tablas CRD/BRRD (capital positions, stress tests, bail-in)
+- `seed_emir.py` — 2 tablas EMIR (trade reports, clearing members)
+
+**prospectos.py expandido**:
+- Soporte para 3 dominios: `prospectos`, `aifmd`, `ucits`
+- CELEX identifiers: `32017R1129` (prospectos), `32011L0061` (AIFMD), `32009L0065` (UCITS)
+- `upsert_norma()` genérica, `upsert_articulo()` con `regulacion_relacionada`
+- CLI soporta `--domain {prospectos,aifmd,ucits,all}`
+
+**MCP tools (38 operation_ids)**:
+- HTTP transport: 38 tools via `FastApiMCP` en `mcp_server.py`
+- stdio transport: 38 tool definitions en `mcp_catalog.py` + handlers en `mcp_stdio.py`
+- Cobertura: SFDR (10), CSRD (8), AIFMD (6), UCITS (4), CRD/BRRD (6), EMIR (4)
+
 ### Criterio de exito Fase 31.9
 
 1. existen tablas para SFDR (5), CSRD (4), AIFMD/UCITS (5), CRD/BRRD/EMIR (5)
@@ -3686,6 +3708,9 @@ Estas son regulaciones de alto impacto para una sociedad de valores: SFDR afecta
 4. endpoints validan input con schema Pydantic y tienen rate limiting
 5. tests verdes + grounding duro para SFDR/CSRD/AIFMD/UCITS/CRD/BRRD/EMIR
 6. `architecture.md` actualizado con los 3 nuevos dominios como `[IMPLEMENTED]`
+7. 6 seed scripts funcionales con datos de ejemplo
+8. prospectos.py soporta AIFMD/UCITS directive text desde EUR-Lex
+9. 38 MCP tools disponibles en HTTP y stdio transports
 
 ---
 
