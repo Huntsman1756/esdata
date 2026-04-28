@@ -85,9 +85,6 @@ def _upsert_fund(cur, row):
             investment_strategy, risk_profile, status)
            VALUES (%s, %s, %s::date, %s, %s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (fund_name) DO UPDATE SET
-             management_company = EXCLUDED.management_company,
-             registration_date = EXCLUDED.registration_date,
-             home_member_state = EXCLUDED.home_member_state,
              cross_border_passport = EXCLUDED.cross_border_passport,
              total_aum_eur = EXCLUDED.total_aum_eur,
              depositary_id = EXCLUDED.depositary_id,
@@ -104,9 +101,8 @@ def _upsert_report(cur, row):
         """INSERT INTO ucits_regulatory_report
            (fund_id, report_type, reporting_period, url, filed_date, status)
            VALUES (%s, %s, %s, %s, %s::date, %s)
-           ON CONFLICT (fund_id, report_type, reporting_period) DO UPDATE SET
+           ON CONFLICT (fund_id, reporting_period) DO UPDATE SET
              url = EXCLUDED.url,
-             filed_date = EXCLUDED.filed_date,
              status = EXCLUDED.status""",
         row,
     )

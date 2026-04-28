@@ -3,7 +3,7 @@
 import psycopg2
 from psycopg2.extras import execute_values
 
-DB_URL = "postgresql://esdata:testpass@localhost:5434/esdata"
+DB_URL = "postgresql://esdata:esdata_dev@localhost:5434/esdata"
 
 def get_connection():
     return psycopg2.connect(DB_URL, options="-c search_path=public")

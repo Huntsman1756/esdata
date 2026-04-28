@@ -73,7 +73,6 @@ def _upsert_report(cur, row):
            ON CONFLICT (entity_id, reporting_year) DO UPDATE SET
              esap_url = EXCLUDED.esap_url,
              assurance_status = EXCLUDED.assurance_status,
-             reporting_standard = EXCLUDED.reporting_standard,
              status = EXCLUDED.status""",
         row,
     )
@@ -83,12 +82,9 @@ def _upsert_esg_data_point(cur, row):
     cur.execute(
         """INSERT INTO csrd_esg_data_point
            (report_id, topic, indicator_code, value, unit, scope, verification_status)
-           VALUES (%s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (report_id, topic, indicator_code) DO UPDATE SET
-             value = EXCLUDED.value,
-             unit = EXCLUDED.unit,
-             scope = EXCLUDED.scope,
-             verification_status = EXCLUDED.verification_status""",
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (report_id, topic, indicator_code) DO UPDATE SET
+              verification_status = EXCLUDED.verification_status""",
         row,
     )
 
@@ -96,13 +92,10 @@ def _upsert_esg_data_point(cur, row):
 def _upsert_ess(cur, row):
     cur.execute(
         """INSERT INTO csrd_ess
-           (standard_code, topic, applicable_from_year, description, status)
-           VALUES (%s, %s, %s, %s, %s)
+           (standard_code, topic, applicable_from_year, description)
+           VALUES (%s, %s, %s, %s)
            ON CONFLICT (standard_code) DO UPDATE SET
-             topic = EXCLUDED.topic,
-             applicable_from_year = EXCLUDED.applicable_from_year,
-             description = EXCLUDED.description,
-             status = EXCLUDED.status""",
+             description = EXCLUDED.description""",
         row,
     )
 
@@ -113,10 +106,7 @@ def _upsert_double_materiality(cur, row):
            (entity_id, impact_materiality, financial_materiality, assessment_date,
             key_impacts, key_dependencies, status)
            VALUES (%s, %s::json, %s::json, %s::date, %s, %s, %s)
-           ON CONFLICT (entity_id) DO UPDATE SET
-             impact_materiality = EXCLUDED.impact_materiality,
-             financial_materiality = EXCLUDED.financial_materiality,
-             assessment_date = EXCLUDED.assessment_date,
+           ON CONFLICT (entity_id, assessment_date) DO UPDATE SET
              key_impacts = EXCLUDED.key_impacts,
              key_dependencies = EXCLUDED.key_dependencies,
              status = EXCLUDED.status""",

@@ -1,7 +1,21 @@
 import asyncio
+import os
 
+import httpx
 from fastapi_mcp import FastApiMCP
 from starlette.responses import Response
+
+
+class _ApiKeyInjectingClient(httpx.AsyncClient):
+    """Wrap httpx.AsyncClient to inject X-API-Key for internal MCP calls."""
+
+    def __init__(self, *args, api_key: str, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._api_key = api_key
+
+    async def send(self, request: httpx.Request, **kwargs):
+        request.headers["x-api-key"] = self._api_key
+        return await super().send(request, **kwargs)
 
 
 def _patch_http_transport_readiness(http_transport) -> None:
@@ -44,9 +58,17 @@ def _patch_http_transport_readiness(http_transport) -> None:
 
 
 def mount_mcp(app):
+    esdata_api_key = os.environ.get("ESDATA_API_KEY", "")
+    mcp_http_client = _ApiKeyInjectingClient(
+        transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="http://internal",
+        timeout=10.0,
+        api_key=esdata_api_key,
+    )
     mcp = FastApiMCP(
         app,
         headers=["authorization", "x-request-id", "x-user-id"],
+        http_client=mcp_http_client,
         include_operations=[
             # Consulta fiscal inteligente (principal)
             "consulta_fiscal",

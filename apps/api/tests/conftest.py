@@ -3333,6 +3333,215 @@ STATEMENTS = [
     """
     CREATE INDEX IF NOT EXISTS ix_fraud_incident_status ON fraud_incident(status)
     """,
+    # --- Fase 31.10: PSD2/PSD3, SEPA, Consumer Credit, IDD, Solvency II tables ---
+    """
+    CREATE TABLE IF NOT EXISTS psd2_aspsp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        bic TEXT,
+        psd2_license TEXT,
+        strong_customer_auth_applied INTEGER NOT NULL DEFAULT 0,
+        api_version TEXT DEFAULT 'v2',
+        regulatory_status TEXT NOT NULL DEFAULT 'registered',
+        home_member_state TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_psd2_aspsp_entity ON psd2_aspsp(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS psd2_aisp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        registration_number TEXT,
+        registration_id TEXT,
+        access_scope TEXT,
+        valid_from DATE,
+        valid_to DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_psd2_aisp_entity ON psd2_aisp(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS psd2_pisp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        registration_number TEXT,
+        authorization_status TEXT NOT NULL DEFAULT 'authorized',
+        home_member_state TEXT,
+        psd3_transition_status TEXT DEFAULT 'not_started',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_psd2_pisp_entity ON psd2_pisp(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS psd2_consent (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER,
+        aspsp_id INTEGER,
+        consent_type TEXT NOT NULL DEFAULT 'AIS',
+        accounts_accessed TEXT,
+        payment_count_limit INTEGER,
+        used_count INTEGER NOT NULL DEFAULT 0,
+        valid_from DATE,
+        valid_to DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_psd2_consent_aspsp ON psd2_consent(aspsp_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS psd2_incident_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        aspsp_id INTEGER,
+        incident_type TEXT,
+        severity TEXT NOT NULL DEFAULT 'medium',
+        description TEXT,
+        reported_to_bde INTEGER NOT NULL DEFAULT 0,
+        reported_date DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_psd2_incident_aspsp ON psd2_incident_report(aspsp_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sepa_payment_rule (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scheme_version TEXT NOT NULL,
+        payment_type TEXT NOT NULL,
+        service_level TEXT NOT NULL,
+        local_instrument TEXT,
+        category_purpose TEXT,
+        cut_off_time TEXT,
+        settlement_days INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS consumer_credit_contract (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lender_id INTEGER,
+        borrower_id INTEGER,
+        credit_type TEXT NOT NULL DEFAULT 'installment',
+        principal_amount NUMERIC(12,2),
+        annual_percentage_rate NUMERIC(6,2),
+        total_amount NUMERIC(12,2),
+        term_months INTEGER,
+        purpose TEXT,
+        signing_date DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_consumer_credit_contract_lender ON consumer_credit_contract(lender_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS consumer_credit_disclosure (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contract_id INTEGER,
+        fap NUMERIC(6,2),
+        total_cost NUMERIC(12,2),
+        regular_payment NUMERIC(10,2),
+        amortization_schedule_url TEXT,
+        right_of_withdrawal INTEGER NOT NULL DEFAULT 1,
+        early_repayment_penalty NUMERIC(10,2),
+        url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_consumer_credit_disclosure_contract ON consumer_credit_disclosure(contract_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS consumer_credit_overindebtedness (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        borrower_id INTEGER,
+        declared_date DATE,
+        total_debt NUMERIC(12,2),
+        monthly_income NUMERIC(10,2),
+        unsecured_debt NUMERIC(12,2),
+        procedure_status TEXT NOT NULL DEFAULT 'declared',
+        court_reference TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_consumer_credit_overindebtedness_borrower ON consumer_credit_overindebtedness(borrower_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS idd_distributor (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        registration_number TEXT,
+        insurance_ao TEXT,
+        products_covered TEXT,
+        professional_indemnity INTEGER NOT NULL DEFAULT 0,
+        training_certified INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_idd_distributor_entity ON idd_distributor(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS idd_product_uci (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER,
+        product_type TEXT NOT NULL DEFAULT 'life',
+        risk_coverage TEXT,
+        cost_breakdown TEXT,
+        exit_costs TEXT,
+        taxes TEXT,
+        version TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_idd_product_uci_product ON idd_product_uci(product_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS solvency_ii_entity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        entity_type TEXT NOT NULL DEFAULT 'life',
+        solvency_capital_requirement NUMERIC(14,2),
+        minimum_capital_requirement NUMERIC(14,2),
+        solvency_ratio NUMERIC(8,2),
+        reporting_date DATE,
+        home_supervisor TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_solvency_ii_entity_entity ON solvency_ii_entity(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS solvency_ii_sfp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        reporting_period TEXT,
+        fund_breakdown TEXT,
+        asset_allocation TEXT,
+        url TEXT,
+        status TEXT NOT NULL DEFAULT 'published',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_solvency_ii_sfp_entity ON solvency_ii_sfp(entity_id)
+    """,
     # --- Fase 31.8: MiFID II/MiFIR tables ---
     """
     CREATE TABLE IF NOT EXISTS mifid_client_category (

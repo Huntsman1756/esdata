@@ -105,9 +105,6 @@ def _upsert_product(cur, row):
             paci_aggregated, paci_detailed_url, distribution_country, status)
            VALUES (%s, %s, %s, %s, %s::json, %s, %s::json, %s)
            ON CONFLICT (product_name) DO UPDATE SET
-             product_type = EXCLUDED.product_type,
-             sustainability_strategy = EXCLUDED.sustainability_strategy,
-             principal_adverse_impact = EXCLUDED.principal_adverse_impact,
              paci_aggregated = EXCLUDED.paci_aggregated,
              paci_detailed_url = EXCLUDED.paci_detailed_url,
              distribution_country = EXCLUDED.distribution_country,
@@ -123,9 +120,6 @@ def _upsert_pacai(cur, row):
             reference_period, methodology, status)
            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (product_id, indicator_code) DO UPDATE SET
-             indicator_name = EXCLUDED.indicator_name,
-             value = EXCLUDED.value,
-             unit = EXCLUDED.unit,
              reference_period = EXCLUDED.reference_period,
              methodology = EXCLUDED.methodology,
              status = EXCLUDED.status""",
@@ -151,9 +145,9 @@ def _upsert_pre_contractual(cur, row):
         """INSERT INTO sfdr_pre_contractual
            (product_id, document_type, url, published_date, version, status)
            VALUES (%s, %s, %s, %s::date, %s, %s)
-           ON CONFLICT (product_id, document_type, version) DO UPDATE SET
+           ON CONFLICT (product_id, document_type) DO UPDATE SET
              url = EXCLUDED.url,
-             published_date = EXCLUDED.published_date,
+             version = EXCLUDED.version,
              status = EXCLUDED.status""",
         row,
     )
@@ -166,9 +160,6 @@ def _upsert_annual_report(cur, row):
             good_practice_examples, url, published_date, status)
            VALUES (%s, %s, %s::json, %s::json, %s, %s, %s::date, %s)
            ON CONFLICT (entity_id, reporting_year) DO UPDATE SET
-             paci_results = EXCLUDED.paci_results,
-             engagement_activities = EXCLUDED.engagement_activities,
-             good_practice_examples = EXCLUDED.good_practice_examples,
              url = EXCLUDED.url,
              published_date = EXCLUDED.published_date,
              status = EXCLUDED.status""",

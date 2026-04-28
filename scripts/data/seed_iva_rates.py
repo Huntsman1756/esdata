@@ -73,8 +73,8 @@ def main():
 
     for row in igic:
         cur.execute(
-            """INSERT INTO iva_rates (year, territory, rate_type, rate, source)
-               VALUES (%s, %s, %s, %s, %s)
+            """INSERT INTO iva_rates (year, territory, rate_type, rate, applies_to, source)
+               VALUES (%s, %s, %s, %s, %s, %s)
                ON CONFLICT (year, territory, rate_type) DO UPDATE SET rate = EXCLUDED.rate""",
             row,
         )
@@ -82,8 +82,9 @@ def main():
     # IPSI Ceuta y Melilla
     cur.execute(
         """INSERT INTO iva_rates (year, territory, rate_type, rate, applies_to, source)
-           VALUES (2025, 'ceuta_melilla', 'rango', 0.5, 'Rango 0.5% - 10%', 'Ley 8/1991')
+           VALUES (%s, %s, %s, %s, %s, %s)
            ON CONFLICT (year, territory, rate_type) DO UPDATE SET applies_to = EXCLUDED.applies_to""",
+        (2025, 'ceuta_melilla', 'rango', 0.5, 'Rango 0.5% - 10%', 'Ley 8/1991'),
     )
 
     conn.commit()

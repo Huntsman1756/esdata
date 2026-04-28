@@ -42,9 +42,6 @@ def _upsert_position(cur, row):
             risk_weighted_assets, status)
            VALUES (%s, %s::date, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (entity_id, reporting_date) DO UPDATE SET
-             cet1_ratio = EXCLUDED.cet1_ratio,
-             tier1_ratio = EXCLUDED.tier1_ratio,
-             total_capital_ratio = EXCLUDED.total_capital_ratio,
              cet1_amount = EXCLUDED.cet1_amount,
              tier1_amount = EXCLUDED.tier1_amount,
              total_capital_amount = EXCLUDED.total_capital_amount,
