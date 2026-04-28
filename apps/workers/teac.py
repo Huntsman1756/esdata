@@ -17,7 +17,6 @@ from change_detection import (
 from runtime import get_database_url, get_interval_seconds
 from sqlalchemy import create_engine, text
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -68,6 +67,10 @@ def parse_resolution_html(html: str) -> dict[str, str]:
         ],
         html,
     )
+    if not fecha:
+        logger.warning("TEAC: fecha not found in HTML, using ingestion date as fallback")
+        fecha = datetime.now(UTC).date().isoformat()
+
     organo = _extract_first(
         [
             r'<div class="organo">(.*?)</div>',
@@ -90,9 +93,14 @@ def parse_resolution_html(html: str) -> dict[str, str]:
         html,
     )
 
+    try:
+        parsed_fecha = datetime.strptime(fecha, "%d/%m/%Y").date().isoformat()
+    except ValueError:
+        parsed_fecha = fecha
+
     return {
         "referencia": referencia,
-        "fecha": datetime.strptime(fecha, "%d/%m/%Y").date().isoformat(),
+        "fecha": parsed_fecha,
         "organo": organo,
         "titulo": titulo,
         "texto": texto,
@@ -152,10 +160,8 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(UTC).isoformat()
 
     try:
-        with httpx.Client(timeout=30.0) as client:
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
                 ensure_source_revision_table(conn)

@@ -884,3 +884,17 @@ def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch
         ).fetchall()
 
     assert [w[0] for w in workers] == ["worker-teac", "cron-teac-weekly"]
+
+
+def test_parse_resolution_html_fallback_when_date_is_none():
+    html = (FIXTURES / "teac-no-date-resolution.html").read_text(encoding="utf-8")
+
+    data = parse_resolution_html(html)
+
+    assert data["referencia"] == "00/5678/2024"
+    assert data["organo"] == "Tribunal Economico-Administrativo Central"
+    assert data["titulo"] == "IRPF. Deduccion por doble imposicion en dividendos."
+    assert data["texto"] == "Se estima la reclamacion y se aplica el criterio sobre la deduccion por doble imposicion en dividendos del IRPF."
+    assert data["fecha"] is not None
+    assert len(data["fecha"]) == 10
+    assert "/" not in data["fecha"]
