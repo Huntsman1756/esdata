@@ -68,6 +68,7 @@ from routers import (
     ley272014,
     materias,
     mercantil,
+    mica,
     micro_obligaciones,
     mica,
     model_registry,
@@ -294,6 +295,7 @@ def create_app() -> FastAPI:
     app.include_router(ley112021.router)
     app.include_router(nrv9.router)
     app.include_router(mercantil.router)
+    app.include_router(mica.router)
     app.include_router(xbrl.router)
     app.include_router(playbooks.router)
     app.include_router(risk_control_matrix.router)
