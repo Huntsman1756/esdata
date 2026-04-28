@@ -7,7 +7,8 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ## 2026-04-27
 
 ### main
-- **xxxxxxxx** `feat(api)` — Fase 31.1: MiCA/crypto data model — Alembic migration 0036 creates 5 tables (casp, crypto_asset, tokenized_asset, wallet_custodian, crypto_transaction), 25 Pydantic schemas (Summary/Detail/Create/Update/ListResponse per entity), 10 REST endpoints under /v1/mica with filters and 404 handling, registered in main.py
+- **fc31858** `feat(api)` — Fase 31.1: MiCA/crypto data model — Alembic migration 0036 creates 5 tables (casp, crypto_asset, tokenized_asset, wallet_custodian, crypto_transaction), 25 Pydantic schemas (Summary/Detail/Create/Update/ListResponse per entity), 10 REST endpoints under /v1/mica with filters and 404 handling, registered in main.py
+- **PENDING** `feat(workers)` — create apps/workers/mica.py with seed data for CASP providers, crypto assets (MiCA classification), tokenized assets, wallet custodians and DAC8/DAC9 crypto transactions; 3 tests passing (persist all entities, JSON serialization, idempotent upsert)
 - **PENDING** `fix(workers)` — harden regulatory workers with source-revision advisory locking, BOE HTML follow-up for CNMV, entity-scoped embedding invalidation, and TEAC test/runtime alignment while documenting deterministic production monitoring and DGT discovery prework in the roadmap
 - **PENDING** `config` — add verified CENDOJ and AEPD seeds to env templates, fix TEAC logger crash in the runtime error path, and document that TEAC parser date extraction remains pending against the real Hacienda HTML
 - **e5d5f3f** `docs(config)` — persist verified CNMV, SEPBLAC and BDE worker seeds in `.env.example` and record the active deployment handoff in the roadmap so fresh environments inherit the validated regulatory sources
