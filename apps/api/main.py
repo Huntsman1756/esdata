@@ -41,6 +41,9 @@ from routers import (
     criterio,
     criterio_curacion,
     csdr,
+    corporate_sustainability,
+    aifmd_ucits,
+    crd_brrd_emir,
     dac_directives,
     data_lineage,
     dgt_doctrina,
@@ -77,6 +80,7 @@ from routers import (
     dora,
     priips,
     transparency,
+    sustainable_finance,
     micro_obligaciones,
     model_registry,
     modelos,
@@ -334,11 +338,17 @@ def create_app() -> FastAPI:
     app.include_router(ley112009_socimi.router)
     app.include_router(ley222014_lecr.router)
     app.include_router(csdr.router)
+    app.include_router(corporate_sustainability.router)
     app.include_router(mifid.router)
     app.include_router(mar.router)
     app.include_router(dora.router)
     app.include_router(priips.router)
     app.include_router(transparency.router)
+    app.include_router(sustainable_finance.router)
+    app.include_router(aifmd_ucits.router)
+    app.include_router(aifmd_ucits.ucits_router)
+    app.include_router(crd_brrd_emir.router)
+    app.include_router(crd_brrd_emir.ucits_router)
     global MCP_HTTP_TRANSPORT
     MCP_HTTP_TRANSPORT = mount_mcp(app)
 

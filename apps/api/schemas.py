@@ -3,6 +3,7 @@
 Focused on the endpoints exposed to Custom GPT Actions.
 """
 
+from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ---------------------------------------------------------------------------
@@ -4139,3 +4140,795 @@ class TransparencyInternalRuleUpdate(BaseModel):
 class TransparencyInternalRuleListResponse(BaseModel):
     items: list[TransparencyInternalRuleSummary]
     total: int = Field(description="Total de reglas internas Transparencia")
+
+
+# ===========================================================================
+# SFDR (Sustainable Finance Disclosure Regulation) — Fase 31.9.1
+# ===========================================================================
+
+
+class SfdrProductSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    product_name: str = Field(description="Nombre del producto")
+    product_type: str = Field(description="Tipo: art-6, art-8, art-9, other")
+    sustainability_strategy: str | None = Field(default=None)
+    principal_adverse_impact: str | None = Field(default=None)
+    paci_aggregated: dict | None = Field(default=None)
+    distribution_country: list | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class SfdrProductDetail(SfdrProductSummary):
+    paci_detailed_url: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class SfdrProductCreate(BaseModel):
+    product_name: str = Field(description="Nombre del producto")
+    product_type: str = Field(description="Tipo: art-6, art-8, art-9, other")
+    sustainability_strategy: str | None = Field(default=None)
+    principal_adverse_impact: str | None = Field(default=None)
+    paci_aggregated: dict | None = Field(default=None)
+    paci_detailed_url: str | None = Field(default=None)
+    distribution_country: list | None = Field(default=None)
+
+
+class SfdrProductUpdate(BaseModel):
+    product_name: str | None = Field(default=None)
+    product_type: str | None = Field(default=None)
+    sustainability_strategy: str | None = Field(default=None)
+    principal_adverse_impact: str | None = Field(default=None)
+    paci_aggregated: dict | None = Field(default=None)
+    paci_detailed_url: str | None = Field(default=None)
+    distribution_country: list | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class SfdrProductListResponse(BaseModel):
+    items: list[SfdrProductSummary]
+    total: int = Field(description="Total de productos SFDR")
+
+
+class SfdrPaciiIndicatorSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    product_id: int = Field(description="Producto relacionado")
+    indicator_code: str = Field(description="Codigo indicador (sa.1, sa.2, etc.)")
+    indicator_name: str = Field(description="Nombre del indicador")
+    value: float | None = Field(default=None)
+    unit: str | None = Field(default=None)
+    reference_period: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class SfdrPaciiIndicatorDetail(SfdrPaciiIndicatorSummary):
+    methodology: str | None = Field(default=None)
+    created_at: str | None = Field(default=None)
+
+
+class SfdrPaciiIndicatorCreate(BaseModel):
+    product_id: int = Field(description="Producto relacionado")
+    indicator_code: str = Field(description="Codigo indicador")
+    indicator_name: str = Field(description="Nombre del indicador")
+    value: float | None = Field(default=None)
+    unit: str | None = Field(default=None)
+    reference_period: str | None = Field(default=None)
+    methodology: str | None = Field(default=None)
+
+
+class SfdrPaciiIndicatorUpdate(BaseModel):
+    product_id: int | None = Field(default=None)
+    indicator_code: str | None = Field(default=None)
+    indicator_name: str | None = Field(default=None)
+    value: float | None = Field(default=None)
+    unit: str | None = Field(default=None)
+    reference_period: str | None = Field(default=None)
+    methodology: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class SfdrPaciiIndicatorListResponse(BaseModel):
+    items: list[SfdrPaciiIndicatorSummary]
+    total: int = Field(description="Total de indicadores PCAI SFDR")
+
+
+class SfdrEntityPaciSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int = Field(description="Entidad relacionada")
+    reporting_year: int = Field(description="Año de reporte")
+    aggregated_paci: dict | None = Field(default=None)
+    sectoral_decarbonization: dict | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class SfdrEntityPaciDetail(SfdrEntityPaciSummary):
+    created_at: str | None = Field(default=None)
+
+
+class SfdrEntityPaciCreate(BaseModel):
+    entity_id: int = Field(description="Entidad relacionada")
+    reporting_year: int = Field(description="Año de reporte")
+    aggregated_paci: dict | None = Field(default=None)
+    sectoral_decarbonization: dict | None = Field(default=None)
+
+
+class SfdrEntityPaciUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    reporting_year: int | None = Field(default=None)
+    aggregated_paci: dict | None = Field(default=None)
+    sectoral_decarbonization: dict | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class SfdrEntityPaciListResponse(BaseModel):
+    items: list[SfdrEntityPaciSummary]
+    total: int = Field(description="Total de PCAI entidad SFDR")
+
+
+class SfdrPreContractualSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    product_id: int = Field(description="Producto relacionado")
+    document_type: str = Field(description="Tipo: KID, PPI, prospectus")
+    url: str | None = Field(default=None)
+    published_date: str | None = Field(default=None)
+    version: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class SfdrPreContractualDetail(SfdrPreContractualSummary):
+    created_at: str | None = Field(default=None)
+
+
+class SfdrPreContractualCreate(BaseModel):
+    product_id: int = Field(description="Producto relacionado")
+    document_type: str = Field(description="Tipo: KID, PPI, prospectus")
+    url: str | None = Field(default=None)
+    published_date: str | None = Field(default=None)
+    version: str | None = Field(default=None)
+
+
+class SfdrPreContractualUpdate(BaseModel):
+    product_id: int | None = Field(default=None)
+    document_type: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    published_date: str | None = Field(default=None)
+    version: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class SfdrPreContractualListResponse(BaseModel):
+    items: list[SfdrPreContractualSummary]
+    total: int = Field(description="Total de documentos precontractuales SFDR")
+
+
+class SfdrAnnualReportSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int = Field(description="Entidad relacionada")
+    reporting_year: int = Field(description="Año de reporte")
+    paci_results: dict | None = Field(default=None)
+    engagement_activities: str | dict | None = Field(default=None)
+    good_practice_examples: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    published_date: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class SfdrAnnualReportDetail(SfdrAnnualReportSummary):
+    created_at: str | None = Field(default=None)
+
+
+class SfdrAnnualReportCreate(BaseModel):
+    entity_id: int = Field(description="Entidad relacionada")
+    reporting_year: int = Field(description="Año de reporte")
+    paci_results: dict | None = Field(default=None)
+    engagement_activities: str | dict | None = Field(default=None)
+    good_practice_examples: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    published_date: str | None = Field(default=None)
+
+
+class SfdrAnnualReportUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    reporting_year: int | None = Field(default=None)
+    paci_results: dict | None = Field(default=None)
+    engagement_activities: str | dict | None = Field(default=None)
+    good_practice_examples: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    published_date: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class SfdrAnnualReportListResponse(BaseModel):
+    items: list[SfdrAnnualReportSummary]
+    total: int = Field(description="Total de informes anuales SFDR")
+
+
+# ===========================================================================
+# CSRD (Corporate Sustainability Reporting Directive)
+# ===========================================================================
+
+
+class CsrdEntityReportSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int = Field(description="Entidad relacionada")
+    reporting_year: int = Field(description="Año de reporte")
+    esap_url: str | None = Field(default=None)
+    assurance_status: str | None = Field(default=None)
+    reporting_standard: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class CsrdEntityReportDetail(CsrdEntityReportSummary):
+    created_at: str | None = Field(default=None)
+
+
+class CsrdEntityReportCreate(BaseModel):
+    entity_id: int = Field(description="Entidad relacionada")
+    reporting_year: int = Field(description="Año de reporte")
+    esap_url: str | None = Field(default=None)
+    assurance_status: str | None = Field(default=None)
+    reporting_standard: str | None = Field(default=None)
+
+
+class CsrdEntityReportUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    reporting_year: int | None = Field(default=None)
+    esap_url: str | None = Field(default=None)
+    assurance_status: str | None = Field(default=None)
+    reporting_standard: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class CsrdEntityReportListResponse(BaseModel):
+    items: list[CsrdEntityReportSummary]
+    total: int = Field(description="Total de informes CSRD")
+
+
+class CsrdEsgDataPointSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    report_id: int = Field(description="Informe relacionado")
+    topic: str = Field(description="Tema: environment, social, governance")
+    indicator_code: str | None = Field(default=None)
+    value: float | None = Field(default=None)
+    unit: str | None = Field(default=None)
+    scope: int | None = Field(default=None)
+    verification_status: str | None = Field(default=None)
+
+
+class CsrdEsgDataPointDetail(CsrdEsgDataPointSummary):
+    created_at: str | None = Field(default=None)
+
+
+class CsrdEsgDataPointCreate(BaseModel):
+    report_id: int = Field(description="Informe relacionado")
+    topic: str = Field(description="Tema: environment, social, governance")
+    indicator_code: str | None = Field(default=None)
+    value: float | None = Field(default=None)
+    unit: str | None = Field(default=None)
+    scope: int | None = Field(default=None)
+    verification_status: str | None = Field(default=None)
+
+
+class CsrdEsgDataPointUpdate(BaseModel):
+    report_id: int | None = Field(default=None)
+    topic: str | None = Field(default=None)
+    indicator_code: str | None = Field(default=None)
+    value: float | None = Field(default=None)
+    unit: str | None = Field(default=None)
+    scope: int | None = Field(default=None)
+    verification_status: str | None = Field(default=None)
+
+
+class CsrdEsgDataPointListResponse(BaseModel):
+    items: list[CsrdEsgDataPointSummary]
+    total: int = Field(description="Total de datos ESG CSRD")
+
+
+class CsrdEssSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    standard_code: str = Field(description="Codigo estandar (ESRS E1-E5, S1-S4, G1)")
+    topic: str | None = Field(default=None)
+    applicable_from_year: int | None = Field(default=None)
+    description: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class CsrdEssDetail(CsrdEssSummary):
+    created_at: str | None = Field(default=None)
+
+
+class CsrdEssCreate(BaseModel):
+    standard_code: str = Field(description="Codigo estandar")
+    topic: str | None = Field(default=None)
+    applicable_from_year: int | None = Field(default=None)
+    description: str | None = Field(default=None)
+
+
+class CsrdEssUpdate(BaseModel):
+    standard_code: str | None = Field(default=None)
+    topic: str | None = Field(default=None)
+    applicable_from_year: int | None = Field(default=None)
+    description: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class CsrdEssListResponse(BaseModel):
+    items: list[CsrdEssSummary]
+    total: int = Field(description="Total deestandares ESRS")
+
+
+class CsrdDoubleMaterialitySummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int = Field(description="Entidad relacionada")
+    impact_materiality: dict | None = Field(default=None)
+    financial_materiality: dict | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    key_impacts: str | None = Field(default=None)
+    key_dependencies: str | None = Field(default=None)
+    status: str = Field(description="Estado")
+
+
+class CsrdDoubleMaterialityDetail(CsrdDoubleMaterialitySummary):
+    created_at: str | None = Field(default=None)
+
+
+class CsrdDoubleMaterialityCreate(BaseModel):
+    entity_id: int = Field(description="Entidad relacionada")
+    impact_materiality: dict | None = Field(default=None)
+    financial_materiality: dict | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    key_impacts: str | None = Field(default=None)
+    key_dependencies: str | None = Field(default=None)
+
+
+class CsrdDoubleMaterialityUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    impact_materiality: dict | None = Field(default=None)
+    financial_materiality: dict | None = Field(default=None)
+    assessment_date: str | None = Field(default=None)
+    key_impacts: str | None = Field(default=None)
+    key_dependencies: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class CsrdDoubleMaterialityListResponse(BaseModel):
+    items: list[CsrdDoubleMaterialitySummary]
+    total: int = Field(description="Total de evaluaciones de doble materialidad CSRD")
+
+
+# ===========================================================================
+# AIFMD / UCITS (Fase 31.9.3)
+# ===========================================================================
+
+
+class AifmdFundSummary(BaseModel):
+    id: int
+    fund_name: str
+    aifm_id: int | None = None
+    fund_type: str
+    registration_date: date | None = None
+    home_member_state: str | None = None
+    cross_border_passport: bool
+    total_aum_eur: float | None = None
+    investor_type: str | None = None
+    lock_up_period: str | None = None
+    redemption_frequency: str | None = None
+    leverage_method: str | None = None
+    leverage_max_pct: float | None = None
+    status: str
+    created_at: datetime | None = None
+
+
+class AifmdFundDetail(AifmdFundSummary):
+    pass
+
+
+class AifmdFundCreate(BaseModel):
+    fund_name: str
+    aifm_id: int | None = None
+    fund_type: str
+    registration_date: date | None = None
+    home_member_state: str | None = None
+    cross_border_passport: bool = False
+    total_aum_eur: float | None = None
+    investor_type: str | None = None
+    lock_up_period: str | None = None
+    redemption_frequency: str | None = None
+    leverage_method: str | None = None
+    leverage_max_pct: float | None = None
+
+
+class AifmdFundUpdate(BaseModel):
+    fund_name: str | None = None
+    aifm_id: int | None = None
+    fund_type: str | None = None
+    registration_date: date | None = None
+    home_member_state: str | None = None
+    cross_border_passport: bool | None = None
+    total_aum_eur: float | None = None
+    investor_type: str | None = None
+    lock_up_period: str | None = None
+    redemption_frequency: str | None = None
+    leverage_method: str | None = None
+    leverage_max_pct: float | None = None
+    status: str | None = None
+
+
+class AifmdFundListResponse(BaseModel):
+    items: list[AifmdFundSummary]
+    total: int = Field(description="Total de fondos AIFMD")
+
+
+class UcitsFundSummary(BaseModel):
+    id: int
+    fund_name: str
+    management_company: str | None = None
+    registration_date: date | None = None
+    home_member_state: str | None = None
+    cross_border_passport: bool
+    total_aum_eur: float | None = None
+    depositary_id: int | None = None
+    krid_url: str | None = None
+    investment_strategy: str | None = None
+    risk_profile: str | None = None
+    status: str
+    created_at: datetime | None = None
+
+
+class UcitsFundDetail(UcitsFundSummary):
+    pass
+
+
+class UcitsFundCreate(BaseModel):
+    fund_name: str
+    management_company: str | None = None
+    registration_date: date | None = None
+    home_member_state: str | None = None
+    cross_border_passport: bool = False
+    total_aum_eur: float | None = None
+    depositary_id: int | None = None
+    krid_url: str | None = None
+    investment_strategy: str | None = None
+    risk_profile: str | None = None
+
+
+class UcitsFundUpdate(BaseModel):
+    fund_name: str | None = None
+    management_company: str | None = None
+    registration_date: date | None = None
+    home_member_state: str | None = None
+    cross_border_passport: bool | None = None
+    total_aum_eur: float | None = None
+    depositary_id: int | None = None
+    krid_url: str | None = None
+    investment_strategy: str | None = None
+    risk_profile: str | None = None
+    status: str | None = None
+
+
+class UcitsFundListResponse(BaseModel):
+    items: list[UcitsFundSummary]
+    total: int = Field(description="Total de fondos UCITS")
+
+
+class AifmdRegulatoryReportSummary(BaseModel):
+    id: int
+    fund_id: int
+    report_type: str
+    reporting_period: str | None = None
+    url: str | None = None
+    filed_date: date | None = None
+    status: str
+    created_at: datetime | None = None
+
+
+class AifmdRegulatoryReportDetail(AifmdRegulatoryReportSummary):
+    pass
+
+
+class AifmdRegulatoryReportCreate(BaseModel):
+    fund_id: int
+    report_type: str
+    reporting_period: str | None = None
+    url: str | None = None
+    filed_date: date | None = None
+
+
+class AifmdRegulatoryReportUpdate(BaseModel):
+    report_type: str | None = None
+    reporting_period: str | None = None
+    url: str | None = None
+    filed_date: date | None = None
+    status: str | None = None
+
+
+class AifmdRegulatoryReportListResponse(BaseModel):
+    items: list[AifmdRegulatoryReportSummary]
+    total: int = Field(description="Total de reportes regulatorios AIFMD")
+
+
+class UcitsRegulatoryReportSummary(BaseModel):
+    id: int
+    fund_id: int
+    report_type: str
+    reporting_period: str | None = None
+    url: str | None = None
+    filed_date: date | None = None
+    status: str
+    created_at: datetime | None = None
+
+
+class UcitsRegulatoryReportDetail(UcitsRegulatoryReportSummary):
+    pass
+
+
+class UcitsRegulatoryReportCreate(BaseModel):
+    fund_id: int
+    report_type: str
+    reporting_period: str | None = None
+    url: str | None = None
+    filed_date: date | None = None
+
+
+class UcitsRegulatoryReportUpdate(BaseModel):
+    report_type: str | None = None
+    reporting_period: str | None = None
+    url: str | None = None
+    filed_date: date | None = None
+    status: str | None = None
+
+
+class UcitsRegulatoryReportListResponse(BaseModel):
+    items: list[UcitsRegulatoryReportSummary]
+    total: int = Field(description="Total de reportes regulatorios UCITS")
+
+
+class AifmdLiquidityManagementSummary(BaseModel):
+    id: int
+    fund_id: int
+    redemption_suspended: bool
+    suspension_date: date | None = None
+    gating_applied: bool
+    swing_price_applied: bool
+    side_pocket_applied: bool
+    stress_test_result: str | None = None
+    valuation_frequency: str | None = None
+    created_at: datetime | None = None
+
+
+class AifmdLiquidityManagementDetail(AifmdLiquidityManagementSummary):
+    pass
+
+
+class AifmdLiquidityManagementCreate(BaseModel):
+    fund_id: int
+    redemption_suspended: bool = False
+    suspension_date: date | None = None
+    gating_applied: bool = False
+    swing_price_applied: bool = False
+    side_pocket_applied: bool = False
+    stress_test_result: str | None = None
+    valuation_frequency: str | None = None
+
+
+class AifmdLiquidityManagementUpdate(BaseModel):
+    redemption_suspended: bool | None = None
+    suspension_date: date | None = None
+    gating_applied: bool | None = None
+    swing_price_applied: bool | None = None
+    side_pocket_applied: bool | None = None
+    stress_test_result: str | None = None
+    valuation_frequency: str | None = None
+
+
+class AifmdLiquidityManagementListResponse(BaseModel):
+    items: list[AifmdLiquidityManagementSummary]
+    total: int = Field(description="Total de registros de gestion de liquidez AIFMD")
+
+
+class CrdCapitalPositionSummary(BaseModel):
+    id: int
+    entity_id: int
+    reporting_date: date
+    cet1_ratio: float | None = None
+    tier1_ratio: float | None = None
+    total_capital_ratio: float | None = None
+    cet1_amount: float | None = None
+    tier1_amount: float | None = None
+    total_capital_amount: float | None = None
+    leverage_ratio: float | None = None
+    risk_weighted_assets: float | None = None
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CrdCapitalPositionDetail(CrdCapitalPositionSummary):
+    created_at: datetime
+
+
+class CrdCapitalPositionCreate(BaseModel):
+    entity_id: int
+    reporting_date: date
+    cet1_ratio: float | None = None
+    tier1_ratio: float | None = None
+    total_capital_ratio: float | None = None
+    cet1_amount: float | None = None
+    tier1_amount: float | None = None
+    total_capital_amount: float | None = None
+    leverage_ratio: float | None = None
+    risk_weighted_assets: float | None = None
+    status: str = "filed"
+
+
+class CrdCapitalPositionUpdate(BaseModel):
+    cet1_ratio: float | None = None
+    tier1_ratio: float | None = None
+    total_capital_ratio: float | None = None
+    cet1_amount: float | None = None
+    tier1_amount: float | None = None
+    total_capital_amount: float | None = None
+    leverage_ratio: float | None = None
+    risk_weighted_assets: float | None = None
+    status: str | None = None
+
+
+class CrdCapitalPositionListResponse(BaseModel):
+    items: list[CrdCapitalPositionSummary]
+    total: int = Field(description="Total de posiciones de capital CRD/CRR")
+
+
+class CrdStressTestSummary(BaseModel):
+    id: int
+    entity_id: int
+    test_date: date
+    scenario_name: str | None = None
+    cet1_impact_pct: float | None = None
+    tier1_impact_pct: float | None = None
+    capital_ratio_post_test: float | None = None
+    competent_authority: str | None = None
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CrdStressTestDetail(CrdStressTestSummary):
+    created_at: datetime
+
+
+class CrdStressTestCreate(BaseModel):
+    entity_id: int
+    test_date: date
+    scenario_name: str | None = None
+    cet1_impact_pct: float | None = None
+    tier1_impact_pct: float | None = None
+    capital_ratio_post_test: float | None = None
+    competent_authority: str | None = None
+    status: str = "published"
+
+
+class CrdStressTestUpdate(BaseModel):
+    scenario_name: str | None = None
+    cet1_impact_pct: float | None = None
+    tier1_impact_pct: float | None = None
+    capital_ratio_post_test: float | None = None
+    competent_authority: str | None = None
+    status: str | None = None
+
+
+class CrdStressTestListResponse(BaseModel):
+    items: list[CrdStressTestSummary]
+    total: int = Field(description="Total de pruebas de resistencia CRD")
+
+
+class BrrdBailInSummary(BaseModel):
+    id: int
+    entity_id: int
+    total_eligible_liabilities: float | None = None
+    mrel_target_pct: float | None = None
+    mrel_compliance_pct: float | None = None
+    internal_mrel: float | None = None
+    resolution_status: str | None = None
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BrrdBailInDetail(BrrdBailInSummary):
+    created_at: datetime
+
+
+class BrrdBailInCreate(BaseModel):
+    entity_id: int
+    total_eligible_liabilities: float | None = None
+    mrel_target_pct: float | None = None
+    mrel_compliance_pct: float | None = None
+    internal_mrel: float | None = None
+    resolution_status: str | None = None
+    status: str = "active"
+
+
+class BrrdBailInUpdate(BaseModel):
+    total_eligible_liabilities: float | None = None
+    mrel_target_pct: float | None = None
+    mrel_compliance_pct: float | None = None
+    internal_mrel: float | None = None
+    resolution_status: str | None = None
+    status: str | None = None
+
+
+class BrrdBailInListResponse(BaseModel):
+    items: list[BrrdBailInSummary]
+    total: int = Field(description="Total de registros de bail-in BRRD")
+
+
+class EmirTradeReportSummary(BaseModel):
+    id: int
+    trade_id: str
+    asset_class: str
+    instrument_class: str | None = None
+    clearing_obligation_applied: bool = False
+    reporting_delay_days: int | None = None
+    counterparty_type: str | None = None
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmirTradeReportDetail(EmirTradeReportSummary):
+    created_at: datetime
+
+
+class EmirTradeReportCreate(BaseModel):
+    trade_id: str
+    asset_class: str
+    instrument_class: str | None = None
+    clearing_obligation_applied: bool = False
+    reporting_delay_days: int | None = None
+    counterparty_type: str | None = None
+    status: str = "reported"
+
+
+class EmirTradeReportUpdate(BaseModel):
+    asset_class: str | None = None
+    instrument_class: str | None = None
+    clearing_obligation_applied: bool | None = None
+    reporting_delay_days: int | None = None
+    counterparty_type: str | None = None
+    status: str | None = None
+
+
+class EmirTradeReportListResponse(BaseModel):
+    items: list[EmirTradeReportSummary]
+    total: int = Field(description="Total de reportes de operaciones EMIR")
+
+
+class EmirClearingMemberSummary(BaseModel):
+    id: int
+    entity_id: int
+    emir_registration: str | None = None
+    clearing_type: str
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmirClearingMemberDetail(EmirClearingMemberSummary):
+    created_at: datetime
+
+
+class EmirClearingMemberCreate(BaseModel):
+    entity_id: int
+    emir_registration: str | None = None
+    clearing_type: str
+    status: str = "active"
+
+
+class EmirClearingMemberUpdate(BaseModel):
+    emir_registration: str | None = None
+    clearing_type: str | None = None
+    status: str | None = None
+
+
+class EmirClearingMemberListResponse(BaseModel):
+    items: list[EmirClearingMemberSummary]
+    total: int = Field(description="Total de clearing members EMIR")

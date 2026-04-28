@@ -3879,6 +3879,395 @@ STATEMENTS = [
     """
     CREATE INDEX IF NOT EXISTS ix_transp_ir_status ON transparency_internal_rule(status)
     """,
+    # --- Fase 31.9: SFDR tables ---
+    """
+    CREATE TABLE IF NOT EXISTS sfdr_product (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_name TEXT NOT NULL,
+        product_type TEXT NOT NULL DEFAULT 'other',
+        sustainability_strategy TEXT,
+        principal_adverse_impact TEXT DEFAULT 'false',
+        paci_aggregated TEXT,
+        paci_detailed_url TEXT,
+        distribution_country TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_product_type ON sfdr_product(product_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_product_status ON sfdr_product(status)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_product_name ON sfdr_product(product_name)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sfdr_paci_indicator (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        indicator_code TEXT NOT NULL,
+        indicator_name TEXT NOT NULL,
+        value NUMERIC,
+        unit TEXT,
+        reference_period TEXT,
+        methodology TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_paci_product ON sfdr_paci_indicator(product_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_paci_code ON sfdr_paci_indicator(indicator_code)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_paci_status ON sfdr_paci_indicator(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sfdr_entity_paci (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        reporting_year INTEGER NOT NULL,
+        aggregated_paci TEXT,
+        sectoral_decarbonization TEXT,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_epaci_entity ON sfdr_entity_paci(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_epaci_year ON sfdr_entity_paci(reporting_year)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_epaci_status ON sfdr_entity_paci(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sfdr_pre_contractual (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        document_type TEXT NOT NULL,
+        url TEXT,
+        published_date DATE,
+        version TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_pc_product ON sfdr_pre_contractual(product_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_pc_type ON sfdr_pre_contractual(document_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_pc_status ON sfdr_pre_contractual(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sfdr_annual_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        reporting_year INTEGER NOT NULL,
+        paci_results TEXT,
+        engagement_activities TEXT,
+        good_practice_examples TEXT,
+        url TEXT,
+        published_date DATE,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_ar_entity ON sfdr_annual_report(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_ar_year ON sfdr_annual_report(reporting_year)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_sfdr_ar_status ON sfdr_annual_report(status)
+    """,
+    # --- CSRD (31.9.2) ---
+    """
+    CREATE TABLE IF NOT EXISTS csrd_entity_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        reporting_year INTEGER NOT NULL,
+        esap_url TEXT,
+        assurance_status TEXT DEFAULT 'none',
+        reporting_standard TEXT DEFAULT 'ESGAS',
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_er_entity ON csrd_entity_report(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_er_year ON csrd_entity_report(reporting_year)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_er_status ON csrd_entity_report(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS csrd_esg_data_point (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        report_id INTEGER NOT NULL,
+        topic TEXT NOT NULL,
+        indicator_code TEXT,
+        value NUMERIC,
+        unit TEXT,
+        scope INTEGER,
+        verification_status TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_edp_report ON csrd_esg_data_point(report_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_edp_topic ON csrd_esg_data_point(topic)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS csrd_ess (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        standard_code TEXT NOT NULL,
+        topic TEXT,
+        applicable_from_year INTEGER,
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_ess_code ON csrd_ess(standard_code)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_ess_topic ON csrd_ess(topic)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS csrd_double_materiality (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        impact_materiality TEXT,
+        financial_materiality TEXT,
+        assessment_date DATE,
+        key_impacts TEXT,
+        key_dependencies TEXT,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_dm_entity ON csrd_double_materiality(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_csrd_dm_year ON csrd_double_materiality(assessment_date)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS aifmd_fund (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fund_name TEXT NOT NULL,
+        aifm_id INTEGER,
+        fund_type TEXT NOT NULL DEFAULT 'alternative',
+        registration_date DATE,
+        home_member_state TEXT,
+        cross_border_passport INTEGER NOT NULL DEFAULT 0,
+        total_aum_eur NUMERIC,
+        investor_type TEXT DEFAULT 'professional',
+        lock_up_period TEXT,
+        redemption_frequency TEXT,
+        leverage_method TEXT,
+        leverage_max_pct NUMERIC,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_aifmd_fund_name ON aifmd_fund(fund_name)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_aifmd_fund_type ON aifmd_fund(fund_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_aifmd_fund_status ON aifmd_fund(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS ucits_fund (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fund_name TEXT NOT NULL,
+        management_company TEXT,
+        registration_date DATE,
+        home_member_state TEXT,
+        cross_border_passport INTEGER NOT NULL DEFAULT 0,
+        total_aum_eur NUMERIC,
+        depositary_id INTEGER,
+        krid_url TEXT,
+        investment_strategy TEXT,
+        risk_profile TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_ucits_fund_name ON ucits_fund(fund_name)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_ucits_fund_company ON ucits_fund(management_company)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_ucits_fund_status ON ucits_fund(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS aifmd_regulatory_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fund_id INTEGER NOT NULL,
+        report_type TEXT NOT NULL DEFAULT 'annual',
+        reporting_period TEXT,
+        url TEXT,
+        filed_date DATE,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_aifmd_rr_fund ON aifmd_regulatory_report(fund_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_aifmd_rr_type ON aifmd_regulatory_report(report_type)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS ucits_regulatory_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fund_id INTEGER NOT NULL,
+        report_type TEXT NOT NULL DEFAULT 'annual',
+        reporting_period TEXT,
+        url TEXT,
+        filed_date DATE,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_ucits_rr_fund ON ucits_regulatory_report(fund_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_ucits_rr_type ON ucits_regulatory_report(report_type)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS aifmd_liquidity_management (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fund_id INTEGER NOT NULL,
+        redemption_suspended INTEGER NOT NULL DEFAULT 0,
+        suspension_date DATE,
+        gating_applied INTEGER NOT NULL DEFAULT 0,
+        swing_price_applied INTEGER NOT NULL DEFAULT 0,
+        side_pocket_applied INTEGER NOT NULL DEFAULT 0,
+        stress_test_result TEXT,
+        valuation_frequency TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_aifmd_lm_fund ON aifmd_liquidity_management(fund_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS crd_capital_position (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        reporting_date DATE NOT NULL,
+        cet1_ratio NUMERIC(10,4),
+        tier1_ratio NUMERIC(10,4),
+        total_capital_ratio NUMERIC(10,4),
+        cet1_amount NUMERIC(20,2),
+        tier1_amount NUMERIC(20,2),
+        total_capital_amount NUMERIC(20,2),
+        leverage_ratio NUMERIC(10,4),
+        risk_weighted_assets NUMERIC(20,2),
+        status TEXT NOT NULL DEFAULT 'filed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crd_cp_entity ON crd_capital_position(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crd_cp_date ON crd_capital_position(reporting_date)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS crd_stress_test (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        test_date DATE NOT NULL,
+        scenario_name TEXT,
+        cet1_impact_pct NUMERIC(10,4),
+        tier1_impact_pct NUMERIC(10,4),
+        capital_ratio_post_test NUMERIC(10,4),
+        competent_authority TEXT,
+        status TEXT NOT NULL DEFAULT 'published',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crd_st_entity ON crd_stress_test(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crd_st_date ON crd_stress_test(test_date)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS brrd_bail_in (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        total_eligible_liabilities NUMERIC(20,2),
+        mrel_target_pct NUMERIC(10,4),
+        mrel_compliance_pct NUMERIC(10,4),
+        internal_mrel NUMERIC(10,4),
+        resolution_status TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_brrd_bi_entity ON brrd_bail_in(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS emir_trade_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trade_id TEXT NOT NULL,
+        asset_class TEXT NOT NULL DEFAULT 'equity',
+        instrument_class TEXT,
+        clearing_obligation_applied INTEGER NOT NULL DEFAULT 0,
+        reporting_delay_days INTEGER,
+        counterparty_type TEXT DEFAULT 'financial',
+        status TEXT NOT NULL DEFAULT 'reported',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_emir_tr_trade_id ON emir_trade_report(trade_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_emir_tr_asset_class ON emir_trade_report(asset_class)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS emir_clearing_member (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER NOT NULL,
+        emir_registration TEXT,
+        clearing_type TEXT NOT NULL DEFAULT 'central',
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_emir_cm_entity ON emir_clearing_member(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_emir_cm_type ON emir_clearing_member(clearing_type)
+    """,
 ]
 
 with engine.begin() as conn:
