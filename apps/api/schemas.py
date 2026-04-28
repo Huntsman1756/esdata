@@ -2753,3 +2753,120 @@ class CryptoTransactionUpdate(BaseModel):
 class CryptoTransactionListResponse(BaseModel):
     transactions: list[CryptoTransactionSummary]
     total: int = Field(description="Total de transacciones que coinciden con la consulta")
+
+
+# --- DAC8/DAC9 schemas ---
+
+
+class DacReportingEntitySummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    tin: str | None = Field(default=None, description="NIF de la entidad")
+    entity_type: str | None = Field(default=None, description="Tipo: crypto-asset service provider, exchange, custodian")
+    member_state: str | None = Field(default=None, description="Estado miembro")
+    dac8_registered: bool = Field(description="Registrada en DAC8")
+    dac9_registered: bool = Field(description="Registrada en DAC9")
+    status: str = Field(description="Estado de la entidad")
+
+
+class DacReportingEntityDetail(DacReportingEntitySummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class DacReportingEntityCreate(BaseModel):
+    tin: str | None = Field(default=None)
+    entity_type: str | None = Field(default=None)
+    member_state: str | None = Field(default=None)
+    dac8_registered: bool = Field(default=False)
+    dac9_registered: bool = Field(default=False)
+    status: str = Field(default="active")
+
+
+class DacReportingEntityUpdate(BaseModel):
+    tin: str | None = Field(default=None)
+    entity_type: str | None = Field(default=None)
+    member_state: str | None = Field(default=None)
+    dac8_registered: bool | None = Field(default=None)
+    dac9_registered: bool | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class DacReportingEntityListResponse(BaseModel):
+    entities: list[DacReportingEntitySummary]
+    total: int = Field(description="Total de entidades de reporte DAC8/DAC9 que coinciden con la consulta")
+
+
+class DacCryptoReportSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad reportante")
+    reporting_period: str | None = Field(default=None, description="Periodo de reporte (YYYY-MM)")
+    status: str = Field(description="Estado del reporte")
+    crypto_transactions_count: int = Field(default=0, description="Numero de transacciones reportadas")
+    wallet_holders_count: int = Field(default=0, description="Numero de titulares de wallet")
+
+
+class DacCryptoReportDetail(DacCryptoReportSummary):
+    submitted_at: str | None = Field(default=None, description="Fecha de envio")
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class DacCryptoReportCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    reporting_period: str | None = Field(default=None)
+    submitted_at: str | None = Field(default=None)
+    status: str = Field(default="draft")
+    crypto_transactions_count: int = Field(default=0)
+    wallet_holders_count: int = Field(default=0)
+
+
+class DacCryptoReportUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    reporting_period: str | None = Field(default=None)
+    submitted_at: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+    crypto_transactions_count: int | None = Field(default=None)
+    wallet_holders_count: int | None = Field(default=None)
+
+
+class DacCryptoReportListResponse(BaseModel):
+    reports: list[DacCryptoReportSummary]
+    total: int = Field(description="Total de reportes DAC8/DAC9 que coinciden con la consulta")
+
+
+class DacWalletHolderSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    report_id: int | None = Field(default=None, description="ID del reporte al que pertenece")
+    wallet_address: str | None = Field(default=None, description="Direccion de wallet")
+    holder_tin: str | None = Field(default=None, description="NIF del titular")
+    holder_member_state: str | None = Field(default=None, description="Estado miembro del titular")
+    holder_type: str | None = Field(default=None, description="Tipo: individual, entity")
+    total_value_eur: float | None = Field(default=None, description="Valor total en EUR")
+    verification_status: str | None = Field(default=None, description="Estado de verificacion")
+
+
+class DacWalletHolderDetail(DacWalletHolderSummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class DacWalletHolderCreate(BaseModel):
+    report_id: int | None = Field(default=None)
+    wallet_address: str | None = Field(default=None)
+    holder_tin: str | None = Field(default=None)
+    holder_member_state: str | None = Field(default=None)
+    holder_type: str | None = Field(default=None)
+    total_value_eur: float | None = Field(default=None)
+    verification_status: str | None = Field(default=None)
+
+
+class DacWalletHolderUpdate(BaseModel):
+    report_id: int | None = Field(default=None)
+    wallet_address: str | None = Field(default=None)
+    holder_tin: str | None = Field(default=None)
+    holder_member_state: str | None = Field(default=None)
+    holder_type: str | None = Field(default=None)
+    total_value_eur: float | None = Field(default=None)
+    verification_status: str | None = Field(default=None)
+
+
+class DacWalletHolderListResponse(BaseModel):
+    holders: list[DacWalletHolderSummary]
+    total: int = Field(description="Total de titulares de wallet que coinciden con la consulta")
