@@ -56,14 +56,24 @@ async def list_fraud_prevention_programs(
                 f"""
                 SELECT id, entity_id, code_of_conduct, internal_reporting_system,
                        training_schedule, audit_frequency, compliance_officer_name, status
-                FROM fraud_prevention_program
+                FROM fraud_prevention_program fp
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
                 """
             ),
             params,
         ).mappings()
-        return {"programs": [dict(r) for r in rows]}
+        programs = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM fraud_prevention_program fp
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"programs": programs, "total": count}
 
 
 @router.get(
@@ -79,8 +89,8 @@ async def get_fraud_prevention_program(item_id: int):
                 SELECT id, entity_id, code_of_conduct, internal_reporting_system,
                        training_schedule, audit_frequency, compliance_officer_name,
                        status, created_at
-                FROM fraud_prevention_program
-                WHERE id = :item_id
+                FROM fraud_prevention_program fp
+                WHERE fp.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -115,7 +125,7 @@ async def list_fraud_risk_assessments(
         filters.append("fr.entity_id = :entity_id")
         params["entity_id"] = entity_id
     if search:
-        filters.append("fr.risk_areas LIKE :search")
+        filters.append("LOWER(fr.risk_areas) LIKE LOWER(:search)")
         params["search"] = f"%{search}%"
 
     with db_session() as db:
@@ -124,14 +134,24 @@ async def list_fraud_risk_assessments(
                 f"""
                 SELECT id, entity_id, assessment_date, risk_areas,
                        mitigation_measures, next_review_date
-                FROM fraud_risk_assessment
+                FROM fraud_risk_assessment fr
                 WHERE {" AND ".join(filters)}
-                ORDER BY assessment_date DESC NULLS LAST
+                ORDER BY fr.assessment_date DESC NULLS LAST
                 """
             ),
             params,
         ).mappings()
-        return {"assessments": [dict(r) for r in rows]}
+        assessments = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM fraud_risk_assessment fr
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"assessments": assessments, "total": count}
 
 
 @router.get(
@@ -146,8 +166,8 @@ async def get_fraud_risk_assessment(item_id: int):
                 """
                 SELECT id, entity_id, assessment_date, risk_areas,
                        mitigation_measures, next_review_date, created_at
-                FROM fraud_risk_assessment
-                WHERE id = :item_id
+                FROM fraud_risk_assessment fr
+                WHERE fr.id = :item_id
                 LIMIT 1
                 """
             ),
@@ -190,7 +210,7 @@ async def list_fraud_incidents(
         filters.append("fi.amount_eur >= :min_amount")
         params["min_amount"] = min_amount
     if search:
-        filters.append("fi.description LIKE :search")
+        filters.append("LOWER(fi.description) LIKE LOWER(:search)")
         params["search"] = f"%{search}%"
 
     with db_session() as db:
@@ -199,14 +219,24 @@ async def list_fraud_incidents(
                 f"""
                 SELECT id, entity_id, incident_date, amount_eur, status,
                        resolution_date, regulatory_notification
-                FROM fraud_incident
+                FROM fraud_incident fi
                 WHERE {" AND ".join(filters)}
-                ORDER BY incident_date DESC NULLS LAST
+                ORDER BY fi.incident_date DESC NULLS LAST
                 """
             ),
             params,
         ).mappings()
-        return {"incidents": [dict(r) for r in rows]}
+        incidents = [dict(r) for r in rows]
+        count = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM fraud_incident fi
+                WHERE {" AND ".join(filters)}
+                """
+            ),
+            params,
+        ).scalar()
+        return {"incidents": incidents, "total": count}
 
 
 @router.get(
@@ -221,8 +251,8 @@ async def get_fraud_incident(item_id: int):
                 """
                 SELECT id, entity_id, incident_date, description, amount_eur,
                        status, resolution_date, regulatory_notification, created_at
-                FROM fraud_incident
-                WHERE id = :item_id
+                FROM fraud_incident fi
+                WHERE fi.id = :item_id
                 LIMIT 1
                 """
             ),

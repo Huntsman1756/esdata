@@ -100,39 +100,18 @@ async def list_casp(
         conditions.append("home_member_state = :home_member_state")
         params["home_member_state"] = home_member_state
     if search:
-        conditions.append("LOWER(name) LIKE :search_lower")
-        params["search_lower"] = f"%{search.lower()}%"
-
-    where = ""
-    if conditions:
-        where = "WHERE " + " AND ".join(conditions)
 
     with db_session() as db:
         rows = db.execute(
             text(
                 f"""
                 SELECT id, name, registration_number, home_member_state,
-                       passport_active, services_offered, status
-                FROM casp
-                {where}
                 ORDER BY name
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
-        casps = list(rows)
-
-        count = db.execute(
-            text(f"SELECT COUNT(*) FROM casp {where}"),
-            params,
-        ).scalar()
-
-    casps = [dict(c) for c in casps]
-    for c in casps:
-        c["services_offered"] = _parse_services(c["services_offered"])
-
-    return {"total": count, "casps": casps}
 
 
 @router.get(
@@ -147,10 +126,6 @@ async def get_casp(casp_id: int):
             text(
                 """
                 SELECT id, name, registration_number, home_member_state,
-                       passport_active, services_offered, status,
-                       created_at, updated_at
-                FROM casp
-                WHERE id = :id
                 """
             ),
             {"id": casp_id},
@@ -323,32 +298,18 @@ async def list_crypto_assets(
         conditions.append("status = :status")
         params["status"] = status
 
-    where = ""
-    if conditions:
-        where = "WHERE " + " AND ".join(conditions)
-
     with db_session() as db:
         rows = db.execute(
             text(
                 f"""
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
                        is_sha, market_value_eur, holders_count, status
-                FROM crypto_asset
-                {where}
                 ORDER BY id
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
-        assets = list(rows)
-
-        count = db.execute(
-            text(f"SELECT COUNT(*) FROM crypto_asset {where}"),
-            params,
-        ).scalar()
-
-    return {"total": count, "assets": assets}
 
 
 @router.get(
@@ -363,10 +324,6 @@ async def get_crypto_asset(asset_id: int):
             text(
                 """
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
-                       is_sha, market_value_eur, holders_count, status,
-                       created_at, updated_at
-                FROM crypto_asset
-                WHERE id = :id
                 """
             ),
             {"id": asset_id},
@@ -461,22 +418,12 @@ async def list_tokenized_assets(
                 f"""
                 SELECT id, underlying_type, issuer_id, face_value, total_amount,
                        listing_date, regulated_market, status
-                FROM tokenized_asset
-                {where}
                 ORDER BY id
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
-        assets = list(rows)
-
-        count = db.execute(
-            text(f"SELECT COUNT(*) FROM tokenized_asset {where}"),
-            params,
-        ).scalar()
-
-    return {"total": count, "assets": assets}
 
 
 @router.get(
@@ -490,11 +437,6 @@ async def get_tokenized_asset(asset_id: int):
         row = db.execute(
             text(
                 """
-                SELECT id, underlying_type, issuer_id, face_value, total_amount,
-                       listing_date, regulated_market, status,
-                       created_at, updated_at
-                FROM tokenized_asset
-                WHERE id = :id
                 """
             ),
             {"id": asset_id},
@@ -542,23 +484,12 @@ async def list_wallet_custodians(
             text(
                 f"""
                 SELECT id, entity_id, wallet_type, custody_mechanism,
-                       insurance_coverage, audit_frequency, status
-                FROM wallet_custodian
-                {where}
                 ORDER BY id
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
-        custodians = list(rows)
-
-        count = db.execute(
-            text(f"SELECT COUNT(*) FROM wallet_custodian {where}"),
-            params,
-        ).scalar()
-
-    return {"total": count, "custodians": custodians}
 
 
 @router.get(
@@ -573,10 +504,6 @@ async def get_wallet_custodian(custodian_id: int):
             text(
                 """
                 SELECT id, entity_id, wallet_type, custody_mechanism,
-                       insurance_coverage, audit_frequency, status,
-                       created_at, updated_at
-                FROM wallet_custodian
-                WHERE id = :id
                 """
             ),
             {"id": custodian_id},
@@ -615,38 +542,15 @@ async def list_crypto_transactions(
     if reporting_period:
         conditions.append("reporting_period = :reporting_period")
         params["reporting_period"] = reporting_period
-    if status:
-        conditions.append("status = :status")
-        params["status"] = status
-
-    where = ""
-    if conditions:
-        where = "WHERE " + " AND ".join(conditions)
 
     with db_session() as db:
         rows = db.execute(
             text(
                 f"""
-                SELECT id, sender_wallet, receiver_wallet,
-                       sender_jurisdiction, receiver_jurisdiction,
-                       asset_type, amount, value_eur, timestamp,
-                       reporting_period, status
-                FROM crypto_transaction
-                {where}
-                ORDER BY timestamp DESC
-                LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
-        transactions = list(rows)
-
-        count = db.execute(
-            text(f"SELECT COUNT(*) FROM crypto_transaction {where}"),
-            params,
-        ).scalar()
-
-    return {"total": count, "transactions": transactions}
 
 
 @router.get(
@@ -660,13 +564,6 @@ async def get_crypto_transaction(transaction_id: int):
         row = db.execute(
             text(
                 """
-                SELECT id, sender_wallet, receiver_wallet,
-                       sender_jurisdiction, receiver_jurisdiction,
-                       asset_type, amount, value_eur, timestamp,
-                       reporting_period, status,
-                       created_at, updated_at
-                FROM crypto_transaction
-                WHERE id = :id
                 """
             ),
             {"id": transaction_id},

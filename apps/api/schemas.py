@@ -2569,9 +2569,6 @@ class CASPSummary(BaseModel):
     status: str = Field(description="Estado: active, suspended, revoked")
 
 
-class CASPDetail(CASPSummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion (ISO 8601)")
-    updated_at: str | None = Field(default=None, description="Fecha de ultima actualizacion (ISO 8601)")
 
 
 class CryptoAssetSummary(BaseModel):
@@ -3083,4 +3080,3 @@ class FraudIncidentUpdate(BaseModel):
 class FraudIncidentListResponse(BaseModel):
     incidents: list[FraudIncidentSummary]
     total: int = Field(description="Total de incidentes de fraude que coinciden con la consulta")
->>>>>>> f96e84e (feat(api,workers): Fase 31.4 — Ley 11/2021 antifraud data model (migration 0039, 15 schemas, 6 endpoints, worker + tests))

@@ -3037,6 +3037,302 @@ STATEMENTS = [
     INSERT INTO control_interno (codigo, nombre, tipo_control, frecuencia, owner_rol, estado)
     VALUES ('CTRL-TAX-001', 'Revision de declaraciones tributarias', 'preventivo', 'trimestral', 'tax_manager', 'activo')
     """,
+    # --- Fase 31: MiCA / DAC8-DAC9 / PBC / Antifraude tables ---
+    """
+    CREATE TABLE IF NOT EXISTS casp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        registration_number TEXT UNIQUE,
+        home_member_state TEXT,
+        passport_active INTEGER NOT NULL DEFAULT 0,
+        services_offered TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_casp_home_state ON casp(home_member_state)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_casp_status ON casp(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS crypto_asset (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        asset_type TEXT NOT NULL,
+        reference_uid TEXT,
+        issuer_jurisdiction TEXT,
+        is_sha INTEGER NOT NULL DEFAULT 0,
+        market_value_eur NUMERIC(20,2),
+        holders_count INTEGER,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crypto_asset_type ON crypto_asset(asset_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crypto_asset_sha ON crypto_asset(is_sha)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crypto_asset_status ON crypto_asset(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS tokenized_asset (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        underlying_type TEXT,
+        issuer_id INTEGER,
+        face_value NUMERIC(20,2),
+        total_amount NUMERIC(20,2),
+        listing_date DATE,
+        regulated_market TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_tokenized_asset_type ON tokenized_asset(underlying_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_tokenized_asset_status ON tokenized_asset(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS wallet_custodian (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        wallet_type TEXT,
+        custody_mechanism TEXT,
+        insurance_coverage NUMERIC(20,2),
+        audit_frequency TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_wallet_custodian_type ON wallet_custodian(wallet_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_wallet_custodian_status ON wallet_custodian(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS crypto_transaction (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_wallet TEXT,
+        receiver_wallet TEXT,
+        sender_jurisdiction TEXT,
+        receiver_jurisdiction TEXT,
+        asset_type TEXT,
+        amount NUMERIC(38,18),
+        value_eur NUMERIC(20,2),
+        timestamp TIMESTAMP,
+        reporting_period TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crypto_transaction_asset ON crypto_transaction(asset_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crypto_transaction_period ON crypto_transaction(reporting_period)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crypto_transaction_sender ON crypto_transaction(sender_wallet)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_crypto_transaction_receiver ON crypto_transaction(receiver_wallet)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dac_reporting_entity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tin TEXT,
+        entity_type TEXT,
+        member_state TEXT,
+        dac8_registered INTEGER NOT NULL DEFAULT 0,
+        dac9_registered INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_reporting_entity_tin ON dac_reporting_entity(tin)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_reporting_entity_state ON dac_reporting_entity(member_state)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_reporting_entity_type ON dac_reporting_entity(entity_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_reporting_entity_status ON dac_reporting_entity(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dac_crypto_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        reporting_period TEXT,
+        submitted_at TIMESTAMP,
+        status TEXT NOT NULL DEFAULT 'draft',
+        crypto_transactions_count INTEGER NOT NULL DEFAULT 0,
+        wallet_holders_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_crypto_report_entity ON dac_crypto_report(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_crypto_report_period ON dac_crypto_report(reporting_period)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_crypto_report_status ON dac_crypto_report(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dac_wallet_holder (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        report_id INTEGER,
+        wallet_address TEXT,
+        holder_tin TEXT,
+        holder_member_state TEXT,
+        holder_type TEXT,
+        total_value_eur NUMERIC(20,2),
+        verification_status TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_wallet_holder_report ON dac_wallet_holder(report_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_wallet_holder_address ON dac_wallet_holder(wallet_address)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_wallet_holder_state ON dac_wallet_holder(holder_member_state)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dac_wallet_holder_status ON dac_wallet_holder(verification_status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS pbc_obligated_subject (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subject_type TEXT,
+        tin TEXT,
+        registration_number TEXT,
+        supervisory_authority TEXT,
+        pbc_license TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_pbc_obligated_subject_type ON pbc_obligated_subject(subject_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_pbc_obligated_subject_tin ON pbc_obligated_subject(tin)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_pbc_obligated_subject_status ON pbc_obligated_subject(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS pbc_internal_control (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        obligated_subject_id INTEGER,
+        risk_assessment_date DATE,
+        compliance_officer TEXT,
+        internal_reporting_channel INTEGER NOT NULL DEFAULT 0,
+        training_program INTEGER NOT NULL DEFAULT 0,
+        audit_trail INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_pbc_internal_control_subject ON pbc_internal_control(obligated_subject_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS suspicious_activity_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        obligated_subject_id INTEGER,
+        submission_date DATE,
+        description TEXT,
+        severity TEXT,
+        status TEXT NOT NULL DEFAULT 'filed',
+        sepblac_reference TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_suspicious_activity_report_subject ON suspicious_activity_report(obligated_subject_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_suspicious_activity_report_status ON suspicious_activity_report(status)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_suspicious_activity_report_severity ON suspicious_activity_report(severity)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS beneficial_owner_record (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        owner_name TEXT,
+        ownership_percentage NUMERIC(5,2),
+        acquisition_date DATE,
+        verification_method TEXT,
+        verification_date DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_beneficial_owner_record_entity ON beneficial_owner_record(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS fraud_prevention_program (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        code_of_conduct INTEGER NOT NULL DEFAULT 0,
+        internal_reporting_system INTEGER NOT NULL DEFAULT 0,
+        training_schedule TEXT,
+        audit_frequency TEXT,
+        compliance_officer_name TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_fraud_prevention_program_entity ON fraud_prevention_program(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS fraud_risk_assessment (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        assessment_date DATE,
+        risk_areas TEXT,
+        mitigation_measures TEXT,
+        next_review_date DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_fraud_risk_assessment_entity ON fraud_risk_assessment(entity_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS fraud_incident (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        incident_date DATE,
+        description TEXT,
+        amount_eur NUMERIC(12,2),
+        status TEXT NOT NULL DEFAULT 'open',
+        resolution_date DATE,
+        regulatory_notification INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_fraud_incident_entity ON fraud_incident(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_fraud_incident_status ON fraud_incident(status)
+    """,
 ]
 
 with engine.begin() as conn:

@@ -3417,24 +3417,24 @@ El corpus normativo de `esdata` incluye referencias textuales a MiCA (EU 2023/11
 
 **Entregables**:
 - `apps/api/routers/mica.py` — CRUD de CASP, crypto-assets, tokenized assets, wallet custodians
-- `apps/api/routers/dac_reports.py` — consulta de reportes DAC8/DAC9
+- `apps/api/routers/dac8.py` — consulta de reportes DAC8/DAC9 (reporting entities, crypto reports, wallet holders)
 - `apps/api/routers/pbc.py` — consulta de sujetos obligados PBC, MARs, beneficial owners
-- `apps/api/routers/fraud_prevention.py` — consulta de programas y incidentes de fraude
-- `apps/api/schemas.py` — expansion con schemas para todas las nuevas entidades
+- `apps/api/routers/fraud.py` — consulta de programas y incidentes de fraude
+- `apps/api/schemas.py` — expansion con 55 schemas para todas las nuevas entidades (MiCA, DAC8/DAC9, PBC, antifraud)
 - Validacion de input con Pydantic en cada endpoint
-- Rate limiting en todos los endpoints nuevos
+- Rate limiting en todos los endpoints nuevos (60 req/min global)
+- Estado: `[IMPLEMENTED]` — commit `fc31858` (31.1), `ea009f2` (31.2), `76b5cec` (31.3), `f96e84e` (31.4)
 
 ### Fase 31.6 — Seeds curados y pruebas
 
 **Objetivo**: datos de prueba y curados para las nuevas entidades.
 
 **Entregables**:
-- `apps/api/seed_mica.py` — CASP registrados en Espana (datos publicos ESMA)
-- `apps/api/seed_dac.py` — plantillas de reporte DAC8/DAC9
-- `apps/api/seed_pbc.py` — tipos de sujetos obligados PBC
-- `apps/api/seed_fraud_prevention.py` — codigos de riesgo de fraude
-- Tests: `apps/api/tests/test_mica.py`, `test_dac_reports.py`, `test_pbc.py`, `test_fraud_prevention.py`
-- Tests de validacion de input y rate limiting
+- Workers con seed data: `apps/workers/mica.py` (5 entidades, 16 registros), `apps/workers/dac8.py` (5 entities, 8 registros), `apps/workers/pbc.py` (7 subjects, 16 registros), `apps/workers/fraud.py` (3 programs, 8 registros)
+- API integration tests: `apps/api/tests/test_mica.py` (39 tests), `test_dac8.py` (27 tests), `test_pbc.py` (35 tests), `test_fraud.py` (26 tests) — 127/127 passing
+- Workers unit tests: `apps/workers/tests/test_mica.py` (3 tests), `test_dac8.py` (3), `test_pbc.py` (3), `test_fraud.py` (3) — 12/12 passing
+- Fixes aplicados: response models con `total` count, table aliases en FROM, `ILIKE` → `LOWER() LIKE LOWER()`, autoincrement reset con `sqlite_sequence`, JSON string → dict parser en `CaspDetail.services_offered`
+- Estado: `[IMPLEMENTED]`
 
 ### Fase 31.7 — Integracion con retrieval y grounding
 
