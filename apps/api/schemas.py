@@ -2815,4 +2815,155 @@ class DacWalletHolderUpdate(BaseModel):
 class DacWalletHolderListResponse(BaseModel):
     holders: list[DacWalletHolderSummary]
     total: int = Field(description="Total de titulares de wallet que coinciden con la consulta")
->>>>>>> ea009f2 (feat(api,workers): Fase 31.2 — DAC8/DAC9 data model (migration 0037, 15 schemas, 6 endpoints, worker + tests))
+
+
+# --- Ley 10/2010 PBC (Prevencion Blanqueo de Capitales) schemas ---
+
+
+class PbcObligatedSubjectSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    subject_type: str | None = Field(default=None, description="Tipo: credit entity, PBC entity, auditor, notary, lawyer, real_estate_agency, casino, art_dealer")
+    tin: str | None = Field(default=None, description="NIF de la entidad")
+    registration_number: str | None = Field(default=None, description="Numero de registro")
+    supervisory_authority: str | None = Field(default=None, description="Autoridad supervisora")
+    pbc_license: str | None = Field(default=None, description="Licencia PBC")
+    status: str = Field(description="Estado de la entidad")
+
+
+class PbcObligatedSubjectDetail(PbcObligatedSubjectSummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class PbcObligatedSubjectCreate(BaseModel):
+    subject_type: str | None = Field(default=None)
+    tin: str | None = Field(default=None)
+    registration_number: str | None = Field(default=None)
+    supervisory_authority: str | None = Field(default=None)
+    pbc_license: str | None = Field(default=None)
+    status: str = Field(default="active")
+
+
+class PbcObligatedSubjectUpdate(BaseModel):
+    subject_type: str | None = Field(default=None)
+    tin: str | None = Field(default=None)
+    registration_number: str | None = Field(default=None)
+    supervisory_authority: str | None = Field(default=None)
+    pbc_license: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class PbcObligatedSubjectListResponse(BaseModel):
+    subjects: list[PbcObligatedSubjectSummary]
+    total: int = Field(description="Total de sujetos obligados PBC que coinciden con la consulta")
+
+
+class PbcInternalControlSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    obligated_subject_id: int | None = Field(default=None, description="ID del sujeto obligado")
+    risk_assessment_date: str | None = Field(default=None, description="Fecha de evaluacion de riesgos")
+    compliance_officer: str | None = Field(default=None, description="Oficial de cumplimiento")
+    internal_reporting_channel: bool = Field(description="Canal de reporte interno activo")
+    training_program: bool = Field(description="Programa de formacion activo")
+    audit_trail: bool = Field(description="Registro de auditoria activo")
+
+
+class PbcInternalControlDetail(PbcInternalControlSummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class PbcInternalControlCreate(BaseModel):
+    obligated_subject_id: int | None = Field(default=None)
+    risk_assessment_date: str | None = Field(default=None)
+    compliance_officer: str | None = Field(default=None)
+    internal_reporting_channel: bool = Field(default=False)
+    training_program: bool = Field(default=False)
+    audit_trail: bool = Field(default=False)
+
+
+class PbcInternalControlUpdate(BaseModel):
+    obligated_subject_id: int | None = Field(default=None)
+    risk_assessment_date: str | None = Field(default=None)
+    compliance_officer: str | None = Field(default=None)
+    internal_reporting_channel: bool | None = Field(default=None)
+    training_program: bool | None = Field(default=None)
+    audit_trail: bool | None = Field(default=None)
+
+
+class PbcInternalControlListResponse(BaseModel):
+    controls: list[PbcInternalControlSummary]
+    total: int = Field(description="Total de controles internos que coinciden con la consulta")
+
+
+class SuspiciousActivityReportSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    obligated_subject_id: int | None = Field(default=None, description="ID del sujeto obligado")
+    submission_date: str | None = Field(default=None, description="Fecha de presentacion")
+    severity: str | None = Field(default=None, description="Gravedad: low, medium, high, critical")
+    status: str = Field(description="Estado: filed, under_review, investigated, closed")
+    sepblac_reference: str | None = Field(default=None, description="Referencia SEPBLAC")
+
+
+class SuspiciousActivityReportDetail(SuspiciousActivityReportSummary):
+    description: str | None = Field(default=None, description="Descripcion del reporte")
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class SuspiciousActivityReportCreate(BaseModel):
+    obligated_subject_id: int | None = Field(default=None)
+    submission_date: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    severity: str | None = Field(default=None)
+    status: str = Field(default="filed")
+    sepblac_reference: str | None = Field(default=None)
+
+
+class SuspiciousActivityReportUpdate(BaseModel):
+    obligated_subject_id: int | None = Field(default=None)
+    submission_date: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    severity: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+    sepblac_reference: str | None = Field(default=None)
+
+
+class SuspiciousActivityReportListResponse(BaseModel):
+    reports: list[SuspiciousActivityReportSummary]
+    total: int = Field(description="Total de reportes de actividad sospechosa que coinciden con la consulta")
+
+
+class BeneficialOwnerRecordSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    owner_name: str | None = Field(default=None, description="Nombre del beneficiario")
+    ownership_percentage: float | None = Field(default=None, description="Porcentaje de participacion")
+    acquisition_date: str | None = Field(default=None, description="Fecha de adquisicion")
+    verification_method: str | None = Field(default=None, description="Metodo de verificacion")
+    verification_date: str | None = Field(default=None, description="Fecha de verificacion")
+
+
+class BeneficialOwnerRecordDetail(BeneficialOwnerRecordSummary):
+    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class BeneficialOwnerRecordCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    owner_name: str | None = Field(default=None)
+    ownership_percentage: float | None = Field(default=None)
+    acquisition_date: str | None = Field(default=None)
+    verification_method: str | None = Field(default=None)
+    verification_date: str | None = Field(default=None)
+
+
+class BeneficialOwnerRecordUpdate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    owner_name: str | None = Field(default=None)
+    ownership_percentage: float | None = Field(default=None)
+    acquisition_date: str | None = Field(default=None)
+    verification_method: str | None = Field(default=None)
+    verification_date: str | None = Field(default=None)
+
+
+class BeneficialOwnerRecordListResponse(BaseModel):
+    records: list[BeneficialOwnerRecordSummary]
+    total: int = Field(description="Total de registros de beneficiario real que coinciden con la consulta")
+>>>>>>> 76b5cec (feat(api,workers): Fase 31.3 — Ley 10/2010 PBC data model (migration 0038, 20 schemas, 8 endpoints, worker + tests))

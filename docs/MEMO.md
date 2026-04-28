@@ -6,7 +6,11 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ## main
 
+<<<<<<< HEAD
 **Estado:** activa — ultimo commit: PENDING (roadmap multi-machine reentry instructions added)
+=======
+**Estado:** activa — ultimo commit: PENDING (Fase 31.3 Ley 10/2010 PBC en curso)
+>>>>>>> 76b5cec (feat(api,workers): Fase 31.3 — Ley 10/2010 PBC data model (migration 0038, 20 schemas, 8 endpoints, worker + tests))
 
 ### Resumen
 Fase 30 completada (30.1-30.15): remediacion estructural post-auditoria cerrada. Todas las fases planificadas 22-30 ahora completas. Roadmap limpio de headers stale (Fases 16, 23, 30). Fase 31 planificada: expansion regulatoria con data models para MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021 — 7 subfases documentadas con tablas, workers, routers, migrations y seeds.
@@ -18,8 +22,13 @@ Fase 30.13 completada: grounding duro por claim. Nuevo modulo `services/groundin
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+<<<<<<< HEAD
 | PENDING | docs(roadmap) | add explicit multi-machine reentry instructions for `main` and `wip/mica-2026-04-27` so the next session can resume safely from another computer | docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 | ee12bd3 | fix(workers) | harden regulatory workers with source-revision locking, CNMV BOE HTML follow-up, entity-scoped invalidation, and TEAC test/runtime alignment while recording production monitoring and DGT discovery next steps | apps/workers/bde.py, apps/workers/change_detection.py, apps/workers/cnmv.py, apps/workers/sepblac.py, apps/workers/tests/test_bde.py, apps/workers/tests/test_change_detection.py, apps/workers/tests/test_cnmv.py, apps/workers/tests/test_sepblac.py, apps/workers/tests/test_teac.py, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
+=======
+| PENDING | feat(api,workers) | Fase 31.3: Ley 10/2010 PBC data model — migration 0038 (4 tablas), 20 schemas Pydantic, 8 endpoints /v1/pbc, worker con seed data (7 sujetos obligados, 3 controles, 3 SAR/MAR, 3 beneficiarios), 3 tests pasando | alembic/versions/20260427_0038_ley10_2010_models.py, apps/api/schemas.py, apps/api/routers/pbc.py, apps/api/main.py, apps/workers/pbc.py, apps/workers/tests/test_pbc.py, docs/CHANGELOG.md, docs/MEMO.md |
+| a29fc8d | feat(workers) | Fase 31.1: worker mica.py con seed data para CASP, crypto assets, tokenized assets, wallet custodians y crypto transactions DAC8/DAC9; 3 tests pasando | apps/workers/mica.py, apps/workers/tests/test_mica.py, docs/CHANGELOG.md, docs/MEMO.md |
+>>>>>>> 76b5cec (feat(api,workers): Fase 31.3 — Ley 10/2010 PBC data model (migration 0038, 20 schemas, 8 endpoints, worker + tests))
 | fc31858 | feat(api) | Fase 31.1: MiCA/crypto data model — migration 0036 (5 tablas), 25 schemas Pydantic, 10 endpoints /v1/mica | alembic/versions/20260427_0036_mica_crypto_models.py, apps/api/schemas.py, apps/api/routers/mica.py, apps/api/main.py, docs/CHANGELOG.md, docs/MEMO.md |
 | a29fc8d | feat(workers) | Fase 31.1: worker mica.py con seed data para CASP, crypto assets, tokenized assets, wallet custodians y crypto transactions DAC8/DAC9; 3 tests pasando | apps/workers/mica.py, apps/workers/tests/test_mica.py, docs/CHANGELOG.md, docs/MEMO.md |
 | PENDING | config | add verified CENDOJ and AEPD seeds to env templates, fix TEAC logger crash, and document TEAC parser date guard as the next isolated task | .env.example, infra/deploy/compose.env.example, apps/workers/teac.py, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
