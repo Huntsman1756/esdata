@@ -198,9 +198,9 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, BDNS) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
-- Estado actual: Fase 34 `COMPLETA` — 16/21 seed scripts con datos reales. 5 seeds con 0 rows: `seed_internacional` (IRS/MiCA/Crypto), `seed_w8_forms` (W8), `seed_fiscal_indicators` (indicators), `seed_facta` (LIRNR), `seed_tax_data` (datos fiscales base).
-- Estado del agente: Fase 34 validacion completa. 63/63 MCP tools OK (excluidos 3 placeholder BORME/CNMV/SEPBLAC). Siguiente paso exacto: **Fase 35 — Poblar organismos reguladores** (BORME, CNMV, SEPBLAC, BDNS) con datos reales o marcar como `[TARGET]` con worker + seed correspondiente.
+- Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, AEPD COMPLETOS; BDNS, CENDOJ, TEAC OUT OF SCOPE; BDE COMPLETADO, EURLEX pendiente) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
+- Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.3 `COMPLETA`, 35.4-35.5 `OUT OF SCOPE`, 35.6 `COMPLETA`, 35.7 `OUT OF SCOPE`, 35.8 `COMPLETA`. 264 documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 1, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS).
+- Estado del agente: BORME/CNMV/SEPBLAC/AEPD/BDE completados con datos reales (264 docs). BDNS, CENDOJ y TEAC marcados como OUT OF SCOPE. Siguiente paso exacto: **Fase 35.9 — EUR-Lex** (Legislacion de la UE — directives, regulations espana-related).
 - Archivos afectados:
   - `docs/master-execution-roadmap.md`
 - Inicio: 2026-04-28
@@ -4096,7 +4096,7 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ## Fase 35 — Poblar datos reales de organismos reguladores
 
-**Estado**: `[TARGET]`
+**Estado**: `[EN CURSO]` — BORME COMPLETA (100 docs), CNMV COMPLETA (12 docs), SEPBLAC COMPLETA (13 docs), BDNS OUT OF SCOPE, CENDOJ OUT OF SCOPE, AEPD COMPLETA (77 docs). Pendiente: TEAC, BDE, EURLEX.
 
 **Objetivo**: Ingerir datos reales de los organismos reguladores que actualmente devuelven 404 o tienen 0 documentos.
 
@@ -4104,74 +4104,60 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ### Fase 35.1 — BORME (Boletin Oficial del Mercantil)
 
-**Estado**: `[TARGET]`
+**Estado**: `[COMPLETA]` — 100 documentos almacenados (2025-04-21 a 2025-04-25), 99 empresas extraidas
 
-- **Problema**: 0 documentos. `listar_borme` devuelve array vacio. No hay worker de ingestion ni seed script.
-- **Fuente**: `https://www.boe.es/diario_boe.php` o API BOE filtrando por tipo `Boletin Oficial del Estado - Supplemento del BORME`
-- **Enfoque**:
-  1. Crear worker `apps/workers/borme.py` siguiendo patron de `cnmv.py`/`sepblac.py`
-  2. Consumir API BOE para listar ultimos BORME publicados
-  3. Para cada BORME: fetch PDF, extraer metadatos (numero, fecha, suplemento), upsert en `documento_interpretativo` con `tipo_fuente='borme'`
-  4. Discovery: pagina principal BOE + seccion BORME como seed URLs
-  5. Rate limit: 1 req/seg, backoff exponencial
-- **Archivos a crear**: `apps/workers/borme.py`, `apps/workers/tests/test_borme.py`, `scripts/data/seed_borme.py`
-- **Tabla destino**: `documento_interpretativo` (tipo_documento='borme', ambito='mercantil')
-- **Riesgos**: BORME es de pago (acceso parcial gratuito via BOE); PDFs grandes; estructura variable por tipo de suplemento
+**Solucion implementada**:
+- Seed script `scripts/data/seed_borme.py` descubre PDFs desde `/borme/dias/YYYY/MM/DD/` HTML
+- Extrae texto con pypdf, detecta tipo de evento (nombramiento/reduccion_capital)
+- Extrae nombres de empresas y upsert en tabla `empresa`
+- Almacena en `documento_interpretativo` con `tipo_fuente='borme'`, `organismo_emisor='BORME'`
+- Worker `apps/workers/borme.py` (424 lineas) con change detection y sync logging
+- Endpoint API `GET /v1/borme` verifica datos correctos
 
 ### Fase 35.2 — CNMV (Comision Nacional del Mercado de Valores)
 
-**Estado**: `[TARGET]`
+**Estado**: `[COMPLETA]` — 12 documentos almacenados
 
-- **Problema**: 0 documentos en `documento_interpretativo`. Worker `cnmv.py` existe pero solo tiene 1 seed URL hardcodeada. `listar_cnmv` devuelve array vacio.
-- **Fuente**: `https://www.cnmv.es/ibe/loader.jsp?T=IPrincipal.CategoriaActual&iCategoria=10` (circulares e instrucciones)
-- **Enfoque**:
-  1. Mejorar worker `cnmv.py` con discovery real desde indice HTML de circulares
-  2. Mapear circulares a `documento_interpretativo` con `tipo_fuente='cnmv'`
-  3. Extraer numero de circular, fecha, titulo, ambito regulatorio
-  4. Test con snapshot del indice HTML real
-- **Archivos a modificar**: `apps/workers/cnmv.py`, `apps/workers/tests/test_cnmv.py`
-- **Tabla destino**: `documento_interpretativo` (tipo_documento='circular_cnmv', ambito='mercado_valores')
-- **Riesgos**: HTML de CNMV puede cambiar; rate limits no documentados
+**Solucion implementada**:
+- Seed script `scripts/data/seed_cnmv.py` ingiere circulares desde referencias BOE-A conocidas
+- Extrae texto desde HTML del BOE (bypass CDN cache con headers no-cache)
+- Detecta regulacion relacionada (sfdr, mifid_ii, dora, cnmv_general)
+- Almacena en `documento_interpretativo` con `tipo_fuente='cnmv'`, `organismo_emisor='CNMV'`
+- Worker `apps/workers/cnmv.py` (1222 lineas) con discovery desde portal CNMV
 
-### Fase 35.3 — SEPBLAC (Servicio Ejecutivo de Comisionamiento Preventivo de Blanqueo de Capitales)
+### Fase 35.3 — SEPBLAC (Servicio Ejecutivo de Prevencion de Blanqueo de Capitales)
 
-**Estado**: `[TARGET]`
+**Estado**: `[COMPLETA]` — 13 documentos almacenados
 
-- **Problema**: 0 documentos en `documento_interpretativo`. Worker `sepblac.py` existe con 2 seed URLs pero no popula `documento_interpretativo`.
-- **Fuente**: `https://www.sepblac.es/es/publicaciones/`
-- **Enfoque**:
-  1. Verificar que `sepblac.py` popula `documento_interpretativo` correctamente (actualmente popula otra tabla o no hace upsert)
-  2. Asegurar que `tipo_fuente='sepblac'` y `organismo_emisor='SEPBLAC'`
-  3. Discovery desde pagina de publicaciones
-- **Archivos a modificar**: `apps/workers/sepblac.py`, `apps/workers/tests/test_sepblac.py`
-- **Tabla destino**: `documento_interpretativo` (tipo_documento='guia_operativa_sepblac', ambito='aml_cft')
-- **Riesgos**: Bajo — worker ya existe, probablemente solo fix de tabla destino
+**Solucion implementada**:
+- Seed script `scripts/data/seed_sepblac.py` descubre paginas desde sitemap XML del portal SEPBLAC
+- Filtra por guias/informes/publicaciones, excluye paginas categoria
+- Extrae texto desde HTML, detecta tipo (guia_sepblac, informe_sepblac)
+- Almacena en `documento_interpretativo` con `tipo_fuente='sepblac'`, `organismo_emisor='SEPBLAC'`
+- Worker `apps/workers/sepblac.py` (262 lineas) con change detection
 
-### Fase 35.4 — BDNS (Boletin Digital de la Nutricion y Suplementos)
+### Fase 35.4 — BDNS (Base de Datos de Convocatorias de Subvenciones)
 
-**Estado**: `[TARGET]`
+**Estado**: `[OUT OF SCOPE]`
 
-- **Problema**: 0 documentos. No hay worker ni seed script.
-- **Fuente**: `https://www.sanidad.gob.es/` o portal de nutricion del Ministerio de Sanidad
-- **Enfoque**:
-  1. Investigar si BDNS es un boletin real con URL publica
-  2. Si existe: crear worker `apps/workers/bdns.py` siguiendo patron existente
-  3. Si no existe o no es publico: marcar como `[DEPRECATED]` y eliminar referencia de MCP
-- **Archivos a crear/eliminar**: `apps/workers/bdns.py` o eliminar de `mcp_server.py`
-- **Riesgos**: BDNS puede no ser un recurso publico real — requiere investigacion previa
+- **Aclaracion**: BDNS en este proyecto NO es la base de datos de nutricion. Es un tracker de subvenciones/convocatorias desde `infosubvenciones.es/bdnstrans/`.
+- **No es un organismo regulador**: A diferencia de BORME/CNMV/SEPBLAC, BDNS no publica documentos regulatorios (circulares, resoluciones, doctrina).
+- **Dominio diferente**: Las subvenciones pertenecen a un dominio distinto al de documentos interpretativos/regulatorios.
+- **Decision**: Marcar como `[OUT OF SCOPE]` para Fase 35. El worker BDNS ya existe y funciona para su dominio (subvenciones). No requiere datos adicionales para Fase 35.
 
 ### Fase 35.5 — CENDOJ (Portal de Documentos Judiciales)
 
-**Estado**: `[TARGET]`
+**Estado**: `[OUT OF SCOPE]`
 
-- **Problema**: 1 documento pero solo el index. No hay ingestion de resoluciones reales.
-- **Fuente**: `https://www.poderjudicial.es/cgpj/es/task.do?modo=1&metrica=simple&menu=RESULTADOS&pag=1&ta=SENTENCIAS`
-- **Enfoque**:
-  1. Mejorar worker `cendoj.py` para ingesting resoluciones reales desde indice
-  2. Extraer: numero de procedimiento, sala, fecha, tipo, extracto
-  3. Mapear a `documento_interpretativo` con `tipo_fuente='cendoj'`
-- **Archivos a modificar**: `apps/workers/cendoj.py`, `apps/workers/tests/test_cendoj.py`
-- **Riesgos**: POJER tiene rate limits estrictos; resoluciones en PDF/HTML variable
+- **Problema**: El portal CENDOJ (`poderjudicial.es/cgpj`) está caído/migrado. El nuevo portal (`www3.poderjudicial.es`) requiere autenticación SSO/NIDP con anti-forgery tokens. El Tribunal Constitucional HJ (`hj.tribunalconstitucional.es`) también requiere session state con tokens CSRF.
+- **Investigación**: 
+  - POJER antiguo: HTTP 404 "Servicio no disponible temporalmente"
+  - POJER nuevo: Access Manager (MicroFocus NIDP) — requiere login SSO
+  - TC HJ: ASP.NET MVC con anti-forgery tokens (`__RequestVerificationToken`) — requiere session state
+  - TC resoluciones NO se publican en BOE (solo son resoluciones administrativas del Presidente)
+  - No hay API REST, no hay Open Data portal, no hay RSS de resoluciones
+- **Decisión**: Marcar como `[OUT OF SCOPE]` para Fase 35. Los portales judiciales requieren autenticación que no está disponible. El worker `cendoj.py` ya existe pero necesita SEED_URLS que no se pueden discover sin auth.
+- **Alternativa futura**: Si se obtienen credenciales de acceso al POJER/CENDOJ, el worker ya está implementado y solo requiere configurar las URLs seed.
 
 ### Fase 35.6 — AEPD (Agencia Espanola de Proteccion de Datos)
 
@@ -4188,28 +4174,31 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ### Fase 35.7 — TEAC (Tribunal Economico-Administrativo Central)
 
-**Estado**: `[TARGET]`
+**Estado**: `[OUT OF SCOPE]`
 
-- **Problema**: Parser falla con `strptime() argument 1 must be str, not None` — el campo de fecha en HTML real no tiene formato esperado.
-- **Fuente**: `https://www.hacienda.gob.es/es-ES/Areas%20Tematicas/Impuestos/TEAC/Paginas/Tribunales%20economicos%20administrativos.aspx`
-- **Enfoque**:
-  1. Inspeccionar HTML real del TEAC para localizar selector de fecha correcto
-  2. Añadir guard antes del `strptime()` con fallback a `None` o fecha estimada
-  3. Test con HTML real reducido
-- **Archivos a modificar**: `apps/workers/teac.py`, `apps/workers/tests/test_teac.py`
-- **Riesgos**: HTML del TEAC puede tener variaciones de formato
+- **Motivo**: No hay fuente discoverable via HTTP. BOE search devuelve homepage para todas las consultas. Portal TEAC (sede.hacienda.gob.es) es aplicacion .NET que requiere JavaScript. Dominio teac.es ya no resuelve. Wayback Machine no tiene paginas archivadas de criterios TEAC. No hay API publica ni RSS de resoluciones.
+- **Worker**: `apps/workers/teac.py` existe (263 lines) con parser HTML listo, pero sin URLs de discovery funcionales.
 
 ### Fase 35.8 — BDE (Banco de Espana)
 
-**Estado**: `[TARGET]`
+**Estado**: `[COMPLETA]`
 
-- **Problema**: 1 documento (informe estadistico genérico). No hay ingestion de circulares BDE.
-- **Fuente**: `https://www.bde.es/wbe/es/publicaciones/`
+- **Fuente**: `https://www.bde.es` — portal con sitemaps discoverables
+- **Sitemaps**:
+  - `sitemap.xml` -> 5 sub-sitemaps (HTML ES/EN/EU-GA-VA, files, compressed)
+  - `sitemap_html_es.xml` -> 15,946 URLs (184 normativa, 87 circulares, 4,347 publicaciones, 721 informes)
+  - `sitemap_files.xml` -> 31,517 URLs (PDFs: informes bancarios, taxonomias, etc.)
+  - `sitemap_compressed.xml` -> 613 URLs (XBRL taxonomies)
 - **Enfoque**:
-  1. Mejorar worker `bde.py` para discovery de circulares e informes
-  2. Mapear a `documento_interpretativo` con `tipo_fuente='bde'`
-- **Archivos a modificar**: `apps/workers/bde.py`, `apps/workers/tests/test_bde.py`
-- **Riesgos**: Bajo — worker ya existe con estructura basica
+  1. Crear `scripts/data/seed_bde.py` que descubra URLs desde sitemaps
+  2. Filtrar a contenido regulatorio (normativa, circulares, informes bancarios)
+  3. Almacenar en `documento_interpretativo` con `tipo_fuente='bde'`
+  4. Worker `apps/workers/bde.py` (267 lines) ya existe con parser PDF/HTML y change detection
+- **Archivos creados**: `scripts/data/seed_bde.py`
+- **Archivos existentes**: `apps/workers/bde.py`
+- **Resultados**: 61 documentos almacenados (57 informes_bancario_bde, 2 circular_bde, 1 documento_bde, 1 informe_bde)
+- **Notas**: Las paginas HTML del BDE son SPAs JS-rendered con contenido limitado en HTML inicial. Los PDFs del files sitemap son la fuente de contenido real. ~25% de los PDFs del sitemap estan corruptos/sin texto extraible.
+- **Riesgos**: Bajo
 
 ### Fase 35.9 — EUR-Lex (Legislacion de la UE)
 
