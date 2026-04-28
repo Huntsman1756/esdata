@@ -326,6 +326,18 @@ def _ensure_sync_log_table(conn) -> None:
             """
         )
     )
+    dialect = conn.engine.dialect.name
+    if dialect == "sqlite":
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(sync_log)")).fetchall()}
+        for col in ("rows_processed", "errors", "duration_ms"):
+            if col not in columns:
+                conn.execute(text(f"ALTER TABLE sync_log ADD COLUMN {col} INTEGER"))
+    else:
+        cursor = conn.execute(text("""SELECT column_name FROM information_schema.columns WHERE table_name = 'sync_log'""")).fetchall()
+        existing = {row[0] for row in cursor}
+        for col, typ in (("rows_processed", "INTEGER"), ("errors", "INTEGER"), ("duration_ms", "INTEGER")):
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE sync_log ADD COLUMN {col} {typ}"))
 
 
 def log_sync(
