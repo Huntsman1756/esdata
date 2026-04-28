@@ -3332,8 +3332,8 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 ## Fase 31 — Expansion regulatoria: MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021
 
 ### Estado
-- **EN CURSO** — data models ausentes para crypto/MiCA/CASP
-- **Prioridad**: alta — gap estructural entre texto normativo referenciado y esquemas de datos
+- **COMPLETA** — 53 nuevas tablas, 13 migraciones Alembic (0036-0051), 8+ workers, 10+ routers, 15+ seeds, 15+ tests
+- **Cobertura**: MiCA (31.1), DAC8/DAC9 (31.2), Ley 10/2010 PBC (31.3), Ley 11/2021 antifraud (31.4), MiFID II/MAR/DORA/PRIIPs/Transparencia (31.8), SFDR/CSRD/AIFMD/UCITS/CRD/BRRD/EMIR (31.9), PSD2/Consumer Credit/IDD (31.10)
 
 ### Contexto
 
