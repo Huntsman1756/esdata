@@ -79,11 +79,11 @@ def main():
 
     # Reduccion rendimientos del trabajo
     work_reductions = [
-        (2025, "scale", None, None, 14852, 7302, None, None, None, None, "Ley 35/2006, art. 20. RDL 4/2024 (coeficientes 1.75 y 1.14, vigentes desde 2024)"),
-        (2025, "scale", 14852, 17673.52, None, None, None, None, "7302 - 1.75 * (net_income - 14852)", None, "Ley 35/2006, art. 20"),
-        (2025, "scale", 17673.52, 19747.50, None, None, None, None, "2364.34 - 1.14 * (net_income - 17673.52)", None, "Ley 35/2006, art. 20"),
-        (2025, "scale", None, 19747.50, None, 0, None, None, None, None, "Ley 35/2006, art. 20"),
-        (2025, "new_deduction", None, None, None, None, 340, 16576, None, 18276, "Ley 5/2025, de 24 de julio. DA 61.a LIRPF"),
+        (2025, "scale", None, None, 14852, None, 7302, None, None, "Ley 35/2006, art. 20. RDL 4/2024 (coeficientes 1.75 y 1.14, vigentes desde 2024)"),
+        (2025, "scale", 14852, 17673.52, None, "7302 - 1.75 * (net_income - 14852)", None, None, None, "Ley 35/2006, art. 20"),
+        (2025, "scale", 17673.52, 19747.50, None, "2364.34 - 1.14 * (net_income - 17673.52)", None, None, None, "Ley 35/2006, art. 20"),
+        (2025, "scale", None, 19747.50, None, None, 0, None, None, "Ley 35/2006, art. 20"),
+        (2025, "new_deduction", None, None, None, None, 340, 16576, None, "Ley 5/2025, de 24 de julio. DA 61.a LIRPF"),
     ]
 
     for row in work_reductions:

@@ -99,9 +99,6 @@ def _upsert_fund(cur, row):
             redemption_frequency, leverage_method, leverage_max_pct, status)
            VALUES (%s, %s, %s, %s::date, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (fund_name) DO UPDATE SET
-             aifm_id = EXCLUDED.aifm_id,
-             fund_type = EXCLUDED.fund_type,
-             registration_date = EXCLUDED.registration_date,
              home_member_state = EXCLUDED.home_member_state,
              cross_border_passport = EXCLUDED.cross_border_passport,
              total_aum_eur = EXCLUDED.total_aum_eur,
@@ -120,9 +117,8 @@ def _upsert_report(cur, row):
         """INSERT INTO aifmd_regulatory_report
            (fund_id, report_type, reporting_period, url, filed_date, status)
            VALUES (%s, %s, %s, %s, %s::date, %s)
-           ON CONFLICT (fund_id, report_type, reporting_period) DO UPDATE SET
+           ON CONFLICT (fund_id, reporting_period) DO UPDATE SET
              url = EXCLUDED.url,
-             filed_date = EXCLUDED.filed_date,
              status = EXCLUDED.status""",
         row,
     )
@@ -136,8 +132,6 @@ def _upsert_liquidity(cur, row):
            VALUES (%s, %s, %s::date, %s, %s, %s, %s, %s)
            ON CONFLICT (fund_id) DO UPDATE SET
              redemption_suspended = EXCLUDED.redemption_suspended,
-             suspension_date = EXCLUDED.suspension_date,
-             gating_applied = EXCLUDED.gating_applied,
              swing_price_applied = EXCLUDED.swing_price_applied,
              side_pocket_applied = EXCLUDED.side_pocket_applied,
              stress_test_result = EXCLUDED.stress_test_result,

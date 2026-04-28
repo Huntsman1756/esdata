@@ -30,12 +30,12 @@ def main():
 
         # ---- 2. Obtener IDs de normas ----
         cur.execute(
-            "SELECT codigo, id FROM norma WHERE codigo IN ('LIVA', 'IRNR', 'LIS', 'ES_US_CONVENIO')"
+            "SELECT codigo, id FROM norma WHERE codigo IN ('LIVA', 'LIRNR', 'LIS', 'ES_US_CONVENIO')"
         )
         normas = {row[0]: row[1] for row in cur.fetchall()}
 
         liva_id = normas["LIVA"]
-        irnr_id = normas["IRNR"]
+        irnr_id = normas["LIRNR"]
         lis_id = normas["LIS"]
         convenio_id = normas["ES_US_CONVENIO"]
 
@@ -236,14 +236,14 @@ a) Entregas de bienes a no residentes fuera de la UE → Exentas (art. 21) + Mod
 b) Prestaciones de servicios a no residentes fuera de la UE → Exentas (art. 21) + Modelo 216.
 3. El Modelo 349 solo se aplica a operadores intracomunitarios (UE). No se aplica a no residentes fuera de la UE."""),
 
-            ("IRNR", "1", """Artículo 1. Ámbito de aplicación del IRNR.
+            ("LIRNR", "1", """Artículo 1. Ámbito de aplicación del IRNR.
 1. La presente Ley regula la tributación de los rendimientos obtenidos por no residentes en España en los términos establecidos en los convenios para evitar la doble tributación.
 2. Están sujetos al IRNR:
 a) Las personas físicas que no residan habitualmente en España.
 b) Las entidades que no tengan su residencia fiscal en España.
 c) Las rentas obtenidas en España por los anteriores."""),
 
-            ("IRNR", "2", """Artículo 2. Rendimientos del capital mobiliario - dividendos e intereses.
+            ("LIRNR", "2", """Artículo 2. Rendimientos del capital mobiliario - dividendos e intereses.
 1. Están sujetos al IRNR los rendimientos del capital mobiliarios obtenidos por no residentes, en particular:
 a) Dividendos distribuidos por sociedades españolas.
 b) Intereses de depósitos, cuentas y créditos.
@@ -251,12 +251,12 @@ c) Rendimientos de valores de renta fija.
 d) Regalías y cánones por uso de patentes, marcas, etc.
 2. Los rendimientos del capital mobiliario obtenidos por no residentes estarán sujetos a retención a cuenta del IRNR."""),
 
-            ("IRNR", "6", """Artículo 6. Retenciones e ingresos a cuenta en operaciones con no residentes.
+            ("LIRNR", "6", """Artículo 6. Retenciones e ingresos a cuenta en operaciones con no residentes.
 1. Las entidades españolas que realicen pagos a no residentes estarán obligadas a practicar retención en los rendimientos del capital mobiliario, del trabajo y del capital inmobiliario.
 2. Las retenciones se practicarán a los tipos establecidos en esta Ley o en los convenios de doble tributación.
 3. Las retenciones practicadas se ingresarán en los plazos establecidos y se declararán en los modelos correspondientes (123, 124, 216)."""),
 
-            ("IRNR", "7", """Artículo 7. Tipos de retención del IRNR.
+            ("LIRNR", "7", """Artículo 7. Tipos de retención del IRNR.
 1. El tipo general de retención será del 20% para todos los rendimientos.
 2. Los convenios de doble tributación podrán establecer tipos reducidos:
 a) Dividendos: generalmente 15% (o 10% si el beneficiario es una entidad con participación significativa).
@@ -264,21 +264,21 @@ b) Intereses: generalmente 15%.
 c) Regalías: generalmente 15%.
 3. En caso de no disponer de convenio de doble tributación, se aplicará el tipo general del 20%."""),
 
-            ("IRNR", "8", """Artículo 8. Convenios internacionales para evitar la doble tributación.
+            ("LIRNR", "8", """Artículo 8. Convenios internacionales para evitar la doble tributación.
 1. Los convenios internacionales para evitar la doble tributación suscritos por España se aplicarán preferentemente a la normativa interna.
 2. Para aplicar el tipo reducido del convenio, el no residente deberá acreditar su residencia fiscal mediante:
 a) Certificado de residencia fiscal emitido por la autoridad fiscal de su país.
 b) Formulario W-8BEN (personas físicas) o W-8BEN-W (entidades).
 3. El convenio España-EE.UU. establece tipos reducidos para dividendos (15%), intereses (15%) y regalías (15%)."""),
 
-            ("IRNR", "9", """Artículo 9. Obligaciones de presentación de modelos 216, 123, 124.
+            ("LIRNR", "9", """Artículo 9. Obligaciones de presentación de modelos 216, 123, 124.
 1. Las entidades españolas que realicen pagos a no residentes estarán obligadas a presentar:
 a) Modelo 123: para rendimientos del trabajo y otros rendimientos no incluidos en el 124. Trimestral.
 b) Modelo 124: para dividendos y rentas de capital mobiliario. Mensual.
 c) Modelo 216: para entregas de bienes y prestaciones de servicios a no residentes. Mensual.
 2. Todos los modelos se presentarán electrónicamente en la Sede electrónica de la AEAT."""),
 
-            ("IRNR", "11", """Artículo 11. Documentación justificativa de residencia fiscal.
+            ("LIRNR", "11", """Artículo 11. Documentación justificativa de residencia fiscal.
 1. El no residente deberá acreditar su residencia fiscal para aplicar los convenios de doble tributación.
 2. La documentación requerida incluye:
 a) Certificado de residencia fiscal.

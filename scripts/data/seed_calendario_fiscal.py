@@ -215,13 +215,8 @@ def main():
             """INSERT INTO modelo_fiscal_calendar
                (campana_id, fecha_inicio_presentacion, fecha_fin_presentacion,
                 fecha_fin_prorroga, observaciones, fuente, activo)
-               VALUES (%s, %s, %s, %s, %s, %s, true)
-               ON CONFLICT (campana_id, fecha_inicio_presentacion) DO UPDATE SET
-                   fecha_fin_presentacion = EXCLUDED.fecha_fin_presentacion,
-                   fecha_fin_prorroga = EXCLUDED.fecha_fin_prorroga,
-                   observaciones = EXCLUDED.observaciones,
-                   fuente = EXCLUDED.fuente,
-                   actualizado_at = now()""",
+                VALUES (%s, %s, %s, %s, %s, %s, true)
+                ON CONFLICT DO NOTHING""",
             (
                 campana_id,
                 datetime.fromisoformat(entry["fecha_inicio"]),

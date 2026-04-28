@@ -353,7 +353,7 @@ def main():
                deposito_previo, fuentes_operativas, origen_metadato, estado_metadato)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                       jsonb_build_object(), %s, %s)
+                       %s, %s, %s)
                ON CONFLICT (codigo) DO UPDATE SET
                nombre = EXCLUDED.nombre, reporte_modelo = EXCLUDED.reporte_modelo,
                plazo_dias = EXCLUDED.plazo_dias, sancion_min = EXCLUDED.sancion_min,

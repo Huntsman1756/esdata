@@ -23,8 +23,8 @@ def main():
 
     for row in ss_rates:
         cur.execute(
-            """INSERT INTO ss_rates (year, category, base_monthly, base_annual, rate_common, source)
-               VALUES (%s, %s, %s, %s, %s, %s)
+            """INSERT INTO ss_rates (year, category, base_monthly, base_annual, rate_common, rate_accident, total_rate, source)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                ON CONFLICT (year, category) DO UPDATE SET
                    base_monthly = EXCLUDED.base_monthly,
                    base_annual = EXCLUDED.base_annual,

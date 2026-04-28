@@ -995,7 +995,7 @@ class XbrlFilingDetail(BaseModel):
     period_start: str | None = Field(default=None, description="Fecha inicial del periodo (YYYY-MM-DD)")
     period_end: str | None = Field(default=None, description="Fecha final del periodo (YYYY-MM-DD)")
     filing_type: str = Field(description="Tipo de filing XBRL")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en el sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en el sistema")
 
 
 class XbrlFilingDetailResponse(BaseModel):
@@ -1011,7 +1011,7 @@ class XbrlFilingDetail(BaseModel):
     period_start: str | None = Field(default=None, description="Fecha inicial del periodo")
     period_end: str | None = Field(default=None, description="Fecha final del periodo")
     filing_type: str = Field(description="Tipo de filing XBRL")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en DB")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en DB")
 
 
 class XbrlFilingDetailResponse(BaseModel):
@@ -1498,7 +1498,7 @@ class NotaEditorialDetail(BaseModel):
     tipo_contenido: str = Field(description="Tipo: resumen_interno, criterio_experto, nota_operativa")
     fecha_creacion: str | None = Field(default=None, description="Fecha de creacion (YYYY-MM-DD)")
     fecha_revision: str | None = Field(default=None, description="Fecha de revision (YYYY-MM-DD)")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -1564,7 +1564,7 @@ class PosicionInterpretativaDetail(BaseModel):
     version_anterior_id: str | None = Field(default=None, description="ID de la version anterior")
     fecha_creacion: str | None = Field(default=None, description="Fecha de creacion (YYYY-MM-DD)")
     fecha_revision: str | None = Field(default=None, description="Fecha de revision (YYYY-MM-DD)")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -1628,7 +1628,7 @@ class PlaybookOperativoDetail(BaseModel):
     version_anterior_id: str | None = Field(default=None, description="ID de version anterior")
     pasos: list = Field(default_factory=list, description="Pasos del playbook")
     evidencias: list = Field(default_factory=list, description="Evidencias requeridas")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -1682,7 +1682,7 @@ class PlaybookStepDetail(BaseModel):
     prerrequisito_step_id: str | None = Field(default=None, description="ID del paso prerrequisito")
     checklist: list = Field(default_factory=list, description="Checklist de sub-tareas")
     activo: bool = Field(description="Si el paso esta activo")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -1735,7 +1735,7 @@ class EvidenciaControlDetail(BaseModel):
     verificado_por: str | None = Field(default=None, description="Verificador")
     verificado_en: str | None = Field(default=None, description="Fecha de verificacion (YYYY-MM-DD)")
     nota: str | None = Field(default=None, description="Nota adicional")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -1987,7 +1987,7 @@ class RiesgoRegulatorioDetail(BaseModel):
     owner_rol: str | None = Field(default=None, description="Rol responsable")
     estado: str = Field(description="Estado: identificado, evaluado, mitigado, cerrado")
     controles: list = Field(default_factory=list, description="Controles que mitigan este riesgo")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -2042,7 +2042,7 @@ class ControlInternoDetail(BaseModel):
     sistema_apoyo: str | None = Field(default=None, description="Sistema o herramienta de apoyo")
     estado: str = Field(description="Estado: activo, inactivo, en_revision")
     pruebas: list = Field(default_factory=list, description="Pruebas de ejecucion del control")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -2109,7 +2109,7 @@ class RiesgoControlLinkDetail(BaseModel):
     caducidad_dias: int | None = Field(default=None, description="Dias de caducidad de la prueba")
     pruebas: list = Field(default_factory=list, description="Pruebas ejecutadas")
     activo: bool = Field(description="Si el vinculo esta activo")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -2146,7 +2146,7 @@ class PruebaControlDetail(BaseModel):
     ejecutado_por: str | None = Field(default=None, description="Persona que ejecuto la prueba")
     nota: str | None = Field(default=None, description="Nota adicional")
     activo: bool = Field(description="Si la prueba esta activa")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -2187,7 +2187,7 @@ class LineaCriterioSummary(BaseModel):
     revisor_id: int | None = Field(default=None, description="ID del revisor interno")
     ultimo_cambio: str | None = Field(default=None, description="Fecha del ultimo cambio de tendencia (YYYY-MM-DD)")
     activo: bool = Field(description="Si la linea esta activa")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
     updated_at: str | None = Field(default=None, description="Fecha de actualizacion en sistema")
 
 
@@ -2215,7 +2215,7 @@ class LineaCriterioDetail(BaseModel):
     revisor_id: int | None = Field(default=None)
     activo: bool = Field(description="Si la linea esta activa")
     referencias: list[LineaCriterioReferencia] = Field(default_factory=list, description="Documentos soporte")
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
     updated_at: str | None = Field(default=None)
 
 
@@ -2421,7 +2421,7 @@ class PlaybookStepSummary(BaseModel):
     input_requerido: str | None = Field(default=None)
     output_esperado: str | None = Field(default=None)
     activo: bool = Field(description="Si el paso esta activo")
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class PlaybookStepCreate(BaseModel):
@@ -2446,7 +2446,7 @@ class PlaybookSummary(BaseModel):
     owner_id: str | None = Field(default=None)
     estado: str = Field(description="activo, inactivo, revisar, obsoleto")
     version: int = Field(description="Version actual")
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class PlaybookDetail(BaseModel):
@@ -2463,7 +2463,7 @@ class PlaybookDetail(BaseModel):
     estado: str = Field(description="activo, inactivo, revisar, obsoleto")
     version: int = Field(description="Version actual")
     steps: list[PlaybookStepSummary] = Field(default_factory=list, description="Pasos del playbook")
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
     updated_at: str | None = Field(default=None)
 
 
@@ -2529,7 +2529,7 @@ class EvidenciaControlDetail(BaseModel):
     verificado_en: str | None = Field(default=None)
     nota: str | None = Field(default=None)
     step_id: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
     updated_at: str | None = Field(default=None)
 
 
@@ -2584,72 +2584,6 @@ class CryptoAssetSummary(BaseModel):
 
 
 class CryptoAssetDetail(CryptoAssetSummary):
-    created_at: str | None = Field(default=None)
-    updated_at: str | None = Field(default=None)
-
-
-class TokenizedAssetSummary(BaseModel):
-    id: int = Field(description="Identificador interno")
-    underlying_type: str = Field(description="Activo subyacente: equity, bond, fund, real-estate, other")
-    issuer_id: int | None = Field(default=None, description="ID del emisor")
-    face_value: float | None = Field(default=None, description="Valor facial")
-    total_amount: float | None = Field(default=None, description="Cantidad total emitida")
-    listing_date: str | None = Field(default=None, description="Fecha de cotizacion (YYYY-MM-DD)")
-    regulated_market: str | None = Field(default=None, description="Mercado regulado donde cotiza")
-    status: str = Field(description="Estado")
-
-
-class TokenizedAssetDetail(TokenizedAssetSummary):
-    created_at: str | None = Field(default=None)
-    updated_at: str | None = Field(default=None)
-
-
-class WalletCustodianSummary(BaseModel):
-    id: int = Field(description="Identificador interno")
-    entity_id: int | None = Field(default=None, description="ID de entidad vinculada")
-    wallet_type: str = Field(description="Tipo de wallet: hot, cold, hybrid")
-    custody_mechanism: str | None = Field(default=None, description="Mecanismo de custodia")
-    insurance_coverage: float | None = Field(default=None, description="Cobertura de seguro en EUR")
-    audit_frequency: str | None = Field(default=None, description="Frecuencia de auditoria")
-    status: str = Field(description="Estado")
-
-
-class WalletCustodianDetail(WalletCustodianSummary):
-    created_at: str | None = Field(default=None)
-    updated_at: str | None = Field(default=None)
-
-
-class CryptoTransactionSummary(BaseModel):
-    id: int = Field(description="Identificador interno")
-    sender_wallet: str | None = Field(default=None, description="Wallet remitente (pseudonimizada)")
-    receiver_wallet: str | None = Field(default=None, description="Wallet destinataria (pseudonimizada)")
-    sender_jurisdiction: str | None = Field(default=None, description="Jurisdiccion remitente")
-    receiver_jurisdiction: str | None = Field(default=None, description="Jurisdiccion destinataria")
-    asset_type: str = Field(description="Tipo de activo transferido")
-    amount: float = Field(description="Cantidad transferida")
-    value_eur: float | None = Field(default=None, description="Valor en EUR")
-    timestamp: str = Field(description="Fecha y hora (ISO 8601)")
-    reporting_period: str | None = Field(default=None, description="Periodo de reporte DAC8 (YYYY-MM)")
-    status: str = Field(description="Estado: reported, amended, rejected")
-
-
-class CryptoTransactionDetail(CryptoTransactionSummary):
-    created_at: str | None = Field(default=None)
-    updated_at: str | None = Field(default=None)
-
-
-class CASPCreate(BaseModel):
-    name: str = Field(description="Nombre del proveedor")
-    registration_number: str | None = Field(default=None)
-    home_member_state: str | None = Field(default=None)
-    passport_active: bool = Field(default=False)
-    services_offered: list[str] = Field(default_factory=list)
-
-
-class CASPUpdate(BaseModel):
-    passport_active: bool | None = Field(default=None)
-    services_offered: list[str] | None = Field(default=None)
-    status: str | None = Field(default=None)
 
 
 class CryptoAssetCreate(BaseModel):
@@ -2712,7 +2646,7 @@ class DacReportingEntitySummary(BaseModel):
 
 
 class DacReportingEntityDetail(DacReportingEntitySummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class DacReportingEntityCreate(BaseModel):
@@ -2749,7 +2683,7 @@ class DacCryptoReportSummary(BaseModel):
 
 class DacCryptoReportDetail(DacCryptoReportSummary):
     submitted_at: str | None = Field(default=None, description="Fecha de envio")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class DacCryptoReportCreate(BaseModel):
@@ -2787,7 +2721,7 @@ class DacWalletHolderSummary(BaseModel):
 
 
 class DacWalletHolderDetail(DacWalletHolderSummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class DacWalletHolderCreate(BaseModel):
@@ -2829,7 +2763,7 @@ class PbcObligatedSubjectSummary(BaseModel):
 
 
 class PbcObligatedSubjectDetail(PbcObligatedSubjectSummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class PbcObligatedSubjectCreate(BaseModel):
@@ -2866,7 +2800,7 @@ class PbcInternalControlSummary(BaseModel):
 
 
 class PbcInternalControlDetail(PbcInternalControlSummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class PbcInternalControlCreate(BaseModel):
@@ -2903,7 +2837,7 @@ class SuspiciousActivityReportSummary(BaseModel):
 
 class SuspiciousActivityReportDetail(SuspiciousActivityReportSummary):
     description: str | None = Field(default=None, description="Descripcion del reporte")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class SuspiciousActivityReportCreate(BaseModel):
@@ -2940,7 +2874,7 @@ class BeneficialOwnerRecordSummary(BaseModel):
 
 
 class BeneficialOwnerRecordDetail(BeneficialOwnerRecordSummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class BeneficialOwnerRecordCreate(BaseModel):
@@ -2981,7 +2915,7 @@ class FraudPreventionProgramSummary(BaseModel):
 
 
 class FraudPreventionProgramDetail(FraudPreventionProgramSummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class FraudPreventionProgramCreate(BaseModel):
@@ -3019,7 +2953,7 @@ class FraudRiskAssessmentSummary(BaseModel):
 
 
 class FraudRiskAssessmentDetail(FraudRiskAssessmentSummary):
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class FraudRiskAssessmentCreate(BaseModel):
@@ -3055,7 +2989,7 @@ class FraudIncidentSummary(BaseModel):
 
 class FraudIncidentDetail(FraudIncidentSummary):
     description: str | None = Field(default=None, description="Descripcion del incidente")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class FraudIncidentCreate(BaseModel):
@@ -3100,7 +3034,7 @@ class MifidClientCategorySummary(BaseModel):
 class MifidClientCategoryDetail(MifidClientCategorySummary):
     knowledge_level: str | None = Field(default=None, description="Nivel de conocimiento")
     experience_level: str | None = Field(default=None, description="Nivel de experiencia")
-    created_at: str | None = Field(default=None, description="Fecha de creacion en sistema")
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
 
 
 class MifidClientCategoryCreate(BaseModel):
@@ -3138,7 +3072,7 @@ class MifidSuitabilityReportSummary(BaseModel):
 class MifidSuitabilityReportDetail(MifidSuitabilityReportSummary):
     recommendation: str | None = Field(default=None)
     advisor_id: int | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MifidSuitabilityReportCreate(BaseModel):
@@ -3177,7 +3111,7 @@ class MifidBestExecutionRecordDetail(MifidBestExecutionRecordSummary):
     speed_ms: int | None = Field(default=None)
     quality_metrics: dict | None = Field(default=None)
     execution_timestamp: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MifidBestExecutionRecordCreate(BaseModel):
@@ -3217,7 +3151,7 @@ class MifidConflictOfInterestDetail(MifidConflictOfInterestSummary):
     mitigation_measure: str | None = Field(default=None)
     identified_date: str | None = Field(default=None)
     review_date: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MifidConflictOfInterestCreate(BaseModel):
@@ -3255,7 +3189,7 @@ class MifidProductGovernanceDetail(MifidProductGovernanceSummary):
     distribution_channels: dict | None = Field(default=None)
     key_features: str | None = Field(default=None)
     review_date: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MifidProductGovernanceCreate(BaseModel):
@@ -3296,7 +3230,7 @@ class MifidOrderRecordDetail(MifidOrderRecordSummary):
     timestamp: str | None = Field(default=None)
     venue: str | None = Field(default=None)
     retention_until: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MifidOrderRecordCreate(BaseModel):
@@ -3336,7 +3270,7 @@ class MifidInsiderListDetail(MifidInsiderListSummary):
     insider_tin: str | None = Field(default=None)
     date_created: str | None = Field(default=None)
     date_removed: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MifidInsiderListCreate(BaseModel):
@@ -3373,7 +3307,7 @@ class MifidCompensationPolicyDetail(MifidCompensationPolicySummary):
     risk_adjustment_applied: bool = Field(default=False)
     approval_date: str | None = Field(default=None)
     next_review: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MifidCompensationPolicyCreate(BaseModel):
@@ -3417,7 +3351,7 @@ class MarInsiderTransactionDetail(MarInsiderTransactionSummary):
     price: float | None = Field(default=None)
     date_time: str | None = Field(default=None)
     country: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MarInsiderTransactionCreate(BaseModel):
@@ -3462,7 +3396,7 @@ class MarSuspiciousTransactionReportDetail(MarSuspiciousTransactionReportSummary
     pattern_description: str | None = Field(default=None)
     detection_method: str | None = Field(default=None)
     cnmv_reference: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MarSuspiciousTransactionReportCreate(BaseModel):
@@ -3502,7 +3436,7 @@ class MarMarketManipulationIndicatorDetail(MarMarketManipulationIndicatorSummary
     time_window: str | None = Field(default=None)
     volume_anomaly_pct: float | None = Field(default=None)
     price_anomaly_pct: float | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MarMarketManipulationIndicatorCreate(BaseModel):
@@ -3538,7 +3472,7 @@ class MarInsiderCommunicationSummary(BaseModel):
 class MarInsiderCommunicationDetail(MarInsiderCommunicationSummary):
     content_summary: str | None = Field(default=None)
     inside_info_reference: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class MarInsiderCommunicationCreate(BaseModel):
@@ -3579,7 +3513,7 @@ class DoraTicIncidentDetail(DoraTicIncidentSummary):
     detection_date: str | None = Field(default=None)
     resolution_date: str | None = Field(default=None)
     root_cause: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class DoraTicIncidentCreate(BaseModel):
@@ -3621,7 +3555,7 @@ class DoraThirdPartyProviderDetail(DoraThirdPartyProviderSummary):
     contract_end: str | None = Field(default=None)
     eu_supervision_status: str | None = Field(default=None)
     exit_strategy: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class DoraThirdPartyProviderCreate(BaseModel):
@@ -3663,7 +3597,7 @@ class DoraIctRiskRegisterDetail(DoraIctRiskRegisterSummary):
     entity_id: int | None = Field(default=None)
     mitigation: str | None = Field(default=None)
     review_date: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class DoraIctRiskRegisterCreate(BaseModel):
@@ -3705,7 +3639,7 @@ class DoraPenetrationTestDetail(DoraPenetrationTestSummary):
     entity_id: int | None = Field(default=None)
     test_date: str | None = Field(default=None)
     remediation_deadline: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class DoraPenetrationTestCreate(BaseModel):
@@ -3744,7 +3678,7 @@ class DoraIncidentClassificationFrameworkSummary(BaseModel):
 class DoraIncidentClassificationFrameworkDetail(DoraIncidentClassificationFrameworkSummary):
     severity_thresholds: dict | None = Field(default=None)
     reporting_timelines: dict | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class DoraIncidentClassificationFrameworkCreate(BaseModel):
@@ -3784,7 +3718,7 @@ class PriipsKidDetail(PriipsKidSummary):
     negative_scenario_returns: dict | None = Field(default=None)
     version: str | None = Field(default=None)
     publication_date: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class PriipsKidCreate(BaseModel):
@@ -3827,7 +3761,7 @@ class PriipsProductDetail(PriipsProductSummary):
     maturity_date: str | None = Field(default=None)
     min_investment: float | None = Field(default=None)
     distribution_channels: dict | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class PriipsProductCreate(BaseModel):
@@ -3866,7 +3800,7 @@ class LivmcClientProtectionSummary(BaseModel):
 
 class LivmcClientProtectionDetail(LivmcClientProtectionSummary):
     provider_id: int | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class LivmcClientProtectionCreate(BaseModel):
@@ -3901,7 +3835,7 @@ class LivmcVoiceProcedureSummary(BaseModel):
 class LivmcVoiceProcedureDetail(LivmcVoiceProcedureSummary):
     description: str | None = Field(default=None)
     next_review: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class LivmcVoiceProcedureCreate(BaseModel):
@@ -3939,7 +3873,7 @@ class TransparencyIssuerSummary(BaseModel):
 class TransparencyIssuerDetail(TransparencyIssuerSummary):
     reporting_frequency: str | None = Field(default=None)
     home_member_state: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class TransparencyIssuerCreate(BaseModel):
@@ -3976,7 +3910,7 @@ class TransparencyRegulatedInfoSummary(BaseModel):
 class TransparencyRegulatedInfoDetail(TransparencyRegulatedInfoSummary):
     content_url: str | None = Field(default=None)
     filing_reference: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class TransparencyRegulatedInfoCreate(BaseModel):
@@ -4012,7 +3946,7 @@ class TransparencyVotingRightsSummary(BaseModel):
 
 class TransparencyVotingRightsDetail(TransparencyVotingRightsSummary):
     date_reported: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class TransparencyVotingRightsCreate(BaseModel):
@@ -4049,7 +3983,7 @@ class TransparencyInternalRuleSummary(BaseModel):
 class TransparencyInternalRuleDetail(TransparencyInternalRuleSummary):
     internal_procedure: str | None = Field(default=None)
     retention_period: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class TransparencyInternalRuleCreate(BaseModel):
@@ -4090,7 +4024,7 @@ class SfdrProductSummary(BaseModel):
 
 class SfdrProductDetail(SfdrProductSummary):
     paci_detailed_url: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class SfdrProductCreate(BaseModel):
@@ -4132,7 +4066,7 @@ class SfdrPaciiIndicatorSummary(BaseModel):
 
 class SfdrPaciiIndicatorDetail(SfdrPaciiIndicatorSummary):
     methodology: str | None = Field(default=None)
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class SfdrPaciiIndicatorCreate(BaseModel):
@@ -4171,7 +4105,7 @@ class SfdrEntityPaciSummary(BaseModel):
 
 
 class SfdrEntityPaciDetail(SfdrEntityPaciSummary):
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class SfdrEntityPaciCreate(BaseModel):
@@ -4199,13 +4133,13 @@ class SfdrPreContractualSummary(BaseModel):
     product_id: int = Field(description="Producto relacionado")
     document_type: str = Field(description="Tipo: KID, PPI, prospectus")
     url: str | None = Field(default=None)
-    published_date: str | None = Field(default=None)
+    published_date: date | str | None = Field(default=None)
     version: str | None = Field(default=None)
     status: str = Field(description="Estado")
 
 
 class SfdrPreContractualDetail(SfdrPreContractualSummary):
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class SfdrPreContractualCreate(BaseModel):
@@ -4238,12 +4172,12 @@ class SfdrAnnualReportSummary(BaseModel):
     engagement_activities: str | dict | None = Field(default=None)
     good_practice_examples: str | None = Field(default=None)
     url: str | None = Field(default=None)
-    published_date: str | None = Field(default=None)
+    published_date: date | str | None = Field(default=None)
     status: str = Field(description="Estado")
 
 
 class SfdrAnnualReportDetail(SfdrAnnualReportSummary):
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class SfdrAnnualReportCreate(BaseModel):
@@ -4288,7 +4222,7 @@ class CsrdEntityReportSummary(BaseModel):
 
 
 class CsrdEntityReportDetail(CsrdEntityReportSummary):
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class CsrdEntityReportCreate(BaseModel):
@@ -4325,7 +4259,7 @@ class CsrdEsgDataPointSummary(BaseModel):
 
 
 class CsrdEsgDataPointDetail(CsrdEsgDataPointSummary):
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class CsrdEsgDataPointCreate(BaseModel):
@@ -4363,7 +4297,7 @@ class CsrdEssSummary(BaseModel):
 
 
 class CsrdEssDetail(CsrdEssSummary):
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class CsrdEssCreate(BaseModel):
@@ -4391,14 +4325,14 @@ class CsrdDoubleMaterialitySummary(BaseModel):
     entity_id: int = Field(description="Entidad relacionada")
     impact_materiality: dict | None = Field(default=None)
     financial_materiality: dict | None = Field(default=None)
-    assessment_date: str | None = Field(default=None)
+    assessment_date: date | str | None = Field(default=None)
     key_impacts: str | None = Field(default=None)
     key_dependencies: str | None = Field(default=None)
     status: str = Field(description="Estado")
 
 
 class CsrdDoubleMaterialityDetail(CsrdDoubleMaterialitySummary):
-    created_at: str | None = Field(default=None)
+    created_at: datetime | str | None = Field(default=None)
 
 
 class CsrdDoubleMaterialityCreate(BaseModel):
@@ -4862,3 +4796,537 @@ class EmirClearingMemberUpdate(BaseModel):
 class EmirClearingMemberListResponse(BaseModel):
     items: list[EmirClearingMemberSummary]
     total: int = Field(description="Total de clearing members EMIR")
+
+
+# ---------------------------------------------------------------------------
+# Fase 31.10 — PSD2/PSD3, SEPA, Consumer Credit, IDD, Solvency II
+# ---------------------------------------------------------------------------
+
+# === PSD2/PSD3 ===
+
+
+class Psd2AspspSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    bic: str | None = Field(default=None, description="BIC/SWIFT code")
+    psd2_license: str | None = Field(default=None, description="Numero de licencia PSD2")
+    strong_customer_auth_applied: bool = Field(description="SCA aplicado")
+    api_version: str | None = Field(default=None, description="Version API: v1, v2")
+    regulatory_status: str = Field(description="Estado regulatorio")
+    home_member_state: str | None = Field(default=None, description="Estado miembro de residencia")
+
+
+class Psd2AspspDetail(Psd2AspspSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class Psd2AspspCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    bic: str | None = Field(default=None)
+    psd2_license: str | None = Field(default=None)
+    strong_customer_auth_applied: bool = Field(default=False)
+    api_version: str = Field(default="v2")
+    regulatory_status: str = Field(default="registered")
+    home_member_state: str | None = Field(default=None)
+
+
+class Psd2AspspUpdate(BaseModel):
+    bic: str | None = Field(default=None)
+    psd2_license: str | None = Field(default=None)
+    strong_customer_auth_applied: bool | None = Field(default=None)
+    api_version: str | None = Field(default=None)
+    regulatory_status: str | None = Field(default=None)
+    home_member_state: str | None = Field(default=None)
+
+
+class Psd2AspspListResponse(BaseModel):
+    items: list[Psd2AspspSummary]
+    total: int = Field(description="Total de ASPSP PSD2")
+
+
+class Psd2AispSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    registration_number: str | None = Field(default=None, description="Numero de registro")
+    registration_id: str | None = Field(default=None, description="ID de registro")
+    access_scope: str | None = Field(default=None, description="Alcance de acceso")
+    valid_from: str | None = Field(default=None, description="Fecha de inicio vigencia")
+    valid_to: str | None = Field(default=None, description="Fecha de fin vigencia")
+    status: str = Field(description="Estado")
+
+
+class Psd2AispDetail(Psd2AispSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class Psd2AispCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    registration_number: str | None = Field(default=None)
+    registration_id: str | None = Field(default=None)
+    access_scope: str | None = Field(default=None)
+    valid_from: str | None = Field(default=None)
+    valid_to: str | None = Field(default=None)
+    status: str = Field(default="active")
+
+
+class Psd2AispUpdate(BaseModel):
+    registration_number: str | None = Field(default=None)
+    registration_id: str | None = Field(default=None)
+    access_scope: str | None = Field(default=None)
+    valid_from: str | None = Field(default=None)
+    valid_to: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class Psd2AispListResponse(BaseModel):
+    items: list[Psd2AispSummary]
+    total: int = Field(description="Total de AISPs PSD2")
+
+
+class Psd2PispSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    registration_number: str | None = Field(default=None, description="Numero de registro")
+    authorization_status: str = Field(description="Estado de autorizacion")
+    home_member_state: str | None = Field(default=None, description="Estado miembro de residencia")
+    psd3_transition_status: str = Field(description="Estado transicion PSD3")
+
+
+class Psd2PispDetail(Psd2PispSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class Psd2PispCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    registration_number: str | None = Field(default=None)
+    authorization_status: str = Field(default="authorized")
+    home_member_state: str | None = Field(default=None)
+    psd3_transition_status: str = Field(default="not_started")
+
+
+class Psd2PispUpdate(BaseModel):
+    registration_number: str | None = Field(default=None)
+    authorization_status: str | None = Field(default=None)
+    home_member_state: str | None = Field(default=None)
+    psd3_transition_status: str | None = Field(default=None)
+
+
+class Psd2PispListResponse(BaseModel):
+    items: list[Psd2PispSummary]
+    total: int = Field(description="Total de PISPs PSD2")
+
+
+class Psd2ConsentSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    client_id: int | None = Field(default=None, description="ID del cliente")
+    aspsp_id: int | None = Field(default=None, description="ID del ASPSP")
+    consent_type: str = Field(description="Tipo: AIS, PIS")
+    accounts_accessed: str | None = Field(default=None, description="Cuentas accesibles (JSON)")
+    payment_count_limit: int | None = Field(default=None, description="Limite de pagos")
+    used_count: int = Field(description="Cuenta de pagos usados")
+    valid_from: str | None = Field(default=None, description="Fecha de inicio vigencia")
+    valid_to: str | None = Field(default=None, description="Fecha de fin vigencia")
+    status: str = Field(description="Estado")
+
+
+class Psd2ConsentDetail(Psd2ConsentSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class Psd2ConsentCreate(BaseModel):
+    client_id: int | None = Field(default=None)
+    aspsp_id: int | None = Field(default=None)
+    consent_type: str = Field(default="AIS")
+    accounts_accessed: str | None = Field(default=None)
+    payment_count_limit: int | None = Field(default=None)
+    valid_from: str | None = Field(default=None)
+    valid_to: str | None = Field(default=None)
+    status: str = Field(default="active")
+
+
+class Psd2ConsentUpdate(BaseModel):
+    client_id: int | None = Field(default=None)
+    aspsp_id: int | None = Field(default=None)
+    consent_type: str | None = Field(default=None)
+    accounts_accessed: str | None = Field(default=None)
+    payment_count_limit: int | None = Field(default=None)
+    used_count: int | None = Field(default=None)
+    valid_from: str | None = Field(default=None)
+    valid_to: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class Psd2ConsentListResponse(BaseModel):
+    items: list[Psd2ConsentSummary]
+    total: int = Field(description="Total de consentimientos PSD2")
+
+
+class Psd2IncidentReportSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    aspsp_id: int | None = Field(default=None, description="ID del ASPSP")
+    incident_type: str | None = Field(default=None, description="Tipo de incidente")
+    severity: str = Field(description="Gravedad: low, medium, high, critical")
+    description: str | None = Field(default=None, description="Descripcion del incidente")
+    reported_to_bde: bool = Field(description="Notificado al Banco de Espana")
+    reported_date: str | None = Field(default=None, description="Fecha de reporte")
+
+
+class Psd2IncidentReportDetail(Psd2IncidentReportSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class Psd2IncidentReportCreate(BaseModel):
+    aspsp_id: int | None = Field(default=None)
+    incident_type: str | None = Field(default=None)
+    severity: str = Field(default="medium")
+    description: str | None = Field(default=None)
+    reported_to_bde: bool = Field(default=False)
+    reported_date: str | None = Field(default=None)
+
+
+class Psd2IncidentReportUpdate(BaseModel):
+    incident_type: str | None = Field(default=None)
+    severity: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    reported_to_bde: bool | None = Field(default=None)
+    reported_date: str | None = Field(default=None)
+
+
+class Psd2IncidentReportListResponse(BaseModel):
+    items: list[Psd2IncidentReportSummary]
+    total: int = Field(description="Total de reportes de incidentes PSD2")
+
+
+class SepaPaymentRuleSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    scheme_version: str = Field(description="Version del esquema SEPA")
+    payment_type: str = Field(description="Tipo de pago")
+    service_level: str = Field(description="Nivel de servicio")
+    local_instrument: str | None = Field(default=None, description="Instrumento local")
+    category_purpose: str | None = Field(default=None, description="Proposito de categoria")
+    cut_off_time: str | None = Field(default=None, description="Hora limite")
+    settlement_days: int = Field(description="Dias de liquidacion")
+
+
+class SepaPaymentRuleDetail(SepaPaymentRuleSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class SepaPaymentRuleCreate(BaseModel):
+    scheme_version: str
+    payment_type: str
+    service_level: str
+    local_instrument: str | None = Field(default=None)
+    category_purpose: str | None = Field(default=None)
+    cut_off_time: str | None = Field(default=None)
+    settlement_days: int = Field(default=1)
+
+
+class SepaPaymentRuleUpdate(BaseModel):
+    scheme_version: str | None = Field(default=None)
+    payment_type: str | None = Field(default=None)
+    service_level: str | None = Field(default=None)
+    local_instrument: str | None = Field(default=None)
+    category_purpose: str | None = Field(default=None)
+    cut_off_time: str | None = Field(default=None)
+    settlement_days: int | None = Field(default=None)
+
+
+class SepaPaymentRuleListResponse(BaseModel):
+    items: list[SepaPaymentRuleSummary]
+    total: int = Field(description="Total de reglas de pago SEPA")
+
+
+# === Consumer Credit ===
+
+
+class ConsumerCreditContractSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    lender_id: int | None = Field(default=None, description="ID del prestamista")
+    borrower_id: int | None = Field(default=None, description="ID del prestatario")
+    credit_type: str = Field(description="Tipo: installment, revolving, real-secured")
+    principal_amount: float | None = Field(default=None, description="Importe principal en EUR")
+    annual_percentage_rate: float | None = Field(default=None, description="TAE")
+    total_amount: float | None = Field(default=None, description="Importe total")
+    term_months: int | None = Field(default=None, description="Plazo en meses")
+    purpose: str | None = Field(default=None, description="Proposito del credito")
+    signing_date: str | None = Field(default=None, description="Fecha de firma")
+    status: str = Field(description="Estado")
+
+
+class ConsumerCreditContractDetail(ConsumerCreditContractSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class ConsumerCreditContractCreate(BaseModel):
+    lender_id: int | None = Field(default=None)
+    borrower_id: int | None = Field(default=None)
+    credit_type: str = Field(default="installment")
+    principal_amount: float | None = Field(default=None)
+    annual_percentage_rate: float | None = Field(default=None)
+    total_amount: float | None = Field(default=None)
+    term_months: int | None = Field(default=None)
+    purpose: str | None = Field(default=None)
+    signing_date: str | None = Field(default=None)
+    status: str = Field(default="active")
+
+
+class ConsumerCreditContractUpdate(BaseModel):
+    lender_id: int | None = Field(default=None)
+    borrower_id: int | None = Field(default=None)
+    credit_type: str | None = Field(default=None)
+    principal_amount: float | None = Field(default=None)
+    annual_percentage_rate: float | None = Field(default=None)
+    total_amount: float | None = Field(default=None)
+    term_months: int | None = Field(default=None)
+    purpose: str | None = Field(default=None)
+    signing_date: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class ConsumerCreditContractListResponse(BaseModel):
+    items: list[ConsumerCreditContractSummary]
+    total: int = Field(description="Total de contratos de credito al consumo")
+
+
+class ConsumerCreditDisclosureSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    contract_id: int | None = Field(default=None, description="ID del contrato")
+    fap: float | None = Field(default=None, description="TAE efectiva")
+    total_cost: float | None = Field(default=None, description="Coste total")
+    regular_payment: float | None = Field(default=None, description="Cuota regular")
+    amortization_schedule_url: str | None = Field(default=None, description="URL tabla amortizacion")
+    right_of_withdrawal: bool = Field(description="Derecho de desistimiento")
+    early_repayment_penalty: float | None = Field(default=None, description="Penalizacion pago anticipado")
+    url: str | None = Field(default=None, description="URL del documento")
+
+
+class ConsumerCreditDisclosureDetail(ConsumerCreditDisclosureSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class ConsumerCreditDisclosureCreate(BaseModel):
+    contract_id: int | None = Field(default=None)
+    fap: float | None = Field(default=None)
+    total_cost: float | None = Field(default=None)
+    regular_payment: float | None = Field(default=None)
+    amortization_schedule_url: str | None = Field(default=None)
+    right_of_withdrawal: bool = Field(default=True)
+    early_repayment_penalty: float | None = Field(default=None)
+    url: str | None = Field(default=None)
+
+
+class ConsumerCreditDisclosureUpdate(BaseModel):
+    fap: float | None = Field(default=None)
+    total_cost: float | None = Field(default=None)
+    regular_payment: float | None = Field(default=None)
+    amortization_schedule_url: str | None = Field(default=None)
+    right_of_withdrawal: bool | None = Field(default=None)
+    early_repayment_penalty: float | None = Field(default=None)
+    url: str | None = Field(default=None)
+
+
+class ConsumerCreditDisclosureListResponse(BaseModel):
+    items: list[ConsumerCreditDisclosureSummary]
+    total: int = Field(description="Total de disclosures de credito al consumo")
+
+
+class ConsumerCreditOverindebtednessSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    borrower_id: int | None = Field(default=None, description="ID del prestatario")
+    declared_date: str | None = Field(default=None, description="Fecha de declaracion")
+    total_debt: float | None = Field(default=None, description="Deuda total en EUR")
+    monthly_income: float | None = Field(default=None, description="Renta mensual en EUR")
+    unsecured_debt: float | None = Field(default=None, description="Deuda no garantizada")
+    procedure_status: str = Field(description="Estado del procedimiento")
+    court_reference: str | None = Field(default=None, description="Referencia judicial")
+
+
+class ConsumerCreditOverindebtednessDetail(ConsumerCreditOverindebtednessSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class ConsumerCreditOverindebtednessCreate(BaseModel):
+    borrower_id: int | None = Field(default=None)
+    declared_date: str | None = Field(default=None)
+    total_debt: float | None = Field(default=None)
+    monthly_income: float | None = Field(default=None)
+    unsecured_debt: float | None = Field(default=None)
+    procedure_status: str = Field(default="declared")
+    court_reference: str | None = Field(default=None)
+
+
+class ConsumerCreditOverindebtednessUpdate(BaseModel):
+    declared_date: str | None = Field(default=None)
+    total_debt: float | None = Field(default=None)
+    monthly_income: float | None = Field(default=None)
+    unsecured_debt: float | None = Field(default=None)
+    procedure_status: str | None = Field(default=None)
+    court_reference: str | None = Field(default=None)
+
+
+class ConsumerCreditOverindebtednessListResponse(BaseModel):
+    items: list[ConsumerCreditOverindebtednessSummary]
+    total: int = Field(description="Total de registros de sobreendeudamiento")
+
+
+# === IDD ===
+
+
+class IddDistributorSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    registration_number: str | None = Field(default=None, description="Numero de registro")
+    insurance_ao: str | None = Field(default=None, description="Autorizacion de seguros")
+    products_covered: str | None = Field(default=None, description="Productos cubiertos (JSON)")
+    professional_indemnity: bool = Field(description="Seguro de responsabilidad profesional")
+    training_certified: bool = Field(description="Formacion certificada")
+    status: str = Field(description="Estado")
+
+
+class IddDistributorDetail(IddDistributorSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class IddDistributorCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    registration_number: str | None = Field(default=None)
+    insurance_ao: str | None = Field(default=None)
+    products_covered: str | None = Field(default=None)
+    professional_indemnity: bool = Field(default=False)
+    training_certified: bool = Field(default=False)
+    status: str = Field(default="active")
+
+
+class IddDistributorUpdate(BaseModel):
+    registration_number: str | None = Field(default=None)
+    insurance_ao: str | None = Field(default=None)
+    products_covered: str | None = Field(default=None)
+    professional_indemnity: bool | None = Field(default=None)
+    training_certified: bool | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class IddDistributorListResponse(BaseModel):
+    items: list[IddDistributorSummary]
+    total: int = Field(description="Total de distribuidores IDD")
+
+
+class IddProductUciSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    product_id: int | None = Field(default=None, description="ID del producto")
+    product_type: str = Field(description="Tipo: life, non-life")
+    risk_coverage: str | None = Field(default=None, description="Cobertura de riesgo")
+    cost_breakdown: str | None = Field(default=None, description="Desglose de costes (JSON)")
+    exit_costs: str | None = Field(default=None, description="Costes de salida")
+    taxes: str | None = Field(default=None, description="Impuestos")
+    version: str | None = Field(default=None, description="Version del documento")
+    status: str = Field(description="Estado")
+
+
+class IddProductUciDetail(IddProductUciSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class IddProductUciCreate(BaseModel):
+    product_id: int | None = Field(default=None)
+    product_type: str = Field(default="life")
+    risk_coverage: str | None = Field(default=None)
+    cost_breakdown: str | None = Field(default=None)
+    exit_costs: str | None = Field(default=None)
+    taxes: str | None = Field(default=None)
+    version: str | None = Field(default=None)
+    status: str = Field(default="active")
+
+
+class IddProductUciUpdate(BaseModel):
+    product_type: str | None = Field(default=None)
+    risk_coverage: str | None = Field(default=None)
+    cost_breakdown: str | None = Field(default=None)
+    exit_costs: str | None = Field(default=None)
+    taxes: str | None = Field(default=None)
+    version: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class IddProductUciListResponse(BaseModel):
+    items: list[IddProductUciSummary]
+    total: int = Field(description="Total de documentos UCI IDD")
+
+
+# === Solvency II ===
+
+
+class SolvencyIiEntitySummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    entity_type: str = Field(description="Tipo: life, non-life, mixed, branch")
+    solvency_capital_requirement: float | None = Field(default=None, description="Requisito de capital de solvencia")
+    minimum_capital_requirement: float | None = Field(default=None, description="Capital minimo requerido")
+    solvency_ratio: float | None = Field(default=None, description="Ratio de solvencia")
+    reporting_date: str | None = Field(default=None, description="Fecha de reporte")
+    home_supervisor: str | None = Field(default=None, description="Supervisor nacional")
+
+
+class SolvencyIiEntityDetail(SolvencyIiEntitySummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class SolvencyIiEntityCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    entity_type: str = Field(default="life")
+    solvency_capital_requirement: float | None = Field(default=None)
+    minimum_capital_requirement: float | None = Field(default=None)
+    solvency_ratio: float | None = Field(default=None)
+    reporting_date: str | None = Field(default=None)
+    home_supervisor: str | None = Field(default=None)
+
+
+class SolvencyIiEntityUpdate(BaseModel):
+    entity_type: str | None = Field(default=None)
+    solvency_capital_requirement: float | None = Field(default=None)
+    minimum_capital_requirement: float | None = Field(default=None)
+    solvency_ratio: float | None = Field(default=None)
+    reporting_date: str | None = Field(default=None)
+    home_supervisor: str | None = Field(default=None)
+
+
+class SolvencyIiEntityListResponse(BaseModel):
+    items: list[SolvencyIiEntitySummary]
+    total: int = Field(description="Total de entidades Solvency II")
+
+
+class SolvencyIiSfpSummary(BaseModel):
+    id: int = Field(description="Identificador interno")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    reporting_period: str | None = Field(default=None, description="Periodo de reporte")
+    fund_breakdown: str | None = Field(default=None, description="Desglose de fondos (JSON)")
+    asset_allocation: str | None = Field(default=None, description="Asignacion de activos (JSON)")
+    url: str | None = Field(default=None, description="URL del documento")
+    status: str = Field(description="Estado: published, draft")
+
+
+class SolvencyIiSfpDetail(SolvencyIiSfpSummary):
+    created_at: datetime | str | None = Field(default=None, description="Fecha de creacion en sistema")
+
+
+class SolvencyIiSfpCreate(BaseModel):
+    entity_id: int | None = Field(default=None)
+    reporting_period: str | None = Field(default=None)
+    fund_breakdown: str | None = Field(default=None)
+    asset_allocation: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    status: str = Field(default="published")
+
+
+class SolvencyIiSfpUpdate(BaseModel):
+    reporting_period: str | None = Field(default=None)
+    fund_breakdown: str | None = Field(default=None)
+    asset_allocation: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    status: str | None = Field(default=None)
+
+
+class SolvencyIiSfpListResponse(BaseModel):
+    items: list[SolvencyIiSfpSummary]
+    total: int = Field(description="Total de resúmenes de portafolio Solvency II")
