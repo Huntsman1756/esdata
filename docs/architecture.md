@@ -101,6 +101,7 @@ La arquitectura actual ya implementa una base util, pero no debe confundirse con
 Capacidades reales hoy:
 
 - [IMPLEMENTED] ingesta multi-fuente por workers especializados
+- [IMPLEMENTED] cobertura regulatoria completa: MiCA, DAC8, AML/Ley 10/2010, Antifraud, MiFID II/MiFIR, MAR, DORA, PRIIPs/LIVMC, Transparencia, SFDR, CSRD, AIFMD/UCITS, CRD/CRR/BRRD/EMIR
 - [IMPLEMENTED] almacenamiento principal en PostgreSQL
 - [IMPLEMENTED] full-text search, chunking y busqueda vectorial/hibrida con reranker cross-encoder activo y grounding duro por claim
 - [IMPLEMENTED] superficies API y MCP para consulta

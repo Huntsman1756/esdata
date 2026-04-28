@@ -56,7 +56,6 @@ from typing import Any
 
 from sqlalchemy import create_engine, text
 
-
 # ── Domain queries: one per table, returns rows to chunk ───────────
 
 DOMAIN_QUERIES: dict[str, dict[str, str]] = {
@@ -263,6 +262,118 @@ DOMAIN_QUERIES: dict[str, dict[str, str]] = {
                internal_procedure, retention_period, status, created_at
         FROM transparency_internal_rule ORDER BY id
     """,
+    # --- SFDR (31.9.1) ---
+    "sfdr_product": """
+        SELECT id, product_name, product_type, sustainability_strategy,
+               principal_adverse_impact, paci_aggregated, paci_detailed_url,
+               distribution_country, status, created_at
+        FROM sfdr_product ORDER BY id
+    """,
+    "sfdr_paci_indicator": """
+        SELECT id, product_id, indicator_code, indicator_name,
+               value, unit, reference_period, methodology, status, created_at
+        FROM sfdr_paci_indicator ORDER BY id
+    """,
+    "sfdr_entity_paci": """
+        SELECT id, entity_id, reporting_year, aggregated_paci,
+               sectoral_decarbonization, status, created_at
+        FROM sfdr_entity_paci ORDER BY id
+    """,
+    "sfdr_pre_contractual": """
+        SELECT id, product_id, document_type, url,
+               published_date, version, status, created_at
+        FROM sfdr_pre_contractual ORDER BY id
+    """,
+    "sfdr_annual_report": """
+        SELECT id, entity_id, reporting_year, paci_results,
+               engagement_activities, good_practice_examples, url,
+               published_date, status, created_at
+        FROM sfdr_annual_report ORDER BY id
+    """,
+    # --- CSRD (31.9.2) ---
+    "csrd_entity_report": """
+        SELECT id, entity_id, reporting_year, esap_url,
+               assurance_status, reporting_standard, status, created_at
+        FROM csrd_entity_report ORDER BY id
+    """,
+    "csrd_esg_data_point": """
+        SELECT id, report_id, topic, indicator_code,
+               value, unit, scope, verification_status, created_at
+        FROM csrd_esg_data_point ORDER BY id
+    """,
+    "csrd_ess": """
+        SELECT id, standard_code, topic,
+               applicable_from_year, description, status, created_at
+        FROM csrd_ess ORDER BY id
+    """,
+    "csrd_double_materiality": """
+        SELECT id, entity_id, impact_materiality,
+               financial_materiality, assessment_date, key_impacts,
+               key_dependencies, status, created_at
+        FROM csrd_double_materiality ORDER BY id
+    """,
+    # --- AIFMD/UCITS (31.9.3) ---
+    "aifmd_fund": """
+        SELECT id, fund_name, aifm_id, fund_type, registration_date,
+               home_member_state, cross_border_passport, total_aum_eur,
+               investor_type, lock_up_period, redemption_frequency,
+               leverage_method, leverage_max_pct, status, created_at
+        FROM aifmd_fund ORDER BY id
+    """,
+    "ucits_fund": """
+        SELECT id, fund_name, management_company, registration_date,
+               home_member_state, cross_border_passport, total_aum_eur,
+               depositary_id, krid_url, investment_strategy,
+               risk_profile, status, created_at
+        FROM ucits_fund ORDER BY id
+    """,
+    "aifmd_regulatory_report": """
+        SELECT id, fund_id, report_type, reporting_period,
+               url, filed_date, status, created_at
+        FROM aifmd_regulatory_report ORDER BY id
+    """,
+    "ucits_regulatory_report": """
+        SELECT id, fund_id, report_type, reporting_period,
+               url, filed_date, status, created_at
+        FROM ucits_regulatory_report ORDER BY id
+    """,
+    "aifmd_liquidity_management": """
+        SELECT id, fund_id, redemption_suspended, suspension_date,
+               gating_applied, swing_price_applied, side_pocket_applied,
+               stress_test_result, valuation_frequency, created_at
+        FROM aifmd_liquidity_management ORDER BY id
+    """,
+    # --- CRD/CRR/BRRD/EMIR (31.9.4) ---
+    "crd_capital_position": """
+        SELECT id, entity_id, reporting_date, cet1_ratio, tier1_ratio,
+               total_capital_ratio, cet1_amount, tier1_amount,
+               total_capital_amount, leverage_ratio,
+               risk_weighted_assets, status, created_at
+        FROM crd_capital_position ORDER BY id
+    """,
+    "crd_stress_test": """
+        SELECT id, entity_id, test_date, scenario_name,
+               cet1_impact_pct, tier1_impact_pct, capital_ratio_post_test,
+               competent_authority, status, created_at
+        FROM crd_stress_test ORDER BY id
+    """,
+    "brrd_bail_in": """
+        SELECT id, entity_id, total_eligible_liabilities,
+               mrel_target_pct, mrel_compliance_pct, internal_mrel,
+               resolution_status, status, created_at
+        FROM brrd_bail_in ORDER BY id
+    """,
+    "emir_trade_report": """
+        SELECT id, trade_id, asset_class, instrument_class,
+               clearing_obligation_applied, reporting_delay_days,
+               counterparty_type, status, created_at
+        FROM emir_trade_report ORDER BY id
+    """,
+    "emir_clearing_member": """
+        SELECT id, entity_id, emir_registration,
+               clearing_type, status, created_at
+        FROM emir_clearing_member ORDER BY id
+    """,
 }
 
 # Map table -> domain label for documento_origen_tipo
@@ -306,6 +417,25 @@ TABLE_DOMAIN_MAP: dict[str, str] = {
     "transparency_regulated_information": "transparency",
     "transparency_voting_rights": "transparency",
     "transparency_internal_rule": "transparency",
+    "sfdr_product": "sfdr",
+    "sfdr_paci_indicator": "sfdr",
+    "sfdr_entity_paci": "sfdr",
+    "sfdr_pre_contractual": "sfdr",
+    "sfdr_annual_report": "sfdr",
+    "csrd_entity_report": "csrd",
+    "csrd_esg_data_point": "csrd",
+    "csrd_ess": "csrd",
+    "csrd_double_materiality": "csrd",
+    "aifmd_fund": "aifmd_ucits",
+    "ucits_fund": "aifmd_ucits",
+    "aifmd_regulatory_report": "aifmd_ucits",
+    "ucits_regulatory_report": "aifmd_ucits",
+    "aifmd_liquidity_management": "aifmd_ucits",
+    "crd_capital_position": "crd_brrd_emir",
+    "crd_stress_test": "crd_brrd_emir",
+    "brrd_bail_in": "crd_brrd_emir",
+    "emir_trade_report": "crd_brrd_emir",
+    "emir_clearing_member": "crd_brrd_emir",
 }
 
 DOMAIN_TABLES: dict[str, list[str]] = {
@@ -323,6 +453,10 @@ DOMAIN_TABLES: dict[str, list[str]] = {
     "priips": ["priips_kid", "priips_product", "livmc_client_protection", "livmc_voice_procedure"],
     "transparency": ["transparency_issuer", "transparency_regulated_information",
                      "transparency_voting_rights", "transparency_internal_rule"],
+    "sfdr": ["sfdr_product", "sfdr_paci_indicator", "sfdr_entity_paci", "sfdr_pre_contractual", "sfdr_annual_report"],
+    "csrd": ["csrd_entity_report", "csrd_esg_data_point", "csrd_ess", "csrd_double_materiality"],
+    "aifmd_ucits": ["aifmd_fund", "ucits_fund", "aifmd_regulatory_report", "ucits_regulatory_report", "aifmd_liquidity_management"],
+    "crd_brrd_emir": ["crd_capital_position", "crd_stress_test", "brrd_bail_in", "emir_trade_report", "emir_clearing_member"],
 }
 
 # ── Search text builders ──────────────────────────────────────────
@@ -855,6 +989,316 @@ def _build_search_text(table: str, row: dict) -> str:
         if row.get("status"):
             parts.append(row["status"])
 
+    # --- SFDR (31.9.1) ---
+    elif table == "sfdr_product":
+        if row.get("product_name"):
+            parts.append(row["product_name"])
+        if row.get("product_type"):
+            parts.append(f"type:{row['product_type']}")
+        if row.get("sustainability_strategy"):
+            parts.append(row["sustainability_strategy"])
+        if row.get("principal_adverse_impact"):
+            parts.append(f"paci:{row['principal_adverse_impact']}")
+        if row.get("paci_aggregated"):
+            parts.append(str(row["paci_aggregated"]))
+        if row.get("paci_detailed_url"):
+            parts.append(row["paci_detailed_url"])
+        if row.get("distribution_country"):
+            parts.append(str(row["distribution_country"]))
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "sfdr_paci_indicator":
+        if row.get("product_id"):
+            parts.append(f"product:{row['product_id']}")
+        if row.get("indicator_code"):
+            parts.append(f"code:{row['indicator_code']}")
+        if row.get("indicator_name"):
+            parts.append(row["indicator_name"])
+        if row.get("value") is not None:
+            parts.append(f"value:{row['value']}")
+        if row.get("unit"):
+            parts.append(row["unit"])
+        if row.get("reference_period"):
+            parts.append(f"period:{row['reference_period']}")
+        if row.get("methodology"):
+            parts.append(row["methodology"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "sfdr_entity_paci":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("reporting_year"):
+            parts.append(f"year:{row['reporting_year']}")
+        if row.get("aggregated_paci"):
+            parts.append(str(row["aggregated_paci"]))
+        if row.get("sectoral_decarbonization"):
+            parts.append(row["sectoral_decarbonization"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "sfdr_pre_contractual":
+        if row.get("product_id"):
+            parts.append(f"product:{row['product_id']}")
+        if row.get("document_type"):
+            parts.append(f"doc_type:{row['document_type']}")
+        if row.get("url"):
+            parts.append(row["url"])
+        if row.get("published_date"):
+            parts.append(str(row["published_date"]))
+        if row.get("version"):
+            parts.append(f"version:{row['version']}")
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "sfdr_annual_report":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("reporting_year"):
+            parts.append(f"year:{row['reporting_year']}")
+        if row.get("paci_results"):
+            parts.append(str(row["paci_results"]))
+        if row.get("engagement_activities"):
+            parts.append(row["engagement_activities"])
+        if row.get("good_practice_examples"):
+            parts.append(row["good_practice_examples"])
+        if row.get("url"):
+            parts.append(row["url"])
+        if row.get("published_date"):
+            parts.append(str(row["published_date"]))
+        if row.get("status"):
+            parts.append(row["status"])
+
+    # --- CSRD (31.9.2) ---
+    elif table == "csrd_entity_report":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("reporting_year"):
+            parts.append(f"year:{row['reporting_year']}")
+        if row.get("esap_url"):
+            parts.append(row["esap_url"])
+        if row.get("assurance_status"):
+            parts.append(f"assurance:{row['assurance_status']}")
+        if row.get("reporting_standard"):
+            parts.append(row["reporting_standard"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "csrd_esg_data_point":
+        if row.get("report_id"):
+            parts.append(f"report:{row['report_id']}")
+        if row.get("topic"):
+            parts.append(f"topic:{row['topic']}")
+        if row.get("indicator_code"):
+            parts.append(f"code:{row['indicator_code']}")
+        if row.get("value") is not None:
+            parts.append(f"value:{row['value']}")
+        if row.get("unit"):
+            parts.append(row["unit"])
+        if row.get("scope") is not None:
+            parts.append(f"scope:{row['scope']}")
+        if row.get("verification_status"):
+            parts.append(row["verification_status"])
+
+    elif table == "csrd_ess":
+        if row.get("standard_code"):
+            parts.append(f"standard:{row['standard_code']}")
+        if row.get("topic"):
+            parts.append(row["topic"])
+        if row.get("applicable_from_year"):
+            parts.append(f"from:{row['applicable_from_year']}")
+        if row.get("description"):
+            parts.append(row["description"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "csrd_double_materiality":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("impact_materiality"):
+            parts.append(str(row["impact_materiality"]))
+        if row.get("financial_materiality"):
+            parts.append(str(row["financial_materiality"]))
+        if row.get("assessment_date"):
+            parts.append(str(row["assessment_date"]))
+        if row.get("key_impacts"):
+            parts.append(row["key_impacts"])
+        if row.get("key_dependencies"):
+            parts.append(row["key_dependencies"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    # --- AIFMD/UCITS (31.9.3) ---
+    elif table == "aifmd_fund":
+        if row.get("fund_name"):
+            parts.append(row["fund_name"])
+        if row.get("aifm_id"):
+            parts.append(f"aifm:{row['aifm_id']}")
+        if row.get("fund_type"):
+            parts.append(f"type:{row['fund_type']}")
+        if row.get("registration_date"):
+            parts.append(str(row["registration_date"]))
+        if row.get("home_member_state"):
+            parts.append(row["home_member_state"])
+        if row.get("cross_border_passport"):
+            parts.append("passport" if row["cross_border_passport"] else "no-passport")
+        if row.get("total_aum_eur"):
+            parts.append(f"aum:{row['total_aum_eur']}")
+        if row.get("investor_type"):
+            parts.append(row["investor_type"])
+        if row.get("lock_up_period"):
+            parts.append(row["lock_up_period"])
+        if row.get("redemption_frequency"):
+            parts.append(row["redemption_frequency"])
+        if row.get("leverage_method"):
+            parts.append(row["leverage_method"])
+        if row.get("leverage_max_pct"):
+            parts.append(f"leverage_max:{row['leverage_max_pct']}")
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "ucits_fund":
+        if row.get("fund_name"):
+            parts.append(row["fund_name"])
+        if row.get("management_company"):
+            parts.append(row["management_company"])
+        if row.get("registration_date"):
+            parts.append(str(row["registration_date"]))
+        if row.get("home_member_state"):
+            parts.append(row["home_member_state"])
+        if row.get("cross_border_passport"):
+            parts.append("passport" if row["cross_border_passport"] else "no-passport")
+        if row.get("total_aum_eur"):
+            parts.append(f"aum:{row['total_aum_eur']}")
+        if row.get("depositary_id"):
+            parts.append(f"depositary:{row['depositary_id']}")
+        if row.get("krid_url"):
+            parts.append(row["krid_url"])
+        if row.get("investment_strategy"):
+            parts.append(row["investment_strategy"])
+        if row.get("risk_profile"):
+            parts.append(row["risk_profile"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "aifmd_regulatory_report" or table == "ucits_regulatory_report":
+        if row.get("fund_id"):
+            parts.append(f"fund:{row['fund_id']}")
+        if row.get("report_type"):
+            parts.append(f"type:{row['report_type']}")
+        if row.get("reporting_period"):
+            parts.append(row["reporting_period"])
+        if row.get("url"):
+            parts.append(row["url"])
+        if row.get("filed_date"):
+            parts.append(str(row["filed_date"]))
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "aifmd_liquidity_management":
+        if row.get("fund_id"):
+            parts.append(f"fund:{row['fund_id']}")
+        if row.get("redemption_suspended"):
+            parts.append("suspended" if row["redemption_suspended"] else "not_suspended")
+        if row.get("suspension_date"):
+            parts.append(str(row["suspension_date"]))
+        if row.get("gating_applied"):
+            parts.append("gating" if row["gating_applied"] else "no-gating")
+        if row.get("swing_price_applied"):
+            parts.append("swing-price" if row["swing_price_applied"] else "no-swing-price")
+        if row.get("side_pocket_applied"):
+            parts.append("side-pocket" if row["side_pocket_applied"] else "no-side-pocket")
+        if row.get("stress_test_result"):
+            parts.append(str(row["stress_test_result"]))
+        if row.get("valuation_frequency"):
+            parts.append(row["valuation_frequency"])
+
+    # --- CRD/CRR/BRRD/EMIR (31.9.4) ---
+    elif table == "crd_capital_position":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("reporting_date"):
+            parts.append(str(row["reporting_date"]))
+        if row.get("cet1_ratio"):
+            parts.append(f"cet1:{row['cet1_ratio']}")
+        if row.get("tier1_ratio"):
+            parts.append(f"tier1:{row['tier1_ratio']}")
+        if row.get("total_capital_ratio"):
+            parts.append(f"total_capital:{row['total_capital_ratio']}")
+        if row.get("cet1_amount"):
+            parts.append(f"cet1_amount:{row['cet1_amount']}")
+        if row.get("tier1_amount"):
+            parts.append(f"tier1_amount:{row['tier1_amount']}")
+        if row.get("total_capital_amount"):
+            parts.append(f"total_capital_amount:{row['total_capital_amount']}")
+        if row.get("leverage_ratio"):
+            parts.append(f"leverage:{row['leverage_ratio']}")
+        if row.get("risk_weighted_assets"):
+            parts.append(f"rwa:{row['risk_weighted_assets']}")
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "crd_stress_test":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("test_date"):
+            parts.append(str(row["test_date"]))
+        if row.get("scenario_name"):
+            parts.append(row["scenario_name"])
+        if row.get("cet1_impact_pct"):
+            parts.append(f"cet1_impact:{row['cet1_impact_pct']}")
+        if row.get("tier1_impact_pct"):
+            parts.append(f"tier1_impact:{row['tier1_impact_pct']}")
+        if row.get("capital_ratio_post_test"):
+            parts.append(f"post_test:{row['capital_ratio_post_test']}")
+        if row.get("competent_authority"):
+            parts.append(row["competent_authority"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "brrd_bail_in":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("total_eligible_liabilities"):
+            parts.append(f"liabilities:{row['total_eligible_liabilities']}")
+        if row.get("mrel_target_pct"):
+            parts.append(f"mrel_target:{row['mrel_target_pct']}")
+        if row.get("mrel_compliance_pct"):
+            parts.append(f"mrel_compliance:{row['mrel_compliance_pct']}")
+        if row.get("internal_mrel"):
+            parts.append(f"internal_mrel:{row['internal_mrel']}")
+        if row.get("resolution_status"):
+            parts.append(row["resolution_status"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "emir_trade_report":
+        if row.get("trade_id"):
+            parts.append(f"trade:{row['trade_id']}")
+        if row.get("asset_class"):
+            parts.append(f"class:{row['asset_class']}")
+        if row.get("instrument_class"):
+            parts.append(row["instrument_class"])
+        if row.get("clearing_obligation_applied"):
+            parts.append("clearing" if row["clearing_obligation_applied"] else "no-clearing")
+        if row.get("reporting_delay_days"):
+            parts.append(f"delay:{row['reporting_delay_days']}")
+        if row.get("counterparty_type"):
+            parts.append(row["counterparty_type"])
+        if row.get("status"):
+            parts.append(row["status"])
+
+    elif table == "emir_clearing_member":
+        if row.get("entity_id"):
+            parts.append(f"entity:{row['entity_id']}")
+        if row.get("emir_registration"):
+            parts.append(f"reg:{row['emir_registration']}")
+        if row.get("clearing_type"):
+            parts.append(row["clearing_type"])
+        if row.get("status"):
+            parts.append(row["status"])
+
     return " ".join(parts)
 
 
@@ -1014,11 +1458,11 @@ def _backfill_table(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Backfill chunks for Fase 31 regulatory domains (MiCA, DAC8, Ley 10/2010, Ley 11/2021, MiFID II, MAR, DORA, PRIIPs, Transparencia)."
+        description="Backfill chunks for Fase 31 regulatory domains (MiCA, DAC8, Ley 10/2010, Ley 11/2021, MiFID II, MAR, DORA, PRIIPs, Transparencia, SFDR, CSRD, AIFMD/UCITS, CRD/CRR/BRRD/EMIR)."
     )
     parser.add_argument(
         "--corpus",
-        choices=["mica", "dac", "pbc", "fraud", "mifid", "mar", "dora", "priips", "transparency", "all"],
+        choices=["mica", "dac", "pbc", "fraud", "mifid", "mar", "dora", "priips", "transparency", "sfdr", "csrd", "aifmd_ucits", "crd_brrd_emir", "all"],
         default="all",
         help="Which domain to backfill (default: all).",
     )
@@ -1063,7 +1507,7 @@ def main() -> int:
                     "SELECT table_name FROM information_schema.tables "
                     "WHERE table_schema = 'public' AND table_name IN "
                     "('documento_fragmento', " +
-                    ", ".join(f"'{t}'" for t in DOMAIN_QUERIES.keys()) +
+                    ", ".join(f"'{t}'" for t in DOMAIN_QUERIES) +
                     ")"
                 )
             ).fetchall()

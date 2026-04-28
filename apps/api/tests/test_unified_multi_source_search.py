@@ -539,7 +539,7 @@ class Test31xRRFFusion:
         assert all("rrf_score" in item for item in fused)
 
     def test_rrf_fuse_all_31x_domains(self):
-        """Test RRF fusion across all 9 31.x domains."""
+        """Test RRF fusion across all 13 31.x domains."""
         source_results = {
             "mica": [{"source_id": 1, "rrf_ft_rank": 1, "source_type": "mica"}],
             "dac": [{"source_id": 2, "rrf_ft_rank": 2, "source_type": "dac"}],
@@ -550,9 +550,13 @@ class Test31xRRFFusion:
             "dora": [{"source_id": 7, "rrf_ft_rank": 7, "source_type": "dora"}],
             "priips": [{"source_id": 8, "rrf_ft_rank": 8, "source_type": "priips"}],
             "transparency": [{"source_id": 9, "rrf_ft_rank": 9, "source_type": "transparency"}],
+            "sfdr": [{"source_id": 10, "rrf_ft_rank": 10, "source_type": "sfdr"}],
+            "csrd": [{"source_id": 11, "rrf_ft_rank": 11, "source_type": "csrd"}],
+            "aifmd_ucits": [{"source_id": 12, "rrf_ft_rank": 12, "source_type": "aifmd_ucits"}],
+            "crd_brrd_emir": [{"source_id": 13, "rrf_ft_rank": 13, "source_type": "crd_brrd_emir"}],
         }
-        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
-        assert len(fused) == 9
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=20)
+        assert len(fused) == 13
         # All results should have rrf_score
         assert all("rrf_score" in item for item in fused)
         # Results should be sorted by score descending

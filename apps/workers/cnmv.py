@@ -93,6 +93,71 @@ REGULACION_MAP = {
         "reglamento 2023/1114", "activos electrónicos",
         "criptoactivos", "asset token", "e-money token",
     ],
+    # SFDR (Sustainable Finance Disclosure Regulation 2019/2088)
+    "sfdr": [
+        "reglamento sfdr", "reglamento 2019/2088", "sfdr",
+        "sustainable finance disclosure regulation", "financiamiento sostenible",
+        "financiamiento sostenible", "sostenibilidad", "impacto adverso principal",
+        "paci", "paci aggregated", "paci indicator", "artículo 8", "artículo 9",
+        "art 8", "art 9", "art.8", "art.9", "sfdr disclosure",
+        "inversion sostenible", "criterios ambientales", "criterios sociales",
+        "cambio climático", "transición climática", "transicion climatica",
+        "económicas sostenibles", "economicas sostenibles", "pa", "pi",
+    ],
+    # CSRD (Corporate Sustainability Reporting Directive 2022/2464)
+    "csrd": [
+        "directiva csrd", "reglamento csrd", "reglamento 2022/2464",
+        "directiva 2022/2464", "información no financiera", "informacion no financiera",
+        "información de sostenibilidad", "informacion de sostenibilidad",
+        "esrs", "european sustainability reporting standards",
+        "doble materialidad", "doble materiality", "informe de sostenibilidad",
+        "corporate sustainability reporting", "csr directive",
+        "esg data", "esg data point", "esg",
+    ],
+    # AIFMD (Alternative Investment Fund Managers Directive 2011/61/EU)
+    "aifmd": [
+        "directiva aifmd", "reglamento aifmd", "2011/61/ue",
+        "gestores de fondos de inversion alternativos", "gestores de fondos de inversion alternativos",
+        "aifmd", "aif manager", "fondo alternativo", "aif",
+        "leverage", "apalancamiento", "depositary", "depositario",
+        "aifmd regulatory report", "liquidity management", "gestion de liquidez",
+    ],
+    # UCITS (Undertakings for Collective Investment in Transferable Securities)
+    "ucits": [
+        "directiva ucits", "reglamento ucits", "ucits",
+        "undertakings for collective investment", "colectivo de inversion",
+        "fondo ucits", "ucits fund", "ucits v", "directiva 2009/65/ce",
+        "ucits regulatory report", "prospecto ucits",
+    ],
+    # CRD/CRR (Capital Requirements Directive/Regulation)
+    "crd": [
+        "directiva crd", "reglamento crd", "crd v", "directiva 2013/36/ue",
+        "reglamento crr", "reglamento 575/2014/ue", "capital requirements",
+        "requisitos de capital", "ratio de capital", "cet1", "tier 1",
+        "tier 2", "ratio de apalancamiento", "leverage ratio",
+        "requisitos prudenciales", "crd/crr", "capital position",
+        "stress test", "prueba de resistencia", "pilar 1", "pilar 2",
+        "icaap", "srep", "requisitos de capital",
+    ],
+    # BRRD (Bank Recovery and Resolution Directive 2014/59/EU)
+    "brrd": [
+        "directiva brrd", "recuperacion y resolucion", "2014/59/ue",
+        "brrd", "bail-in", "resolucion bancaria", "directiva de recuperacion",
+        "directiva de recuperacion y resolucion", "mrel",
+        "total loss absorbing capacity", "requisitos de pasivos",
+        "requisitos de capacidad de absorcion de perdidas",
+        "requisitos de capacidad de absorción de pérdidas",
+    ],
+    # EMIR (European Market Infrastructure Regulation 648/2012)
+    "emir": [
+        "reglamento emir", "reglamento 648/2012", "emir",
+        "european market infrastructure regulation", "derivados",
+        "o tc", "otc derivatives", "contratos derivados",
+        "clearing", "compensacion", "compensación",
+        "reporting de derivados", "trade report", "clearing member",
+        "counterparty", "central counterparty", "ccp",
+        "trade repository", "repositor de operaciones",
+    ],
 }
 
 
