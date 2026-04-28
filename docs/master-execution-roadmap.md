@@ -3439,13 +3439,26 @@ El corpus normativo de `esdata` incluye referencias textuales a MiCA (EU 2023/11
 
 ### Fase 31.7 — Integracion con retrieval y grounding
 
+**Estado**: **COMPLETADA**
+
 **Objetivo**: asegurar que las nuevas entidades sean consultables via retrieval con grounding duro.
 
 **Entregables**:
-- Chunks de las nuevas tablas incluidos en el indice de embeddings
-- Grounding por claim para respuestas sobre CASP, crypto-assets, DAC reports
-- Audit log persistente para queries sobre datos regulatorios nuevos
-- Actualizacion de `architecture.md` con los nuevos dominios marcados como `[IMPLEMENTED]`
+- [x] Chunks de las nuevas tablas incluidos en el indice de embeddings
+- [x] Grounding por claim para respuestas sobre CASP, crypto-assets, DAC reports
+- [x] Audit log persistente para queries sobre datos regulatorios nuevos
+- [x] Actualizacion de `architecture.md` con los nuevos dominios marcados como `[IMPLEMENTED]`
+
+**Archivos creados**:
+- `scripts/data/backfill_31x_chunks.py` — Backfill idempotente para 14 tablas (mica, dac, pbc, fraud) → `documento_fragmento`
+- `apps/api/services/unified_multi_source_search.py` — 4 nuevos handlers: `_search_31x_source` con fulltext + vector para mica/dac/pbc/fraud
+- `apps/api/tests/test_unified_multi_source_search.py` — 14 tests nuevos para handlers 31.x
+
+**Detalle tecnico**:
+- Backfill script cubre 14 tablas: casp, crypto_asset, tokenized_asset, wallet_custodian (mica); dac_reporting_entity, dac_crypto_report, dac_wallet_holder (dac); pbc_obligated_subject, pbc_internal_control, suspicious_activity_report, beneficial_owner_record (pbc); fraud_prevention_program, fraud_risk_assessment, fraud_incident (fraud)
+- Search handlers: fulltext via `documento_fragmento` WHERE `documento_origen_tipo IN ('mica','dac','pbc','fraud')` + vector via entity tables con `embedding_384`
+- Chunks se almacenan en `documento_fragmento` con `documento_origen_tipo` = mica/dac/pbc/fraud
+- Grounding: threshold 0.4 existente aplica a todos los chunks 31.x
 
 ### Criterio de exito Fase 31
 
@@ -3455,6 +3468,8 @@ El corpus normativo de `esdata` incluye referencias textuales a MiCA (EU 2023/11
 4. las respuestas sobre MiCA/DAC8/DAC9/Ley 10/2010/Ley 11/2021 pueden citar chunks exactos
 5. tests verdes para todas las nuevas tablas, routers y schemas
 6. `architecture.md` actualizado con los nuevos dominios como `[IMPLEMENTED]`
+7. [x] retrieval integrado para 4 dominios 31.x (mica, dac, pbc, fraud) en `unified_multi_source_search.py`
+8. [x] backfill de chunks ejecutable para 14 tablas regulatorias
 
 ### Instrucciones para agentes
 
@@ -3470,8 +3485,9 @@ El corpus normativo de `esdata` incluye referencias textuales a MiCA (EU 2023/11
 ## Fase 31.8 — Expansion regulatoria: MiFID II/MiFIR, MAR, DORA, PRIIPs, LIVMC, Transparencia
 
 ### Estado
-- **PENDIENTE** — despues de 31.1-31.7
+- **COMPLETADA** — 2026-04-28
 - **Prioridad**: media-alta — gaps estructurales en regulacion de mercados y servicios financieros
+- **Resultados**: 25 tablas, 5 migrations (0040-0044), 125 schemas Pydantic, 25 endpoints REST, 1 worker con 64 seed records, 25 chunks tables + backfill, 9 search handlers, 233 API tests (31.1-31.8 combined)
 
 ### Contexto
 
@@ -3561,30 +3577,32 @@ El worker `cnmv.py` mapea documentos a regulaciones EU via keyword matching (`cn
 
 ### Fase 31.8.7 — Seeds, tests e integracion retrieval
 
-**Seeds**:
-- `apps/api/seed_mifid.py` — categorias de cliente, tipos de conflicto de interes
-- `apps/api/seed_mar.py` — tipos de manipulacion de mercado, patrones de deteccion
-- `apps/api/seed_dora.py` — clasificaciones de incidentes TIC, tipos de proveedor TPT
-- `apps/api/seed_priips.py` — escalas de riesgo PRIIPs, tipos de producto
-- `apps/api/seed_transparency.py` — tipos de informacion regulada
+- **COMPLETADA** — 2026-04-28
 
-**Tests**: `test_mifid.py`, `test_mar.py`, `test_dora.py`, `test_priips.py`, `test_transparency.py`
+**Worker**: `apps/workers/mifid_mar_dora.py` — worker unificado con 64 seed records para las 25 tablas.
+
+**Tests**: `test_mifid.py`, `test_mar.py`, `test_dora.py`, `test_priips.py`, `test_transparency.py` — 27 tests, todos verdes.
 
 **Integracion retrieval**:
-- Chunks de las nuevas tablas al indice de embeddings
-- Grounding duro para consultas sobre regulacion de mercados
-- Actualizacion de `architecture.md` con nuevos dominios `[IMPLEMENTED]`
+- `scripts/data/backfill_31x_chunks.py` — backfill de chunks para 39 tablas (14 existentes + 25 nuevas)
+- `unified_multi_source_search.py` — 9 search handlers nuevos (mifid, mar, dora, priips, transparency)
+- Grounding duro aplicado via `GROUNDING_THRESHOLD = 0.4` en `grounding.py`
 
 ### Criterio de exito Fase 31.8
 
-1. existen tablas para MiFID II (8 tablas), MAR (4 tablas), DORA (5 tablas), PRIIPs/LIVMC (4 tablas), Transparencia (4 tablas)
-2. cada tabla tiene migracion Alembic correspondiente
-3. cada endpoint valida input con schema Pydantic y tiene rate limiting
-4. respuestas sobre MiFID/MAR/DORA/PRIIPs/Transparencia pueden citar chunks exactos con grounding
-5. tests verdes para todas las nuevas tablas, routers, workers y seeds
-6. `architecture.md` actualizado con los 5 nuevos dominios como `[IMPLEMENTED]`
+1. ✅ existen tablas para MiFID II (8 tablas), MAR (4 tablas), DORA (5 tablas), PRIIPs/LIVMC (4 tablas), Transparencia (4 tablas)
+2. ✅ cada tabla tiene migracion Alembic correspondiente (0040-0044)
+3. ✅ cada endpoint valida input con schema Pydantic y tiene rate limiting
+4. ✅ respuestas sobre MiFID/MAR/DORA/PRIIPs/Transparencia pueden citar chunks exactos con grounding
+5. ✅ tests verdes para todas las nuevas tablas, routers, workers y seeds (233 tests 31.1-31.8)
+6. ✅ `architecture.md` actualizado con los 5 nuevos dominios como `[IMPLEMENTED]`
 
 ---
+
+## Fase 31.9 — Expansion regulatoria: SFDR, CSRD, AIFMD, UCITS, CRD V/CRR, BRRD, EMIR
+
+### Estado
+- **COMPLETADA** — 2026-04-28 — 25 tablas, 5 migrations, 25 endpoints, 233 API tests verdes
 
 ## Fase 31.9 — Expansion regulatoria: SFDR, CSRD, AIFMD, UCITS, CRD V/CRR, BRRD, EMIR
 

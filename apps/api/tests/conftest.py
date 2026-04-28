@@ -3333,6 +3333,552 @@ STATEMENTS = [
     """
     CREATE INDEX IF NOT EXISTS ix_fraud_incident_status ON fraud_incident(status)
     """,
+    # --- Fase 31.8: MiFID II/MiFIR tables ---
+    """
+    CREATE TABLE IF NOT EXISTS mifid_client_category (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        category TEXT NOT NULL,
+        assessment_date DATE,
+        knowledge_level TEXT,
+        experience_level TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_client_category_entity ON mifid_client_category(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_client_category_category ON mifid_client_category(category)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_client_category_status ON mifid_client_category(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mifid_suitability_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER,
+        product_id INTEGER,
+        assessment_date DATE,
+        suitability_score INTEGER,
+        recommendation TEXT,
+        advisor_id INTEGER,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_suitability_client ON mifid_suitability_report(client_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_suitability_status ON mifid_suitability_report(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mifid_best_execution_record (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER,
+        venue TEXT,
+        execution_price NUMERIC(20,6),
+        market_impact NUMERIC(10,4),
+        speed_ms INTEGER,
+        quality_metrics TEXT,
+        execution_timestamp TIMESTAMP,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_best_exec_venue ON mifid_best_execution_record(venue)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_best_exec_status ON mifid_best_execution_record(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mifid_conflict_of_interest_registry (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        department TEXT,
+        conflict_type TEXT,
+        description TEXT,
+        mitigation_measure TEXT,
+        identified_date DATE,
+        review_date DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_coi_type ON mifid_conflict_of_interest_registry(conflict_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_coi_status ON mifid_conflict_of_interest_registry(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mifid_product_governance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER,
+        target_market TEXT,
+        distribution_channels TEXT,
+        key_features TEXT,
+        risk_level INTEGER,
+        review_date DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_pg_product ON mifid_product_governance(product_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_pg_risk ON mifid_product_governance(risk_level)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_pg_status ON mifid_product_governance(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mifid_order_record (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER,
+        instrument TEXT,
+        direction TEXT,
+        quantity NUMERIC(20,4),
+        price NUMERIC(20,6),
+        timestamp TIMESTAMP,
+        venue TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        retention_until DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_order_client ON mifid_order_record(client_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_order_instrument ON mifid_order_record(instrument)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_order_status ON mifid_order_record(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mifid_insider_list (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        insider_name TEXT,
+        insider_tin TEXT,
+        entity_id INTEGER,
+        inside_information_description TEXT,
+        date_created DATE,
+        date_removed DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_insider_entity ON mifid_insider_list(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_insider_status ON mifid_insider_list(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mifid_compensation_policy (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        policy_version TEXT,
+        alignment_score INTEGER,
+        risk_adjustment_applied INTEGER NOT NULL DEFAULT 0,
+        approval_date DATE,
+        next_review DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_comp_entity ON mifid_compensation_policy(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mifid_comp_status ON mifid_compensation_policy(status)
+    """,
+    # --- Fase 31.8: MAR tables ---
+    """
+    CREATE TABLE IF NOT EXISTS mar_insider_transaction (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ppi_name TEXT,
+        ppi_role TEXT,
+        instrument TEXT,
+        transaction_type TEXT,
+        quantity NUMERIC(20,4),
+        value_eur NUMERIC(20,2),
+        price NUMERIC(20,6),
+        date_time TIMESTAMP,
+        country TEXT,
+        status TEXT NOT NULL DEFAULT 'reported',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_insider_txn_ppi ON mar_insider_transaction(ppi_name)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_insider_txn_instrument ON mar_insider_transaction(instrument)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_insider_txn_status ON mar_insider_transaction(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mar_suspicious_transaction_report (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        instrument TEXT,
+        pattern_description TEXT,
+        detection_method TEXT,
+        severity TEXT,
+        submitted_to_cnmv INTEGER NOT NULL DEFAULT 0,
+        cnmv_reference TEXT,
+        status TEXT NOT NULL DEFAULT 'under_review',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_str_entity ON mar_suspicious_transaction_report(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_str_instrument ON mar_suspicious_transaction_report(instrument)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_str_status ON mar_suspicious_transaction_report(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mar_market_manipulation_indicator (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pattern_type TEXT,
+        instrument TEXT,
+        time_window TEXT,
+        volume_anomaly_pct NUMERIC(8,2),
+        price_anomaly_pct NUMERIC(8,2),
+        confidence_score NUMERIC(5,4),
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_mmi_pattern ON mar_market_manipulation_indicator(pattern_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_mmi_instrument ON mar_market_manipulation_indicator(instrument)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_mmi_status ON mar_market_manipulation_indicator(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mar_insider_communication (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER,
+        receiver_id INTEGER,
+        content_summary TEXT,
+        timestamp TIMESTAMP,
+        channel TEXT,
+        inside_info_reference TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_ic_sender ON mar_insider_communication(sender_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_ic_receiver ON mar_insider_communication(receiver_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_mar_ic_ts ON mar_insider_communication(timestamp)
+    """,
+    # --- Fase 31.8: DORA tables ---
+    """
+    CREATE TABLE IF NOT EXISTS dora_tic_incident (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        incident_severity TEXT,
+        description TEXT,
+        impact_scope TEXT,
+        detection_date DATE,
+        resolution_date DATE,
+        root_cause TEXT,
+        classification TEXT,
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_tic_severity ON dora_tic_incident(incident_severity)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_tic_class ON dora_tic_incident(classification)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_tic_status ON dora_tic_incident(status)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_tic_detection ON dora_tic_incident(detection_date)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dora_third_party_provider (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider_name TEXT,
+        provider_type TEXT,
+        criticality_assessment TEXT,
+        contract_start DATE,
+        contract_end DATE,
+        eu_supervision_status TEXT,
+        exit_strategy TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_tpp_type ON dora_third_party_provider(provider_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_tpp_crit ON dora_third_party_provider(criticality_assessment)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_tpp_status ON dora_third_party_provider(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dora_ict_risk_register (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        risk_description TEXT,
+        likelihood TEXT,
+        impact TEXT,
+        mitigation TEXT,
+        owner TEXT,
+        review_date DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_ict_risk_entity ON dora_ict_risk_register(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_ict_risk_likelihood ON dora_ict_risk_register(likelihood)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_ict_risk_status ON dora_ict_risk_register(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dora_penetration_test (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        test_type TEXT,
+        tester TEXT,
+        test_date DATE,
+        findings_count INTEGER,
+        critical_findings INTEGER,
+        remediation_deadline DATE,
+        status TEXT NOT NULL DEFAULT 'scheduled',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_pt_entity ON dora_penetration_test(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_pt_type ON dora_penetration_test(test_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_pt_status ON dora_penetration_test(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dora_incident_classification_framework (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        framework_version TEXT,
+        severity_thresholds TEXT,
+        reporting_timelines TEXT,
+        effective_date DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_icf_version ON dora_incident_classification_framework(framework_version)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_dora_icf_status ON dora_incident_classification_framework(status)
+    """,
+    # --- Fase 31.8: PRIIPs / LIVMC tables ---
+    """
+    CREATE TABLE IF NOT EXISTS priips_kid (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER,
+        product_type TEXT,
+        currency TEXT,
+        risk_scale INTEGER,
+        cost_impact TEXT,
+        negative_scenario_returns TEXT,
+        version TEXT,
+        publication_date DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_priips_kid_product ON priips_kid(product_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_priips_kid_risk ON priips_kid(risk_scale)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_priips_kid_status ON priips_kid(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS priips_product (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        issuer_id INTEGER,
+        product_name TEXT,
+        underlying_assets TEXT,
+        maturity_date DATE,
+        currency TEXT,
+        min_investment NUMERIC(20,2),
+        distribution_channels TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_priips_product_issuer ON priips_product(issuer_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_priips_product_currency ON priips_product(currency)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_priips_product_status ON priips_product(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS livmc_client_protection (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER,
+        protection_type TEXT,
+        provider_id INTEGER,
+        coverage_amount NUMERIC(20,2),
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_livmc_cp_client ON livmc_client_protection(client_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_livmc_cp_type ON livmc_client_protection(protection_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_livmc_cp_status ON livmc_client_protection(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS livmc_voice_procedure (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        procedure_type TEXT,
+        description TEXT,
+        effective_date DATE,
+        next_review DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_livmc_vp_entity ON livmc_voice_procedure(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_livmc_vp_type ON livmc_voice_procedure(procedure_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_livmc_vp_status ON livmc_voice_procedure(status)
+    """,
+    # --- Fase 31.8: Transparencia tables ---
+    """
+    CREATE TABLE IF NOT EXISTS transparency_issuer (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        issuer_id INTEGER,
+        listing_market TEXT,
+        ticker TEXT,
+        reporting_frequency TEXT,
+        home_member_state TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_issuer_market ON transparency_issuer(listing_market)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_issuer_ticker ON transparency_issuer(ticker)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_issuer_status ON transparency_issuer(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS transparency_regulated_information (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        issuer_id INTEGER,
+        info_type TEXT,
+        publication_date DATE,
+        content_url TEXT,
+        filing_reference TEXT,
+        status TEXT NOT NULL DEFAULT 'published',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_ri_issuer ON transparency_regulated_information(issuer_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_ri_type ON transparency_regulated_information(info_type)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_ri_date ON transparency_regulated_information(publication_date)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_ri_status ON transparency_regulated_information(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS transparency_voting_rights (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        issuer_id INTEGER,
+        shareholder_id INTEGER,
+        voting_rights_pct NUMERIC(6,4),
+        date_acquired DATE,
+        date_reported DATE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_vr_issuer ON transparency_voting_rights(issuer_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_vr_shareholder ON transparency_voting_rights(shareholder_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_vr_date ON transparency_voting_rights(date_acquired)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_vr_status ON transparency_voting_rights(status)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS transparency_internal_rule (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_id INTEGER,
+        designated_persons TEXT,
+        internal_procedure TEXT,
+        retention_period TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_ir_entity ON transparency_internal_rule(entity_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_transp_ir_status ON transparency_internal_rule(status)
+    """,
 ]
 
 with engine.begin() as conn:

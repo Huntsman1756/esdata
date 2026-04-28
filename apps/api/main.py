@@ -72,6 +72,11 @@ from routers import (
     pbc,
     fraud,
     mica,
+    mifid,
+    mar,
+    dora,
+    priips,
+    transparency,
     micro_obligaciones,
     mica,
     model_registry,
@@ -331,6 +336,11 @@ def create_app() -> FastAPI:
     app.include_router(ley222014_lecr.router)
     app.include_router(csdr.router)
     app.include_router(mica.router)
+    app.include_router(mifid.router)
+    app.include_router(mar.router)
+    app.include_router(dora.router)
+    app.include_router(priips.router)
+    app.include_router(transparency.router)
     global MCP_HTTP_TRANSPORT
     MCP_HTTP_TRANSPORT = mount_mcp(app)
 

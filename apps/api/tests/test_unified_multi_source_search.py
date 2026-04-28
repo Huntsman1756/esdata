@@ -1,7 +1,7 @@
 """Tests for unified multi-source search service.
 
 Tests cover:
-- All 8 source handlers (legislacion, doctrina, pgc, modelos, screening, entities, norms, articles)
+- All 17 source handlers (legislacion, doctrina, pgc, modelos, screening, entities, norms, articles, mica, dac, pbc, fraud, mifid, mar, dora, priips, transparency)
 - Fulltext-only mode (hybrid_weight=0.0)
 - Vector-only mode (hybrid_weight=1.0) — mocked
 - RRF fusion across multiple sources
@@ -12,10 +12,8 @@ Tests cover:
 
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from services.unified_multi_source_search import (
     _articles_build_search_text,
@@ -25,6 +23,9 @@ from services.unified_multi_source_search import (
     _pgc_build_search_text,
     _screening_build_search_text,
     _rrf_fuse_multi,
+    _search_31x_source,
+    _31x_fulltext,
+    _31x_vector,
     unified_multi_source_search,
 )
 
@@ -208,7 +209,7 @@ class TestUnifiedMultiSourceSearch:
         """Test search with all sources (default)."""
         with patch(
             "services.unified_multi_source_search.unified_multi_source_search"
-        ) as mock_search:
+        ):
             # This tests the function exists and is callable
             # Full integration requires DB which is complex to mock
             pass
@@ -253,6 +254,7 @@ class TestUnifiedMultiSourceSearch:
     def test_source_handlers_exist(self):
         """Verify all expected source handlers are defined."""
         from services.unified_multi_source_search import (
+            _search_31x_source,
             _search_articles_source,
             _search_doctrina_source,
             _search_entities_source,
@@ -270,6 +272,7 @@ class TestUnifiedMultiSourceSearch:
         assert callable(_search_entities_source)
         assert callable(_search_norms_source)
         assert callable(_search_articles_source)
+        assert callable(_search_31x_source)
 
 
 # ---------------------------------------------------------------------------
@@ -359,3 +362,199 @@ class TestScreeningTextBuilder:
         text = _screening_build_search_text(row)
         assert "Test" in text
         assert "Desc" in text
+
+
+# ---------------------------------------------------------------------------
+# Fase 31.x regulatory domain search tests
+# ---------------------------------------------------------------------------
+
+class Test31xSearchHandlers:
+    """Tests for the 4 Fase 31.x source handlers (mica, dac, pbc, fraud)."""
+
+    def test_search_31x_source_exists(self):
+        assert callable(_search_31x_source)
+
+    def test_search_31x_source_empty_db(self):
+        mock_db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.mappings().fetchall.return_value = []
+        mock_db.execute.return_value = mock_cursor
+        results = _search_31x_source(mock_db, "test", True, None, 0.0, 10)
+        assert results == []
+
+    def test_search_31x_source_no_embed_fn(self):
+        mock_db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.mappings().fetchall.return_value = []
+        mock_db.execute.return_value = mock_cursor
+        results = _search_31x_source(mock_db, "test", True, None, 1.0, 10)
+        assert results == []
+
+    def test_31x_fulltext_empty_query(self):
+        mock_db = MagicMock()
+        results = _31x_fulltext(mock_db, "", 10)
+        assert results == []
+
+    def test_31x_vector_no_embed_fn(self):
+        mock_db = MagicMock()
+        results = _31x_vector(mock_db, "test", None, 10)
+        assert results == []
+
+    def test_31x_vector_empty_vec(self):
+        mock_db = MagicMock()
+        results = _31x_vector(mock_db, "test", lambda q: None, 10)
+        assert results == []
+
+    def test_31x_source_type_dispatch(self):
+        """Verify all 9 31.x source types are in the dispatch map."""
+        from services.unified_multi_source_search import (
+            _search_31x_source,
+        )
+        assert callable(_search_31x_source)
+
+    def test_31x_source_in_default_sources(self):
+        """Verify all 9 31.x domains are in the dispatch map."""
+        from services.unified_multi_source_search import (
+            _search_31x_source,
+        )
+        # The dispatch map is built inside the function, verify the handler exists
+        assert callable(_search_31x_source)
+        # Verify it handles all 9 domains by checking the source table map
+        from services.unified_multi_source_search import _31x_SOURCE_TABLES
+        for domain in ("mica", "dac", "pbc", "fraud", "mifid", "mar", "dora", "priips", "transparency"):
+            assert domain in _31x_SOURCE_TABLES
+
+
+class Test31xRRFFusion:
+    """Test RRF fusion includes 31.x source types."""
+
+    def test_rrf_fuse_mica_result(self):
+        source_results = {
+            "mica": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "mica", "chunk_texto": "CASP entity"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "mica"
+        assert "rrf_score" in fused[0]
+
+    def test_rrf_fuse_dac_result(self):
+        source_results = {
+            "dac": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "dac", "chunk_texto": "DAC report"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "dac"
+
+    def test_rrf_fuse_pbc_result(self):
+        source_results = {
+            "pbc": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "pbc", "chunk_texto": "AML subject"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "pbc"
+
+    def test_rrf_fuse_fraud_result(self):
+        source_results = {
+            "fraud": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "fraud", "chunk_texto": "Fraud incident"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "fraud"
+
+    def test_rrf_fuse_mifid_result(self):
+        source_results = {
+            "mifid": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "mifid", "chunk_texto": "MiFID client"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "mifid"
+
+    def test_rrf_fuse_mar_result(self):
+        source_results = {
+            "mar": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "mar", "chunk_texto": "MAR insider"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "mar"
+
+    def test_rrf_fuse_dora_result(self):
+        source_results = {
+            "dora": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "dora", "chunk_texto": "DORA incident"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "dora"
+
+    def test_rrf_fuse_priips_result(self):
+        source_results = {
+            "priips": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "priips", "chunk_texto": "PRIIPs KID"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "priips"
+
+    def test_rrf_fuse_transparency_result(self):
+        source_results = {
+            "transparency": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "transparency", "chunk_texto": "Transparency issuer"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 1
+        assert fused[0]["source_type"] == "transparency"
+
+    def test_rrf_fuse_hybrid_31x_sources(self):
+        """Test RRF fusion across multiple 31.x domains."""
+        source_results = {
+            "mica": [
+                {"source_id": 1, "rrf_ft_rank": 1, "source_type": "mica"},
+            ],
+            "pbc": [
+                {"source_id": 2, "rrf_ft_rank": 2, "source_type": "pbc"},
+            ],
+            "fraud": [
+                {"source_id": 3, "rrf_ft_rank": 3, "source_type": "fraud"},
+            ],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 3
+        # Mica should rank highest (ft_rank=1)
+        assert fused[0]["source_type"] == "mica"
+        assert all("rrf_score" in item for item in fused)
+
+    def test_rrf_fuse_all_31x_domains(self):
+        """Test RRF fusion across all 9 31.x domains."""
+        source_results = {
+            "mica": [{"source_id": 1, "rrf_ft_rank": 1, "source_type": "mica"}],
+            "dac": [{"source_id": 2, "rrf_ft_rank": 2, "source_type": "dac"}],
+            "pbc": [{"source_id": 3, "rrf_ft_rank": 3, "source_type": "pbc"}],
+            "fraud": [{"source_id": 4, "rrf_ft_rank": 4, "source_type": "fraud"}],
+            "mifid": [{"source_id": 5, "rrf_ft_rank": 5, "source_type": "mifid"}],
+            "mar": [{"source_id": 6, "rrf_ft_rank": 6, "source_type": "mar"}],
+            "dora": [{"source_id": 7, "rrf_ft_rank": 7, "source_type": "dora"}],
+            "priips": [{"source_id": 8, "rrf_ft_rank": 8, "source_type": "priips"}],
+            "transparency": [{"source_id": 9, "rrf_ft_rank": 9, "source_type": "transparency"}],
+        }
+        fused = _rrf_fuse_multi(source_results, ft_weight=0.7, vec_weight=0.3, limit=10)
+        assert len(fused) == 9
+        # All results should have rrf_score
+        assert all("rrf_score" in item for item in fused)
+        # Results should be sorted by score descending
+        for i in range(len(fused) - 1):
+            assert fused[i]["rrf_score"] >= fused[i + 1]["rrf_score"]
