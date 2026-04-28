@@ -28,14 +28,16 @@ services:
 
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/api/Dockerfile
     ports:
       - "8001:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       REDIS_URL: redis://redis:6379
-      APP_ENV: development
+      APP_ENV: test
+      ESDATA_API_KEY: test-api-key
+      MCP_API_KEY: test-mcp-key
       HF_HOME: /tmp/.cache/huggingface
       ESDATA_MANIFEST_PATH: /docs/source-manifests/sociedad-valores-wave-1.md
     depends_on:

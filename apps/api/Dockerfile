@@ -8,10 +8,14 @@ WORKDIR /app
 
 RUN addgroup --system app && adduser --system --ingroup app app
 
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+COPY libs/python/esdata_common /tmp/esdata_common
 
-COPY . /app
+COPY apps/api/requirements.txt /tmp/requirements.txt
+RUN sed -i '/esdata_common/d' /tmp/requirements.txt && \
+    pip install --no-cache-dir -r /tmp/requirements.txt && \
+    cp -r /tmp/esdata_common /usr/local/lib/python3.12/site-packages/esdata_common
+
+COPY apps/api/ /app
 
 USER app
 
