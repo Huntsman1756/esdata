@@ -3602,12 +3602,11 @@ El worker `cnmv.py` mapea documentos a regulaciones EU via keyword matching (`cn
 ## Fase 31.9 — Expansion regulatoria: SFDR, CSRD, AIFMD, UCITS, CRD V/CRR, BRRD, EMIR
 
 ### Estado
-- **COMPLETADA** — 2026-04-28 — 25 tablas, 5 migrations, 25 endpoints, 233 API tests verdes
-
-## Fase 31.9 — Expansion regulatoria: SFDR, CSRD, AIFMD, UCITS, CRD V/CRR, BRRD, EMIR
-
-### Estado
-- **PENDIENTE** — despues de 31.8
+- **31.9.1 SFDR**: COMPLETADA — DB migration, API endpoints (10), worker, 28 tests, seed data
+- **31.9.2 CSRD**: COMPLETADA — DB migration (4 tablas), API endpoints (8), worker, 30 tests, seed data
+- **31.9.3 AIFMD/UCITS**: COMPLETADA — DB migration (5 tablas), API endpoints (10), worker, 33 tests, seed data
+- **31.9.4 CRD V/CRR, BRRD, EMIR**: COMPLETADA — DB migration (5 tablas), API endpoints (20), worker, 37 tests, seed data
+- **31.9.5 Workers/Routers/Seeds**: PENDIENTE — despues de 31.9.4
 - **Prioridad**: media — financiamiento sostenible y requisitos prudenciales
 
 ### Contexto
