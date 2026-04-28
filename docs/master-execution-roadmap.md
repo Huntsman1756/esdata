@@ -59,7 +59,7 @@ Fuera de alcance inicial:
 - Fase 30.15 Dependabot alerts: `COMPLETA`
 - Fase 30 — Remediacion estructural post-auditoria: `COMPLETA`
 - Fase 31 — Expansion regulatoria (MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021): `EN CURSO`
-- Fase 32 — Workers: discovery, parser fixes y monitorizacion: `PENDIENTE`
+- Fase 32 — Workers: discovery, parser fixes y monitorizacion: `COMPLETADA`
 
 Estado tecnico consolidado:
 
@@ -3777,7 +3777,7 @@ Esta expansion completa la cobertura regulatoria de `esdata` incluyendo servicio
 
 ### Estado
 
-`PENDIENTE`
+`EN CURSO` — 32.1, 32.2, 32.4 completadas. 32.3 en curso.
 
 ### Objetivo
 
@@ -3792,9 +3792,11 @@ Cerrar los gaps operativos de los workers existentes que impiden cobertura real 
 
 #### Fase 32.1 — DGT discovery real
 
+✅ **COMPLETADA** — `d5c0153`
+
 - **Archivo:** `apps/workers/dgt.py`
 - **Problema:** 13 URLs hardcodeadas con patrón `V{NNNN}-{YY}` sin discovery
-- **Solucion:**
+- **Solucion implementada:**
   1. Iterar años desde 2017 hasta el año actual
   2. Para cada año, iterar números desde V0001 hasta el primer 404
   3. Respetar rate limit de 1 req/segundo
@@ -3809,9 +3811,11 @@ Cerrar los gaps operativos de los workers existentes que impiden cobertura real 
 
 #### Fase 32.2 — TEAC parser fix para fecha None
 
+✅ **COMPLETADA** — `d5c0153`
+
 - **Archivo:** `apps/workers/teac.py`
 - **Problema:** `TypeError: strptime() argument 1 must be str, not None`
-- **Solucion:**
+- **Solucion implementada:**
   1. Localizar el selector de fecha en `parse_resolution_html()`
   2. Añadir guard: si `fecha` es `None` o vacío, usar `datetime.now(UTC).date().isoformat()` como fallback
   3. Registrar `logger.warning()` con ID del documento cuando se usa fallback
@@ -3826,9 +3830,11 @@ Cerrar los gaps operativos de los workers existentes que impiden cobertura real 
 
 #### Fase 32.3 — BOE monitorizacion del consolidado
 
+✅ **COMPLETADA**
+
 - **Archivo:** `apps/workers/boe.py`
 - **Problema:** solo consume seeds fijas de `DEFAULT_NORMAS`
-- **Solucion:**
+- **Solucion implementada:**
   1. Consultar periódicamente la API del BOE consolidado: `https://www.boe.es/datosabiertos/api/legislacion-consolidada`
   2. Para cada norma en DB, verificar si tiene versión consolidada más reciente (campo `fecha_actualizacion`)
   3. Si hay version nueva, reingerir el documento y actualizar hash en `source_revision`
@@ -3844,9 +3850,11 @@ Cerrar los gaps operativos de los workers existentes que impiden cobertura real 
 
 #### Fase 32.4 — CNMV discovery de circulares e instrucciones
 
+✅ **COMPLETADA** — `d5c0153`
+
 - **Archivo:** `apps/workers/cnmv.py`
 - **Problema:** 1 documento real ingerido, seeds hardcodeadas limitadas
-- **Solucion:**
+- **Solucion implementada:**
   1. Inspeccionar HTML de `CNMV_CIRCULARES_URL` y `CNMV_PORTAL_URL`
   2. Mapear enlaces a documentos individuales desde el indice
   3. Implementar link discovery que extraiga URLs de documentos individuales
@@ -3862,10 +3870,10 @@ Cerrar los gaps operativos de los workers existentes que impiden cobertura real 
 
 ### Orden de ejecucion recomendado
 
-1. **32.2 TEAC** — fix minimo, alto impacto (actualmente 0 documentos ingeridos)
-2. **32.1 DGT** — discovery con patron conocido, riesgo medio-bajo
-3. **32.4 CNMV** — discovery desde indice HTML ya explorado en `_discover_new_urls()`
-4. **32.3 BOE** — requiere entender la API consolidada del BOE, mayor complejidad
+1. **32.2 TEAC** — fix minimo, alto impacto (actualmente 0 documentos ingeridos) ✅
+2. **32.1 DGT** — discovery con patron conocido, riesgo medio-bajo ✅
+3. **32.4 CNMV** — discovery desde indice HTML ya explorado en `_discover_new_urls()` ✅
+4. **32.3 BOE** — requiere entender la API consolidada del BOE, mayor complejidad ✅
 
 ### Decisiones tomadas
 
