@@ -196,7 +196,7 @@ def main():
 
         # Upsert screening matches
         empresa_id = cur.execute(
-            "SELECT id FROM empresa WHERE nombre = 'IBERBANK, S.A.' LIMIT 1"
+            "SELECT id FROM empresa WHERE nombre = 'Banco Santander, S.A.' LIMIT 1"
         ).fetchone()
         if empresa_id:
             empresa_id = empresa_id[0]

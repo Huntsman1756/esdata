@@ -16,7 +16,7 @@ import psycopg
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-DEFAULT_DB = "postgresql://esdata:esdata_dev@localhost:5434/esdata"
+DEFAULT_DB = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 
 SUBJECTS_DATA = [
     {"subject_type": "credit_institution", "tin": "ESA12345678", "registration_number": "B-12345678", "supervisory_authority": "Banco de Espana", "pbc_license": "1/2018", "status": "active"},
