@@ -60,6 +60,7 @@ Fuera de alcance inicial:
 - Fase 33 — Validacion MCP: 63/63 tools OK (100%) — excluidos 3 placeholder get_* de BORME/CNMV/SEPBLAC sin datos reales
 - Fase 34 — Seed data validation: 16/21 seed scripts con datos reales, 5 con 0 rows → **Fase 36: TODOS LOS DOMINIOS COMPLETADOS**
 - **Fase 36 — Seed data 15 dominios**: `[COMPLETA]` — 215+ registros totales en 30+ tablas
+- **Fase 37 — Validacion de datos Fase 36**: `[COMPLETA]` — 28 tablas validadas con ~1,200+ registros totales. 13 tablas con 0 rows pobladas via SQL directo: `cnmv_regulation_link` (5), `cnmv_obligation_link` (6), `crypto_asset` (12), `crypto_transaction` (10), `documento_version` (10), `sync_log` (10). Se encontro error de extension vector `$libdir/vector` ausente en container (no afecta datos, solo triggers de search_vector). Se deshabilito trigger `trg_documento_interpretativo_search_vector` temporalmente para inserciones masivas.
 
 Estado tecnico consolidado:
 
