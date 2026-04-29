@@ -1,8 +1,8 @@
 """add search_vector to documento_interpretativo
 
-Revision ID: 20260424_0004_doctrina_fulltext
-Revises: 20260418_0003
-Create Date: 2026-04-24 00:00:00
+# Revision ID: 20260424_0004_doctrina_fulltext
+# Revises: 20260418_0003
+# Create Date: 2026-04-24 00:00:00
 """
 
 from alembic import op

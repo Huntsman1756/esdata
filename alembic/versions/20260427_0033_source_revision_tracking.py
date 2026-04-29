@@ -1,8 +1,8 @@
 """add source_revision table for incremental change detection
 
-Revision ID: 20260427_0033_source_revision_tracking
-Revises: 987eafbc4c83
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0033_source_revision_tracking
+# Revises: 987eafbc4c83
+# Create Date: 2026-04-27 00:00:00
 """
 
 from alembic import op

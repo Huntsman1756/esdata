@@ -6,9 +6,9 @@ Creates:
 - solvency_ii_entity: Solvency II reporting entities
 - solvency_ii_sfp: summary of fund portfolio
 
-Revision ID: 20260428_0051_idd_solvency_models
-Revises: 20260428_0050_consumer_credit_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0051_idd_solvency_models
+# Revises: 20260428_0050_consumer_credit_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

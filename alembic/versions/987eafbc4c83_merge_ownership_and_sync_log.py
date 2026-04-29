@@ -1,8 +1,8 @@
 """merge_ownership_and_sync_log
 
-Revision ID: 987eafbc4c83
-Revises: 20260426_0013_ownership, 20260427_0031_sync_log_operability_contract
-Create Date: 2026-04-27 10:44:05.530490
+# Revision ID: 987eafbc4c83
+# Revises: 20260426_0013_ownership, 20260427_0031_sync_log_operability_contract
+# Create Date: 2026-04-27 10:44:05.530490
 """
 
 from alembic import op

@@ -3,9 +3,9 @@
 Creates xbrl_filing and xbrl_fact tables for the fixture-first
 XBRL slice, keeping schema parity with the validated test contract.
 
-Revision ID: 20260426_0013_xbrl
-Revises: 20260426_0012_screening
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0013_xbrl
+# Revises: 20260426_0012_screening
+# Create Date: 2026-04-26 00:00:00
 
 """
 

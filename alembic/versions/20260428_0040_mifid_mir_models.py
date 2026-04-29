@@ -10,9 +10,9 @@ Creates:
 - mifid_insider_list: insider list management (MAR Art. 18)
 - mifid_compensation_policy: risk-aligned compensation
 
-Revision ID: 20260428_0040_mifid_mir_models
-Revises: 20260427_0039_ley11_2021_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0040_mifid_mir_models
+# Revises: 20260427_0039_ley11_2021_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

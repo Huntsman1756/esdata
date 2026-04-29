@@ -7,9 +7,9 @@ Creates:
 - ucits_regulatory_report: regulatory reports for UCITS funds
 - aifmd_liquidity_management: liquidity management data
 
-Revision ID: 20260428_0047_aifmd_ucits_models
-Revises: 20260428_0046_csrd_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0047_aifmd_ucits_models
+# Revises: 20260428_0046_csrd_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

@@ -6,9 +6,9 @@ Creates:
 - suspicious_activity_report: SAR/MAR (suspicious activity reports)
 - beneficial_owner_record: beneficial ownership records
 
-Revision ID: 20260427_0038_ley10_2010_models
-Revises: 20260427_0037_dac8_dac9_models
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0038_ley10_2010_models
+# Revises: 20260427_0037_dac8_dac9_models
+# Create Date: 2026-04-27 00:00:00
 """
 
 import sqlalchemy as sa

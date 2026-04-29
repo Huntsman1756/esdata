@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS version_articulo (
     texto TEXT NOT NULL,
     vigente_desde DATE NOT NULL,
     vigente_hasta DATE,
-    boe_bloque_id TEXT
+    boe_bloque_id TEXT,
+    search_vector TSVECTOR
 );
 
 CREATE TABLE IF NOT EXISTS documento_interpretativo (

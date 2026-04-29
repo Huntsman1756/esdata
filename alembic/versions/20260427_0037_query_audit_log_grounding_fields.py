@@ -1,15 +1,15 @@
 """add grounding fields to query_audit_log
 
-Revision ID: 20260427_0037_query_audit_log_grounding_fields
-Revises: 20260427_0036_mica_crypto_models
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0037_query_audit_log_grounding_fields
+# Revises: 20260427_0036_mica_crypto_models
+# Create Date: 2026-04-27 00:00:00
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 revision = "20260427_0037_query_audit_log_grounding_fields"
-down_revision = "20260427_0036_mica_crypto_models"
+down_revision = "20260428_0051_idd_solvency_models"
 branch_labels = None
 depends_on = None
 

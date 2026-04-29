@@ -1,8 +1,8 @@
 """modelo campana operativa provenance
 
-Revision ID: 20260418_0003
-Revises: 20260418_0002
-Create Date: 2026-04-18 19:20:00
+# Revision ID: 20260418_0003
+# Revises: 20260418_0002
+# Create Date: 2026-04-18 19:20:00
 """
 
 from alembic import op

@@ -3,9 +3,9 @@
 Creates pgc_xbrl_mapping table to store mappings between XBRL taxonomy
 concepts (IFRS/ESEF) and PGC (Plan General Contable) chart of accounts.
 
-Revision ID: 20260426_0015_pgc_xbrl_mapping
-Revises: 20260426_0014_xbrl_taxonomy
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0015_pgc_xbrl_mapping
+# Revises: 20260426_0014_xbrl_taxonomy
+# Create Date: 2026-04-26 00:00:00
 
 """
 

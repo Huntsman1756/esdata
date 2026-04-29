@@ -1,8 +1,8 @@
 """add ambitos column to linea_criterio
 
-Revision ID: 20260426_0020_linea_criterio_ambitos
-Revises: 20260426_0019_linea_criterio
-Create Date: 2026-04-26
+# Revision ID: 20260426_0020_linea_criterio_ambitos
+# Revises: 20260426_0019_linea_criterio
+# Create Date: 2026-04-26
 
 Adds an `ambitos` TEXT[] column to linea_criterio to track which
 documentary domains (jurisprudencia_tributaria,

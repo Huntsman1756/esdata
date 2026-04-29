@@ -7,9 +7,9 @@
 - norma: vector embedding for codigo + nombre + numero_boe + titulo
 - articulo: vector embedding for numero + contenido + titulo
 
-Revision ID: 20260427_0035_multi_source_embeddings
-Revises: 20260427_0034_embedding_versioning
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0035_multi_source_embeddings
+# Revises: 20260427_0034_embedding_versioning
+# Create Date: 2026-04-27 00:00:00
 """
 
 from alembic import op

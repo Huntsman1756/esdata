@@ -6,9 +6,9 @@ triggers, submission channels, and statute of limitations.
 This enables MCP consumers (LLMs) to answer compliance questions with
 concrete data instead of requiring the LLM to parse free-text documents.
 
-Revision ID: 20260425_0008_obligaciones_operativas
-Revises: 20260425_0007_critical_indexes
-Create Date: 2026-04-25 00:00:00
+# Revision ID: 20260425_0008_obligaciones_operativas
+# Revises: 20260425_0007_critical_indexes
+# Create Date: 2026-04-25 00:00:00
 
 """
 

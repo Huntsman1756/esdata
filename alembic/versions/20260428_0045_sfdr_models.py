@@ -7,9 +7,9 @@ Creates:
 - sfdr_pre_contractual: pre-contractual SFDR documents
 - sfdr_annual_report: annual SFDR reports
 
-Revision ID: 20260428_0045_sfdr_models
-Revises: 20260428_0044_transparency_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0045_sfdr_models
+# Revises: 20260428_0044_transparency_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

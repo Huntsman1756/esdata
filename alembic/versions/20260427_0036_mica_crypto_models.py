@@ -7,10 +7,9 @@
 - crypto_transaction: transaction records for DAC8/DAC9 reporting
 """
 
-Revision ID: 20260427_0036_mica_crypto_models
-Revises: 20260427_0035_multi_source_embeddings
-Create Date: 2026-04-27 00:00:00
-"""
+# Revision ID: 20260427_0036_mica_crypto_models
+# Revises: 20260427_0035_multi_source_embeddings
+# Create Date: 2026-04-27 00:00:00
 
 from alembic import op
 import sqlalchemy as sa

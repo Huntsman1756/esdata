@@ -6,9 +6,9 @@ Creates:
 - transparency_voting_rights: voting rights holdings
 - transparency_internal_rule: internal rules on relevant information
 
-Revision ID: 20260428_0044_transparency_models
-Revises: 20260428_0043_priips_livmc_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0044_transparency_models
+# Revises: 20260428_0043_priips_livmc_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

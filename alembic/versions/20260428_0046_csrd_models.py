@@ -6,9 +6,9 @@ Creates:
 - csrd_ess: European Sustainability Reporting Standards catalog
 - csrd_double_materiality: double materiality assessment
 
-Revision ID: 20260428_0046_csrd_models
-Revises: 20260428_0045_sfdr_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0046_csrd_models
+# Revises: 20260428_0045_sfdr_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

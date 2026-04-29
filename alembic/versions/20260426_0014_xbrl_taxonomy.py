@@ -3,9 +3,9 @@
 Creates xbrl_taxonomy table to store ESEF core, IFRS labels and metadata
 for accounting concepts referenced by XBRL facts.
 
-Revision ID: 20260426_0014_xbrl_taxonomy
-Revises: 20260426_0013_xbrl
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0014_xbrl_taxonomy
+# Revises: 20260426_0013_xbrl
+# Create Date: 2026-04-26 00:00:00
 
 """
 

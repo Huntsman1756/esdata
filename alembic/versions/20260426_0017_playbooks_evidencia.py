@@ -7,9 +7,9 @@ Creates operational playbook tables for Fase 19
 - playbook_step: individual steps within a playbook
 - evidencia_control: required evidence and proof items for audit trail
 
-Revision ID: 20260426_0017_playbooks_evidencia
-Revises: 20260426_0016_editorial_internal
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0017_playbooks_evidencia
+# Revises: 20260426_0016_editorial_internal
+# Create Date: 2026-04-26 00:00:00
 
 """
 

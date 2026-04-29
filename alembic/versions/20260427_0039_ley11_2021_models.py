@@ -5,9 +5,9 @@ Creates:
 - fraud_risk_assessment: fraud risk assessments
 - fraud_incident: fraud incident records
 
-Revision ID: 20260427_0039_ley11_2021_models
-Revises: 20260427_0038_ley10_2010_models
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0039_ley11_2021_models
+# Revises: 20260427_0038_ley10_2010_models
+# Create Date: 2026-04-27 00:00:00
 """
 
 import sqlalchemy as sa

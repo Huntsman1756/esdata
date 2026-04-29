@@ -6,9 +6,9 @@ Creates:
 - livmc_client_protection: investor protection (LIVMC)
 - livmc_voice_procedure: voice and complaint procedures (LivMC Art. 10)
 
-Revision ID: 20260428_0043_priips_livmc_models
-Revises: 20260428_0042_dora_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0043_priips_livmc_models
+# Revises: 20260428_0042_dora_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

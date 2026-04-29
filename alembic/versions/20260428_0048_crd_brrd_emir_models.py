@@ -7,9 +7,9 @@ Creates:
 - emir_trade_report: trade reporting under EMIR
 - emir_clearing_member: clearing member registration
 
-Revision ID: 20260428_0048_crd_brrd_emir_models
-Revises: 20260428_0047_aifmd_ucits_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0048_crd_brrd_emir_models
+# Revises: 20260428_0047_aifmd_ucits_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

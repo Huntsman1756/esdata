@@ -1,8 +1,8 @@
 """add durable AI governance persistence tables
 
-Revision ID: 20260426_0030_ai_governance_persistence
-Revises: 20260426_0029_international_obligations
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0030_ai_governance_persistence
+# Revises: 20260426_0029_international_obligations
+# Create Date: 2026-04-26 00:00:00
 """
 
 from alembic import op

@@ -1,8 +1,8 @@
 """add chunking tables: documento_seccion and documento_fragmento
 
-Revision ID: 20260424_0005_chunking_schema
-Revises: 20260424_0004_doctrina_fulltext
-Create Date: 2026-04-24 00:00:00
+# Revision ID: 20260424_0005_chunking_schema
+# Revises: 20260424_0004_doctrina_fulltext
+# Create Date: 2026-04-24 00:00:00
 
 Creates:
   - documento_seccion: natural document boundaries (chapters, sections, parts)

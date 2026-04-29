@@ -1,8 +1,8 @@
 """add critical indexes for sync_log, articulo, version_articulo, documento_fragmento
 
-Revision ID: 20260425_0007_critical_indexes
-Revises: 20260425_0006_eval_history
-Create Date: 2026-04-25 00:00:00
+# Revision ID: 20260425_0007_critical_indexes
+# Revises: 20260425_0006_eval_history
+# Create Date: 2026-04-25 00:00:00
 
 Indexes:
   - sync_log(worker), sync_log(started_at DESC), sync_log(worker, started_at DESC)

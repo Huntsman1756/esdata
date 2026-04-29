@@ -7,9 +7,9 @@ Creates:
 - dora_penetration_test: penetration testing records
 - dora_incident_classification_framework: severity classification framework
 
-Revision ID: 20260428_0042_dora_models
-Revises: 20260428_0041_mar_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0042_dora_models
+# Revises: 20260428_0041_mar_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

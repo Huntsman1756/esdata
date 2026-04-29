@@ -6,9 +6,9 @@ Creates:
 - mar_market_manipulation_indicator: manipulation pattern detection
 - mar_insider_communication: insider communication tracking
 
-Revision ID: 20260428_0041_mar_models
-Revises: 20260428_0040_mifid_mir_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0041_mar_models
+# Revises: 20260428_0040_mifid_mir_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa

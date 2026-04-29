@@ -1,8 +1,8 @@
 """baseline schema
 
-Revision ID: 20260416_0001
-Revises: None
-Create Date: 2026-04-16 12:00:00
+# Revision ID: 20260416_0001
+# Revises: None
+# Create Date: 2026-04-16 12:00:00
 """
 
 from alembic import op

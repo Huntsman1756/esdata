@@ -4,9 +4,9 @@ Creates ownership_share, ownership_relation and ubo_record tables
 to model corporate ownership, participations and beneficial ownership
 with temporal versioning and source traceability.
 
-Revision ID: 20260426_0013_ownership
-Revises: 20260426_0012_screening
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0013_ownership
+# Revises: 20260426_0012_screening
+# Create Date: 2026-04-26 00:00:00
 
 """
 

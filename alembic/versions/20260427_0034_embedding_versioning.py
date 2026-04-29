@@ -4,9 +4,9 @@
 - content_hash TEXT on the same tables (hash of the text that was embedded)
 - embedding_version table for tracking embedding history per entity
 
-Revision ID: 20260427_0034_embedding_versioning
-Revises: 20260427_0033_source_revision_tracking
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0034_embedding_versioning
+# Revises: 20260427_0033_source_revision_tracking
+# Create Date: 2026-04-27 00:00:00
 """
 
 from alembic import op

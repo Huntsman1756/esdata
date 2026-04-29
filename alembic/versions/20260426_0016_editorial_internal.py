@@ -6,9 +6,9 @@ Creates editorial notes and interpretive position tables for Fase 18
 - nota_editorial_interna: internal editorial notes linked to official sources
 - posicion_interpretativa: versioned internal interpretive positions
 
-Revision ID: 20260426_0016_editorial_internal
-Revises: 20260426_0015_pgc_xbrl_mapping
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0016_editorial_internal
+# Revises: 20260426_0015_pgc_xbrl_mapping
+# Create Date: 2026-04-26 00:00:00
 
 """
 

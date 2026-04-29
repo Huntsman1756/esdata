@@ -1,8 +1,8 @@
 """add eval_history table for persistent evaluation telemetry
 
-Revision ID: 20260425_0006_eval_history
-Revises: 20260424_0005_chunking_schema
-Create Date: 2026-04-25 00:00:00
+# Revision ID: 20260425_0006_eval_history
+# Revises: 20260424_0005_chunking_schema
+# Create Date: 2026-04-25 00:00:00
 
 Creates:
   - eval_history: stores every evaluation run with full metrics for

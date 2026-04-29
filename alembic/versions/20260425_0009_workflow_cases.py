@@ -4,9 +4,9 @@ Creates the workflow_cases table to support compliance workflow operations:
 tracking regulatory changes from detection through resolution with
 structured fields for ownership, evidence, checklists, and outcomes.
 
-Revision ID: 20260425_0009_workflow_cases
-Revises: 20260425_0008_obligaciones_operativas
-Create Date: 2026-04-25 00:00:00
+# Revision ID: 20260425_0009_workflow_cases
+# Revises: 20260425_0008_obligaciones_operativas
+# Create Date: 2026-04-25 00:00:00
 
 """
 

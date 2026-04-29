@@ -1,8 +1,8 @@
 """modelo campana operativa
 
-Revision ID: 20260418_0002
-Revises: 20260416_0001
-Create Date: 2026-04-18 18:30:00
+# Revision ID: 20260418_0002
+# Revises: 20260416_0001
+# Create Date: 2026-04-18 18:30:00
 """
 
 from alembic import op

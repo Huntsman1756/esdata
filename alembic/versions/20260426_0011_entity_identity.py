@@ -3,9 +3,9 @@
 Creates the entity_identifiers and entity_aliases tables to support
 Global Legal Entity Identifier (LEI) and vLEI entity identity management.
 
-Revision ID: 20260426_0011_entity_identity
-Revises: 20260425_0010_pgc
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0011_entity_identity
+# Revises: 20260425_0010_pgc
+# Create Date: 2026-04-26 00:00:00
 
 """
 

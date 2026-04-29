@@ -3,9 +3,9 @@
 Creates screening_lists, screening_entries and screening_matches tables
 to support compliance screening against sanctions and PEPs lists.
 
-Revision ID: 20260426_0012_screening
-Revises: 20260426_0011_entity_identity
-Create Date: 2026-04-26 00:00:00
+# Revision ID: 20260426_0012_screening
+# Revises: 20260426_0011_entity_identity
+# Create Date: 2026-04-26 00:00:00
 
 """
 

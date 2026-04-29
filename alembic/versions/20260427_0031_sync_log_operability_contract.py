@@ -1,8 +1,8 @@
 """add operability contract fields to sync_log
 
-Revision ID: 20260427_0031_sync_log_operability_contract
-Revises: 20260426_0030_ai_governance_persistence
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0031_sync_log_operability_contract
+# Revises: 20260426_0030_ai_governance_persistence
+# Create Date: 2026-04-27 00:00:00
 """
 
 from alembic import op

@@ -5,9 +5,9 @@ Creates:
 - dac_crypto_report: periodic crypto transaction reports
 - dac_wallet_holder: wallet holders within a report
 
-Revision ID: 20260427_0037_dac8_dac9_models
-Revises: 20260427_0036_mica_crypto_models
-Create Date: 2026-04-27 00:00:00
+# Revision ID: 20260427_0037_dac8_dac9_models
+# Revises: 20260427_0036_mica_crypto_models
+# Create Date: 2026-04-27 00:00:00
 """
 
 import sqlalchemy as sa

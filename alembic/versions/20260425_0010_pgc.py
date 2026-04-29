@@ -4,9 +4,9 @@ Creates the pgc_marco, pgc_norma_valoracion, pgc_cuenta,
 pgc_estado_financiero, pgc_cuenta_fiscal_ref, and pgc_cuenta_modelo_aeat_ref
 tables to support the Spanish Plan General Contable (PGC) data model.
 
-Revision ID: 20260425_0010_pgc
-Revises: 20260425_0009_workflow_cases
-Create Date: 2026-04-25 00:00:00
+# Revision ID: 20260425_0010_pgc
+# Revises: 20260425_0009_workflow_cases
+# Create Date: 2026-04-25 00:00:00
 
 """
 

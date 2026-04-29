@@ -8,9 +8,9 @@ Creates:
 - psd2_incident_report: PSD2 incident reports
 - sepa_payment_rule: SEPA payment scheme rules
 
-Revision ID: 20260428_0049_psd2_sepa_models
-Revises: 20260428_0048_crd_brrd_emir_models
-Create Date: 2026-04-28 00:00:00
+# Revision ID: 20260428_0049_psd2_sepa_models
+# Revises: 20260428_0048_crd_brrd_emir_models
+# Create Date: 2026-04-28 00:00:00
 """
 
 import sqlalchemy as sa
