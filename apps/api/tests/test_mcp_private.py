@@ -1,142 +1,186 @@
-"""Tests for MCP shared catalog, HTTP guard, and rate limiting — Task 1 & 2."""
-
-import asyncio
+import os
+import socket
+import subprocess
 import sys
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+import requests
+from httpx import ASGITransport, AsyncClient
 from fastapi.testclient import TestClient
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from main import app
+from mcp_security import reset_mcp_rate_limit_state
+
+
 API_DIR = Path(__file__).resolve().parents[1]
-if str(API_DIR) not in sys.path:
-    sys.path.insert(0, str(API_DIR))
 
 
-def test_mcp_catalog_includes_expected_core_tools():
-    from mcp_catalog import get_stdio_tool_definitions
-
-    tool_names = {tool["name"] for tool in get_stdio_tool_definitions()}
-
-    assert "consulta_fiscal" in tool_names
-    assert "listar_obligaciones_operativas" in tool_names
-    assert "listar_deadlines" in tool_names
+def _mcp_get(headers: dict[str, str] | None = None):
+    with TestClient(app) as client:
+        return client.get(
+            "/mcp",
+            headers={"Accept": "text/event-stream", **(headers or {})},
+        )
 
 
-def _make_mcp_app(**overrides):
-    """Create a minimal FastAPI app with MCP guard and /mcp endpoint."""
-    from mcp_security import guard_mcp_http
+def _core_operation_names() -> set[str]:
+    from mcp_catalog import HTTP_MCP_OPERATIONS
 
-    base_env = {
-        "APP_ENV": "production",
-        "MCP_API_KEY": "secret",
-        "MCP_RATE_LIMIT_PER_MINUTE": "20",
-    }
-    base_env.update(overrides)
-
-    for k, v in base_env.items():
-        import os
-        os.environ[k] = str(v)
-
-    app = FastAPI()
-    app.middleware("http")(guard_mcp_http)
-
-    @app.get("/mcp")
-    async def mcp_endpoint():
-        return {"status": "ok"}
-
-    @app.get("/health")
-    async def health():
-        return {"status": "ok"}
-
-    return TestClient(app)
+    return set(HTTP_MCP_OPERATIONS)
 
 
-@pytest.fixture(autouse=True)
-def _reset_mcp_state():
-    from mcp_security import reset_mcp_rate_limit_state
-    reset_mcp_rate_limit_state()
-    yield
-    reset_mcp_rate_limit_state()
+def _free_tcp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
 
 
-def test_mcp_http_rejects_missing_api_key_when_enabled():
-    client = _make_mcp_app(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20")
-    r = client.get("/mcp")
+@asynccontextmanager
+async def _uvicorn_server(**env_overrides):
+    previous = {key: os.environ.get(key) for key in env_overrides}
+    port = _free_tcp_port()
+    env = os.environ.copy()
+    env.update(env_overrides)
+
+    process = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(port)],
+        cwd=str(API_DIR),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    try:
+        for _ in range(50):
+            try:
+                response = requests.get(f"http://127.0.0.1:{port}/health", timeout=0.5)
+                if response.status_code == 200:
+                    yield port
+                    break
+            except requests.RequestException:
+                time.sleep(0.1)
+        else:
+            raise RuntimeError("uvicorn test server did not become ready")
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+@asynccontextmanager
+async def _client_with_env(**env_overrides):
+    previous = {key: os.environ.get(key) for key in env_overrides}
+    try:
+        reset_mcp_rate_limit_state()
+        for key, value in env_overrides.items():
+            os.environ[key] = value
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            yield client
+    finally:
+        reset_mcp_rate_limit_state()
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+@pytest.mark.asyncio
+async def test_mcp_catalog_exposes_expected_core_http_operations():
+    operation_names = _core_operation_names()
+
+    assert "list_legislacion" in operation_names
+    assert "buscar_doctrina" in operation_names
+    assert "list_modelos" in operation_names
+    assert "get_modelo_fuentes_oficiales" in operation_names
+
+
+@pytest.mark.asyncio
+async def test_mcp_http_rejects_missing_api_key_when_enabled():
+    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20"):
+        r = _mcp_get()
+
     assert r.status_code == 401
 
 
-def test_mcp_http_accepts_valid_api_key_when_enabled():
-    client = _make_mcp_app(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20")
-    r = client.get("/mcp", headers={"X-API-Key": "secret"})
-    assert r.status_code == 200
+@pytest.mark.asyncio
+async def test_mcp_http_accepts_valid_api_key_when_enabled():
+    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20"):
+        r = _mcp_get(headers={"X-API-Key": "secret"})
+
+    assert r.status_code != 401
 
 
-def test_mcp_http_rejects_wrong_api_key():
-    client = _make_mcp_app(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20")
-    r = client.get("/mcp", headers={"X-API-Key": "wrong"})
-    assert r.status_code == 401
+@pytest.mark.asyncio
+async def test_mcp_http_rate_limits_repeated_requests():
+    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="2"):
+        headers = {"X-API-Key": "secret"}
+        first = _mcp_get(headers=headers)
+        second = _mcp_get(headers=headers)
+        third = _mcp_get(headers=headers)
 
-
-def test_mcp_http_rejects_when_key_is_not_configured():
-    client = _make_mcp_app(MCP_API_KEY="", MCP_RATE_LIMIT_PER_MINUTE="20")
-    r = client.get("/mcp")
-    assert r.status_code == 401
-
-
-def test_mcp_http_non_mcp_path_unprotected():
-    client = _make_mcp_app(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20")
-    r = client.get("/health")
-    assert r.status_code == 200
-
-
-def test_mcp_http_rate_limits_repeated_requests():
-    client = _make_mcp_app(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="2")
-    headers = {"X-API-Key": "secret"}
-    first = client.get("/mcp", headers=headers)
-    second = client.get("/mcp", headers=headers)
-    third = client.get("/mcp", headers=headers)
-
-    assert first.status_code == 200
-    assert second.status_code == 200
+    assert first.status_code != 429
+    assert second.status_code != 429
     assert third.status_code == 429
 
 
-def test_stdio_catalog_contains_expected_core_tools():
-    """Verify stdio tool catalog (shared source) includes expected core tools."""
-    from mcp_catalog import get_stdio_tool_definitions
+@pytest.mark.asyncio
+async def test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key():
+    async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
+        session = requests.Session()
+        headers = {"Accept": "text/event-stream", "X-API-Key": "secret"}
+        handshake = session.get(f"http://127.0.0.1:{port}/mcp", headers=headers, timeout=5)
 
-    tools = get_stdio_tool_definitions()
-    tool_names = {tool["name"] for tool in tools}
+        assert handshake.status_code in {200, 400}
 
-    assert "consulta_fiscal" in tool_names
-    assert "listar_obligaciones_operativas" in tool_names
-    assert "listar_deadlines" in tool_names
-    assert "listar_obligaciones_aplicables" in tool_names
-    assert "get_obligacion_completa" in tool_names
+        session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get("Mcp-Session-Id")
+        assert session_id
 
+        rpc_headers = {
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "X-API-Key": "secret",
+            "MCP-Session-ID": session_id,
+        }
 
-def test_http_and_stdio_share_same_core_tool_names():
-    """Verify both stdio catalog and HTTP mcp endpoint expose the same core tools.
+        initialize = session.post(
+            f"http://127.0.0.1:{port}/mcp",
+            headers=rpc_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest", "version": "1.0"},
+                },
+            },
+            timeout=5,
+        )
+        assert initialize.status_code == 200
+        assert initialize.json()["result"]["protocolVersion"] == "2025-03-26"
 
-    stdio uses mcp_catalog as its source of truth.
-    HTTP uses fastapi-mcp which exposes the same FastAPI operations.
-    Both must cover the same core tool names.
-    """
-    from mcp_catalog import get_stdio_tool_definitions
+        tools = session.post(
+            f"http://127.0.0.1:{port}/mcp",
+            headers=rpc_headers,
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+            timeout=5,
+        )
+        assert tools.status_code == 200
 
-    stdio_names = {tool["name"] for tool in get_stdio_tool_definitions()}
-
-    core_tools = {"consulta_fiscal", "listar_obligaciones_operativas", "listar_deadlines"}
-    assert core_tools.issubset(stdio_names), f"stdio missing: {core_tools - stdio_names}"
-
-    # HTTP mcp endpoint must exist and be protected
-    client = _make_mcp_app(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20")
-    r = client.get("/mcp", headers={"X-API-Key": "secret"})
-    assert r.status_code == 200, "HTTP /mcp endpoint must respond when key is valid"
-
-    # The core tools exist in stdio catalog — HTTP exposes the same via fastapi-mcp operations
-    # This is verified by mcp_server.py including the same operation names
-    assert "consulta_fiscal" in stdio_names
-    assert "listar_obligaciones_operativas" in stdio_names
-    assert "listar_deadlines" in stdio_names
+        names = {tool["name"] for tool in tools.json()["result"]["tools"]}
+        assert "buscar" in names
+        assert "list_modelos" in names

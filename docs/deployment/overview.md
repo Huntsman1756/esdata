@@ -1,73 +1,43 @@
-# Despliegue — Overview
+# Deployment Overview
 
-## Resumen
+## Estado actual
 
-El despliegue activo de `esdata` es Docker Compose.
+El despliegue de referencia hoy es Railway, con servicios declarados en `railway.toml` y workflows en `.github/workflows/`.
 
-No hay plataforma PaaS activa. Toda referencia a plataformas anteriores pertenece solo al archivo historico en `docs/archive/`.
+## Objetivo de futuro
 
-## Superficies desplegadas
+Mantener compatibilidad con Railway mientras se prepara un despliegue portable para servidor empresarial.
 
-- `api` — backend FastAPI
-- `web` — UI interna
-- `postgres` — persistencia principal
-- `caddy` — reverse proxy y TLS
-- `worker-*` — ingestion y pipelines por fuente
-- `ops` — tareas operativas puntuales cuando el perfil correspondiente este habilitado
+## Componentes desplegables
 
-## Principio operativo
+- API FastAPI
+- Web Next.js
+- Workers continuos
+- Cron jobs
+- PostgreSQL
+- Cloudflare opcional para cache y proteccion MCP
 
-El runtime del producto se despliega desde `apps/*`.
+## Recomendacion
 
-El tooling no-runtime no se despliega como servicio principal:
+Primer aterrizaje empresarial recomendado:
 
-- seeds
-- backfills
-- verificaciones manuales
-- wrappers locales
-- scripts de diagnostico
+1. contenedores por servicio
+2. PostgreSQL separado
+3. scheduler externo para crons
+4. proxy inverso corporativo
+5. secretos gestionados fuera del repo
 
-Todo eso vive en `scripts/`.
-
-## Docker Compose
-
-Archivo de referencia:
+## Artefactos disponibles en el repo
 
 - `infra/deploy/docker-compose.prod.yml`
-
-Perfiles operativos:
-
-- default — runtime principal
-- `cron` — ejecucion manual/oneshot de jobs
-- `ops` — migraciones, backups y checks administrativos
-
-## Flujo de despliegue recomendado
-
-1. preparar servidor
-2. copiar repo y variables de entorno
-3. levantar stack
-4. aplicar migraciones
-5. verificar salud
-6. ejecutar tareas operativas puntuales si hacen falta
-
-## Verificacion minima post-deploy
-
-- `docker compose -f infra/deploy/docker-compose.prod.yml ps`
-- `curl -s http://127.0.0.1:8000/health`
-- `curl -s http://127.0.0.1:8000/status`
-- verificacion de migraciones y esquema si hubo cambios de DB
-
-## Boundaries importantes
-
-- no desplegar scripts manuales como si fueran runtime permanente
-- no asumir que `apps/api` contiene tooling operativo
-- no introducir secretos en imagenes o archivos versionados
-- no usar docs historicas como guia de despliegue activa
-
-## Documentacion relacionada
-
-- `docs/architecture.md`
-- `docs/operations/README.md`
-- `docs/deployment/server-installation.md`
-- `docs/deployment/rollback.md`
-- `infra/AGENTS.md`
+- `infra/deploy/Caddyfile`
+- `infra/deploy/Dockerfile.ops`
+- `infra/deploy/systemd/*`
+- `infra/deploy/compose.env.example`
+- `docs/deployment/vps-trial-deploy.md`
+- `docs/deployment/HANDOFF-IT.md`
+- `docs/operations/OPERATIONS.md`
+- `docs/operations/runbooks/deploy-compose.md`
+- `docs/deployment/railway-to-hetzner-v2.md`
+- `alembic.ini`
+- `alembic/versions/20260416_0001_baseline_schema.py`
