@@ -199,8 +199,8 @@ Se requiere confirmacion explicita del usuario antes de:
 ## Resumen vivo
 
 - Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, AEPD COMPLETOS; BDNS, CENDOJ, TEAC OUT OF SCOPE; BDE COMPLETADO, EURLEX pendiente) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
-- Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.3 `COMPLETA`, 35.4-35.5 `OUT OF SCOPE`, 35.6 `COMPLETA`, 35.7 `OUT OF SCOPE`, 35.8 `COMPLETA`. 264 documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 1, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS).
-- Estado del agente: BORME/CNMV/SEPBLAC/AEPD/BDE completados con datos reales (264 docs). BDNS, CENDOJ y TEAC marcados como OUT OF SCOPE. Siguiente paso exacto: **Fase 35.9 — EUR-Lex** (Legislacion de la UE — directives, regulations espana-related).
+- Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.9 `COMPLETA`, 35.4-35.5 `OUT OF SCOPE`, 35.6 `COMPLETA`, 35.7 `OUT OF SCOPE`, 35.8 `COMPLETA`. 264 documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 1, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS).
+- Estado del agente: BORME/CNMV/SEPBLAC/AEPD/BDE/EURLEX completados con datos reales. BDNS, CENDOJ y TEAC marcados como OUT OF SCOPE. Siguiente paso exacto: **Fase 36 — Poblar datos de dominios con 0 rows**.
 - Archivos afectados:
   - `docs/master-execution-roadmap.md`
 - Inicio: 2026-04-28
@@ -283,6 +283,18 @@ Se requiere confirmacion explicita del usuario antes de:
   - `ruff check apps/api/routers/consulta.py apps/api/tests/test_reranker.py` sigue reportando varios findings preexistentes en `consulta.py` fuera del scope del fix mínimo, además de orden de imports en `test_reranker.py`
   - la superficie CNMV expuesta por endpoints existe y ahora tiene 1 documento real en Compose, pero no debe presentarse como operativa de forma completa hasta poblar corpus documental, obligaciones y screening con evidencia fresca
   - `ruff check apps/workers/modelos.py apps/workers/modelos_support.py apps/workers/tests/test_modelos.py --select E,F --quiet` sigue mostrando `E501` preexistentes y fuera del objetivo funcional del slice; el guard nuevo no introduce errores `E`/`F` adicionales distintos del style existente
+
+## Reentrada multi-maquina
+
+- Rama estable verificada: `main` en `ee12bd3` (`fix(workers): harden regulatory ingestion paths`)
+- Rama WIP remota para continuidad de `MiCA`: `wip/mica-2026-04-27` en `de03ca9` (`wip(mica): checkpoint local mica and audit schema work`)
+- Secuencia exacta en el otro ordenador:
+  - `git fetch origin`
+  - `git checkout main`
+  - `git pull origin main`
+  - `git checkout wip/mica-2026-04-27`
+  - `git pull origin wip/mica-2026-04-27`
+- Usar `main` para continuar con trabajo verificado de workers/regulatorio y `wip/mica-2026-04-27` para continuar `MiCA` sin mezclar slices.
 - Objetivo actual: cerrar stale state en el roadmap y definir siguiente fase tras Fase 30.4 completada.
 - Estado actual: slice `alembic-chain-repair` `COMPLETA` — cadena Alembic limpia de `base` a `head` (`20260427_0035_multi_source_embeddings`) en DB local con 81 tablas, `alembic_version` en `head`, 4/4 integrity tests verdes. Backfill `documento_fragmento` es no-op (0 articulos, 0 documentos). Consultas LGT/LIVA/LIS ya validadas.
 - Estado del agente: COMPLETADA — la cadena Alembic funciona de extremo a extremo. Próximos pasos: limpiar headers stale del roadmap y definir siguiente fase tras Fase 30.4.
@@ -3320,8 +3332,8 @@ Nota: esta lista es historica y sobreestima el gap real. Ver `Estado real en rep
 ## Fase 31 — Expansion regulatoria: MiCA, DAC8/DAC9, Ley 10/2010, Ley 11/2021
 
 ### Estado
-- **EN CURSO** — data models ausentes para crypto/MiCA/CASP
-- **Prioridad**: alta — gap estructural entre texto normativo referenciado y esquemas de datos
+- **COMPLETA** — 53 nuevas tablas, 13 migraciones Alembic (0036-0051), 8+ workers, 10+ routers, 15+ seeds, 15+ tests
+- **Cobertura**: MiCA (31.1), DAC8/DAC9 (31.2), Ley 10/2010 PBC (31.3), Ley 11/2021 antifraud (31.4), MiFID II/MAR/DORA/PRIIPs/Transparencia (31.8), SFDR/CSRD/AIFMD/UCITS/CRD/BRRD/EMIR (31.9), PSD2/Consumer Credit/IDD (31.10)
 
 ### Contexto
 
@@ -4202,15 +4214,19 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ### Fase 35.9 — EUR-Lex (Legislacion de la UE)
 
-**Estado**: `[TARGET]`
+**Estado**: `[COMPLETA]`
 
 - **Problema**: 0 documentos. Worker `eurlex.py` existe pero no tiene seed URLs configuradas.
 - **Fuente**: `https://eur-lex.europa.eu/`
-- **Enfoque**:
-  1. Configurar EUR-Lex search API o HTML parsing para directives/regulations espana-related
-  2. Mapear a `documento_interpretativo` con `tipo_fuente='eurlex'`
-- **Archivos a modificar**: `apps/workers/eurlex.py`
-- **Riesgos**: EUR-Lex tiene API pero puede requerir autentificacion; HTML parsing frágil
+- **Enfoque implementado**:
+  1. ~30 CELEXs hardcodeados (MiFID II, MAR, DORA, CSRD, SFDR, AIFMD, UCITS, CRD/CRR, BRRD, EMIR, PSD2/PSD3, IDD, Solvency II, AMLD, DAC, Prospectus, CSDR, CSDDD, AI Act, Data Act, etc.)
+  2. SPARQL discovery semanal para new directives/regulations (< 6 meses)
+  3. Texto completo articulo por articulo via `rest.tx.legal-acts-index` REST API
+  4. Schema `norma`/`articulo`/`version_articulo` (no `documento_interpretativo`)
+  5. Change detection + invalidation de embeddings
+- **Archivos modificados**: `apps/workers/eurlex.py` (reescribir), `scripts/data/seed_eurlex.py` (nuevo)
+- **Archivos de config**: `.env.example`, `docker-compose.prod.yml`, `docs/environment-variables.md`
+- **Riesgos**: EUR-Lex REST API no documentada publicamente (mitigacion: try/catch). SPARQL lento (mitigacion: timeout 120s, solo ultimos 6 meses).
 
 ---
 

@@ -1,152 +1,302 @@
-"""MiCA / crypto-asset data model endpoints.
+"""Routers para MiCA (Reglamento UE 2023/1114) y crypto-asset services.
 
-Fase 31 — Expansion regulatoria.
-
-Endpoints:
-    GET  /v1/mica/casp                     — list CASP providers
-    GET  /v1/mica/casp/{id}                — get CASP by ID
-    GET  /v1/mica/crypto-assets             — list crypto assets
-    GET  /v1/mica/crypto-assets/{id}        — get crypto asset by ID
-    GET  /v1/mica/tokenized-assets          — list tokenized assets
-    GET  /v1/mica/tokenized-assets/{id}     — get tokenized asset by ID
-    GET  /v1/mica/wallet-custodians         — list wallet custodians
-    GET  /v1/mica/wallet-custodians/{id}    — get wallet custodian by ID
-    GET  /v1/mica/crypto-transactions       — list crypto transactions
-    GET  /v1/mica/crypto-transactions/{id}  — get transaction by ID
+Endpoints de consulta de CASP (Crypto-Asset Service Providers),
+activos crypto, activos tokenizados, custodios de wallets y
+transacciones crypto para DAC8/DAC9.
 """
+
+import json
 
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query
 from schemas import (
-    CaspDetail,
-    CaspListResponse,
-    CryptoAssetDetail,
+    CASPCreate as CASPCreateSchema,
+)
+from schemas import (
+    CASPDetail as CASPDetailSchema,
+)
+from schemas import (
+    CASPListResponse,
     CryptoAssetListResponse,
-    CryptoTransactionDetail,
     CryptoTransactionListResponse,
-    TokenizedAssetDetail,
     TokenizedAssetListResponse,
-    WalletCustodianDetail,
     WalletCustodianListResponse,
+)
+from schemas import (
+    CASPSummary as CASPSummarySchema,
+)
+from schemas import (
+    CryptoAssetCreate as CryptoAssetCreateSchema,
+)
+from schemas import (
+    CryptoAssetDetail as CryptoAssetDetailSchema,
+)
+from schemas import (
+    CryptoAssetSummary as CryptoAssetSummarySchema,
+)
+from schemas import (
+    CryptoTransactionCreate as CryptoTransactionCreateSchema,
+)
+from schemas import (
+    CryptoTransactionDetail as CryptoTransactionDetailSchema,
+)
+from schemas import (
+    CryptoTransactionSummary as CryptoTransactionSummarySchema,
+)
+from schemas import (
+    TokenizedAssetDetail as TokenizedAssetDetailSchema,
+)
+from schemas import (
+    WalletCustodianDetail as WalletCustodianDetailSchema,
 )
 from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/mica", tags=["mica"])
 
 
-# ===========================================================================
-# CASP (Crypto-Asset Service Providers)
-# ===========================================================================
+# ===================================================================
+# Helpers
+# ===================================================================
+
+
+def _parse_services(val) -> list[str]:
+    """Parse services_offered JSON string or list into list[str]."""
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            return parsed if isinstance(parsed, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+    return []
+
+
+# ===================================================================
+# CASP — Crypto-Asset Service Providers
+# ===================================================================
 
 
 @router.get(
     "/casp",
-    response_model=CaspListResponse,
     operation_id="list_casp",
+    response_model=CASPListResponse,
 )
 async def list_casp(
-    status: str | None = Query(None, description="Filtrar por estado: active, suspended, revoked"),
-    home_state: str | None = Query(None, description="Filtrar por estado miembro"),
-    search: str | None = Query(None, description="Buscar por nombre o numero de registro"),
+    status: str | None = Query(default=None, description="Filtrar por estado: active, suspended, revoked"),
+    home_member_state: str | None = Query(default=None, description="Filtrar por estado miembro (ISO 3166-1 alpha-2)"),
+    search: str | None = Query(default=None, description="Busqueda por nombre"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
-    filters = ["1=1"]
-    params: dict = {}
+    """Listar proveedores de servicios de criptoactivos (CASP) del registro ESMA."""
+    conditions = []
+    params = {}
 
     if status:
-        filters.append("c.status = :status")
+        conditions.append("status = :status")
         params["status"] = status
-    if home_state:
-        filters.append("c.home_member_state = :home_state")
-        params["home_state"] = home_state
+    if home_member_state:
+        conditions.append("home_member_state = :home_member_state")
+        params["home_member_state"] = home_member_state
     if search:
-        filters.append(
-            "(LOWER(c.name) LIKE LOWER(:search) OR LOWER(c.registration_number) LIKE LOWER(:search))"
-        )
-        params["search"] = f"%{search}%"
 
     with db_session() as db:
         rows = db.execute(
             text(
                 f"""
                 SELECT id, name, registration_number, home_member_state,
-                       passport_active, status
-                FROM casp c
-                WHERE {" AND ".join(filters)}
                 ORDER BY name
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
-        casps = [dict(r) for r in rows]
-        count = db.execute(
-            text(
-                f"""
-                SELECT COUNT(*) FROM casp c
-                WHERE {" AND ".join(filters)}
-                """
-            ),
-            params,
-        ).scalar()
-        return {"casps": casps, "total": count}
 
 
 @router.get(
-    "/casp/{item_id}",
-    response_model=CaspDetail,
+    "/casp/{casp_id}",
     operation_id="get_casp",
+    response_model=CASPDetailSchema,
 )
-async def get_casp(item_id: int):
+async def get_casp(casp_id: int):
+    """Obtener detalle de un CASP por ID."""
     with db_session() as db:
         row = db.execute(
             text(
                 """
                 SELECT id, name, registration_number, home_member_state,
-                       passport_active, services_offered, status, created_at
-                FROM casp c
-                WHERE c.id = :item_id
-                LIMIT 1
                 """
             ),
-            {"item_id": item_id},
+            {"id": casp_id},
         ).mappings().first()
-        if not row:
-            raise HTTPException(status_code=404, detail={"error": "CASP no encontrado"})
-        return dict(row)
+
+    if not row:
+        raise HTTPException(status_code=404, detail={"error": "CASP no encontrado"})
+
+    result = dict(row)
+    result["services_offered"] = _parse_services(result["services_offered"])
+    return result
 
 
-# ===========================================================================
-# Crypto Assets
-# ===========================================================================
+@router.post(
+    "/casp",
+    operation_id="create_casp",
+    response_model=CASPSummarySchema,
+    status_code=201,
+)
+async def create_casp(body: CASPCreateSchema):
+    """Crear un nuevo CASP."""
+    services_json = json.dumps(body.services_offered) if body.services_offered else "[]"
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO casp (name, registration_number, home_member_state,
+                                  passport_active, services_offered, status)
+                VALUES (:name, :registration_number, :home_member_state,
+                        :passport_active, :services_json, 'active')
+                """
+            ),
+            {
+                "name": body.name,
+                "registration_number": body.registration_number,
+                "home_member_state": body.home_member_state,
+                "passport_active": body.passport_active,
+                "services_json": services_json,
+            },
+        )
+        db.commit()
+
+        row = db.execute(
+            text(
+                """
+                SELECT id, name, registration_number, home_member_state,
+                       passport_active, services_offered, status
+                FROM casp
+                ORDER BY id DESC LIMIT 1
+                """
+            ),
+        ).mappings().first()
+
+    if not row:
+        raise HTTPException(status_code=500, detail={"error": "Error creando CASP"})
+
+    result = dict(row)
+    result["services_offered"] = _parse_services(result["services_offered"])
+    return result
+
+
+@router.patch(
+    "/casp/{casp_id}",
+    operation_id="update_casp",
+    response_model=CASPSummarySchema,
+)
+async def update_casp(casp_id: int, body: dict):
+    """Actualizar un CASP existente."""
+    with db_session() as db:
+        existing = db.execute(
+            text("SELECT id FROM casp WHERE id = :id"),
+            {"id": casp_id},
+        ).scalar_one_or_none()
+
+    if not existing:
+        raise HTTPException(status_code=404, detail={"error": "CASP no encontrado"})
+
+    with db_session() as db:
+        row = db.execute(
+            text("SELECT services_offered FROM casp WHERE id = :id"),
+            {"id": casp_id},
+        ).mappings().first()
+
+        current_services = _parse_services(row["services_offered"]) if row else []
+        new_services = body.get("services_offered") if body.get("services_offered") is not None else current_services
+        services_json = json.dumps(new_services) if new_services else "[]"
+
+        name = body.get("name")
+        reg_number = body.get("registration_number")
+        home_state = body.get("home_member_state")
+        passport = body.get("passport_active")
+
+        set_parts = []
+        params = {"id": casp_id}
+
+        if name is not None:
+            set_parts.append("name = :name")
+            params["name"] = name
+        if reg_number is not None:
+            set_parts.append("registration_number = :registration_number")
+            params["registration_number"] = reg_number
+        if home_state is not None:
+            set_parts.append("home_member_state = :home_member_state")
+            params["home_member_state"] = home_state
+        if passport is not None:
+            set_parts.append("passport_active = :passport_active")
+            params["passport_active"] = passport
+        if body.get("status") is not None:
+            set_parts.append("status = :status")
+            params["status"] = body["status"]
+
+        set_parts.append("services_offered = :services_json")
+        params["services_json"] = services_json
+        set_parts.append("updated_at = CURRENT_TIMESTAMP")
+
+        db.execute(
+            text(f"UPDATE casp SET {', '.join(set_parts)} WHERE id = :id"),
+            params,
+        )
+        db.commit()
+
+        row = db.execute(
+            text(
+                """
+                SELECT id, name, registration_number, home_member_state,
+                       passport_active, services_offered, status
+                FROM casp
+                WHERE id = :id
+                """
+            ),
+            {"id": casp_id},
+        ).mappings().first()
+
+    if not row:
+        raise HTTPException(status_code=500, detail={"error": "Error actualizando CASP"})
+
+    result = dict(row)
+    result["services_offered"] = _parse_services(result["services_offered"])
+    return result
+
+
+# ===================================================================
+# Crypto Asset
+# ===================================================================
 
 
 @router.get(
     "/crypto-assets",
-    response_model=CryptoAssetListResponse,
     operation_id="list_crypto_assets",
+    response_model=CryptoAssetListResponse,
 )
 async def list_crypto_assets(
-    asset_type: str | None = Query(None, description="Filtrar por tipo: e-money_token, asset_referenced_token, utility_token, other"),
-    is_sha: bool | None = Query(None, description="Filtrar por SHA (significant crypto-asset)"),
-    status: str | None = Query(None, description="Filtrar por estado: active, inactive, delisted"),
-    search: str | None = Query(None, description="Buscar por reference_uid o issuer_jurisdiction"),
+    asset_type: str | None = Query(default=None, description="asset-referenced, e-money, utility, other"),
+    is_sha: bool | None = Query(default=None, description="Filtrar por criptoactivo significativo"),
+    status: str | None = Query(default=None, description="Filtrar por estado"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
-    filters = ["1=1"]
-    params: dict = {}
+    """Listar criptoactivos bajo MiCA."""
+    conditions = []
+    params = {}
 
     if asset_type:
-        filters.append("ca.asset_type = :asset_type")
+        conditions.append("asset_type = :asset_type")
         params["asset_type"] = asset_type
     if is_sha is not None:
-        filters.append("ca.is_sha = :is_sha")
+        conditions.append("is_sha = :is_sha")
         params["is_sha"] = is_sha
     if status:
-        filters.append("ca.status = :status")
+        conditions.append("status = :status")
         params["status"] = status
-    if search:
-        filters.append(
-            "(LOWER(ca.reference_uid) LIKE LOWER(:search) OR LOWER(ca.issuer_jurisdiction) LIKE LOWER(:search))"
-        )
-        params["search"] = f"%{search}%"
 
     with db_session() as db:
         rows = db.execute(
@@ -154,279 +304,327 @@ async def list_crypto_assets(
                 f"""
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
                        is_sha, market_value_eur, holders_count, status
-                FROM crypto_asset ca
-                WHERE {" AND ".join(filters)}
                 ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
-        assets = [dict(r) for r in rows]
-        count = db.execute(
-            text(
-                f"""
-                SELECT COUNT(*) FROM crypto_asset ca
-                WHERE {" AND ".join(filters)}
-                """
-            ),
-            params,
-        ).scalar()
-        return {"assets": assets, "total": count}
 
 
 @router.get(
-    "/crypto-assets/{item_id}",
-    response_model=CryptoAssetDetail,
+    "/crypto-assets/{asset_id}",
     operation_id="get_crypto_asset",
+    response_model=CryptoAssetDetailSchema,
 )
-async def get_crypto_asset(item_id: int):
+async def get_crypto_asset(asset_id: int):
+    """Obtener detalle de un criptoactivo por ID."""
     with db_session() as db:
         row = db.execute(
             text(
                 """
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
-                       is_sha, market_value_eur, holders_count, status, created_at
-                FROM crypto_asset ca
-                WHERE ca.id = :item_id
-                LIMIT 1
                 """
             ),
-            {"item_id": item_id},
+            {"id": asset_id},
         ).mappings().first()
-        if not row:
-            raise HTTPException(status_code=404, detail={"error": "Crypto asset no encontrado"})
-        return dict(row)
+
+    if not row:
+        raise HTTPException(status_code=404, detail={"error": "Criptoactivo no encontrado"})
+
+    return dict(row)
 
 
-# ===========================================================================
-# Tokenized Assets
-# ===========================================================================
+@router.post(
+    "/crypto-assets",
+    operation_id="create_crypto_asset",
+    response_model=CryptoAssetSummarySchema,
+    status_code=201,
+)
+async def create_crypto_asset(body: CryptoAssetCreateSchema):
+    """Crear un nuevo criptoactivo."""
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO crypto_asset (asset_type, reference_uid, issuer_jurisdiction,
+                                          is_sha, market_value_eur, holders_count, status)
+                VALUES (:asset_type, :reference_uid, :issuer_jurisdiction,
+                        :is_sha, :market_value_eur, :holders_count, 'active')
+                """
+            ),
+            {
+                "asset_type": body.asset_type,
+                "reference_uid": body.reference_uid,
+                "issuer_jurisdiction": body.issuer_jurisdiction,
+                "is_sha": body.is_sha,
+                "market_value_eur": body.market_value_eur,
+                "holders_count": body.holders_count,
+            },
+        )
+        db.commit()
+
+        row = db.execute(
+            text(
+                """
+                SELECT id, asset_type, reference_uid, issuer_jurisdiction,
+                       is_sha, market_value_eur, holders_count, status
+                FROM crypto_asset
+                ORDER BY id DESC LIMIT 1
+                """
+            ),
+        ).mappings().first()
+
+    if not row:
+        raise HTTPException(status_code=500, detail={"error": "Error creando criptoactivo"})
+
+    return dict(row)
+
+
+# ===================================================================
+# Tokenized Asset
+# ===================================================================
 
 
 @router.get(
     "/tokenized-assets",
-    response_model=TokenizedAssetListResponse,
     operation_id="list_tokenized_assets",
+    response_model=TokenizedAssetListResponse,
 )
 async def list_tokenized_assets(
-    underlying_type: str | None = Query(None, description="Filtrar por tipo de activo subyacente"),
-    status: str | None = Query(None, description="Filtrar por estado: active, inactive, delisted"),
+    underlying_type: str | None = Query(default=None, description="equity, bond, fund, real-estate, other"),
+    status: str | None = Query(default=None, description="Filtrar por estado"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
-    filters = ["1=1"]
-    params: dict = {}
+    """Listar activos tokenizados bajo MiCA."""
+    conditions = []
+    params = {}
 
     if underlying_type:
-        filters.append("ta.underlying_type = :underlying_type")
+        conditions.append("underlying_type = :underlying_type")
         params["underlying_type"] = underlying_type
     if status:
-        filters.append("ta.status = :status")
+        conditions.append("status = :status")
         params["status"] = status
+
+    where = ""
+    if conditions:
+        where = "WHERE " + " AND ".join(conditions)
 
     with db_session() as db:
         rows = db.execute(
             text(
                 f"""
-                SELECT id, underlying_type, face_value, total_amount,
+                SELECT id, underlying_type, issuer_id, face_value, total_amount,
                        listing_date, regulated_market, status
-                FROM tokenized_asset ta
-                WHERE {" AND ".join(filters)}
                 ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
-        assets = [dict(r) for r in rows]
-        count = db.execute(
-            text(
-                f"""
-                SELECT COUNT(*) FROM tokenized_asset ta
-                WHERE {" AND ".join(filters)}
-                """
-            ),
-            params,
-        ).scalar()
-        return {"assets": assets, "total": count}
 
 
 @router.get(
-    "/tokenized-assets/{item_id}",
-    response_model=TokenizedAssetDetail,
+    "/tokenized-assets/{asset_id}",
     operation_id="get_tokenized_asset",
+    response_model=TokenizedAssetDetailSchema,
 )
-async def get_tokenized_asset(item_id: int):
+async def get_tokenized_asset(asset_id: int):
+    """Obtener detalle de un activo tokenizado por ID."""
     with db_session() as db:
         row = db.execute(
             text(
                 """
-                SELECT id, issuer_id, underlying_type, face_value, total_amount,
-                       listing_date, regulated_market, status, created_at
-                FROM tokenized_asset ta
-                WHERE ta.id = :item_id
-                LIMIT 1
                 """
             ),
-            {"item_id": item_id},
+            {"id": asset_id},
         ).mappings().first()
-        if not row:
-            raise HTTPException(status_code=404, detail={"error": "Tokenized asset no encontrado"})
-        return dict(row)
+
+    if not row:
+        raise HTTPException(status_code=404, detail={"error": "Activo tokenizado no encontrado"})
+
+    return dict(row)
 
 
-# ===========================================================================
-# Wallet Custodians
-# ===========================================================================
+# ===================================================================
+# Wallet Custodian
+# ===================================================================
 
 
 @router.get(
     "/wallet-custodians",
-    response_model=WalletCustodianListResponse,
     operation_id="list_wallet_custodians",
+    response_model=WalletCustodianListResponse,
 )
 async def list_wallet_custodians(
-    wallet_type: str | None = Query(None, description="Filtrar por tipo: hot, cold, hybrid"),
-    status: str | None = Query(None, description="Filtrar por estado: active, inactive, suspended"),
+    wallet_type: str | None = Query(default=None, description="hot, cold, hybrid"),
+    status: str | None = Query(default=None, description="Filtrar por estado"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
-    filters = ["1=1"]
-    params: dict = {}
+    """Listar proveedores de custodia de wallets."""
+    conditions = []
+    params = {}
 
     if wallet_type:
-        filters.append("wc.wallet_type = :wallet_type")
+        conditions.append("wallet_type = :wallet_type")
         params["wallet_type"] = wallet_type
     if status:
-        filters.append("wc.status = :status")
+        conditions.append("status = :status")
         params["status"] = status
 
+    where = ""
+    if conditions:
+        where = "WHERE " + " AND ".join(conditions)
+
     with db_session() as db:
         rows = db.execute(
             text(
                 f"""
                 SELECT id, entity_id, wallet_type, custody_mechanism,
-                       insurance_coverage, audit_frequency, status, created_at
-                FROM wallet_custodian wc
-                WHERE {" AND ".join(filters)}
                 ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
-        custodians = [dict(r) for r in rows]
-        count = db.execute(
-            text(
-                f"""
-                SELECT COUNT(*) FROM wallet_custodian wc
-                WHERE {" AND ".join(filters)}
-                """
-            ),
-            params,
-        ).scalar()
-        return {"custodians": custodians, "total": count}
 
 
 @router.get(
-    "/wallet-custodians/{item_id}",
-    response_model=WalletCustodianDetail,
+    "/wallet-custodians/{custodian_id}",
     operation_id="get_wallet_custodian",
+    response_model=WalletCustodianDetailSchema,
 )
-async def get_wallet_custodian(item_id: int):
+async def get_wallet_custodian(custodian_id: int):
+    """Obtener detalle de un custodio por ID."""
     with db_session() as db:
         row = db.execute(
             text(
                 """
                 SELECT id, entity_id, wallet_type, custody_mechanism,
-                       insurance_coverage, audit_frequency, status, created_at
-                FROM wallet_custodian wc
-                WHERE wc.id = :item_id
-                LIMIT 1
                 """
             ),
-            {"item_id": item_id},
+            {"id": custodian_id},
         ).mappings().first()
-        if not row:
-            raise HTTPException(status_code=404, detail={"error": "Wallet custodian no encontrado"})
-        return dict(row)
+
+    if not row:
+        raise HTTPException(status_code=404, detail={"error": "Custodio no encontrado"})
+
+    return dict(row)
 
 
-# ===========================================================================
-# Crypto Transactions (DAC8/DAC9)
-# ===========================================================================
+# ===================================================================
+# Crypto Transaction
+# ===================================================================
 
 
 @router.get(
-    "/crypto-transactions",
-    response_model=CryptoTransactionListResponse,
+    "/transactions",
     operation_id="list_crypto_transactions",
+    response_model=CryptoTransactionListResponse,
 )
 async def list_crypto_transactions(
-    asset_type: str | None = Query(None, description="Filtrar por tipo de activo"),
-    reporting_period: str | None = Query(None, description="Filtrar por periodo de reporte (YYYY-MM)"),
-    sender_wallet: str | None = Query(None, description="Filtrar por wallet del remitente"),
-    receiver_wallet: str | None = Query(None, description="Filtrar por wallet del destinatario"),
+    asset_type: str | None = Query(default=None, description="asset-referenced, e-money, utility, other"),
+    reporting_period: str | None = Query(default=None, description="Filtrar por periodo (YYYY-MM)"),
+    status: str | None = Query(default=None, description="reported, amended, rejected"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
-    filters = ["1=1"]
-    params: dict = {}
+    """Listar transacciones crypto para DAC8/DAC9."""
+    conditions = []
+    params = {}
 
     if asset_type:
-        filters.append("ct.asset_type = :asset_type")
+        conditions.append("asset_type = :asset_type")
         params["asset_type"] = asset_type
     if reporting_period:
-        filters.append("ct.reporting_period = :reporting_period")
+        conditions.append("reporting_period = :reporting_period")
         params["reporting_period"] = reporting_period
-    if sender_wallet:
-        filters.append("LOWER(ct.sender_wallet) LIKE LOWER(:sender_wallet)")
-        params["sender_wallet"] = f"%{sender_wallet}%"
-    if receiver_wallet:
-        filters.append("LOWER(ct.receiver_wallet) LIKE LOWER(:receiver_wallet)")
-        params["receiver_wallet"] = f"%{receiver_wallet}%"
 
     with db_session() as db:
         rows = db.execute(
             text(
                 f"""
-                SELECT id, sender_wallet, receiver_wallet, asset_type,
-                       amount, value_eur, reporting_period
-                FROM crypto_transaction ct
-                WHERE {" AND ".join(filters)}
-                ORDER BY ct.timestamp DESC NULLS LAST
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
-        transactions = [dict(r) for r in rows]
-        count = db.execute(
-            text(
-                f"""
-                SELECT COUNT(*) FROM crypto_transaction ct
-                WHERE {" AND ".join(filters)}
-                """
-            ),
-            params,
-        ).scalar()
-        return {"transactions": transactions, "total": count}
 
 
 @router.get(
-    "/crypto-transactions/{item_id}",
-    response_model=CryptoTransactionDetail,
+    "/transactions/{transaction_id}",
     operation_id="get_crypto_transaction",
+    response_model=CryptoTransactionDetailSchema,
 )
-async def get_crypto_transaction(item_id: int):
+async def get_crypto_transaction(transaction_id: int):
+    """Obtener detalle de una transaccion crypto por ID."""
     with db_session() as db:
         row = db.execute(
             text(
                 """
-                SELECT id, sender_wallet, receiver_wallet, sender_jurisdiction,
-                       receiver_jurisdiction, asset_type, amount, value_eur,
-                       timestamp, reporting_period, created_at
-                FROM crypto_transaction ct
-                WHERE ct.id = :item_id
-                LIMIT 1
                 """
             ),
-            {"item_id": item_id},
+            {"id": transaction_id},
         ).mappings().first()
-        if not row:
-            raise HTTPException(
-                status_code=404,
-                detail={"error": "Crypto transaction no encontrada"},
-            )
-        return dict(row)
+
+    if not row:
+        raise HTTPException(status_code=404, detail={"error": "Transaccion no encontrada"})
+
+    return dict(row)
+
+
+@router.post(
+    "/transactions",
+    operation_id="create_crypto_transaction",
+    response_model=CryptoTransactionSummarySchema,
+    status_code=201,
+)
+async def create_crypto_transaction(body: CryptoTransactionCreateSchema):
+    """Crear una nueva transaccion crypto."""
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO crypto_transaction (sender_wallet, receiver_wallet,
+                        sender_jurisdiction, receiver_jurisdiction,
+                        asset_type, amount, value_eur, timestamp,
+                        reporting_period, status)
+                VALUES (:sender_wallet, :receiver_wallet,
+                        :sender_jurisdiction, :receiver_jurisdiction,
+                        :asset_type, :amount, :value_eur, :timestamp,
+                        :reporting_period, 'reported')
+                """
+            ),
+            {
+                "sender_wallet": body.sender_wallet,
+                "receiver_wallet": body.receiver_wallet,
+                "sender_jurisdiction": body.sender_jurisdiction,
+                "receiver_jurisdiction": body.receiver_jurisdiction,
+                "asset_type": body.asset_type,
+                "amount": body.amount,
+                "value_eur": body.value_eur,
+                "timestamp": body.timestamp,
+                "reporting_period": body.reporting_period,
+            },
+        )
+        db.commit()
+
+        row = db.execute(
+            text(
+                """
+                SELECT id, sender_wallet, receiver_wallet,
+                       sender_jurisdiction, receiver_jurisdiction,
+                       asset_type, amount, value_eur, timestamp,
+                       reporting_period, status
+                FROM crypto_transaction
+                ORDER BY id DESC LIMIT 1
+                """
+            ),
+        ).mappings().first()
+
+    if not row:
+        raise HTTPException(status_code=500, detail={"error": "Error creando transaccion"})
+
+    return dict(row)

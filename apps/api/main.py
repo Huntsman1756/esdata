@@ -77,7 +77,6 @@ from routers import (
     mercantil,
     mica,
     micro_obligaciones,
-    mifid,
     model_registry,
     modelos,
     nrv9,
@@ -339,6 +338,7 @@ def create_app() -> FastAPI:
     app.include_router(ley112009_socimi.router)
     app.include_router(ley222014_lecr.router)
     app.include_router(csdr.router)
+    app.include_router(mica.router)
     app.include_router(corporate_sustainability.router)
     app.include_router(mifid.router)
     app.include_router(mar.router)

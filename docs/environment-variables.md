@@ -71,8 +71,9 @@ Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidado
 | `SEPBLAC_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para SEPBLAC | Worker SEPBLAC |
 | `CENDOJ_SEED_URLS` | No | | URLs de semilla para CENDOJ, separadas por coma | Worker CENDOJ |
 | `CENDOJ_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para CENDOJ | Worker CENDOJ |
-| `EURLEX_SEED_URLS` | No | | URLs de semilla para EURLEX, separadas por coma | Worker EURLEX |
+| `EURLEX_SEED_URLS` | No | | URLs de semilla para EURLEX (ya no se usan, CELEXs hardcodeados). Dejando por compatibilidad | Worker EURLEX |
 | `EURLEX_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para EURLEX | Worker EURLEX |
+| `SPARQL_BASE` | No | `http://publications.europa.eu/webapi/rdf/sparql` | Endpoint SPARQL para discovery de CELEXs nuevos | Worker EURLEX |
 | `BDE_SEED_URLS` | No | | URLs de semilla para BDE, separadas por coma | Worker BDE |
 | `BDE_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para BDE | Worker BDE |
 | `AEPD_SEED_URLS` | No | | URLs de semilla para AEPD, separadas por coma | Worker AEPD |
