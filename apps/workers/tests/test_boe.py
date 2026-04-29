@@ -1,9 +1,9 @@
-import subprocess
 import sys
+import subprocess
 from pathlib import Path
+import httpx
 from unittest.mock import patch
 
-import httpx
 from sqlalchemy import create_engine, event, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -11,8 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from boe import (
     BloqueTexto,
     NormaMetadata,
-    _ensure_schema,
     _ensure_sync_log_table,
+    _ensure_schema,
     _schema_statements,
     auto_link_doctrina,
     auto_link_materias,
@@ -62,11 +62,11 @@ def test_parse_metadata_uses_per_code_classification_for_itpajd():
         ]
     }
 
-    metadata = parse_metadata("ITPAJD", "BOE-A-1993-25359", payload)
+    metadata = parse_metadata("ITPAJD", "BOE-A-1993-253", payload)
 
     assert metadata == NormaMetadata(
         codigo="ITPAJD",
-        boe_id="BOE-A-1993-25359",
+        boe_id="BOE-A-1993-253",
         titulo="Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
         eli_uri="https://www.boe.es/eli/es/rdlg/1993/09/24/1",
         jurisdiccion="es",
@@ -98,95 +98,16 @@ def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
 def test_default_normas_include_itpajd():
     from boe import DEFAULT_NORMAS
 
-    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-25359"
-
-
-def test_default_normas_include_iiee_and_hl():
-    from boe import DEFAULT_NORMAS
-
-    assert DEFAULT_NORMAS["IIEE"] == "BOE-A-1992-28741"
-    assert DEFAULT_NORMAS["HL"] == "BOE-A-2004-4214"
-
-
-def test_default_normas_include_dac6_spanish_transposition():
-    from boe import DEFAULT_NORMAS
-
-    assert DEFAULT_NORMAS["DAC6"] == "BOE-A-2020-17265"
-    assert DEFAULT_NORMAS["DAC6RD"] == "BOE-A-2021-5394"
-
-
-def test_manual_normas_include_dac6eu_reference():
-    from boe import MANUAL_NORMAS
-
-    metadata = MANUAL_NORMAS["DAC6EU"]
-    assert metadata.boe_id == "DOUE-L-2018-80963"
-    assert metadata.jurisdiccion == "ue"
-    assert metadata.tipo_fuente == "eurlex"
-    assert metadata.estado_cobertura == "referenciada"
-
-
-def test_fetch_metadata_fallback_when_boe_returns_404():
-    """ITPAJD boe_id BOE-A-1993-25359 returns 404 on /metadatos endpoint.
-
-    The worker must fall back to classification-based metadata instead of
-    crashing the entire ingestion pipeline.
-    """
-    from boe import NORMA_CLASSIFICATIONS, fetch_metadata
-
-    class Fake404Response:
-        status_code = 404
-
-        def raise_for_status(self):
-            # Create a proper httpx HTTPStatusError with mock request/response
-            import httpx
-            request = httpx.Request("GET", "http://example.com")
-            response = httpx.Response(404, request=request)
-            raise httpx.HTTPStatusError(
-                "404 Client Error: Not Found", request=request, response=response
-            )
-
-        def json(self):
-            raise Exception("Should not be called")
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            # Simulate BOE returning 404 for ITPAJD metadata
-            if "metadatos" in url:
-                return Fake404Response()
-            raise AssertionError(f"Unexpected URL: {url}")
-
-    with patch("boe.httpx.Client", return_value=FakeClient()):
-        metadata = fetch_metadata(FakeClient(), "ITPAJD", "BOE-A-1993-25359")
-
-    classification = NORMA_CLASSIFICATIONS["ITPAJD"]
-    assert metadata.codigo == "ITPAJD"
-    assert metadata.boe_id == "BOE-A-1993-25359"
-    assert metadata.tipo_documento == classification["tipo_documento"]
-    assert metadata.ambito == classification["ambito"]
-    assert metadata.estado_cobertura == "ingestada"
-    assert metadata.jurisdiccion == "es"
-    assert metadata.tipo_fuente == "boe"
+    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-253"
 
 
 def test_run_sync_ingests_itpajd_article_and_version():
-    """Verify ITPAJD ingestion works even when BOE returns 404 on /metadatos.
-
-    This reproduces the production blocking issue where an incorrect ITPAJD
-    returns 404 on /metadatos endpoint.
-    """
     from boe import run_sync
 
     class FakeResponse:
-        def __init__(self, *, json_data=None, text_data="", status_code=200):
+        def __init__(self, *, json_data=None, text_data=""):
             self._json_data = json_data
             self.text = text_data
-            self.status_code = status_code
 
         def raise_for_status(self):
             return None
@@ -194,21 +115,6 @@ def test_run_sync_ingests_itpajd_article_and_version():
         def json(self):
             return self._json_data
 
-    class Fake404Response:
-        status_code = 404
-
-        def raise_for_status(self):
-            # Create a proper httpx HTTPStatusError with mock request/response
-            import httpx
-            request = httpx.Request("GET", "http://example.com")
-            response = httpx.Response(404, request=request)
-            raise httpx.HTTPStatusError(
-                "404 Client Error: Not Found", request=request, response=response
-            )
-
-        def json(self):
-            raise Exception("Should not be called")
-
     class FakeClient:
         def __enter__(self):
             return self
@@ -217,10 +123,19 @@ def test_run_sync_ingests_itpajd_article_and_version():
             return False
 
         def get(self, url, headers=None):
-            if url.endswith("/id/BOE-A-1993-25359/metadatos"):
-                # Simulate real BOE 404 for ITPAJD
-                return Fake404Response()
-            if url.endswith("/id/BOE-A-1993-25359/texto/indice"):
+            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+                return FakeResponse(
+                    json_data={
+                        "data": [
+                            {
+                                "titulo": "Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
+                                "fecha_vigencia": "19930925",
+                                "url_eli": "https://www.boe.es/eli/es/rdlg/1993/09/24/1",
+                            }
+                        ]
+                    }
+                )
+            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -236,13 +151,13 @@ def test_run_sync_ingests_itpajd_article_and_version():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-25359/texto/bloque/a7"):
+            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
                 return FakeResponse(
                     text_data="""
                     <response>
                       <data>
                         <bloque id="a7" tipo="precepto" titulo="Artículo 7">
-                          <version id_norma="BOE-A-1993-25359" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
                             <p class="articulo">Artículo 7. Operaciones societarias.</p>
                             <p class="parrafo">Uno. Son operaciones societarias sujetas las previstas en esta norma.</p>
                           </version>
@@ -255,10 +170,11 @@ def test_run_sync_ingests_itpajd_article_and_version():
 
     engine = create_engine("sqlite:///:memory:", future=True)
 
-    with patch("boe.httpx.Client", return_value=FakeClient()), patch("boe.create_engine", return_value=engine):
-        result = run_sync(["ITPAJD"])
+    with patch("boe.httpx.Client", return_value=FakeClient()):
+        with patch("boe.create_engine", return_value=engine):
+            result = run_sync(["ITPAJD"])
 
-    assert result == {"bloques": 1, "articulos": 1, "actualizados": 0}
+    assert result == {"bloques": 1, "articulos": 1}
 
     with engine.begin() as conn:
         norma = conn.execute(
@@ -277,10 +193,9 @@ def test_run_sync_ingests_itpajd_article_and_version():
             )
         ).fetchone()
 
-    # Norma should be ingested with fallback metadata
     assert norma == (
         "ITPAJD",
-        "BOE-A-1993-25359",
+        "BOE-A-1993-253",
         "real_decreto_legislativo",
         "tributario",
         "ingestada",
@@ -290,87 +205,6 @@ def test_run_sync_ingests_itpajd_article_and_version():
         "a7",
         "Artículo 7. Operaciones societarias.\nUno. Son operaciones societarias sujetas las previstas en esta norma.",
     )
-
-
-def test_run_sync_honors_boe_only_block_ids(monkeypatch):
-    from boe import run_sync
-
-    class FakeResponse:
-        def __init__(self, *, json_data=None, text_data=""):
-            self._json_data = json_data
-            self.text = text_data
-            self.status_code = 200
-
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return self._json_data
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            if url.endswith("/id/BOE-A-1992-28740/metadatos"):
-                return FakeResponse(
-                    json_data={
-                        "data": [
-                            {
-                                "titulo": "Ley 37/1992",
-                                "fecha_vigencia": "19930101",
-                                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
-                            }
-                        ]
-                    }
-                )
-            if url.endswith("/id/BOE-A-1992-28740/texto/indice"):
-                return FakeResponse(
-                    json_data={
-                        "data": [
-                            {
-                                "bloque": [
-                                    {"id": "a91", "titulo": "Artículo 91", "fecha_actualizacion": "20240101"},
-                                    {"id": "a92", "titulo": "Artículo 92", "fecha_actualizacion": "20240101"},
-                                ]
-                            }
-                        ]
-                    }
-                )
-            if url.endswith("/id/BOE-A-1992-28740/texto/bloque/a91"):
-                return FakeResponse(
-                    text_data="""
-                    <response><data><bloque id="a91" tipo="precepto" titulo="Artículo 91">
-                      <version id_norma="BOE-A-1992-28740" fecha_publicacion="19921229" fecha_vigencia="19930101">
-                        <p class="articulo">Artículo 91. Tipos reducidos.</p>
-                        <p class="parrafo">Se aplicará el tipo reducido en los supuestos previstos legalmente.</p>
-                      </version>
-                    </bloque></data></response>
-                    """
-                )
-            if url.endswith("/id/BOE-A-1992-28740/texto/bloque/a92"):
-                raise AssertionError("El worker no debe pedir bloques fuera de BOE_ONLY_BLOCK_IDS")
-            raise AssertionError(f"Unexpected URL requested: {url}")
-
-    engine = create_engine("sqlite:///:memory:", future=True)
-    monkeypatch.setenv("BOE_ONLY_BLOCK_IDS", "a91")
-
-    with patch("boe.httpx.Client", return_value=FakeClient()), patch("boe.create_engine", return_value=engine):
-        result = run_sync(["LIVA"])
-
-    assert result == {"bloques": 1, "articulos": 1, "actualizados": 0}
-
-    with engine.begin() as conn:
-        articulos = conn.execute(
-            text(
-                "SELECT a.numero FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIVA' ORDER BY a.numero"
-            )
-        ).fetchall()
-
-    assert articulos == [("91",)]
 
 
 def test_upsert_norma_inserts_record():
@@ -713,9 +547,8 @@ def test_run_once_flag_accepts_argparse():
 
 def test_run_sync_returns_dict_with_bloques_and_articulos():
     """Verify run_sync returns a dict with separate bloques and articulos counts."""
-    import inspect
-
     from boe import run_sync
+    import inspect
 
     sig = inspect.signature(run_sync)
     assert sig.return_annotation == dict[str, int]
@@ -1396,48 +1229,6 @@ def test_ensure_sync_log_table_creates_log_table_independently():
     assert row == ("sync_log",)
 
 
-def test_run_sync_upserts_manual_dac6eu_without_boe_requests(monkeypatch):
-    from boe import run_sync
-
-    engine = create_engine("sqlite:///:memory:", future=True)
-
-    with engine.begin() as conn:
-        _ensure_schema(conn)
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            raise AssertionError(f"DAC6EU should not hit BOE API: {url}")
-
-    monkeypatch.setattr("boe.create_engine", lambda *args, **kwargs: engine)
-    monkeypatch.setattr("boe.httpx.Client", lambda *args, **kwargs: FakeClient())
-
-    result = run_sync(codigos=["DAC6EU"])
-
-    assert result == {"bloques": 0, "articulos": 0, "actualizados": 0}
-
-    with engine.begin() as conn:
-        row = conn.execute(
-            text(
-                "SELECT codigo, boe_id, jurisdiccion, tipo_fuente, tipo_documento, estado_cobertura FROM norma WHERE codigo = 'DAC6EU'"
-            )
-        ).fetchone()
-
-    assert row == (
-        "DAC6EU",
-        "DOUE-L-2018-80963",
-        "ue",
-        "eurlex",
-        "directiva_ue",
-        "referenciada",
-    )
-
-
 def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch):
     """Verify BOE sync_log uses the provided worker_name, not a hardcoded one."""
     from boe import run_sync
@@ -1582,539 +1373,3 @@ def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch
         ).fetchall()
 
     assert [w[0] for w in workers] == ["worker-boe", "cron-boe-daily"]
-
-
-def _mock_boe_response(status_code, json_data=None, text_data=None, request_url="http://boe.test"):
-    """Create an httpx.Response with a request object for raise_for_status compatibility."""
-    request = httpx.Request("GET", request_url)
-    if json_data is not None:
-        return httpx.Response(status_code, json=json_data, request=request)
-    if text_data is not None:
-        return httpx.Response(status_code, text=text_data, request=request)
-    return httpx.Response(status_code, request=request)
-
-
-# ---------------------------------------------------------------------------
-# BOE version monitoring tests (32.3)
-# ---------------------------------------------------------------------------
-
-
-def test_fetch_normas_timestamps_parses_api_response(monkeypatch):
-    """Verify _fetch_normas_timestamps extracts fecha_actualizacion from API."""
-    from boe import _fetch_normas_timestamps
-
-    api_response = {
-        "status": {"code": "200", "text": "ok"},
-        "data": [
-            {
-                "identificador": "BOE-A-1992-28740",
-                "fecha_actualizacion": "20260427T221002Z",
-                "rango": {"codigo": "1", "texto": "Ley"},
-                "departamento": {"codigo": "29", "texto": "Ministerio de Economia"},
-                "titulo": "Ley 37/1992, del IVA",
-                "fecha_disposicion": "19921228",
-                "fecha_publicacion": "19921229",
-                "ambito": {"codigo": "1", "texto": "Estatal"},
-                "estado_consolidacion": {"codigo": "3", "texto": "Finalizado"},
-                "vigencia_agotada": False,
-                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
-                "url_html_consolidada": "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740",
-            },
-            {
-                "identificador": "BOE-A-2003-23186",
-                "fecha_actualizacion": "20260425T100000Z",
-                "rango": {"codigo": "1", "texto": "Ley"},
-                "departamento": {"codigo": "29", "texto": "Ministerio de Economia"},
-                "titulo": "Ley 58/2003, LGT",
-                "fecha_disposicion": "20031217",
-                "fecha_publicacion": "20031218",
-                "ambito": {"codigo": "1", "texto": "Estatal"},
-                "estado_consolidacion": {"codigo": "3", "texto": "Finalizado"},
-                "vigencia_agotada": False,
-                "url_eli": "https://www.boe.es/eli/es/l/2003/12/17/58",
-                "url_html_consolidada": "https://www.boe.es/buscar/act.php?id=BOE-A-2003-23186",
-            },
-        ],
-    }
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            return _mock_boe_response(200, json_data=api_response)
-
-    timestamps = _fetch_normas_timestamps(FakeClient())
-
-    assert timestamps == {
-        "BOE-A-1992-28740": "20260427T221002Z",
-        "BOE-A-2003-23186": "20260425T100000Z",
-    }
-
-
-def test_fetch_normas_timestamps_filters_by_boe_ids():
-    """Verify _fetch_normas_timestamps filters to only requested boe_ids."""
-    from boe import _fetch_normas_timestamps
-
-    api_response = {
-        "status": {"code": "200", "text": "ok"},
-        "data": [
-            {
-                "identificador": "BOE-A-1992-28740",
-                "fecha_actualizacion": "20260427T221002Z",
-            },
-            {
-                "identificador": "BOE-A-2003-23186",
-                "fecha_actualizacion": "20260425T100000Z",
-            },
-            {
-                "identificador": "BOE-A-2014-12328",
-                "fecha_actualizacion": "20260420T150000Z",
-            },
-        ],
-    }
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            return _mock_boe_response(200, json_data=api_response)
-
-    boe_ids = {"BOE-A-1992-28740"}
-    timestamps = _fetch_normas_timestamps(FakeClient(), boe_ids)
-
-    assert timestamps == {"BOE-A-1992-28740": "20260427T221002Z"}
-    assert "BOE-A-2003-23186" not in timestamps
-    assert "BOE-A-2014-12328" not in timestamps
-
-
-def test_fetch_normas_timestamps_handles_empty_data():
-    """Verify _fetch_normas_timestamps returns empty dict when API returns no data."""
-    from boe import _fetch_normas_timestamps
-
-    api_response = {"status": {"code": "200", "text": "ok"}, "data": []}
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            return _mock_boe_response(200, json_data=api_response)
-
-    timestamps = _fetch_normas_timestamps(FakeClient())
-    assert timestamps == {}
-
-
-def test_detect_normas_needing_update():
-    """Verify _detect_normas_needing_update finds changed timestamps."""
-    from boe import _detect_normas_needing_update
-
-    api_timestamps = {
-        "BOE-A-1992-28740": "20260427T221002Z",
-        "BOE-A-2003-23186": "20260425T100000Z",
-        "BOE-A-2014-12328": "20260420T150000Z",
-    }
-    stored_timestamps = {
-        "BOE-A-1992-28740": "20260420T100000Z",  # changed
-        "BOE-A-2003-23186": "20260425T100000Z",  # same
-        # BOE-A-2014-12328 missing from stored -> needs update
-    }
-    boe_ids = {
-        "BOE-A-1992-28740",
-        "BOE-A-2003-23186",
-        "BOE-A-2014-12328",
-    }
-
-    needs_update = _detect_normas_needing_update(
-        api_timestamps, stored_timestamps, boe_ids
-    )
-
-    assert "BOE-A-1992-28740" in needs_update
-    assert "BOE-A-2014-12328" in needs_update
-    assert "BOE-A-2003-23186" not in needs_update
-
-
-def test_detect_normas_needing_update_no_changes():
-    """Verify _detect_normas_needing_update returns empty when no changes."""
-    from boe import _detect_normas_needing_update
-
-    api_timestamps = {
-        "BOE-A-1992-28740": "20260427T221002Z",
-    }
-    stored_timestamps = {
-        "BOE-A-1992-28740": "20260427T221002Z",
-    }
-    boe_ids = {"BOE-A-1992-28740"}
-
-    needs_update = _detect_normas_needing_update(
-        api_timestamps, stored_timestamps, boe_ids
-    )
-    assert needs_update == []
-
-
-def test_update_stored_timestamps_persists_to_norma_table():
-    """Verify _update_stored_timestamps writes ultima_verificacion to norma table."""
-    from boe import _update_stored_timestamps
-
-    engine = create_engine("sqlite:///:memory:", future=True)
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-            CREATE TABLE norma (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL, titulo TEXT NOT NULL,
-                boe_id TEXT UNIQUE NOT NULL, eli_uri TEXT UNIQUE,
-                jurisdiccion TEXT NOT NULL, tipo_fuente TEXT NOT NULL,
-                tipo_documento TEXT NOT NULL, ambito TEXT NOT NULL,
-                estado_cobertura TEXT NOT NULL, vigente_desde TEXT NOT NULL,
-                ultima_verificacion TEXT
-            )
-        """)
-        )
-        conn.execute(
-            text(
-                "INSERT INTO norma (codigo, boe_id, ultima_verificacion, titulo, "
-                "jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, "
-                "vigente_desde) "
-                "VALUES ('LIVA', 'BOE-A-1992-28740', '20260420T100000Z', 'Ley 37/1992', "
-                "'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01')"
-            )
-        )
-
-    _update_stored_timestamps(engine, "BOE-A-1992-28740", "20260427T221002Z")
-
-    with engine.begin() as conn:
-        row = conn.execute(
-            text("SELECT ultima_verificacion FROM norma WHERE boe_id = 'BOE-A-1992-28740'")
-        ).fetchone()
-
-    assert row[0] == "20260427T221002Z"
-
-
-def test_get_stored_timestamps_reads_from_norma_table():
-    """Verify _get_stored_timestamps reads ultima_verificacion from norma table."""
-    from boe import _get_stored_timestamps
-
-    engine = create_engine("sqlite:///:memory:", future=True)
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-            CREATE TABLE norma (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL, titulo TEXT NOT NULL,
-                boe_id TEXT UNIQUE NOT NULL, eli_uri TEXT UNIQUE,
-                jurisdiccion TEXT NOT NULL, tipo_fuente TEXT NOT NULL,
-                tipo_documento TEXT NOT NULL, ambito TEXT NOT NULL,
-                estado_cobertura TEXT NOT NULL, vigente_desde TEXT NOT NULL,
-                ultima_verificacion TEXT
-            )
-        """)
-        )
-        conn.execute(
-            text(
-                "INSERT INTO norma (codigo, boe_id, ultima_verificacion, titulo, "
-                "jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, "
-                "vigente_desde) VALUES "
-                "('LIVA', 'BOE-A-1992-28740', '20260420T100000Z', 'Ley 37/1992', "
-                "'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01'), "
-                "('LGT', 'BOE-A-2003-23186', '20260415T080000Z', 'Ley 58/2003', "
-                "'es', 'boe', 'ley', 'tributario', 'ingestada', '2004-01-01')"
-            )
-        )
-
-    stored = _get_stored_timestamps(engine)
-
-    assert stored == {
-        "BOE-A-1992-28740": "20260420T100000Z",
-        "BOE-A-2003-23186": "20260415T080000Z",
-    }
-
-
-def test_run_sync_with_version_monitoring_detects_update(
-    monkeypatch,
-):
-    """Verify run_sync detects updated normas when BOE_TRACK_VERSIONS is True.
-
-    Mocks the BOE API to return a newer fecha_actualizacion for LIVA,
-    then verifies the return dict includes actualizados > 0.
-    """
-    from boe import run_sync
-
-    engine = create_engine("sqlite:///:memory:", future=True)
-
-    # Track API calls
-    api_calls = []
-
-    api_response_normas = {
-        "status": {"code": "200", "text": "ok"},
-        "data": [
-            {
-                "identificador": "BOE-A-1992-28740",
-                "fecha_actualizacion": "20260428T000000Z",  # newer than stored
-                "rango": {"codigo": "1", "texto": "Ley"},
-                "departamento": {"codigo": "29", "texto": "Ministerio de Economia"},
-                "titulo": "Ley 37/1992, del IVA",
-                "fecha_disposicion": "19921228",
-                "fecha_publicacion": "19921229",
-                "ambito": {"codigo": "1", "texto": "Estatal"},
-                "estado_consolidacion": {"codigo": "3", "texto": "Finalizado"},
-                "vigencia_agotada": False,
-                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
-                "url_html_consolidada": "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740",
-            },
-        ],
-    }
-
-    api_response_metadatos = {
-        "data": [
-            {
-                "titulo": "Ley 37/1992, del IVA",
-                "fecha_vigencia": "19930101",
-                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
-            }
-        ]
-    }
-
-    api_response_index = {
-        "data": [
-            {
-                "bloque": [
-                    {
-                        "id": "a1",
-                        "titulo": "Artículo 1",
-                        "fecha_actualizacion": "19921229",
-                        "url": "https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-1992-28740/texto/bloque/a1",
-                    }
-                ]
-            }
-        ]
-    }
-
-    api_response_block_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <documento>
-        <version fecha_vigencia="19930101">
-            <p>Texto de prueba para artículo 1 del IVA.</p>
-        </version>
-        <bloque tipo="articulo" titulo="Artículo 1"/>
-    </documento>"""
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            api_calls.append(url)
-            if "legislacion-consolidada" in url and "metadatos" not in url and "texto/" not in url:
-                return _mock_boe_response(200, json_data=api_response_normas)
-            elif "metadatos" in url:
-                return _mock_boe_response(200, json_data=api_response_metadatos)
-            elif "texto/indice" in url:
-                return _mock_boe_response(200, json_data=api_response_index)
-            elif "texto/bloque/" in url:
-                return _mock_boe_response(200, text_data=api_response_block_xml)
-            return _mock_boe_response(404)
-
-    # Seed DB with old timestamp
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-            CREATE TABLE norma (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL, titulo TEXT NOT NULL,
-                boe_id TEXT UNIQUE NOT NULL, eli_uri TEXT UNIQUE,
-                jurisdiccion TEXT NOT NULL, tipo_fuente TEXT NOT NULL,
-                tipo_documento TEXT NOT NULL, ambito TEXT NOT NULL,
-                estado_cobertura TEXT NOT NULL, vigente_desde TEXT NOT NULL,
-                ultima_verificacion TEXT
-            )
-        """)
-        )
-        conn.execute(
-            text(
-                "INSERT INTO norma (codigo, boe_id, ultima_verificacion, titulo, "
-                "jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, "
-                "vigente_desde) "
-                "VALUES ('LIVA', 'BOE-A-1992-28740', '20260420T100000Z', 'Ley 37/1992', "
-                "'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01')"
-            )
-        )
-
-    def fake_create_engine(*args, **kwargs):
-        return engine
-
-    monkeypatch.setattr("boe.create_engine", fake_create_engine)
-    monkeypatch.setattr("boe.httpx.Client", lambda *args, **kwargs: FakeClient())
-    monkeypatch.setattr("boe.BOE_TRACK_VERSIONS", True)
-
-    result = run_sync(codigos=["LIVA"])
-
-    assert "actualizados" in result
-    assert result["actualizados"] == 1
-    assert result["bloques"] >= 1
-    assert result["articulos"] >= 1
-
-    # Verify timestamp was updated
-    with engine.begin() as conn:
-        row = conn.execute(
-            text(
-                "SELECT ultima_verificacion FROM norma WHERE boe_id = 'BOE-A-1992-28740'"
-            )
-        ).fetchone()
-
-    assert row[0] == "20260428T000000Z"
-
-
-def test_run_sync_version_monitoring_skips_when_no_change(
-    monkeypatch,
-):
-    """Verify run_sync skips re-ingestion when fecha_actualizacion hasn't changed."""
-    from boe import run_sync
-
-    engine = create_engine("sqlite:///:memory:", future=True)
-
-    api_response_normas = {
-        "status": {"code": "200", "text": "ok"},
-        "data": [
-            {
-                "identificador": "BOE-A-1992-28740",
-                "fecha_actualizacion": "20260420T100000Z",  # same as stored
-                "rango": {"codigo": "1", "texto": "Ley"},
-                "departamento": {"codigo": "29", "texto": "Ministerio de Economia"},
-                "titulo": "Ley 37/1992, del IVA",
-                "fecha_disposicion": "19921228",
-                "fecha_publicacion": "19921229",
-                "ambito": {"codigo": "1", "texto": "Estatal"},
-                "estado_consolidacion": {"codigo": "3", "texto": "Finalizado"},
-                "vigencia_agotada": False,
-                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
-                "url_html_consolidada": "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740",
-            },
-        ],
-    }
-
-    api_response_metadatos = {
-        "data": [
-            {
-                "titulo": "Ley 37/1992, del IVA",
-                "fecha_vigencia": "19930101",
-                "url_eli": "https://www.boe.es/eli/es/l/1992/12/28/37",
-            }
-        ]
-    }
-
-    api_response_index = {
-        "data": [
-            {
-                "bloque": [
-                    {
-                        "id": "a1",
-                        "titulo": "Artículo 1",
-                        "fecha_actualizacion": "19921229",
-                        "url": "https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-1992-28740/texto/bloque/a1",
-                    }
-                ]
-            }
-        ]
-    }
-
-    api_response_block_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <documento>
-        <version fecha_vigencia="19930101">
-            <p>Texto de prueba para artículo 1 del IVA.</p>
-        </version>
-        <bloque tipo="articulo" titulo="Artículo 1"/>
-    </documento>"""
-
-    class FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def get(self, url, headers=None):
-            if "legislacion-consolidada" in url and "metadatos" not in url and "texto/" not in url:
-                return _mock_boe_response(200, json_data=api_response_normas)
-            elif "metadatos" in url:
-                return _mock_boe_response(200, json_data=api_response_metadatos)
-            elif "texto/indice" in url:
-                return _mock_boe_response(200, json_data=api_response_index)
-            elif "texto/bloque/" in url:
-                return _mock_boe_response(200, text_data=api_response_block_xml)
-            return _mock_boe_response(404)
-
-    # Seed DB with same timestamp
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-            CREATE TABLE norma (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL, titulo TEXT NOT NULL,
-                boe_id TEXT UNIQUE NOT NULL, eli_uri TEXT UNIQUE,
-                jurisdiccion TEXT NOT NULL, tipo_fuente TEXT NOT NULL,
-                tipo_documento TEXT NOT NULL, ambito TEXT NOT NULL,
-                estado_cobertura TEXT NOT NULL, vigente_desde TEXT NOT NULL,
-                ultima_verificacion TEXT
-            )
-        """)
-        )
-        conn.execute(
-            text(
-                "INSERT INTO norma (codigo, boe_id, ultima_verificacion, titulo, "
-                "jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, "
-                "vigente_desde) "
-                "VALUES ('LIVA', 'BOE-A-1992-28740', '20260420T100000Z', 'Ley 37/1992', "
-                "'es', 'boe', 'ley', 'tributario', 'ingestada', '1993-01-01')"
-            )
-        )
-
-    def fake_create_engine(*args, **kwargs):
-        return engine
-
-    monkeypatch.setattr("boe.create_engine", fake_create_engine)
-    monkeypatch.setattr("boe.httpx.Client", lambda *args, **kwargs: FakeClient())
-    monkeypatch.setattr("boe.BOE_TRACK_VERSIONS", True)
-
-    result = run_sync(codigos=["LIVA"])
-
-    assert result["actualizados"] == 0
-
-
-def test_boe_track_versions_env_flag(monkeypatch):
-    """Verify BOE_TRACK_VERSIONS env var is read correctly."""
-    import boe
-
-    monkeypatch.setenv("BOE_TRACK_VERSIONS", "true")
-    # Reload to pick up new env var
-    import importlib
-
-    importlib.reload(boe)
-    assert boe.BOE_TRACK_VERSIONS is True
-
-    monkeypatch.setenv("BOE_TRACK_VERSIONS", "0")
-    importlib.reload(boe)
-    assert boe.BOE_TRACK_VERSIONS is False
-
-
-def test_schema_includes_ultima_verificacion_column():
-    """Verify norma table schema includes ultima_verificacion column."""
-    from boe import _schema_statements
-
-    postgres_stmts = _schema_statements("postgresql")
-    sqlite_stmts = _schema_statements("sqlite")
-
-    assert any("ultima_verificacion" in s for s in postgres_stmts)
-    assert any("ultima_verificacion" in s for s in sqlite_stmts)

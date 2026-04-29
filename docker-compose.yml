@@ -1,27 +1,15 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: esdata
       POSTGRES_PASSWORD: esdata_dev
       POSTGRES_DB: esdata
     ports:
-      - "5434:5432"
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./infra/sql/002_fulltext_search.sql:/docker-entrypoint-initdb.d/002_fulltext_search.sql
-      - ./infra/sql/003_modelos_aeat.sql:/docker-entrypoint-initdb.d/003_modelos_aeat.sql
-      - ./infra/sql/004_modelos_v2.sql:/docker-entrypoint-initdb.d/004_modelos_v2.sql
-      - ./infra/sql/004_norma_classification.sql:/docker-entrypoint-initdb.d/004_norma_classification.sql
-      - ./infra/sql/docker-init.sql:/docker-entrypoint-initdb.d/000_docker_init.sql
-      - ./infra/sql/005_indexes.sql:/docker-entrypoint-initdb.d/005_indexes.sql
-      - ./infra/sql/006_pgvector.sql:/docker-entrypoint-initdb.d/006_pgvector.sql
-      - ./infra/sql/007_fiscal_calendar.sql:/docker-entrypoint-initdb.d/007_fiscal_calendar.sql
-      - ./infra/sql/008_iva_rates.sql:/docker-entrypoint-initdb.d/008_iva_rates.sql
-      - ./infra/sql/009_irpf_brackets.sql:/docker-entrypoint-initdb.d/009_irpf_brackets.sql
-      - ./infra/sql/010_ss_rates.sql:/docker-entrypoint-initdb.d/010_ss_rates.sql
-      - ./infra/sql/011_fiscal_indicators.sql:/docker-entrypoint-initdb.d/011_fiscal_indicators.sql
 
   redis:
     image: redis:7-alpine
@@ -35,101 +23,25 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       REDIS_URL: redis://redis:6379
-      APP_ENV: test
-      ESDATA_API_KEY: test-api-key
-      MCP_API_KEY: test-mcp-key
-      HF_HOME: /tmp/.cache/huggingface
-      ESDATA_MANIFEST_PATH: /docs/source-manifests/sociedad-valores-wave-1.md
+      APP_ENV: development
     depends_on:
       - postgres
     volumes:
       - ./apps/api:/app
-      - ./apps/workers:/workers
-      - ./docs:/docs:ro
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
-
-  web:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-    ports:
-      - "3005:3000"
-    environment:
-      ESDATA_API_BASE_URL: http://api:8000
-    depends_on:
-      - api
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   worker-boe:
     build:
-      context: ./apps/workers
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/workers/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       BOE_API_BASE: https://www.boe.es/datosabiertos/api/legislacion-consolidada
-      BOE_LEGISLACION_NORMAS: LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU
+      BOE_LEGISLACION_NORMAS: LIVA,LIRPF,LIS,LGT,ITPAJD
       SYNC_INTERVAL_SECONDS: "3600"
     depends_on:
       - postgres
-    command: python boe.py
-
-  worker-modelos:
-    build:
-      context: ./apps/workers
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
-      MODELOS_SYNC_INTERVAL: "86400"
-    depends_on:
-      - postgres
-    command: python apps/workers/modelos.py
-
-  worker-bdns:
-    build:
-      context: ./apps/workers
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
-      BDNS_SEED_URLS: https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404
-      SYNC_INTERVAL_SECONDS: "604800"
-    depends_on:
-      - postgres
-    command: python bdns.py
-
-  worker-borme:
-    build:
-      context: ./apps/workers
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
-      BORME_SEED_URLS: https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf
-      SYNC_INTERVAL_SECONDS: "604800"
-    depends_on:
-      - postgres
-    command: python borme.py
-
-  worker-cnmv:
-    build:
-      context: ./apps/workers
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
-      CNMV_SEED_URLS: https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133
-      SYNC_INTERVAL_SECONDS: "604800"
-    depends_on:
-      - postgres
-    command: python cnmv.py
-
-  worker-sepblac:
-    build:
-      context: ./apps/workers
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
-      SEPBLAC_SEED_URLS: https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/
-      SYNC_INTERVAL_SECONDS: "604800"
-    depends_on:
-      - postgres
-    command: python sepblac.py
+    command: python -m workers.boe
 
 volumes:
   pgdata:

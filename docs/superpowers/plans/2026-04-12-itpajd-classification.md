@@ -1,6 +1,4 @@
-# [HISTORICAL] ITPAJD + Norma Classification Implementation Plan
-
-> Documento historico. No usar como plan activo. La fuente activa unica de estado y ejecucion es `docs/master-execution-roadmap.md`.
+# ITPAJD + Norma Classification Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
