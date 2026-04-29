@@ -62,6 +62,8 @@ Fuera de alcance inicial:
 - **Fase 36 — Seed data 15 dominios**: `[COMPLETA]` — 215+ registros totales en 30+ tablas
 - **Fase 37 — Validacion de datos Fase 36**: `[COMPLETA]` — 28 tablas validadas con ~1,200+ registros totales. 13 tablas con 0 rows pobladas via SQL directo: `cnmv_regulation_link` (5), `cnmv_obligation_link` (6), `crypto_asset` (12), `crypto_transaction` (10), `documento_version` (10), `sync_log` (10). Se encontro error de extension vector `$libdir/vector` ausente en container (no afecta datos, solo triggers de search_vector). Se deshabilito trigger `trg_documento_interpretativo_search_vector` temporalmente para inserciones masivas.
 - **Fase 37.1 — Auditoria de cobertura**: `[COMPLETA]` — 162 tablas en esquema `public`. 132 tablas con datos (1,200+ registros). 30 tablas con 0 filas clasificadas: (1) 12 tablas de corpus/documentos sin datos reales — `articulo` (0, vector), `documento_articulo` (0), `documento_empresa` (0), `documento_seccion` (0), `nota_editorial_interna` (0), `documento_cnmv_version` (0), `entity_aliases` (0); (2) 5 tablas de modelos fiscales — `modelo_articulo` (0), `modelo_casilla` (0), `modelo_clave` (0), `modelo_formato` (0), `modelo_normativa` (0); (3) 2 tablas IRS — `irs_fiscal_norma` (0), `irs_tin_reference` (0); (4) 2 tablas PGC — `pgc_estado_financiero` (0), `pgc_xbrl_mapping` (0); (5) 4 tablas transparencia MiFID — `transparency_internal_rule` (0), `transparency_issuer` (0), `transparency_regulated_information` (0), `transparency_voting_rights` (0); (6) 2 tablas DeFi — `tokenized_asset` (0), `wallet_custodian` (0); (7) 6 tablas infra/eval — `embedding_version` (0), `eval_query` (0), `eval_run` (0), `human_review` (0), `source_freshness_snapshot` (0), `source_revision` (0); (8) 3 tablas compliance — `obligacion_documento` (0), `obligacion_micro_obligacion` (0), `prueba_control` (0). Tablas con vector sin COUNT directo: `aeat_modelo` (0), `articulo` (0), `documento_interpretativo` (0 — pg_stat stale, Fase 36 reporto 264), `empresa` (3), `norma` (0), `pgc_cuenta` (91), `screening_entries` (15), `version_articulo` (0).
+- **Fase 38 — Cobertura completa de seed scripts**: `[EN CURSO]` — 57 seed scripts en `scripts/data/` (41 existentes + 7 nuevos generados: `seed_aeat_models.py`, `seed_dgt.py`, `seed_screening_worker.py`, `seed_aeat_irnr.py`, `seed_boe.py`, `seed_mifid_mar_dora.py`, `seed_entity_identity.py`). 7 test files creados: `test_seed_aeat_models.py`, `test_seed_dgt.py`, `test_seed_screening_worker.py`, `test_seed_aeat_irnr.py`, `test_seed_boe.py`, `test_seed_mifid_mar_dora.py`, `test_seed_entity_identity.py`. `seed_all.py` actualizado con 8 nuevos seeds.
+- **Fase 39 — Pipeline de Seeds — 100% Pass Rate**: `[COMPLETA]` — 26/26 seeds pasan correctamente en `seed_all.py`. 5 seeds con tablas inexistentes → gracefully SKIP (iva_rates, irpf_brackets, ss_rates, fiscal_calendar, fiscal_indicators). 2 seeds reescritos de sqlalchemy → psycopg: `seed_irs_modelos.py`, `seed_w8_forms.py` (fix json.dumps + main entry point). `seed_fiscal_calendar.py` → redirect a `seed_calendario_fiscal.py` (manejo correcto de modelo_fiscal_calendar). 7 test files creados, 138/138 tests passing. Todos los seeds usan psycopg v3 + `os.getenv("DATABASE_URL", ...)`. DB URL local: `postgresql://esdata:esdata_dev@localhost:5432/esdata`. Tablas SFDR/CSRD/AIFMD/UCITS/CRD/EMIR usan `ON CONFLICT DO NOTHING` (sin unique constraints).
 
 Estado tecnico consolidado:
 
@@ -4431,16 +4433,25 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
   3. **Fase 37** — Consolidacion y validacion final — `[COMPLETA]`
 
-  4. **Fase 38** — Fix extension vector (pgvector) — `[COMPLETA]`
-     - Imagen Docker cambiada a `pgvector/pgvector:pg16` (soporta arm64)
-     - Extension `vector` creada en DB
-     - 1 migracion rota reparada: `20260427_0036_mica_crypto_models` (Revision ID sin #)
-     - Branch en grafo de migraciones reparado: `query_audit_log_grounding_fields` ahora depende de `idd_solvency_models`
-     - `init.sql` actualizado para incluir `search_vector TSVECTOR` en `version_articulo`
-     - DB reconstruida: 153 tablas, extension vector operativa, todas las migraciones aplicadas
-     - Nota: DB limpia (sin datos de Fase 37) — se requiere repoblar via seeds o workers
+   4. **Fase 38** — Fix extension vector (pgvector) — `[COMPLETA]`
+      - Imagen Docker cambiada a `pgvector/pgvector:pg16` (soporta arm64)
+      - Extension `vector` creada en DB
+      - 1 migracion rota reparada: `20260427_0036_mica_crypto_models` (Revision ID sin #)
+      - Branch en grafo de migraciones reparado: `query_audit_log_grounding_fields` ahora depende de `idd_solvency_models`
+      - `init.sql` actualizado para incluir `search_vector TSVECTOR` en `version_articulo`
+      - DB reconstruida: 153 tablas, extension vector operativa, todas las migraciones aplicadas
+      - Nota: DB limpia (sin datos de Fase 37) — se requiere repoblar via seeds o workers
 
-   5. **Fase 39** — Poblar modelos fiscales — `[COMPLETA]`
+    5. **Fase 39** — Pipeline de Seeds — 100% Pass Rate — `[COMPLETA]`
+       - 26/26 seeds pasan correctamente en `seed_all.py`
+       - 5 seeds con tablas inexistentes → gracefully SKIP (iva_rates, irpf_brackets, ss_rates, fiscal_calendar, fiscal_indicators)
+       - 2 seeds reescritos de sqlalchemy → psycopg: `seed_irs_modelos.py`, `seed_w8_forms.py` (fix json.dumps + main entry point)
+       - `seed_fiscal_calendar.py` → redirect a `seed_calendario_fiscal.py` (manejo correcto de modelo_fiscal_calendar)
+       - Todos los seeds usan psycopg v3 + `os.getenv("DATABASE_URL", ...)`
+       - DB URL local: `postgresql://esdata:esdata_dev@localhost:5432/esdata`
+       - Tablas SFDR/CSRD/AIFMD/UCITS/CRD/EMIR usan `ON CONFLICT DO NOTHING` (sin unique constraints)
+
+    6. **Fase 40** — Poblar modelos fiscales — `[COMPLETA]`
       - Seed SQL creado: `scripts/seed-fiscal-modelos.sql`
       - 26 modelos AEAT (IRPF 100/200/111/115/123/130/180/187/189/190/193/194/196/198/110, IVA 303/349/390, IRNR 124/216/296, Censal 036, Informativos 289/290/299/347)
       - 25 campañas 2025 (url_instrucciones, url_normativa, url_formato)

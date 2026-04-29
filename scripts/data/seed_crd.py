@@ -11,7 +11,7 @@ verified_date: 2026-04-28
 
 import psycopg
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 
 CRD_POSITIONS = [
     (1, "2025-09-30", 14.5, 16.2, 18.7, 8500000000.00, 9500000000.00, 10950000000.00, 5.8, 58600000000.00, "filed"),
@@ -41,13 +41,7 @@ def _upsert_position(cur, row):
             cet1_amount, tier1_amount, total_capital_amount, leverage_ratio,
             risk_weighted_assets, status)
            VALUES (%s, %s::date, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (entity_id, reporting_date) DO UPDATE SET
-             cet1_amount = EXCLUDED.cet1_amount,
-             tier1_amount = EXCLUDED.tier1_amount,
-             total_capital_amount = EXCLUDED.total_capital_amount,
-             leverage_ratio = EXCLUDED.leverage_ratio,
-             risk_weighted_assets = EXCLUDED.risk_weighted_assets,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -58,12 +52,7 @@ def _upsert_stress_test(cur, row):
            (entity_id, test_date, scenario_name, cet1_impact_pct, tier1_impact_pct,
             capital_ratio_post_test, competent_authority, status)
            VALUES (%s, %s::date, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (entity_id, test_date, scenario_name) DO UPDATE SET
-             cet1_impact_pct = EXCLUDED.cet1_impact_pct,
-             tier1_impact_pct = EXCLUDED.tier1_impact_pct,
-             capital_ratio_post_test = EXCLUDED.capital_ratio_post_test,
-             competent_authority = EXCLUDED.competent_authority,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -74,13 +63,7 @@ def _upsert_bail_in(cur, row):
            (entity_id, total_eligible_liabilities, mrel_target_pct, mrel_compliance_pct,
             internal_mrel, resolution_status, status)
            VALUES (%s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (entity_id) DO UPDATE SET
-             total_eligible_liabilities = EXCLUDED.total_eligible_liabilities,
-             mrel_target_pct = EXCLUDED.mrel_target_pct,
-             mrel_compliance_pct = EXCLUDED.mrel_compliance_pct,
-             internal_mrel = EXCLUDED.internal_mrel,
-             resolution_status = EXCLUDED.resolution_status,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 

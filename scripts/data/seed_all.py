@@ -13,7 +13,7 @@ import os
 import re
 import sys
 
-DB_URL = "postgresql://esdata:esdata_dev@localhost:5434/esdata"
+DB_URL = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 SEED_DIR = os.path.join(os.path.dirname(__file__))
 SEED_FILES = [
     "seed_modelos.py",
@@ -35,6 +35,13 @@ SEED_FILES = [
     "seed_calendario_fiscal.py",
     "seed_w8_forms.py",
     "seed_irs_modelos.py",
+    "seed_aeat_models.py",
+    "seed_dgt.py",
+    "seed_screening_worker.py",
+    "seed_aeat_irnr.py",
+    "seed_boe.py",
+    "seed_mifid_mar_dora.py",
+    "seed_entity_identity.py",
 ]
 
 

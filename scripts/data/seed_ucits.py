@@ -11,7 +11,7 @@ verified_date: 2026-04-28
 
 import psycopg
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 
 UCITS_FUNDS = [
     (
@@ -84,14 +84,7 @@ def _upsert_fund(cur, row):
             cross_border_passport, total_aum_eur, depositary_id, krid_url,
             investment_strategy, risk_profile, status)
            VALUES (%s, %s, %s::date, %s, %s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (fund_name) DO UPDATE SET
-             cross_border_passport = EXCLUDED.cross_border_passport,
-             total_aum_eur = EXCLUDED.total_aum_eur,
-             depositary_id = EXCLUDED.depositary_id,
-             krid_url = EXCLUDED.krid_url,
-             investment_strategy = EXCLUDED.investment_strategy,
-             risk_profile = EXCLUDED.risk_profile,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -101,9 +94,7 @@ def _upsert_report(cur, row):
         """INSERT INTO ucits_regulatory_report
            (fund_id, report_type, reporting_period, url, filed_date, status)
            VALUES (%s, %s, %s, %s, %s::date, %s)
-           ON CONFLICT (fund_id, reporting_period) DO UPDATE SET
-             url = EXCLUDED.url,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 

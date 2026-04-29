@@ -11,7 +11,7 @@ verified_date: 2026-04-28
 
 import psycopg
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 
 AIFMD_FUNDS = [
     (
@@ -98,16 +98,7 @@ def _upsert_fund(cur, row):
             cross_border_passport, total_aum_eur, investor_type, lock_up_period,
             redemption_frequency, leverage_method, leverage_max_pct, status)
            VALUES (%s, %s, %s, %s::date, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (fund_name) DO UPDATE SET
-             home_member_state = EXCLUDED.home_member_state,
-             cross_border_passport = EXCLUDED.cross_border_passport,
-             total_aum_eur = EXCLUDED.total_aum_eur,
-             investor_type = EXCLUDED.investor_type,
-             lock_up_period = EXCLUDED.lock_up_period,
-             redemption_frequency = EXCLUDED.redemption_frequency,
-             leverage_method = EXCLUDED.leverage_method,
-             leverage_max_pct = EXCLUDED.leverage_max_pct,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -117,9 +108,7 @@ def _upsert_report(cur, row):
         """INSERT INTO aifmd_regulatory_report
            (fund_id, report_type, reporting_period, url, filed_date, status)
            VALUES (%s, %s, %s, %s, %s::date, %s)
-           ON CONFLICT (fund_id, reporting_period) DO UPDATE SET
-             url = EXCLUDED.url,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -130,12 +119,7 @@ def _upsert_liquidity(cur, row):
            (fund_id, redemption_suspended, suspension_date, gating_applied,
             swing_price_applied, side_pocket_applied, stress_test_result, valuation_frequency)
            VALUES (%s, %s, %s::date, %s, %s, %s, %s, %s)
-           ON CONFLICT (fund_id) DO UPDATE SET
-             redemption_suspended = EXCLUDED.redemption_suspended,
-             swing_price_applied = EXCLUDED.swing_price_applied,
-             side_pocket_applied = EXCLUDED.side_pocket_applied,
-             stress_test_result = EXCLUDED.stress_test_result,
-             valuation_frequency = EXCLUDED.valuation_frequency""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 

@@ -1,9 +1,22 @@
 #!/usr/bin/env python3
-"""Seed de obligaciones internacionales (FATCA, CRS, IGA)."""
+"""Seed de obligaciones internacionales (FATCA, CRS, IGA, DAC6-8).
 
+Fuente: OCDE, UE, leyes espanolas de implementacion.
+verified_date: 2026-04-29
+
+Uso:
+    python scripts/data/seed_internacional.py
+    python scripts/data/seed_internacional.py --db-url postgresql://user:pass@host:5432/db
+"""
+
+import argparse
+import os
 import psycopg
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB_URL_DEFAULT = os.getenv(
+    "DATABASE_URL",
+    "postgresql://esdata:esdata_dev@localhost:5432/esdata",
+)
 
 OBLIGACIONES = [
     (
@@ -69,29 +82,36 @@ OBLIGACIONES = [
 ]
 
 
-def main():
-    with psycopg.connect(DB) as conn:
-        cur = conn.cursor()
+def main(db_url: str | None = None):
+    conn = psycopg.connect(db_url or DB_URL_DEFAULT)
+    cur = conn.cursor()
 
-        for codigo, titulo, tipo, origen, aplicacion, vigente_desde, vigente_hasta, descripcion in OBLIGACIONES:
-            cur.execute(
-                """
-                INSERT INTO obligacion_internacional
-                    (codigo, titulo, tipo, jurisdiccion_origen, jurisdiccion_aplicacion,
-                     vigente_desde, vigente_hasta, descripcion, estado)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'activo')
-                ON CONFLICT (codigo) DO UPDATE SET
-                    titulo = EXCLUDED.titulo,
-                    tipo = EXCLUDED.tipo,
-                    descripcion = EXCLUDED.descripcion,
-                    actualizado_en = now()
-                """,
-                (codigo, titulo, tipo, origen, aplicacion, vigente_desde, vigente_hasta, descripcion),
-            )
+    for codigo, titulo, tipo, origen, aplicacion, vigente_desde, vigente_hasta, descripcion in OBLIGACIONES:
+        cur.execute(
+            """
+            INSERT INTO obligacion_internacional
+                (codigo, titulo, tipo, jurisdiccion_origen, jurisdiccion_aplicacion,
+                 vigente_desde, vigente_hasta, descripcion, estado)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'activo')
+            ON CONFLICT (codigo) DO UPDATE SET
+                titulo = EXCLUDED.titulo,
+                tipo = EXCLUDED.tipo,
+                descripcion = EXCLUDED.descripcion,
+                actualizado_en = now()
+            """,
+            (codigo, titulo, tipo, origen, aplicacion, vigente_desde, vigente_hasta, descripcion),
+        )
 
-        conn.commit()
-        print(f"Seed completado: {len(OBLIGACIONES)} obligaciones internacionales")
+    conn.commit()
+    print(f"Seed completado: {len(OBLIGACIONES)} obligaciones internacionales")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Seed international obligations (FATCA, CRS, DAC)")
+    parser.add_argument(
+        "--db-url",
+        default=None,
+        help="Database URL (default: $DATABASE_URL or postgresql://esdata:esdata_dev@localhost:5432/esdata)",
+    )
+    args = parser.parse_args()
+    main(args.db_url)

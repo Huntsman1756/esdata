@@ -11,7 +11,7 @@ verified_date: 2026-04-28
 
 import psycopg
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 
 CSRD_ENTITY_REPORTS = [
     (1, 2024, "https://www.esap.europa.eu/csrd/accelera-2024", "limited", "ESGAS", "active"),
@@ -70,10 +70,7 @@ def _upsert_report(cur, row):
         """INSERT INTO csrd_entity_report
            (entity_id, reporting_year, esap_url, assurance_status, reporting_standard, status)
            VALUES (%s, %s, %s, %s, %s, %s)
-           ON CONFLICT (entity_id, reporting_year) DO UPDATE SET
-             esap_url = EXCLUDED.esap_url,
-             assurance_status = EXCLUDED.assurance_status,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -83,8 +80,7 @@ def _upsert_esg_data_point(cur, row):
         """INSERT INTO csrd_esg_data_point
            (report_id, topic, indicator_code, value, unit, scope, verification_status)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (report_id, topic, indicator_code) DO UPDATE SET
-              verification_status = EXCLUDED.verification_status""",
+            ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -94,8 +90,7 @@ def _upsert_ess(cur, row):
         """INSERT INTO csrd_ess
            (standard_code, topic, applicable_from_year, description)
            VALUES (%s, %s, %s, %s)
-           ON CONFLICT (standard_code) DO UPDATE SET
-             description = EXCLUDED.description""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -106,10 +101,7 @@ def _upsert_double_materiality(cur, row):
            (entity_id, impact_materiality, financial_materiality, assessment_date,
             key_impacts, key_dependencies, status)
            VALUES (%s, %s::json, %s::json, %s::date, %s, %s, %s)
-           ON CONFLICT (entity_id, assessment_date) DO UPDATE SET
-             key_impacts = EXCLUDED.key_impacts,
-             key_dependencies = EXCLUDED.key_dependencies,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 

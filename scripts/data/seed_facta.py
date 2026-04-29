@@ -2,10 +2,12 @@
 """Seed de normativa FactA: artículos LIVA (entregas/adquisiciones intracomunitarias),
 IRNR (no residentes), LIS (no residentes) y convenio España-EE.UU."""
 
+import os
+
 import psycopg
 from datetime import date
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB = os.getenv("DATABASE_URL", "postgresql://esdata:esdata_dev@localhost:5432/esdata")
 
 def main():
     with psycopg.connect(DB) as conn:

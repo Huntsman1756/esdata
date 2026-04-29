@@ -88,60 +88,59 @@ FORMS = [
 
 def seed_w8_forms():
     """Inserta formularios W-8 en irs_w8_form."""
+    import json
+
     import os
-    from pathlib import Path
 
-    from sqlalchemy import create_engine, text
+    import psycopg
 
-    db_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/esdata",
-    )
+    DB_URL = os.getenv("DATABASE_URL", "postgresql://esdata:esdata_dev@localhost:5432/esdata")
 
-    engine = create_engine(db_url)
-
-    with engine.begin() as conn:
+    with psycopg.connect(DB_URL) as conn:
+        cur = conn.cursor()
         for form in FORMS:
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO irs_w8_form (
-                        codigo, nombre, descripcion, tipo_sujeto, finalidad,
-                        partes, validez_anios, obligacion_asociada, texto_detalle, estado
-                    )
-                    VALUES (
-                        :codigo, :nombre, :descripcion, :tipo_sujeto, :finalidad,
-                        :partes::jsonb, :validez_anios, :obligacion_asociada, :texto_detalle, :estado
-                    )
-                    ON CONFLICT (codigo) DO UPDATE SET
-                        nombre = EXCLUDED.nombre,
-                        descripcion = EXCLUDED.descripcion,
-                        tipo_sujeto = EXCLUDED.tipo_sujeto,
-                        finalidad = EXCLUDED.finalidad,
-                        partes = EXCLUDED.partes,
-                        validez_anios = EXCLUDED.validez_anios,
-                        obligacion_asociada = EXCLUDED.obligacion_asociada,
-                        texto_detalle = EXCLUDED.texto_detalle,
-                        estado = EXCLUDED.estado,
-                        actualizado_en = now()
-                    """
+            cur.execute(
+                """
+                INSERT INTO irs_w8_form (
+                    codigo, nombre, descripcion, tipo_sujeto, finalidad,
+                    partes, validez_anios, obligacion_asociada, texto_detalle, estado
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s
+                )
+                ON CONFLICT (codigo) DO UPDATE SET
+                    nombre = EXCLUDED.nombre,
+                    descripcion = EXCLUDED.descripcion,
+                    tipo_sujeto = EXCLUDED.tipo_sujeto,
+                    finalidad = EXCLUDED.finalidad,
+                    partes = EXCLUDED.partes,
+                    validez_anios = EXCLUDED.validez_anios,
+                    obligacion_asociada = EXCLUDED.obligacion_asociada,
+                    texto_detalle = EXCLUDED.texto_detalle,
+                    estado = EXCLUDED.estado,
+                    actualizado_en = now()
+                """,
+                (
+                    form["codigo"],
+                    form["nombre"],
+                    form["descripcion"],
+                    form["tipo_sujeto"],
+                    form["finalidad"],
+                    json.dumps(form["partes"]),
+                    form["validez_anios"],
+                    form["obligacion_asociada"],
+                    form["texto_detalle"],
+                    form["estado"],
                 ),
-                {
-                    "codigo": form["codigo"],
-                    "nombre": form["nombre"],
-                    "descripcion": form["descripcion"],
-                    "tipo_sujeto": form["tipo_sujeto"],
-                    "finalidad": form["finalidad"],
-                    "partes": form["partes"],
-                    "validez_anios": form["validez_anios"],
-                    "obligacion_asociada": form["obligacion_asociada"],
-                    "texto_detalle": form["texto_detalle"],
-                    "estado": form["estado"],
-                },
             )
+        conn.commit()
 
     print(f"Seeded {len(FORMS)} W-8 forms")
 
 
-if __name__ == "__main__":
+def main():
     seed_w8_forms()
+
+
+if __name__ == "__main__":
+    main()

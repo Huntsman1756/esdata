@@ -12,7 +12,7 @@ verified_date: 2026-04-28
 
 import psycopg
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 
 SFDR_PRODUCTS = [
     (
@@ -104,11 +104,7 @@ def _upsert_product(cur, row):
            (product_name, product_type, sustainability_strategy, principal_adverse_impact,
             paci_aggregated, paci_detailed_url, distribution_country, status)
            VALUES (%s, %s, %s, %s, %s::json, %s, %s::json, %s)
-           ON CONFLICT (product_name) DO UPDATE SET
-             paci_aggregated = EXCLUDED.paci_aggregated,
-             paci_detailed_url = EXCLUDED.paci_detailed_url,
-             distribution_country = EXCLUDED.distribution_country,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -119,10 +115,7 @@ def _upsert_pacai(cur, row):
            (product_id, indicator_code, indicator_name, value, unit,
             reference_period, methodology, status)
            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (product_id, indicator_code) DO UPDATE SET
-             reference_period = EXCLUDED.reference_period,
-             methodology = EXCLUDED.methodology,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -132,10 +125,7 @@ def _upsert_entity_paci(cur, row):
         """INSERT INTO sfdr_entity_paci
            (entity_id, reporting_year, aggregated_paci, sectoral_decarbonization, status)
            VALUES (%s, %s, %s::json, %s::json, %s)
-           ON CONFLICT (entity_id, reporting_year) DO UPDATE SET
-             aggregated_paci = EXCLUDED.aggregated_paci,
-             sectoral_decarbonization = EXCLUDED.sectoral_decarbonization,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -145,10 +135,7 @@ def _upsert_pre_contractual(cur, row):
         """INSERT INTO sfdr_pre_contractual
            (product_id, document_type, url, published_date, version, status)
            VALUES (%s, %s, %s, %s::date, %s, %s)
-           ON CONFLICT (product_id, document_type) DO UPDATE SET
-             url = EXCLUDED.url,
-             version = EXCLUDED.version,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -159,10 +146,7 @@ def _upsert_annual_report(cur, row):
            (entity_id, reporting_year, paci_results, engagement_activities,
             good_practice_examples, url, published_date, status)
            VALUES (%s, %s, %s::json, %s::json, %s, %s, %s::date, %s)
-           ON CONFLICT (entity_id, reporting_year) DO UPDATE SET
-             url = EXCLUDED.url,
-             published_date = EXCLUDED.published_date,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 

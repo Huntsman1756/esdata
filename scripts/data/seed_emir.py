@@ -11,7 +11,7 @@ verified_date: 2026-04-28
 
 import psycopg
 
-DB = "postgresql://esdata:esdata_dev@postgres:5432/esdata"
+DB = "postgresql://esdata:esdata_dev@localhost:5432/esdata"
 
 EMIR_TRADES = [
     ("EMIR-2025-001-TR-001", "credit", "credit default swap", True, 1, "financial", "reported"),
@@ -39,13 +39,7 @@ def _upsert_trade(cur, row):
            (trade_id, asset_class, instrument_class, clearing_obligation_applied,
             reporting_delay_days, counterparty_type, status)
            VALUES (%s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (trade_id) DO UPDATE SET
-             asset_class = EXCLUDED.asset_class,
-             instrument_class = EXCLUDED.instrument_class,
-             clearing_obligation_applied = EXCLUDED.clearing_obligation_applied,
-             reporting_delay_days = EXCLUDED.reporting_delay_days,
-             counterparty_type = EXCLUDED.counterparty_type,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
@@ -55,10 +49,7 @@ def _upsert_clearing_member(cur, row):
         """INSERT INTO emir_clearing_member
            (entity_id, emir_registration, clearing_type, status)
            VALUES (%s, %s, %s, %s)
-           ON CONFLICT (entity_id) DO UPDATE SET
-             emir_registration = EXCLUDED.emir_registration,
-             clearing_type = EXCLUDED.clearing_type,
-             status = EXCLUDED.status""",
+           ON CONFLICT DO NOTHING""",
         row,
     )
 
