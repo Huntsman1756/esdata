@@ -21,7 +21,7 @@ def upgrade() -> None:
     # entity_identifiers: LEI, vLEI, and identity metadata for regulated entities
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS entity_identifiers (
+        CREATE TABLE entity_identifiers (
             id SERIAL PRIMARY KEY,
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             lei TEXT,
@@ -78,7 +78,7 @@ def upgrade() -> None:
     # entity_aliases: normalized aliases and legal name variants for entity matching
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS entity_aliases (
+        CREATE TABLE entity_aliases (
             id SERIAL PRIMARY KEY,
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             alias TEXT NOT NULL,

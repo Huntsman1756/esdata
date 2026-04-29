@@ -30,7 +30,45 @@ def _find_manifest() -> Path:
     )
 
 
-MANIFEST_PATH = _find_manifest()
+def _get_manifest_path() -> Path | None:
+    """Lazy-lookup manifest path; returns None if not found (graceful degradation)."""
+    try:
+        return _find_manifest()
+    except FileNotFoundError:
+        return None
+
+
+def _parse_manifest() -> list[dict]:
+    manifest_path = _get_manifest_path()
+    if not manifest_path or not manifest_path.exists():
+        return []
+    rows: list[dict] = []
+    for line in manifest_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        if "---" in stripped or "Fuente |" in stripped:
+            continue
+        parts = [part.strip() for part in stripped.strip("|").split("|")]
+        if len(parts) != 6:
+            continue
+        source_name = parts[0]
+        source_id = source_name.lower().replace(" ", "-")
+        source_id = {"banco-de-espana": "bde", "cnmv": "cnmv", "sepblac": "sepblac", "eur-lex": "eurlex", "cendoj": "cendoj", "aepd": "aepd"}.get(source_id, source_id)
+        meta = SOURCE_METADATA.get(source_id, {})
+        rows.append(
+            {
+                "source_id": source_id,
+                "fuente": source_name,
+                "referencia_canonica": parts[1],
+                "tipo": parts[2],
+                "prioridad": parts[3],
+                "estado_actual_repo": parts[4],
+                "estado_objetivo": parts[5],
+                **meta,
+            }
+        )
+    return rows
 
 SOURCE_METADATA = {
     "cnmv": {
@@ -84,47 +122,11 @@ SOURCE_METADATA = {
 }
 
 
-def _parse_manifest() -> list[dict]:
-    rows: list[dict] = []
-    if not MANIFEST_PATH.exists():
-        return rows
-    for line in MANIFEST_PATH.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("|"):
-            continue
-        if "---" in stripped or "Fuente |" in stripped:
-            continue
-        parts = [part.strip() for part in stripped.strip("|").split("|")]
-        if len(parts) != 6:
-            continue
-        source_name = parts[0]
-        source_id = source_name.lower().replace(" ", "-")
-        source_id = {"banco-de-espana": "bde", "cnmv": "cnmv", "sepblac": "sepblac", "eur-lex": "eurlex", "cendoj": "cendoj", "aepd": "aepd"}.get(source_id, source_id)
-        meta = SOURCE_METADATA.get(source_id, {})
-        rows.append(
-            {
-                "source_id": source_id,
-                "fuente": source_name,
-                "referencia_canonica": parts[1],
-                "tipo": parts[2],
-                "prioridad": parts[3],
-                "estado_actual_repo": parts[4],
-                "estado_objetivo": parts[5],
-                "owner": meta.get("owner", "unknown"),
-                "trust_tier": meta.get("trust_tier", "reference"),
-                "cadencia": meta.get("cadencia", "unknown"),
-                "modo_deteccion_cambios": meta.get("modo_deteccion_cambios", "manual"),
-                "worker": meta.get("worker"),
-                "stale_after_hours": meta.get("stale_after_hours", 24 * 8),
-            }
-        )
-    return rows
-
-
 def _manifest_hash() -> str:
-    if not MANIFEST_PATH.exists():
+    manifest_path = _get_manifest_path()
+    if not manifest_path or not manifest_path.exists():
         return "missing-manifest"
-    return hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest()
+    return hashlib.sha256(manifest_path.read_bytes()).hexdigest()
 
 
 def _coerce_datetime(value: str | None):

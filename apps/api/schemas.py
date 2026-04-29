@@ -3,8 +3,7 @@
 Focused on the endpoints exposed to Custom GPT Actions.
 """
 
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Shared
@@ -369,3 +368,582 @@ class ModelosCampanasOperativasResponse(BaseModel):
 
 class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]
+
+
+# ---------------------------------------------------------------------------
+# Consulta fiscal inteligente
+# ---------------------------------------------------------------------------
+
+
+class ChunkCitation(BaseModel):
+    chunk_id: str = Field(description="ID del chunk recuperado")
+    content_preview: str = Field(description="Vista previa del contenido del chunk")
+    relevance_score: float = Field(description="Puntuación de relevancia")
+
+
+class ClaimCitation(BaseModel):
+    claim: str = Field(description="Afirmación factual")
+    source_chunk_id: str = Field(description="Chunk que respalda la afirmación")
+    source_url: str | None = Field(default=None, description="URL de la fuente original")
+    grounded: bool = Field(description="Si la afirmación está respaldada por evidencia")
+    confidence: float = Field(description="Confianza del grounding (0-1)")
+
+
+# ---------------------------------------------------------------------------
+# MiCA — Crypto-Asset Service Providers
+# ---------------------------------------------------------------------------
+
+
+class CASPCreate(BaseModel):
+    name: str = Field(description="Nombre del CASP")
+    registration_number: str | None = Field(default=None, description="Número de registro ESMA")
+    home_member_state: str | None = Field(default=None, description="Estado miembro ISO 3166-1 alpha-2")
+    passport_active: bool = Field(default=False, description="Si tiene pasaporte activo")
+    services_offered: list[str] = Field(default_factory=list, description="Servicios: custody, exchange, execution, payment")
+
+
+class CASPUpdate(BaseModel):
+    name: str | None = Field(default=None, description="Nombre del CASP")
+    registration_number: str | None = Field(default=None, description="Número de registro ESMA")
+    home_member_state: str | None = Field(default=None, description="Estado miembro ISO 3166-1 alpha-2")
+    passport_active: bool | None = Field(default=None, description="Si tiene pasaporte activo")
+    services_offered: list[str] | None = Field(default=None, description="Servicios: custody, exchange, execution, payment")
+    status: str | None = Field(default=None, description="Estado: active, suspended, revoked")
+
+
+class CASPSummary(BaseModel):
+    id: int = Field(description="ID del CASP")
+    name: str = Field(description="Nombre del CASP")
+    registration_number: str | None = Field(default=None, description="Número de registro")
+    home_member_state: str | None = Field(default=None, description="Estado miembro")
+    passport_active: bool = Field(description="Pasaporte activo")
+    services_offered: list[str] = Field(default_factory=list, description="Servicios ofrecidos")
+    status: str = Field(description="Estado: active, suspended, revoked")
+
+
+class CASPDetail(BaseModel):
+    id: int = Field(description="ID del CASP")
+    name: str = Field(description="Nombre del CASP")
+    registration_number: str | None = Field(default=None, description="Número de registro")
+    home_member_state: str | None = Field(default=None, description="Estado miembro")
+    passport_active: bool = Field(description="Pasaporte activo")
+    services_offered: list[str] = Field(default_factory=list, description="Servicios ofrecidos")
+    status: str = Field(description="Estado: active, suspended, revoked")
+    created_at: str = Field(description="Fecha de creación")
+    updated_at: str = Field(description="Fecha de actualización")
+
+
+class CASPListResponse(BaseModel):
+    items: list[CASPSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# MiCA — Crypto Assets
+# ---------------------------------------------------------------------------
+
+
+class CryptoAssetCreate(BaseModel):
+    asset_type: str = Field(description="asset-referenced, e-money, utility, other")
+    reference_uid: str | None = Field(default=None, description="Identificador único del emisor")
+    issuer_jurisdiction: str | None = Field(default=None, description="ISO 3166-1 alpha-2")
+    is_sha: bool = Field(default=False, description="Significant crypto-asset")
+    market_value_eur: float | None = Field(default=None, description="Valor de mercado en EUR")
+    holders_count: int | None = Field(default=None, description="Número de holders")
+    status: str = Field(default="active", description="Estado")
+
+
+class CryptoAssetSummary(BaseModel):
+    id: int = Field(description="ID del criptoactivo")
+    asset_type: str = Field(description="Tipo de activo")
+    reference_uid: str | None = Field(default=None, description="UID de referencia")
+    issuer_jurisdiction: str | None = Field(default=None, description="Jurisdicción emisor")
+    is_sha: bool = Field(description="SHA")
+    market_value_eur: float | None = Field(default=None, description="Valor en EUR")
+    holders_count: int | None = Field(default=None, description="Holders count")
+    status: str = Field(description="Estado")
+
+
+class CryptoAssetDetail(BaseModel):
+    id: int = Field(description="ID del criptoactivo")
+    asset_type: str = Field(description="Tipo de activo")
+    reference_uid: str | None = Field(default=None, description="UID de referencia")
+    issuer_jurisdiction: str | None = Field(default=None, description="Jurisdicción emisor")
+    is_sha: bool = Field(description="SHA")
+    market_value_eur: float | None = Field(default=None, description="Valor en EUR")
+    holders_count: int | None = Field(default=None, description="Holders count")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+    updated_at: str = Field(description="Fecha de actualización")
+
+
+class CryptoAssetListResponse(BaseModel):
+    items: list[CryptoAssetSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# MiCA — Crypto Transactions (DAC8/DAC9)
+# ---------------------------------------------------------------------------
+
+
+class CryptoTransactionCreate(BaseModel):
+    sender_wallet: str = Field(description="Wallet del remitente")
+    receiver_wallet: str = Field(description="Wallet del destinatario")
+    sender_jurisdiction: str | None = Field(default=None, description="ISO 3166-1 alpha-2")
+    receiver_jurisdiction: str | None = Field(default=None, description="ISO 3166-1 alpha-2")
+    asset_type: str = Field(description="cryptocurrency, stablecoin, defi_token, other")
+    amount: float = Field(description="Cantidad")
+    value_eur: float | None = Field(default=None, description="Valor en EUR")
+    timestamp: str | None = Field(default=None, description="ISO 8601 timestamp")
+    reporting_period: str | None = Field(default=None, description="YYYY-QN")
+    status: str = Field(default="reported", description="Estado")
+
+
+class CryptoTransactionSummary(BaseModel):
+    id: int = Field(description="ID del registro")
+    sender_wallet: str = Field(description="Wallet remitente")
+    receiver_wallet: str = Field(description="Wallet destinatario")
+    sender_jurisdiction: str | None = Field(default=None, description="Jurisdicción remitente")
+    receiver_jurisdiction: str | None = Field(default=None, description="Jurisdicción destinatario")
+    asset_type: str = Field(description="Tipo de activo")
+    amount: float = Field(description="Cantidad")
+    value_eur: float | None = Field(default=None, description="Valor en EUR")
+    reporting_period: str | None = Field(default=None, description="Período")
+    status: str = Field(description="Estado")
+
+
+class CryptoTransactionDetail(BaseModel):
+    id: int = Field(description="ID del registro")
+    sender_wallet: str = Field(description="Wallet remitente")
+    receiver_wallet: str = Field(description="Wallet destinatario")
+    sender_jurisdiction: str | None = Field(default=None, description="Jurisdicción remitente")
+    receiver_jurisdiction: str | None = Field(default=None, description="Jurisdicción destinatario")
+    asset_type: str = Field(description="Tipo de activo")
+    amount: float = Field(description="Cantidad")
+    value_eur: float | None = Field(default=None, description="Valor en EUR")
+    timestamp: str = Field(description="Timestamp")
+    reporting_period: str | None = Field(default=None, description="Período")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+    updated_at: str = Field(description="Fecha de actualización")
+
+
+class CryptoTransactionListResponse(BaseModel):
+    items: list[CryptoTransactionSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# MiCA — Tokenized Assets
+# ---------------------------------------------------------------------------
+
+
+class TokenizedAssetSummary(BaseModel):
+    id: int = Field(description="ID del activo tokenizado")
+    underlying_type: str = Field(description="equity, bond, fund, real-estate, other")
+    issuer_id: int | None = Field(default=None, description="ID del emisor")
+    face_value: float | None = Field(default=None, description="Valor facial en EUR")
+    total_amount: float | None = Field(default=None, description="Monto total en EUR")
+    listing_date: str | None = Field(default=None, description="Fecha de listado")
+    regulated_market: str | None = Field(default=None, description="Mercado regulado")
+    status: str = Field(description="Estado")
+
+
+class TokenizedAssetDetail(BaseModel):
+    id: int = Field(description="ID del activo tokenizado")
+    underlying_type: str = Field(description="Tipo de subyacente")
+    issuer_id: int | None = Field(default=None, description="ID del emisor")
+    face_value: float | None = Field(default=None, description="Valor facial")
+    total_amount: float | None = Field(default=None, description="Monto total")
+    listing_date: str | None = Field(default=None, description="Fecha de listado")
+    regulated_market: str | None = Field(default=None, description="Mercado regulado")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+    updated_at: str = Field(description="Fecha de actualización")
+
+
+class TokenizedAssetListResponse(BaseModel):
+    items: list[TokenizedAssetSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# MiCA — Wallet Custodians
+# ---------------------------------------------------------------------------
+
+
+class WalletCustodianSummary(BaseModel):
+    id: int = Field(description="ID del custodio")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    wallet_type: str = Field(description="Tipo de wallet")
+    custody_mechanism: str | None = Field(default=None, description="Mecanismo de custodia")
+    insurance_coverage: float | None = Field(default=None, description="Cobertura de seguro en EUR")
+    audit_frequency: str | None = Field(default=None, description="Frecuencia de auditoría")
+    status: str = Field(description="Estado")
+
+
+class WalletCustodianDetail(BaseModel):
+    id: int = Field(description="ID del custodio")
+    entity_id: int | None = Field(default=None, description="ID de la entidad")
+    wallet_type: str = Field(description="Tipo de wallet")
+    custody_mechanism: str | None = Field(default=None, description="Mecanismo de custodia")
+    insurance_coverage: float | None = Field(default=None, description="Cobertura de seguro en EUR")
+    audit_frequency: str | None = Field(default=None, description="Frecuencia de auditoría")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+    updated_at: str = Field(description="Fecha de actualización")
+
+
+class WalletCustodianListResponse(BaseModel):
+    items: list[WalletCustodianSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# CRD/CRR — Capital Position
+# ---------------------------------------------------------------------------
+
+
+class CrdCapitalPositionCreate(BaseModel):
+    entity_id: int = Field(description="ID de la entidad")
+    reporting_date: str = Field(description="Fecha YYYY-MM-DD")
+    cet1_ratio: float | None = Field(default=None, description="Ratio CET1")
+    tier1_ratio: float | None = Field(default=None, description="Ratio Tier1")
+    total_capital_ratio: float | None = Field(default=None, description="Ratio capital total")
+    cet1_amount: float | None = Field(default=None, description="Monto CET1")
+    tier1_amount: float | None = Field(default=None, description="Monto Tier1")
+    total_capital_amount: float | None = Field(default=None, description="Monto capital total")
+    leverage_ratio: float | None = Field(default=None, description="Ratio apalancamiento")
+    risk_weighted_assets: float | None = Field(default=None, description="Activos ponderados por riesgo")
+    status: str = Field(default="filed", description="Estado")
+
+
+class CrdCapitalPositionSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    reporting_date: str = Field(description="Fecha reporting")
+    cet1_ratio: float | None = Field(default=None, description="Ratio CET1")
+    tier1_ratio: float | None = Field(default=None, description="Ratio Tier1")
+    total_capital_ratio: float | None = Field(default=None, description="Ratio capital total")
+    cet1_amount: float | None = Field(default=None, description="Monto CET1")
+    tier1_amount: float | None = Field(default=None, description="Monto Tier1")
+    total_capital_amount: float | None = Field(default=None, description="Monto capital total")
+    leverage_ratio: float | None = Field(default=None, description="Ratio apalancamiento")
+    risk_weighted_assets: float | None = Field(default=None, description="Activos ponderados")
+    status: str = Field(description="Estado")
+
+    @field_validator("reporting_date", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class CrdCapitalPositionDetail(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    reporting_date: str = Field(description="Fecha reporting")
+    cet1_ratio: float | None = Field(default=None, description="Ratio CET1")
+    tier1_ratio: float | None = Field(default=None, description="Ratio Tier1")
+    total_capital_ratio: float | None = Field(default=None, description="Ratio capital total")
+    cet1_amount: float | None = Field(default=None, description="Monto CET1")
+    tier1_amount: float | None = Field(default=None, description="Monto Tier1")
+    total_capital_amount: float | None = Field(default=None, description="Monto capital total")
+    leverage_ratio: float | None = Field(default=None, description="Ratio apalancamiento")
+    risk_weighted_assets: float | None = Field(default=None, description="Activos ponderados")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+
+    @field_validator("reporting_date", "created_at", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class CrdCapitalPositionUpdate(BaseModel):
+    cet1_ratio: float | None = Field(default=None, description="Ratio CET1")
+    tier1_ratio: float | None = Field(default=None, description="Ratio Tier1")
+    total_capital_ratio: float | None = Field(default=None, description="Ratio capital total")
+    cet1_amount: float | None = Field(default=None, description="Monto CET1")
+    tier1_amount: float | None = Field(default=None, description="Monto Tier1")
+    total_capital_amount: float | None = Field(default=None, description="Monto capital total")
+    leverage_ratio: float | None = Field(default=None, description="Ratio apalancamiento")
+    risk_weighted_assets: float | None = Field(default=None, description="Activos ponderados por riesgo")
+    status: str | None = Field(default=None, description="Estado")
+
+
+class CrdCapitalPositionListResponse(BaseModel):
+    items: list[CrdCapitalPositionSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# CRD — Stress Tests
+# ---------------------------------------------------------------------------
+
+
+class CrdStressTestCreate(BaseModel):
+    entity_id: int = Field(description="ID de la entidad")
+    test_date: str = Field(description="Fecha YYYY-MM-DD")
+    scenario_name: str | None = Field(default=None, description="Nombre del escenario")
+    cet1_impact_pct: float | None = Field(default=None, description="Impacto CET1 %")
+    tier1_impact_pct: float | None = Field(default=None, description="Impacto Tier1 %")
+    capital_ratio_post_test: float | None = Field(default=None, description="Ratio post-test")
+    competent_authority: str | None = Field(default=None, description="Autoridad competente")
+    status: str = Field(default="published", description="Estado")
+
+
+class CrdStressTestSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    test_date: str = Field(description="Fecha test")
+    scenario_name: str | None = Field(default=None, description="Escenario")
+    cet1_impact_pct: float | None = Field(default=None, description="Impacto CET1 %")
+    tier1_impact_pct: float | None = Field(default=None, description="Impacto Tier1 %")
+    capital_ratio_post_test: float | None = Field(default=None, description="Ratio post-test")
+    competent_authority: str | None = Field(default=None, description="Autoridad competente")
+    status: str = Field(description="Estado")
+
+    @field_validator("test_date", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class CrdStressTestDetail(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    test_date: str = Field(description="Fecha test")
+    scenario_name: str | None = Field(default=None, description="Escenario")
+    cet1_impact_pct: float | None = Field(default=None, description="Impacto CET1 %")
+    tier1_impact_pct: float | None = Field(default=None, description="Impacto Tier1 %")
+    capital_ratio_post_test: float | None = Field(default=None, description="Ratio post-test")
+    competent_authority: str | None = Field(default=None, description="Autoridad competente")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+
+    @field_validator("test_date", "created_at", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class CrdStressTestUpdate(BaseModel):
+    scenario_name: str | None = Field(default=None, description="Escenario")
+    cet1_impact_pct: float | None = Field(default=None, description="Impacto CET1 %")
+    tier1_impact_pct: float | None = Field(default=None, description="Impacto Tier1 %")
+    capital_ratio_post_test: float | None = Field(default=None, description="Ratio post-test")
+    competent_authority: str | None = Field(default=None, description="Autoridad competente")
+    status: str | None = Field(default=None, description="Estado")
+
+
+class CrdStressTestListResponse(BaseModel):
+    items: list[CrdStressTestSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# BRRD — Bail-In / MREL
+# ---------------------------------------------------------------------------
+
+
+class BrrdBailInCreate(BaseModel):
+    entity_id: int = Field(description="ID de la entidad")
+    total_eligible_liabilities: float | None = Field(default=None, description="Liabilidades elegibles")
+    mrel_target_pct: float | None = Field(default=None, description="Target MREL %")
+    mrel_compliance_pct: float | None = Field(default=None, description="Cumplimiento MREL %")
+    internal_mrel: float | None = Field(default=None, description="MREL interno")
+    resolution_status: str | None = Field(default=None, description="Estado de resolución")
+    status: str = Field(default="active", description="Estado")
+
+
+class BrrdBailInSummary(BaseModel):
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    total_eligible_liabilities: float | None = Field(default=None, description="Liabilidades elegibles")
+    mrel_target_pct: float | None = Field(default=None, description="Target MREL %")
+    mrel_compliance_pct: float | None = Field(default=None, description="Cumplimiento MREL %")
+    internal_mrel: float | None = Field(default=None, description="MREL interno")
+    resolution_status: str | None = Field(default=None, description="Estado resolución")
+    status: str = Field(description="Estado")
+
+
+class BrrdBailInDetail(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    total_eligible_liabilities: float | None = Field(default=None, description="Liabilidades elegibles")
+    mrel_target_pct: float | None = Field(default=None, description="Target MREL %")
+    mrel_compliance_pct: float | None = Field(default=None, description="Cumplimiento MREL %")
+    internal_mrel: float | None = Field(default=None, description="MREL interno")
+    resolution_status: str | None = Field(default=None, description="Estado resolución")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class BrrdBailInUpdate(BaseModel):
+    total_eligible_liabilities: float | None = Field(default=None, description="Liabilidades elegibles")
+    mrel_target_pct: float | None = Field(default=None, description="Target MREL %")
+    mrel_compliance_pct: float | None = Field(default=None, description="Cumplimiento MREL %")
+    internal_mrel: float | None = Field(default=None, description="MREL interno")
+    resolution_status: str | None = Field(default=None, description="Estado resolución")
+    status: str | None = Field(default=None, description="Estado")
+
+
+class BrrdBailInListResponse(BaseModel):
+    items: list[BrrdBailInSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# EMIR — Trade Reports
+# ---------------------------------------------------------------------------
+
+
+class EmirTradeReportCreate(BaseModel):
+    trade_id: str = Field(description="ID del trade")
+    asset_class: str = Field(description="Clase de activo")
+    instrument_class: str = Field(description="Clase de instrumento")
+    clearing_obligation_applied: bool = Field(default=False, description="Obligación de clearing")
+    reporting_delay_days: int | None = Field(default=None, description="Días de delay reporting")
+    counterparty_type: str = Field(description="Tipo de contraparte")
+    status: str = Field(default="reported", description="Estado")
+
+
+class EmirTradeReportSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    trade_id: str = Field(description="ID trade")
+    asset_class: str = Field(description="Clase de activo")
+    instrument_class: str = Field(description="Clase de instrumento")
+    clearing_obligation_applied: bool = Field(description="Clearing aplicado")
+    reporting_delay_days: int | None = Field(default=None, description="Delay reporting")
+    counterparty_type: str = Field(description="Tipo contraparte")
+    status: str = Field(description="Estado")
+
+
+class EmirTradeReportDetail(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    trade_id: str = Field(description="ID trade")
+    asset_class: str = Field(description="Clase de activo")
+    instrument_class: str = Field(description="Clase de instrumento")
+    clearing_obligation_applied: bool = Field(description="Clearing aplicado")
+    reporting_delay_days: int | None = Field(default=None, description="Delay reporting")
+    counterparty_type: str = Field(description="Tipo contraparte")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class EmirTradeReportUpdate(BaseModel):
+    asset_class: str | None = Field(default=None, description="Clase de activo")
+    instrument_class: str | None = Field(default=None, description="Clase de instrumento")
+    clearing_obligation_applied: bool | None = Field(default=None, description="Clearing aplicado")
+    reporting_delay_days: int | None = Field(default=None, description="Delay reporting")
+    counterparty_type: str | None = Field(default=None, description="Tipo contraparte")
+    status: str | None = Field(default=None, description="Estado")
+
+
+class EmirTradeReportListResponse(BaseModel):
+    items: list[EmirTradeReportSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# EMIR — Clearing Members
+# ---------------------------------------------------------------------------
+
+
+class EmirClearingMemberCreate(BaseModel):
+    entity_id: int = Field(description="ID de la entidad")
+    emir_registration: str = Field(description="Registro EMIR")
+    clearing_type: str = Field(description="Tipo de clearing")
+    status: str = Field(default="active", description="Estado")
+
+
+class EmirClearingMemberSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    emir_registration: str = Field(description="Registro EMIR")
+    clearing_type: str = Field(description="Tipo de clearing")
+    status: str = Field(description="Estado")
+
+
+class EmirClearingMemberDetail(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    entity_id: int = Field(description="ID entidad")
+    emir_registration: str = Field(description="Registro EMIR")
+    clearing_type: str = Field(description="Tipo de clearing")
+    status: str = Field(description="Estado")
+    created_at: str = Field(description="Fecha de creación")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class EmirClearingMemberUpdate(BaseModel):
+    emir_registration: str | None = Field(default=None, description="Registro EMIR")
+    clearing_type: str | None = Field(default=None, description="Tipo de clearing")
+    status: str | None = Field(default=None, description="Estado")
+
+
+class EmirClearingMemberListResponse(BaseModel):
+    items: list[EmirClearingMemberSummary]
+    total: int
+
+
+class ConsultaFiscalResponse(BaseModel):
+    consulta: str = Field(description="Pregunta fiscal recibida")
+    modelos: list[dict] = Field(default_factory=list, description="Modelos AEAT identificados")
+    resultados: list[dict] = Field(default_factory=list, description="Resultados de búsqueda unificados")
+    total_resultados: int = Field(description="Número total de resultados")
+    relevancia: dict = Field(description="Información de relevancia de los resultados")
+    confianza: dict | None = Field(default=None, description="Información de confianza (faithfulness, grounding)")
+    cited_chunks: list[ChunkCitation] = Field(default_factory=list, description="Chunks citados con evidencia")
+    claim_citations: list[ClaimCitation] = Field(default_factory=list, description="Citas por afirmación factual")

@@ -1,6 +1,6 @@
 services:
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d
     restart: unless-stopped
     depends_on:
       api:
@@ -22,7 +22,7 @@ services:
       - no-new-privileges:true
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-esdata}

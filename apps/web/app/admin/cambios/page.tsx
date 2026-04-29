@@ -42,8 +42,6 @@ function CambiosContent() {
   const [prioridad, setPrioridad] = useState("");
   const [obligacion, setObligacion] = useState("");
 
-  const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
   async function fetchChanges() {
     const params = new URLSearchParams();
     if (fuente) params.set("fuente", fuente);
@@ -53,7 +51,7 @@ function CambiosContent() {
 
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/v1/cambios?${params}`);
+      const res = await fetch(`/api/cambios?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setCambios(await res.json());
       setError(null);

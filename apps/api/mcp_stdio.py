@@ -2,6 +2,7 @@
 
 import json
 import sys
+import uuid
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -11,6 +12,27 @@ from main import app
 from mcp_catalog import get_stdio_tool_definitions
 
 client = TestClient(app)
+
+
+def _log_mcp_call(tool_name: str, arguments: dict, status_code: int, response_time_ms: float) -> None:
+    """Log MCP tool call to query audit log for E2E traceability."""
+    try:
+        from services.query_audit import get_query_audit_service
+        get_query_audit_service().record_query(
+            request_id=f"mcp-{uuid.uuid4().hex[:12]}",
+            user_id="mcp-client",
+            path=f"/mcp/tools/{tool_name}",
+            query_text=json.dumps(arguments, ensure_ascii=False)[:2000],
+            retrieved_chunks=[],
+            response_summary=f"status={status_code} duration={response_time_ms:.0f}ms",
+            model_version="mcp-stdio",
+            config_version=None,
+            grounding_status="n/a",
+            prompt_injection_detected=False,
+            grounding_summary={},
+        )
+    except Exception:
+        pass  # audit failure must not break MCP operation
 
 
 class MCPStdioServer:
@@ -100,6 +122,17 @@ class MCPStdioServer:
         params = message.get("params", {})
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
+
+        import time as _time
+        _start = _time.time()
+
+        try:
+            self._dispatch_tool(tool_name, arguments, msg_id)
+        finally:
+            _elapsed = (_time.time() - _start) * 1000
+            _log_mcp_call(tool_name, arguments, 200, _elapsed)
+
+    def _dispatch_tool(self, tool_name: str, arguments: dict, msg_id: Any):
 
         if tool_name == "consulta_fiscal":
             try:

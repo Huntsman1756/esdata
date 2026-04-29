@@ -22,7 +22,7 @@ def upgrade() -> None:
 
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS norma (
+        CREATE TABLE norma (
             id SERIAL PRIMARY KEY,
             codigo TEXT UNIQUE NOT NULL,
             titulo TEXT NOT NULL,
@@ -40,7 +40,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS articulo (
+        CREATE TABLE articulo (
             id SERIAL PRIMARY KEY,
             norma_id INTEGER NOT NULL REFERENCES norma(id),
             numero TEXT NOT NULL,
@@ -52,7 +52,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS version_articulo (
+        CREATE TABLE version_articulo (
             id SERIAL PRIMARY KEY,
             articulo_id INTEGER NOT NULL REFERENCES articulo(id),
             texto TEXT NOT NULL,
@@ -65,7 +65,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS documento_interpretativo (
+        CREATE TABLE documento_interpretativo (
             id SERIAL PRIMARY KEY,
             tipo_documento TEXT NOT NULL,
             organismo_emisor TEXT NOT NULL,
@@ -82,7 +82,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS empresa (
+        CREATE TABLE empresa (
             id SERIAL PRIMARY KEY,
             nombre TEXT NOT NULL,
             nif TEXT,
@@ -95,7 +95,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS obligacion_regulatoria (
+        CREATE TABLE obligacion_regulatoria (
             id SERIAL PRIMARY KEY,
             codigo TEXT UNIQUE NOT NULL,
             nombre TEXT NOT NULL,
@@ -118,7 +118,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS obligacion_documento (
+        CREATE TABLE obligacion_documento (
             obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id),
             documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
             tipo_relacion TEXT NOT NULL,
@@ -128,7 +128,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS documento_empresa (
+        CREATE TABLE documento_empresa (
             documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             rol TEXT NOT NULL,
@@ -140,7 +140,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS documento_articulo (
+        CREATE TABLE documento_articulo (
             documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
             articulo_id INTEGER NOT NULL REFERENCES articulo(id),
             metodo_enlace TEXT NOT NULL,
@@ -152,7 +152,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS materia (
+        CREATE TABLE materia (
             id SERIAL PRIMARY KEY,
             slug TEXT UNIQUE NOT NULL,
             etiqueta TEXT NOT NULL
@@ -161,7 +161,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS articulo_materia (
+        CREATE TABLE articulo_materia (
             articulo_id INTEGER NOT NULL REFERENCES articulo(id),
             materia_id INTEGER NOT NULL REFERENCES materia(id),
             relevancia SMALLINT NOT NULL DEFAULT 1,
@@ -171,7 +171,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS sync_log (
+        CREATE TABLE sync_log (
             id SERIAL PRIMARY KEY,
             worker TEXT NOT NULL,
             started_at TIMESTAMPTZ NOT NULL,
@@ -188,7 +188,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS aeat_modelo (
+        CREATE TABLE aeat_modelo (
             id SERIAL PRIMARY KEY,
             codigo TEXT NOT NULL UNIQUE,
             nombre TEXT NOT NULL,
@@ -201,7 +201,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_articulo (
+        CREATE TABLE modelo_articulo (
             modelo_id INTEGER REFERENCES aeat_modelo(id) ON DELETE CASCADE,
             articulo_id INTEGER REFERENCES articulo(id) ON DELETE CASCADE,
             casilla TEXT,
@@ -214,7 +214,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_campana (
+        CREATE TABLE modelo_campana (
             id SERIAL PRIMARY KEY,
             modelo_id INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
             campana TEXT NOT NULL,
@@ -230,7 +230,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_casilla (
+        CREATE TABLE modelo_casilla (
             id SERIAL PRIMARY KEY,
             campana_id INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
             codigo TEXT NOT NULL,
@@ -247,7 +247,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_clave (
+        CREATE TABLE modelo_clave (
             id SERIAL PRIMARY KEY,
             campana_id INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
             codigo TEXT NOT NULL,
@@ -262,7 +262,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_instruccion (
+        CREATE TABLE modelo_instruccion (
             id SERIAL PRIMARY KEY,
             campana_id INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
             seccion TEXT NOT NULL,
@@ -275,7 +275,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_normativa (
+        CREATE TABLE modelo_normativa (
             id SERIAL PRIMARY KEY,
             modelo_id INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
             boe_id TEXT,
@@ -290,7 +290,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_formato (
+        CREATE TABLE modelo_formato (
             id SERIAL PRIMARY KEY,
             campana_id INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
             tipo_registro TEXT NOT NULL,

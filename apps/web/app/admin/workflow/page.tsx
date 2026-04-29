@@ -52,13 +52,11 @@ function WorkflowContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
   useEffect(() => {
     async function fetchCases() {
       try {
         setLoading(true);
-        const res = await fetch(`${API_URL}/v1/compliance/workflow`);
+        const res = await fetch("/api/workflow");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setCases(await res.json());
         setError(null);
@@ -69,7 +67,7 @@ function WorkflowContent() {
       }
     }
     fetchCases();
-  }, [API_URL]);
+  }, []);
 
   const estados = cases.map((c) => c.estado);
   const conteo: Record<string, number> = {};

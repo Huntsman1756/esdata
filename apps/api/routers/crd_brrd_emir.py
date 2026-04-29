@@ -115,7 +115,7 @@ async def create_crd_capital_position(data: CrdCapitalPositionCreate):
                 "VALUES (:entity_id, :reporting_date, :cet1_ratio, :tier1_ratio, "
                 ":total_capital_ratio, :cet1_amount, :tier1_amount, "
                 ":total_capital_amount, :leverage_ratio, :risk_weighted_assets, "
-                ":status, datetime('now')) RETURNING *"
+                ":status, CURRENT_TIMESTAMP) RETURNING *"
             ),
             {
                 "entity_id": data.entity_id,
@@ -156,9 +156,9 @@ async def update_crd_capital_position(position_id: int, data: CrdCapitalPosition
                 params[field] = value
 
         if update_fields:
-            params["now"] = "datetime('now')"
+            update_fields.append("created_at = CURRENT_TIMESTAMP")
             db.execute(
-                text(f"UPDATE crd_capital_position SET {', '.join(update_fields)}, created_at = :now WHERE id = :id"),
+                text(f"UPDATE crd_capital_position SET {', '.join(update_fields)} WHERE id = :id"),
                 params,
             )
             db.commit()
@@ -231,7 +231,7 @@ async def create_crd_stress_test(data: CrdStressTestCreate):
                 "capital_ratio_post_test, competent_authority, status, created_at) "
                 "VALUES (:entity_id, :test_date, :scenario_name, :cet1_impact_pct, "
                 ":tier1_impact_pct, :capital_ratio_post_test, :competent_authority, "
-                ":status, datetime('now')) RETURNING *"
+                ":status, CURRENT_TIMESTAMP) RETURNING *"
             ),
             {
                 "entity_id": data.entity_id,
@@ -268,9 +268,9 @@ async def update_crd_stress_test(test_id: int, data: CrdStressTestUpdate):
                 params[field] = value
 
         if update_fields:
-            params["now"] = "datetime('now')"
+            update_fields.append("created_at = CURRENT_TIMESTAMP")
             db.execute(
-                text(f"UPDATE crd_stress_test SET {', '.join(update_fields)}, created_at = :now WHERE id = :id"),
+                text(f"UPDATE crd_stress_test SET {', '.join(update_fields)} WHERE id = :id"),
                 params,
             )
             db.commit()
@@ -339,7 +339,7 @@ async def create_brrd_bail_in(data: BrrdBailInCreate):
                 "mrel_compliance_pct, internal_mrel, resolution_status, status, created_at) "
                 "VALUES (:entity_id, :total_eligible_liabilities, :mrel_target_pct, "
                 ":mrel_compliance_pct, :internal_mrel, :resolution_status, "
-                ":status, datetime('now')) RETURNING *"
+                ":status, CURRENT_TIMESTAMP) RETURNING *"
             ),
             {
                 "entity_id": data.entity_id,
@@ -375,9 +375,9 @@ async def update_brrd_bail_in(bail_in_id: int, data: BrrdBailInUpdate):
                 params[field] = value
 
         if update_fields:
-            params["now"] = "datetime('now')"
+            update_fields.append("created_at = CURRENT_TIMESTAMP")
             db.execute(
-                text(f"UPDATE brrd_bail_in SET {', '.join(update_fields)}, created_at = :now WHERE id = :id"),
+                text(f"UPDATE brrd_bail_in SET {', '.join(update_fields)} WHERE id = :id"),
                 params,
             )
             db.commit()
@@ -450,7 +450,7 @@ async def create_emir_trade_report(data: EmirTradeReportCreate):
                 "reporting_delay_days, counterparty_type, status, created_at) "
                 "VALUES (:trade_id, :asset_class, :instrument_class, "
                 ":clearing_obligation_applied, :reporting_delay_days, "
-                ":counterparty_type, :status, datetime('now')) RETURNING *"
+                ":counterparty_type, :status, CURRENT_TIMESTAMP) RETURNING *"
             ),
             {
                 "trade_id": data.trade_id,
@@ -486,9 +486,9 @@ async def update_emir_trade_report(trade_id: int, data: EmirTradeReportUpdate):
                 params[field] = value
 
         if update_fields:
-            params["now"] = "datetime('now')"
+            update_fields.append("created_at = CURRENT_TIMESTAMP")
             db.execute(
-                text(f"UPDATE emir_trade_report SET {', '.join(update_fields)}, created_at = :now WHERE id = :id"),
+                text(f"UPDATE emir_trade_report SET {', '.join(update_fields)} WHERE id = :id"),
                 params,
             )
             db.commit()
@@ -559,7 +559,7 @@ async def create_emir_clearing_member(data: EmirClearingMemberCreate):
                 "INSERT INTO emir_clearing_member "
                 "(entity_id, emir_registration, clearing_type, status, created_at) "
                 "VALUES (:entity_id, :emir_registration, :clearing_type, "
-                ":status, datetime('now')) RETURNING *"
+                ":status, CURRENT_TIMESTAMP) RETURNING *"
             ),
             {
                 "entity_id": data.entity_id,
@@ -591,9 +591,9 @@ async def update_emir_clearing_member(member_id: int, data: EmirClearingMemberUp
                 params[field] = value
 
         if update_fields:
-            params["now"] = "datetime('now')"
+            update_fields.append("created_at = CURRENT_TIMESTAMP")
             db.execute(
-                text(f"UPDATE emir_clearing_member SET {', '.join(update_fields)}, created_at = :now WHERE id = :id"),
+                text(f"UPDATE emir_clearing_member SET {', '.join(update_fields)} WHERE id = :id"),
                 params,
             )
             db.commit()

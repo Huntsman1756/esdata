@@ -22,7 +22,7 @@ def upgrade() -> None:
     # screening_lists: catalog of sanction/PEP lists
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS screening_lists (
+        CREATE TABLE screening_lists (
             id SERIAL PRIMARY KEY,
             codigo TEXT NOT NULL UNIQUE,
             nombre TEXT NOT NULL,
@@ -59,7 +59,7 @@ def upgrade() -> None:
     # screening_entries: individual sanctioned entities/persons from each list
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS screening_entries (
+        CREATE TABLE screening_entries (
             id SERIAL PRIMARY KEY,
             list_id INTEGER NOT NULL REFERENCES screening_lists(id),
             entidad_id TEXT NOT NULL,
@@ -156,7 +156,7 @@ def upgrade() -> None:
     # screening_matches: results of screening checks with scoring
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS screening_matches (
+        CREATE TABLE screening_matches (
             id SERIAL PRIMARY KEY,
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             entry_id INTEGER NOT NULL REFERENCES screening_entries(id),

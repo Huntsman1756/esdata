@@ -18,6 +18,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "workers"))
 
+import os
+os.environ["APP_ENV"] = "test"
+os.environ["ESDATA_API_KEY"] = "test-secret-key"
+os.environ["MCP_API_KEY"] = "test-mcp-key"
+os.environ["DATABASE_URL"] = "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata"
+os.environ["ESDATA_ALLOW_INSECURE_TEST_AUTH"] = "true"
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -26,39 +33,44 @@ from sqlalchemy import text
 
 CRD_BRRD_EMIR_SEED_SQL = [
     """
-    INSERT OR IGNORE INTO crd_capital_position (id, entity_id, reporting_date, cet1_ratio, tier1_ratio, total_capital_ratio, cet1_amount, tier1_amount, total_capital_amount, leverage_ratio, risk_weighted_assets, status)
+    INSERT INTO crd_capital_position (id, entity_id, reporting_date, cet1_ratio, tier1_ratio, total_capital_ratio, cet1_amount, tier1_amount, total_capital_amount, leverage_ratio, risk_weighted_assets, status)
     VALUES
         (1, 1, '2025-09-30', 14.5, 16.2, 18.7, 8500000000.00, 9500000000.00, 10950000000.00, 5.8, 58600000000.00, 'filed'),
         (2, 2, '2025-09-30', 13.2, 15.1, 17.3, 4200000000.00, 4800000000.00, 5500000000.00, 4.9, 32400000000.00, 'filed'),
-        (3, 3, '2025-06-30', 15.1, 17.0, 19.4, 12300000000.00, 13800000000.00, 15700000000.00, 6.2, 78900000000.00, 'filed');
+        (3, 3, '2025-06-30', 15.1, 17.0, 19.4, 12300000000.00, 13800000000.00, 15700000000.00, 6.2, 78900000000.00, 'filed')
+    ON CONFLICT (id) DO NOTHING;
     """,
     """
-    INSERT OR IGNORE INTO crd_stress_test (id, entity_id, test_date, scenario_name, cet1_impact_pct, tier1_impact_pct, capital_ratio_post_test, competent_authority, status)
+    INSERT INTO crd_stress_test (id, entity_id, test_date, scenario_name, cet1_impact_pct, tier1_impact_pct, capital_ratio_post_test, competent_authority, status)
     VALUES
         (1, 1, '2025-07-15', 'ECB Joint EU-wide stress test 2025', -2.8, -2.5, 11.7, 'Banco de Espana', 'published'),
         (2, 2, '2025-07-15', 'ECB Joint EU-wide stress test 2025', -3.1, -2.9, 10.1, 'Banco de Espana', 'published'),
-        (3, 3, '2025-03-10', 'Banco de Espana national stress test 2025', -2.2, -2.0, 12.9, 'Banco de Espana', 'published');
+        (3, 3, '2025-03-10', 'Banco de Espana national stress test 2025', -2.2, -2.0, 12.9, 'Banco de Espana', 'published')
+    ON CONFLICT (id) DO NOTHING;
     """,
     """
-    INSERT OR IGNORE INTO brrd_bail_in (id, entity_id, total_eligible_liabilities, mrel_target_pct, mrel_compliance_pct, internal_mrel, resolution_status, status)
+    INSERT INTO brrd_bail_in (id, entity_id, total_eligible_liabilities, mrel_target_pct, mrel_compliance_pct, internal_mrel, resolution_status, status)
     VALUES
         (1, 1, 85000000000.00, 31.5, 32.1, 28.4, 'compliant', 'active'),
         (2, 2, 42000000000.00, 28.0, 27.5, 25.1, 'non_compliant', 'active'),
-        (3, 3, 120000000000.00, 33.0, 34.2, 30.8, 'compliant', 'active');
+        (3, 3, 120000000000.00, 33.0, 34.2, 30.8, 'compliant', 'active')
+    ON CONFLICT (id) DO NOTHING;
     """,
     """
-    INSERT OR IGNORE INTO emir_trade_report (id, trade_id, asset_class, instrument_class, clearing_obligation_applied, reporting_delay_days, counterparty_type, status)
+    INSERT INTO emir_trade_report (id, trade_id, asset_class, instrument_class, clearing_obligation_applied, reporting_delay_days, counterparty_type, status)
     VALUES
-        (1, 'EMIR-2025-001-XYZ', 'credit', 'CDS', 1, 1, 'financial', 'reported'),
-        (2, 'EMIR-2025-002-ABC', 'interest-rate', 'IRS', 1, 0, 'financial', 'reported'),
-        (3, 'EMIR-2025-003-DEF', 'equity', 'TRC', 0, 2, 'non-financial', 'reported');
+        (1, 'EMIR-2025-001-XYZ', 'credit', 'CDS', true, 1, 'financial', 'reported'),
+        (2, 'EMIR-2025-002-ABC', 'interest-rate', 'IRS', true, 0, 'financial', 'reported'),
+        (3, 'EMIR-2025-003-DEF', 'equity', 'TRC', false, 2, 'non-financial', 'reported')
+    ON CONFLICT (id) DO NOTHING;
     """,
     """
-    INSERT OR IGNORE INTO emir_clearing_member (id, entity_id, emir_registration, clearing_type, status)
+    INSERT INTO emir_clearing_member (id, entity_id, emir_registration, clearing_type, status)
     VALUES
         (1, 1, 'EMIR-CM-2024-00123', 'central', 'active'),
         (2, 2, 'EMIR-CM-2024-00456', 'otc', 'active'),
-        (3, 3, 'EMIR-CM-2024-00789', 'central', 'active');
+        (3, 3, 'EMIR-CM-2024-00789', 'central', 'active')
+    ON CONFLICT (id) DO NOTHING;
     """,
 ]
 

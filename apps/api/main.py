@@ -1,10 +1,7 @@
 import os
 
-from fastapi import FastAPI
-from sqlalchemy import text
-from starlette.middleware.cors import CORSMiddleware
-
 from db import db_session
+from fastapi import FastAPI
 from mcp_security import guard_mcp_http
 from mcp_server import mount_mcp
 from middleware.api_key_auth import ApiKeyAuthMiddleware
@@ -17,18 +14,23 @@ from routers import (
     cambios,
     compliance,
     consulta,
+    crd_brrd_emir,
     data_lineage,
     doctrina,
     human_review,
     jurisprudencia,
     legislacion,
     materias,
+    mica,
     model_registry,
     modelos,
     query_audit,
     source_manifest,
     status,
+    webhooks,
 )
+from sqlalchemy import text
+from starlette.middleware.cors import CORSMiddleware
 
 
 def _require_runtime_api_keys() -> None:
@@ -89,6 +91,9 @@ for router in (
     consulta.router,
     cambios.router,
     compliance.router,
+    mica.router,
+    crd_brrd_emir.router,
+    crd_brrd_emir.ucits_router,
     ai_audit_log.router,
     human_review.router,
     data_lineage.router,
@@ -96,6 +101,7 @@ for router in (
     model_registry.config_router,
     query_audit.router,
     source_manifest.router,
+    webhooks.webhook_router,
 ):
     app.include_router(router)
 

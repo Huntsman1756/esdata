@@ -5,7 +5,7 @@
 -- ---------------------------------------------------------------------------
 -- 1. CAMPAÑAS — cada modelo puede tener N versiones por año/campaña
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS modelo_campana (
+CREATE TABLE modelo_campana (
     id              SERIAL PRIMARY KEY,
     modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
     campana         TEXT NOT NULL,              -- '2025', '2024', 'T1-2025', etc.
@@ -28,7 +28,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_modelo_campana_unique_active
 -- ---------------------------------------------------------------------------
 -- 2. CASILLAS — inventario completo de casillas por modelo/campaña
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS modelo_casilla (
+CREATE TABLE modelo_casilla (
     id              SERIAL PRIMARY KEY,
     campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
     codigo          TEXT NOT NULL,              -- '0002', '0416', '01', etc.
@@ -47,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_modelo_casilla_campana ON modelo_casilla(campana_
 -- ---------------------------------------------------------------------------
 -- 3. CLAVES — códigos de rendimiento/régimen/etc. por modelo/campaña
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS modelo_clave (
+CREATE TABLE modelo_clave (
     id              SERIAL PRIMARY KEY,
     campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
     codigo          TEXT NOT NULL,              -- '01', '02', 'A', 'B', etc.
@@ -64,7 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_modelo_clave_campana ON modelo_clave(campana_id);
 -- ---------------------------------------------------------------------------
 -- 4. INSTRUCCIONES — contenido paso a paso por modelo/campaña
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS modelo_instruccion (
+CREATE TABLE modelo_instruccion (
     id              SERIAL PRIMARY KEY,
     campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
     seccion         TEXT NOT NULL,              -- 'caracteristicas', 'quien-debe', 'como-rellenar', 'plazo'
@@ -81,7 +81,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_modelo_instruccion_unique
 -- ---------------------------------------------------------------------------
 -- 5. NORMATIVA — órdenes BOE que regulan cada modelo (independiente de campaña)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS modelo_normativa (
+CREATE TABLE modelo_normativa (
     id              SERIAL PRIMARY KEY,
     modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
     boe_id          TEXT,                       -- 'BOE-A-2024-1772'
@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_modelo_normativa_modelo ON modelo_normativa(model
 -- ---------------------------------------------------------------------------
 -- 6. FORMATO — especificaciones de diseño de registro por campaña
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS modelo_campana_operativa (
+CREATE TABLE modelo_campana_operativa (
     campana_id               INTEGER PRIMARY KEY REFERENCES modelo_campana(id) ON DELETE CASCADE,
     categoria_obligado       TEXT,
     frecuencia_presentacion  TEXT,
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS modelo_campana_operativa (
     actualizado_at           TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS modelo_formato (
+CREATE TABLE modelo_formato (
     id              SERIAL PRIMARY KEY,
     campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
     tipo_registro   TEXT NOT NULL,              -- 'declarante', 'perceptor', 'detalle'

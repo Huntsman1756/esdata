@@ -17,7 +17,7 @@ depends_on = None
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS modelo_campana_operativa (
+        CREATE TABLE modelo_campana_operativa (
             campana_id INTEGER PRIMARY KEY REFERENCES modelo_campana(id) ON DELETE CASCADE,
             categoria_obligado TEXT,
             frecuencia_presentacion TEXT,

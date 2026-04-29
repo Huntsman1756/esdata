@@ -1,10 +1,14 @@
 # [DEPRECATED] Deploy Railway — HISTORICAL
-#
-# Este workflow desplegaba a Railway como plataforma de producción.
-# Ya no se ejecuta. Despliegue activo: Docker Compose (Hetzner).
-# Contenido historico en: docs/archive/workflows/deploy-railway.md
-# Referencia activa: .github/workflows/deploy-hetzner.yml
 
+> **Estado:** `[DEPRECATED]` — Plataforma Railway ya no es la activa.
+> **Despliegue activo:** Docker Compose (Hetzner).
+> **Referencia:** `.github/workflows/deploy-hetzner.yml` es el workflow de deploy activo.
+> **Fecha de deprecación:** 2026-04-29 (Fase 41.2)
+
+Este workflow desplegaba a Railway como plataforma de producción.
+Ya no se ejecuta. Se mantiene como referencia histórica.
+
+```yaml
 # DEPRECATED — ver docs/archive/workflows/deploy-railway.md
 name: Deploy [DEPRECATED]
 
@@ -158,3 +162,4 @@ jobs:
             -H "Authorization: Bearer $CF_API_TOKEN" \
             -H "Content-Type: application/json" \
             --data '{"prefixes":["api.esdata.org/v1/legislacion/","api.esdata.org/v1/materias/"]}'
+```

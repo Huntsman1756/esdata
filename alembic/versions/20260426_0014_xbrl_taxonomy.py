@@ -21,7 +21,7 @@ depends_on = None
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS xbrl_taxonomy (
+        CREATE TABLE xbrl_taxonomy (
             id SERIAL PRIMARY KEY,
             concept_qname TEXT NOT NULL,
             namespace TEXT NOT NULL,

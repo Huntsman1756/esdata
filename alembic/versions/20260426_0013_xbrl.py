@@ -22,7 +22,7 @@ def upgrade() -> None:
     # xbrl_filing: normalized filing metadata for a parsed XBRL source
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS xbrl_filing (
+        CREATE TABLE xbrl_filing (
             id SERIAL PRIMARY KEY,
             source_name TEXT NOT NULL,
             source_path TEXT NOT NULL UNIQUE,
@@ -50,7 +50,7 @@ def upgrade() -> None:
     # xbrl_fact: persisted facts linked to the normalized filing row
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS xbrl_fact (
+        CREATE TABLE xbrl_fact (
             id SERIAL PRIMARY KEY,
             filing_id INTEGER NOT NULL REFERENCES xbrl_filing(id),
             concept TEXT NOT NULL,

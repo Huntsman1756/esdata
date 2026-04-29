@@ -1,7 +1,7 @@
 -- Fiscal indicators — reference values used across tax calculations
 -- Data source: PIR, IPREM, IRVM, minimums set by law each year
 
-CREATE TABLE IF NOT EXISTS fiscal_indicators (
+CREATE TABLE fiscal_indicators (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     indicator_type  TEXT NOT NULL,                    -- 'PIR', 'IPREM', 'IRVM', 'min_renta', 'min_work_income'

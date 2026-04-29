@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-CREATE TABLE IF NOT EXISTS norma (
+CREATE TABLE norma (
     id SERIAL PRIMARY KEY,
     codigo TEXT UNIQUE NOT NULL,
     titulo TEXT NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS norma (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS articulo (
+CREATE TABLE articulo (
     id SERIAL PRIMARY KEY,
     norma_id INTEGER NOT NULL REFERENCES norma(id),
     numero TEXT NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS articulo (
     UNIQUE (norma_id, numero)
 );
 
-CREATE TABLE IF NOT EXISTS version_articulo (
+CREATE TABLE version_articulo (
     id SERIAL PRIMARY KEY,
     articulo_id INTEGER NOT NULL REFERENCES articulo(id),
     texto TEXT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS version_articulo (
     search_vector TSVECTOR
 );
 
-CREATE TABLE IF NOT EXISTS documento_interpretativo (
+CREATE TABLE documento_interpretativo (
     id SERIAL PRIMARY KEY,
     tipo_documento TEXT NOT NULL,
     organismo_emisor TEXT NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS documento_interpretativo (
     url_fuente TEXT
 );
 
-CREATE TABLE IF NOT EXISTS documento_articulo (
+CREATE TABLE documento_articulo (
     documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
     articulo_id INTEGER NOT NULL REFERENCES articulo(id),
     metodo_enlace TEXT NOT NULL,
@@ -57,20 +57,20 @@ CREATE TABLE IF NOT EXISTS documento_articulo (
     PRIMARY KEY (documento_id, articulo_id)
 );
 
-CREATE TABLE IF NOT EXISTS materia (
+CREATE TABLE materia (
     id SERIAL PRIMARY KEY,
     slug TEXT UNIQUE NOT NULL,
     etiqueta TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS articulo_materia (
+CREATE TABLE articulo_materia (
     articulo_id INTEGER NOT NULL REFERENCES articulo(id),
     materia_id INTEGER NOT NULL REFERENCES materia(id),
     relevancia SMALLINT NOT NULL DEFAULT 1,
     PRIMARY KEY (articulo_id, materia_id)
 );
 
-CREATE TABLE IF NOT EXISTS sync_log (
+CREATE TABLE sync_log (
     id SERIAL PRIMARY KEY,
     worker TEXT NOT NULL,
     started_at TIMESTAMPTZ NOT NULL,

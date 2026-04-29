@@ -26,6 +26,9 @@ from schemas import (
     CASPSummary as CASPSummarySchema,
 )
 from schemas import (
+    CASPUpdate as CASPUpdateSchema,
+)
+from schemas import (
     CryptoAssetCreate as CryptoAssetCreateSchema,
 )
 from schemas import (
@@ -100,18 +103,35 @@ async def list_casp(
         conditions.append("home_member_state = :home_member_state")
         params["home_member_state"] = home_member_state
     if search:
+        conditions.append("name ILIKE :search")
+        params["search"] = f"%{search}%"
 
     with db_session() as db:
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
         rows = db.execute(
             text(
                 f"""
                 SELECT id, name, registration_number, home_member_state,
+                       passport_active, services_offered, status
+                FROM casp
+                {where}
                 ORDER BY name
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
+
+        items = [dict(r) for r in rows]
+        for item in items:
+            item["services_offered"] = _parse_services(item["services_offered"])
+
+        total = db.execute(
+            text(f"SELECT COUNT(*) FROM casp {where}"),
+            params,
+        ).scalar_one()
+
+        return {"items": items, "total": total}
 
 
 @router.get(
@@ -126,6 +146,10 @@ async def get_casp(casp_id: int):
             text(
                 """
                 SELECT id, name, registration_number, home_member_state,
+                       passport_active, services_offered, status,
+                       created_at, updated_at
+                FROM casp
+                WHERE id = :id
                 """
             ),
             {"id": casp_id},
@@ -192,7 +216,7 @@ async def create_casp(body: CASPCreateSchema):
     operation_id="update_casp",
     response_model=CASPSummarySchema,
 )
-async def update_casp(casp_id: int, body: dict):
+async def update_casp(casp_id: int, body: CASPUpdateSchema):
     """Actualizar un CASP existente."""
     with db_session() as db:
         existing = db.execute(
@@ -210,32 +234,27 @@ async def update_casp(casp_id: int, body: dict):
         ).mappings().first()
 
         current_services = _parse_services(row["services_offered"]) if row else []
-        new_services = body.get("services_offered") if body.get("services_offered") is not None else current_services
+        new_services = body.services_offered if body.services_offered is not None else current_services
         services_json = json.dumps(new_services) if new_services else "[]"
-
-        name = body.get("name")
-        reg_number = body.get("registration_number")
-        home_state = body.get("home_member_state")
-        passport = body.get("passport_active")
 
         set_parts = []
         params = {"id": casp_id}
 
-        if name is not None:
+        if body.name is not None:
             set_parts.append("name = :name")
-            params["name"] = name
-        if reg_number is not None:
+            params["name"] = body.name
+        if body.registration_number is not None:
             set_parts.append("registration_number = :registration_number")
-            params["registration_number"] = reg_number
-        if home_state is not None:
+            params["registration_number"] = body.registration_number
+        if body.home_member_state is not None:
             set_parts.append("home_member_state = :home_member_state")
-            params["home_member_state"] = home_state
-        if passport is not None:
+            params["home_member_state"] = body.home_member_state
+        if body.passport_active is not None:
             set_parts.append("passport_active = :passport_active")
-            params["passport_active"] = passport
-        if body.get("status") is not None:
+            params["passport_active"] = body.passport_active
+        if body.status is not None:
             set_parts.append("status = :status")
-            params["status"] = body["status"]
+            params["status"] = body.status
 
         set_parts.append("services_offered = :services_json")
         params["services_json"] = services_json
@@ -299,17 +318,29 @@ async def list_crypto_assets(
         params["status"] = status
 
     with db_session() as db:
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
         rows = db.execute(
             text(
                 f"""
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
                        is_sha, market_value_eur, holders_count, status
+                FROM crypto_asset
+                {where}
                 ORDER BY id
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
+
+        items = [dict(r) for r in rows]
+
+        total = db.execute(
+            text(f"SELECT COUNT(*) FROM crypto_asset {where}"),
+            params,
+        ).scalar_one()
+
+        return {"items": items, "total": total}
 
 
 @router.get(
@@ -324,6 +355,10 @@ async def get_crypto_asset(asset_id: int):
             text(
                 """
                 SELECT id, asset_type, reference_uid, issuer_jurisdiction,
+                       is_sha, market_value_eur, holders_count, status,
+                       created_at, updated_at
+                FROM crypto_asset
+                WHERE id = :id
                 """
             ),
             {"id": asset_id},
@@ -418,12 +453,23 @@ async def list_tokenized_assets(
                 f"""
                 SELECT id, underlying_type, issuer_id, face_value, total_amount,
                        listing_date, regulated_market, status
+                FROM tokenized_asset
+                {where}
                 ORDER BY id
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
+
+        items = [dict(r) for r in rows]
+
+        total = db.execute(
+            text(f"SELECT COUNT(*) FROM tokenized_asset {where}"),
+            params,
+        ).scalar_one()
+
+        return {"items": items, "total": total}
 
 
 @router.get(
@@ -437,6 +483,11 @@ async def get_tokenized_asset(asset_id: int):
         row = db.execute(
             text(
                 """
+                SELECT id, underlying_type, issuer_id, face_value, total_amount,
+                       listing_date, regulated_market, status,
+                       created_at, updated_at
+                FROM tokenized_asset
+                WHERE id = :id
                 """
             ),
             {"id": asset_id},
@@ -484,12 +535,24 @@ async def list_wallet_custodians(
             text(
                 f"""
                 SELECT id, entity_id, wallet_type, custody_mechanism,
+                       insurance_coverage, audit_frequency, status
+                FROM wallet_custodian
+                {where}
                 ORDER BY id
                 LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
+
+        items = [dict(r) for r in rows]
+
+        total = db.execute(
+            text(f"SELECT COUNT(*) FROM wallet_custodian {where}"),
+            params,
+        ).scalar_one()
+
+        return {"items": items, "total": total}
 
 
 @router.get(
@@ -504,6 +567,10 @@ async def get_wallet_custodian(custodian_id: int):
             text(
                 """
                 SELECT id, entity_id, wallet_type, custody_mechanism,
+                       insurance_coverage, audit_frequency, status,
+                       created_at, updated_at
+                FROM wallet_custodian
+                WHERE id = :id
                 """
             ),
             {"id": custodian_id},
@@ -543,14 +610,36 @@ async def list_crypto_transactions(
         conditions.append("reporting_period = :reporting_period")
         params["reporting_period"] = reporting_period
 
+    if status:
+        conditions.append("status = :status")
+        params["status"] = status
+
     with db_session() as db:
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
         rows = db.execute(
             text(
                 f"""
+                SELECT id, sender_wallet, receiver_wallet,
+                       sender_jurisdiction, receiver_jurisdiction,
+                       asset_type, amount, value_eur, timestamp,
+                       reporting_period, status
+                FROM crypto_transaction
+                {where}
+                ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
             {**params, "limit": limit, "offset": offset},
         ).mappings()
+
+        items = [dict(r) for r in rows]
+
+        total = db.execute(
+            text(f"SELECT COUNT(*) FROM crypto_transaction {where}"),
+            params,
+        ).scalar_one()
+
+        return {"items": items, "total": total}
 
 
 @router.get(
@@ -564,6 +653,13 @@ async def get_crypto_transaction(transaction_id: int):
         row = db.execute(
             text(
                 """
+                SELECT id, sender_wallet, receiver_wallet,
+                       sender_jurisdiction, receiver_jurisdiction,
+                       asset_type, amount, value_eur, timestamp,
+                       reporting_period, status,
+                       created_at, updated_at
+                FROM crypto_transaction
+                WHERE id = :id
                 """
             ),
             {"id": transaction_id},

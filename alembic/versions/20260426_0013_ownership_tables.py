@@ -22,7 +22,7 @@ def upgrade() -> None:
     # ownership_share — participaciones directas entre entidades
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS ownership_share (
+        CREATE TABLE ownership_share (
             id SERIAL PRIMARY KEY,
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             titular_id INTEGER NOT NULL,
@@ -67,7 +67,7 @@ def upgrade() -> None:
     # ownership_relation — relaciones societarias (control, absorbente, absorbida, etc.)
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS ownership_relation (
+        CREATE TABLE ownership_relation (
             id SERIAL PRIMARY KEY,
             empresa_origen_id INTEGER NOT NULL REFERENCES empresa(id),
             empresa_destino_id INTEGER NOT NULL REFERENCES empresa(id),
@@ -117,7 +117,7 @@ def upgrade() -> None:
     # ubo_record — beneficial ownership records
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS ubo_record (
+        CREATE TABLE ubo_record (
             id SERIAL PRIMARY KEY,
             empresa_id INTEGER NOT NULL REFERENCES empresa(id),
             nombre_persona TEXT NOT NULL,

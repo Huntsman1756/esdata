@@ -1,7 +1,7 @@
 -- IRPF brackets, personal minimums, work income reductions
 -- Data source: Ley 35/2006 (LIRPF)
 
-CREATE TABLE IF NOT EXISTS irpf_brackets (
+CREATE TABLE irpf_brackets (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     bracket_type    TEXT NOT NULL,                    -- 'general', 'savings'
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS irpf_brackets (
     UNIQUE(year, bracket_type, territory, from_amount, to_amount)
 );
 
-CREATE TABLE IF NOT EXISTS irpf_personal_minimums (
+CREATE TABLE irpf_personal_minimums (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     category        TEXT NOT NULL,                    -- 'taxpayer', 'descendants', 'ascendants', 'disability'
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS irpf_personal_minimums (
     UNIQUE(year, category, subcategory)
 );
 
-CREATE TABLE IF NOT EXISTS irpf_work_income_reduction (
+CREATE TABLE irpf_work_income_reduction (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     rule_type       TEXT NOT NULL,                    -- 'scale', 'new_deduction'

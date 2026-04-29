@@ -1,7 +1,7 @@
 -- Fiscal calendar — deadlines for AEAT models by year
 -- Data source: AEAT Calendario del Contribuyente
 
-CREATE TABLE IF NOT EXISTS fiscal_calendar (
+CREATE TABLE fiscal_calendar (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     modelo_codigo   TEXT NOT NULL,

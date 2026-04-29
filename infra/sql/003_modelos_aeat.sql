@@ -2,7 +2,7 @@
 -- Fase 1: estructura base + top 6 modelos
 -- Cada relación modelo_articulo requiere fuente oficial explícita.
 
-CREATE TABLE IF NOT EXISTS aeat_modelo (
+CREATE TABLE aeat_modelo (
     id SERIAL PRIMARY KEY,
     codigo TEXT NOT NULL UNIQUE,        -- '100', '303', etc.
     nombre TEXT NOT NULL,               -- 'IRPF Declaración anual'
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS aeat_modelo (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS modelo_articulo (
+CREATE TABLE modelo_articulo (
     modelo_id INTEGER REFERENCES aeat_modelo(id) ON DELETE CASCADE,
     articulo_id INTEGER REFERENCES articulo(id) ON DELETE CASCADE,
     casilla TEXT,                       -- '0002', '0416', etc.

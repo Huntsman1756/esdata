@@ -35,7 +35,7 @@ def upgrade() -> None:
     # ── 1. documento_seccion ──────────────────────────────────────────
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS documento_seccion (
+        CREATE TABLE documento_seccion (
             id SERIAL PRIMARY KEY,
             documento_origen_tipo TEXT NOT NULL,
             documento_origen_id INTEGER NOT NULL,
@@ -66,7 +66,7 @@ def upgrade() -> None:
     # ── 2. documento_fragmento ────────────────────────────────────────
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS documento_fragmento (
+        CREATE TABLE documento_fragmento (
             id SERIAL PRIMARY KEY,
             documento_origen_tipo TEXT NOT NULL,
             documento_origen_id INTEGER NOT NULL,

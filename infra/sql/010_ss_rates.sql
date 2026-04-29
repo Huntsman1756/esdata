@@ -1,7 +1,7 @@
 -- Social Security rates — contribution bases and rates
 -- Data source: Seguridad Social / REI
 
-CREATE TABLE IF NOT EXISTS ss_rates (
+CREATE TABLE ss_rates (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     category        TEXT NOT NULL,                    -- 'general', 'young', 'trainees', 'freelance'

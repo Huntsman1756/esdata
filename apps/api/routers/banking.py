@@ -14,6 +14,7 @@ from banking.iban import validate_iban
 from banking.iso20022 import parse_iso20022
 from banking.n43 import parse_n43
 from banking.sepa import generate_pain001, validate_bic, group_transactions
+from services.file_validation import FileValidator, FileStatus
 from schemas import (
     IbanValidateRequest, IbanValidateResponse,
     Iso20022ParseResponse, N43ParseResponse,
@@ -21,6 +22,8 @@ from schemas import (
     SepaGenerateRequest, SepaGenerateResponse,
     SepaGroupBatch, SepaGroupTransactionsRequest, SepaGroupTransactionsResponse,
 )
+
+_file_validator = FileValidator()
 
 router = APIRouter(prefix="/v1/banking", tags=["banking"])
 
@@ -84,6 +87,19 @@ async def iso20022_parse(xml_file: UploadFile = File(..., description="XML file 
             detail={"error": "XML file is empty"},
         )
 
+    filename = xml_file.filename or "upload.xml"
+    validation = _file_validator.validate(content, filename)
+    if validation.status == FileStatus.REJECTED:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": validation.rejection_reason},
+        )
+    if validation.status == FileStatus.QUARANTINE:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "File quarantined", "reason": validation.rejection_reason},
+        )
+
     result = parse_iso20022(content)
     return Iso20022ParseResponse(**result)
 
@@ -106,6 +122,25 @@ async def n43_parse(n43_file: UploadFile = File(..., description="N43 bank state
     Stateless — no DB access.  Returns structured dict.
     """
     content = await n43_file.read()
+    if not content:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "N43 file is empty"},
+        )
+
+    filename = n43_file.filename or "upload.n43"
+    validation = _file_validator.validate(content, filename)
+    if validation.status == FileStatus.REJECTED:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": validation.rejection_reason},
+        )
+    if validation.status == FileStatus.QUARANTINE:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "File quarantined", "reason": validation.rejection_reason},
+        )
+
     text = content.decode("utf-8", errors="replace")
     if not text.strip():
         raise HTTPException(

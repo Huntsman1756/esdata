@@ -1,7 +1,7 @@
 -- IVA rates — tax rates, surcharges, exemptions
 -- Data source: Ley 37/1992 (LIVA)
 
-CREATE TABLE IF NOT EXISTS iva_rates (
+CREATE TABLE iva_rates (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     territory       TEXT NOT NULL DEFAULT 'peninsular',  -- 'peninsular', 'canarias', 'ceuta_melilla'
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS iva_rates (
     UNIQUE(year, territory, rate_type)
 );
 
-CREATE TABLE IF NOT EXISTS iva_surcharges (
+CREATE TABLE iva_surcharges (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     vat_rate        NUMERIC(5,2),                     -- base IVA rate this surcharge applies to
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS iva_surcharges (
     creado_at       TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS iva_exemptions (
+CREATE TABLE iva_exemptions (
     id              SERIAL PRIMARY KEY,
     year            INTEGER NOT NULL,
     category        TEXT NOT NULL,                    -- e.g. 'Servicios medicos y sanitarios'
