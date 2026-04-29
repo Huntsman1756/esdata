@@ -35,8 +35,8 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec api \
 |-----------|--------|--------|------------|
 | Worker activo (Docker ps) | `docker ps` | Todos up | Cada 5min |
 | Ultimo sync < intervalo + 1h | `sync_log` | No superar intervalo | Cada 15min |
-| Errores en sync_log | `sync_log.error` | 0 errores consecutivos | Cada 15min |
-| Rows added > 0 | `sync_log.rows_added` | > 0 en ingesta | Cada ejecucion |
+| Errores en sync_log | `sync_log.errors` y `sync_log.error_msg` | 0 errores consecutivos | Cada 15min |
+| Rows processed > 0 | `sync_log.rows_processed` | > 0 en ingesta | Cada ejecucion |
 
 ### Consulta de salud de workers
 
@@ -46,9 +46,12 @@ SELECT
     worker,
     started_at,
     finished_at,
-    rows_added,
-    error,
-    EXTRACT(EPOCH FROM (finished_at - started_at))/1000 as duration_s
+    documentos_processed,
+    documentos_upserted,
+    rows_processed,
+    errors,
+    left(coalesce(error_msg, ''), 220) AS error_excerpt,
+    duration_ms / 1000.0 as duration_s
 FROM sync_log
 WHERE started_at > NOW() - INTERVAL '24 hours'
 ORDER BY worker, started_at DESC;
@@ -67,9 +70,9 @@ ORDER BY hours_since_last DESC;
 SELECT
     worker,
     COUNT(*) as consecutive_errors,
-    MAX(error) as last_error
+    MAX(error_msg) as last_error
 FROM sync_log
-WHERE error IS NOT NULL
+WHERE coalesce(errors, 0) > 0 OR error_msg IS NOT NULL
 GROUP BY worker
 ORDER BY consecutive_errors DESC;
 ```

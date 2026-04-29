@@ -629,8 +629,10 @@ def log_sync(
     documentos_upserted: int = 0,
     doctrina_links_created: int = 0,
     error_msg: str | None = None,
+    started_at: str | None = None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
+    effective_started_at = started_at or now
     _ensure_sync_log_table(conn)
     conn.execute(
         text(
@@ -663,7 +665,7 @@ def log_sync(
         ),
         {
             "worker": worker,
-            "started_at": now,
+            "started_at": effective_started_at,
             "finished_at": now,
             "status": status,
             "bloques_processed": bloques,

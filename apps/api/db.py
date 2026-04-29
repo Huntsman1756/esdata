@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg://esdata:testpass@localhost:5434/esdata",
+    "sqlite:///./esdata-dev.db",
 )
 
 engine_kwargs = {"future": True, "pool_pre_ping": True}

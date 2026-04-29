@@ -80,7 +80,7 @@ target_metadata = None
 
 def normalize_db_url(db_url: str) -> str:
     if db_url.startswith("postgresql://"):
-        return "postgresql+psycopg2://" + db_url.removeprefix("postgresql://")
+        return "postgresql+psycopg://" + db_url.removeprefix("postgresql://")
     return db_url
 
 

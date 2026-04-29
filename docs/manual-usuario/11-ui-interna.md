@@ -11,12 +11,16 @@ La UI interna sirve para consulta humana rapida y para algunos paneles operativo
 - `/articulo/[norma]/[numero]` — detalle de articulo
 - `/doctrina/[...referencia]` — detalle de doctrina
 - `/modelo/[codigo]` — detalle de modelo AEAT
-- `/admin/cambios` — panel de cambios regulatorios
-- `/admin/workflow` — panel de workflow de compliance
+- `/admin/cambios` — panel de cambios regulatorios `[IMPLEMENTED]`
+- `/admin/workflow` — panel de workflow de compliance `[IMPLEMENTED]`
 
 ## Home de consulta
 
-La home usa `ConsultaClient` y permite una consulta tipo pregunta fiscal con campos como:
+La home visible actual del App Router es el buscador principal de `apps/web/app/page.tsx`.
+
+`ConsultaClient` sigue existiendo como componente de consulta avanzada y debe tratarse como superficie interna reutilizable, no como fuente unica de verdad sobre la home.
+
+La experiencia principal permite una consulta tipo pregunta fiscal con campos como:
 
 - texto libre `q`
 - `sujeto`
@@ -76,7 +80,9 @@ La pantalla de modelo muestra:
 
 ## Admin de cambios
 
-La pantalla `/admin/cambios` consume `GET /v1/cambios` y permite filtrar por:
+La pantalla `/admin/cambios` consume `GET /v1/cambios` y usa `NEXT_PUBLIC_API_BASE_URL` en cliente.
+
+Permite filtrar por:
 
 - fuente
 - estado
@@ -87,7 +93,9 @@ Muestra impacto, accion recomendada, fecha y obligaciones afectadas.
 
 ## Admin de workflow
 
-La pantalla `/admin/workflow` consume `GET /v1/compliance/workflow` y muestra:
+La pantalla `/admin/workflow` consume `GET /v1/compliance/workflow` y usa `NEXT_PUBLIC_API_BASE_URL` en cliente.
+
+Muestra:
 
 - identificador del caso
 - estado

@@ -750,10 +750,12 @@ def test_upsert_with_versioning_creates_new():
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE documento_interpretativo (id INTEGER PRIMARY KEY, referencia TEXT UNIQUE, texto TEXT NOT NULL, organismo_emisor TEXT, jurisdiccion TEXT, tipo_fuente TEXT, ambito TEXT, fecha TEXT, titulo TEXT, url_fuente TEXT, tipo_documento TEXT)"))
         conn.execute(text("CREATE TABLE documento_version (id INTEGER PRIMARY KEY, documento_referencia TEXT, version_num INTEGER, texto TEXT, cambio_tipo TEXT, fecha_version TEXT, nota TEXT, url_version TEXT, UNIQUE(documento_referencia, version_num))"))
+        conn.execute(text("CREATE TABLE cnmv_regulation_link (id INTEGER PRIMARY KEY AUTOINCREMENT, documento_referencia TEXT NOT NULL, regulacion_id TEXT NOT NULL, relacion_tipo TEXT NOT NULL, nota TEXT, UNIQUE(documento_referencia, regulacion_id))"))
+        conn.execute(text("CREATE TABLE cnmv_obligation_link (id INTEGER PRIMARY KEY AUTOINCREMENT, documento_referencia TEXT NOT NULL, tipo_obligacion TEXT NOT NULL, nota TEXT, UNIQUE(documento_referencia, tipo_obligacion))"))
 
         payload = {
             "referencia": "BOE-A-2025-100",
-            "texto": "Nuevo documento CNMV",
+            "texto": "Nuevo documento CNMV sobre MiFID II. La entidad debera mantener controles internos adecuados.",
             "titulo": "Circular 1/2025",
             "tipo_documento": "circular_cnmv",
             "ambito": "mifid_ii",
@@ -769,6 +771,8 @@ def test_upsert_with_versioning_creates_new():
 
     assert result["action"] == "created"
     assert result["version_num"] == 1
+    assert result.get("regulaciones", 0) >= 1
+    assert result.get("obligaciones", 0) >= 1
 
     with engine.connect() as conn:
         doc = conn.execute(text("SELECT referencia, texto FROM documento_interpretativo WHERE referencia = 'BOE-A-2025-100'")).fetchone()
@@ -784,7 +788,7 @@ def test_upsert_with_versioning_updates():
     """upsert_with_versioning should update existing doc and record new version."""
     engine = create_engine("sqlite:///:memory:", future=True)
     with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE documento_interpretativo (id INTEGER PRIMARY KEY, referencia TEXT UNIQUE, texto TEXT NOT NULL, organismo_emisor TEXT, jurisdiccion TEXT, tipo_fuente TEXT, ambito TEXT, fecha TEXT, titulo TEXT, url_fuente TEXT, tipo_documento TEXT)"))
+        conn.execute(text("CREATE TABLE documento_interpretativo (id INTEGER PRIMARY KEY, referencia TEXT UNIQUE NOT NULL, texto TEXT NOT NULL, organismo_emisor TEXT, jurisdiccion TEXT, tipo_fuente TEXT, ambito TEXT, fecha TEXT, titulo TEXT, url_fuente TEXT, tipo_documento TEXT)"))
         conn.execute(text("CREATE TABLE documento_version (id INTEGER PRIMARY KEY, documento_referencia TEXT, version_num INTEGER, texto TEXT, cambio_tipo TEXT, fecha_version TEXT, nota TEXT, url_version TEXT, UNIQUE(documento_referencia, version_num))"))
         # Insert existing doc with version 1 already recorded
         conn.execute(text("INSERT INTO documento_interpretativo (referencia, texto, titulo, tipo_documento, ambito) VALUES ('BOE-A-2025-100', 'Texto original', 'Circular 1/2025', 'circular_cnmv', 'mifid_ii')"))
@@ -811,8 +815,16 @@ def test_upsert_with_versioning_updates():
     assert result["version_num"] == 3  # 1 (creado) + 1 (modificado) + 1 (next_ver)
 
     with engine.connect() as conn:
+        doc = conn.execute(text("SELECT referencia, texto, titulo, url_fuente FROM documento_interpretativo WHERE referencia = 'BOE-A-2025-100'"))
+        doc = doc.fetchone()
         ver = conn.execute(text("SELECT version_num, cambio_tipo FROM documento_version WHERE documento_referencia = 'BOE-A-2025-100' ORDER BY version_num")).fetchall()
 
+    assert doc == (
+        "BOE-A-2025-100",
+        "Texto modificado con nueva norma",
+        "Circular 1/2025 (modificada)",
+        "https://www.cnmv.es/doc_v2.pdf",
+    )
     assert len(ver) == 2
     assert ver[0].cambio_tipo == "creado"
     assert ver[1].cambio_tipo == "modificado"
@@ -1230,3 +1242,129 @@ def test_upsert_with_versioning_includes_obligations():
     assert result["action"] == "updated"
     assert result.get("cambio_tipo") == "modificado"
     assert result.get("obligaciones", 0) >= 1
+
+
+def test_run_sync_uses_versioning_and_linking(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+    original_client = httpx.Client
+
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE documento_interpretativo (
+                id INTEGER PRIMARY KEY,
+                referencia TEXT UNIQUE,
+                texto TEXT NOT NULL,
+                organismo_emisor TEXT,
+                jurisdiccion TEXT,
+                tipo_fuente TEXT,
+                ambito TEXT,
+                fecha TEXT,
+                titulo TEXT,
+                url_fuente TEXT,
+                tipo_documento TEXT,
+                estado_vigencia TEXT,
+                referencia_boe TEXT,
+                numero_circular TEXT,
+                fecha_publicacion TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE documento_version (
+                id INTEGER PRIMARY KEY,
+                documento_referencia TEXT,
+                version_num INTEGER,
+                texto TEXT,
+                cambio_tipo TEXT,
+                fecha_version TEXT,
+                nota TEXT,
+                url_version TEXT,
+                UNIQUE(documento_referencia, version_num)
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE cnmv_regulation_link (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                documento_referencia TEXT NOT NULL,
+                regulacion_id TEXT NOT NULL,
+                relacion_tipo TEXT NOT NULL,
+                nota TEXT,
+                UNIQUE(documento_referencia, regulacion_id)
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE cnmv_obligation_link (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                documento_referencia TEXT NOT NULL,
+                tipo_obligacion TEXT NOT NULL,
+                nota TEXT,
+                UNIQUE(documento_referencia, tipo_obligacion)
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE source_revision (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                worker TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                source_url TEXT,
+                first_seen_at TEXT,
+                last_seen_at TEXT,
+                UNIQUE(worker, entity_type, entity_id)
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE sync_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                worker TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                status TEXT NOT NULL,
+                bloques_processed INTEGER,
+                articulos_upserted INTEGER,
+                documentos_processed INTEGER,
+                documentos_upserted INTEGER,
+                doctrina_links_created INTEGER,
+                error_msg TEXT,
+                rows_processed INTEGER,
+                errors INTEGER,
+                duration_ms INTEGER
+            )
+        """))
+
+    payload = {
+        "tipo_documento": "circular_cnmv",
+        "ambito": "mifid_ii",
+        "referencia": "BOE-A-2025-100",
+        "fecha": "2025-01-15",
+        "titulo": "Circular MiFID II",
+        "texto": "MiFID II y MAR. La sociedad debera mantener controles internos y comunicar operaciones sospechosas.",
+        "url_fuente": "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-100",
+        "referencia_boe": "BOE-A-2025-100",
+        "estado_vigencia": "vigente",
+    }
+
+    monkeypatch.setattr("cnmv.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr("cnmv._discover_new_urls", lambda seed_urls=None: ["https://example.com/doc.pdf"])
+    monkeypatch.setattr("cnmv._resolve_boe_document_url", lambda url, content, content_type: url)
+    monkeypatch.setattr("cnmv.build_document_payload", lambda url, content, content_type: payload)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"dummy", headers={"content-type": "application/pdf"})
+
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = run_sync(seed_urls=["https://example.com/doc.pdf"])
+
+    with engine.begin() as conn:
+        version_count = conn.execute(text("SELECT COUNT(*) FROM documento_version")).scalar_one()
+        reg_count = conn.execute(text("SELECT COUNT(*) FROM cnmv_regulation_link")).scalar_one()
+        obs_count = conn.execute(text("SELECT COUNT(*) FROM cnmv_obligation_link")).scalar_one()
+
+    assert result["stored"] == 1
+    assert version_count == 1
+    assert reg_count >= 1
+    assert obs_count >= 1

@@ -16,6 +16,30 @@ from sqlalchemy.engine import Connection
 logger = logging.getLogger(__name__)
 
 
+def _source_revision_columns(conn: Connection) -> set[str]:
+    dialect_name = conn.engine.dialect.name
+    if dialect_name == "sqlite":
+        rows = conn.execute(text("PRAGMA table_info(source_revision)"))
+        return {row[1] for row in rows}
+
+    rows = conn.execute(
+        text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'source_revision'
+            """
+        )
+    )
+    return {row[0] for row in rows}
+
+
+def _uses_legacy_source_revision_schema(conn: Connection) -> bool:
+    columns = _source_revision_columns(conn)
+    return {"worker", "entity_type", "entity_id", "source_hash"}.issubset(columns)
+
+
 @dataclass(frozen=True)
 class SourceChange:
     """Result of a change detection check."""
@@ -69,10 +93,16 @@ def ensure_source_revision_table(conn: Connection) -> None:
         """
 
     conn.execute(text(ddl))
-    conn.execute(text("""
-        CREATE INDEX IF NOT EXISTS idx_source_revision_worker_entity
-            ON source_revision(worker_name, source_entity_tipo, source_entity_id)
-    """))
+    if _uses_legacy_source_revision_schema(conn):
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_source_revision_worker_entity
+                ON source_revision(worker, entity_type, entity_id)
+        """))
+    else:
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_source_revision_worker_entity
+                ON source_revision(worker_name, source_entity_tipo, source_entity_id)
+        """))
 
 
 def check_content_changed(
@@ -94,16 +124,28 @@ def check_content_changed(
     """
     new_hash = compute_content_hash(content)
 
-    row = conn.execute(
-        text("""
-            SELECT content_hash_sha256, etag, last_modified
-            FROM source_revision
-            WHERE worker_name = :worker
-              AND source_entity_tipo = :tipo
-              AND source_entity_id = :entity_id
-        """),
-        {"worker": worker_name, "tipo": source_entity_tipo, "entity_id": source_entity_id},
-    ).fetchone()
+    if _uses_legacy_source_revision_schema(conn):
+        row = conn.execute(
+            text("""
+                SELECT source_hash, NULL, NULL
+                FROM source_revision
+                WHERE worker = :worker
+                  AND entity_type = :tipo
+                  AND entity_id = :entity_id
+            """),
+            {"worker": worker_name, "tipo": source_entity_tipo, "entity_id": source_entity_id},
+        ).fetchone()
+    else:
+        row = conn.execute(
+            text("""
+                SELECT content_hash_sha256, etag, last_modified
+                FROM source_revision
+                WHERE worker_name = :worker
+                  AND source_entity_tipo = :tipo
+                  AND source_entity_id = :entity_id
+            """),
+            {"worker": worker_name, "tipo": source_entity_tipo, "entity_id": source_entity_id},
+        ).fetchone()
 
     if row is None:
         return SourceChange(changed=True, new_hash=new_hash, etag=etag, last_modified=last_modified)
@@ -119,6 +161,28 @@ def check_content_changed(
         new_hash=new_hash,
         etag=etag,
         last_modified=last_modified,
+    )
+
+
+def destination_row_exists(
+    conn: Connection,
+    table_name: str,
+    id_column: str,
+    id_value: str,
+) -> bool:
+    """Return True when the target row exists in the destination table."""
+    return bool(
+        conn.execute(
+            text(
+                f"""
+                SELECT 1
+                FROM {table_name}
+                WHERE {id_column} = :id_value
+                LIMIT 1
+                """
+            ),
+            {"id_value": id_value},
+        ).scalar()
     )
 
 
@@ -143,7 +207,25 @@ def record_revision(
             {"lock_key": f"{worker_name}:{source_entity_tipo}:{source_entity_id}"},
         )
 
-    conn.execute(text("""
+    if _uses_legacy_source_revision_schema(conn):
+        conn.execute(text(f"""
+            INSERT INTO source_revision (
+                worker, entity_type, entity_id, source_hash,
+                source_url, first_seen_at, last_seen_at
+            ) VALUES (:worker, :tipo, :entity_id, :hash, NULL, {ts_func}, {ts_func})
+            ON CONFLICT (worker, entity_type, entity_id)
+            DO UPDATE SET
+                source_hash = EXCLUDED.source_hash,
+                last_seen_at = {ts_func}
+        """), {
+            "worker": worker_name,
+            "tipo": source_entity_tipo,
+            "entity_id": source_entity_id,
+            "hash": new_hash,
+        })
+        return
+
+    conn.execute(text(f"""
         INSERT INTO source_revision (
             worker_name, source_entity_tipo, source_entity_id,
             content_hash_sha256, etag, last_modified, content_length
@@ -154,7 +236,7 @@ def record_revision(
             etag = EXCLUDED.etag,
             last_modified = EXCLUDED.last_modified,
             content_length = EXCLUDED.content_length,
-            fetched_at = :ts
+            fetched_at = {ts_func}
     """), {
         "worker": worker_name,
         "tipo": source_entity_tipo,
@@ -163,7 +245,6 @@ def record_revision(
         "etag": etag,
         "lm": last_modified,
         "length": content_length,
-        "ts": ts_func,
     })
 
 

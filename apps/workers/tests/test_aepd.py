@@ -186,3 +186,76 @@ def test_run_sync_persists_aepd_document_and_metrics(monkeypatch):
     assert doc[3] == "proteccion_datos"
     assert doc[4] == "guia_aepd"
     assert sync == ("worker-aepd", "ok", 1, 1)
+
+
+def test_run_sync_rehydrates_missing_document_when_revision_exists(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+    original_client = httpx.Client
+
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE documento_interpretativo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo_documento TEXT NOT NULL,
+                organismo_emisor TEXT NOT NULL,
+                jurisdiccion TEXT NOT NULL,
+                tipo_fuente TEXT NOT NULL,
+                ambito TEXT NOT NULL,
+                referencia TEXT UNIQUE NOT NULL,
+                fecha TEXT NOT NULL,
+                titulo TEXT,
+                texto TEXT NOT NULL,
+                url_fuente TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE sync_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                worker TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                status TEXT NOT NULL,
+                bloques_processed INTEGER,
+                articulos_upserted INTEGER,
+                documentos_processed INTEGER,
+                documentos_upserted INTEGER,
+                doctrina_links_created INTEGER,
+                error_msg TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE source_revision (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                worker_name TEXT NOT NULL,
+                source_entity_tipo TEXT NOT NULL,
+                source_entity_id TEXT NOT NULL,
+                content_hash_sha256 TEXT NOT NULL,
+                etag TEXT,
+                last_modified TEXT,
+                content_length INTEGER,
+                fetched_at TEXT,
+                UNIQUE(worker_name, source_entity_tipo, source_entity_id)
+            )
+        """))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=MINIMAL_AEPD_PDF)
+
+    monkeypatch.setattr("aepd.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "aepd.check_content_changed",
+        lambda *args, **kwargs: type("Change", (), {"changed": False})(),
+    )
+    monkeypatch.setattr(
+        "aepd.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = run_sync(seed_urls=["https://www.aepd.es/guias/proteccion-datos-onboarding-pbc.pdf"])
+
+    assert result == {"processed": 1, "stored": 1}
+
+    with engine.begin() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
+
+    assert count == 1

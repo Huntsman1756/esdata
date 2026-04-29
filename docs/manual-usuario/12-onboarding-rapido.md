@@ -23,7 +23,8 @@ docker compose -f infra/deploy/docker-compose.prod.yml up -d
 Aplicar migraciones:
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic upgrade head
+docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
 ```
 
 Verificar salud:

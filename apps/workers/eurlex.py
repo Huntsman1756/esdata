@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from change_detection import (
     check_content_changed,
+    destination_row_exists,
     ensure_source_revision_table,
     invalidate_old_embeddings,
     record_revision,
@@ -700,7 +701,12 @@ def run_sync(  # noqa: C901
                         conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                     )
 
-                    if not change.changed:
+                    if not change.changed and destination_row_exists(
+                        conn,
+                        "version_articulo",
+                        "boe_bloque_id",
+                        bloque.bloque_id,
+                    ):
                         bloques_fetched += 1
                         continue
 
@@ -776,7 +782,12 @@ def run_sync(  # noqa: C901
                                 change = check_content_changed(
                                     conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                                 )
-                                if not change.changed:
+                                if not change.changed and destination_row_exists(
+                                    conn,
+                                    "version_articulo",
+                                    "boe_bloque_id",
+                                    bloque.bloque_id,
+                                ):
                                     bloques_fetched += 1
                                     continue
                                 invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)

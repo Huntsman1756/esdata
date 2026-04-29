@@ -76,7 +76,8 @@ gunzip -c /backups/esdata_20260425_030000.sql.gz | \
   docker compose -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata esdata
 
 # 4. Reconstruir schema si es necesario
-docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic upgrade head
+docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
 
 # 5. Reiniciar servicios
 docker compose -f infra/deploy/docker-compose.prod.yml up -d

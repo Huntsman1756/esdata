@@ -33,6 +33,7 @@ from boe import (
 )
 from change_detection import (
     check_content_changed,
+    destination_row_exists,
     ensure_source_revision_table,
     invalidate_old_embeddings,
     record_revision,
@@ -100,7 +101,12 @@ def run_sync(
                     conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                 )
 
-                if not change.changed:
+                if not change.changed and destination_row_exists(
+                    conn,
+                    "version_articulo",
+                    "boe_bloque_id",
+                    bloque.bloque_id,
+                ):
                     continue
 
                 invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)

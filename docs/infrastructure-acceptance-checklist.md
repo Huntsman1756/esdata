@@ -39,6 +39,7 @@ Checklist final para validar que `esdata` queda aceptado por el equipo de infrae
 - [ ] seeds de modelos ejecutadas si aplica
 - [ ] tablas críticas accesibles
 - [ ] `sync_log` operativo
+- [ ] corpus minimo operativo cargado: `norma`, `articulo`, `version_articulo`, `aeat_modelo` y tablas regulatorias requeridas por el caso de uso
 
 ## Validación funcional
 
@@ -62,3 +63,4 @@ Checklist final para validar que `esdata` queda aceptado por el equipo de infrae
 - [ ] infraestructura puede arrancar el sistema sin ayuda del autor original
 - [ ] infraestructura puede validar el sistema sin leer el código
 - [ ] infraestructura puede reiniciar y recuperar workers con los runbooks disponibles
+- [ ] Legal/Compliance acepta el alcance real del corpus y las tablas efectivamente pobladas

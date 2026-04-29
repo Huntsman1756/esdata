@@ -2,176 +2,93 @@
 
 ## Objetivo
 
-Este documento describe la operacion diaria minima de `esdata` para un despliegue privado con Docker Compose.
-
-Sirve para:
-
-- el owner del proyecto durante la fase de prueba
-- IT cuando el servicio pase a un servidor mejor
+Operacion diaria minima de `esdata` para un despliegue privado con Docker Compose y scheduler externo para jobs `cron-*`.
 
 ## Componentes a vigilar
 
-- `api`
 - `postgres`
-- `web` si aplica
-- `worker-boe`
-- `worker-dgt`
-- `worker-teac`
-- `worker-modelos`
-- `caddy` si se expone por dominio
+- `api`
+- `web`
+- `caddy`
+- workers continuos activados (`worker-boe`, `worker-dgt`, `worker-teac`, `worker-modelos` y los adicionales que se hayan habilitado)
+- jobs `cron-*` si el entorno los programa externamente
 
 ## Comprobaciones rapidas
 
-### Salud de contenedores
-
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml ps
-```
-
-### API
-
-```bash
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
 curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/status
-curl http://127.0.0.1:8000/v1/modelos
-```
-
-### MCP privado
-
-```bash
+curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/v1/modelos
 curl -i -H "Accept: text/event-stream" -H "X-API-Key: $MCP_API_KEY" http://127.0.0.1:8000/mcp
 ```
 
-Se espera cabecera `mcp-session-id`.
-
 ## Logs
 
-### API
-
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml logs -f api
-```
-
-### Postgres
-
-```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml logs -f postgres
-```
-
-### Workers
-
-```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml logs -f worker-boe worker-dgt worker-teac worker-modelos
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f api
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f postgres
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f worker-boe worker-dgt worker-teac worker-modelos
 ```
 
 ## Operaciones frecuentes
 
-### Reiniciar solo API
-
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml restart api
-```
-
-### Reiniciar workers
-
-```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml restart worker-boe worker-dgt worker-teac worker-modelos
-```
-
-### Recrear API tras cambio de imagen o build
-
-```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml up -d --build api
-```
-
-### Parar el stack
-
-```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml down
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml restart api
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml restart worker-boe worker-dgt worker-teac worker-modelos
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d --build api web
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml down
 ```
 
 ## Cambios de configuracion
 
-Cuando cambie `infra/deploy/.env`:
-
-1. editar el fichero
-2. validar el compose
-3. recrear solo los servicios afectados
+Cuando cambie el fichero de entorno:
 
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml config
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml up -d api caddy
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml config
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d api web caddy
 ```
 
-## Backups minimos
-
-Si Postgres vive en el mismo host:
+## Base de datos y migraciones
 
 ```bash
-docker exec -t <postgres-container> pg_dump -U esdata esdata > backup-esdata.sql
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
 ```
 
-Frecuencia minima recomendada:
+## Backup minimo
 
-- backup diario
-- retencion minima de 7 dias
+Usar el script oficial:
+
+```bash
+ENV_FILE=infra/deploy/.env.prod BACKUP_DIR=/srv/backups/esdata scripts/ops/backup-postgres.sh
+```
 
 ## Incidencias comunes
 
 ### `/mcp` devuelve `401`
 
-Comprobar:
-
-- que `MCP_API_KEY` esta definida en `infra/deploy/.env`
-- que el cliente envia `X-API-Key`
-- que se recreo `api` tras cambiar variables
-
-### `/mcp` devuelve `429`
-
-Comprobar:
-
-- valor de `MCP_RATE_LIMIT_PER_MINUTE`
-- si hay polling excesivo del cliente
+- comprobar `MCP_API_KEY`
+- comprobar cabecera `X-API-Key`
+- recrear `api` si cambian variables
 
 ### `/health` falla
 
-Comprobar:
-
-- logs de `api`
-- conectividad a Postgres
-- valor de `DATABASE_URL`
+- revisar logs de `api`
+- comprobar `DATABASE_URL`
+- comprobar estado de `postgres`
 
 ### Workers sin progreso
 
-Comprobar:
-
-- logs de cada worker
-- conectividad saliente a BOE/DGT/TEAC/AEAT
-- que las variables de seed y SSL son correctas
-
-## Verificacion despues de cambios
-
-Desde el repo:
-
-```bash
-pytest apps/api/tests/test_mcp_private.py -q
-pytest apps/api/tests/test_smoke.py -q
-```
-
-En el host:
-
-```bash
-curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/status
-```
+- revisar logs
+- revisar `sync_log`
+- comprobar seeds y conectividad externa
 
 ## Referencias
 
-- `docs/operations/LOGGING.md`
-- `docs/operations/DATA-POLICY.md`
-- `docs/operations/DEPENDENCIES.md`
-- `docs/operations/SECRETS.md`
+- `docs/operations/README.md`
 - `docs/operations/runbooks/deploy-compose.md`
-- `docs/deployment/vps-trial-deploy.md`
-- `docs/deployment/HANDOFF-IT.md`
+- `docs/operations/runbooks/backup-restore.md`
 - `docs/environment-variables.md`

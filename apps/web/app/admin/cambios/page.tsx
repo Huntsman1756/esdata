@@ -42,7 +42,7 @@ function CambiosContent() {
   const [prioridad, setPrioridad] = useState("");
   const [obligacion, setObligacion] = useState("");
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
   async function fetchChanges() {
     const params = new URLSearchParams();
@@ -66,7 +66,6 @@ function CambiosContent() {
 
   useEffect(() => {
     fetchChanges();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fuente, estado, prioridad, obligacion]);
 
   function clearFilters() {

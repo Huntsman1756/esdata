@@ -46,8 +46,8 @@ services:
 
   api:
     build:
-      context: ../../apps/api
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -74,17 +74,21 @@ services:
     build:
       context: ../../apps/web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
     restart: unless-stopped
     environment:
       ESDATA_API_BASE_URL: ${ESDATA_API_BASE_URL:?ESDATA_API_BASE_URL is required}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
       NODE_ENV: production
+      HOSTNAME: 0.0.0.0
     depends_on:
       api:
         condition: service_healthy
     ports:
       - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -96,8 +100,8 @@ services:
 
   worker-boe:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -116,8 +120,8 @@ services:
 
   worker-dgt:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -135,8 +139,8 @@ services:
 
   worker-teac:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -154,8 +158,8 @@ services:
 
   worker-modelos:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -173,8 +177,8 @@ services:
 
   worker-bdns:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -192,8 +196,8 @@ services:
 
   worker-borme:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -211,8 +215,8 @@ services:
 
   worker-cnmv:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -230,8 +234,8 @@ services:
 
   worker-sepblac:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -249,8 +253,8 @@ services:
 
   worker-cendoj:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -268,8 +272,8 @@ services:
 
   worker-eurlex:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -288,8 +292,8 @@ services:
 
   worker-bde:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -307,8 +311,8 @@ services:
 
   worker-aepd:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -326,84 +330,103 @@ services:
 
   cron-boe-daily:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BOE_API_BASE: ${BOE_API_BASE:-https://www.boe.es/datosabiertos/api/legislacion-consolidada}
       BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_DAILY:-}
       WORKER_CMD: python boe.py --run-once
 
   cron-dgt-weekly:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_DGT_WEEKLY:-}
       WORKER_CMD: python dgt.py --run-once
 
   cron-teac-weekly:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       TEAC_SEED_URLS: ${TEAC_SEED_URLS:?TEAC_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_TEAC_WEEKLY:-}
       WORKER_CMD: python teac.py --run-once
 
   cron-modelos-daily:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_MODELOS_DAILY:-}
       WORKER_CMD: python modelos.py --run-once
 
   cron-bdns-weekly:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDNS_WEEKLY:-}
       WORKER_CMD: python bdns.py --run-once
 
   cron-borme-weekly:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BORME_WEEKLY:-}
       WORKER_CMD: python borme.py --run-once
 
   cron-cnmv-weekly:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       CNMV_SEED_URLS: ${CNMV_SEED_URLS:?CNMV_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_CNMV_WEEKLY:-}
       WORKER_CMD: python cnmv.py --run-once
 
   cron-sepblac-weekly:
     build:
-      context: ../../apps/workers
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       SEPBLAC_SEED_URLS: ${SEPBLAC_SEED_URLS:?SEPBLAC_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_SEPBLAC_WEEKLY:-}
       WORKER_CMD: python sepblac.py --run-once
+
+  cron-bde-weekly:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BDE_SEED_URLS: ${BDE_SEED_URLS:?BDE_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDE_WEEKLY:-}
+      WORKER_CMD: python bde.py --run-once
 
   ops:
     build:

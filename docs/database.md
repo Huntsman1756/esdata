@@ -164,19 +164,19 @@ make worker-boe
 
 ```bash
 # 1. Levantar infra completa
-docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres api
+docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres
 
 # 2. Esperar a que Postgres este listo
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres pg_isready
 
 # 3. Aplicar schema
-docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic upgrade head
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
 
 # 4. Aplicar pgvector (una vez, primera vez)
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -f /docker-entrypoint-initdb.d/060_pgvector.sql
 
-# 5. Iniciar workers
-docker compose -f infra/deploy/docker-compose.prod.yml up -d worker-boe worker-dgt worker-teac worker-modelos
+# 5. Iniciar servicios runtime
+docker compose -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos
 ```
 
 ## Backup y restore

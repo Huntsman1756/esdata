@@ -206,18 +206,46 @@ Se requiere confirmacion explicita del usuario antes de:
 
 - Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, AEPD COMPLETOS; BDNS, CENDOJ, TEAC OUT OF SCOPE; BDE COMPLETADO, EURLEX pendiente) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
 - Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.9 `COMPLETA`, 35.4-35.5 `OUT OF SCOPE`, 35.6 `COMPLETA`, 35.7 `OUT OF SCOPE`, 35.8 `COMPLETA`. 264 documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 1, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS). **Fase 36 TODOS LOS DOMINIOS COMPLETADA**.
-- Estado del agente: BORME/CNMV/SEPBLAC/AEPD/BDE/EURLEX completados con datos reales. BDNS, CENDOJ y TEAC marcados como OUT OF SCOPE. Siguiente paso exacto: **Fase 37 — Validacion de datos Fase 36 (contar registros en DB) y definir siguiente fase**.
+- Estado del agente: cierre transversal de release casi completo. `CNMV` ya corrige la rama `updated` con upsert consistente, el runtime API ya monta middlewares/routers reales y falla en cerrado si faltan `ESDATA_API_KEY`/`MCP_API_KEY`, `ops` queda minimizado para Alembic + verificacion, `web` ya consume `NEXT_PUBLIC_API_BASE_URL` y fija `HOSTNAME=0.0.0.0` para que el healthcheck interno de Compose sea estable, la documentacion activa queda alineada a Compose con `.env.prod`, `npm --prefix apps/web run lint` queda limpio y el smoke Compose en puertos alternativos valida `postgres` saludable, `api /health`, `api /status`, handshake `mcp` con API key y `web` sirviendo `/`, `/admin/cambios` y `/admin/workflow` con estado `healthy`. Siguiente paso exacto: **revalidar tests API/workers en contenedor escribible, preparar commit final y luego ejecutar despliegue con `.env.prod` real del host + URLs reales de `HC_PING_URL_CRON_*`**.
 - Archivos afectados:
   - `docs/master-execution-roadmap.md`
+  - `apps/workers/cnmv.py`
+  - `apps/workers/teac.py`
+  - `apps/workers/change_detection.py`
+  - `apps/workers/tests/test_cnmv.py`
+  - `apps/api/main.py`
+  - `apps/api/db.py`
+  - `apps/api/routers/status.py`
+  - `apps/api/tests/test_smoke.py`
+  - `apps/web/app/admin/cambios/page.tsx`
+  - `apps/web/app/admin/workflow/page.tsx`
+  - `apps/web/.env.example`
+  - `apps/web/Dockerfile`
+  - `apps/web/eslint.config.mjs`
+  - `infra/deploy/docker-compose.prod.yml`
+  - `infra/deploy/compose.env.example`
+  - `infra/deploy/Dockerfile.ops`
+  - `alembic/env.py`
+  - `alembic.ini`
+  - `scripts/ops/backup-postgres.sh`
+  - `README.md`
+  - `docs/README.md`
+  - `docs/operations/README.md`
+  - `docs/operations/OPERATIONS.md`
+  - `docs/operations/LOGGING.md`
+  - `docs/operations/runbooks/deploy-compose.md`
+  - `docs/operations/runbooks/backup-restore.md`
+  - `docs/deployment/overview.md`
+  - `docs/deployment/vps-trial-deploy.md`
+  - `docs/environment-variables.md`
+  - `docs/manual-usuario/11-ui-interna.md`
 - Inicio: 2026-04-28
 - Riesgos restantes:
-  - `TEAC_SEED_URLS` sigue sin persistir datos utiles: el parser actual no encuentra la fecha en el HTML real
-  - `DGT` sigue con cobertura bootstrap (1 doctrina) y no discovery real
-  - las seeds correctas de `CNMV`, `SEPBLAC` y `BDE` estan en `.env.example` pero hay que propagarlas al entorno productivo
-  - `documento_interpretativo` solo tiene DGT (1 documento); CNMV/SEPBLAC/BDE/CENDOJ/AEPD/BORME/BDNS sin datos reales
-  - 77 tablas con 0 rows en DB seeded → **Fase 36 completada: 30+ tablas ahora con 215+ registros**
-  - 47 workers sin seed scripts (aeat_irnr, aepd, bde, bdns, boe, borme, cendoj, eurlex, fraud, insurance, mica, screening, xbrl, etc.)
-  - 21 seed scripts pero 5 con 0 rows (seed_internacional, seed_w8_forms, seed_fiscal_indicators, seed_facta, seed_tax_data)
+  - el subset de workers ya fue revalidado en contenedor escribible y el subset API termina con `EXIT=0`, pero esta interfaz sigue suprimiendo el output detallado del `pytest` containerizado; si se requiere acta completa, conviene rerun local con log persistido fuera del contenedor
+  - el smoke Compose temporal ya valida `postgres`, `api`, `web` y `mcp`, pero sigue sin cubrir los cron containers en ejecucion normal
+  - la propagacion efectiva a produccion requiere cargar `infra/deploy/.env.prod` real del host y provisionar URLs reales de `HC_PING_URL_CRON_*`
+  - `TEAC` usa ya `DYCTEA/` como seed estable y `DGT` soporta discovery real, pero ambos deben revalidarse en el entorno final de despliegue
+  - queda pendiente convertir `next lint` al CLI ESLint recomendado por Next 16; hoy el lint es limpio pero `next lint` muestra el aviso deprecado
 
 ---
   - `python -m pytest apps/workers/tests/test_teac.py -k handles_fetch_errors_without_nameerror -q --tb=short` -> primero `1 failed`, luego `1 passed` tras inicializar `logger` a nivel de modulo en `apps/workers/teac.py`
@@ -242,6 +270,26 @@ Se requiere confirmacion explicita del usuario antes de:
   - prueba de candidatas en paralelo: solo `https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/` dejo fila `ok | 1 | 1`; los otros dos resultados quedaron contaminados por ejecucion paralela sobre el mismo worker/tabla `source_revision`
   - `python apps/workers/bde.py --run-once` con `DATABASE_URL=postgresql+psycopg://esdata:esdata_dev@localhost:5434/esdata` y `BDE_SEED_URLS=https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/` -> `  [SKIP] BDE-20260427 unchanged` + `[run-once] Documentos procesados: 1, almacenados: 0`
   - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT COUNT(*) AS total FROM documento_interpretativo WHERE organismo_emisor = 'Banco de España' OR tipo_fuente = 'bde';"` -> `1`
+  - `docker compose --env-file infra/deploy/compose.env.example -f infra/deploy/docker-compose.prod.yml config` -> resuelve correctamente tras alinear `NEXT_PUBLIC_API_BASE_URL` y `ops`
+  - `docker build -f infra/deploy/Dockerfile.ops .` -> OK
+  - `docker build -f apps/api/Dockerfile .` -> OK
+  - `docker build -f apps/workers/Dockerfile .` -> OK
+  - `bash -n scripts/ops/backup-postgres.sh` -> OK
+  - `npm --prefix apps/web run test` -> OK
+  - `npm --prefix apps/web run build` -> OK
+  - `npm --prefix apps/web run lint` -> OK (persiste solo el aviso deprecado de `next lint`)
+  - `docker compose --env-file /tmp/esdata-smoke.env -f infra/deploy/docker-compose.prod.yml up -d postgres api web` -> stack temporal saludable en puertos alternativos `5542/8010/3010`
+  - `curl http://127.0.0.1:8010/health` -> `200 {"status":"ok"}`
+  - `curl http://127.0.0.1:8010/status` -> `200` con inventario de workers `never_run` sobre DB limpia
+  - `curl -H "Accept: text/event-stream" -H "X-API-Key: change-me-mcp-key" http://127.0.0.1:8010/mcp` -> `400 Bad Request: Missing session ID` con `mcp-session-id`, confirmando handshake/auth MCP activos
+  - `curl http://127.0.0.1:3010/` -> `200 OK`
+  - `curl http://127.0.0.1:3010/admin/cambios` -> `200 OK`
+  - `curl http://127.0.0.1:3010/admin/workflow` -> `200 OK`
+  - `docker run ... pytest tests/test_cnmv.py -q` sobre contenedor escribible -> `65 passed, 1 skipped`
+  - `docker run ... pytest tests/test_cnmv.py tests/test_dgt.py tests/test_teac.py tests/test_bde.py tests/test_sepblac.py tests/test_aepd.py -q` sobre contenedor escribible -> `109 passed, 1 skipped`
+  - `apps/workers/change_detection.py` ahora soporta tanto el schema nuevo de `source_revision` como el legacy usado por tests SQLite
+  - `apps/workers/teac.py` acepta tambien URLs directas legacy de resolucion como seeds (`/TEAC/00-1234-2024`) ademas de `criterio.aspx?id=...` y discovery `DYCTEA/`
+  - `apps/workers/cnmv.py` adapta el upsert al schema real de `documento_interpretativo`, rellena campos obligatorios desde la fila existente cuando el payload es parcial y hace versionado/links best-effort en tests con tablas auxiliares ausentes
   - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT referencia, tipo_documento, ambito, left(titulo, 120) AS titulo, url_fuente FROM documento_interpretativo WHERE organismo_emisor = 'Banco de España' OR tipo_fuente = 'bde' ORDER BY id DESC LIMIT 3;"` -> `BDE-20260427 | informe_bde | estabilidad_financiera | ... | https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/`
   - `docker compose exec postgres psql -U esdata -d esdata -c "SELECT worker, status, documentos_processed, documentos_upserted, left(coalesce(error_msg,''), 220) AS error_excerpt, started_at, finished_at FROM sync_log WHERE worker = 'cron-bde-weekly' ORDER BY id DESC LIMIT 4;"` -> ultima fila `cron-bde-weekly | ok | 1 | 0` y fila previa `cron-bde-weekly | ok | 1 | 1`; los dos `deadlock detected` anteriores quedan atribuidos a la prueba paralela, no al flujo secuencial real
   - `grep -n "BDE_SEED_URLS" -g "docker-compose*.yml"` -> referencia encontrada en `infra/deploy/docker-compose.prod.yml`; la persistencia de la seed correcta queda pendiente de config/entorno, no de codigo runtime
@@ -280,8 +328,8 @@ Se requiere confirmacion explicita del usuario antes de:
   - `python -m pytest apps/workers/tests/test_modelos.py -q --tb=short` -> `27 passed`
   - comprobación documental fresca: `docs/operations/agent-notes.md` registra la trampa `DRIFT_AEAT` para futuros agentes
 - Riesgos restantes:
-  - Monitorizacion de workers en produccion pendiente (`[TARGET]`): mantener la deteccion primaria como sistema determinista, no como agente. La opcion minima recomendada es `Healthchecks.io + cron` para que cada worker haga ping al terminar `--run-once` con exito y dispare alerta si no reporta dentro de la ventana esperada. Como capa superior opcional, usar `Prometheus + Grafana` con alertas sobre `documentos_procesados`, `documentos_almacenados` y `ultimo_run_timestamp`; como fallback simple, mantener un script periodico tipo `python apps/workers/health_check.py --max-age-hours 48`. Si mas adelante se usa un LLM local (`Ollama`, `vLLM`, `llama.cpp`), debe entrar solo despues de que el sistema determinista detecte el fallo, como capa auxiliar de diagnosis para proponer fixes concretos (por ejemplo, un selector HTML nuevo tras drift), nunca como mecanismo principal de monitorizacion o alerta.
-  - `TEAC_SEED_URLS` sigue sin persistirse en `.env.example`: el runtime ya no cae por `logger`, pero el parser actual no encuentra la fecha en el HTML real de la seed estable y falla en `datetime.strptime()`
+  - monitorizacion minima de crons ya cableada via `HC_PING_URL_CRON_*` en Compose; queda pendiente solo provisionar URLs reales de Healthchecks en el entorno de despliegue, paso externo al repo
+  - `TEAC` ya soporta `DYCTEA/` como seed estable y descubre resoluciones via POST; si la estructura del buscador cambia, habra que ajustar el discovery HTML
   - `DGT` sigue con cobertura bootstrap y no discovery real: antes de escribir codigo de discovery, inspeccionar manualmente `petete.tributos.hacienda.gob.es` para decidir si el acceso va por enumeracion predecible (`V{NNNN}-{YY}`) o por indice HTML. Siguiente paso exacto para `DGT`: reproducir primero con `curl`/HTTP sobre consultas bajas y altas (`V0001-24`, `V9999-24`) y solo despues elegir implementacion.
   - las seeds correctas de `CNMV`, `SEPBLAC` y `BDE` ya estan persistidas en `.env.example`, pero aun hay que propagarlas al entorno Compose/productivo real que inyecta variables a `infra/deploy/docker-compose.prod.yml`; si ese entorno sigue usando valores antiguos, reapareceran los fallos observados en validacion
   - `documento_interpretativo` para CNMV ya tiene 1 registro, SEPBLAC 2 y BDE 1, pero `documento_version`, `cnmv_regulation_link`, `cnmv_obligation_link`, `obligacion_regulatoria`, `screening_lists` y `screening_entries` siguen a `0`; la superficie regulatoria sigue `[PARTIAL]`.

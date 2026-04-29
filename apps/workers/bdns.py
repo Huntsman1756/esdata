@@ -10,6 +10,7 @@ import httpx
 from boe import _ensure_sync_log_table, log_sync
 from change_detection import (
     check_content_changed,
+    destination_row_exists,
     ensure_source_revision_table,
     invalidate_old_embeddings,
     record_revision,
@@ -153,7 +154,12 @@ def run_sync(
                     conn, worker_name, "documento", payload["referencia"], response.content
                 )
 
-                if not change.changed:
+                if not change.changed and destination_row_exists(
+                    conn,
+                    "documento_interpretativo",
+                    "referencia",
+                    payload["referencia"],
+                ):
                     print(f"  [SKIP] {payload['referencia']} unchanged")
                     continue
 

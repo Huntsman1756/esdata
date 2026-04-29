@@ -2,11 +2,12 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from teac import parse_resolution_html, run_sync
+from teac import DYCTEA_ROOT_URL, discover_resolution_urls, parse_resolution_html, run_sync
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -356,9 +357,169 @@ def test_run_sync_handles_fetch_errors_without_nameerror(monkeypatch):
 
     monkeypatch.setattr("teac.fetch_resolution_html", _raise_timeout)
 
-    result = run_sync(seed_urls=["https://example.com/teac"])
+    with pytest.raises(TimeoutError, match="upstream timeout"):
+        run_sync(seed_urls=["https://example.com/teac"])
 
-    assert result == {"processed": 0, "stored": 0}
+
+def test_discover_resolution_urls_extracts_links_from_search_results():
+    html = """
+    <div id='resultadosCriterios'>
+      <ul>
+        <li class='resultadoCriterio'>
+          <span class='resultadoCriterioTitulo'>
+            <a href='criterio.aspx?id=00/07402/2022/00/0/1&amp;q=s%3d1'>
+              Criterio 1 de la resolución 00/07402/2022/00/00 del 07/04/2026 - TEAC
+            </a>
+          </span>
+        </li>
+      </ul>
+    </div>
+    """
+
+    urls = discover_resolution_urls(DYCTEA_ROOT_URL, html)
+
+    assert urls == [
+        "https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/07402/2022/00/0/1&q=s%3d1"
+    ]
+
+
+def test_run_sync_supports_dyctea_landing_seed(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT UNIQUE,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    vigente_desde TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER NOT NULL,
+                    numero TEXT NOT NULL,
+                    titulo TEXT,
+                    tipo TEXT NOT NULL,
+                    UNIQUE (norma_id, numero)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_articulo (
+                    documento_id INTEGER NOT NULL,
+                    articulo_id INTEGER NOT NULL,
+                    metodo_enlace TEXT NOT NULL,
+                    confianza_enlace REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, articulo_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
+                VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'
+                """
+            )
+        )
+
+    search_html = """
+    <div id='resultadosCriterios'>
+      <ul>
+        <li class='resultadoCriterio'>
+          <span class='resultadoCriterioTitulo'>
+            <a href='criterio.aspx?id=00/07402/2022/00/0/1&amp;q=s%3d1'>
+              Criterio 1 de la resolución 00/07402/2022/00/00 del 07/04/2026 - TEAC
+            </a>
+          </span>
+        </li>
+      </ul>
+    </div>
+    """
+    resolution_html = (FIXTURES / "teac-resolution.html").read_text(encoding="utf-8")
+
+    def _fetch(url):
+        if url == DYCTEA_ROOT_URL:
+            return search_html
+        return resolution_html
+
+    monkeypatch.setattr("teac.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr("teac.fetch_resolution_html", _fetch)
+
+    result = run_sync(seed_urls=[DYCTEA_ROOT_URL])
+
+    with engine.begin() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
+
+    assert result == {"processed": 1, "stored": 1}
+    assert count == 1
 
 
 def test_run_sync_teac_creates_contextual_liva_link(monkeypatch):

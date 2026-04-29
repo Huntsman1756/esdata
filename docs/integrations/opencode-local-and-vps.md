@@ -66,7 +66,7 @@ python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 Si prefieres contenedor:
 
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml up -d postgres api
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres api
 ```
 
 ### Verificar MCP local

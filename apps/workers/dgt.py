@@ -277,7 +277,11 @@ def discover_dgt_consultas(
 
 def fetch_search_html_for_discovery(num_consulta: str) -> str | None:
     try:
-        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client:
+        with httpx.Client(
+            base_url=BASE_URL,
+            timeout=30.0,
+            verify=DGT_SSL_VERIFY,
+        ) as client:
             start_session(client)
             response = client.post(
                 "/consultas/do/search",
@@ -309,7 +313,12 @@ def run_sync(
     engine = create_engine(DATABASE_URL, future=True)
 
     try:
-        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client, engine.begin() as conn:
+        with httpx.Client(
+            base_url=BASE_URL,
+            timeout=30.0,
+            verify=DGT_SSL_VERIFY,
+        ) as client, engine.begin() as conn:
+            start_session(client)
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
             for url in urls:

@@ -1,49 +1,29 @@
-# Documentación
+# Documentacion
 
 ## Objetivo
 
-Separar claramente la documentación permanente de los snapshots de sesión e informes puntuales.
+Mantener una unica capa de documentacion viva, coherente con el codigo y lista para handoff operativo.
 
-## Documentación permanente
+## Fuentes vivas
 
-- `architecture.md`
-- `repository-structure.md`
-- `environment-variables.md`
-- `database.md`
-- `modelos-onboarding.md`
-- `infrastructure-handoff.md`
-- `professionalization-roadmap.md`
-- `regulatory-compliance-expansion-plan.md`
-- `deployment/overview.md`
-- `deployment/vps-trial-deploy.md`
-- `deployment/HANDOFF-IT.md`
-- `deployment/server-installation.md`
-- `deployment/rollback.md`
-- `integrations/opencode-local-and-vps.md`
-- `integrations/chatgpt-business-actions.md`
-- `operations/README.md`
-- `operations/OPERATIONS.md`
-- `operations/runbooks/`
+- `master-execution-roadmap.md` — estado activo y siguiente paso exacto
+- `deployment/overview.md` — estrategia de despliegue
+- `deployment/server-installation.md` — instalacion y bootstrap
+- `deployment/rollback.md` — rollback
+- `INSTALLATION.md` — instalacion y arranque rapido para handoff
+- `COMPLIANCE.md` — estado de cumplimiento real y gaps conocidos
+- `environment-variables.md` — contrato de variables
+- `database.md` — bootstrap y operacion DB
+- `operations/README.md` — indice operativo
+- `operations/OPERATIONS.md` — operacion diaria
+- `operations/runbooks/` — runbooks repetibles
+- `manual-usuario/README.md` — manual vivo de uso e integracion
+- `repository-structure.md` — mapa del repo
 
-## Artefactos operativos auxiliares
+## Historico
 
-- `openapi-gpt.json`
-- `openapi-gpt-3.0.json`
-- `deploy-commands.md`
+Todo material de Railway, snapshots de sesion, handoffs antiguos, postmortems y planes cerrados debe vivir en `docs/archive/` o tratarse como historico.
 
-## Snapshots y documentos históricos
+## Regla practica
 
-Estos archivos siguen siendo útiles como contexto, pero no deben tomarse como fuente principal del estado actual del sistema:
-
-- `next-session-handoff-2026-04-12.md`
-- `next-session-handoff-2026-04-16.md`
-- `session-status-2026-04-13.md`
-- `production-status-2026-04-11.md`
-- `production-status-2026-04-12.md`
-- `postmortem-sprint-2.md`
-- `dgt-mvp-implementation-plan.md`
-
-## Regla práctica
-
-Si un documento describe cómo está construido u operado hoy el sistema, debe vivir en la documentación permanente.
-Si describe una sesión, un estado puntual o una entrega concreta, debe tratarse como histórico.
+Si una referencia no existe, no es activa o contradice el roadmap, no debe aparecer en este indice.

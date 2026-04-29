@@ -4,6 +4,11 @@
 
 Este documento resume lo que IT necesita para mover `esdata` desde una prueba en VPS a un servidor corporativo o entorno gestionado mejor.
 
+Estado de lectura:
+
+- `[IMPLEMENTED]` validado en repo o durante esta auditoria
+- `[PARTIAL]` depende de entorno, datos o secretos no presentes en el repo
+
 ## Que es este servicio
 
 `esdata` expone:
@@ -108,6 +113,8 @@ Orden recomendado:
 - `GET /health` responde `200`
 - `GET /status` responde `200`
 - `docker compose ps` sin servicios en restart loop
+- `[IMPLEMENTED]` `ops alembic upgrade head` ejecuta en stack desechable
+- `[IMPLEMENTED]` `python scripts/maintenance/verify_schema.py` devuelve OK tras migracion
 
 ### MCP privado
 
@@ -120,6 +127,7 @@ Orden recomendado:
 - Postgres persistente y con tablas inicializadas
 - workers principales con logs sanos
 - fuentes externas accesibles
+- `[PARTIAL]` una DB nueva no queda plenamente poblada solo con migraciones; requiere seeds y/o ejecucion real de workers
 
 ### Operacion
 
@@ -149,6 +157,7 @@ curl -i -H "Accept: text/event-stream" -H "X-API-Key: $MCP_API_KEY" http://127.0
 - workers dependen de fuentes externas que pueden cambiar HTML o disponibilidad
 - el endpoint MCP HTTP depende de `fastapi-mcp`; conviene mantener smoke tests E2E reales
 - la semantica de algunas variables de workers necesita revisiones futuras, especialmente alrededor de `DGT_SSL_VERIFY`
+- una instalacion limpia tras `alembic upgrade head` crea el esquema, pero no asegura corpus poblado ni tablas de negocio llenas
 
 ## Que no debe asumir IT
 

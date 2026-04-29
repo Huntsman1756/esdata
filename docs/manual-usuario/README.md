@@ -37,7 +37,7 @@ Este manual explica:
 - `11-ui-interna.md`
 - `12-onboarding-rapido.md`
 - `13-gobierno-editorial.md`
-- `14-curacion-lineas-criterio.md`
+- `curacion-lineas-criterio.md`
 
 ## Regla de lectura
 
@@ -45,6 +45,7 @@ Este manual explica:
 - Para uso practico: seguir con `02-como-usar-esdata.md`
 - Para integraciones: leer `03-superficies-disponibles.md`
 - Para despliegue y operacion: leer `04-operacion-tecnica.md`
+- Para handoff tecnico rapido: complementar con `../INSTALLATION.md`
 - Para limites, cobertura y exclusiones: leer `05-limites-alcance-y-estado-actual.md`
 - Para consumir la API con ejemplos: leer `06-api-y-ejemplos.md`
 - Para clientes MCP y uso con agentes: leer `07-mcp-y-clientes.md`

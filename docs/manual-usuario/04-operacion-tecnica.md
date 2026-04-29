@@ -49,7 +49,9 @@ curl -s http://127.0.0.1:8000/status
 Aplicar migraciones:
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic upgrade head
+docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
 ```
 
 Ejecutar un worker una vez:

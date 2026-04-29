@@ -31,7 +31,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml logs worker-boe | tail -5
 
 # Verificar ultimo sync
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
-  "SELECT worker, started_at, finished_at, rows_added, error FROM sync_log WHERE worker='boe' ORDER BY started_at DESC LIMIT 5;"
+  "SELECT worker, started_at, finished_at, documentos_processed, documentos_upserted, rows_processed, errors, left(coalesce(error_msg,''), 220) AS error_excerpt FROM sync_log WHERE worker='boe' ORDER BY started_at DESC LIMIT 5;"
 
 # Ejecutar manualmente
 docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-boe python boe.py --run-once
@@ -68,7 +68,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml run --rm \
 
 ```bash
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
-  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='dgt' ORDER BY started_at DESC LIMIT 5;"
+  "SELECT worker, started_at, finished_at, documentos_processed, documentos_upserted, rows_processed, errors, left(coalesce(error_msg,''), 220) AS error_excerpt FROM sync_log WHERE worker='dgt' ORDER BY started_at DESC LIMIT 5;"
 
 docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt python dgt.py --run-once
 ```
@@ -80,14 +80,22 @@ docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt pytho
 | Fallo | Causa | Deteccion | Solucion |
 |-------|-------|-----------|----------|
 | Sin seed URLs | `TEAC_SEED_URLS` vacio | `sync_log` sin ejecuciones | Configurar `TEAC_SEED_URLS` |
+| Seed manual caducada | `criterio.aspx?id=...` ya no existe | `sync_log` con `El criterio no existe` o sin upserts | Usar `https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/` como seed estable |
 | Parsing HTML fallido | Cambios en web TEAC | `sync_log` con error | Revisar logs; posible fix en parser |
 
 ### Comandos de diagnostico
 
 ```bash
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
-  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='teac' ORDER BY started_at DESC LIMIT 5;"
+  "SELECT worker, started_at, finished_at, documentos_processed, documentos_upserted, rows_processed, errors, left(coalesce(error_msg,''), 220) AS error_excerpt FROM sync_log WHERE worker='teac' ORDER BY started_at DESC LIMIT 5;"
+
+docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-teac python teac.py --run-once
 ```
+
+### Notas especiales
+
+- `TEAC_SEED_URLS` admite la landing `DYCTEA/`; el worker resuelve automaticamente la primera tanda de resoluciones TEAC mediante POST al buscador oficial.
+- Para monitorizacion determinista de crons, definir `HC_PING_URL_CRON_*` en el `.env` de despliegue y validar frescura con `python scripts/maintenance/validate-cron-run.py --db-url ...`.
 
 ## Worker Modelos AEAT
 
@@ -107,7 +115,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esd
 
 ```bash
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
-  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='modelos' ORDER BY started_at DESC LIMIT 5;"
+  "SELECT worker, started_at, finished_at, documentos_processed, documentos_upserted, rows_processed, errors, left(coalesce(error_msg,''), 220) AS error_excerpt FROM sync_log WHERE worker='modelos' ORDER BY started_at DESC LIMIT 5;"
 ```
 
 ## Workers de parsing PDF (BORME, CNMV, AEPD, BDE)
@@ -134,11 +142,11 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esd
 ```bash
 # BORME
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
-  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='borme' ORDER BY started_at DESC LIMIT 5;"
+  "SELECT worker, started_at, finished_at, documentos_processed, documentos_upserted, rows_processed, errors, left(coalesce(error_msg,''), 220) AS error_excerpt FROM sync_log WHERE worker='borme' ORDER BY started_at DESC LIMIT 5;"
 
 # CNMV
 docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
-  "SELECT worker, started_at, rows_added, error FROM sync_log WHERE worker='cnmv' ORDER BY started_at DESC LIMIT 5;"
+  "SELECT worker, started_at, finished_at, documentos_processed, documentos_upserted, rows_processed, errors, left(coalesce(error_msg,''), 220) AS error_excerpt FROM sync_log WHERE worker='cnmv' ORDER BY started_at DESC LIMIT 5;"
 ```
 
 ## Workers de web scraping (BDNS, SEPBLAC, CENDOJ, EURLEX)
@@ -206,7 +214,7 @@ Worker falla
 Cuando un worker falla:
 
 1. **Verificar logs**: `docker compose logs worker-<nombre> | tail -50`
-2. **Verificar sync_log**: `SELECT * FROM sync_log WHERE worker='<nombre>' ORDER BY started_at DESC LIMIT 5;`
+2. **Verificar sync_log**: revisar `documentos_processed`, `documentos_upserted`, `rows_processed`, `errors`, `duration_ms` y `error_msg` para el worker afectado.
 3. **Reiniciar worker**: `docker compose restart worker-<nombre>`
 4. **Ejecutar manualmente**: `docker compose run --rm worker-<nombre> python <nombre>.py --run-once`
 5. **Verificar fuente externa**: visitar la URL de la fuente manualmente

@@ -1,80 +1,54 @@
-# Operación
+# Operacion
 
 ## Objetivo
 
-Centralizar la operación recurrente de `esdata` para reducir dependencia de conocimiento implícito.
+Centralizar la operacion recurrente de `esdata` sobre Docker Compose para que otro equipo pueda operar el sistema sin conocimiento implicito.
 
-## Comprobaciones rápidas
+## Comprobaciones rapidas
+
+### Compose
+
+- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps`
+- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs --tail 100 api`
 
 ### API
 
-- `curl https://esdata-production.up.railway.app/health`
-- `curl https://esdata-production.up.railway.app/status`
-- `curl https://esdata-production.up.railway.app/v1/legislacion/cobertura`
-- `curl https://esdata-production.up.railway.app/v1/modelos`
+- `curl http://127.0.0.1:8000/health`
+- `curl http://127.0.0.1:8000/status`
+- `curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/v1/modelos`
 
 ### Web
 
-- abrir `https://web-production-ecb5.up.railway.app`
-- comprobar que el frontend resuelve datos desde la API esperada
-
-### Railway
-
-- `python verify_railway.py`
-- `railway logs --service esdata --tail 50`
-- `railway logs --service worker-boe --tail 50`
-- `railway logs --service worker-modelos --tail 50`
+- abrir `http://127.0.0.1:3000`
+- verificar `/buscar`, `/modelo/100`, `/admin/cambios`, `/admin/workflow`
 
 ### Migraciones
 
-- `deploy.yml` ejecuta `alembic upgrade head` antes del deploy de la API.
-- En GitHub Actions, las migraciones usan `DATABASE_PUBLIC_URL` si existe y caen a `DATABASE_URL` solo como fallback.
-- Para conexiones pÃºblicas desde GitHub Actions, el workflow fuerza `PGSSLMODE=require`.
-- El mismo workflow ejecuta `python scripts/verify_schema.py` y falla si falta `modelo_campana_operativa` o las columnas de procedencia.
-- Si este paso falla, no debe llegar código nuevo a Railway.
+- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current`
+- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py`
 
-## Validaciones de datos
+## Scheduling
 
-### Cron y doctrina
+Los servicios `cron-*` definidos en Compose son jobs one-shot. No planifican su propia ejecucion.
 
-- `python scripts/validate-cron-run.py --db-url ...`
+La estrategia activa de scheduling debe ser externa:
 
-### Smoke checks HTTP
+- `systemd` via `infra/deploy/systemd/*`, o
+- cron del host llamando `docker compose run --rm cron-*`
 
-- `python scripts/smoke-check.py --base-url https://esdata-production.up.railway.app`
+No usar `docker compose --profile cron up -d` como sustituto de un scheduler.
 
-### Bootstrap local de base de datos
-
-- `make bootstrap-db`
-
-## Comandos de trabajo raíz
-
-- `make test`
-- `make test-api`
-- `make test-workers`
-- `make test-web`
-- `make lint`
-- `make build-web`
-- `make smoke-check API_BASE=https://esdata-production.up.railway.app`
-- `make worker-boe`
-- `make worker-dgt`
-- `make worker-teac`
-- `make worker-modelos`
-
-## Runbooks
+## Runbooks vivos
 
 - `docs/operations/OPERATIONS.md`
-- `docs/operations/LOGGING.md`
-- `docs/operations/DATA-POLICY.md`
-- `docs/operations/DEPENDENCIES.md`
-- `docs/operations/SECRETS.md`
 - `docs/operations/runbooks/deploy-compose.md`
+- `docs/operations/runbooks/backup-restore.md`
 - `docs/operations/runbooks/worker-boe.md`
 - `docs/operations/runbooks/worker-dgt-teac.md`
 - `docs/operations/runbooks/worker-modelos.md`
+- `docs/operations/metrics.md`
+- `docs/operations/worker-failures.md`
 
-## Incidencias conocidas a vigilar
+## Regla de uso
 
-1. cambios de HTML en fuentes externas DGT, TEAC o AEAT
-2. semántica poco clara de `DGT_SSL_VERIFY` entre workers
-3. necesidad de ampliar observabilidad si aumenta el volumen operativo
+Si un runbook o indice contradice `docs/master-execution-roadmap.md`, `AGENTS.md` o el Compose productivo, debe corregirse antes de considerarse valido para handoff.

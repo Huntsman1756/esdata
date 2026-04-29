@@ -14,6 +14,7 @@ from dgt import (
     discover_dgt_consultas,
     fetch_document_html,
     fetch_search_html,
+    fetch_search_html_for_discovery,
     parse_search_results,
     parse_document_html,
     run_sync,
@@ -926,3 +927,35 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
 
     assert result["stored"] == 1
     assert count == 1
+
+
+def test_fetch_search_html_for_discovery_uses_ajax_session(monkeypatch):
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/consultas/":
+            return httpx.Response(
+                200,
+                text="<html></html>",
+                headers={"set-cookie": "JSESSIONID=abc123; Path=/consultas; HttpOnly"},
+            )
+        if request.url.path == "/consultas/do/search":
+            return httpx.Response(200, text=(FIXTURES / "V2274-22-search.html").read_text(encoding="utf-8"))
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    original_client = httpx.Client
+    monkeypatch.setattr(
+        "dgt.httpx.Client",
+        lambda *args, **kwargs: original_client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://petete.tributos.hacienda.gob.es",
+        ),
+    )
+
+    html = fetch_search_html_for_discovery("V2274-22")
+
+    assert html is not None
+    assert "V2274-22" in html
+    assert requests[0].url.path == "/consultas/"
+    assert requests[1].url.path == "/consultas/do/search"

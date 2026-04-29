@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-$ROOT_DIR/infra/deploy/docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/infra/deploy/.env.prod}"
 BACKUP_DIR="${BACKUP_DIR:-/srv/backups/esdata}"

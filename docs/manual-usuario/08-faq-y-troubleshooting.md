@@ -88,9 +88,10 @@ Revisar:
 Comandos utiles:
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic current
-docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic history
-docker compose -f infra/deploy/docker-compose.prod.yml exec api alembic upgrade head
+docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic history
+docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
 ```
 
 ## No se que superficie debo usar

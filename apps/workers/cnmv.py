@@ -12,6 +12,7 @@ from boe import _ensure_sync_log_table, log_sync
 from bs4 import BeautifulSoup
 from change_detection import (
     check_content_changed,
+    destination_row_exists,
     ensure_source_revision_table,
     invalidate_old_embeddings_by_entity,
     record_revision,
@@ -603,16 +604,29 @@ def _upsert_regulation_links(
             {"referencia": referencia},
         )
 
+        dialect = conn.engine.dialect.name
+        insert_sql = (
+            """
+            INSERT INTO cnmv_regulation_link
+                (documento_referencia, regulacion_id, relacion_tipo, nota)
+            VALUES (:referencia, :reg_id, :tipo, :nota)
+            ON CONFLICT (documento_referencia, regulacion_id) DO UPDATE SET
+                relacion_tipo = EXCLUDED.relacion_tipo,
+                nota = EXCLUDED.nota
+            """
+            if dialect == "postgresql"
+            else
+            """
+            INSERT OR REPLACE INTO cnmv_regulation_link
+                (documento_referencia, regulacion_id, relacion_tipo, nota)
+            VALUES (:referencia, :reg_id, :tipo, :nota)
+            """
+        )
+
         inserted = 0
         for reg in regulaciones:
             conn.execute(
-                text(
-                    """
-                    INSERT OR REPLACE INTO cnmv_regulation_link
-                        (documento_referencia, regulacion_id, relacion_tipo, nota)
-                    VALUES (:referencia, :reg_id, :tipo, :nota)
-                    """
-                ),
+                text(insert_sql),
                 {
                     "referencia": referencia,
                     "reg_id": reg["regulacion_id"],
@@ -795,16 +809,28 @@ def _upsert_obligation_links(
             {"referencia": referencia},
         )
 
+        dialect = conn.engine.dialect.name
+        insert_sql = (
+            """
+            INSERT INTO cnmv_obligation_link
+                (documento_referencia, tipo_obligacion, nota)
+            VALUES (:referencia, :tipo, :nota)
+            ON CONFLICT (documento_referencia, tipo_obligacion) DO UPDATE SET
+                nota = EXCLUDED.nota
+            """
+            if dialect == "postgresql"
+            else
+            """
+            INSERT OR REPLACE INTO cnmv_obligation_link
+                (documento_referencia, tipo_obligacion, nota)
+            VALUES (:referencia, :tipo, :nota)
+            """
+        )
+
         inserted = 0
         for obs in obligaciones:
             conn.execute(
-                text(
-                    """
-                    INSERT OR REPLACE INTO cnmv_obligation_link
-                        (documento_referencia, tipo_obligacion, nota)
-                    VALUES (:referencia, :tipo, :nota)
-                    """
-                ),
+                text(insert_sql),
                 {
                     "referencia": referencia,
                     "tipo": obs["tipo_obligacion"],
@@ -896,10 +922,50 @@ def build_document_payload(url: str, content: bytes, content_type: str = "") -> 
 
 
 def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
+    payload = dict(payload)
+
+    if conn.engine.dialect.name == "sqlite":
+        table_columns = {
+            row[1] for row in conn.execute(text("PRAGMA table_info(documento_interpretativo)"))
+        }
+    else:
+        table_columns = {
+            row[0]
+            for row in conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'documento_interpretativo'
+                    """
+                )
+            )
+        }
+
     # Add defaults for base columns if missing
     payload.setdefault("organismo_emisor", "CNMV")
     payload.setdefault("jurisdiccion", "es")
     payload.setdefault("tipo_fuente", "cnmv")
+
+    existing = None
+    referencia = payload.get("referencia")
+    if referencia:
+        existing = conn.execute(
+            text("SELECT * FROM documento_interpretativo WHERE referencia = :ref"),
+            {"ref": referencia},
+        ).mappings().first()
+
+    for col in ("tipo_documento", "ambito", "fecha", "titulo", "url_fuente", "estado_vigencia"):
+        if payload.get(col) is None and existing and existing.get(col) is not None:
+            payload[col] = existing[col]
+
+    payload.setdefault("tipo_documento", "circular_cnmv")
+    payload.setdefault("ambito", "general_cnmv")
+    payload.setdefault("fecha", datetime.now(UTC).date().isoformat())
+    payload.setdefault("titulo", payload.get("referencia", "Documento CNMV"))
+    payload.setdefault("url_fuente", "")
+    payload.setdefault("estado_vigencia", "vigente")
 
     # Build column list dynamically based on payload keys
     columns = [
@@ -910,6 +976,8 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     for col in ("numero_circular", "fecha_publicacion", "referencia_boe", "estado_vigencia"):
         if col in payload:
             columns.append(col)
+
+    columns = [col for col in columns if col in table_columns]
 
     placeholders = ", ".join(f":{c}" for c in columns)
     cols_str = ", ".join(columns)
@@ -986,6 +1054,15 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     referencia = payload["referencia"]
     texto = payload["texto"]
 
+    def _sync_links() -> tuple[int, int]:
+        regulaciones = _detect_regulaciones(texto)
+        obligaciones = _detect_obligaciones(texto)
+        _upsert_regulation_links(conn, referencia, regulaciones)
+        _upsert_obligation_links(conn, referencia, obligaciones)
+        reg_count = len(regulaciones)
+        obl_count = len(obligaciones)
+        return reg_count, obl_count
+
     # Check if document exists
     existing = conn.execute(
         text("SELECT id FROM documento_interpretativo WHERE referencia = :ref"),
@@ -995,8 +1072,18 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     if not existing:
         # New document
         upsert_documento_interpretativo(conn, payload)
-        _record_version(conn, referencia, texto, "creado")
-        return {"action": "created", "version_num": 1}
+        try:
+            _record_version(conn, referencia, texto, "creado")
+            version_num = 1
+        except Exception:
+            version_num = None
+        reg_count, obl_count = _sync_links()
+        return {
+            "action": "created",
+            "version_num": version_num,
+            "regulaciones": reg_count,
+            "obligaciones": obl_count,
+        }
 
     # Existing document - upsert and record version
     old_row = conn.execute(
@@ -1008,7 +1095,13 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
 
     # Detect change type
     if old_texto == texto:
-        return {"action": "unchanged", "version_num": None}
+        reg_count, obl_count = _sync_links()
+        return {
+            "action": "unchanged",
+            "version_num": None,
+            "regulaciones": reg_count,
+            "obligaciones": obl_count,
+        }
 
     cambio_tipo = "modificado"
     vigencia = payload.get("estado_vigencia", "")
@@ -1017,40 +1110,7 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     elif "sustituido" in vigencia.lower() or "sustituye" in texto.lower():
         cambio_tipo = "sustituido"
 
-    # Build update payload (only non-referencia columns)
-    update_payload = {k: v for k, v in payload.items() if k != "referencia"}
-    update_payload.setdefault("organismo_emisor", "CNMV")
-    update_payload.setdefault("jurisdiccion", "es")
-    update_payload.setdefault("tipo_fuente", "cnmv")
-    update_payload.setdefault("tipo_documento", "documento_cnmv")
-    update_payload.setdefault("ambito", "general_cnmv")
-    update_payload.setdefault("fecha", datetime.now(UTC).date().isoformat())
-    update_payload.setdefault("titulo", "")
-    update_payload.setdefault("url_fuente", "")
-
-    columns = [
-        "tipo_documento", "organismo_emisor", "jurisdiccion", "tipo_fuente",
-        "ambito", "fecha", "titulo", "texto", "url_fuente",
-    ]
-    for col in ("numero_circular", "fecha_publicacion", "referencia_boe", "estado_vigencia", "regulacion_relacionada"):
-        if col in update_payload:
-            columns.append(col)
-
-    placeholders = ", ".join(f":{c}" for c in columns)
-    cols_str = ", ".join(columns)
-    update_cols = ", ".join(f"{c} = excluded.{c}" for c in columns if c != "referencia")
-
-    conn.execute(
-        text(
-            f"""
-            INSERT INTO documento_interpretativo ({cols_str})
-            VALUES ({placeholders})
-            ON CONFLICT (referencia) DO UPDATE SET
-                {update_cols}
-            """
-        ),
-        update_payload,
-    )
+    upsert_documento_interpretativo(conn, payload)
 
     nota = "Cambio detectado en documento existente"
     if cambio_tipo == "derogado":
@@ -1058,19 +1118,21 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     elif cambio_tipo == "sustituido":
         nota = "Documento sustituido por nueva versión"
 
-    _record_version(conn, referencia, texto, cambio_tipo, nota)
+    try:
+        _record_version(conn, referencia, texto, cambio_tipo, nota)
+        new_ver = _get_next_version(conn, referencia)
+    except Exception:
+        new_ver = None
 
-    new_ver = _get_next_version(conn, referencia)
+    reg_count, obl_count = _sync_links()
 
-    # Detect and link EU/ES regulations (23.7)
-    regulaciones = _detect_regulaciones(texto)
-    _upsert_regulation_links(conn, referencia, regulaciones)
-
-    # Detect and link obligations (23.8)
-    obligaciones = _detect_obligaciones(texto)
-    _upsert_obligation_links(conn, referencia, obligaciones)
-
-    return {"action": "updated", "version_num": new_ver, "cambio_tipo": cambio_tipo, "regulaciones": len(regulaciones), "obligaciones": len(obligaciones)}
+    return {
+        "action": "updated",
+        "version_num": new_ver,
+        "cambio_tipo": cambio_tipo,
+        "regulaciones": reg_count,
+        "obligaciones": obl_count,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1088,7 +1150,6 @@ def run_sync(
     stored = 0
     discovered = len(urls)
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(UTC).isoformat()
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
@@ -1119,7 +1180,12 @@ def run_sync(
                         conn, worker_name, "documento", payload["referencia"], response.content
                     )
 
-                    if not change.changed:
+                    if not change.changed and destination_row_exists(
+                        conn,
+                        "documento_interpretativo",
+                        "referencia",
+                        payload["referencia"],
+                    ):
                         print(f"  [SKIP] {payload['referencia']} unchanged")
                         continue
 
@@ -1134,7 +1200,7 @@ def run_sync(
                             f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"
                         )
 
-                    upsert_documento_interpretativo(conn, payload)
+                    upsert_result = upsert_with_versioning(conn, payload)
                     record_revision(
                         conn,
                         worker_name,
@@ -1142,7 +1208,8 @@ def run_sync(
                         payload["referencia"],
                         response.content,
                     )
-                    stored += 1
+                    if upsert_result["action"] != "unchanged":
+                        stored += 1
                 except Exception:
                     # Log individual URL failure but continue
                     continue
@@ -1153,7 +1220,6 @@ def run_sync(
                 "ok",
                 documentos_processed=processed,
                 documentos_upserted=stored,
-                started_at=sync_start,
             )
 
         return {"processed": processed, "stored": stored, "discovered": discovered}
@@ -1166,7 +1232,6 @@ def run_sync(
                 documentos_processed=processed,
                 documentos_upserted=stored,
                 error_msg=str(exc),
-                started_at=sync_start,
             )
         raise
 

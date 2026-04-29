@@ -36,8 +36,21 @@ async def test_status_tiene_workers():
         "cron-dgt-weekly",
         "worker-teac",
         "cron-teac-weekly",
-        "worker-jurisprudencia",
-        "cron-jurisprudencia-weekly",
+        "worker-modelos",
+        "cron-modelos-daily",
+        "worker-bdns",
+        "cron-bdns-weekly",
+        "worker-borme",
+        "cron-borme-weekly",
+        "worker-cnmv",
+        "cron-cnmv-weekly",
+        "worker-sepblac",
+        "cron-sepblac-weekly",
+        "worker-cendoj",
+        "worker-eurlex",
+        "worker-bde",
+        "cron-bde-weekly",
+        "worker-aepd",
     ]:
         assert w in data["workers"]
 

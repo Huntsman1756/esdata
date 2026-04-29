@@ -22,7 +22,8 @@ Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidado
 
 | Variable | Requerida | Default | Descripcion | Uso |
 |----------|-----------|---------|-------------|-----|
-| `ESDATA_API_BASE_URL` | No | `http://localhost:8000` | URL base de la API para el frontend | Next.js |
+| `ESDATA_API_BASE_URL` | No | `http://localhost:8000` | URL base de la API para fetch server-side en Next.js | Web SSR |
+| `NEXT_PUBLIC_API_BASE_URL` | No | `http://localhost:8000` | URL base publica para pantallas client-side del frontend | Web browser |
 
 ### API / Operacion general
 
@@ -65,16 +66,16 @@ Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidado
 | `BDNS_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para BDNS | Worker BDNS |
 | `BORME_SEED_URLS` | No | | URLs de semilla para BORME, separadas por coma | Worker BORME |
 | `BORME_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para BORME | Worker BORME |
-| `CNMV_SEED_URLS` | No | | URLs de semilla para CNMV, separadas por coma | Worker CNMV |
+| `CNMV_SEED_URLS` | No | `https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133` | URLs de semilla para CNMV, separadas por coma | Worker CNMV |
 | `CNMV_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para CNMV | Worker CNMV |
-| `SEPBLAC_SEED_URLS` | No | | URLs de semilla para SEPBLAC, separadas por coma | Worker SEPBLAC |
+| `SEPBLAC_SEED_URLS` | No | `https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/` | URLs de semilla para SEPBLAC, separadas por coma | Worker SEPBLAC |
 | `SEPBLAC_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para SEPBLAC | Worker SEPBLAC |
 | `CENDOJ_SEED_URLS` | No | | URLs de semilla para CENDOJ, separadas por coma | Worker CENDOJ |
 | `CENDOJ_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para CENDOJ | Worker CENDOJ |
 | `EURLEX_SEED_URLS` | No | | URLs de semilla para EURLEX (ya no se usan, CELEXs hardcodeados). Dejando por compatibilidad | Worker EURLEX |
 | `EURLEX_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para EURLEX | Worker EURLEX |
 | `SPARQL_BASE` | No | `http://publications.europa.eu/webapi/rdf/sparql` | Endpoint SPARQL para discovery de CELEXs nuevos | Worker EURLEX |
-| `BDE_SEED_URLS` | No | | URLs de semilla para BDE, separadas por coma | Worker BDE |
+| `BDE_SEED_URLS` | No | `https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/` | URLs de semilla para BDE, separadas por coma | Worker BDE |
 | `BDE_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para BDE | Worker BDE |
 | `AEPD_SEED_URLS` | No | | URLs de semilla para AEPD, separadas por coma | Worker AEPD |
 | `AEPD_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para AEPD | Worker AEPD |
@@ -90,7 +91,7 @@ Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidado
 
 | Variable | Requerida | Default | Descripcion | Uso |
 |----------|-----------|---------|-------------|-----|
-| `TEAC_SEED_URLS` | No | | URLs de semilla para TEAC, separadas por coma | Worker TEAC |
+| `TEAC_SEED_URLS` | No | `https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/` | URLs de semilla para TEAC. Admite landing DYCTEA o URLs `criterio.aspx?id=...` directas | Worker TEAC |
 | `TEAC_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para TEAC | Worker TEAC |
 
 ### Modelos AEAT
@@ -138,6 +139,15 @@ Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidado
 | `LOG_LEVEL` | No | `INFO` | Nivel de log (DEBUG, INFO, WARNING, ERROR) | Todos los servicios |
 | `LOG_FORMAT` | No | `text` | Formato de logs (`text` o `json`) | Todos los servicios |
 | `SLACK_WEBHOOK_URL` | No | | Webhook de Slack para alertas | Scripts/Workers |
+| `HC_PING_URL_CRON_BOE_DAILY` | No | | URL base de Healthchecks para `cron-boe-daily` (`/start`, `/fail` y success se derivan automaticamente) | Infra cron |
+| `HC_PING_URL_CRON_DGT_WEEKLY` | No | | URL base de Healthchecks para `cron-dgt-weekly` | Infra cron |
+| `HC_PING_URL_CRON_TEAC_WEEKLY` | No | | URL base de Healthchecks para `cron-teac-weekly` | Infra cron |
+| `HC_PING_URL_CRON_MODELOS_DAILY` | No | | URL base de Healthchecks para `cron-modelos-daily` | Infra cron |
+| `HC_PING_URL_CRON_BDNS_WEEKLY` | No | | URL base de Healthchecks para `cron-bdns-weekly` | Infra cron |
+| `HC_PING_URL_CRON_BORME_WEEKLY` | No | | URL base de Healthchecks para `cron-borme-weekly` | Infra cron |
+| `HC_PING_URL_CRON_CNMV_WEEKLY` | No | | URL base de Healthchecks para `cron-cnmv-weekly` | Infra cron |
+| `HC_PING_URL_CRON_SEPBLAC_WEEKLY` | No | | URL base de Healthchecks para `cron-sepblac-weekly` | Infra cron |
+| `HC_PING_URL_CRON_BDE_WEEKLY` | No | | URL base de Healthchecks para `cron-bde-weekly` | Infra cron |
 
 ## Uso en Docker Compose
 

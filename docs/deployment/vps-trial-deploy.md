@@ -93,7 +93,7 @@ Si vas a desplegar desde otra rama o desde `main`, sustituir la referencia.
 
 ### 3. Preparar el fichero de entorno
 
-Crear `infra/deploy/.env` a partir de `infra/deploy/compose.env.example`.
+Crear `infra/deploy/.env.prod` a partir de `infra/deploy/compose.env.example`.
 
 Variables a revisar como minimo en ese fichero:
 
@@ -127,7 +127,7 @@ Para esta fase de prueba:
 ### 4. Validar el compose
 
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml config
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml config
 ```
 
 Debe resolver sin errores.
@@ -135,19 +135,19 @@ Debe resolver sin errores.
 ### 5. Levantar servicios base
 
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml up -d postgres api web caddy
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres api web caddy
 ```
 
 Si quieres validar solo API + MCP primero:
 
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml up -d postgres api
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres api
 ```
 
 ### 6. Levantar workers necesarios
 
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml up -d worker-boe worker-dgt worker-teac worker-modelos
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d worker-boe worker-dgt worker-teac worker-modelos
 ```
 
 No hace falta levantar todos los workers documentales el primer dia si quieres una prueba mas controlada.
@@ -155,7 +155,7 @@ No hace falta levantar todos los workers documentales el primer dia si quieres u
 ### 7. Verificar salud
 
 ```bash
-docker compose --env-file infra/deploy/.env -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
 curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/status
 ```

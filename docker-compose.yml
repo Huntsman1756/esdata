@@ -41,7 +41,7 @@ services:
       SYNC_INTERVAL_SECONDS: "3600"
     depends_on:
       - postgres
-    command: python -m workers.boe
+    command: python boe.py
 
 volumes:
   pgdata:
