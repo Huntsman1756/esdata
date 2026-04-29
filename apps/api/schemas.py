@@ -242,6 +242,25 @@ class ModeloNormativa(BaseModel):
     resumen: str | None = Field(default=None, description="Breve descripción")
 
 
+class ModeloCampanaOperativaResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    nombre: str = Field(description="Nombre completo")
+    campana: str | None = Field(default=None, description="Campaña activa")
+    impuesto: str = Field(description="Impuesto asociado")
+    periodo: str | None = Field(default=None, description="Periodo")
+    frecuencia_presentacion: str | None = Field(default=None, description="Frecuencia de presentación")
+    ventana_presentacion: str | None = Field(default=None, description="Ventana de presentación")
+    canal_presentacion: str | None = Field(default=None, description="Canal de presentación")
+    categoria_obligado: str | None = Field(default=None, description="Categoría del obligado")
+    norma_base: str | None = Field(default=None, description="Norma base aplicable")
+    obligados_resumen: str | None = Field(default=None, description="Resumen de obligados")
+    plazo_resumen: str | None = Field(default=None, description="Resumen del plazo")
+    presentacion_resumen: str | None = Field(default=None, description="Resumen de presentación")
+    origen_metadato: str | None = Field(default=None, description="Origen del metadato")
+    estado_metadato: str | None = Field(default=None, description="Estado del metadato")
+    fuentes_recomendadas: list[str] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
+
+
 class ModeloCampana(BaseModel):
     campana: str = Field(description="Año/campaña (2025, 2024, etc.)")
     activo: bool = Field(description="Si es la campaña activa")
@@ -299,6 +318,53 @@ class LegislacionSearchResponse(BaseModel):
 class DoctrinaSearchResponse(BaseModel):
     q: str = Field(description="Término de búsqueda")
     resultados: list[DoctrinaSearchResult]
+
+
+class ModeloFuenteOficial(BaseModel):
+    tipo: str = Field(description="Tipo de fuente")
+    titulo: str = Field(description="Título")
+    url: str = Field(description="URL")
+    organismo: str = Field(description="Organismo emisor")
+    campana: str | None = Field(default=None, description="Campaña")
+    boe_id: str | None = Field(default=None, description="ID BOE")
+    fecha: str | None = Field(default=None, description="Fecha")
+    oficial: bool = Field(description="Si es fuente oficial")
+    nota: str | None = Field(default=None, description="Nota descriptiva")
+
+
+class ModeloFuentesOficialesResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    nombre: str | None = Field(default=None, description="Nombre completo")
+    campana_activa: str | None = Field(default=None, description="Campaña activa")
+    fuentes_oficiales: list[ModeloFuenteOficial] = Field(default_factory=list, description="Fuentes oficiales")
+
+
+class ModeloResumenOperativoResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    nombre: str = Field(description="Nombre completo")
+    impuesto: str = Field(description="Impuesto asociado")
+    periodo: str | None = Field(default=None, description="Periodo")
+    campana_activa: str | None = Field(default=None, description="Campaña activa")
+    quien_debe_presentarlo: str | None = Field(default=None, description="Quién debe presentarlo")
+    plazo_presentacion: str | None = Field(default=None, description="Plazo de presentación")
+    fuentes_recomendadas: list[str] = Field(default_factory=list, description="Fuentes recomendadas")
+
+
+class ModeloArtefactosResponse(BaseModel):
+    codigo: str = Field(description="Código del modelo")
+    nombre: str = Field(description="Nombre completo")
+    campana: str | None = Field(default=None, description="Campaña activa")
+    articulos: list[ModeloArticulo] = Field(default_factory=list, description="Artículos")
+    casillas: list[ModeloCasilla] = Field(default_factory=list, description="Casillas")
+    claves: list[ModeloClave] = Field(default_factory=list, description="Claves")
+    instrucciones: list[ModeloInstruccion] = Field(default_factory=list, description="Instrucciones")
+    normativa: list[ModeloNormativa] = Field(default_factory=list, description="Normativa BOE")
+
+
+class ModelosCampanasOperativasResponse(BaseModel):
+    codigos: list[str] = Field(description="Códigos solicitados")
+    campana: str | None = Field(default=None, description="Campaña aplicada")
+    resultados: list[ModeloCampanaOperativaResponse] = Field(default_factory=list, description="Resultados")
 
 
 class ModelosListResponse(BaseModel):

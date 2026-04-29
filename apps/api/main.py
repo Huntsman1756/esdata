@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+import time
 
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from mcp_security import _RATE_BUCKETS, _rate_limit_per_minute, _required_api_key
 from mcp_server import mount_mcp
 from routers import (
     buscar,
@@ -27,3 +30,28 @@ app.include_router(jurisprudencia.router)
 app.include_router(modelos.router)
 
 mount_mcp(app)
+
+
+@app.middleware("http")
+async def mcp_security_guard(request: Request, call_next):
+    if not request.url.path.startswith("/mcp"):
+        return await call_next(request)
+
+    required_key = _required_api_key()
+    if not required_key:
+        return await call_next(request)
+
+    provided_key = request.headers.get("X-API-Key", "")
+    if provided_key != required_key:
+        return JSONResponse({"detail": "Invalid or missing MCP API key"}, status_code=401)
+
+    bucket = _RATE_BUCKETS[provided_key]
+    now = time.time()
+    while bucket and now - bucket[0] > 60:
+        bucket.popleft()
+
+    if len(bucket) >= _rate_limit_per_minute():
+        return JSONResponse({"detail": "MCP rate limit exceeded"}, status_code=429)
+
+    bucket.append(now)
+    return await call_next(request)

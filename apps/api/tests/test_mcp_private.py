@@ -109,27 +109,35 @@ async def test_mcp_catalog_exposes_expected_core_http_operations():
 
 @pytest.mark.asyncio
 async def test_mcp_http_rejects_missing_api_key_when_enabled():
-    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20"):
-        r = _mcp_get()
+    async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
+        r = requests.get(
+            f"http://127.0.0.1:{port}/mcp",
+            headers={"Accept": "text/event-stream"},
+            timeout=5,
+        )
 
     assert r.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_mcp_http_accepts_valid_api_key_when_enabled():
-    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20"):
-        r = _mcp_get(headers={"X-API-Key": "secret"})
+    async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
+        r = requests.get(
+            f"http://127.0.0.1:{port}/mcp",
+            headers={"Accept": "text/event-stream", "X-API-Key": "secret"},
+            timeout=5,
+        )
 
     assert r.status_code != 401
 
 
 @pytest.mark.asyncio
 async def test_mcp_http_rate_limits_repeated_requests():
-    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="2"):
+    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="2") as client:
         headers = {"X-API-Key": "secret"}
-        first = _mcp_get(headers=headers)
-        second = _mcp_get(headers=headers)
-        third = _mcp_get(headers=headers)
+        first = await client.get("/mcp", headers=headers)
+        second = await client.get("/mcp", headers=headers)
+        third = await client.get("/mcp", headers=headers)
 
     assert first.status_code != 429
     assert second.status_code != 429
