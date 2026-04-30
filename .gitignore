@@ -4,6 +4,7 @@
 .venv/
 tmp/
 logs/
+.feedback_loop/
 apps/web/node_modules/
 apps/web/.next/
 apps/web/.env.local
