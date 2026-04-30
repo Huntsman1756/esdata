@@ -119,3 +119,38 @@ Usar notas cortas con este esquema:
 - Hallazgo: los errores recurrentes no son aleatorios; se repiten por familia: imports Alembic invalidos, `op.exec_driver_sql`, `server_default=sa.func.*`, revisiones largas que rompen `alembic_version VARCHAR(32)`, y seeds SQL convertidos a `INSERT ... SELECT` con escaping roto o `WHERE EXISTS/NOT EXISTS` mal colocado.
 - Impacto: si no se corrigen por lotes, el trabajo cae en bucle de error -> parche -> rerun -> siguiente error casi identico.
 - Regla practica: al retomar este slice, revisar primero `20260426_0016_editorial_internal.py` y `20260426_0017_playbooks_evidencia.py` por comillas dobles `''...''` y seeds multilinea antes del siguiente rerun desechable. Para este repo, `sa.func.now()` y `sa.func.current_date` en migraciones deben tratarse como bugs potenciales y convertirse a `sa.text("NOW()")` / `sa.text("CURRENT_DATE")`.
+
+### 2026-04-30 - Heartbeat dentro de run_sync marca workers unhealthy
+
+- Scope: `apps/workers/*.py`, `infra/deploy/docker-compose.prod.yml`
+- Hallazgo: el healthcheck de Docker requiere `/tmp/worker_heartbeat` con < 300s. Si el heartbeat se toca al FINAL de `run_sync()` (dentro del bucle), un worker que tarda > 300s se marca unhealthy aunque este trabajando. En DGT con discovery de 10 anos, esto ocurria cada ciclo.
+- Impacto: Docker marca todos los workers como unhealthy. Si hay `restart: always`, Docker reinicia workers que estan funcionando correctamente.
+- Regla practica: el heartbeat debe tocarse al INICIO de cada iteracion del bucle `while True`, fuera de `run_sync()`. Para workers con discovery largo (DGT), el healthcheck threshold debe ser >= tiempo maximo de un ciclo completo (7200s para DGT).
+
+### 2026-04-30 - Advisory lock per-entity_id vs per-worker en change_detection
+
+- Scope: `apps/workers/change_detection.py`, funcion `record_revision()`
+- Hallazgo: un lock advisory per-worker (`f"{worker}:source_revision"`) previene deadlocks pero serializa TODAS las escrituras al mismo worker, incluso para entity_ids distintos. Para CNMV (72 docs) o DGT (279+ descubiertos), esto es una serializacion innecesaria.
+- Impacto: deadlocks resueltos pero throughput reducido para workers de alto volumen.
+- Regla practica: usar lock per-entity_id (`f"{worker}:{tipo}:{entity_id}"`). Solo se serializan escrituras al mismo entity_id, permitiendo paralelismo entre entidades distintas. El deadlock del log fue entre dos conexiones del pool del mismo proceso, no entre workers distintos.
+
+### 2026-04-30 - EUR-Lex SPARQL PREFIXeli typo causa 400 silencioso
+
+- Scope: `apps/workers/eurlex.py`, funcion `_sparql_directives()`
+- Hallazgo: la query SPARQL tenia `PREFIXeli:` (sin espacio) en lugar de `PREFIX eli:`. El endpoint `data.europa.eu/sparql` devuelve 400 con error de sintaxis. Este typo estaba ahi desde antes del cambio de endpoint.
+- Impacto: SPARQL discovery fallaba con 400 Bad Request, 0 CELEXs nuevos descubiertos. El worker no crashea (exception capturada), asi que el fallo era silencioso.
+- Regla practica: validar queries SPARQL contra el endpoint antes de deploy. Un typo de espacio en un PREFIX es invalido y el endpoint lo rechaza con 400, no con un error de parsing en el cliente.
+
+### 2026-04-30 - EUR-Lex API REST bloquea requests automatizados
+
+- Scope: `apps/workers/eurlex.py`, funcion `fetch_index()`
+- Hallazgo: EUR-Lex devuelve HTTP 202 con 0 bytes tanto para HTML como para la API REST `rest.tx.legal-acts-index`. El sitio requiere JavaScript rendering. No hay forma de obtener el indice de bloques via API automatizada.
+- Impacto: El worker upserta las 30 normas seed correctamente pero 0 bloques/articulos porque el indice de bloques no se puede obtener.
+- Regla practica: para EUR-Lex se necesita corpus local de textos completos (archivos `.txt` o `.html` descargados manualmente) como fuente de verdad para los articulos. El SPARQL discovery es un complemento, no la fuente principal.
+
+### 2026-04-30 - docker-compose env var override default value en codigo
+
+- Scope: `infra/deploy/docker-compose.prod.yml`, linea 291 (SPARQL_BASE)
+- Hallazgo: el codigo en `eurlex.py` tenia el default correcto (`https://data.europa.eu/sparql`) pero el docker-compose tenia `SPARQL_BASE: ${SPARQL_BASE:-http://publications.europa.eu/webapi/rdf/sparql}`. La variable de entorno en el container override el default del codigo, asi que el fix en el codigo no surtio efecto hasta actualizar el compose.
+- Impacto: el worker usaba el endpoint viejo aunque el codigo estuviera corregido.
+- Regla practica: cuando un codigo usa `os.getenv("VAR", default_value)`, verificar que el docker-compose no tenga un default value diferente. El compose siempre tiene prioridad sobre el default del codigo.

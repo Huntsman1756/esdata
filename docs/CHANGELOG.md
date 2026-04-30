@@ -4,6 +4,24 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ---
 
+## 2026-04-30
+
+### main
+- **d4fcd21** `fix(eurlex)` — remove PREFIXeli typo in SPARQL query (missing space caused 400 Bad Request on data.europa.eu/sparql)
+- **457ba7a** `fix(eurlex)` — update SPARQL_BASE default in docker-compose to https://data.europa.eu/sparql (env var was overriding correct code default)
+- **3c3d044** `fix(workers)` — resolve BOE parser, EUR-Lex SPARQL endpoint, AEPD deadlock, and heartbeat thresholds (PR #33): BOE filters unknown codes from BOE_LEGISLACION_NORMAS env var, removes duplicate fetch_block; EUR-Lex updates SPARQL to data.europa.eu; AEPD uses per-entity advisory lock; heartbeat moved to outer while loop in all 12 workers, DGT threshold 7200s
+- **ea5dc72** `fix(workers)` — squash merge of PR #33
+- **8714aea** `fix(workers)` — original PR #33 commit (BOE parser, EUR-Lex SPARQL, AEPD deadlock, heartbeats)
+- **3b3f480** `chore(deps)` — bump pypdf 5.4.0 to 6.9.2 to close 22 Dependabot CVEs (PR #34)
+- **54b934d** `chore(deps)` — bump pypdf 5.4.0 to 6.9.2 (original commit)
+
+### infra
+- **3c3d044** `fix(healthcheck)` — DGT healthcheck threshold 300s → 7200s, interval 60s → 120s
+- **457ba7a** `fix(config)` — SPARQL_BASE default in docker-compose.prod.yml
+
+### docs
+- **Sprint 2026-04-30** — auditoria de workers en produccion: 12/12 workers unhealthy por heartbeat; 4 fixes en PR #33; 22 CVEs cerrados en PR #34; BOE/EUR-Lex/AEPD productivos; backlog proximo sprint documentado
+
 ## 2026-04-27
 
 ### main
