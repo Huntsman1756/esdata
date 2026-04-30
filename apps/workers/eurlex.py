@@ -411,7 +411,6 @@ def _sparql_directives(cutoff: str) -> list[str]:
     query = f"""
     PREFIX cdm: <http://data.europa.eu/eli/ontology#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    PREFIXeli: <http://data.europa.eu/eli/ontology#>
     PREFIX dcat: <http://www.w3.org/ns/dcat#>
     SELECT ?celex ?date
     WHERE {{
