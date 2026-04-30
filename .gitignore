@@ -58,3 +58,7 @@ scripts/baseline.json
 scripts/golden_analysis_results.json
 scripts/eval_results/
 scripts/telemetry/
+
+# Local test databases
+*.db
+esdata-dev.db
