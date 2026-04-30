@@ -154,3 +154,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: el codigo en `eurlex.py` tenia el default correcto (`https://data.europa.eu/sparql`) pero el docker-compose tenia `SPARQL_BASE: ${SPARQL_BASE:-http://publications.europa.eu/webapi/rdf/sparql}`. La variable de entorno en el container override el default del codigo, asi que el fix en el codigo no surtio efecto hasta actualizar el compose.
 - Impacto: el worker usaba el endpoint viejo aunque el codigo estuviera corregido.
 - Regla practica: cuando un codigo usa `os.getenv("VAR", default_value)`, verificar que el docker-compose no tenga un default value diferente. El compose siempre tiene prioridad sobre el default del codigo.
+
+### 2026-04-30 - Feedback loop auto-correctivo
+
+- Scope: `scripts/feedback_loop.py`, `scripts/auto_test.sh`, `.feedback_loop/`
+- Hallazgo: cada sesion de agente pierde el historial de "intento → error → fix". Sin memoria de intentos previos, el agente repite los mismos errores.
+- Impacto: cada nueva sesion empieza desde cero, repitiendo bugs ya resueltos en sesiones anteriores.
+- Regla practica: antes de empezar una tarea nueva, ejecutar `python3 scripts/feedback_loop.py --show-latest` para ver si hay intentos previos. Durante la tarea, usar `./scripts/auto_test.sh <test_patterns>` para el loop auto-correctivo. El estado se persiste en `.feedback_loop/latest.json` y cada intento en `.feedback_loop/YYYY-MM-DD_HHMMSS_attempt_N.json`.

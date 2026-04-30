@@ -5320,7 +5320,17 @@ Toda su documentacion operativa y de ejecucion debe poder ser consumida por mode
 
 En orden de impacto real:
 
-1. **`ADD COLUMN IF NOT EXISTS`** en migration de `dgt_url` en `source_revision` — elimina warning `column already exists` en AEPD. Cambio de una linea en `change_detection.py:104-110`.
-2. **postcss bump** en `apps/web/package-lock.json` — CVE-2026-41305 XSS transitivo. Un `npm update postcss`, 10 minutos.
-3. **lychee-action SHA pin** en `.github/workflows/*.yml` — CVE-2024-48908 code injection en CI. 5 minutos.
-4. **EUR-Lex corpus local** — feature nueva. El worker upserta 30 normas pero 0 bloques porque EUR-Lex bloquea API REST (requiere JS) y SPARQL discovery devuelve 0 resultados. Requiere estimacion de alcance propio: descargar textos completos de CELEXs seed y parsearlos localmente.
+1. **`ADD COLUMN IF NOT EXISTS`** en migration de `dgt_url` en `source_revision` — elimina warning `column already exists` en AEPD. Cambio de una linea en `change_detection.py:104-110`. ✅ HECHO
+2. **postcss bump** en `apps/web/package-lock.json` — CVE-2026-41305 XSS transitivo. Un `npm update postcss`, 10 minutos. ✅ HECHO
+3. **lychee-action SHA pin** en `.github/workflows/*.yml` — CVE-2024-48908 code injection en CI. 5 minutos. ✅ HECHO
+4. **EUR-Lex corpus local** — feature nueva. El worker upserta 30 normas pero 0 bloques porque EUR-Lex bloquea API REST (requiere JS) y SPARQL discovery devuelve 0 resultados. ✅ HECHO: script `scripts/eurlex_corpus_download.py` descarga 22/30 CELEXs via EU Publications REST API (`publications.europa.eu/resource/celex/{CELEX}`). Los 8 que fallan son documentos sin texto consolidado disponible.
+5. **Feedback loop auto-correctivo** — infraestructura para que el agente escriba codigo, ejecute tests, observe errores y auto-corriga. ✅ HECHO: `scripts/feedback_loop.py` + `scripts/auto_test.sh` + `.feedback_loop/` para persistencia entre sesiones.
+
+## Infraestructura agregada este sprint
+
+- **`scripts/feedback_loop.py`** — loop auto-correctivo en Python (interactivo + programatico)
+- **`scripts/auto_test.sh`** — wrapper bash para el loop auto-correctivo
+- **`.feedback_loop/`** — directorio para persistir estado entre sesiones
+- **`scripts/eurlex_corpus_download.py`** — descargador de corpus EUR-Lex via EU Publications REST API
+- **`apps/workers/eurlex.py`** — `fetch_block_from_corpus()` con soporte HTML + texto plano
+- **`corpora/eurlex/`** — directorio para archivos de corpus (generados localmente, no en git)
