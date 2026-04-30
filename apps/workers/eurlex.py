@@ -303,23 +303,58 @@ def fetch_index(client: httpx.Client, celex: str) -> list[dict]:
 
 
 def fetch_block_from_corpus(celex: str) -> BloqueTexto | None:
-    """Load a block from the local corpus file when the live API is unavailable."""
-    corpus_path = Path(f"corpora/eurlex/{celex}.txt")
-    if not corpus_path.exists():
-        return None
+    """Load a block from the local corpus file when the live API is unavailable.
+
+    Supports both .html (downloaded via playwright) and .txt (manual) files.
+    For .html files, extracts text content using BeautifulSoup if available,
+    falling back to stripping HTML tags with regex.
+    """
+    for ext in (".html", ".txt"):
+        corpus_path = Path(f"corpora/eurlex/{celex}{ext}")
+        if corpus_path.exists():
+            try:
+                html_or_text = corpus_path.read_text(encoding="utf-8")
+                # Try to extract text from HTML
+                text = _extract_text_from_html(html_or_text)
+                return BloqueTexto(
+                    bloque_id="corpus",
+                    tipo_bloque="completo",
+                    numero="1",
+                    titulo="Texto completo (corpus local)",
+                    tipo_articulo="completo",
+                    texto=text,
+                    vigente_desde="",
+                )
+            except Exception:
+                return None
+    return None
+
+
+def _extract_text_from_html(html: str) -> str:
+    """Extract plain text from HTML corpus file.
+
+    Uses BeautifulSoup if available (preferred), falls back to regex.
+    """
     try:
-        text = corpus_path.read_text(encoding="utf-8")
-        return BloqueTexto(
-            bloque_id="corpus",
-            tipo_bloque="completo",
-            numero="1",
-            titulo="Texto completo",
-            tipo_articulo="completo",
-            texto=text,
-            vigente_desde="",
-        )
-    except Exception:
-        return None
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html, "html.parser")
+        # Remove script, style, nav, header, footer elements
+        for tag in soup(["script", "style", "nav", "header", "footer"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n", strip=True)
+        # Clean up excessive newlines
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return "\n".join(lines)
+    except ImportError:
+        pass
+
+    # Fallback: strip HTML tags with regex
+    import re
+
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def _fetch_index_html_fallback(client: httpx.Client, celex: str) -> list[dict]:
