@@ -36,6 +36,8 @@ DEFAULT_NORMAS = {
     "ITPAJD": "BOE-A-1993-253",
 }
 
+KNOWN_BOE_CODES = set(DEFAULT_NORMAS.keys())
+
 NORMA_CLASSIFICATIONS = {
     "LIVA": {"tipo_documento": "ley", "ambito": "tributario"},
     "LIRPF": {"tipo_documento": "ley", "ambito": "tributario"},
@@ -390,15 +392,6 @@ def parse_block_xml(block_id: str, xml_text: str) -> BloqueTexto:
         texto="\n".join(parts),
         vigente_desde=_yyyymmdd_to_iso(version.attrib["fecha_vigencia"]),
     )
-
-
-def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto:
-    response = client.get(
-        f"{BOE_API_BASE}/id/{boe_id}/texto/bloque/{block_id}",
-        headers={"Accept": "application/xml"},
-    )
-    response.raise_for_status()
-    return parse_block_xml(block_id, response.text)
 
 
 def fetch_metadata(client: httpx.Client, codigo: str, boe_id: str) -> NormaMetadata:
@@ -967,6 +960,14 @@ def run_sync(
         for code in os.getenv("BOE_LEGISLACION_NORMAS", "LIVA").split(",")
         if code.strip()
     ]
+    unknown_codes = [c for c in target_codes if c not in KNOWN_BOE_CODES]
+    if unknown_codes:
+        logging.warning(
+            "BOE worker: skipping unknown codes not in DEFAULT_NORMAS: %s. "
+            "Add them to DEFAULT_NORMAS or remove from BOE_LEGISLACION_NORMAS.",
+            unknown_codes,
+        )
+        target_codes = [c for c in target_codes if c in KNOWN_BOE_CODES]
     only_block_ids = [
         item.strip()
         for item in os.getenv("BOE_ONLY_BLOCK_IDS", "").split(",")
@@ -1113,6 +1114,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting BOE worker in continuous mode (interval={interval}s)")
         while True:
+            Path("/tmp/worker_heartbeat").touch()
             try:
                 result = run_sync()
                 print(
@@ -1120,5 +1122,4 @@ if __name__ == "__main__":
                 )
             except Exception as exc:
                 print(f"[ERROR] Sync failed: {exc} at {datetime.now(timezone.utc).isoformat()}")
-            Path("/tmp/worker_heartbeat").touch()
             time.sleep(interval)

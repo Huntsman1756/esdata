@@ -343,7 +343,6 @@ def run_sync(
                 doctrina_links_created=links_created,
             )
 
-        Path("/tmp/worker_heartbeat").touch()
         return {"processed": processed, "stored": stored}
 
     except Exception as exc:
@@ -390,6 +389,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting TEAC worker in continuous mode (interval={interval}s)")
         while True:
+            Path("/tmp/worker_heartbeat").touch()
             result = run_sync()
             print(
                 f"Synced resoluciones={result['processed']}, almacenadas={result['stored']} at {datetime.now().isoformat()}"

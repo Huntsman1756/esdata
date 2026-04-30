@@ -177,6 +177,7 @@ def run_sync(engine, run_once: bool = False):
     logger.info("Starting modelos worker...")
 
     while True:
+        Path("/tmp/worker_heartbeat").touch()
         result = SyncResult()
         logger.info("=== Syncing model data from AEAT ===")
 
@@ -240,7 +241,6 @@ def main():
 
     engine = create_engine(db_url)
     run_sync(engine, run_once=args.run_once)
-    Path("/tmp/worker_heartbeat").touch()
 
 
 if __name__ == "__main__":
