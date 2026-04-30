@@ -1,0 +1,128 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "showHeader": true },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "WITH ranked AS (\n  SELECT worker, status, documentos_processed AS processed,\n         documentos_upserted AS stored, started_at AS updated_at,\n         error_msg AS error_message,\n         ROW_NUMBER() OVER (PARTITION BY worker ORDER BY started_at DESC) AS rn\n  FROM sync_log\n)\nSELECT worker, status, processed, stored, updated_at, error_message\nFROM ranked WHERE rn = 1 ORDER BY updated_at DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Último run por worker",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+      "id": 2,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"workers en error\" FROM sync_log WHERE status = 'error' AND started_at > NOW() - INTERVAL '24 hours'",
+          "refId": "A"
+        }
+      ],
+      "title": "Workers en error (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT tipo_fuente AS fuente, COUNT(*) AS total FROM documento_interpretativo GROUP BY tipo_fuente ORDER BY total DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Documentos por fuente",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"total documentos\" FROM documento_interpretativo",
+          "refId": "A"
+        }
+      ],
+      "title": "Total corpus",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+      "id": 5,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"workers activos\" FROM (\n  SELECT DISTINCT worker FROM sync_log\n  WHERE started_at > NOW() - INTERVAL '2 hours'\n) t",
+          "refId": "A"
+        }
+      ],
+      "title": "Workers activos (2h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 12 },
+      "id": 6,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT DISTINCT worker, status, started_at FROM sync_log WHERE status = 'error' AND started_at > NOW() - INTERVAL '2 hours' ORDER BY started_at DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "title": "Alerta: workers con error en las últimas 2h",
+      "type": "stat"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["esdata", "workers", "postgres"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Estado de Workers",
+  "uid": "esdata-workers",
+  "version": 1
+}

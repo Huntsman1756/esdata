@@ -101,7 +101,7 @@ services:
   worker-boe:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -109,9 +109,17 @@ services:
       BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
       SYNC_INTERVAL_SECONDS: ${BOE_SYNC_INTERVAL_SECONDS:-3600}
       WORKER_CMD: python boe.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -121,16 +129,25 @@ services:
   worker-dgt:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-true}
+      DGT_DISCOVERY: ${DGT_DISCOVERY:-true}
       SYNC_INTERVAL_SECONDS: ${DGT_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python dgt.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -140,140 +157,133 @@ services:
   worker-teac:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       TEAC_SEED_URLS: ${TEAC_SEED_URLS:?TEAC_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${TEAC_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python teac.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-modelos:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       MODELOS_SYNC_INTERVAL: ${MODELOS_SYNC_INTERVAL:-86400}
       DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-true}
       WORKER_CMD: python modelos.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-bdns:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${BDNS_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python bdns.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-borme:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${BORME_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python borme.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-cnmv:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       CNMV_SEED_URLS: ${CNMV_SEED_URLS:?CNMV_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${CNMV_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python cnmv.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-sepblac:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       SEPBLAC_SEED_URLS: ${SEPBLAC_SEED_URLS:?SEPBLAC_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${SEPBLAC_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python sepblac.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-cendoj:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       CENDOJ_SEED_URLS: ${CENDOJ_SEED_URLS:?CENDOJ_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${CENDOJ_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python cendoj.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-eurlex:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -281,57 +291,62 @@ services:
       SPARQL_BASE: ${SPARQL_BASE:-http://publications.europa.eu/webapi/rdf/sparql}
       SYNC_INTERVAL_SECONDS: ${EURLEX_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python eurlex.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-bde:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BDE_SEED_URLS: ${BDE_SEED_URLS:?BDE_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${BDE_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python bde.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
 
   worker-aepd:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       AEPD_SEED_URLS: ${AEPD_SEED_URLS:?AEPD_SEED_URLS is required}
       SYNC_INTERVAL_SECONDS: ${AEPD_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python aepd.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     security_opt:
       - no-new-privileges:true
     read_only: true
     tmpfs:
       - /tmp
-
   cron-boe-daily:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -343,7 +358,7 @@ services:
   cron-dgt-weekly:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -354,7 +369,7 @@ services:
   cron-teac-weekly:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -365,7 +380,7 @@ services:
   cron-modelos-daily:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -376,7 +391,7 @@ services:
   cron-bdns-weekly:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -387,7 +402,7 @@ services:
   cron-borme-weekly:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -398,7 +413,7 @@ services:
   cron-cnmv-weekly:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -409,7 +424,7 @@ services:
   cron-sepblac-weekly:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -420,7 +435,7 @@ services:
   cron-bde-weekly:
     build:
       context: ../..
-      dockerfile: apps/workers/Dockerfile
+      dockerfile: apps/workers/Dockerfile.worker
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -428,18 +443,81 @@ services:
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDE_WEEKLY:-}
       WORKER_CMD: python bde.py --run-once
 
+  backup:
+    image: postgres:16-alpine@sha256:1e3604a950df9588c86b955a1e4be0887900210b5c49985ee275c4c2c689cf73
+    profiles: ["prod"]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - esdata-postgres:/var/lib/postgresql/data:ro
+      - ./backups:/backups
+    entrypoint: >
+      sh -c "while true; do
+        pg_dump -h postgres -U ${POSTGRES_USER:-esdata} ${POSTGRES_DB:-esdata}
+        | gzip > /backups/backup_$(date +%Y%m%d_%H%M%S).sql.gz;
+        find /backups -name '*.sql.gz' -mtime +7 -delete;
+        sleep 86400;
+      done"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
   ops:
     build:
       context: ../..
       dockerfile: infra/deploy/Dockerfile.ops
-    profiles: ["ops"]
+    profiles: ["prod", "ops"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
     depends_on:
       postgres:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus@sha256:5ccad477d0057e62a7cd1981ffcc43785ac10c5a35522dc207466ff7e7ec845f
+    profiles: ["prod"]
+    volumes:
+      - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+    networks:
+      - esdata-internal
+
+  grafana:
+    image: grafana/grafana@sha256:7d5faae481a4c6f436c99e98af11534f7fd5e8d3e35213552dd1dd02bc393d2e
+    profiles: ["prod"]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://tudominio.com/grafana/}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_SERVE_FROM_DISK_PATH=/var/lib/grafana/dashboards
+      - GF_SERVER_ROUTING_REMOVE_SERVING_ADDRESS_HEADER=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - postgres
+    restart: unless-stopped
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   esdata-postgres:
   caddy-data:
   caddy-config:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  esdata-internal:
+    driver: bridge

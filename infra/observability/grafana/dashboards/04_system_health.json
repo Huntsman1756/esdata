@@ -1,0 +1,166 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "time() - process_start_time_seconds{job=\"esdata_api\"}",
+          "legendFormat": "Uptime (s)",
+          "refId": "A"
+        }
+      ],
+      "title": "API Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "process_resident_memory_bytes{job=\"esdata_api\"} / 1024 / 1024",
+          "legendFormat": "RAM (MB)",
+          "refId": "A"
+        }
+      ],
+      "title": "Memoria API (MB)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "rate(process_cpu_seconds_total{job=\"esdata_api\"}[5m])",
+          "legendFormat": "CPU %",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU API (rate 5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"workers sanos\" FROM (\n  SELECT DISTINCT worker FROM sync_log\n  WHERE started_at > NOW() - INTERVAL '10 minutes'\n) t",
+          "refId": "A"
+        }
+      ],
+      "title": "Workers sin heartbeat (10m)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 1, "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "process_resident_memory_bytes{job=\"esdata_api\"}",
+          "legendFormat": "resident memory",
+          "refId": "A"
+        }
+      ],
+      "title": "Memoria API (bytes)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 1, "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "rate(process_cpu_seconds_total{job=\"esdata_api\"}[1m])",
+          "legendFormat": "CPU rate",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU API (rate 1m)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "fieldConfig": { "defaults": {} },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "id": 7,
+      "options": { "showHeader": true },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT DISTINCT worker, status, started_at, error_msg FROM sync_log\nWHERE started_at > NOW() - INTERVAL '10 minutes'\nORDER BY started_at DESC\nLIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "title": "Actividad workers recientes (10m)",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 20 },
+      "id": 8,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "sum(up{job=\"esdata_api\"})",
+          "legendFormat": "API UP",
+          "refId": "A"
+        }
+      ],
+      "title": "API health (1 = UP)",
+      "type": "stat"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["esdata", "system", "health"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Salud del Sistema",
+  "uid": "esdata-system-health",
+  "version": 1
+}

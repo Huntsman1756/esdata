@@ -5,6 +5,7 @@ import re
 import time
 from datetime import UTC, datetime
 from html import unescape
+from pathlib import Path
 from urllib.parse import urljoin
 
 import httpx
@@ -212,7 +213,7 @@ def parse_resolution_html(html: str) -> dict[str, str]:
         "fecha": parsed_fecha,
         "organo": organo,
         "titulo": titulo,
-        "texto": texto,
+        "texto": texto or "",
     }
 
 
@@ -266,6 +267,15 @@ def run_sync(
     worker_name: str = "worker-teac",
 ) -> dict[str, int]:
     urls = seed_urls or SEED_URLS
+    if not urls:
+        logger.error(
+            "SEED_URLS vacío en %s — worker abortado sin ingestión. "
+            "Configura la variable de entorno correspondiente.",
+            worker_name,
+        )
+        return {"processed": 0, "stored": 0}
+
+    request_delay = float(os.environ.get("WORKER_REQUEST_DELAY", "1.0"))
     processed = 0
     stored = 0
     links_created = 0
@@ -319,6 +329,7 @@ def run_sync(
                     html,
                 )
                 stored += 1
+                time.sleep(request_delay)
 
             if stored:
                 links_created = auto_link_doctrina(conn)
@@ -332,6 +343,7 @@ def run_sync(
                 doctrina_links_created=links_created,
             )
 
+        Path("/tmp/worker_heartbeat").touch()
         return {"processed": processed, "stored": stored}
 
     except Exception as exc:

@@ -1,9 +1,12 @@
 import argparse
 import logging
+import os
 import re
+import sys
 import time
 from datetime import UTC, datetime
 from html import unescape
+from pathlib import Path
 
 import httpx
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
@@ -15,6 +18,12 @@ from change_detection import (
 )
 from runtime import get_bool_env, get_database_url, get_interval_seconds
 from sqlalchemy import create_engine, text
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
+    stream=sys.stdout,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -229,160 +238,319 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     )
 
 
-def discover_dgt_consultas(
-    start_year: int = 2017,
-    max_consecutive_404: int = 3,
-    end_year: int | None = None,
-) -> list[str]:
-    discovered: list[str] = []
-    if end_year is None:
-        end_year = datetime.now(UTC).year
-
-    for year in range(start_year, end_year + 1):
-        year_str = f"{year % 100:02d}"
-        consecutive_404 = 0
-
-        for num in range(1, 10000):
-            num_str = f"{num:04d}"
-            num_consulta = f"V{num_str}-{year_str}"
-            url = f"{BASE_URL}/consultas/?num_consulta={num_consulta}"
-
-            search_html = fetch_search_html_for_discovery(num_consulta)
-
-            if search_html is None:
-                consecutive_404 += 1
-                if consecutive_404 >= max_consecutive_404:
-                    logger.info(
-                        "DGT discovery: %d consecutive 404s for year %s, stopping number iteration",
-                        max_consecutive_404,
-                        year_str,
-                    )
-                    break
-                continue
-
-            consecutive_404 = 0
-
-            results = parse_search_results(search_html)
-            if results:
-                discovered.append(url)
-                logger.info("DGT discovery: found %s (%d results)", num_consulta, len(results))
-            else:
-                logger.debug("DGT discovery: %s returned no search results", num_consulta)
-
-        logger.info("DGT discovery: year %s complete, %d URLs found so far", year_str, len(discovered))
-
-    logger.info("DGT discovery complete: %d total URLs", len(discovered))
-    return discovered
-
-
 def fetch_search_html_for_discovery(num_consulta: str) -> str | None:
-    try:
-        with httpx.Client(
-            base_url=BASE_URL,
-            timeout=30.0,
-            verify=DGT_SSL_VERIFY,
-        ) as client:
-            start_session(client)
-            response = client.post(
-                "/consultas/do/search",
-                data=build_search_payload(num_consulta),
-            )
-            if response.status_code == 404:
-                return None
-            response.raise_for_status()
-            return response.text
-    except (httpx.HTTPStatusError, httpx.RequestError):
-        return None
+    """Deprecated — replaced by numeric discovery via POST /consultas/do/search."""
+    return None
+
+
+def _ensure_dgt_queue(conn, worker_name: str, seed_urls: list[str]) -> None:
+    """Insert seed URLs into source_revision as pending queue entries."""
+    for url in seed_urls:
+        num_consulta = _extract_num_consulta(url)
+        conn.execute(
+            text("""
+                INSERT INTO source_revision (
+                    worker_name, source_entity_tipo, source_entity_id,
+                    content_hash_sha256, dgt_url
+                ) VALUES (:worker, 'consulta', :entity_id, 'pending', :url)
+                ON CONFLICT (worker_name, source_entity_tipo, source_entity_id) DO NOTHING
+            """),
+            {
+                "worker": worker_name,
+                "entity_id": num_consulta,
+                "url": url,
+            },
+        )
+
+
+def _get_pending_urls(conn, worker_name: str, limit: int = 100) -> list[tuple[str, str]]:
+    """Get pending URLs from the queue. Returns [(url, entity_id), ...]."""
+    result = conn.execute(
+        text("""
+            SELECT dgt_url, source_entity_id
+            FROM source_revision
+            WHERE worker_name = :worker
+              AND source_entity_tipo = 'consulta'
+              AND content_hash_sha256 = 'pending'
+              AND dgt_url IS NOT NULL
+            ORDER BY id ASC
+            LIMIT :limit
+        """),
+        {"worker": worker_name, "limit": limit},
+    )
+    return result.fetchall()
+
+
+def _mark_done(conn, worker_name: str, entity_id: str, content_hash: str) -> None:
+    """Mark a queue entry as processed by updating its hash."""
+    conn.execute(
+        text("""
+            UPDATE source_revision
+            SET content_hash_sha256 = :hash,
+                fetched_at = :ts
+            WHERE worker_name = :worker
+              AND source_entity_tipo = 'consulta'
+              AND source_entity_id = :entity_id
+              AND content_hash_sha256 = 'pending'
+        """),
+        {
+            "worker": worker_name,
+            "hash": content_hash,
+            "entity_id": entity_id,
+            "ts": datetime.now(UTC).isoformat(),
+        },
+    )
 
 
 def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-dgt",
+    batch_size: int = 100,
 ) -> dict[str, int]:
-    urls = list(seed_urls or SEED_URLS)
-
-    if DGT_DISCOVERY:
-        logger.info("DGT discovery enabled, running discovery phase")
-        discovered = discover_dgt_consultas()
-        known = {u for u in urls}
-        urls.extend(u for u in discovered if u not in known)
-        logger.info("DGT discovery: %d seed + %d discovered = %d total URLs", len(seed_urls or SEED_URLS), len(discovered), len(urls))
-    processed = 0
-    stored = 0
+    seed_list = list(seed_urls or SEED_URLS)
+    total_processed = 0
+    total_stored = 0
+    total_discovered = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
 
     try:
         with httpx.Client(
             base_url=BASE_URL,
-            timeout=30.0,
+            timeout=60.0,
             verify=DGT_SSL_VERIFY,
-        ) as client, engine.begin() as conn:
-            start_session(client)
-            _ensure_sync_log_table(conn)
-            ensure_source_revision_table(conn)
-            for url in urls:
-                num_consulta = _extract_num_consulta(url)
-                search_html = fetch_search_html(client, num_consulta)
-                results = parse_search_results(search_html)
-                if not results:
-                    continue
+        ) as client:
+            # Phase 1: Ensure seed URLs are in the queue
+            with engine.begin() as conn:
+                _ensure_sync_log_table(conn)
+                ensure_source_revision_table(conn)
+                _ensure_dgt_queue(conn, worker_name, seed_list)
 
-                query, order, doc_id = _build_document_payload(results[0])
-                document_html = fetch_document_html(client, query, order, doc_id)
-                document = parse_document_html(document_html)
-                processed += 1
+            # Phase 2: Discovery — insert new URLs into pending queue
+            if DGT_DISCOVERY:
+                logger.info("DGT discovery enabled, starting numeric iteration")
 
-                if not document["normas_objetivo"]:
-                    continue
+                # Load existing entity IDs into memory to avoid per-URL DB queries
+                with engine.begin() as conn:
+                    existing_ids = set(
+                        row[0] for row in conn.execute(
+                            text("""
+                                SELECT source_entity_id
+                                FROM source_revision
+                                WHERE worker_name = :worker
+                                  AND source_entity_tipo = 'consulta'
+                            """),
+                            {"worker": worker_name},
+                        ).fetchall()
+                    )
 
-                change = check_content_changed(
-                    conn, worker_name, "consulta", document["referencia"], document_html
-                )
+                for year in range(2026, 2016, -1):
+                    year_str = f"{year % 100:02d}"
+                    consecutive_404 = 0
+                    year_discovered = 0
+                    batch_inserts = []
 
-                if change.changed:
-                    invalidated = invalidate_old_embeddings(conn, document["referencia"])
-                    if invalidated:
-                        print(
-                            f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}"
+                    for num in range(1, 10000):
+                        num_str = f"{num:04d}"
+                        num_consulta = f"V{num_str}-{year_str}"
+
+                        # Skip if already in queue (from prior run)
+                        if num_consulta in existing_ids:
+                            continue
+
+                        try:
+                            search_html = fetch_search_html(client, num_consulta)
+                        except (httpx.HTTPStatusError, httpx.RequestError):
+                            consecutive_404 += 1
+                            if consecutive_404 >= 3:
+                                logger.info(
+                                    "DGT discovery: 3 consecutive errors for year %s, stopping",
+                                    year_str,
+                                )
+                                break
+                            continue
+
+                        results = parse_search_results(search_html)
+                        if not results:
+                            consecutive_404 += 1
+                            if consecutive_404 >= 3:
+                                logger.info(
+                                    "DGT discovery: 3 consecutive 404s for year %s, stopping",
+                                    year_str,
+                                )
+                                break
+                            continue
+
+                        consecutive_404 = 0
+                        year_discovered += 1
+                        total_discovered += 1
+                        existing_ids.add(num_consulta)
+                        batch_inserts.append({
+                            "worker": worker_name,
+                            "entity_id": num_consulta,
+                            "url": f"{BASE_URL}/consultas/?num_consulta={num_consulta}",
+                        })
+
+                        time.sleep(float(os.environ.get("WORKER_REQUEST_DELAY", "1.0")))
+                        logger.info(
+                            "DGT discovery: found %s (%d total discovered)",
+                            num_consulta,
+                            total_discovered,
                         )
 
-                    upsert_documento_interpretativo(
-                        conn,
-                        {
-                            "referencia": document["referencia"],
-                            "fecha": document["fecha"],
-                            "titulo": _build_titulo(document),
-                            "texto": document["texto"],
-                            "url_fuente": url,
-                        },
-                    )
-                    record_revision(
-                        conn,
-                        worker_name,
-                        "consulta",
-                        document["referencia"],
-                        document_html,
-                    )
-                    stored += 1
-                else:
-                    print(f"  [SKIP] {document['referencia']} unchanged")
+                    # Batch insert discovered URLs
+                    if batch_inserts:
+                        with engine.begin() as conn:
+                            conn.execute(
+                                text("""
+                                    INSERT INTO source_revision (
+                                        worker_name, source_entity_tipo, source_entity_id,
+                                        content_hash_sha256, dgt_url
+                                    ) VALUES (:worker, 'consulta', :entity_id, 'pending', :url)
+                                    ON CONFLICT (worker_name, source_entity_tipo, source_entity_id) DO NOTHING
+                                """),
+                                batch_inserts,
+                            )
 
-                time.sleep(1)
+                    logger.info("DGT discovery: year %s complete, %d URLs found", year_str, year_discovered)
 
-            if stored:
-                links_created = auto_link_doctrina(conn)
+                logger.info("DGT discovery complete: %d new URLs discovered", total_discovered)
+
+            # Phase 3: Processing — incremental from persistent queue
+            with engine.begin() as conn:
+                _ensure_sync_log_table(conn)
+                ensure_source_revision_table(conn)
+
+            while True:
+                with engine.begin() as conn:
+                    pending = _get_pending_urls(conn, worker_name, limit=batch_size)
+
+                if not pending:
+                    logger.info("DGT queue empty, sync complete")
+                    break
+
+                batch_processed = 0
+                batch_stored = 0
+                batch_links = 0
+
+                for url, entity_id in pending:
+                    try:
+                        num_consulta = _extract_num_consulta(url)
+                        search_html = fetch_search_html(client, num_consulta)
+                        results = parse_search_results(search_html)
+                        if not results:
+                            # Mark as done (no content) to avoid retrying
+                            with engine.begin() as conn:
+                                conn.execute(
+                                    text("""
+                                        UPDATE source_revision
+                                        SET content_hash_sha256 = 'empty'
+                                        WHERE worker_name = :worker
+                                          AND source_entity_tipo = 'consulta'
+                                          AND source_entity_id = :entity_id
+                                          AND content_hash_sha256 = 'pending'
+                                    """),
+                                    {"worker": worker_name, "entity_id": entity_id},
+                                )
+                            continue
+
+                        query, order, doc_id = _build_document_payload(results[0])
+                        document_html = fetch_document_html(client, query, order, doc_id)
+                        document = parse_document_html(document_html)
+                        batch_processed += 1
+
+                        if not document["normas_objetivo"]:
+                            # Mark as done (no target normas)
+                            with engine.begin() as conn:
+                                conn.execute(
+                                    text("""
+                                        UPDATE source_revision
+                                        SET content_hash_sha256 = 'empty'
+                                        WHERE worker_name = :worker
+                                          AND source_entity_tipo = 'consulta'
+                                          AND source_entity_id = :entity_id
+                                          AND content_hash_sha256 = 'pending'
+                                    """),
+                                    {"worker": worker_name, "entity_id": entity_id},
+                                )
+                            continue
+
+                        # Check content change
+                        with engine.begin() as conn:
+                            change = check_content_changed(
+                                conn, worker_name, "consulta", document["referencia"], document_html
+                            )
+
+                        if change.changed:
+                            with engine.begin() as conn:
+                                invalidated = invalidate_old_embeddings(conn, document["referencia"])
+                                if invalidated:
+                                    print(
+                                        f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}"
+                                    )
+
+                                upsert_documento_interpretativo(
+                                    conn,
+                                    {
+                                        "referencia": document["referencia"],
+                                        "fecha": document["fecha"],
+                                        "titulo": _build_titulo(document),
+                                        "texto": document["texto"],
+                                        "url_fuente": url,
+                                    },
+                                )
+                                record_revision(
+                                    conn,
+                                    worker_name,
+                                    "consulta",
+                                    document["referencia"],
+                                    document_html,
+                                )
+                                batch_stored += 1
+
+                            # Mark queue entry as done
+                            with engine.begin() as conn:
+                                _mark_done(conn, worker_name, entity_id, change.new_hash or "processed")
+                        else:
+                            print(f"  [SKIP] {document['referencia']} unchanged")
+                            # Mark queue entry as done (already processed)
+                            with engine.begin() as conn:
+                                _mark_done(conn, worker_name, entity_id, change.old_hash or "unchanged")
+
+                        time.sleep(1)
+
+                    except Exception as e:
+                        logger.error("Error processing %s: %s", url, e)
+                        # Don't mark as done — will retry next batch
+                        continue
+
+                if batch_stored:
+                    with engine.begin() as conn:
+                        batch_links = auto_link_doctrina(conn)
+                        links_created += batch_links
+
+                total_processed += batch_processed
+                total_stored += batch_stored
+                logger.info(
+                    "DGT batch: %d processed, %d stored, %d pending remaining",
+                    batch_processed, batch_stored,
+                    len(pending) - batch_processed,
+                )
 
             log_sync(
-                conn,
+                None,
                 worker_name,
                 "ok",
-                documentos_processed=processed,
-                documentos_upserted=stored,
+                documentos_processed=total_processed,
+                documentos_upserted=total_stored,
                 doctrina_links_created=links_created,
             )
 
-        return {"processed": processed, "stored": stored}
+        return {
+            "processed": total_processed,
+            "stored": total_stored,
+            "discovered": total_discovered,
+        }
     except Exception as exc:
         with engine.begin() as conn:
             _ensure_sync_log_table(conn)
@@ -390,8 +558,8 @@ def run_sync(
                 conn,
                 worker_name,
                 "error",
-                documentos_processed=processed,
-                documentos_upserted=stored,
+                documentos_processed=total_processed,
+                documentos_upserted=total_stored,
                 doctrina_links_created=links_created,
                 error_msg=str(exc),
             )
@@ -426,8 +594,14 @@ if __name__ == "__main__":
     else:
         print(f"Starting DGT worker in continuous mode (interval={interval}s)")
         while True:
-            result = run_sync()
-            print(
-                f"Synced documentos={result['processed']}, almacenados={result['stored']} at {datetime.now().isoformat()}"
-            )
+            try:
+                result = run_sync()
+                discovered = result.get("discovered", 0)
+                print(
+                    f"Synced documentos={result['processed']}, almacenados={result['stored']}, "
+                    f"descubiertos={discovered} at {datetime.now().isoformat()}"
+                )
+            except Exception as exc:
+                print(f"[ERROR] DGT sync failed: {exc} at {datetime.now().isoformat()}")
+            Path("/tmp/worker_heartbeat").touch()
             time.sleep(interval)

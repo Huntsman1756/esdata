@@ -27,3 +27,11 @@ def test_build_document_payload_extracts_court_type_and_ambito():
     assert payload["court"] == "tribunal_supremo"
     assert payload["ambito"] == "jurisprudencia_tributaria"
     assert payload["referencia"] == "CENDOJ-abc123"
+
+
+def test_run_sync_empty_seed_urls_returns_zero():
+    """SEED_URLS vacío debe devolver processed=0, stored=0 sin hacer HTTP."""
+    from cendoj import run_sync
+
+    result = run_sync(seed_urls=[])
+    assert result == {"processed": 0, "stored": 0}

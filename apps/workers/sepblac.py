@@ -3,6 +3,7 @@ import os
 import re
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from html import unescape
 from io import BytesIO
 from urllib.parse import urlparse
@@ -160,7 +161,20 @@ def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-sepblac",
 ) -> dict[str, int]:
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
     urls = seed_urls or SEED_URLS
+    if not urls:
+        logger.error(
+            "SEED_URLS vacío en %s — worker abortado sin ingestión. "
+            "Configura la variable de entorno correspondiente.",
+            worker_name,
+        )
+        return {"processed": 0, "stored": 0}
+
+    request_delay = float(os.environ.get("WORKER_REQUEST_DELAY", "1.0"))
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
@@ -210,6 +224,7 @@ def run_sync(
                     payload["texto"],
                 )
                 stored += 1
+                time.sleep(request_delay)
 
             log_sync(
                 conn,
@@ -219,6 +234,7 @@ def run_sync(
                 documentos_upserted=stored,
             )
 
+        Path("/tmp/worker_heartbeat").touch()
         return {"processed": processed, "stored": stored}
     except Exception as exc:
         with engine.begin() as conn:

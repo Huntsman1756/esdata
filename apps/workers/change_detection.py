@@ -59,7 +59,10 @@ def compute_content_hash(content: str | bytes) -> str:
 
 
 def ensure_source_revision_table(conn: Connection) -> None:
-    """Create source_revision table if it doesn't exist (idempotent)."""
+    """Create source_revision table if it doesn't exist (idempotent).
+    
+    Adds dgt_url column for persistent discovery queue if missing.
+    """
     dialect_name = conn.engine.dialect.name
     if dialect_name == "sqlite":
         ddl = """
@@ -73,6 +76,7 @@ def ensure_source_revision_table(conn: Connection) -> None:
                 last_modified TEXT,
                 content_length INTEGER,
                 fetched_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
+                dgt_url TEXT,
                 UNIQUE(worker_name, source_entity_tipo, source_entity_id)
             )
         """
@@ -88,11 +92,23 @@ def ensure_source_revision_table(conn: Connection) -> None:
                 last_modified TEXT,
                 content_length INTEGER,
                 fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                dgt_url TEXT,
                 UNIQUE(worker_name, source_entity_tipo, source_entity_id)
             )
         """
 
     conn.execute(text(ddl))
+
+    # Add dgt_url column if missing (migration for existing deployments)
+    columns = _source_revision_columns(conn)
+    if "dgt_url" not in columns:
+        if dialect_name == "sqlite":
+            conn.execute(text("ALTER TABLE source_revision ADD COLUMN dgt_url TEXT"))
+        else:
+            conn.execute(text(
+                "ALTER TABLE source_revision ADD COLUMN dgt_url TEXT"
+            ))
+
     if _uses_legacy_source_revision_schema(conn):
         conn.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_source_revision_worker_entity
@@ -102,6 +118,11 @@ def ensure_source_revision_table(conn: Connection) -> None:
         conn.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_source_revision_worker_entity
                 ON source_revision(worker_name, source_entity_tipo, source_entity_id)
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_source_revision_pending_dgt
+                ON source_revision(worker_name, source_entity_tipo, content_hash_sha256)
+                WHERE content_hash_sha256 = 'pending' AND dgt_url IS NOT NULL
         """))
 
 

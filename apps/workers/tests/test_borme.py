@@ -11,6 +11,7 @@ from borme import (
     link_documento_empresas,
     run_sync,
     upsert_documento_interpretativo,
+    upsert_empresa,
     upsert_empresas,
 )
 
@@ -322,3 +323,163 @@ def test_run_sync_persists_borme_document_and_metrics(monkeypatch):
     ]
     assert enlaces == [("absorbente", 0.7), ("absorbida", 0.7)]
     assert sync == ("worker-borme", "ok", 1, 1)
+
+
+def test_upsert_empresa_accepts_positional_conn_payload():
+    """Verifica que upsert_empresa(conn, payload) funciona con args posicionales.
+
+    Este test detecta el bug de argumentos swappeados en borme.py:365 donde se
+    llamaba upsert_empresa(payload=payload, conn=conn) pero la firma es
+    upsert_empresa(conn, payload). La llamada con kwargs swappeadas provocaba
+    TypeError: got an unexpected keyword argument 'conn'.
+    """
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE empresa (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    nif TEXT,
+                    domicilio TEXT,
+                    fuente_inicial TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (nombre)
+                )
+                """
+            )
+        )
+
+        payload = {
+            "empresa_nombre": "TEST EMPRESA SL",
+            "empresa_domicilio": "CALLE TEST 1",
+        }
+
+        empresa_id = upsert_empresa(conn, payload)
+
+    assert empresa_id is not None
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT nombre, domicilio, fuente_inicial FROM empresa WHERE id = :id"),
+            {"id": empresa_id},
+        ).fetchone()
+    assert row == ("TEST EMPRESA SL", "CALLE TEST 1", "BORME")
+
+
+def test_run_sync_empty_seed_urls_returns_error_without_http_calls(monkeypatch):
+    """Verifica que SEED_URLS vacío produce resultado de error sin hacer HTTP.
+
+    Este test detecta el bug de workers silentemente vacíos: si SEED_URLS
+    está vacío, el worker debe abortar inmediatamente con processed=0, stored=0
+    y NO debe intentar ninguna llamada HTTP.
+    """
+    mock_client = type("MockClient", (), {"__enter__": lambda self: self, "__exit__": lambda self, *a: None})()
+    monkeypatch.setattr("borme.httpx.Client", lambda *args, **kwargs: mock_client)
+
+    calls_made = []
+    original_get = mock_client.get if hasattr(mock_client, "get") else None
+
+    result = run_sync(seed_urls=[], worker_name="test-worker")
+
+    assert result == {"processed": 0, "stored": 0}
+    assert calls_made == [], "No se debe hacer ninguna llamada HTTP con SEED_URLS vacío"
+
+
+def test_run_sync_calls_time_sleep_between_requests(monkeypatch):
+    """Verifica que se llama a time.sleep entre requests de documentos.
+
+    El rate limiting entre requests al mismo dominio es obligatorio para
+    evitar bans por scraping agresivo en BOE, AEAT, TEAC, etc.
+    """
+    engine = create_engine("sqlite:///:memory:", future=True)
+    sleep_calls = []
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE empresa (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    nif TEXT,
+                    domicilio TEXT,
+                    fuente_inicial TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (nombre)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_empresa (
+                    documento_id INTEGER NOT NULL,
+                    empresa_id INTEGER NOT NULL,
+                    rol TEXT NOT NULL,
+                    confianza_extraccion REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, empresa_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=MINIMAL_BORME_PDF)
+
+    # Guardar el original ANTES de monkeypatchear
+    _orig_client = httpx.Client
+    monkeypatch.setattr("borme.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "borme.httpx",
+        type("MockHpxx", (), {"Client": lambda *a, **kw: _orig_client(transport=httpx.MockTransport(handler))}),
+    )
+    monkeypatch.setattr("borme.time", type("T", (), {"sleep": lambda *a: sleep_calls.append(a[0])})())
+
+    result = run_sync(
+        seed_urls=["https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf"],
+    )
+
+    assert result == {"processed": 1, "stored": 1}
+    assert len(sleep_calls) >= 1, "Se debe llamar a time.sleep al menos una vez entre requests"

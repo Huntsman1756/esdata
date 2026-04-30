@@ -241,3 +241,9 @@ def test_run_sync_rehydrates_missing_document_when_revision_exists(monkeypatch):
         count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
 
     assert count == 1
+
+
+def test_run_sync_empty_seed_urls_returns_zero():
+    """SEED_URLS vacío debe devolver processed=0, stored=0 sin hacer HTTP."""
+    result = run_sync(seed_urls=[])
+    assert result == {"processed": 0, "stored": 0}

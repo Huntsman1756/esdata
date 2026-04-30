@@ -15,7 +15,6 @@ cd "$ROOT_DIR"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm ops alembic upgrade head
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm ops python scripts/maintenance/verify_schema.py
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build --remove-orphans \
   caddy api web \

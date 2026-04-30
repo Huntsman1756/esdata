@@ -1,13 +1,22 @@
 import argparse
+import logging
 import os
 import re
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import httpx
 from sqlalchemy import create_engine, text
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
+    stream=sys.stdout,
+)
 
 BOE_API_BASE = os.getenv(
     "BOE_API_BASE",
@@ -228,13 +237,133 @@ def parse_index(payload: dict) -> list[BloqueIndex]:
     ]
 
 
-def fetch_index(client: httpx.Client, boe_id: str) -> list[BloqueIndex]:
-    response = client.get(
-        f"{BOE_API_BASE}/id/{boe_id}/texto/indice",
-        headers={"Accept": "application/json"},
+def parse_metadata_from_xml(codigo: str, boe_id: str, xml_text: str) -> NormaMetadata:
+    root = ET.fromstring(xml_text)
+    metadatos = root.find("metadatos")
+    if metadatos is None:
+        raise ValueError(f"No metadatos element in XML for {codigo}/{boe_id}")
+
+    def get_text(tag: str) -> str | None:
+        elem = metadatos.find(tag)
+        return elem.text.strip() if elem is not None and elem.text else None
+
+    titulo = get_text("titulo") or ""
+    eli_url = get_text("url_eli")
+    fecha_vigencia_raw = get_text("fecha_vigencia") or "19700101"
+
+    classification = NORMA_CLASSIFICATIONS[codigo]
+    return NormaMetadata(
+        codigo=codigo,
+        boe_id=boe_id,
+        titulo=titulo,
+        eli_uri=eli_url,
+        jurisdiccion="es",
+        tipo_fuente="boe",
+        tipo_documento=classification["tipo_documento"],
+        ambito=classification["ambito"],
+        estado_cobertura="ingestada",
+        vigente_desde=_yyyymmdd_to_iso(fecha_vigencia_raw),
     )
+
+
+def _parse_xml_index(xml_text: str) -> list[BloqueIndex]:
+    """Parse article list from the consolidated XML."""
+    root = ET.fromstring(xml_text)
+    texto = root.find("texto")
+    if texto is None:
+        return []
+
+    articles = []
+    for child in texto:
+        if child.tag == "p":
+            text_content = (child.text or "").strip()
+            if re.match(r"Artículo\s+\d+", text_content, re.IGNORECASE):
+                articles.append(
+                    BloqueIndex(
+                        id=text_content,
+                        titulo=text_content,
+                        fecha_actualizacion="",
+                    )
+                )
+    return articles
+
+
+def _extract_xml_block(xml_text: str, block_id: str) -> BloqueTexto:
+    """Extract a single article block from the consolidated XML."""
+    root = ET.fromstring(xml_text)
+    texto = root.find("texto")
+    if texto is None:
+        raise ValueError(f"No texto element in XML for {block_id}")
+
+    parts = []
+    found = False
+    for child in texto:
+        text_content = (child.text or "").strip()
+        if child.tag == "p" and block_id in text_content:
+            found = True
+            parts.append(text_content)
+        elif found:
+            if child.tag == "p" and re.match(r"Artículo\s+\d+", text_content, re.IGNORECASE):
+                break
+            if child.tag == "p":
+                parts.append(text_content)
+            elif child.tag in ("div", "section", "chapter", "title"):
+                parts.append((child.text or "") + "".join(child.itertext()))
+
+    if not parts:
+        raise ValueError(f"No content found for block {block_id}")
+
+    titulo = parts[0]
+    tipo_articulo, numero = _infer_tipo_y_numero(titulo)
+    full_text = "\n".join(p for p in parts if p)
+
+    return BloqueTexto(
+        bloque_id=block_id,
+        tipo_bloque="articulo",
+        numero=numero,
+        titulo=titulo,
+        tipo_articulo=tipo_articulo,
+        texto=full_text,
+        vigente_desde="",
+    )
+
+
+def fetch_index(client: httpx.Client, boe_id: str) -> list[BloqueIndex]:
+    # Try the consolidated JSON API first
+    try:
+        response = client.get(
+            f"{BOE_API_BASE}/id/{boe_id}/texto/indice",
+            headers={"Accept": "application/json"},
+        )
+        if response.status_code == 200:
+            return parse_index(response.json())
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        pass
+
+    # Fallback: parse XML for article list
+    xml_url = f"https://www.boe.es/diario_boe/xml.php?id={boe_id}"
+    response = client.get(xml_url, timeout=60.0)
     response.raise_for_status()
-    return parse_index(response.json())
+    return _parse_xml_index(response.text)
+
+
+def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto:
+    # Try the consolidated JSON API first
+    try:
+        response = client.get(
+            f"{BOE_API_BASE}/id/{boe_id}/texto/bloque/{block_id}",
+            headers={"Accept": "application/xml"},
+        )
+        if response.status_code == 200:
+            return parse_block_xml(block_id, response.text)
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        pass
+
+    # Fallback: extract from consolidated XML
+    xml_url = f"https://www.boe.es/diario_boe/xml.php?id={boe_id}"
+    response = client.get(xml_url, timeout=60.0)
+    response.raise_for_status()
+    return _extract_xml_block(response.text, block_id)
 
 
 def parse_block_xml(block_id: str, xml_text: str) -> BloqueTexto:
@@ -273,11 +402,21 @@ def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto
 
 
 def fetch_metadata(client: httpx.Client, codigo: str, boe_id: str) -> NormaMetadata:
-    response = client.get(
-        f"{BOE_API_BASE}/id/{boe_id}/metadatos", headers={"Accept": "application/json"}
-    )
+    # Try the consolidated JSON API first
+    try:
+        response = client.get(
+            f"{BOE_API_BASE}/id/{boe_id}/metadatos", headers={"Accept": "application/json"}
+        )
+        if response.status_code == 200:
+            return parse_metadata(codigo, boe_id, response.json())
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        pass
+
+    # Fallback: parse XML metadata
+    xml_url = f"https://www.boe.es/diario_boe/xml.php?id={boe_id}"
+    response = client.get(xml_url, timeout=30.0)
     response.raise_for_status()
-    return parse_metadata(codigo, boe_id, response.json())
+    return parse_metadata_from_xml(codigo, boe_id, response.text)
 
 
 def upsert_norma(conn, metadata: NormaMetadata) -> None:
@@ -631,6 +770,9 @@ def log_sync(
     error_msg: str | None = None,
     started_at: str | None = None,
 ) -> None:
+    if conn is None:
+        logging.getLogger(__name__).warning("log_sync llamado con conn=None, skip")
+        return
     now = datetime.now(timezone.utc).isoformat()
     effective_started_at = started_at or now
     _ensure_sync_log_table(conn)
@@ -830,17 +972,27 @@ def run_sync(
         for item in os.getenv("BOE_ONLY_BLOCK_IDS", "").split(",")
         if item.strip()
     ]
-    engine = create_engine(DATABASE_URL, future=True)
-    bloques_fetched = 0
-    articulos_upserted = 0
+    engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
+    total_bloques = 0
+    total_articulos = 0
 
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            with engine.begin() as conn:
-                _ensure_schema(conn)
-                for codigo in target_codes:
-                    boe_id = DEFAULT_NORMAS[codigo]
-                    metadata = fetch_metadata(client, codigo, boe_id)
+    with httpx.Client(timeout=30.0) as client:
+        with engine.begin() as conn:
+            _ensure_schema(conn)
+
+        for codigo in target_codes:
+            boe_id = DEFAULT_NORMAS[codigo]
+            try:
+                metadata = fetch_metadata(client, codigo, boe_id)
+            except ValueError:
+                print(f"  SKIP {codigo} ({boe_id}): not in BOE API")
+                continue
+
+            bloques_fetched = 0
+            articulos_upserted = 0
+            ley_start = datetime.now(timezone.utc).isoformat()
+            try:
+                with engine.begin() as conn:
                     upsert_norma(conn, metadata)
                     for item in fetch_index(client, boe_id):
                         if not _is_supported_block(item.titulo):
@@ -851,32 +1003,54 @@ def run_sync(
                         upsert_articulo(conn, codigo, bloque)
                         bloques_fetched += 1
                         articulos_upserted += 1
-
-                # Auto-linking post-ingestion
-                materias_linked = auto_link_materias(conn)
-                doctrina_linked = auto_link_doctrina(conn)
-                log_sync(
-                    conn,
-                    worker_name,
-                    "ok",
-                    bloques=bloques_fetched,
-                    articulos=articulos_upserted,
-                )
+                        time.sleep(float(os.environ.get("WORKER_REQUEST_DELAY", "1.0")))
+                    auto_link_materias(conn)
+                    auto_link_doctrina(conn)
+                    log_sync(
+                        conn,
+                        worker_name,
+                        "ok",
+                        bloques=bloques_fetched,
+                        articulos=articulos_upserted,
+                        started_at=ley_start,
+                    )
+                total_bloques += bloques_fetched
+                total_articulos += articulos_upserted
+                print(f"  DONE {codigo}: {bloques_fetched} blocks, {articulos_upserted} articulos")
+            except Exception as exc:
                 print(
-                    f"  Auto-link: materias={materias_linked}, doctrina={doctrina_linked}"
+                    f"  ERROR {codigo}: {exc} at {datetime.now(timezone.utc).isoformat()}"
                 )
-        return {"bloques": bloques_fetched, "articulos": articulos_upserted}
-    except Exception as exc:
-        with engine.begin() as conn:
-            log_sync(
-                conn,
-                worker_name,
-                "error",
-                bloques=bloques_fetched,
-                articulos=articulos_upserted,
-                error_msg=str(exc),
+                try:
+                    with engine.begin() as conn:
+                        log_sync(
+                            conn,
+                            worker_name,
+                            "error",
+                            bloques=bloques_fetched,
+                            articulos=articulos_upserted,
+                            error_msg=str(exc),
+                            started_at=ley_start,
+                        )
+                except Exception:
+                    pass
+
+    from sqlalchemy import text
+    with engine.connect() as check_conn:
+        result = check_conn.execute(
+            text(
+                "SELECT count(*) FROM pg_stat_activity "
+                "WHERE state = 'idle in transaction' "
+                "AND pid != pg_backend_pid()"
             )
-        raise
+        )
+        idle = result.scalar()
+        if idle > 0:
+            print(
+                f"  DEADLOCK_RISK: {idle} conexiones idle in transaction tras run_sync"
+            )
+
+    return {"bloques": total_bloques, "articulos": total_articulos}
 
 
 def _yyyymmdd_to_iso(value: str) -> str:
@@ -939,8 +1113,12 @@ if __name__ == "__main__":
     else:
         print(f"Starting BOE worker in continuous mode (interval={interval}s)")
         while True:
-            result = run_sync()
-            print(
-                f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}"
-            )
+            try:
+                result = run_sync()
+                print(
+                    f"Synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}"
+                )
+            except Exception as exc:
+                print(f"[ERROR] Sync failed: {exc} at {datetime.now(timezone.utc).isoformat()}")
+            Path("/tmp/worker_heartbeat").touch()
             time.sleep(interval)

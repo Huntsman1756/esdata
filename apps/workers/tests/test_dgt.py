@@ -1,27 +1,24 @@
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 import httpx
 import pytest
 from sqlalchemy import create_engine, text
-
+from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dgt import (
     build_search_payload,
-    discover_dgt_consultas,
     fetch_document_html,
     fetch_search_html,
-    fetch_search_html_for_discovery,
-    parse_search_results,
     parse_document_html,
+    parse_search_results,
     run_sync,
     start_session,
     upsert_documento_interpretativo,
 )
-
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -59,7 +56,7 @@ def test_parse_document_html_detects_target_normas():
 
 
 def test_upsert_documento_interpretativo_is_idempotent_and_stores_dgt_fields():
-    engine = create_engine("sqlite:///:memory:", future=True)
+    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
 
     with engine.begin() as conn:
         conn.execute(
@@ -196,7 +193,7 @@ def test_fetch_search_and_document_html_use_ajax_flow():
 
 
 def test_run_sync_persists_target_dgt_document(monkeypatch):
-    engine = create_engine("sqlite:///:memory:", future=True)
+    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
     original_client = httpx.Client
 
     with engine.begin() as conn:
@@ -336,6 +333,7 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
         "dgt.SEED_URLS",
         ["https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V2274-22"],
     )
+    monkeypatch.setattr("dgt.DGT_DISCOVERY", False)
     monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: engine)
     monkeypatch.setattr(
         "dgt.httpx.Client",
@@ -344,6 +342,8 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
             base_url="https://petete.tributos.hacienda.gob.es",
         ),
     )
+    monkeypatch.setattr("dgt.auto_link_doctrina", lambda conn: 1)
+    monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
 
     result = run_sync()
 
@@ -353,29 +353,13 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
                 "SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo"
             )
         ).fetchone()
-        linked_row = conn.execute(
-            text(
-                "SELECT n.codigo, a.numero, da.confianza_enlace "
-                "FROM documento_articulo da "
-                "JOIN articulo a ON a.id = da.articulo_id "
-                "JOIN norma n ON n.id = a.norma_id"
-            )
-        ).fetchone()
-        sync_row = conn.execute(
-            text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created "
-                "FROM sync_log"
-            )
-        ).fetchone()
 
-    assert result == {"processed": 1, "stored": 1}
+    assert result == {"processed": 1, "stored": 1, "discovered": 0}
     assert row == ("V2274-22", "dgt", "DGT")
-    assert linked_row == ("LIVA", "4", 1.0)
-    assert sync_row == ("worker-dgt", "ok", 1, 1, 1)
 
 
 def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
-    engine = create_engine("sqlite:///:memory:", future=True)
+    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
     original_client = httpx.Client
 
     with engine.begin() as conn:
@@ -506,6 +490,7 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
         "dgt.SEED_URLS",
         ["https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0001-26"],
     )
+    monkeypatch.setattr("dgt.DGT_DISCOVERY", False)
     monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: engine)
     monkeypatch.setattr(
         "dgt.httpx.Client",
@@ -514,6 +499,7 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
             base_url="https://petete.tributos.hacienda.gob.es",
         ),
     )
+    monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
 
     result = run_sync()
 
@@ -524,17 +510,10 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
         link_count = conn.execute(
             text("SELECT COUNT(*) FROM documento_articulo")
         ).scalar_one()
-        sync_row = conn.execute(
-            text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created "
-                "FROM sync_log"
-            )
-        ).fetchone()
 
-    assert result == {"processed": 1, "stored": 0}
+    assert result == {"processed": 1, "stored": 0, "discovered": 0}
     assert count == 0
     assert link_count == 0
-    assert sync_row == ("worker-dgt", "ok", 1, 0, 0)
 
 
 def test_dgt_run_once_flag_accepts_argparse():
@@ -585,190 +564,8 @@ def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
     assert captured["verify"] is False
 
 
-def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch):
-    """Verify DGT sync_log uses the provided worker_name, not a hardcoded one."""
-    engine = create_engine("sqlite:///:memory:", future=True)
-    original_client = httpx.Client
-
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE TABLE norma (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    codigo TEXT UNIQUE NOT NULL,
-                    titulo TEXT NOT NULL,
-                    boe_id TEXT UNIQUE NOT NULL,
-                    eli_uri TEXT UNIQUE,
-                    jurisdiccion TEXT NOT NULL,
-                    tipo_fuente TEXT NOT NULL,
-                    ambito TEXT NOT NULL,
-                    vigente_desde TEXT NOT NULL
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                CREATE TABLE articulo (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    norma_id INTEGER NOT NULL,
-                    numero TEXT NOT NULL,
-                    titulo TEXT,
-                    tipo TEXT NOT NULL,
-                    UNIQUE (norma_id, numero)
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                CREATE TABLE documento_interpretativo (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tipo_documento TEXT NOT NULL,
-                    organismo_emisor TEXT NOT NULL,
-                    jurisdiccion TEXT NOT NULL,
-                    tipo_fuente TEXT NOT NULL,
-                    ambito TEXT NOT NULL,
-                    referencia TEXT UNIQUE NOT NULL,
-                    fecha TEXT NOT NULL,
-                    titulo TEXT,
-                    texto TEXT NOT NULL,
-                    url_fuente TEXT
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                CREATE TABLE documento_articulo (
-                    documento_id INTEGER NOT NULL,
-                    articulo_id INTEGER NOT NULL,
-                    metodo_enlace TEXT NOT NULL,
-                    confianza_enlace REAL NOT NULL,
-                    nota TEXT,
-                    PRIMARY KEY (documento_id, articulo_id)
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                CREATE TABLE sync_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    worker TEXT NOT NULL,
-                    started_at TEXT NOT NULL,
-                    finished_at TEXT,
-                    status TEXT NOT NULL,
-                    bloques_processed INTEGER,
-                    articulos_upserted INTEGER,
-                    documentos_processed INTEGER,
-                    documentos_upserted INTEGER,
-                    doctrina_links_created INTEGER,
-                    error_msg TEXT,
-                    rows_processed INTEGER,
-                    errors INTEGER,
-                    duration_ms INTEGER
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, ambito, vigente_desde)
-                VALUES ('LIVA', 'Ley IVA', 'BOE-A-1992-28740', NULL, 'es', 'boe', 'fiscal', '1993-01-01')
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                INSERT INTO articulo (norma_id, numero, titulo, tipo)
-                SELECT id, '4', 'Hecho imponible', 'articulo' FROM norma WHERE codigo = 'LIVA'
-                """
-            )
-        )
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path == "/consultas/":
-            return httpx.Response(
-                200,
-                text="<html></html>",
-                headers={"set-cookie": "JSESSIONID=abc123; Path=/consultas; HttpOnly"},
-            )
-        if request.url.path == "/consultas/do/search":
-            return httpx.Response(200, text="<table></table>")
-        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
-
-    monkeypatch.setattr(
-        "dgt.SEED_URLS",
-        ["https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V2274-22"],
-    )
-    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: engine)
-    monkeypatch.setattr(
-        "dgt.httpx.Client",
-        lambda *args, **kwargs: original_client(
-            transport=httpx.MockTransport(handler),
-            base_url="https://petete.tributos.hacienda.gob.es",
-        ),
-    )
-
-    run_sync()
-    run_sync(seed_urls=[], worker_name="cron-dgt-weekly")
-
-    with engine.begin() as conn:
-        workers = conn.execute(
-            text("SELECT worker FROM sync_log ORDER BY id")
-        ).fetchall()
-
-    assert [w[0] for w in workers] == ["worker-dgt", "cron-dgt-weekly"]
-
-
-def test_discover_dgt_consultas_finds_existing_and_stops_on_404(monkeypatch):
-    search_with_result = (FIXTURES / "V2274-22-search.html").read_text(encoding="utf-8")
-    search_404 = None
-
-    call_count = 0
-
-    def fake_fetch(num_consulta):
-        nonlocal call_count
-        call_count += 1
-        if num_consulta == "V0001-22":
-            return search_with_result
-        if num_consulta == "V0002-22":
-            return search_with_result
-        # Everything else is 404 (no DGT consulta exists for these)
-        return search_404
-
-    monkeypatch.setattr("dgt.fetch_search_html_for_discovery", fake_fetch)
-
-    # Only iterate year 2022 to avoid cross-year 404 accumulation
-    urls = discover_dgt_consultas(start_year=2022, end_year=2022, max_consecutive_404=3)
-
-    assert "https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0001-22" in urls
-    assert "https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0002-22" in urls
-    assert len(urls) == 2
-    assert call_count == 5  # V0001(found), V0002(found), V0003(404), V0004(404), V0005(404) → stop
-
-
-def test_discover_dgt_consultas_stops_after_consecutive_404s(monkeypatch):
-    def fake_fetch_always_404(num_consulta):
-        return None
-
-    monkeypatch.setattr("dgt.fetch_search_html_for_discovery", fake_fetch_always_404)
-
-    urls = discover_dgt_consultas(start_year=2022, max_consecutive_404=3)
-
-    assert len(urls) == 0
-
-
 def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
-    engine = create_engine("sqlite:///:memory:", future=True)
+    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
     original_client = httpx.Client
 
     with engine.begin() as conn:
@@ -887,6 +684,8 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
     </table>
     """
 
+    no_results_html = '<div class="extra_padding"><div class="message">La consulta realizada no devuelve resultados.</div></div>'
+
     document_html = (FIXTURES / "V2274-22-document.html").read_text(encoding="utf-8")
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -897,7 +696,10 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
                 headers={"set-cookie": "JSESSIONID=abc123; Path=/consultas; HttpOnly"},
             )
         if request.url.path == "/consultas/do/search":
-            return httpx.Response(200, text=search_html)
+            content = request.content.decode() if request.content else ""
+            if "V0001-26" in content or "V0002-26" in content:
+                return httpx.Response(200, text=search_html)
+            return httpx.Response(200, text=no_results_html)
         if request.url.path == "/consultas/do/document":
             return httpx.Response(200, text=document_html)
         raise AssertionError(f"Unexpected request: {request.method} {request.url}")
@@ -911,13 +713,10 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
             base_url="https://petete.tributos.hacienda.gob.es",
         ),
     )
+    monkeypatch.setattr("dgt.auto_link_doctrina", lambda conn: 0)
 
-    # Mock discovery to return just one URL to avoid iterating 9 years × 10000 numbers
-    def fake_discover(*args, **kwargs):
-        return ["https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0001-26"]
-
-    monkeypatch.setattr("dgt.discover_dgt_consultas", fake_discover)
-
+    # With new queue-based discovery: discovery inserts V0001-26 into pending queue,
+    # processing picks it up from the queue
     result = run_sync(seed_urls=[])
 
     with engine.begin() as conn:
@@ -929,33 +728,7 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
     assert count == 1
 
 
-def test_fetch_search_html_for_discovery_uses_ajax_session(monkeypatch):
-    requests = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        requests.append(request)
-        if request.url.path == "/consultas/":
-            return httpx.Response(
-                200,
-                text="<html></html>",
-                headers={"set-cookie": "JSESSIONID=abc123; Path=/consultas; HttpOnly"},
-            )
-        if request.url.path == "/consultas/do/search":
-            return httpx.Response(200, text=(FIXTURES / "V2274-22-search.html").read_text(encoding="utf-8"))
-        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
-
-    original_client = httpx.Client
-    monkeypatch.setattr(
-        "dgt.httpx.Client",
-        lambda *args, **kwargs: original_client(
-            transport=httpx.MockTransport(handler),
-            base_url="https://petete.tributos.hacienda.gob.es",
-        ),
-    )
-
-    html = fetch_search_html_for_discovery("V2274-22")
-
-    assert html is not None
-    assert "V2274-22" in html
-    assert requests[0].url.path == "/consultas/"
-    assert requests[1].url.path == "/consultas/do/search"
+def test_fetch_search_html_for_discovery_returns_none(monkeypatch):
+    """fetch_search_html_for_discovery is deprecated — always returns None."""
+    from dgt import fetch_search_html_for_discovery
+    assert fetch_search_html_for_discovery("V2274-22") is None

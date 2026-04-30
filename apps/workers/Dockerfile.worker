@@ -1,0 +1,7 @@
+FROM deploy-worker-base:latest
+
+COPY apps/workers/ /app
+
+USER app
+
+CMD ["sh", "-c", "WORKER_CMD=${WORKER_CMD:-python boe.py}; exec python entrypoint.py"]

@@ -10,6 +10,7 @@ Modo hibrido:
 """
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -272,7 +273,11 @@ def fetch_index(client: httpx.Client, celex: str) -> list[dict]:
         print(f"  [WARN] {celex} not found in EUR-Lex API, skipping")
         return []
     response.raise_for_status()
-    return parse_index(response.json())
+    try:
+        return parse_index(response.json())
+    except json.JSONDecodeError:
+        print(f"  [WARN] Failed to parse EUR-Lex index for {celex}: {response.text[:200]}")
+        return []
 
 
 def fetch_block(client: httpx.Client, block_id: str) -> BloqueTexto:
@@ -858,10 +863,14 @@ if __name__ == "__main__":
     else:
         print(f"Starting EUR-Lex worker in continuous mode (interval={interval}s)")
         while True:
-            result = run_sync()
-            print(
-                f"Synced bloques={result['bloques']}, articulos={result['articulos']}, "
-                f"normas={result['normas']}, nuevos_sparql={result['nuevos_sparql']} "
-                f"at {datetime.now(UTC).isoformat()}"
-            )
+            try:
+                result = run_sync()
+                print(
+                    f"Synced bloques={result['bloques']}, articulos={result['articulos']}, "
+                    f"normas={result['normas']}, nuevos_sparql={result['nuevos_sparql']} "
+                    f"at {datetime.now(UTC).isoformat()}"
+                )
+            except Exception as exc:
+                print(f"[ERROR] EUR-Lex sync failed: {exc} at {datetime.now(UTC).isoformat()}")
+            Path("/tmp/worker_heartbeat").touch()
             time.sleep(interval)

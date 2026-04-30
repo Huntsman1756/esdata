@@ -3,6 +3,12 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
+# Configure test environment BEFORE any module imports that read os.environ
+os.environ["APP_ENV"] = "test"
+os.environ["ESDATA_API_KEY"] = "test-key"
+os.environ["MCP_API_KEY"] = "test-key"
+os.environ["ESDATA_ALLOW_INSECURE_TEST_AUTH"] = "true"
+
 TEST_DB_PATH = Path(__file__).resolve().parent / "test_esdata.sqlite3"
 
 if TEST_DB_PATH.exists():
@@ -105,6 +111,9 @@ STATEMENTS = [
         documentos_processed INTEGER,
         documentos_upserted INTEGER,
         doctrina_links_created INTEGER,
+        rows_processed INTEGER,
+        errors INTEGER,
+        duration_ms INTEGER,
         error_msg TEXT
     )
     """,

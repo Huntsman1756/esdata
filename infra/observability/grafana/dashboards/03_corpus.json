@@ -1,0 +1,130 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT tipo_fuente AS fuente, COUNT(*) AS documentos FROM documento_interpretativo GROUP BY tipo_fuente ORDER BY COUNT(*) DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Documentos por fuente",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 1, "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT DATE(created_at) AS time, COUNT(*) AS nuevos FROM documento_interpretativo WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY DATE(created_at) ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Documentos ingeridos por día (30d)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"respuestas con evidencia\" FROM query_audit_log WHERE respuesta LIKE '%evidencia insuficiente%' OR respuesta LIKE '%no se encontraron documentos%'",
+          "refId": "A"
+        }
+      ],
+      "title": "Respuestas 'evidencia insuficiente'",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 8 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"total consultas\" FROM query_audit_log",
+          "refId": "A"
+        }
+      ],
+      "title": "Total consultas respondidas",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 8 },
+      "id": 5,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"total corpus\" FROM documento_interpretativo",
+          "refId": "A"
+        }
+      ],
+      "title": "Tamaño corpus total",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "fieldConfig": { "defaults": {} },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "id": 6,
+      "options": { "showHeader": true },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT referencia, titulo, tipo_fuente AS fuente, fecha, created_at AS ingestado FROM documento_interpretativo ORDER BY created_at DESC LIMIT 10",
+          "refId": "A"
+        }
+      ],
+      "title": "Últimos 10 documentos ingeridos",
+      "type": "table"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["esdata", "corpus", "postgres"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Corpus y Cobertura",
+  "uid": "esdata-corpus",
+  "version": 1
+}

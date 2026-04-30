@@ -1059,3 +1059,9 @@ def test_parse_resolution_html_fallback_when_date_is_none():
     assert data["fecha"] is not None
     assert len(data["fecha"]) == 10
     assert "/" not in data["fecha"]
+
+
+def test_run_sync_empty_seed_urls_returns_zero():
+    """SEED_URLS vacío debe devolver processed=0, stored=0 sin hacer HTTP."""
+    result = run_sync(seed_urls=[])
+    assert result == {"processed": 0, "stored": 0}

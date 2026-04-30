@@ -72,6 +72,32 @@ docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.
 
 ## Backup automático con cron
 
+### Contenedor de backup (Docker Compose, recomendado)
+
+El contenedor `backup` se incluye en el perfil `prod` de
+`infra/deploy/docker-compose.prod.yml`. Escribe backups diarios
+comprimidos en `infra/deploy/backups/` con retención de 7 días.
+
+```bash
+# Iniciar con el perfil prod (incluye backup)
+docker compose --env-file infra/deploy/.env.prod \
+  -f infra/deploy/docker-compose.prod.yml up -d
+
+# Verificar que el contenedor de backup está corriendo
+docker compose --env-file infra/deploy/.env.prod \
+  -f infra/deploy/docker-compose.prod.yml logs backup
+
+# Listar backups generados
+ls -lh infra/deploy/backups/
+
+# Ver logs del último backup
+docker compose --env-file infra/deploy/.env.prod \
+  -f infra/deploy/docker-compose.prod.yml logs backup | tail -20
+```
+
+> **Nota:** El volumen `infra/deploy/backups/` está en `.gitignore`.
+> Nunca hacer commit de los archivos de backup.
+
 ### En el host (Linux)
 
 ```bash

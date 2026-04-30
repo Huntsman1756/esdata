@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import time
+from pathlib import Path
 from datetime import UTC, datetime
 from io import BytesIO
 from urllib.parse import urlparse
@@ -1144,8 +1145,27 @@ def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-cnmv",
 ) -> dict[str, int]:
+    # Validate before discovery to avoid unnecessary HTTP calls
+    raw = seed_urls or SEED_URLS
+    if not raw:
+        logger.error(
+            "SEED_URLS vacío en %s — worker abortado sin ingestión. "
+            "Configura la variable de entorno correspondiente.",
+            worker_name,
+        )
+        return {"processed": 0, "stored": 0}
+
     # Discover URLs (23.1)
     urls = _discover_new_urls(seed_urls)
+    if not urls:
+        logger.error(
+            "SEED_URLS vacío en %s — worker abortado sin ingestión. "
+            "Configura la variable de entorno correspondiente.",
+            worker_name,
+        )
+        return {"processed": 0, "stored": 0}
+
+    request_delay = float(os.environ.get("WORKER_REQUEST_DELAY", "1.0"))
     processed = 0
     stored = 0
     discovered = len(urls)
@@ -1210,6 +1230,7 @@ def run_sync(
                     )
                     if upsert_result["action"] != "unchanged":
                         stored += 1
+                    time.sleep(request_delay)
                 except Exception:
                     # Log individual URL failure but continue
                     continue
@@ -1222,6 +1243,7 @@ def run_sync(
                 documentos_upserted=stored,
             )
 
+        Path("/tmp/worker_heartbeat").touch()
         return {"processed": processed, "stored": stored, "discovered": discovered}
     except Exception as exc:
         with engine.begin() as conn:

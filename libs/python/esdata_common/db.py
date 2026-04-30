@@ -1,5 +1,6 @@
 """Motor de base de datos y gestion de sesiones compartida."""
 
+import logging
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -7,9 +8,20 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+logger = logging.getLogger(__name__)
+
 
 def create_engine_instance(database_url: str | None = None) -> "engine":
     """Crear engine SQLAlchemy con configuracion por defecto.
+
+    Los valores de pool se leen de variables de entorno para permitir
+    ajuste sin tocar codigo. Los default son seguros para 14+ servicios
+    sobre una sola instancia PostgreSQL (max_connections=100).
+
+    Variables de entorno:
+        DB_POOL_SIZE: conexiones fijas por pool (default 5)
+        DB_POOL_MAX_OVERFLOW: conexiones temporales extras (default 10)
+        DB_POOL_RECYCLE: segundos antes de reciclar conexion (default 1800)
 
     Args:
         database_url: URL de base de datos. Si None, usa DATABASE_URL del entorno.
@@ -18,7 +30,24 @@ def create_engine_instance(database_url: str | None = None) -> "engine":
         from .config import get_database_url
         database_url = get_database_url()
 
-    engine_kwargs = {"future": True, "pool_size": 50, "max_overflow": 100, "pool_pre_ping": True}
+    pool_size = int(os.environ.get("DB_POOL_SIZE", "5"))
+    max_overflow = int(os.environ.get("DB_POOL_MAX_OVERFLOW", "10"))
+    pool_recycle = int(os.environ.get("DB_POOL_RECYCLE", "1800"))
+
+    logger.info(
+        "DB pool: size=%s max_overflow=%s recycle=%ds",
+        pool_size,
+        max_overflow,
+        pool_recycle,
+    )
+
+    engine_kwargs = {
+        "future": True,
+        "pool_size": pool_size,
+        "max_overflow": max_overflow,
+        "pool_pre_ping": True,
+        "pool_recycle": pool_recycle,
+    }
     if database_url.startswith("sqlite"):
         engine_kwargs["connect_args"] = {"check_same_thread": False}
 

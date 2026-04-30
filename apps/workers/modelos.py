@@ -3,6 +3,7 @@
 
 import os
 import time
+from pathlib import Path
 
 from sqlalchemy import create_engine
 
@@ -239,6 +240,7 @@ def main():
 
     engine = create_engine(db_url)
     run_sync(engine, run_once=args.run_once)
+    Path("/tmp/worker_heartbeat").touch()
 
 
 if __name__ == "__main__":

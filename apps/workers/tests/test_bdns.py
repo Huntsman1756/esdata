@@ -185,3 +185,9 @@ def test_run_sync_persists_bdns_document_and_metrics(monkeypatch):
 
     assert doc == ("BDNS-749075-1034404", "BDNS", "bdns", "subvenciones")
     assert sync == ("worker-bdns", "ok", 1, 1)
+
+
+def test_run_sync_empty_seed_urls_returns_zero():
+    """SEED_URLS vacío debe devolver processed=0, stored=0 sin hacer HTTP."""
+    result = run_sync(seed_urls=[])
+    assert result == {"processed": 0, "stored": 0}

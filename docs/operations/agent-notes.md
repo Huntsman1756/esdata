@@ -89,6 +89,16 @@ Usar notas cortas con este esquema:
 - Impacto: probes HTTP o tests de contrato sobre `/mcp` podian romper antes de llegar al contrato real del transporte, aunque el flujo con `lifespan_context` si funcionara.
 - Regla practica: en `/mcp`, un `GET` sin `Accept: text/event-stream` debe cortocircuitarse a `406` antes de tocar el session manager. El arranque lazy del manager tambien debe esperar a que el `task_group` exista realmente antes de delegar la request.
 
+### 2026-04-30 - DGT: cola persistente con `source_revision` evita crash por idle-in-transaction
+
+- Scope: `apps/workers/dgt.py`, `apps/workers/change_detection.py`, DB Postgres
+- Hallazgo: el worker DGT crashaba por `idle-in-transaction-session-timeout` porque toda la fase de discovery + processing corria en una sola transaccion gigante. Cada restart perdía todo el progreso (discovery empezaba desde V0001).
+- Solucion: `source_revision` como cola persistente con status `pending`/`processed`. Discovery inserta URLs en DB (1 query inicial para cargar existing_ids en memoria + batch inserts por año). Processing lee batches de 100 con transacciones independientes. Sin crash, idempotente por URL.
+- Regla practica: workers de crawling/discovery deben usar tabla como cola persistente, nunca listas en memoria. Pattern: `INSERT ... ON CONFLICT DO NOTHING` para discovery, `SELECT ... WHERE status='pending' LIMIT N` para processing, `UPDATE SET status='done'` tras cada commit.
+- Invariantes: nunca `log_sync(None, ...)` sin guard — en `boe.py:log_sync` añadir `if conn is None: return`. `_mark_done` nunca usar `now()` PostgreSQL-only en queries que corren en tests SQLite — siempre parametrizar con `datetime.now(UTC).isoformat()`.
+- Estado: worker desplegado, discovery corriendo 2026→2017, 11 documentos DGT ya procesados, 10 URLs en cola procesadas sin crash.
+- Proximo paso: ampliar `_extract_target_normas` (dgt.py:147) de solo LIVA/LIS a LIRPF, LGT, LIRNR, LITPAJD, LISD, LIAE. Actualmente filtra ~70% del corpus DGT.
+
 ### 2026-04-27 - Carga minima de `LIS` para `IS`
 
 - Scope: `apps/workers/boe.py`, DB Postgres local BOE, `/v1/consulta`

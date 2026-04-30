@@ -1368,3 +1368,9 @@ def test_run_sync_uses_versioning_and_linking(monkeypatch):
     assert version_count == 1
     assert reg_count >= 1
     assert obs_count >= 1
+
+
+def test_run_sync_empty_seed_urls_returns_zero():
+    """SEED_URLS vacío debe devolver processed=0, stored=0 sin hacer HTTP."""
+    result = run_sync(seed_urls=[])
+    assert result == {"processed": 0, "stored": 0}

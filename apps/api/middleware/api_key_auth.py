@@ -10,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 logger = logging.getLogger(__name__)
 
 # Paths that do NOT require authentication
-PUBLIC_PATHS = ("/health", "/gpt-actions/modelos/openapi.json", "/privacy")
+PUBLIC_PATHS = ("/health", "/gpt-actions/modelos/openapi.json", "/privacy", "/metrics")
 
 
 def _is_public(path: str) -> bool:

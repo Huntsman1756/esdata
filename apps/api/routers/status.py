@@ -2,8 +2,9 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from db import get_db
+from db import SessionLocal, engine
 
 router = APIRouter()
 
@@ -61,21 +62,38 @@ def _is_stale(worker: str, finished_at) -> bool:
 @router.get("/status")
 async def status():
     """Estado agregado de la API y de los workers presentes en sync_log."""
-    db = next(get_db())
-    result = {
-        "api": "ok",
-        "database": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "workers": {
-            worker: {"status": "never_run", "stale": True}
-            for worker in WORKER_THRESHOLDS_HOURS
-        },
-    }
+    with SessionLocal() as db:
+        result = {
+            "api": "ok",
+            "database": "ok",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "workers": {
+                worker: {"status": "never_run", "stale": True}
+                for worker in WORKER_THRESHOLDS_HOURS
+            },
+        }
 
-    rows = db.execute(
-        text(
-            """
-            WITH ranked AS (
+        rows = db.execute(
+            text(
+                """
+                WITH ranked AS (
+                    SELECT
+                        worker,
+                        started_at,
+                        finished_at,
+                        status,
+                        bloques_processed,
+                        articulos_upserted,
+                        documentos_processed,
+                        documentos_upserted,
+                        doctrina_links_created,
+                        rows_processed,
+                        errors,
+                        duration_ms,
+                        error_msg,
+                        ROW_NUMBER() OVER (PARTITION BY worker ORDER BY started_at DESC) AS rn
+                    FROM sync_log
+                )
                 SELECT
                     worker,
                     started_at,
@@ -89,56 +107,39 @@ async def status():
                     rows_processed,
                     errors,
                     duration_ms,
-                    error_msg,
-                    ROW_NUMBER() OVER (PARTITION BY worker ORDER BY started_at DESC) AS rn
-                FROM sync_log
+                    error_msg
+                FROM ranked
+                WHERE rn = 1
+                ORDER BY worker
+                """
             )
-            SELECT
-                worker,
-                started_at,
-                finished_at,
-                status,
-                bloques_processed,
-                articulos_upserted,
-                documentos_processed,
-                documentos_upserted,
-                doctrina_links_created,
-                rows_processed,
-                errors,
-                duration_ms,
-                error_msg
-            FROM ranked
-            WHERE rn = 1
-            ORDER BY worker
-            """
-        )
-    ).mappings().all()
+        ).mappings().all()
 
-    for row in rows:
-        worker = row["worker"]
-        result["workers"][worker] = {
-            "last_run": _serialize_datetime(row["started_at"]),
-            "finished_at": _serialize_datetime(row["finished_at"]),
-            "status": row["status"],
-            "bloques_processed": row["bloques_processed"],
-            "articulos_upserted": row["articulos_upserted"],
-            "documentos_processed": row["documentos_processed"],
-            "documentos_upserted": row["documentos_upserted"],
-            "doctrina_links_created": row["doctrina_links_created"],
-            "rows_processed": row["rows_processed"],
-            "errors": row["errors"],
-            "duration_ms": row["duration_ms"],
-            "error": row["error_msg"],
-            "stale": _is_stale(worker, row["finished_at"]),
-        }
+        for row in rows:
+            worker = row["worker"]
+            result["workers"][worker] = {
+                "last_run": _serialize_datetime(row["started_at"]),
+                "finished_at": _serialize_datetime(row["finished_at"]),
+                "status": row["status"],
+                "bloques_processed": row["bloques_processed"],
+                "articulos_upserted": row["articulos_upserted"],
+                "documentos_processed": row["documentos_processed"],
+                "documentos_upserted": row["documentos_upserted"],
+                "doctrina_links_created": row["doctrina_links_created"],
+                "rows_processed": row["rows_processed"],
+                "errors": row["errors"],
+                "duration_ms": row["duration_ms"],
+                "error": row["error_msg"],
+                "stale": _is_stale(worker, row["finished_at"]),
+            }
 
     return result
 
 
 @router.get("/health")
 async def health():
-    db = next(get_db())
-    db.execute(text("SELECT 1"))
+    with SessionLocal() as db:
+        db.execute(text("SELECT 1"))
     return {
         "status": "ok",
         "database": "ok",

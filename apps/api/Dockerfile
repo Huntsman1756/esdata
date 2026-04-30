@@ -16,9 +16,11 @@ RUN sed -i '/esdata_common/d' /tmp/requirements.txt && \
     cp -r /tmp/esdata_common /usr/local/lib/python3.12/site-packages/esdata_common
 
 COPY apps/api/ /app
+COPY alembic.ini /app/alembic.ini
+COPY alembic/ /app/alembic/
 
 USER app
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "echo '[MIGRATION] Running alembic upgrade head...' && alembic upgrade head && echo '[MIGRATION] Alembic upgrade completed successfully.' && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
