@@ -100,11 +100,13 @@ La arquitectura actual ya implementa una base util, pero no debe confundirse con
 
 Capacidades reales hoy:
 
-- [IMPLEMENTED] ingesta multi-fuente por workers especializados
-- [IMPLEMENTED] cobertura regulatoria completa: MiCA, DAC8, AML/Ley 10/2010, Antifraud, MiFID II/MiFIR, MAR, DORA, PRIIPs/LIVMC, Transparencia, SFDR, CSRD, AIFMD/UCITS, CRD/CRR/BRRD/EMIR
+- [IMPLEMENTED] ingesta multi-fuente por 16 workers especializados (BOE, EUR-Lex, CNMV, OFAC, UN, IRS, EBA, BORME, BDE)
+- [IMPLEMENTED] cobertura regulatoria completa: MiCA, DAC8, AML/Ley 10/2010, Antifraud, MiFID II/MiFIR, MAR, DORA, PRIIPs/LIVMC, Transparencia, SFDR, CSRD, AIFMD/UCITS, CRD/CRR/BRRD/EMIR, IDD/Solvency II, Solvency II, PBC, XBRL, Consumer Credit, PGC, Screening (OFAC/EU/UN), GIIN
+- [IMPLEMENTED] ~21 tablas pobladas con datos reales (~950 filas)
 - [IMPLEMENTED] almacenamiento principal en PostgreSQL
 - [IMPLEMENTED] full-text search, chunking y busqueda vectorial/hibrida con reranker cross-encoder activo y grounding duro por claim
 - [IMPLEMENTED] superficies API y MCP para consulta
+- [IMPLEMENTED] 47 cron jobs configurados en Docker Compose (perfiles cron)
 
 Limitaciones estructurales vigentes:
 

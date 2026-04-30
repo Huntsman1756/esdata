@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mica import run_sync
+from mica import run_once
 
 
 def _create_mica_tables(conn) -> None:

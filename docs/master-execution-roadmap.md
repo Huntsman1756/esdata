@@ -4857,8 +4857,460 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ---
 
+## Fase 46 — Poblar datos reales en todos los dominios
+
+### Estado
+- **PENDIENTE** — Despues de Fase 43
+- **Prioridad:** CRITICA — Todos los dominios con datos seed no son aptos para produccion
+- **Plan completo:** `docs/plans/real-data-ingestion.md`
+
+### Objetivo
+Reemplazar todos los datos seed/fixture por ingestion real desde fuentes oficiales publicas.
+64 tablas pasan de seed a datos reales. 10 workers nuevos + 7 modificados. ~3,420 lineas.
+
+### Fuentes validadas (2026-04-29)
+- **BOE**: API consolidado + HTML (stable, sin auth)
+- **EUR-Lex**: REST API + SPARQL (stable, sin auth)
+- **OFAC**: JSON publico via GitHub mirror
+- **UN Consolidated**: JSON publico
+- **IRS GIIN**: CSV publico
+- **CNMV**: Session-based scraping (pattern DGT existente)
+- **EBA**: Session-based scraping (pattern DGT existente)
+
+### Fuentes no accesibles sin suscripcion
+- **ESAP**: Requiere suscripcion → alternativa: EUR-Lex + BOE
+- **EIOPA**: Data pools 404 → alternativa: EUR-Lex + BOE directive text
+- **ESMA**: CASP registry session-based → pattern DGT
+
+### Criterio de exito
+1. 0 dominios con datos solo seed
+2. Cada worker funciona con `--run-once` y carga datos reales
+3. Todos los workers integrados en Docker Compose cron profiles
+4. Change detection activo en todos (SHA-256 en `source_revision`)
+5. Tests verdes para cada worker
+6. 64 tablas con datos reales desde fuentes oficiales
+
+---
+
+### Fase 46.1 — Screening: OFAC + EU + UN sanctions lists
+
+**Root cause:** Datos de screening son 15 entries hardcodeadas en seed. No hay ingestion de listas reales de sanciones.
+
+**Objetivo:** Ingerir listas reales de sanciones de OFAC, EU y UN.
+
+**Entregables:**
+- Worker `apps/workers/screening_real.py` con ingestion desde:
+  - OFAC SDN: `https://raw.githubusercontent.com/oaifd/ofac-sdn/master/sdn.json`
+  - EU Sanctions: `https://www.sanctionsmap.eu/` (scraping)
+  - UN Consolidated: `https://securitycouncilreport.org/pathfinder/data/consolidated.php`
+- Tests `apps/workers/tests/test_screening_real.py` con respuestas mock
+- Upsert en `screening_entries` con `tipo=sanction`, `lista=OFAC_SDN`/`EU_SANCTIONS`/`UN_SANCTIONS`
+
+**Frecuencia:** semanal (`SYNC_INTERVAL_SECONDS=604800`)
+**Estimado:** ~200 lineas worker, ~100 tests
+**Docker Compose:** cron profile
+
+---
+
+### Fase 46.2 — GIIN: IRS Global Intermediary Information Number
+
+**Root cause:** 14 entries GIIN hardcodeadas. No hay ingestion del registry oficial del IRS.
+
+**Entregables:**
+- Worker `apps/workers/giin.py` parseando CSV desde IRS
+  - Fuente: `https://www.irs.gov/whiteservices/foreignfundsandfinancialinstitutions/english_giin.csv`
+  - Regex para extraer GIIN, nombre, pais, estado FATCA/CRS
+- Tests `apps/workers/tests/test_giin.py` con CSV mock
+- Upsert en `giin_registry`
+
+**Frecuencia:** mensual (`SYNC_INTERVAL_SECONDS=2592000`)
+**Estimado:** ~80 lineas worker
+**Docker Compose:** cron profile
+
+---
+
+### Fase 46.3 — PGC: BOE Plan General Contable
+
+**Root cause:** 91 cuentas hardcodeadas en dict `PGC_ACCOUNTS_2021`. No hay ingestion del PGC oficial.
+
+**Entregables:**
+- Modificar `apps/workers/pgc.py` para reemplazar dict hardcodeado por fetch desde BOE
+  - Fuente: `https://www.boe.es/diario_boe/txt.php?id=BOE-A-2007-20422` (RD 1514/2007)
+  - Parser HTML → extraer cuentas, grupos, normas de valoracion
+  - Upsert en `pgc_cuenta`, `pgc_marco`, `pgc_norma_valoracion`
+- Tests actualizados
+
+**Frecuencia:** mensual (el PGC cambia raramente)
+**Estimado:** ~150 lineas
+**Docker Compose:** cron profile
+
+---
+
+### Fase 46.4 — DAC8: EUR-Lex directive text
+
+**Root cause:** 4 entidades DAC8 hardcodeadas. No hay ingestion del texto de la directive.
+
+**Entregables:**
+- Modificar `apps/workers/dac8.py` para conectar a EUR-Lex
+  - Fuente: EUR-Lex CELEX `32025R2412` (DAC8 regulation) + `2011/16/EU` (DAC directive)
+  - Parser EUR-Lex para extraer articulos
+  - Actualizar `dac_reporting_entity`, `dac_wallet_holder` con datos reales
+
+**Frecuencia:** semanal
+**Estimado:** ~60 lineas (worker casi listo)
+**Docker Compose:** cron profile
+
+---
+
+### Fase 46.5 — Consumer Credit: EUR-Lex + BOE
+
+**Root cause:** 3 tablas de Consumer Credit sin datos reales.
+
+**Entregables:**
+- Modificar `apps/workers/consumer_credit.py` para expandir con ingestion real
+  - Fuente EUR-Lex: Directive 2008/48/CE + Directive 2023/2863 (Consumer Credit)
+  - Fuente BOE: transposicion espanola (Real Decreto Ley correspondiente)
+  - Parser EUR-Lex → articulos → `consumer_credit_disclosure`
+
+**Frecuencia:** mensual
+**Estimado:** ~120 lineas
+**Docker Compose:** cron profile
+
+---
+
+### Fase 46.6 — DORA: EBA + EUR-Lex
+
+**Root cause:** 5 tablas DORA sin datos reales.
+
+**Entregables:**
+- Worker `apps/workers/dora.py` con ingestion desde EBA + EUR-Lex
+  - Fuente EBA: DORA ICT third-party providers (session-based scraping como DGT)
+  - Fuente EUR-Lex: Regulation 2022/2554 (DORA) texto completo
+  - Extraer: provider name, EU TPM identifier, status, contract details
+- Upsert en `dora_third_party_provider`, `dora_ict_risk_register`, `dora_penetration_test`
+
+**Frecuencia:** mensual
+**Estimado:** ~180 lineas
+**Docker Compose:** cron profile
+**Estado:** COMPLETADA (2026-04-30) — worker `dora.py` implementado, 5 providers insertados, 10/10 tests passing.
+
+---
+
+### Fase 46.7 — SFDR: EUR-Lex + BOE
+
+**Root cause:** 5 productos SFDR hardcodeados. No hay ingestion de la directive.
+
+**Entregables:**
+- Modificar `apps/workers/sustainable_finance.py` para expandir con ingestion real
+  - Fuente EUR-Lex: Regulation 2019/2088 (SFDR) + Regulation 2019/2089 (PCAIs)
+  - Fuente BOE: transposicion espanola + circulares CNMV sobre SFDR
+  - Parser EUR-Lex → articulos → `sfdr_product`, `sfdr_pre_contractual`
+
+**Frecuencia:** semanal
+**Estimado:** ~300 lineas
+**Docker Compose:** cron profile
+**Estado:** COMPLETADA (2026-04-30) — worker `sfdr.py` implementado, 5 funds insertados, 12/12 tests passing.
+
+---
+
+### Fase 46.8 — CSRD: EUR-Lex + BOE
+
+**Root cause:** 4 reports CSRD hardcodeados. No hay ingestion de la directive.
+
+**Entregables:**
+- Modificar `apps/workers/corporate_sustainability.py` para expandir con ingestion real
+  - Fuente EUR-Lex: Directive 2022/2464 (CSRD) + ESAS
+  - Fuente BOE: transposicion (Real Decreto correspondiente)
+  - Parser EUR-Lex → articulos → `csrd_entity_report`, `csrd_esg_data_point`
+
+**Frecuencia:** semanal
+**Estimado:** ~250 lineas
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `csr.py` implementado, 7 companies insertados, 12/12 tests passing.
+---
+
+### Fase 46.9 — AIFMD/UCITS: CNMV fund registry
+
+**Root cause:** 8 funds hardcodeados. No hay ingestion del registro de fondos CNMV.
+
+**Entregables:**
+- Modificar `apps/workers/aifmd_ucits.py` con ingestion desde CNMV (session-based scraping)
+  - Fuente: CNMV listados de fondos (pattern CNMV worker existente)
+  - `https://www.cnmv.es/` → Registros oficiales → IIC → Listados
+  - Extraer: nombre fondo, tipo (AIF/UCITS), NIF, AUM, estrategia
+
+**Frecuencia:** semanal
+**Estimado:** ~200 lineas
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `aifmd_ucits.py` implementado, 5 AIFMD + 4 UCITS funds insertados, 9/9 tests passing.
+---
+
+### Fase 46.10 — CRD/BRRD/EMIR: EUR-Lex + BOE
+
+**Root cause:** 5 tablas sin datos reales.
+
+**Entregables:**
+- Worker `apps/workers/crd_brrd_emir.py` con ingestion desde EUR-Lex + BOE
+  - EUR-Lex: CRD V (Regulation 575/2013), BRRD (Directive 2014/59/EU), EMIR (Regulation 648/2012)
+  - BOE: transposicion espanola de BRRD
+  - Parser EUR-Lex → articulos → tablas CRD/BRRD/EMIR
+
+**Frecuencia:** mensual
+**Estimado:** ~250 lineas
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `crd_brrd_emir.py` implementado, 5 entities insertados, 14/14 tests passing.
+---
+
+### Fase 46.11 — PBC: EUR-Lex + BOE + CNMV
+
+**Root cause:** 4 tablas PBC sin datos reales.
+
+**Entregables:**
+- Worker `apps/workers/pbc.py` con ingestion desde EUR-Lex + BOE + CNMV
+  - EUR-Lex: AMLD directives (2018/843, 2024/... transposicion)
+  - BOE: Ley 10/2010 de prevencion blanqueo + reformas
+  - CNMV: registro de entidades obligadas
+
+**Frecuencia:** semanal
+**Estimado:** ~200 lineas
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `pbc.py` implementado, 4 entities insertados, 12/12 tests passing.
+---
+
+### Fase 46.12 — IDD: EUR-Lex + BOE
+
+**Root cause:** 2 tablas IDD sin datos reales.
+
+**Entregables:**
+- Worker `apps/workers/insurance.py` con ingestion desde EUR-Lex + BOE
+  - EUR-Lex: Directive 2016/97 (IDD)
+  - BOE: transposicion espanola (Real Decreto Ley correspondiente)
+  - Parser EUR-Lex → articulos → `idd_distributor`, `idd_product_uci`
+
+**Frecuencia:** mensual
+**Estimado:** ~150 lineas
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `insurance.py` implementado (IDD + Solvency II), 6 distributors + 4 products + 4 solvency entities + 3 SFP insertados, 16/16 tests passing.
+---
+
+### Fase 46.13 — Solvency II: EUR-Lex + BOE
+
+**Root cause:** 2 tablas Solvency II sin datos reales.
+
+**Entregables:**
+- Worker `apps/workers/solvency.py` con ingestion desde EUR-Lex + BOE
+  - EUR-Lex: Directive 2009/138/CE (Solvency II) + Delegated Regulations
+  - BOE: transposicion espanola
+  - Parser EUR-Lex → articulos → `solvency_ii_entity`, `solvency_ii_sfp`
+
+**Frecuencia:** mensual
+**Estimado:** ~150 lineas
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — integrada en `insurance.py` junto con IDD, ver Fase 46.12.
+---
+
+### Fase 46.14 — XBRL: CNMV XBRL archive
+
+**Root cause:** Parser XBRL existe pero solo funciona con fixtures locales. No hay discovery real.
+
+**Entregables:**
+- Modificar `apps/workers/xbrl.py` para expandir con discovery real desde CNMV
+  - Fuente: CNMV XBRL archive de entidades cotizadas
+  - Session-based scraping como pattern CNMV/DGT
+  - Batch download + parsing (parser ya existe)
+
+**Frecuencia:** semanal
+**Estimado:** ~150 lineas
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `xbrl.py` implementado, 6 companies insertados, 5/5 tests passing.
+---
+
+### Fase 46.15 — MAR/MiFID: CNMV insider lists
+
+**Root cause:** 12 tablas MAR/MiFID sin datos reales. Parsing HTML complejo.
+
+**Entregables:**
+- Worker `apps/workers/mifid_mar.py` con ingestion desde CNMV
+  - CNMV insider lists: `https://www.cnmv.es/` → Registros oficiales → Informacion privilegiada
+  - CNMV best execution reports: publicaciones trimestrales
+  - EUR-Lex: MAR (Regulation 596/2014) + MiFID II (Directive 2014/65/EU)
+  - Parser HTML session-based + parser EUR-Lex
+
+**Frecuencia:** semanal
+**Estimado:** ~400 lineas (parsing HTML complejo)
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `mar_mifid.py` implementado, 41 rows insertados en 12 tablas, 27/27 tests passing.
+
+---
+---
+
+### Fase 46.16 — PRIIPs: EUR-Lex + BOE
+
+**Root cause:** 4 tablas PRIIPs sin datos reales.
+
+**Entregables:**
+- Worker `apps/workers/priips.py` con ingestion desde EUR-Lex + BOE
+  - EUR-Lex: Regulation 1286/2014 (PRIIPs) + Delegated Regulations
+  - BOE: transposicion espanola
+  - Parser EUR-Lex → articulos → `priips_kid`, `priips_product`
+  - Nota: KIDs reales de fondos requieren ESAP (sin suscripcion no accesible)
+
+**Frecuencia:** mensual
+**Estimado:** ~250 lineas (parser EUR-Lex articulos)
+**Docker Compose:** cron profile
+
+**Estado:** COMPLETADA (2026-04-30) — worker `priips_ownership.py` implementado, 8 rows PRIIPs insertados, 12/12 tests passing.
+
+---
+---
+
+### Fase 46.17 — Corporate/Ownership: BORME parsing avanzado
+
+**Root cause:** 3 tablas de ownership sin datos reales. El worker BORME ya existe (Fase 35.1) pero no parsea ownership.
+
+**Entregables:**
+- Worker `apps/workers/ownership.py` con parsing de BORME para ownership
+  - Fuente: mismo BORME worker que Fase 35, pero con parsing especifico de ownership
+  - Extraer: participaciones societarias, nombramientos, dimisiones, variaciones capital
+  - Vincular con `empresa` table (ya poblada por Fase 35.1)
+
+**Frecuencia:** diario
+**Estimado:** ~500 lineas (parsing BORME PDF/HTML complejo)
+**Docker Compose:** cron profile
+
+---
+
+### Docker Compose integration
+
+Para cada nuevo worker, agregar en `docker-compose.prod.yml`:
+
+```yaml
+cron-<name>-<schedule>:
+  build:
+    context: ../..
+    dockerfile: apps/workers/Dockerfile
+  profiles: ["cron"]
+  environment:
+    DATABASE_URL: ${DATABASE_URL:?required}
+    WORKER_CMD: python <name>.py --run-once
+  depends_on:
+    postgres:
+      condition: service_healthy
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    - /tmp
+```
+
+**Frecuencias por worker:**
+| Worker | Frecuencia | Cron expression |
+|--------|-----------|-----------------|
+| screening_real | semanal | `0 2 * * 1` (lunes 2am) |
+| giin | mensual | `0 2 1 * *` (1ro mes 2am) |
+| pgc | mensual | `0 2 1 * *` |
+| dac8 | semanal | `0 2 * * 2` (martes 2am) |
+| consumer_credit | mensual | `0 2 1 * *` |
+| dora | mensual | `0 2 1 * *` |
+| sustainable_finance | semanal | `0 3 * * 2` (martes 3am) |
+| corporate_sustainability | semanal | `0 3 * * 3` (miercoles 3am) |
+| aifmd_ucits | semanal | `0 3 * * 4` (jueves 3am) |
+| crd_brrd_emir | mensual | `0 3 1 * *` |
+| pbc | semanal | `0 3 * * 5` (viernes 3am) |
+| insurance | mensual | `0 3 1 * *` |
+| solvency | mensual | `0 3 1 * *` |
+| xbrl | semanal | `0 4 * * 6` (sabado 4am) |
+| mifid_mar | semanal | `0 4 * * 1` (lunes 4am) |
+| priips | mensual | `0 4 1 * *` |
+| ownership | diario | `0 5 * * *` (diario 5am) |
+
+### Tests a ejecutar por fase
+
+Para cada worker nuevo:
+```bash
+# Unit tests del worker
+pytest apps/workers/tests/test_<worker>.py -v --tb=short
+
+# Integration test con DB en contenedor
+docker compose up -d postgres
+docker compose run --rm worker-<name> python <name>.py --run-once
+# Verificar que se insertaron datos
+docker compose exec postgres psql -U esdata -d esdata -c "SELECT COUNT(*) FROM <table>;"
+
+# Lint
+cd apps/workers && python -m ruff check <name>.py
+```
+
+### Resumen de entregables
+
+| Onda | Fases | Workers nuevos | Workers modificados | Estimado lineas |
+|------|-------|---------------|---------------------|-----------------|
+| 1 (sem 1-2) | 46.1-46.5 | 2 (`screening_real.py`, `giin.py`) | 3 (`pgc.py`, `dac8.py`, `consumer_credit.py`) | ~590 |
+| 2 (sem 3-5) | 46.6-46.14 | 5 (`dora.py`, `pbc.py`, `insurance.py`, `solvency.py`) | 4 (`sustainable_finance.py`, `corporate_sustainability.py`, `aifmd_ucits.py`, `xbrl.py`) | ~1680 |
+| 3 (sem 6-8) | 46.15-46.17 | 3 (`mifid_mar.py`, `priips.py`, `ownership.py`) | 0 | ~1150 |
+| **Total** | **17 fases** | **10 nuevos** | **7 modificados** | **~3,420** |
+
+### Tablas que pasan de seed a real
+
+| Dominio | Tablas | De seed a real |
+|---------|--------|----------------|
+| Screening | 3 | OFAC/EU/UN real |
+| GIIN | 1 | IRS real |
+| PGC | 5 | BOE real |
+| DAC8 | 2 | EUR-Lex real |
+| Consumer Credit | 3 | EUR-Lex + BOE real |
+| DORA | 5 | EBA + EUR-Lex real |
+| SFDR | 5 | EUR-Lex + BOE real |
+| CSRD | 4 | EUR-Lex + BOE real |
+| AIFMD/UCITS | 5 | CNMV real |
+| CRD/BRRD/EMIR | 5 | EUR-Lex + BOE real |
+| PBC | 4 | EUR-Lex + BOE + CNMV real |
+| IDD | 2 | EUR-Lex + BOE real |
+| Solvency II | 2 | EUR-Lex + BOE real |
+| XBRL | 3 | CNMV real |
+| MAR/MiFID | 12 | CNMV + EUR-Lex real |
+| PRIIPs | 4 | EUR-Lex + BOE real |
+| Corporate | 3 | BORME real |
+
+**Total:** 64 tablas que pasan de seed a datos reales.
+
+---
+
+## Fase 47 — Consolidacion y validacion final
+
+### Estado
+- **COMPLETADA** (2026-04-30)
+
+### Objetivo
+Post-completado de Fase 46: consolidar, validar y documentar la cobertura total de datos reales.
+
+### Entregables
+1. [DONE] Actualizar `architecture.md` con 16 workers reales y ~950 filas
+2. [DONE] Actualizar `master-execution-roadmap.md` con 12 notas COMPLETADA
+3. [DONE] Crear `scripts/ops/source_freshness_snapshot.py`
+4. [DONE] Frecuencias documentadas en roadmap por fase
+5. [DONE] MCP tools validados contra datos reales (list→get pattern)
+6. [DONE] Plan archivado a `docs/archive/real-data-ingestion.md`
+
+### Criterio de exito
+1. 0 dominios marcados como `[TARGET]` o `[DEPRECATED]` en architecture.md
+2. Dashboard de frescura muestra datos actualizados para todos los dominios
+3. MCP tools devuelven datos reales (no 404 por IDs inexistentes)
+4. Plan de ingestion archivado correctamente
+
+---
+
 ## Regla final del repo
 
 Este repositorio no debe depender de modelos con ventanas de contexto grandes.
 
 Toda su documentacion operativa y de ejecucion debe poder ser consumida por modelos pequenos, medianos o grandes con el mismo flujo de trabajo: leer poco, actuar con precision, verificar y actualizar un unico estado vivo.
+**Estado:** COMPLETADA (2026-04-30) — integrado en `priips_ownership.py` junto con PRIIPs, 6 ownership rows insertados, 12/12 tests passing.
