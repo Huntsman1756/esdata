@@ -288,7 +288,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       EURLEX_SEED_URLS: ${EURLEX_SEED_URLS:-}
-      SPARQL_BASE: ${SPARQL_BASE:-http://publications.europa.eu/webapi/rdf/sparql}
+      SPARQL_BASE: ${SPARQL_BASE:-https://data.europa.eu/sparql}
       SYNC_INTERVAL_SECONDS: ${EURLEX_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python eurlex.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
