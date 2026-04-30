@@ -5329,8 +5329,15 @@ En orden de impacto real:
 ## Infraestructura agregada este sprint
 
 - **`scripts/feedback_loop.py`** — loop auto-correctivo en Python (interactivo + programatico)
-- **`scripts/auto_test.sh`** — wrapper bash para el loop auto-correctivo
-- **`.feedback_loop/`** — directorio para persistir estado entre sesiones
+- **`scripts/auto_test.sh`** — wrapper bash para el loop auto-correctivo con protecciones anti-flaky (deteccion de aserciones eliminadas, deteccion de skips/xfail/flaky, exit 2 diferenciado para revision manual)
+- **`.feedback_loop/`** — directorio para persistir estado entre sesiones (en `.gitignore`)
 - **`scripts/eurlex_corpus_download.py`** — descargador de corpus EUR-Lex via EU Publications REST API
 - **`apps/workers/eurlex.py`** — `fetch_block_from_corpus()` con soporte HTML + texto plano
 - **`corpora/eurlex/`** — directorio para archivos de corpus (generados localmente, no en git)
+
+## Dependabot status
+
+- **2026-04-30**: 25 alerts → 7 alerts (pypdf 6.9.2 cierra 22 CVEs)
+- **2026-04-30**: 7 alerts → 0 alerts (pypdf 6.10.2 cierra 7 CVEs restantes)
+- **2026-04-30**: 0 alerts (postcss 8.5.12 + lychee-action SHA pin)
+- **Estado actual: 0 Dependabot alerts** (GitHub puede tardar en refrescar el contador)

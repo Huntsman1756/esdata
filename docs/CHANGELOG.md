@@ -22,6 +22,14 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 ### docs
 - **Sprint 2026-04-30** — auditoria de workers en produccion: 12/12 workers unhealthy por heartbeat; 4 fixes en PR #33; 22 CVEs cerrados en PR #34; BOE/EUR-Lex/AEPD productivos; backlog proximo sprint documentado
 
+### main (2026-04-30 continuacion)
+- **61fc76f** `feat(eurlex)` — corpus download via EU Publications REST API, `publications.europa.eu/resource/celex/{CELEX}` con Accept-Language headers, 22/30 CELEXs descargados
+- **aa49672** `feat(eurlex)` — corpus download script + HTML text extraction, `fetch_block_from_corpus()` con soporte HTML + texto plano, `corpora/eurlex/` directory
+- **9391354** `feat` — feedback loop auto-correctivo: `scripts/feedback_loop.py`, `scripts/auto_test.sh`, `.feedback_loop/` persistence, agent-notes y roadmap actualizados
+- **c968be3** `fix(auto_test)` — anti-flaky protections: assertion suppression detection, skip/xfail/flaky detection, exit 2 diferenciado, `.feedback_loop/` a `.gitignore`
+- **d138eba** `chore(deps)` — bump pypdf 6.9.2 → 6.10.2 to close remaining 7 Dependabot CVEs (object/xref oversized alloc, XML entity expansion in XMP metadata)
+- **7c41bec** `fix` — close 3 remaining Dependabot alerts: dgt_url IF NOT EXISTS, postcss 8.5.12, lychee-action SHA pin
+
 ## 2026-04-27
 
 ### main

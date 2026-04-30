@@ -161,3 +161,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: cada sesion de agente pierde el historial de "intento → error → fix". Sin memoria de intentos previos, el agente repite los mismos errores.
 - Impacto: cada nueva sesion empieza desde cero, repitiendo bugs ya resueltos en sesiones anteriores.
 - Regla practica: antes de empezar una tarea nueva, ejecutar `python3 scripts/feedback_loop.py --show-latest` para ver si hay intentos previos. Durante la tarea, usar `./scripts/auto_test.sh <test_patterns>` para el loop auto-correctivo. El estado se persiste en `.feedback_loop/latest.json` y cada intento en `.feedback_loop/YYYY-MM-DD_HHMMSS_attempt_N.json`.
+
+### 2026-04-30 - Protecciones anti-flaky en auto_test.sh
+
+- Scope: `scripts/auto_test.sh`
+- Hallazgo: los feedback loops auto-correctivos son vulnerables a "test hacking" — el agente puede "arreglar" un test flaky suprimiendo aserciones o agregando `@pytest.mark.skip` en lugar de corregir el codigo real. Esto es clasificado por Spotify como el fallo mas peligroso de los loops: pasa CI pero esta funcionalmente roto.
+- Impacto: el loop termina verde con tests que ya no prueban nada. El bug sigue en produccion.
+- Regla practica: `auto_test.sh` ahora tiene 3 protecciones: (1) `count_assertions()` cuenta asserts por intento, si un intento pasa con menos asserts que el anterior → exit 2 (no retry, revision manual); (2) detecta `@pytest.mark.skip/xfail/flaky` y `@unittest.skip` agregados entre intentos; (3) exit 2 diferenciado del exit 1 (max attempts) para que el agente sepa que es un fallo de integridad. `.feedback_loop/` esta en `.gitignore` porque los JSONs con stdout acumulado crecen rapido.
