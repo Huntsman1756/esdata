@@ -226,3 +226,17 @@ Cuando un worker falla:
 - `docs/operations/metrics.md` — indicadores minimos
 - `docs/deployment/rollback.md` — procedimientos de rollback
 - `apps/workers/boe.py` — patron base de workers
+
+## Postmortems activos
+
+Cada bug encontrado en produccion se registra aqui. Antes de tocar un worker, revisar esta tabla: si el bug ya fue visto, el fix ya esta aplicado.
+
+| Fecha | Worker | Bug | Root cause | Fix | Estado |
+|-------|--------|-----|------------|-----|--------|
+| 2026-04-30 | eurlex | SPARQL 400 Bad Request | Endpoint `publications.europa.eu/webapi/rdf/sparql` caido + typo `PREFIXeli:` (sin espacio) en query | Endpoint a `data.europa.eu/sparql` + eliminar linea con `PREFIXeli:` | ✅ Cerrado |
+| 2026-04-30 | eurlex | 0 bloques/articulos tras 30 normas upserted | EUR-Lex bloquea API REST (requiere JS) + HTML devuelve 202/0 bytes | Requiere corpus local de textos completos | 🔜 Feature nueva |
+| 2026-04-30 | boe | 0 documentos tras 47 runs | `BOE_LEGISLACION_NORMAS` contenia codigos desconocidos (IRNR, IIEE...) → KeyError. Duplicate `fetch_block` shadowing XML fallback | Filtrado de codigos desconocidos + eliminar funcion duplicada | ✅ Cerrado |
+| 2026-04-30 | aepd | Deadlock en `source_revision` INSERT | Advisory lock per-row entre dos conexiones del pool del mismo proceso | Lock per-entity_id en `change_detection.py:record_revision()` | ✅ Cerrado |
+| 2026-04-30 | todos | 12/12 workers unhealthy | Heartbeat tocado dentro de `run_sync()`, no en bucle `while True`. Workers con ciclos > 300s marcados unhealthy | Heartbeat movido al inicio de cada iteracion del bucle exterior | ✅ Cerrado |
+| 2026-04-30 | eurlex | SPARQL endpoint correcto en codigo pero no en container | `docker-compose.prod.yml` tenia `SPARQL_BASE` con default viejo que override el default del codigo | Actualizado default en docker-compose | ✅ Cerrado |
+| 2026-04-30 | aepd | Warning `dgt_url column already exists` | Migration `ALTER TABLE ADD COLUMN` no usa `IF NOT EXISTS` | Cambiar a `ADD COLUMN IF NOT EXISTS` | 🔜 Fix de 1 linea |
