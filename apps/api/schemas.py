@@ -938,6 +938,138 @@ class EmirClearingMemberListResponse(BaseModel):
     total: int
 
 
+# ---------------------------------------------------------------------------
+# Corpus Editorial — Nota editorial interna
+# ---------------------------------------------------------------------------
+
+
+class NotaEditorialSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    titulo: str = Field(description="Título")
+    resumen_ejecutivo: str | None = Field(default=None, description="Resumen ejecutivo")
+    tipo_contenido: str | None = Field(default=None, description="Tipo: resumen_interno, criterio_experto, nota_operativa")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial (BOE, etc.)")
+    fuente_verificada: bool = Field(default=False, description="Si la fuente fue verificada por humano")
+    estado: str | None = Field(default=None, description="Estado: borrador, vigente, revisar, obsoleto")
+    fecha_creacion: str | None = Field(default=None, description="Fecha de creación")
+    fecha_revision: str | None = Field(default=None, description="Fecha de revisión")
+
+
+class NotaEditorialDetail(NotaEditorialSummary):
+    resumen_ejecutivo: str | None = Field(default=None, description="Resumen ejecutivo")
+    contexto: str | None = Field(default=None, description="Contexto de la nota")
+    impacto_practico: str | None = Field(default=None, description="Impacto práctico")
+    advertencias: str | None = Field(default=None, description="Advertencias")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial")
+    fuente_verificada: bool = Field(default=False, description="Si la fuente fue verificada por humano")
+    documento_origen_id: str | None = Field(default=None, description="ID documento interpretativo origen")
+    autor_id: str | None = Field(default=None, description="ID autor")
+    revisor_id: str | None = Field(default=None, description="ID revisor")
+    fecha_creacion: str | None = Field(default=None, description="Fecha de creación")
+    fecha_revision: str | None = Field(default=None, description="Fecha de revisión")
+    created_at: str | None = Field(default=None, description="Fecha de creación registro")
+    updated_at: str | None = Field(default=None, description="Fecha de actualización registro")
+
+
+class NotaEditorialCreate(BaseModel):
+    titulo: str = Field(description="Título de la nota")
+    resumen_ejecutivo: str | None = Field(default=None, description="Resumen ejecutivo")
+    contexto: str | None = Field(default=None, description="Contexto")
+    impacto_practico: str | None = Field(default=None, description="Impacto práctico")
+    advertencias: str | None = Field(default=None, description="Advertencias")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial (BOE-A-..., etc.)")
+    documento_origen_referencia: str | None = Field(default=None, description="Referencia documento interpretativo origen")
+    autor_id: str | None = Field(default=None, description="ID autor")
+    revisor_id: str | None = Field(default=None, description="ID revisor")
+    estado: str = Field(default="borrador", description="Estado: borrador, vigente, revisar, obsoleto")
+    tipo_contenido: str | None = Field(default=None, description="Tipo: resumen_interno, criterio_experto, nota_operativa")
+    fecha_revision: str | None = Field(default=None, description="Fecha de revisión")
+
+
+class NotaEditorialUpdate(BaseModel):
+    titulo: str | None = Field(default=None, description="Título")
+    resumen_ejecutivo: str | None = Field(default=None, description="Resumen ejecutivo")
+    contexto: str | None = Field(default=None, description="Contexto")
+    impacto_practico: str | None = Field(default=None, description="Impacto práctico")
+    advertencias: str | None = Field(default=None, description="Advertencias")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial")
+    revisor_id: str | None = Field(default=None, description="ID revisor")
+    estado: str | None = Field(default=None, description="Estado")
+    tipo_contenido: str | None = Field(default=None, description="Tipo")
+    fecha_revision: str | None = Field(default=None, description="Fecha de revisión")
+
+
+class NotaEditorialListResponse(BaseModel):
+    notas: list[NotaEditorialSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# Corpus Editorial — Posición interpretativa
+# ---------------------------------------------------------------------------
+
+
+class PosicionInterpretativaSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    titulo: str = Field(description="Título")
+    descripcion: str | None = Field(default=None, description="Descripción")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial")
+    fuente_verificada: bool = Field(default=False, description="Si la fuente fue verificada por humano")
+    estado: str | None = Field(default=None, description="Estado")
+    version: int | None = Field(default=None, description="Versión")
+    vigencia_desde: str | None = Field(default=None, description="Vigencia desde")
+    vigencia_hasta: str | None = Field(default=None, description="Vigencia hasta")
+
+
+class PosicionInterpretativaDetail(PosicionInterpretativaSummary):
+    descripcion: str | None = Field(default=None, description="Descripción")
+    contenido: str | None = Field(default=None, description="Contenido")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial")
+    fuente_verificada: bool = Field(default=False, description="Si la fuente fue verificada por humano")
+    documento_origen_id: str | None = Field(default=None, description="ID documento origen")
+    autor_id: str | None = Field(default=None, description="ID autor")
+    revisor_id: str | None = Field(default=None, description="ID revisor")
+    version: int | None = Field(default=None, description="Versión")
+    vigencia_desde: str | None = Field(default=None, description="Vigencia desde")
+    vigencia_hasta: str | None = Field(default=None, description="Vigencia hasta")
+    version_anterior_id: str | None = Field(default=None, description="ID versión anterior")
+    fecha_creacion: str | None = Field(default=None, description="Fecha de creación")
+    fecha_revision: str | None = Field(default=None, description="Fecha de revisión")
+    created_at: str | None = Field(default=None, description="Fecha de creación registro")
+    updated_at: str | None = Field(default=None, description="Fecha de actualización registro")
+
+
+class PosicionInterpretativaCreate(BaseModel):
+    titulo: str = Field(description="Título")
+    descripcion: str | None = Field(default=None, description="Descripción")
+    contenido: str | None = Field(default=None, description="Contenido")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial (BOE-A-..., etc.)")
+    documento_origen_referencia: str | None = Field(default=None, description="Referencia documento interpretativo origen")
+    autor_id: str | None = Field(default=None, description="ID autor")
+    revisor_id: str | None = Field(default=None, description="ID revisor")
+    estado: str = Field(default="borrador", description="Estado: borrador, vigente, revisar, obsoleto")
+    vigencia_desde: str | None = Field(default=None, description="Vigencia desde")
+    vigencia_hasta: str | None = Field(default=None, description="Vigencia hasta")
+
+
+class PosicionInterpretativaUpdate(BaseModel):
+    titulo: str | None = Field(default=None, description="Título")
+    descripcion: str | None = Field(default=None, description="Descripción")
+    contenido: str | None = Field(default=None, description="Contenido")
+    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial")
+    revisor_id: str | None = Field(default=None, description="ID revisor")
+    estado: str | None = Field(default=None, description="Estado")
+    vigencia_desde: str | None = Field(default=None, description="Vigencia desde")
+    vigencia_hasta: str | None = Field(default=None, description="Vigencia hasta")
+
+
+class PosicionInterpretativaListResponse(BaseModel):
+    posiciones: list[PosicionInterpretativaSummary]
+    total: int
+
+
 class ConsultaFiscalResponse(BaseModel):
     consulta: str = Field(description="Pregunta fiscal recibida")
     modelos: list[dict] = Field(default_factory=list, description="Modelos AEAT identificados")

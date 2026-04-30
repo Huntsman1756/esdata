@@ -53,7 +53,7 @@ async def listar_notas_editoriales(
                 f"""
                 SELECT id, titulo, resumen_ejecutivo, tipo_contenido,
                        fuente_oficial_referencia, autor_id, estado,
-                       fecha_creacion, fecha_revision
+                       fecha_creacion, fecha_revision, fuente_verificada
                 FROM nota_editorial_interna
                 WHERE {where_clause}
                 ORDER BY created_at DESC
@@ -75,6 +75,7 @@ async def listar_notas_editoriales(
                     "estado": row["estado"],
                     "fecha_creacion": str(row["fecha_creacion"]) if row["fecha_creacion"] else None,
                     "fecha_revision": str(row["fecha_revision"]) if row["fecha_revision"] else None,
+                    "fuente_verificada": row["fuente_verificada"],
                 }
                 for row in rows
             ],
@@ -91,7 +92,8 @@ async def get_nota_editorial(nota_id: str):
                 SELECT id, titulo, resumen_ejecutivo, contexto, impacto_practico,
                        advertencias, fuente_oficial_referencia, documento_origen_id,
                        autor_id, revisor_id, estado, tipo_contenido,
-                       fecha_creacion, fecha_revision, created_at, updated_at
+                       fecha_creacion, fecha_revision, created_at, updated_at,
+                       fuente_verificada
                 FROM nota_editorial_interna
                 WHERE id = :nota_id
                 LIMIT 1
@@ -120,11 +122,19 @@ async def get_nota_editorial(nota_id: str):
             "fecha_revision": str(row["fecha_revision"]) if row["fecha_revision"] else None,
             "created_at": str(row["created_at"]) if row["created_at"] else None,
             "updated_at": str(row["updated_at"]) if row["updated_at"] else None,
+            "fuente_verificada": row["fuente_verificada"],
         }
 
 
 @router.post("", response_model=NotaEditorialDetail, operation_id="crear_nota_editorial")
 async def crear_nota_editorial(body: NotaEditorialCreate):
+    estado = body.estado or "borrador"
+    if estado in ("vigente", "revisar") and not body.fuente_oficial_referencia:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
+        )
+
     with db_session() as db:
         doc_origen_id = None
         if body.documento_origen_referencia:
@@ -147,16 +157,19 @@ async def crear_nota_editorial(body: NotaEditorialCreate):
                 INSERT INTO nota_editorial_interna (
                     titulo, resumen_ejecutivo, contexto, impacto_practico,
                     advertencias, fuente_oficial_referencia, documento_origen_id,
-                    autor_id, revisor_id, estado, tipo_contenido, fecha_revision
+                    autor_id, revisor_id, estado, tipo_contenido, fecha_revision,
+                    fuente_verificada
                 ) VALUES (
                     :titulo, :resumen_ejecutivo, :contexto, :impacto_practico,
                     :advertencias, :fuente_oficial_referencia, :documento_origen_id,
-                    :autor_id, :revisor_id, :estado, :tipo_contenido, :fecha_revision
+                    :autor_id, :revisor_id, :estado, :tipo_contenido, :fecha_revision,
+                    :fuente_verificada
                 )
                 RETURNING id, titulo, resumen_ejecutivo, contexto, impacto_practico,
                           advertencias, fuente_oficial_referencia, documento_origen_id,
                           autor_id, revisor_id, estado, tipo_contenido,
-                          fecha_creacion, fecha_revision, created_at, updated_at
+                          fecha_creacion, fecha_revision, created_at, updated_at,
+                          fuente_verificada
                 """
             ),
             {
@@ -172,6 +185,7 @@ async def crear_nota_editorial(body: NotaEditorialCreate):
                 "estado": body.estado,
                 "tipo_contenido": body.tipo_contenido,
                 "fecha_revision": body.fecha_revision,
+                "fuente_verificada": False,
             },
         ).mappings().first()
 
@@ -194,12 +208,26 @@ async def crear_nota_editorial(body: NotaEditorialCreate):
             "fecha_revision": str(result["fecha_revision"]) if result["fecha_revision"] else None,
             "created_at": str(result["created_at"]) if result["created_at"] else None,
             "updated_at": str(result["updated_at"]) if result["updated_at"] else None,
+            "fuente_verificada": result["fuente_verificada"],
         }
 
 
 @router.patch("/{nota_id}", response_model=NotaEditorialDetail, operation_id="actualizar_nota_editorial")
 async def actualizar_nota_editorial(nota_id: str, body: NotaEditorialUpdate):
     with db_session() as db:
+        # Validate fuente_oficial_referencia when transitioning to vigente/revisar
+        new_estado = body.estado
+        if new_estado and new_estado in ("vigente", "revisar"):
+            existing = db.execute(
+                text("SELECT fuente_oficial_referencia FROM nota_editorial_interna WHERE id = :nota_id LIMIT 1"),
+                {"nota_id": nota_id},
+            ).mappings().first()
+            if not existing or not existing.get("fuente_oficial_referencia"):
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
+                )
+
         existing = db.execute(
             text("SELECT id FROM nota_editorial_interna WHERE id = :nota_id LIMIT 1"),
             {"nota_id": nota_id},
@@ -242,7 +270,8 @@ async def actualizar_nota_editorial(nota_id: str, body: NotaEditorialUpdate):
             RETURNING id, titulo, resumen_ejecutivo, contexto, impacto_practico,
                       advertencias, fuente_oficial_referencia, documento_origen_id,
                       autor_id, revisor_id, estado, tipo_contenido,
-                      fecha_creacion, fecha_revision, created_at, updated_at
+                      fecha_creacion, fecha_revision, created_at, updated_at,
+                      fuente_verificada
             """
         )
 
@@ -266,4 +295,5 @@ async def actualizar_nota_editorial(nota_id: str, body: NotaEditorialUpdate):
             "fecha_revision": str(result["fecha_revision"]) if result["fecha_revision"] else None,
             "created_at": str(result["created_at"]) if result["created_at"] else None,
             "updated_at": str(result["updated_at"]) if result["updated_at"] else None,
+            "fuente_verificada": result["fuente_verificada"],
         }

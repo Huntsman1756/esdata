@@ -7,11 +7,19 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from main import app
 
+import os
+
+os.environ["APP_ENV"] = "test"
+os.environ["ESDATA_API_KEY"] = "test-secret-key"
+os.environ["ESDATA_ALLOW_INSECURE_TEST_AUTH"] = "true"
+
+CLIENT_KWARGS = {"headers": {"x-api-key": "test-secret-key"}}
+
 
 @pytest.mark.asyncio
 async def test_listar_posiciones_returns_200():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones")
     assert r.status_code == 200
 
@@ -19,7 +27,7 @@ async def test_listar_posiciones_returns_200():
 @pytest.mark.asyncio
 async def test_listar_posiciones_returns_seed_data():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones")
     data = r.json()
     assert data["total"] >= 1
@@ -30,12 +38,13 @@ async def test_listar_posiciones_returns_seed_data():
     assert pos["estado"] == "vigente"
     assert pos["version"] == 1
     assert pos["autor_id"] == "compliance"
+    assert "fuente_verificada" in pos
 
 
 @pytest.mark.asyncio
 async def test_listar_posiciones_filters_by_estado():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones", params={"estado": "vigente"})
     data = r.json()
     assert r.status_code == 200
@@ -47,7 +56,7 @@ async def test_listar_posiciones_filters_by_estado():
 @pytest.mark.asyncio
 async def test_listar_posiciones_filters_by_fuente():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones", params={"fuente": "eurl:2014:65"})
     data = r.json()
     assert r.status_code == 200
@@ -58,7 +67,7 @@ async def test_listar_posiciones_filters_by_fuente():
 @pytest.mark.asyncio
 async def test_listar_posiciones_search_by_title():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones", params={"q": "MiFID"})
     data = r.json()
     assert r.status_code == 200
@@ -68,7 +77,7 @@ async def test_listar_posiciones_search_by_title():
 @pytest.mark.asyncio
 async def test_listar_posiciones_pagination():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones", params={"limit": 1, "skip": 0})
     data = r.json()
     assert r.status_code == 200
@@ -79,7 +88,7 @@ async def test_listar_posiciones_pagination():
 @pytest.mark.asyncio
 async def test_get_posicion_returns_200():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         list_r = await c.get("/v1/editorial/posiciones")
         data = list_r.json()
         pos_id = data["posiciones"][0]["id"]
@@ -91,12 +100,13 @@ async def test_get_posicion_returns_200():
     assert body["version"] == 1
     assert "created_at" in body
     assert "updated_at" in body
+    assert "fuente_verificada" in body
 
 
 @pytest.mark.asyncio
 async def test_get_posicion_404():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones/00000000-0000-0000-0000-000000000000")
     assert r.status_code == 404
     assert r.json()["detail"]["error"] == "Posicion interpretativa no encontrada"
@@ -105,7 +115,7 @@ async def test_get_posicion_404():
 @pytest.mark.asyncio
 async def test_crear_posicion_interpretativa():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.post("/v1/editorial/posiciones", json={
             "titulo": "Posicion de prueba",
             "descripcion": "Descripcion de prueba",
@@ -121,6 +131,7 @@ async def test_crear_posicion_interpretativa():
         assert body["estado"] == "borrador"
         assert body["version"] == 1
         assert body["autor_id"] == "test_user"
+        assert body["fuente_verificada"] is False
         pos_id = body["id"]
 
         # Verify persistence
@@ -132,7 +143,7 @@ async def test_crear_posicion_interpretativa():
 @pytest.mark.asyncio
 async def test_actualizar_posicion_interpretativa():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         create_r = await c.post("/v1/editorial/posiciones", json={
             "titulo": "Posicion original",
             "descripcion": "Descripcion original",
@@ -160,7 +171,7 @@ async def test_actualizar_posicion_interpretativa():
 @pytest.mark.asyncio
 async def test_actualizar_posicion_404():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.patch("/v1/editorial/posiciones/00000000-0000-0000-0000-000000000000", json={
             "estado": "vigente",
         })
@@ -170,7 +181,7 @@ async def test_actualizar_posicion_404():
 @pytest.mark.asyncio
 async def test_crear_posicion_resolves_documento_origen():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.post("/v1/editorial/posiciones", json={
             "titulo": "Posicion con origen CNMV",
             "descripcion": "Descripcion",
@@ -188,7 +199,7 @@ async def test_crear_posicion_resolves_documento_origen():
 @pytest.mark.asyncio
 async def test_posicion_version_automatica():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r1 = await c.post("/v1/editorial/posiciones", json={
             "titulo": "Posicion version 1",
             "descripcion": "Primera version",
@@ -219,9 +230,96 @@ async def test_posicion_version_automatica():
 @pytest.mark.asyncio
 async def test_listar_posiciones_empty_filter():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/posiciones", params={"estado": "borrador"})
     data = r.json()
     assert r.status_code == 200
     for pos in data["posiciones"]:
         assert pos["estado"] == "borrador"
+
+
+@pytest.mark.asyncio
+async def test_crear_posicion_vigente_requiere_fuente():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        r = await c.post("/v1/editorial/posiciones", json={
+            "titulo": "Posicion sin fuente",
+            "descripcion": "Descripcion",
+            "contenido": "Contenido",
+            "autor_id": "test_user",
+            "estado": "vigente",
+        })
+    assert r.status_code == 400
+    assert "fuente_oficial_referencia es obligatorio" in r.json()["detail"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_crear_posicion_borrador_sin_fuente_ok():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        r = await c.post("/v1/editorial/posiciones", json={
+            "titulo": "Posicion borrador sin fuente",
+            "descripcion": "Descripcion",
+            "contenido": "Contenido",
+            "autor_id": "test_user",
+            "estado": "borrador",
+        })
+    assert r.status_code == 200
+    assert r.json()["estado"] == "borrador"
+
+
+@pytest.mark.asyncio
+async def test_actualizar_a_vigente_requiere_fuente():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        create_r = await c.post("/v1/editorial/posiciones", json={
+            "titulo": "Posicion sin fuente",
+            "descripcion": "Descripcion",
+            "contenido": "Contenido",
+            "autor_id": "test_user",
+            "estado": "borrador",
+        })
+        pos_id = create_r.json()["id"]
+
+        update_r = await c.patch(f"/v1/editorial/posiciones/{pos_id}", json={
+            "estado": "vigente",
+        })
+    assert update_r.status_code == 400
+    assert "fuente_oficial_referencia es obligatorio" in update_r.json()["detail"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_actualizar_a_vigente_con_fuente_ok():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        create_r = await c.post("/v1/editorial/posiciones", json={
+            "titulo": "Posicion con fuente",
+            "descripcion": "Descripcion",
+            "contenido": "Contenido",
+            "fuente_oficial_referencia": "BOE-A-TEST-2026",
+            "autor_id": "test_user",
+            "estado": "borrador",
+        })
+        pos_id = create_r.json()["id"]
+
+        update_r = await c.patch(f"/v1/editorial/posiciones/{pos_id}", json={
+            "estado": "vigente",
+        })
+    assert update_r.status_code == 200
+    assert update_r.json()["estado"] == "vigente"
+
+
+@pytest.mark.asyncio
+async def test_fuente_verificada_iniciado_false():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        r = await c.post("/v1/editorial/posiciones", json={
+            "titulo": "Posicion verificada",
+            "descripcion": "Descripcion",
+            "contenido": "Contenido",
+            "fuente_oficial_referencia": "BOE-A-TEST-2026",
+            "autor_id": "test_user",
+            "estado": "vigente",
+        })
+    assert r.status_code == 200
+    assert r.json()["fuente_verificada"] is False

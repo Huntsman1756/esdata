@@ -108,6 +108,94 @@ STATEMENTS = [
         error_msg TEXT
     )
     """,
+    # --- Tablas editoriales (corpus autoritativo) ---
+    """
+    CREATE TABLE nota_editorial_interna (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        titulo TEXT NOT NULL,
+        resumen_ejecutivo TEXT,
+        contexto TEXT,
+        impacto_practico TEXT,
+        advertencias TEXT,
+        fuente_oficial_referencia TEXT,
+        documento_origen_id INTEGER REFERENCES documento_interpretativo(id),
+        autor_id TEXT NOT NULL,
+        revisor_id TEXT,
+        estado TEXT NOT NULL DEFAULT 'borrador',
+        tipo_contenido TEXT NOT NULL,
+        fecha_creacion TEXT,
+        fecha_revision TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        fuente_verificada BOOLEAN NOT NULL DEFAULT 0
+    )
+    """,
+    """
+    CREATE TABLE posicion_interpretativa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        titulo TEXT NOT NULL,
+        resumen_ejecutivo TEXT,
+        contexto TEXT,
+        impacto_practico TEXT,
+        advertencias TEXT,
+        fuente_oficial_referencia TEXT,
+        documento_origen_id INTEGER REFERENCES documento_interpretativo(id),
+        autor_id TEXT NOT NULL,
+        revisor_id TEXT,
+        estado TEXT NOT NULL DEFAULT 'borrador',
+        tipo_contenido TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        fecha_creacion TEXT,
+        fecha_revision TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        fuente_verificada BOOLEAN NOT NULL DEFAULT 0
+    )
+    """,
+    # --- Seed: editorial corpus ---
+    """
+    INSERT INTO nota_editorial_interna (
+        titulo, resumen_ejecutivo, contexto, impacto_practico, advertencias,
+        fuente_oficial_referencia, autor_id, estado, tipo_contenido,
+        fecha_creacion, fecha_revision, created_at, updated_at
+    ) VALUES (
+        'Resumen operativo: Circular CNMV 9/2008',
+        'Resumen de los principales cambios de la circular',
+        'La CNMV publicó la circular 9/2008 estableciendo requisitos para entidades de inversión',
+        'Alto - afecta a todas las entidades supervisadas',
+        'Verificar vigencia en BOE',
+        'BOE-A-2009-133',
+        'compliance',
+        'vigente',
+        'resumen_interno',
+        '2024-01-15',
+        '2024-06-20',
+        datetime('now'),
+        datetime('now')
+    )
+    """,
+    """
+    INSERT INTO posicion_interpretativa (
+        titulo, resumen_ejecutivo, contexto, impacto_practico, advertencias,
+        fuente_oficial_referencia, autor_id, estado, tipo_contenido,
+        version, fecha_creacion, fecha_revision, created_at, updated_at
+    ) VALUES (
+        'Interpretación: Criterio CNMV sobre fondos de inversión',
+        'Criterios interpretativos sobre clasificación de fondos',
+        'La CNMV emitió criterios sobre la clasificación de fondos de inversión según MIFID II',
+        'Medio - afecta a distribuidores de fondos',
+        'Sujeto a revisión anual',
+        'BOE-A-2015-12345',
+        'compliance',
+        'vigente',
+        'interpretacion',
+        1,
+        '2024-03-10',
+        '2024-07-15',
+        datetime('now'),
+        datetime('now')
+    )
+    """,
     # --- Normas (metadatos de referencia) ---
     """
     INSERT INTO norma (

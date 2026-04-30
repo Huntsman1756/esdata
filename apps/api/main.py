@@ -17,6 +17,8 @@ from routers import (
     crd_brrd_emir,
     data_lineage,
     doctrina,
+    editorial,
+    editorial_posiciones,
     human_review,
     jurisprudencia,
     legislacion,
@@ -102,6 +104,8 @@ for router in (
     query_audit.router,
     source_manifest.router,
     webhooks.webhook_router,
+    editorial.router,
+    editorial_posiciones.router,
 ):
     app.include_router(router)
 

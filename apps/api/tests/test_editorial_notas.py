@@ -1,3 +1,9 @@
+import os
+
+os.environ["APP_ENV"] = "test"
+os.environ["ESDATA_API_KEY"] = "test-secret-key"
+os.environ["ESDATA_ALLOW_INSECURE_TEST_AUTH"] = "true"
+
 from pathlib import Path
 import sys
 
@@ -7,11 +13,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from main import app
 
+CLIENT_KWARGS = {"headers": {"x-api-key": "test-secret-key"}}
+
 
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_returns_200():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas")
     assert r.status_code == 200
 
@@ -19,7 +27,7 @@ async def test_listar_notas_editoriales_returns_200():
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_returns_seed_data():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas")
     data = r.json()
     assert data["total"] >= 1
@@ -36,7 +44,7 @@ async def test_listar_notas_editoriales_returns_seed_data():
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_filters_by_estado():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas", params={"estado": "vigente"})
     data = r.json()
     assert r.status_code == 200
@@ -48,7 +56,7 @@ async def test_listar_notas_editoriales_filters_by_estado():
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_filters_by_tipo():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas", params={"tipo": "resumen_interno"})
     data = r.json()
     assert r.status_code == 200
@@ -59,7 +67,7 @@ async def test_listar_notas_editoriales_filters_by_tipo():
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_filters_by_fuente():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas", params={"fuente": "BOE-A-2009-133"})
     data = r.json()
     assert r.status_code == 200
@@ -70,7 +78,7 @@ async def test_listar_notas_editoriales_filters_by_fuente():
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_search_by_title():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas", params={"q": "Circular"})
     data = r.json()
     assert r.status_code == 200
@@ -80,7 +88,7 @@ async def test_listar_notas_editoriales_search_by_title():
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_pagination():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas", params={"limit": 1, "skip": 0})
     data = r.json()
     assert r.status_code == 200
@@ -91,7 +99,7 @@ async def test_listar_notas_editoriales_pagination():
 @pytest.mark.asyncio
 async def test_get_nota_editorial_returns_200():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         list_r = await c.get("/v1/editorial/notas")
         data = list_r.json()
         nota_id = data["notas"][0]["id"]
@@ -102,12 +110,13 @@ async def test_get_nota_editorial_returns_200():
     assert body["estado"] == "vigente"
     assert "created_at" in body
     assert "updated_at" in body
+    assert "fuente_verificada" in body
 
 
 @pytest.mark.asyncio
 async def test_get_nota_editorial_404():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas/00000000-0000-0000-0000-000000000000")
     assert r.status_code == 404
     assert r.json()["detail"]["error"] == "Nota editorial no encontrada"
@@ -116,7 +125,7 @@ async def test_get_nota_editorial_404():
 @pytest.mark.asyncio
 async def test_crear_nota_editorial():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.post("/v1/editorial/notas", json={
             "titulo": "Nota de prueba",
             "resumen_ejecutivo": "Resumen de prueba",
@@ -134,6 +143,7 @@ async def test_crear_nota_editorial():
         assert body["estado"] == "borrador"
         assert body["tipo_contenido"] == "nota_operativa"
         assert body["autor_id"] == "test_user"
+        assert body["fuente_verificada"] is False
         nota_id = body["id"]
 
         # Verify it was persisted
@@ -145,7 +155,7 @@ async def test_crear_nota_editorial():
 @pytest.mark.asyncio
 async def test_actualizar_nota_editorial():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         create_r = await c.post("/v1/editorial/notas", json={
             "titulo": "Nota original",
             "resumen_ejecutivo": "Resumen original",
@@ -174,7 +184,7 @@ async def test_actualizar_nota_editorial():
 @pytest.mark.asyncio
 async def test_actualizar_nota_editorial_404():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.patch("/v1/editorial/notas/00000000-0000-0000-0000-000000000000", json={
             "estado": "vigente",
         })
@@ -184,7 +194,7 @@ async def test_actualizar_nota_editorial_404():
 @pytest.mark.asyncio
 async def test_crear_nota_editorial_resolves_documento_origen():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.post("/v1/editorial/notas", json={
             "titulo": "Nota con origen CNMV",
             "resumen_ejecutivo": "Resumen",
@@ -202,9 +212,96 @@ async def test_crear_nota_editorial_resolves_documento_origen():
 @pytest.mark.asyncio
 async def test_listar_notas_editoriales_empty_filter():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
         r = await c.get("/v1/editorial/notas", params={"tipo": "nota_operativa"})
     data = r.json()
     assert r.status_code == 200
     for nota in data["notas"]:
         assert nota["tipo_contenido"] == "nota_operativa"
+
+
+@pytest.mark.asyncio
+async def test_crear_nota_vigente_requiere_fuente():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        r = await c.post("/v1/editorial/notas", json={
+            "titulo": "Nota sin fuente",
+            "resumen_ejecutivo": "Resumen",
+            "autor_id": "test_user",
+            "estado": "vigente",
+            "tipo_contenido": "resumen_interno",
+        })
+    assert r.status_code == 400
+    assert "fuente_oficial_referencia es obligatorio" in r.json()["detail"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_crear_nota_borrador_sin_fuente_ok():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        r = await c.post("/v1/editorial/notas", json={
+            "titulo": "Nota borrador sin fuente",
+            "resumen_ejecutivo": "Resumen",
+            "autor_id": "test_user",
+            "estado": "borrador",
+            "tipo_contenido": "resumen_interno",
+        })
+    assert r.status_code == 200
+    assert r.json()["estado"] == "borrador"
+
+
+@pytest.mark.asyncio
+async def test_actualizar_a_vigente_requiere_fuente():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        create_r = await c.post("/v1/editorial/notas", json={
+            "titulo": "Nota sin fuente",
+            "resumen_ejecutivo": "Resumen",
+            "autor_id": "test_user",
+            "estado": "borrador",
+            "tipo_contenido": "resumen_interno",
+        })
+        nota_id = create_r.json()["id"]
+
+        update_r = await c.patch(f"/v1/editorial/notas/{nota_id}", json={
+            "estado": "vigente",
+        })
+    assert update_r.status_code == 400
+    assert "fuente_oficial_referencia es obligatorio" in update_r.json()["detail"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_actualizar_a_vigente_con_fuente_ok():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        create_r = await c.post("/v1/editorial/notas", json={
+            "titulo": "Nota con fuente",
+            "resumen_ejecutivo": "Resumen",
+            "fuente_oficial_referencia": "BOE-A-TEST-2026",
+            "autor_id": "test_user",
+            "estado": "borrador",
+            "tipo_contenido": "resumen_interno",
+        })
+        nota_id = create_r.json()["id"]
+
+        update_r = await c.patch(f"/v1/editorial/notas/{nota_id}", json={
+            "estado": "vigente",
+        })
+    assert update_r.status_code == 200
+    assert update_r.json()["estado"] == "vigente"
+
+
+@pytest.mark.asyncio
+async def test_fuente_verificada_iniciado_false():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", **CLIENT_KWARGS) as c:
+        r = await c.post("/v1/editorial/notas", json={
+            "titulo": "Nota verificada",
+            "resumen_ejecutivo": "Resumen",
+            "fuente_oficial_referencia": "BOE-A-TEST-2026",
+            "autor_id": "test_user",
+            "estado": "vigente",
+            "tipo_contenido": "resumen_interno",
+        })
+    assert r.status_code == 200
+    assert r.json()["fuente_verificada"] is False

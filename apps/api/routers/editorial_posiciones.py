@@ -49,7 +49,7 @@ async def listar_posiciones_interpretativas(
                 f"""
                 SELECT id, titulo, descripcion, fuente_oficial_referencia,
                        autor_id, revisor_id, estado, version,
-                       vigencia_desde, vigencia_hasta
+                       vigencia_desde, vigencia_hasta, fuente_verificada
                 FROM posicion_interpretativa
                 WHERE {where_clause}
                 ORDER BY created_at DESC
@@ -72,6 +72,7 @@ async def listar_posiciones_interpretativas(
                     "version": row["version"],
                     "vigencia_desde": str(row["vigencia_desde"]) if row["vigencia_desde"] else None,
                     "vigencia_hasta": str(row["vigencia_hasta"]) if row["vigencia_hasta"] else None,
+                    "fuente_verificada": row["fuente_verificada"],
                 }
                 for row in rows
             ],
@@ -88,7 +89,8 @@ async def get_posicion_interpretativa(posicion_id: str):
                 SELECT id, titulo, descripcion, contenido, fuente_oficial_referencia,
                        documento_origen_id, autor_id, revisor_id, estado, version,
                        vigencia_desde, vigencia_hasta, version_anterior_id,
-                       fecha_creacion, fecha_revision, created_at, updated_at
+                       fecha_creacion, fecha_revision, created_at, updated_at,
+                       fuente_verificada
                 FROM posicion_interpretativa
                 WHERE id = :posicion_id
                 LIMIT 1
@@ -118,11 +120,19 @@ async def get_posicion_interpretativa(posicion_id: str):
             "fecha_revision": str(row["fecha_revision"]) if row["fecha_revision"] else None,
             "created_at": str(row["created_at"]) if row["created_at"] else None,
             "updated_at": str(row["updated_at"]) if row["updated_at"] else None,
+            "fuente_verificada": row["fuente_verificada"],
         }
 
 
 @router.post("", response_model=PosicionInterpretativaDetail, operation_id="crear_posicion_interpretativa")
 async def crear_posicion_interpretativa(body: PosicionInterpretativaCreate):
+    estado = body.estado or "borrador"
+    if estado in ("vigente", "revisar") and not body.fuente_oficial_referencia:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
+        )
+
     with db_session() as db:
         doc_origen_id = None
         if body.documento_origen_referencia:
@@ -161,16 +171,17 @@ async def crear_posicion_interpretativa(body: PosicionInterpretativaCreate):
                 INSERT INTO posicion_interpretativa (
                     titulo, descripcion, contenido, fuente_oficial_referencia,
                     documento_origen_id, autor_id, revisor_id, estado, version,
-                    vigencia_desde, vigencia_hasta
+                    vigencia_desde, vigencia_hasta, fuente_verificada
                 ) VALUES (
                     :titulo, :descripcion, :contenido, :fuente_oficial_referencia,
                     :documento_origen_id, :autor_id, :revisor_id, :estado, :version,
-                    :vigencia_desde, :vigencia_hasta
+                    :vigencia_desde, :vigencia_hasta, :fuente_verificada
                 )
                 RETURNING id, titulo, descripcion, contenido, fuente_oficial_referencia,
                           documento_origen_id, autor_id, revisor_id, estado, version,
                           vigencia_desde, vigencia_hasta, version_anterior_id,
-                          fecha_creacion, fecha_revision, created_at, updated_at
+                          fecha_creacion, fecha_revision, created_at, updated_at,
+                          fuente_verificada
                 """
             ),
             {
@@ -185,6 +196,7 @@ async def crear_posicion_interpretativa(body: PosicionInterpretativaCreate):
                 "version": version,
                 "vigencia_desde": body.vigencia_desde,
                 "vigencia_hasta": body.vigencia_hasta,
+                "fuente_verificada": False,
             },
         ).mappings().first()
 
@@ -208,12 +220,26 @@ async def crear_posicion_interpretativa(body: PosicionInterpretativaCreate):
             "fecha_revision": str(result["fecha_revision"]) if result["fecha_revision"] else None,
             "created_at": str(result["created_at"]) if result["created_at"] else None,
             "updated_at": str(result["updated_at"]) if result["updated_at"] else None,
+            "fuente_verificada": result["fuente_verificada"],
         }
 
 
 @router.patch("/{posicion_id}", response_model=PosicionInterpretativaDetail, operation_id="actualizar_posicion_interpretativa")
 async def actualizar_posicion_interpretativa(posicion_id: str, body: PosicionInterpretativaUpdate):
     with db_session() as db:
+        # Validate fuente_oficial_referencia when transitioning to vigente/revisar
+        new_estado = body.estado
+        if new_estado and new_estado in ("vigente", "revisar"):
+            existing = db.execute(
+                text("SELECT fuente_oficial_referencia FROM posicion_interpretativa WHERE id = :posicion_id LIMIT 1"),
+                {"posicion_id": posicion_id},
+            ).mappings().first()
+            if not existing or not existing.get("fuente_oficial_referencia"):
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
+                )
+
         existing = db.execute(
             text("SELECT id FROM posicion_interpretativa WHERE id = :posicion_id LIMIT 1"),
             {"posicion_id": posicion_id},
@@ -254,7 +280,8 @@ async def actualizar_posicion_interpretativa(posicion_id: str, body: PosicionInt
             RETURNING id, titulo, descripcion, contenido, fuente_oficial_referencia,
                       documento_origen_id, autor_id, revisor_id, estado, version,
                       vigencia_desde, vigencia_hasta, version_anterior_id,
-                      fecha_creacion, fecha_revision, created_at, updated_at
+                      fecha_creacion, fecha_revision, created_at, updated_at,
+                      fuente_verificada
             """
         )
 
@@ -279,4 +306,5 @@ async def actualizar_posicion_interpretativa(posicion_id: str, body: PosicionInt
             "fecha_revision": str(result["fecha_revision"]) if result["fecha_revision"] else None,
             "created_at": str(result["created_at"]) if result["created_at"] else None,
             "updated_at": str(result["updated_at"]) if result["updated_at"] else None,
+            "fuente_verificada": result["fuente_verificada"],
         }
