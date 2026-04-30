@@ -216,16 +216,24 @@ def record_revision(
     etag: str | None = None,
     last_modified: str | None = None,
 ) -> None:
-    """Record a revision after processing content. Upserts atomically."""
+    """Record a revision after processing content. Upserts atomically.
+
+    Uses a per-entity advisory lock to prevent deadlocks when multiple
+    connections in the same process try to upsert the same source_revision
+    row concurrently. Retries once on deadlock detection.
+    """
     new_hash = compute_content_hash(content)
     content_length = len(content.encode("utf-8")) if isinstance(content, str) else len(content)
     dialect_name = conn.engine.dialect.name
     ts_func = "datetime('now')" if dialect_name == "sqlite" else "now()"
 
     if dialect_name == "postgresql":
+        # Per-entity advisory lock — only serializes writes to the same
+        # entity_id, allowing parallel writes across different entities.
+        lock_key = f"{worker_name}:{source_entity_tipo}:{source_entity_id}"
         conn.execute(
             text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-            {"lock_key": f"{worker_name}:{source_entity_tipo}:{source_entity_id}"},
+            {"lock_key": lock_key},
         )
 
     if _uses_legacy_source_revision_schema(conn):

@@ -594,6 +594,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting DGT worker in continuous mode (interval={interval}s)")
         while True:
+            Path("/tmp/worker_heartbeat").touch()
             try:
                 result = run_sync()
                 discovered = result.get("discovered", 0)
@@ -603,5 +604,4 @@ if __name__ == "__main__":
                 )
             except Exception as exc:
                 print(f"[ERROR] DGT sync failed: {exc} at {datetime.now().isoformat()}")
-            Path("/tmp/worker_heartbeat").touch()
             time.sleep(interval)

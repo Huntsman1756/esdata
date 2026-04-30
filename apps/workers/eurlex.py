@@ -38,7 +38,7 @@ EURLEX_BASE = os.getenv(
 )
 SPARQL_BASE = os.getenv(
     "SPARQL_BASE",
-    "http://publications.europa.eu/webapi/rdf/sparql",
+    "https://data.europa.eu/sparql",
 )
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
@@ -264,19 +264,103 @@ def parse_index(payload: dict) -> list[dict]:
 
 
 def fetch_index(client: httpx.Client, celex: str) -> list[dict]:
-    """Fetch index from EUR-Lex consolidated text API."""
-    response = client.get(
-        f"{EURLEX_BASE}/rest.tx.legal-acts-index/{celex}",
-        headers={"Accept": "application/json"},
-    )
-    if response.status_code == 404:
-        print(f"  [WARN] {celex} not found in EUR-Lex API, skipping")
-        return []
-    response.raise_for_status()
+    """Fetch index from EUR-Lex consolidated text API.
+
+    Falls back to HTML scraping when the REST API returns no index data.
+    EUR-Lex blocks automated requests (requires JS), so we also check for
+    a local corpus file before giving up.
+    """
+    # Try the REST API first
     try:
-        return parse_index(response.json())
-    except json.JSONDecodeError:
-        print(f"  [WARN] Failed to parse EUR-Lex index for {celex}: {response.text[:200]}")
+        response = client.get(
+            f"{EURLEX_BASE}/rest.tx.legal-acts-index/{celex}",
+            headers={"Accept": "application/json"},
+        )
+        if response.status_code == 200:
+            parsed = parse_index(response.json())
+            if parsed:
+                return parsed
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        pass
+
+    # Fallback: check for local corpus file
+    corpus_path = Path(f"corpora/eurlex/{celex}.txt")
+    if corpus_path.exists():
+        try:
+            text = corpus_path.read_text(encoding="utf-8")
+            return [
+                {
+                    "id": "corpus",
+                    "titulo": "Texto completo (corpus local)",
+                    "fecha_actualizacion": "",
+                }
+            ]
+        except Exception:
+            pass
+
+    # Fallback: scrape the consolidated HTML page for article list
+    return _fetch_index_html_fallback(client, celex)
+
+
+def fetch_block_from_corpus(celex: str) -> BloqueTexto | None:
+    """Load a block from the local corpus file when the live API is unavailable."""
+    corpus_path = Path(f"corpora/eurlex/{celex}.txt")
+    if not corpus_path.exists():
+        return None
+    try:
+        text = corpus_path.read_text(encoding="utf-8")
+        return BloqueTexto(
+            bloque_id="corpus",
+            tipo_bloque="completo",
+            numero="1",
+            titulo="Texto completo",
+            tipo_articulo="completo",
+            texto=text,
+            vigente_desde="",
+        )
+    except Exception:
+        return None
+
+
+def _fetch_index_html_fallback(client: httpx.Client, celex: str) -> list[dict]:
+    """Scrape EUR-Lex HTML page to build a block index when REST API fails.
+
+    EUR-Lex requires JavaScript, so this often returns empty. The corpus
+    fallback in fetch_index() is preferred.
+    """
+    url = f"{EURLEX_BASE}/legal-content/ES/TXT/?uri=CELEX:{celex}"
+    try:
+        response = client.get(url, headers={"Accept": "text/html"}, timeout=30.0)
+        if response.status_code != 200:
+            return []
+        from xml.etree import ElementTree as ET
+
+        html_text = response.text
+        root = ET.fromstring(html_text)  # noqa: S314
+
+        blocks = []
+        for h_elem in root.iter():
+            tag = h_elem.tag
+            text = (h_elem.text or "").strip()
+            if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+                if text and ("articulo" in text.lower() or "disposición" in text.lower() or "sección" in text.lower() or "capítulo" in text.lower()):
+                    blocks.append({
+                        "id": f"html-{len(blocks)}",
+                        "titulo": text,
+                        "fecha_actualizacion": "",
+                    })
+            cls = h_elem.attrib.get("class", "")
+            if cls and ("articulo" in cls.lower() or "disposition" in cls.lower()):
+                text = (h_elem.text or "").strip()
+                if text:
+                    blocks.append({
+                        "id": f"html-{len(blocks)}",
+                        "titulo": text,
+                        "fecha_actualizacion": "",
+                    })
+        return blocks
+    except Exception as exc:
+        print(f"  [WARN] HTML fallback failed for {celex}: {exc}")
         return []
 
 
@@ -697,10 +781,13 @@ def run_sync(  # noqa: C901
                         bloques_fetched += 1
                         continue
 
+                    # Try live API first, fall back to corpus
                     try:
                         bloque = fetch_block(client, item["id"])
                     except Exception:  # noqa: S112
-                        continue
+                        bloque = fetch_block_from_corpus(celex)
+                        if not bloque:
+                            continue
 
                     change = check_content_changed(
                         conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
@@ -783,7 +870,9 @@ def run_sync(  # noqa: C901
                                 try:
                                     bloque = fetch_block(client, item["id"])
                                 except Exception:  # noqa: S112
-                                    continue
+                                    bloque = fetch_block_from_corpus(celex)
+                                    if not bloque:
+                                        continue
                                 change = check_content_changed(
                                     conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                                 )
@@ -863,6 +952,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting EUR-Lex worker in continuous mode (interval={interval}s)")
         while True:
+            Path("/tmp/worker_heartbeat").touch()
             try:
                 result = run_sync()
                 print(
@@ -872,5 +962,4 @@ if __name__ == "__main__":
                 )
             except Exception as exc:
                 print(f"[ERROR] EUR-Lex sync failed: {exc} at {datetime.now(UTC).isoformat()}")
-            Path("/tmp/worker_heartbeat").touch()
             time.sleep(interval)

@@ -1243,7 +1243,6 @@ def run_sync(
                 documentos_upserted=stored,
             )
 
-        Path("/tmp/worker_heartbeat").touch()
         return {"processed": processed, "stored": stored, "discovered": discovered}
     except Exception as exc:
         with engine.begin() as conn:
@@ -1301,6 +1300,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting CNMV worker in continuous mode (interval={interval}s)")
         while True:
+            Path("/tmp/worker_heartbeat").touch()
             result = run_sync()
             print(
                 f"Synced descubiertas={result['discovered']}, documentos={result['processed']}, "

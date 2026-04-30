@@ -238,7 +238,6 @@ def run_sync(
                 documentos_upserted=stored,
             )
 
-        Path("/tmp/worker_heartbeat").touch()
         return {"processed": processed, "stored": stored}
     except Exception as exc:
         with engine.begin() as conn:
@@ -281,6 +280,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting CENDOJ worker in continuous mode (interval={interval}s)")
         while True:
+            Path("/tmp/worker_heartbeat").touch()
             result = run_sync()
             print(
                 f"Synced documentos={result['processed']}, almacenados={result['stored']} at {datetime.now(UTC).isoformat()}"
