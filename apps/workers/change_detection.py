@@ -103,10 +103,10 @@ def ensure_source_revision_table(conn: Connection) -> None:
     columns = _source_revision_columns(conn)
     if "dgt_url" not in columns:
         if dialect_name == "sqlite":
-            conn.execute(text("ALTER TABLE source_revision ADD COLUMN dgt_url TEXT"))
+            conn.execute(text("ALTER TABLE source_revision ADD COLUMN IF NOT EXISTS dgt_url TEXT"))
         else:
             conn.execute(text(
-                "ALTER TABLE source_revision ADD COLUMN dgt_url TEXT"
+                "ALTER TABLE source_revision ADD COLUMN IF NOT EXISTS dgt_url TEXT"
             ))
 
     if _uses_legacy_source_revision_schema(conn):
