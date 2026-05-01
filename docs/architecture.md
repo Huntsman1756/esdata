@@ -100,18 +100,18 @@ La arquitectura actual ya implementa una base util, pero no debe confundirse con
 
 Capacidades reales hoy:
 
-- [IMPLEMENTED] ingesta multi-fuente por 16 workers especializados (BOE, EUR-Lex, CNMV, OFAC, UN, IRS, EBA, BORME, BDE)
+- [PARTIAL] ingesta multi-fuente por workers especializados. El despliegue Compose activo define 12 workers long-running y 9 cron jobs; otras superficies o workers historicos no deben contarse como runtime activo sin evidencia fresca.
 - [IMPLEMENTED] cobertura regulatoria completa: MiCA, DAC8, AML/Ley 10/2010, Antifraud, MiFID II/MiFIR, MAR, DORA, PRIIPs/LIVMC, Transparencia, SFDR, CSRD, AIFMD/UCITS, CRD/CRR/BRRD/EMIR, IDD/Solvency II, Solvency II, PBC, XBRL, Consumer Credit, PGC, Screening (OFAC/EU/UN), GIIN
 - [IMPLEMENTED] ~21 tablas pobladas con datos reales (~950 filas)
 - [IMPLEMENTED] almacenamiento principal en PostgreSQL
 - [IMPLEMENTED] full-text search, chunking y busqueda vectorial/hibrida con reranker cross-encoder activo y grounding duro por claim
 - [IMPLEMENTED] superficies API y MCP para consulta
-- [IMPLEMENTED] 47 cron jobs configurados en Docker Compose (perfiles cron)
+- [PARTIAL] cron jobs operativos en Compose/systemd para el subset activo del despliegue. La cifra exacta debe leerse del compose y no fijarse en esta doc si puede quedar stale.
 
 Limitaciones estructurales vigentes:
 
 - [PARTIAL] la conectividad cross-source global no esta modelada de forma explicita; hoy predomina el fan-out por tablas y fusion heuristica
-- [PARTIAL] existen piezas de AI governance durables, pero la auditoria de consulta end-to-end sigue incompleta mientras `query_audit` no este cableado al runtime
+- [IMPLEMENTED] existe persistencia durable de `query_audit` y grounding en runtime; siguen pendientes alertas y controles adicionales fuera del scope de esta doc.
 - [IMPLEMENTED] la trazabilidad de retrieval devuelve `chunk_id`, `source_hash`, grounding por claim con `grounded` flag, y abstencion por evidencia insuficiente
 - [PARTIAL] la observabilidad actual cubre salud HTTP, freshness y metricas basicas, pero no retrieval P95/P99, token count, coste ni error budget por componente
 

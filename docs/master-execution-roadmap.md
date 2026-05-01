@@ -209,8 +209,8 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, AEPD COMPLETOS; BDNS, CENDOJ, TEAC OUT OF SCOPE; BDE COMPLETADO, EURLEX pendiente) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
-- Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.9 `COMPLETA`, 35.4-35.5 `OUT OF SCOPE`, 35.6 `COMPLETA`, 35.7 `OUT OF SCOPE`, 35.8 `COMPLETA`. 264+ documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 11+, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS). **Fase 36 TODOS LOS DOMINIOS COMPLETADA**. DGT: cola persistente con `source_revision` como queue (status='pending' → 'processed'), discovery + processing incremental por batch 100, sin idle-in-transaction timeout ni crash por restart.
+- Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, AEPD COMPLETOS; BDNS OUT OF SCOPE; CENDOJ BLOCKED:EXTERNAL; TEAC BLOCKED:EXTERNAL; BDE COMPLETADO, EURLEX pendiente) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
+- Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.9 `COMPLETA`, 35.4 `OUT OF SCOPE`, 35.5 `BLOCKED:EXTERNAL`, 35.6 `COMPLETA`, 35.7 `BLOCKED:EXTERNAL`, 35.8 `COMPLETA`. 264+ documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 11+, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS). **Fase 36 TODOS LOS DOMINIOS COMPLETADA**. DGT: cola persistente con `source_revision` como queue (status='pending' → 'processed'), discovery + processing incremental por batch 100, sin idle-in-transaction timeout ni crash por restart.
 - Estado del agente: cierre transversal de release casi completo. `CNMV` ya corrige la rama `updated` con upsert consistente, el runtime API ya monta middlewares/routers reales y falla en cerrado si faltan `ESDATA_API_KEY`/`MCP_API_KEY`, `ops` queda minimizado para Alembic + verificacion, `web` ya consume `NEXT_PUBLIC_API_BASE_URL` y fija `HOSTNAME=0.0.0.0` para que el healthcheck interno de Compose sea estable, la documentacion activa queda alineada a Compose con `.env.prod`, `npm --prefix apps/web run lint` queda limpio y el smoke Compose en puertos alternativos valida `postgres` saludable, `api /health`, `api /status`, handshake `mcp` con API key y `web` sirviendo `/`, `/admin/cambios` y `/admin/workflow` con estado `healthy`. Siguiente paso exacto: **revalidar tests API/workers en contenedor escribible, preparar commit final y luego ejecutar despliegue con `.env.prod` real del host + URLs reales de `HC_PING_URL_CRON_*`**.
 - Archivos afectados:
   - `docs/master-execution-roadmap.md`
@@ -3976,12 +3976,21 @@ Cerrar los gaps operativos de los workers existentes que impiden cobertura real 
 - tests con HTML real reducido (no mocks artificiales) para cobertura real
 - rate limits conservadores: 1 req/seg (DGT, CNMV), 10 req/min (BOE API)
 
+### Hallazgo critico: BOE sumario NO contiene jurisprudencia
+
+- **Verificado experimentalmente** (abril 2026): el JSON del BOE sumario diario (`/datosabiertos/api/boe/sumario/YYYYMMDD`) solo contiene disposiciones administrativas (leyes, decretos, nombramientos ministeriales, anuncios de juzgados BOE-B, oposiciones).
+- **No contiene**: sentencias del TS, resoluciones TEAC, resoluciones DGT.
+- Los departamentos judiciales (`JUZGADOS DE PRIMERA INSTANCIA`, `MINISTERIO DE LA PRESIDENCIA`) tienen 0 items relevantes o solo items de oposiciones/concursos.
+- Los departamentos ministeriales (`MINISTERIO DE HACIENDA`) solo tienen nombramientos/ceses de delegados, no resoluciones tributarias.
+- **Conclusión**: el BOE no es fuente de jurisprudencia. Las sentencias del TS van a CENDOJ, la doctrina administrativa va a DGT, las resoluciones TEAC requieren dump de la AEAT.
+
 ### Riesgos
 
 - DGT puede tener lagunas numericas (V0001, V0500, V1000...) que rallen la iteracion → mitigacion: parar al primer 404 consecutivo de 3 intentos
 - TEAC HTML puede cambiar entre ejecuciones → mitigacion: snapshot en tests, fallback siempre disponible
 - BOE API puede tener limites mas estrictos de los documentados → mitigacion: backoff exponencial con `httpx`
 - CNMV indice puede cambiar estructura → mitigacion: fallback a seeds si discovery retorna 0 URLs
+- **BOE NO es fuente de jurisprudencia** → descartado como alternativa a CENDOJ/TEAC
 
 ---
 
@@ -4140,7 +4149,7 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 | Solvency II | solvency_ii_entity, solvency_ii_sfp | 9 + 6 | SEED |
 | DOFA/Control | control_interno, irpf_personal_minimums, irpf_work_income_reduction, modelo_campana | 35 + datos + datos + datos | SEED |
 | SEPA | sepa_payment_rule | 15 | SEED |
-| Organismos | documento_interpretativo | 1 (solo DGT) | PARCIAL |
+| Organismos | documento_interpretativo | 264+ (BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 11+, BDE 61) | COMPLETA |
 
 ### Datos vacios (0 rows) — proxima fase
 
@@ -4218,7 +4227,7 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ### Fase 35.5 — CENDOJ (Portal de Documentos Judiciales)
 
-**Estado**: `[OUT OF SCOPE]`
+**Estado**: `[BLOCKED:EXTERNAL]`
 
 - **Problema**: El portal CENDOJ (`poderjudicial.es/cgpj`) está caído/migrado. El nuevo portal (`www3.poderjudicial.es`) requiere autenticación SSO/NIDP con anti-forgery tokens. El Tribunal Constitucional HJ (`hj.tribunalconstitucional.es`) también requiere session state con tokens CSRF.
 - **Investigación**: 
@@ -4227,8 +4236,11 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
   - TC HJ: ASP.NET MVC con anti-forgery tokens (`__RequestVerificationToken`) — requiere session state
   - TC resoluciones NO se publican en BOE (solo son resoluciones administrativas del Presidente)
   - No hay API REST, no hay Open Data portal, no hay RSS de resoluciones
-- **Decisión**: Marcar como `[OUT OF SCOPE]` para Fase 35. Los portales judiciales requieren autenticación que no está disponible. El worker `cendoj.py` ya existe pero necesita SEED_URLS que no se pueden discover sin auth.
-- **Alternativa futura**: Si se obtienen credenciales de acceso al POJER/CENDOJ, el worker ya está implementado y solo requiere configurar las URLs seed.
+  - **BOE sumario NO contiene sentencias del TS** — verificado experimentalmente (abril 2026): el JSON del BOE solo contiene disposiciones administrativas (leyes, decretos, nombramientos, anuncios de juzgados BOE-B), no sentencias judiciales. Los departamentos `JUZGADOS DE PRIMERA INSTANCIA` y `MINISTERIO DE LA PRESIDENCIA` tienen 0 items relevantes o solo items de oposiciones.
+- **Worker**: `apps/workers/cendoj.py` (288 lines) con parser HTML listo, change detection, tests (10/10 verdes), pero 1 documento por seed URL.
+- **Decisión**: Marcar como `[BLOCKED:EXTERNAL]`. El worker está listo pero el portal requiere credenciales CGPJ. El BOE no es alternativa viable para jurisprudencia.
+- **Desbloqueante**: Solicitud de acceso a datos al CGPJ para CENDOJ. Plazo estimado: semanas.
+- **No es deuda técnica**: El parser, change detection, y upsert estan implementados y probados. Solo falta la fuente de datos.
 
 ### Fase 35.6 — AEPD (Agencia Espanola de Proteccion de Datos)
 
@@ -4245,10 +4257,14 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ### Fase 35.7 — TEAC (Tribunal Economico-Administrativo Central)
 
-**Estado**: `[OUT OF SCOPE]`
+**Estado**: `[BLOCKED:EXTERNAL]`
 
-- **Motivo**: No hay fuente discoverable via HTTP. BOE search devuelve homepage para todas las consultas. Portal TEAC (sede.hacienda.gob.es) es aplicacion .NET que requiere JavaScript. Dominio teac.es ya no resuelve. Wayback Machine no tiene paginas archivadas de criterios TEAC. No hay API publica ni RSS de resoluciones.
-- **Worker**: `apps/workers/teac.py` existe (263 lines) con parser HTML listo, pero sin URLs de discovery funcionales.
+- **Motivo**: Portal TEAC (sede.hacienda.gob.es) es aplicacion .NET WebForms con `__VIEWSTATE`/`__VIEWSTATEGENERATOR` — requiere JavaScript. Dominio teac.es ya no resuelve. Wayback Machine no tiene paginas archivadas de criterios TEAC. No hay API publica ni RSS de resoluciones.
+- **BOE sumario NO contiene resoluciones TEAC** — verificado experimentalmente (abril 2026): 0 matches en keywords TEAC en 1146 items de 10 dias de sumario.
+- **Worker**: `apps/workers/teac.py` (397 lines) con parser HTML listo, change detection, tests (10/10 verdes), pero 0 documentos sin URLs discoverables.
+- **Decisión**: Marcar como `[BLOCKED:EXTERNAL]`. El worker está listo pero necesita un dump de resoluciones TEAC.
+- **Desbloqueante**: Solicitud de transparencia a la AEAT para dump de resoluciones TEAC. Plazo estimado: semanas.
+- **No es deuda técnica**: El parser, change detection, y upsert estan implementados y probados. Solo falta la fuente de datos.
 
 ### Fase 35.8 — BDE (Banco de Espana)
 
@@ -4428,10 +4444,11 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
 ### Fase 36.15 — Organismos restantes (BOE, CENDOJ, AEPD, TEAC, BDE, EURLEX)
 
-**Estado**: `[TARGET]`
+**Estado**: `[TARGET]` — CENDOJ y TEAC marcados como `[BLOCKED:EXTERNAL]`
 
 - **Nota**: Algunos de estos ya se cubren en Fase 35. Esta subfase se centra en los que queden pendientes.
 - **Criterio de exito**: Todos los organismos tienen al menos 1 documento en `documento_interpretativo`
+- **Bloqueados externamente**: CENDOJ (requiere credenciales CGPJ), TEAC (requiere dump AEAT). BOE sumario descartado como fuente de jurisprudencia (abril 2026).
 
 ---
 
@@ -4478,9 +4495,10 @@ All remaining failures are 404s. The seed scripts insert rows with auto-incremen
 
  Prioridad por impacto/dependencia:
 
- 1. **Fase 35** — Organismos reguladores (BORME, CNMV, SEPBLAC, BDNS, CENDOJ, AEPD, TEAC, BDE, EURLEX) — `[COMPLETA]`
-    - BORME/CNMV/SEPBLAC/AEPD/BDE/EURLEX completados con datos reales
-    - BDNS, CENDOJ, TEAC marcados como OUT OF SCOPE
+  1. **Fase 35** — Organismos reguladores (BORME, CNMV, SEPBLAC, BDNS, CENDOJ, AEPD, TEAC, BDE, EURLEX) — `[COMPLETA]`
+     - BORME/CNMV/SEPBLAC/AEPD/BDE/EURLEX completados con datos reales
+     - BDNS OUT OF SCOPE
+     - CENDOJ, TEAC marcados como BLOCKED:EXTERNAL (workers listos, sin fuente de datos)
 
  2. **Fase 36** — Dominios con 0 rows → `[COMPLETA]`
     - 15 dominios completados, 30+ tablas con 215+ registros

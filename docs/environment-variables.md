@@ -23,7 +23,7 @@ Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidado
 | Variable | Requerida | Default | Descripcion | Uso |
 |----------|-----------|---------|-------------|-----|
 | `ESDATA_API_BASE_URL` | No | `http://localhost:8000` | URL base de la API para fetch server-side en Next.js | Web SSR |
-| `NEXT_PUBLIC_API_BASE_URL` | No | `http://localhost:8000` | URL base publica para pantallas client-side del frontend | Web browser |
+| `ESDATA_API_KEY` | Si en despliegues donde `web` consuma rutas protegidas | | API key server-side usada por Next.js para llamar al backend protegido | Web SSR |
 
 ### API / Operacion general
 
@@ -176,7 +176,7 @@ O directamente en el docker-compose.yml con `environment:`.
 ## Seguridad
 
 - Nunca hardcodear secretos en codigo ni en el repo.
-- Nunca exponer secretos en frontend (no usar `NEXT_PUBLIC_*`).
+- Nunca exponer secretos ni base URLs operativas en frontend via `NEXT_PUBLIC_*`.
 - Nunca crear ni conservar `.env` anidados dentro del repo.
 - `.env.example` solo contiene valores de ejemplo sin credenciales reales.
 - Si aparece un `.env` runtime en el repo, el estado correcto es `BLOQUEADO` hasta eliminarlo o recibir instruccion explicita del usuario.

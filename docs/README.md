@@ -17,7 +17,9 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `operations/README.md` — indice operativo
 - `operations/OPERATIONS.md` — operacion diaria
 - `operations/runbooks/` — runbooks repetibles
+- `integrations/README.md` — matriz activa de integraciones LLM/clientes
 - `manual-usuario/README.md` — manual vivo de uso e integracion
+- `reference/model-expansion-spec.md` — guia para nuevos modelos, leyes y organismos
 - `repository-structure.md` — mapa del repo
 
 ## Historico

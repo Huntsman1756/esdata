@@ -20,7 +20,7 @@ La home visible actual del App Router es el buscador principal de `apps/web/app/
 
 `ConsultaClient` sigue existiendo como componente de consulta avanzada y debe tratarse como superficie interna reutilizable, no como fuente unica de verdad sobre la home.
 
-La experiencia principal permite una consulta tipo pregunta fiscal con campos como:
+La experiencia principal permite una consulta guiada con campos como:
 
 - texto libre `q`
 - `sujeto`
@@ -36,7 +36,7 @@ El objetivo es devolver modelos AEAT y resultados complementarios de forma legib
 - DGT
 - TEAC
 
-Soporta parametros de busqueda y filtros como:
+Soporta parametros de busqueda y filtros por query string como:
 
 - `q`
 - `tab`
@@ -80,7 +80,7 @@ La pantalla de modelo muestra:
 
 ## Admin de cambios
 
-La pantalla `/admin/cambios` consume `GET /v1/cambios` y usa `NEXT_PUBLIC_API_BASE_URL` en cliente.
+La pantalla `/admin/cambios` consume `GET /v1/cambios` a traves del proxy server-side `GET /api/cambios`.
 
 Permite filtrar por:
 
@@ -93,7 +93,7 @@ Muestra impacto, accion recomendada, fecha y obligaciones afectadas.
 
 ## Admin de workflow
 
-La pantalla `/admin/workflow` consume `GET /v1/compliance/workflow` y usa `NEXT_PUBLIC_API_BASE_URL` en cliente.
+La pantalla `/admin/workflow` consume `GET /v1/compliance/workflow` a traves del proxy server-side `GET /api/workflow`.
 
 Muestra:
 

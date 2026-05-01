@@ -83,9 +83,15 @@ Debe existir un endpoint publico controlado, por ejemplo:
 
 Opciones ya presentes en el repo:
 
-- spec completa servida por la API
+- spec reducida servida por la API en `/gpt-actions/modelos/openapi.json`
 - `docs/openapi-gpt.json`
 - `docs/openapi-gpt-3.0.json`
+
+Contrato recomendado para Custom GPT / Business Actions:
+
+- base URL HTTPS publica del backend
+- spec `OpenAPI 3.1` desde `/gpt-actions/modelos/openapi.json` o `docs/openapi-gpt.json`
+- auth por API key dedicada, enviada como cabecera `X-API-Key`
 
 Recomendacion:
 

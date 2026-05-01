@@ -37,6 +37,7 @@ Este manual explica:
 - `11-ui-interna.md`
 - `12-onboarding-rapido.md`
 - `13-gobierno-editorial.md`
+- `../integrations/README.md`
 - `curacion-lineas-criterio.md`
 
 ## Regla de lectura

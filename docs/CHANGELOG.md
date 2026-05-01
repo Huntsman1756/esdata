@@ -4,6 +4,14 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ---
 
+## 2026-05-01
+
+### main
+- **PENDING** `fix(api)` — Sprint 3.4: routers verticales `cnmv`, `bde`, `aepd`, `cendoj` quedaron alineados con el contrato real de `documento_interpretativo`. Se anaden schemas `DocInterpretativoListItem/ListResponse/Detail` y `CNMV{Version,RegulationLink,ObligationLink}*` en `apps/api/schemas.py`; los 4 routers refactorizan imports y `response_model`; `apps/api/main.py` los monta tras `eurlex.router`. `apps/api/tests/conftest.py` extiende el schema de `documento_interpretativo` con columnas CNMV opcionales, crea `documento_version`, `cnmv_regulation_link`, `cnmv_obligation_link` y siembra 4 fixtures (`CNMV-Circular-1-2025`, `BdE-Circular-2-2025`, `AEPD-Guia-Cookies-2025`, `STS-2847/2025`). `ruff check` limpio en los 7 ficheros tocados. Cierra inconsistencia S-TIER #16 detectada: el manual prometia los 4 prefijos como montados cuando los imports a schemas inexistentes los rompian en arranque.
+
+### docs
+- **PENDING** `docs(operations)` — agent-note nueva sobre el patron de routers fantasma (importados en docs, ausentes en `main.py` por imports rotos). Sin cambios en `master-execution-roadmap.md` por decision operativa de la sesion (single source of state intacto). Manual `09-referencia-de-endpoints.md` y `03-superficies-disponibles.md` ya listaban los 4 prefijos: post-fix pasan a ser veraces sin necesidad de edicion.
+
 ## 2026-04-30
 
 ### main
