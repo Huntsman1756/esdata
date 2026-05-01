@@ -13,15 +13,18 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import re
 import time
+from datetime import UTC, datetime
 from typing import Protocol
 from urllib.parse import urljoin
 
 import httpx
 from bs4 import BeautifulSoup
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 from runtime import (
     configure_logging,
@@ -39,6 +42,7 @@ AEAT_MODELOS_PORTAL = (
 AEAT_USER_AGENT = "Mozilla/5.0 (compatible; esdata-bot/1.0; fiscal data worker)"
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("AEAT_MODELS_SYNC_INTERVAL", 86400)
+DEFAULT_CAMPAIGN = "current"
 
 
 class FallbackRequired(RuntimeError):
@@ -55,6 +59,100 @@ class AEATPortalClient(Protocol):
 
 def _has_model_anchors(html: str) -> bool:
     return bool(re.search(r"href[^>]*modelo", html, flags=re.IGNORECASE))
+
+
+def _normalize_html(html: str) -> bytes:
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+    normalized = re.sub(r"\s+", " ", soup.get_text(" ", strip=True)).strip()
+    return normalized.encode("utf-8")
+
+
+def _sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _infer_campaign(page_text: str, url_info: str | None = None) -> str:
+    if url_info:
+        match = re.search(r"(?:19|20)\d{2}", url_info)
+        if match:
+            return match.group(0)
+
+    match = re.search(r"(?:campa(?:n|ñ)a|ejercicio)\s*(?:de\s*)?((?:19|20)\d{2})", page_text, re.IGNORECASE)
+    if match:
+        return match.group(1)
+
+    bare_years = re.findall(r"(?:19|20)\d{2}", page_text)
+    if bare_years:
+        return bare_years[0]
+
+    return DEFAULT_CAMPAIGN
+
+
+def _classify_resource(anchor_text: str, url: str) -> tuple[str, str]:
+    lowered_text = anchor_text.lower()
+    lowered_url = url.lower()
+
+    if lowered_url.endswith(".pdf"):
+        formato = "pdf"
+    elif lowered_url.endswith(".zip"):
+        formato = "zip"
+    elif lowered_url.endswith(".xml"):
+        formato = "xml"
+    elif lowered_url.endswith(".html") or lowered_url.endswith(".htm"):
+        formato = "html"
+    else:
+        formato = "other"
+
+    if "instrucc" in lowered_text:
+        return ("instrucciones", formato)
+    if "dise" in lowered_text or "registro" in lowered_text:
+        return ("diseno_registro", formato)
+    if "normativa" in lowered_text or "orden" in lowered_text or "boe" in lowered_text:
+        return ("normativa", formato)
+    if "ayuda" in lowered_text:
+        return ("ayuda", formato)
+    if "modelo" in lowered_text or "formulario" in lowered_text:
+        return ("formulario_pdf" if formato == "pdf" else "formulario_html", formato)
+    return ("recurso_oficial", formato)
+
+
+def _extract_model_resources(detail_html: str, detail_url: str) -> list[dict]:
+    soup = BeautifulSoup(detail_html, "html.parser")
+    resources = [
+        {
+            "tipo_recurso": "pagina_modelo",
+            "formato": "html",
+            "url_recurso": detail_url,
+            "payload": _normalize_html(detail_html),
+            "metadata": {"origin": "detail_page"},
+        }
+    ]
+    seen = {(resources[0]["tipo_recurso"], resources[0]["url_recurso"])}
+
+    for a_tag in soup.find_all("a", href=True):
+        href = a_tag["href"].strip()
+        if not href or href.startswith("javascript:") or href.startswith("#"):
+            continue
+
+        url_recurso = href if href.startswith("http") else urljoin(detail_url, href)
+        anchor_text = a_tag.get_text(" ", strip=True)
+        tipo_recurso, formato = _classify_resource(anchor_text, url_recurso)
+        key = (tipo_recurso, url_recurso)
+        if key in seen:
+            continue
+        seen.add(key)
+        resources.append(
+            {
+                "tipo_recurso": tipo_recurso,
+                "formato": formato,
+                "url_recurso": url_recurso,
+                "metadata": {"anchor_text": anchor_text[:200]},
+            }
+        )
+
+    return resources
 
 
 class HttpxClient:
@@ -268,6 +366,9 @@ def _fetch_model_metadata(codigo: str, portal_client: AEATPortalClient | None = 
         "url_info": url_info,
         "periodo": periodo,
         "impuesto": impuesto,
+        "campana": _infer_campaign(model_soup.get_text(" ", strip=True), url_info),
+        "detail_html": model_html,
+        "recursos": _extract_model_resources(model_html, url_info),
     }
 
 
@@ -299,6 +400,245 @@ def _upsert_aeat_model(conn, codigo: str, nombre: str, url_info: str, periodo: s
     except Exception as exc:
         logger.error("Failed to upsert modelo %s: %s", codigo, exc)
         return False
+
+
+def _get_modelo_id(conn, codigo: str) -> int | None:
+    row = conn.execute(
+        text("SELECT id FROM aeat_modelo WHERE codigo = :codigo"),
+        {"codigo": codigo},
+    ).fetchone()
+    return row[0] if row else None
+
+
+def _upsert_modelo_campana(
+    conn,
+    modelo_id: int,
+    campana: str,
+    metadata: dict,
+) -> tuple[int | None, bool]:
+    conn.execute(
+        text(
+            """
+            UPDATE modelo_campana
+            SET activo = false
+            WHERE modelo_id = :modelo_id
+              AND campana != :campana
+              AND activo = true
+            """
+        ),
+        {"modelo_id": modelo_id, "campana": campana},
+    )
+
+    existing = conn.execute(
+        text(
+            "SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id AND campana = :campana"
+        ),
+        {"modelo_id": modelo_id, "campana": campana},
+    ).fetchone()
+
+    conn.execute(
+        text(
+            """
+            INSERT INTO modelo_campana (
+                modelo_id,
+                campana,
+                version_form,
+                url_instrucciones,
+                url_normativa,
+                url_formato,
+                activo,
+                fecha_publicacion_portal,
+                fecha_actualizacion_portal,
+                estado_publicacion,
+                updated_at
+            )
+            VALUES (
+                :modelo_id,
+                :campana,
+                :version_form,
+                :url_instrucciones,
+                :url_normativa,
+                :url_formato,
+                true,
+                :fecha_publicacion_portal,
+                :fecha_actualizacion_portal,
+                :estado_publicacion,
+                CURRENT_TIMESTAMP
+            )
+            ON CONFLICT (modelo_id, campana) DO UPDATE SET
+                version_form = COALESCE(EXCLUDED.version_form, modelo_campana.version_form),
+                url_instrucciones = COALESCE(EXCLUDED.url_instrucciones, modelo_campana.url_instrucciones),
+                url_normativa = COALESCE(EXCLUDED.url_normativa, modelo_campana.url_normativa),
+                url_formato = COALESCE(EXCLUDED.url_formato, modelo_campana.url_formato),
+                activo = true,
+                fecha_publicacion_portal = COALESCE(EXCLUDED.fecha_publicacion_portal, modelo_campana.fecha_publicacion_portal),
+                fecha_actualizacion_portal = COALESCE(EXCLUDED.fecha_actualizacion_portal, modelo_campana.fecha_actualizacion_portal),
+                estado_publicacion = COALESCE(EXCLUDED.estado_publicacion, modelo_campana.estado_publicacion),
+                updated_at = CURRENT_TIMESTAMP
+            """
+        ),
+        {
+            "modelo_id": modelo_id,
+            "campana": campana,
+            "version_form": metadata.get("version_form"),
+            "url_instrucciones": metadata.get("url_instrucciones"),
+            "url_normativa": metadata.get("url_normativa"),
+            "url_formato": metadata.get("url_formato"),
+            "fecha_publicacion_portal": metadata.get("fecha_publicacion_portal"),
+            "fecha_actualizacion_portal": metadata.get("fecha_actualizacion_portal"),
+            "estado_publicacion": metadata.get("estado_publicacion"),
+        },
+    )
+
+    row = conn.execute(
+        text(
+            "SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id AND campana = :campana"
+        ),
+        {"modelo_id": modelo_id, "campana": campana},
+    ).fetchone()
+    return (row[0] if row else None, existing is None)
+
+
+def _touch_modelo_recurso(conn, recurso_id: int, metadata: dict | None = None) -> None:
+    conn.execute(
+        text(
+            """
+            UPDATE modelo_recurso
+            SET last_seen_at = CURRENT_TIMESTAMP,
+                etag = COALESCE(:etag, etag),
+                last_modified = COALESCE(:last_modified, last_modified),
+                content_length = COALESCE(:content_length, content_length),
+                metadata = CAST(:metadata AS JSON)
+            WHERE id = :recurso_id
+            """
+        ),
+        {
+            "recurso_id": recurso_id,
+            "etag": metadata.get("etag") if metadata else None,
+            "last_modified": metadata.get("last_modified") if metadata else None,
+            "content_length": metadata.get("content_length") if metadata else None,
+            "metadata": json.dumps(metadata or {}),
+        },
+    )
+
+
+def _store_modelo_recurso_version(
+    conn,
+    campana_id: int,
+    tipo_recurso: str,
+    formato: str,
+    url_recurso: str,
+    payload: bytes,
+    metadata: dict | None = None,
+) -> str:
+    sha256 = _sha256_bytes(payload)
+    existing = conn.execute(
+        text(
+            """
+            SELECT id, sha256_contenido
+            FROM modelo_recurso
+            WHERE campana_id = :campana_id
+              AND tipo_recurso = :tipo_recurso
+              AND activa = true
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ),
+        {"campana_id": campana_id, "tipo_recurso": tipo_recurso},
+    ).fetchone()
+
+    if existing and existing.sha256_contenido == sha256:
+        _touch_modelo_recurso(conn, existing.id, metadata)
+        return "unchanged"
+
+    if existing:
+        conn.execute(
+            text(
+                """
+                UPDATE modelo_recurso
+                SET activa = false,
+                    last_seen_at = CURRENT_TIMESTAMP
+                WHERE id = :id
+                """
+            ),
+            {"id": existing.id},
+        )
+
+    conn.execute(
+        text(
+            """
+            INSERT INTO modelo_recurso (
+                campana_id,
+                tipo_recurso,
+                formato,
+                url_recurso,
+                sha256_contenido,
+                etag,
+                last_modified,
+                content_length,
+                metadata,
+                activa,
+                first_seen_at,
+                last_seen_at
+            )
+            VALUES (
+                :campana_id,
+                :tipo_recurso,
+                :formato,
+                :url_recurso,
+                :sha256,
+                :etag,
+                :last_modified,
+                :content_length,
+                CAST(:metadata AS JSON),
+                true,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            )
+            """
+        ),
+        {
+            "campana_id": campana_id,
+            "tipo_recurso": tipo_recurso,
+            "formato": formato,
+            "url_recurso": url_recurso,
+            "sha256": sha256,
+            "etag": metadata.get("etag") if metadata else None,
+            "last_modified": metadata.get("last_modified") if metadata else None,
+            "content_length": metadata.get("content_length") if metadata else None,
+            "metadata": json.dumps(metadata or {}),
+        },
+    )
+    return "rotated" if existing else "inserted"
+
+
+def _record_sync_log(conn, started_at: datetime, finished_at: datetime, status: str, stats: dict, error_msg: str | None = None) -> None:
+    inspector = inspect(conn)
+    columns = {column["name"] for column in inspector.get_columns("sync_log")}
+    payload = {
+        "worker": "worker-aeat-modelos",
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "status": status,
+        "bloques_processed": stats["recursos_descargados"],
+        "articulos_upserted": stats["versiones_nuevas"],
+        "documentos_processed": stats["modelos_descubiertos"],
+        "documentos_upserted": stats["campanas_upserted"],
+        "error_msg": error_msg,
+    }
+    if "rows_processed" in columns:
+        payload["rows_processed"] = stats["sin_cambios"]
+    if "errors" in columns:
+        payload["errors"] = stats["errores"]
+
+    insert_columns = ", ".join(payload.keys())
+    insert_values = ", ".join(f":{key}" for key in payload)
+    conn.execute(
+        text(
+            f"INSERT INTO sync_log ({insert_columns}) VALUES ({insert_values})"
+        ),
+        payload,
+    )
 
 
 def _mark_deprecated_models(conn, discovered_codes: set[str]) -> int:
@@ -338,16 +678,30 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
     portal_client = get_portal_client(force_playwright=force_playwright)
 
     while True:
+        started_at = datetime.now(UTC)
+        stats = {
+            "modelos_descubiertos": 0,
+            "campanas_upserted": 0,
+            "recursos_descargados": 0,
+            "versiones_nuevas": 0,
+            "sin_cambios": 0,
+            "errores": 0,
+        }
         try:
             discovered = _discover_aeat_models(portal_client=portal_client)
             if not discovered:
                 logger.warning("No models discovered, skipping sync")
+                stats["modelos_descubiertos"] = 0
+                finished_at = datetime.now(UTC)
+                with engine.begin() as conn:
+                    _record_sync_log(conn, started_at, finished_at, "partial", stats, "No models discovered")
                 if run_once:
                     break
                 time.sleep(SYNC_INTERVAL_SECONDS)
                 continue
 
             discovered_codes = {model["codigo"] for model in discovered}
+            stats["modelos_descubiertos"] = len(discovered_codes)
             logger.info(
                 "Discovered %d models: %s",
                 len(discovered_codes),
@@ -361,29 +715,83 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                 _get_existing_codes(conn)
 
                 for model in discovered:
-                    codigo = model["codigo"]
-                    nombre = model["nombre"]
-                    url_info = model["url_info"]
+                    try:
+                        codigo = model["codigo"]
+                        nombre = model["nombre"]
+                        url_info = model["url_info"]
 
-                    metadata = _fetch_model_metadata(codigo, portal_client=portal_client)
-                    if metadata:
-                        nombre = metadata.get("nombre", nombre)
-                        url_info = metadata.get("url_info", url_info)
-                        periodo = metadata.get("periodo")
-                        impuesto = metadata.get("impuesto")
-                    else:
-                        periodo = None
-                        impuesto = None
+                        metadata = _fetch_model_metadata(codigo, portal_client=portal_client)
+                        if metadata:
+                            nombre = metadata.get("nombre", nombre)
+                            url_info = metadata.get("url_info", url_info)
+                            periodo = metadata.get("periodo")
+                            impuesto = metadata.get("impuesto")
+                        else:
+                            periodo = None
+                            impuesto = None
 
-                    if _upsert_aeat_model(conn, codigo, nombre, url_info, periodo, impuesto):
+                        if not _upsert_aeat_model(conn, codigo, nombre, url_info, periodo, impuesto):
+                            skipped += 1
+                            stats["errores"] += 1
+                            continue
+
                         upserted += 1
+                        modelo_id = _get_modelo_id(conn, codigo)
+                        if modelo_id is None:
+                            skipped += 1
+                            stats["errores"] += 1
+                            continue
+
+                        campana, campana_inserted = _upsert_modelo_campana(
+                            conn,
+                            modelo_id,
+                            (metadata or {}).get("campana", DEFAULT_CAMPAIGN),
+                            metadata or {},
+                        )
+                        if campana is None:
+                            skipped += 1
+                            stats["errores"] += 1
+                            continue
+                        stats["campanas_upserted"] += 1 if campana_inserted else 0
+
+                        for recurso in (metadata or {}).get("recursos", []):
+                            if recurso["tipo_recurso"] == "pagina_modelo":
+                                payload = recurso["payload"]
+                            else:
+                                payload = portal_client.fetch_resource(recurso["url_recurso"])
+                                stats["recursos_descargados"] += 1
+
+                            outcome = _store_modelo_recurso_version(
+                                conn,
+                                campana,
+                                recurso["tipo_recurso"],
+                                recurso["formato"],
+                                recurso["url_recurso"],
+                                payload,
+                                recurso.get("metadata"),
+                            )
+                            if outcome == "unchanged":
+                                stats["sin_cambios"] += 1
+                            else:
+                                stats["versiones_nuevas"] += 1
+
                         logger.info("  Upserted modelo %s (%s)", codigo, nombre)
-                    else:
-                        skipped += 1
+                    except Exception as exc:
+                        stats["errores"] += 1
+                        logger.error("Failed to process modelo %s: %s", model.get("codigo"), exc)
+                        raise
 
                 deprecated_count = _mark_deprecated_models(conn, discovered_codes)
                 if deprecated_count:
                     logger.info("Marked %d models as deprecated", deprecated_count)
+
+                _record_sync_log(
+                    conn,
+                    started_at,
+                    datetime.now(UTC),
+                    "ok" if stats["errores"] == 0 else "partial",
+                    stats,
+                )
 
             logger.info(
                 "Sync complete: %d upserted, %d skipped, %d deprecated",
@@ -394,6 +802,18 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
 
         except Exception as exc:
             logger.error("Sync failed: %s", exc, exc_info=True)
+            try:
+                with engine.begin() as conn:
+                    _record_sync_log(
+                        conn,
+                        started_at,
+                        datetime.now(UTC),
+                        "error",
+                        stats,
+                        str(exc)[:500],
+                    )
+            except Exception as log_exc:
+                logger.error("Failed to write sync_log: %s", log_exc)
 
         if run_once:
             break

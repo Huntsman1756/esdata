@@ -16,6 +16,8 @@ from aeat_models import (
     PlaywrightClient,
     _discover_aeat_models,
     _extract_model_name,
+    _record_sync_log,
+    _store_modelo_recurso_version,
     _mark_deprecated_models,
     _upsert_aeat_model,
     _get_existing_codes,
@@ -440,3 +442,135 @@ class TestGetExistingCodes:
             codes = _get_existing_codes(conn)
 
         assert codes == set()
+
+
+class TestModeloRecursoVersioning:
+    def _setup_db(self):
+        engine = create_engine("sqlite:///:memory:")
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE modelo_recurso (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        campana_id INTEGER NOT NULL,
+                        tipo_recurso TEXT NOT NULL,
+                        formato TEXT NOT NULL,
+                        url_recurso TEXT NOT NULL,
+                        sha256_contenido TEXT NOT NULL,
+                        etag TEXT,
+                        last_modified TEXT,
+                        content_length INTEGER,
+                        metadata TEXT NOT NULL DEFAULT '{}',
+                        activa INTEGER NOT NULL DEFAULT 1,
+                        first_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(campana_id, tipo_recurso, sha256_contenido)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX idx_modelo_recurso_activa_unica ON modelo_recurso (campana_id, tipo_recurso) WHERE activa = 1"
+                )
+            )
+        return engine
+
+    def test_mismo_hash_no_duplica(self):
+        engine = self._setup_db()
+        with engine.begin() as conn:
+            assert _store_modelo_recurso_version(conn, 1, "instrucciones", "pdf", "https://example.com/a.pdf", b"same") == "inserted"
+            assert _store_modelo_recurso_version(conn, 1, "instrucciones", "pdf", "https://example.com/a.pdf", b"same") == "unchanged"
+
+        with engine.begin() as conn:
+            total = conn.execute(text("SELECT COUNT(*) FROM modelo_recurso WHERE campana_id = 1 AND tipo_recurso = 'instrucciones'")) .scalar()
+            active = conn.execute(text("SELECT COUNT(*) FROM modelo_recurso WHERE campana_id = 1 AND tipo_recurso = 'instrucciones' AND activa = 1")).scalar()
+
+        assert total == 1
+        assert active == 1
+
+    def test_hash_cambia_rota_version(self):
+        engine = self._setup_db()
+        with engine.begin() as conn:
+            assert _store_modelo_recurso_version(conn, 1, "instrucciones", "pdf", "https://example.com/a.pdf", b"v1") == "inserted"
+            assert _store_modelo_recurso_version(conn, 1, "instrucciones", "pdf", "https://example.com/a.pdf", b"v2") == "rotated"
+
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT activa FROM modelo_recurso WHERE campana_id = 1 AND tipo_recurso = 'instrucciones' ORDER BY id"
+                )
+            ).fetchall()
+
+        assert rows == [(0,), (1,)]
+
+    def test_fallo_entre_update_e_insert_no_deja_sin_activa(self):
+        engine = self._setup_db()
+        with engine.begin() as conn:
+            _store_modelo_recurso_version(conn, 1, "instrucciones", "pdf", "https://example.com/a.pdf", b"v1")
+
+        try:
+            with engine.begin() as conn:
+                _store_modelo_recurso_version(conn, 1, "instrucciones", "pdf", "https://example.com/a.pdf", b"v2")
+                raise RuntimeError("force rollback after update+insert")
+        except RuntimeError:
+            pass
+
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT COUNT(*) FROM modelo_recurso WHERE campana_id = 1 AND tipo_recurso = 'instrucciones' AND activa = 1"
+                )
+            ).scalar()
+
+        assert rows == 1
+
+
+class TestSyncLog:
+    def test_record_sync_log_writes_expected_mapping(self):
+        engine = create_engine("sqlite:///:memory:")
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE sync_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        worker TEXT NOT NULL,
+                        started_at TEXT NOT NULL,
+                        finished_at TEXT,
+                        status TEXT NOT NULL,
+                        bloques_processed INTEGER,
+                        articulos_upserted INTEGER,
+                        documentos_processed INTEGER,
+                        documentos_upserted INTEGER,
+                        errors INTEGER,
+                        rows_processed INTEGER,
+                        error_msg TEXT
+                    )
+                    """
+                )
+            )
+            _record_sync_log(
+                conn,
+                started_at="2026-05-01T00:00:00Z",
+                finished_at="2026-05-01T00:01:00Z",
+                status="ok",
+                stats={
+                    "modelos_descubiertos": 3,
+                    "campanas_upserted": 2,
+                    "recursos_descargados": 7,
+                    "versiones_nuevas": 4,
+                    "sin_cambios": 3,
+                    "errores": 1,
+                },
+            )
+
+        with engine.begin() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT worker, status, bloques_processed, articulos_upserted, documentos_processed, documentos_upserted, errors, rows_processed FROM sync_log"
+                )
+            ).fetchone()
+
+        assert row == ("worker-aeat-modelos", "ok", 7, 4, 3, 2, 1, 3)
