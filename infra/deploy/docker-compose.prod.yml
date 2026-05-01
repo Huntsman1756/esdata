@@ -363,6 +363,27 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+
+  worker-aeat:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.aeat
+    profiles: ["aeat"]
+    restart: "no"
+    env_file:
+      - .env.prod
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      WORKER_CMD: python aeat_models.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
   cron-boe-daily:
     build:
       context: ../..
