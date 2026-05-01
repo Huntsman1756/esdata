@@ -4,7 +4,7 @@ import Header from "@/components/header";
 import OrganismBadge from "@/components/organism-badge";
 import ConfidenceBadge from "@/components/confidence-badge";
 import ModeloBadge from "@/components/modelo-badge";
-import { getDoctrina } from "@/lib/api";
+import { fetchApiRaw, getDoctrina } from "@/lib/api";
 import { formatDocumentType, formatLinkMethod } from "@/lib/labels";
 import { getModelos } from "@/lib/api";
 
@@ -139,8 +139,8 @@ async function DoctrinaModelos({
     const data = await getModelos();
     for (const m of data.modelos) {
       try {
-        const res = await fetch(
-          `${process.env.ESDATA_API_BASE_URL || "http://localhost:8000"}/v1/modelos/${m.codigo}/articulos`,
+        const res = await fetchApiRaw(
+          `/v1/modelos/${m.codigo}/articulos`,
           { next: { revalidate: 3600 } }
         );
         if (!res.ok) continue;

@@ -103,7 +103,7 @@ function WorkflowContent() {
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-700">Error: {error}</p>
           <p className="mt-1 text-xs text-red-500">
-            Verifica que la API este corriendo en {API_URL}
+            Verifica que el proxy web y la API esten disponibles.
           </p>
         </div>
       )}

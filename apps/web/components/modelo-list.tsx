@@ -1,4 +1,4 @@
-import { getModelos } from "@/lib/api";
+import { fetchApiRaw, getModelos } from "@/lib/api";
 import ModeloBadge from "./modelo-badge";
 
 export default async function ModeloList({
@@ -16,8 +16,8 @@ export default async function ModeloList({
     const modelDetails = await Promise.all(
       data.modelos.map(async (m) => {
         try {
-          const res = await fetch(
-            `${process.env.ESDATA_API_BASE_URL || "http://localhost:8000"}/v1/modelos/${m.codigo}/articulos`,
+          const res = await fetchApiRaw(
+            `/v1/modelos/${m.codigo}/articulos`,
             { next: { revalidate: 3600 } }
           );
           if (!res.ok) return null;

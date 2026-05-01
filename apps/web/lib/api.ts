@@ -12,6 +12,15 @@ import type {
   ModeloArticulosResponse,
 } from "./types";
 
+function buildApiHeaders(init?: HeadersInit): Headers {
+  const headers = new Headers(init);
+  const apiKey = process.env.ESDATA_API_KEY;
+  if (apiKey && !headers.has("x-api-key")) {
+    headers.set("x-api-key", apiKey);
+  }
+  return headers;
+}
+
 // The API base is a server-side-only env var.
 // It must NOT leak to the browser.
 function apiBase(): string {
@@ -20,10 +29,25 @@ function apiBase(): string {
   ).replace(/\/+$/, "");
 }
 
+export function apiUrl(path: string): string {
+  return `${apiBase()}${path}`;
+}
+
+export async function fetchApiRaw(
+  path: string,
+  init?: RequestInit
+): Promise<Response> {
+  return fetch(apiUrl(path), {
+    ...init,
+    headers: buildApiHeaders(init?.headers),
+  });
+}
+
 async function fetchApi<T>(path: string): Promise<T> {
   const url = `${apiBase()}${path}`;
   const res = await fetch(url, {
     next: { revalidate: 3600 },
+    headers: buildApiHeaders(),
   });
   if (!res.ok) {
     throw new Error(`API ${res.status} at ${path}`);
