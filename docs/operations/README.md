@@ -46,6 +46,7 @@ No usar `docker compose --profile cron up -d` como sustituto de un scheduler.
 - `docs/operations/runbooks/worker-boe.md`
 - `docs/operations/runbooks/worker-dgt-teac.md`
 - `docs/operations/runbooks/worker-modelos.md`
+- `docs/operations/runbooks/worker-aeat.md`
 - `docs/operations/metrics.md`
 - `docs/operations/worker-failures.md`
 

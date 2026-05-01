@@ -54,7 +54,7 @@ docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.
 ```bash
 docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres
 docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade heads
 docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
 ```
 
@@ -91,4 +91,5 @@ ENV_FILE=infra/deploy/.env.prod BACKUP_DIR=/srv/backups/esdata scripts/ops/backu
 - `docs/operations/README.md`
 - `docs/operations/runbooks/deploy-compose.md`
 - `docs/operations/runbooks/backup-restore.md`
+- `docs/operations/runbooks/worker-aeat.md`
 - `docs/environment-variables.md`
