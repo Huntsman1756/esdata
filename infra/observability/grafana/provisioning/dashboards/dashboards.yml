@@ -5,5 +5,5 @@ providers:
     folder: ESData
     type: file
     options:
-      path: /etc/grafana/provisioning/dashboards/json
+      path: /var/lib/grafana/dashboards
       foldersFromFilesStructure: false

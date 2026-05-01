@@ -1,0 +1,20 @@
+groups:
+  - name: esdata
+    rules:
+      - alert: EsdataApiDown
+        expr: up{job="esdata_api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: esdata API no responde
+          description: Prometheus no puede scrapear /metrics en la API durante al menos 2 minutos.
+
+      - alert: EsdataWorkerSilent48Hours
+        expr: max by (worker) (worker_lag_seconds > 172800) == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Worker sin actividad util > 48h
+          description: "El worker {{ $labels.worker }} no registra ejecuciones recientes en sync_log desde hace mas de 48 horas."

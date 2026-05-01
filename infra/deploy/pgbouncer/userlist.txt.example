@@ -1,0 +1,12 @@
+; PgBouncer userlist — formato:  "<user>" "<scram-secret-or-md5>"
+;
+; Generar el secreto SCRAM real con (dentro del contenedor postgres):
+;   docker compose exec postgres psql -U esdata -tA -c \
+;     "SELECT '\"' || rolname || '\" \"' || rolpassword || '\"' \
+;      FROM pg_authid WHERE rolname = 'esdata';"
+;
+; Copiar la salida a `infra/deploy/pgbouncer/userlist.txt` (gitignored) o
+; montarlo via secret manager. NO commitear userlist.txt con el hash real.
+;
+; Ejemplo (NO usar en produccion, hash dummy):
+"esdata" "SCRAM-SHA-256$4096:dummy$..."

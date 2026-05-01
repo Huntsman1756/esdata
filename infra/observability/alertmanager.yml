@@ -1,0 +1,44 @@
+# Alertmanager — plantilla scaffold.
+#
+# Estado: [PARTIAL] — sin destinos reales configurados.
+# Antes de activar en produccion: definir receiver en `receivers[0].webhook_configs[0].url`
+# (ej. Healthchecks.io, PagerDuty events API, generic webhook a workers/notification).
+# Email/Slack: anadir bloque correspondiente en `receivers`.
+#
+# Referencias:
+#   - reglas: infra/observability/alerts.yml
+#   - prometheus: infra/observability/prometheus.yml
+#   - operacion: docs/operations/alerts.md (a crear si se activa)
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = "critical"
+      receiver: default
+      repeat_interval: 1h
+
+receivers:
+  - name: default
+    # TODO: definir destino real antes de habilitar este servicio en produccion.
+    # Ejemplo:
+    #   webhook_configs:
+    #     - url: https://hc-ping.com/<uuid>
+    #       send_resolved: true
+    webhook_configs:
+      - url: http://localhost:9099/noop
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["alertname"]

@@ -33,16 +33,38 @@ services:
     volumes:
       - esdata-postgres:/var/lib/postgresql/data
       - ../../infra/sql/init.sql:/docker-entrypoint-initdb.d/010_init.sql:ro
-      - ../../infra/sql/002_fulltext_search.sql:/docker-entrypoint-initdb.d/020_fulltext_search.sql:ro
-      - ../../infra/sql/003_modelos_aeat.sql:/docker-entrypoint-initdb.d/030_modelos_aeat.sql:ro
-      - ../../infra/sql/004_modelos_v2.sql:/docker-entrypoint-initdb.d/040_modelos_v2.sql:ro
-      - ../../infra/sql/004_norma_classification.sql:/docker-entrypoint-initdb.d/050_norma_classification.sql:ro
-      - ../../infra/sql/006_pgvector.sql:/docker-entrypoint-initdb.d/060_pgvector.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-esdata} -d ${POSTGRES_DB:-esdata}"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # PgBouncer: pooling de conexiones [PARTIAL] opt-in.
+  # Activar con: docker compose --profile pgbouncer up -d pgbouncer
+  # Despues, editar .env DATABASE_URL para apuntar a pgbouncer:6432 con
+  # ?prepare_threshold=0 (psycopg3). Ver infra/deploy/pgbouncer/pgbouncer.ini.
+  # Userlist real (con hash SCRAM) se monta desde infra/deploy/pgbouncer/userlist.txt
+  # (gitignored). Generar segun instrucciones en userlist.txt.example.
+  pgbouncer:
+    # TODO[pin-digest]: fijar por sha256 tras validacion en staging.
+    image: edoburu/pgbouncer:1.23.1
+    profiles: ["pgbouncer"]
+    restart: unless-stopped
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-esdata}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    # Sin port mapping: pgbouncer solo accesible desde la red interna del compose.
 
   api:
     build:
@@ -74,12 +96,10 @@ services:
     build:
       context: ../../apps/web
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
     restart: unless-stopped
     environment:
       ESDATA_API_BASE_URL: ${ESDATA_API_BASE_URL:?ESDATA_API_BASE_URL is required}
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+      ESDATA_API_KEY: ${ESDATA_API_KEY:?ESDATA_API_KEY is required}
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
     depends_on:
@@ -481,6 +501,7 @@ services:
     profiles: ["prod"]
     volumes:
       - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -488,6 +509,25 @@ services:
     restart: unless-stopped
     networks:
       - esdata-internal
+
+  alertmanager:
+    # [PARTIAL] Plantilla scaffold. Antes de habilitar perfil "prod" en
+    # produccion, configurar receiver real en infra/observability/alertmanager.yml
+    # (ver TODO en ese fichero). Mientras tanto el receiver default apunta a
+    # localhost:9099/noop y solo absorbe alertas sin notificar.
+    image: prom/alertmanager@sha256:9434680be97cad84d6b94e5ae1cbcd91d97727f10d7a2c77c6ff64a7019fcf57
+    profiles: ["prod"]
+    volumes:
+      - ../observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   grafana:
     image: grafana/grafana@sha256:7d5faae481a4c6f436c99e98af11534f7fd5e8d3e35213552dd1dd02bc393d2e
@@ -517,6 +557,7 @@ volumes:
   caddy-config:
   prometheus_data:
   grafana_data:
+  alertmanager_data:
 
 networks:
   esdata-internal:
