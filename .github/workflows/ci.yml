@@ -99,8 +99,12 @@ jobs:
           pip install alembic
           pip install pytest pytest-asyncio httpx
 
-      - name: Verify migrations reach head
-        run: alembic upgrade head
+      - name: Bootstrap database
+        run: |
+          psql "$DATABASE_URL" -f infra/sql/init.sql
+          alembic upgrade heads
+        env:
+          PGPASSWORD: esdata_test
 
       - name: Run Python tests
         run: pytest apps/api/tests/ apps/workers/tests/ -v --tb=short
@@ -139,12 +143,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r apps/api/requirements.txt
+          pip install alembic
           pip install pytest pytest-asyncio httpx
 
-      - name: Create test database schema
+      - name: Bootstrap database
         run: |
-          psql -h localhost -U esdata -d esdata_test -f infra/sql/init.sql
-          psql -h localhost -U esdata -d esdata_test -f infra/sql/005_indexes.sql
+          psql "$DATABASE_URL" -f infra/sql/init.sql
+          alembic upgrade heads
         env:
           PGPASSWORD: esdata_test
 
@@ -185,12 +190,13 @@ jobs:
         run: |
           pip install -r apps/api/requirements.txt
           pip install -r apps/workers/requirements.txt
+          pip install alembic
           pip install pytest pytest-asyncio httpx
 
-      - name: Create test database schema
+      - name: Bootstrap database
         run: |
-          psql -h localhost -U esdata -d esdata_test -f infra/sql/init.sql
-          psql -h localhost -U esdata -d esdata_test -f infra/sql/005_indexes.sql
+          psql "$DATABASE_URL" -f infra/sql/init.sql
+          alembic upgrade heads
         env:
           PGPASSWORD: esdata_test
 

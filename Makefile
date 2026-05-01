@@ -18,7 +18,7 @@ help:
 	@printf "  worker-dgt      Run DGT worker once\n"
 	@printf "  worker-teac     Run TEAC worker once\n"
 	@printf "  worker-modelos  Run modelos worker once\n"
-	@printf "  bootstrap-db    Apply legacy SQL bootstrap to DATABASE_URL\n"
+	@printf "  bootstrap-db    Apply minimal SQL bootstrap + Alembic migrations\n"
 	@printf "  db-upgrade      Apply Alembic migrations to DATABASE_URL\n"
 	@printf "  db-current      Show current Alembic revision\n"
 	@printf "  smoke-check     Run reusable API smoke checks (requires API_BASE)\n"
@@ -64,13 +64,10 @@ worker-modelos:
 
 bootstrap-db:
 	psql "$(DATABASE_URL)" -f infra/sql/init.sql
-	psql "$(DATABASE_URL)" -f infra/sql/002_fulltext_search.sql
-	psql "$(DATABASE_URL)" -f infra/sql/003_modelos_aeat.sql
-	psql "$(DATABASE_URL)" -f infra/sql/004_modelos_v2.sql
-	psql "$(DATABASE_URL)" -f infra/sql/004_norma_classification.sql
+	$(ALEMBIC) upgrade heads
 
 db-upgrade:
-	$(ALEMBIC) upgrade head
+	$(ALEMBIC) upgrade heads
 
 db-current:
 	$(ALEMBIC) current

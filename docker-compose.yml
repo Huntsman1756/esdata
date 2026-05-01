@@ -10,6 +10,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U esdata -d esdata"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -27,10 +32,18 @@ services:
       ESDATA_API_KEY: dev-key
       MCP_API_KEY: dev-mcp-key
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
       - ./apps/api:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./alembic:/app/alembic:ro
+    command: sh -c "alembic upgrade heads && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   worker-boe:
     build:
@@ -42,7 +55,8 @@ services:
       BOE_LEGISLACION_NORMAS: LIVA,LIRPF,LIS,LGT,ITPAJD
       SYNC_INTERVAL_SECONDS: "3600"
     depends_on:
-      - postgres
+      api:
+        condition: service_healthy
     command: python boe.py
 
 volumes:

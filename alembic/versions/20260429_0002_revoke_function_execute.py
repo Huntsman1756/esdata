@@ -36,19 +36,19 @@ def upgrade() -> None:
                   AND p.prokind = 'f'
             LOOP
                 -- Revocar EXECUTE de PUBLIC
-                EXECUTE format('REVOKE EXECUTE ON FUNCTION %I.%I%s FROM PUBLIC',
+                EXECUTE format('REVOKE EXECUTE ON FUNCTION %I.%I(%s) FROM PUBLIC',
                     f.nspname, f.proname,
                     (SELECT pg_get_function_identity_arguments(f.oid))
                 );
 
                 -- Otorgar EXECUTE a service_role (para acceso backend)
-                EXECUTE format('GRANT EXECUTE ON FUNCTION %I.%I%s TO service_role',
+                EXECUTE format('GRANT EXECUTE ON FUNCTION %I.%I(%s) TO service_role',
                     f.nspname, f.proname,
                     (SELECT pg_get_function_identity_arguments(f.oid))
                 );
 
                 -- Otorgar EXECUTE a esdata (rol de app)
-                EXECUTE format('GRANT EXECUTE ON FUNCTION %I.%I%s TO esdata',
+                EXECUTE format('GRANT EXECUTE ON FUNCTION %I.%I(%s) TO esdata',
                     f.nspname, f.proname,
                     (SELECT pg_get_function_identity_arguments(f.oid))
                 );
@@ -105,7 +105,7 @@ def downgrade() -> None:
                   AND p.prokind = 'f'
             LOOP
                 -- Restaurar EXECUTE a PUBLIC (por defecto en Postgres)
-                EXECUTE format('GRANT EXECUTE ON FUNCTION %I.%I%s TO PUBLIC',
+                EXECUTE format('GRANT EXECUTE ON FUNCTION %I.%I(%s) TO PUBLIC',
                     f.nspname, f.proname,
                     (SELECT pg_get_function_identity_arguments(f.oid))
                 );
