@@ -71,7 +71,43 @@ STATEMENTS = [
         fecha TEXT NOT NULL,
         titulo TEXT,
         texto TEXT NOT NULL,
-        url_fuente TEXT
+        url_fuente TEXT,
+        estado_vigencia TEXT,
+        numero_circular TEXT,
+        fecha_publicacion TEXT,
+        referencia_boe TEXT
+    )
+    """,
+    """
+    CREATE TABLE documento_version (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        documento_referencia TEXT NOT NULL,
+        version_num INTEGER NOT NULL,
+        texto TEXT NOT NULL,
+        cambio_tipo TEXT NOT NULL,
+        fecha_version TEXT,
+        nota TEXT,
+        url_version TEXT,
+        UNIQUE(documento_referencia, version_num)
+    )
+    """,
+    """
+    CREATE TABLE cnmv_regulation_link (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        documento_referencia TEXT NOT NULL,
+        regulacion_id TEXT NOT NULL,
+        relacion_tipo TEXT NOT NULL,
+        nota TEXT,
+        UNIQUE(documento_referencia, regulacion_id)
+    )
+    """,
+    """
+    CREATE TABLE cnmv_obligation_link (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        documento_referencia TEXT NOT NULL,
+        tipo_obligacion TEXT NOT NULL,
+        nota TEXT,
+        UNIQUE(documento_referencia, tipo_obligacion)
     )
     """,
     """
@@ -319,6 +355,61 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     WHERE d.referencia = 'ECLI:ES:TS:2024:2741' AND n.codigo = 'LIVA'
     ON CONFLICT DO NOTHING
     """,
+    # --- Doctrina secundaria adicional (CNMV / BdE / AEPD / CENDOJ) ---
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente,
+        estado_vigencia, numero_circular, fecha_publicacion, referencia_boe
+    )
+    VALUES (
+        'circular', 'CNMV', 'es', 'cnmv', 'mifid_ii',
+        'CNMV-Circular-1-2025', '2025-03-01',
+        'Circular 1/2025 sobre normas de conducta MiFID II',
+        'Texto orientativo CNMV sobre obligaciones de conducta y reporting prudencial.',
+        'https://example.invalid/cnmv/circular-1-2025',
+        'vigente', '1/2025', '2025-03-05', 'BOE-A-2025-1234'
+    )
+    """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'circular', 'Banco de España', 'es', 'bde', 'supervision_bancaria',
+        'BdE-Circular-2-2025', '2025-04-10',
+        'Circular BdE 2/2025 sobre solvencia',
+        'Texto BdE sobre requerimientos de solvencia y reporting.',
+        'https://example.invalid/bde/circular-2-2025'
+    )
+    """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'guia_aepd', 'AEPD', 'es', 'aepd', 'proteccion_datos',
+        'AEPD-Guia-Cookies-2025', '2025-02-20',
+        'Guia AEPD sobre cookies 2025',
+        'Texto AEPD sobre uso de cookies y consentimiento informado.',
+        'https://example.invalid/aepd/cookies-2025'
+    )
+    """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente
+    )
+    VALUES (
+        'sentencia_ts', 'Tribunal Supremo', 'es', 'cendoj', 'tributario',
+        'STS-2847/2025', '2025-05-12',
+        'STS 2847/2025 sobre IVA y operaciones intracomunitarias',
+        'Resumen jurisprudencia TS sobre IVA, sujeto pasivo y operaciones intracomunitarias.',
+        'https://example.invalid/cendoj/sts-2847-2025'
+    )
+    """,
     # --- Modelos AEAT ---
     """
     CREATE TABLE aeat_modelo (
@@ -447,6 +538,42 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
     SELECT m.id, 'BOE-A-2024-26789', 'Orden HAC/1234/2024', '2024-12-20', 'https://www.boe.es/boe/dias/2024/12/20/pdfs/BOE-A-2024-26789.pdf', 'Aprueba el modelo 100'
     FROM aeat_modelo m WHERE m.codigo = '100'
+    """,
+    # --- EUR-Lex seed (norma + articulo + version_articulo) ---
+    # El worker apps/workers/eurlex.py escribe en estas tablas con tipo_fuente='eurlex'.
+    # Usamos un Reglamento UE realista para que filtros q='reglamento',
+    # tipo='reglamento' y ambito='mercado_interior' produzcan match.
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'EUR-Lex-32020R548',
+        'Reglamento (UE) 2020/548 sobre disposiciones del mercado interior',
+        'EUR-Lex-32020R548',
+        'https://eur-lex.europa.eu/eli/reg/2020/548/oj',
+        'ue',
+        'eurlex',
+        'reglamento',
+        'mercado_interior',
+        'ingestada',
+        '2020-04-22'
+    )
+    """,
+    """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '1', 'Objeto y ambito de aplicacion', 'articulo'
+    FROM norma WHERE codigo = 'EUR-Lex-32020R548'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id,
+           'Articulo 1. Objeto. El presente Reglamento establece las disposiciones aplicables al mercado interior de la Union Europea, garantizando la libre circulacion de bienes, servicios, capitales y personas conforme al Tratado de Funcionamiento de la UE.',
+           '2020-04-22', NULL, 'eurlex-32020R548-a1'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'EUR-Lex-32020R548' AND a.numero = '1'
     """,
     # --- Note: modelo_campana_activa() is a Postgres function.
     # For SQLite tests, the API code falls back to direct queries when the function

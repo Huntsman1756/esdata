@@ -1,13 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from db import db_session
-from schemas import CNMVDetail, CNMVListResponse
+from fastapi import APIRouter, HTTPException, Query
+from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/bde", tags=["bde"])
 
 
-@router.get("", response_model=CNMVListResponse, operation_id="listar_bde")
+@router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_bde")
 async def listar_bde(
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo (informe_bde, comunicacion_bde, publicacion_bde)"),
@@ -63,7 +62,7 @@ async def listar_bde(
         }
 
 
-@router.get("/{referencia:path}", response_model=CNMVDetail, operation_id="get_bde")
+@router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_bde")
 async def get_bde(referencia: str):
     with db_session() as db:
         row = (

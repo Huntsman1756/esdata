@@ -1,10 +1,9 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from db import SessionLocal
 from fastapi import APIRouter
+from middleware.metrics import record_worker_metrics
 from sqlalchemy import text
-from sqlalchemy.orm import Session
-
-from db import SessionLocal, engine
 
 router = APIRouter()
 
@@ -54,7 +53,7 @@ def _is_stale(worker: str, finished_at) -> bool:
     if not finished_at_dt:
         return True
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     age_hours = (now - finished_at_dt).total_seconds() / 3600
     return age_hours > WORKER_THRESHOLDS_HOURS.get(worker, 25)
 
@@ -62,11 +61,15 @@ def _is_stale(worker: str, finished_at) -> bool:
 @router.get("/status")
 async def status():
     """Estado agregado de la API y de los workers presentes en sync_log."""
+    return _build_status_payload()
+
+
+def _build_status_payload():
     with SessionLocal() as db:
         result = {
             "api": "ok",
             "database": "ok",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "workers": {
                 worker: {"status": "never_run", "stale": True}
                 for worker in WORKER_THRESHOLDS_HOURS
@@ -117,6 +120,12 @@ async def status():
 
         for row in rows:
             worker = row["worker"]
+            stale = _is_stale(worker, row["finished_at"])
+            finished_at = _coerce_datetime(row["finished_at"])
+            lag_seconds = None
+            if finished_at is not None:
+                lag_seconds = (datetime.now(UTC) - finished_at).total_seconds()
+            record_worker_metrics(worker, stale=stale, lag_seconds=lag_seconds)
             result["workers"][worker] = {
                 "last_run": _serialize_datetime(row["started_at"]),
                 "finished_at": _serialize_datetime(row["finished_at"]),
@@ -130,10 +139,14 @@ async def status():
                 "errors": row["errors"],
                 "duration_ms": row["duration_ms"],
                 "error": row["error_msg"],
-                "stale": _is_stale(worker, row["finished_at"]),
+                "stale": stale,
             }
 
     return result
+
+
+def refresh_worker_status_metrics() -> None:
+    _build_status_payload()
 
 
 @router.get("/health")
@@ -143,5 +156,5 @@ async def health():
     return {
         "status": "ok",
         "database": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }

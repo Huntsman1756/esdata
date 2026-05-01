@@ -1,18 +1,18 @@
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query
 from schemas import (
-    CNMVDetail,
-    CNMVListResponse,
     CNMVObligationLinkResponse,
     CNMVRegulationLinkResponse,
     CNMVVersionResponse,
+    DocInterpretativoDetail,
+    DocInterpretativoListResponse,
 )
 from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/cnmv", tags=["cnmv"])
 
 
-@router.get("", response_model=CNMVListResponse, operation_id="listar_cnmv")
+@router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_cnmv")
 async def listar_cnmv(
     q: str | None = Query(None, description="Filtrar por texto o título"),
     ambito: str | None = Query(None, description="Filtrar por ámbito regulatorio"),
@@ -230,7 +230,7 @@ async def get_cnmv_obligation_links(referencia: str):
         }
 
 
-@router.get("/{referencia:path}", response_model=CNMVDetail, operation_id="get_cnmv")
+@router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_cnmv")
 async def get_cnmv(referencia: str):
     with db_session() as db:
         row = (

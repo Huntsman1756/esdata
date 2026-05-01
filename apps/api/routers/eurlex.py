@@ -1,79 +1,107 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from db import db_session
-from schemas import CNMVDetail, CNMVListResponse
+from fastapi import APIRouter, HTTPException, Query
+from schemas import EurLexDetail, EurLexListResponse
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/eurlex", tags=["eurlex"])
 
+# EUR-Lex normas se almacenan en `norma + articulo + version_articulo`
+# (no en `documento_interpretativo`). El worker apps/workers/eurlex.py
+# escribe con `tipo_fuente='eurlex'` y CELEX como `codigo`/`boe_id`.
 
-@router.get("", response_model=CNMVListResponse, operation_id="listar_eurlex")
+
+@router.get("", response_model=EurLexListResponse, operation_id="listar_eurlex")
 async def listar_eurlex(
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo (directiva, reglamento, decision)"),
-    ambito: str | None = Query(None, description="Filtrar por ámbito fiscal_ue, mercado_interior, competencia_ue"),
+    ambito: str | None = Query(
+        None,
+        description="Filtrar por ámbito (fiscal_ue, mercado_interior, competencia_ue, ...)",
+    ),
 ):
-    filters = [
-        "d.tipo_fuente = 'eurlex'",
-    ]
+    filters = ["n.tipo_fuente = 'eurlex'"]
     params: dict[str, str] = {}
 
     if q:
         filters.append(
-            "(LOWER(d.texto) LIKE LOWER(:term) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:term))"
+            "("
+            "LOWER(COALESCE(n.titulo, '')) LIKE LOWER(:term) "
+            "OR EXISTS ("
+            "  SELECT 1 FROM articulo a "
+            "  JOIN version_articulo va ON va.articulo_id = a.id "
+            "  WHERE a.norma_id = n.id "
+            "    AND va.vigente_hasta IS NULL "
+            "    AND LOWER(va.texto) LIKE LOWER(:term)"
+            ")"
+            ")"
         )
         params["term"] = f"%{q}%"
 
     if tipo:
-        filters.append("d.tipo_documento = :tipo")
+        filters.append("n.tipo_documento = :tipo")
         params["tipo"] = tipo
 
     if ambito:
-        filters.append("d.ambito = :ambito")
+        filters.append("n.ambito = :ambito")
         params["ambito"] = ambito
 
+    where_clause = " AND ".join(filters)
+
+    sql = f"""
+        SELECT
+            n.codigo                              AS referencia,
+            n.vigente_desde                       AS fecha,
+            n.titulo                              AS titulo,
+            n.tipo_documento                      AS tipo_documento,
+            n.ambito                              AS ambito,
+            n.eli_uri                             AS url_fuente,
+            (
+                SELECT va.texto
+                FROM version_articulo va
+                JOIN articulo a ON a.id = va.articulo_id
+                WHERE a.norma_id = n.id
+                  AND va.vigente_hasta IS NULL
+                ORDER BY a.id ASC
+                LIMIT 1
+            )                                     AS primer_texto
+        FROM norma n
+        WHERE {where_clause}
+        ORDER BY n.vigente_desde DESC, n.codigo DESC
+        LIMIT 20
+    """
+
     with db_session() as db:
-        rows = db.execute(
-            text(
-                """
-                SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente
-                FROM documento_interpretativo d
-                WHERE {where_clause}
-                ORDER BY fecha DESC, referencia DESC
-                LIMIT 20
-                """.format(where_clause=" AND ".join(filters))
-            ),
-            params,
-        ).mappings()
+        rows = db.execute(text(sql), params).mappings().all()
 
-        return {
-            "documentos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
-                    "ambito": row["ambito"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
-        }
+    documentos = []
+    for row in rows:
+        primer = row["primer_texto"] or ""
+        fragmento = primer[:220] + ("..." if len(primer) > 220 else "")
+        documentos.append(
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "tipo_documento": row["tipo_documento"],
+                "ambito": row["ambito"],
+                "fragmento": fragmento,
+                "url_fuente": row["url_fuente"],
+            }
+        )
+    return {"documentos": documentos}
 
 
-@router.get("/{referencia:path}", response_model=CNMVDetail, operation_id="get_eurlex")
+@router.get("/{referencia:path}", response_model=EurLexDetail, operation_id="get_eurlex")
 async def get_eurlex(referencia: str):
     with db_session() as db:
-        row = (
+        norma_row = (
             db.execute(
                 text(
                     """
-                    SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente
-                    FROM documento_interpretativo d
-                    WHERE d.tipo_fuente = 'eurlex'
-                      AND d.referencia = :referencia
+                    SELECT id, codigo, vigente_desde, titulo, tipo_documento, ambito, eli_uri
+                    FROM norma
+                    WHERE tipo_fuente = 'eurlex'
+                      AND codigo = :referencia
                     LIMIT 1
                     """
                 ),
@@ -83,15 +111,38 @@ async def get_eurlex(referencia: str):
             .first()
         )
 
-        if not row:
-            raise HTTPException(status_code=404, detail={"error": "Documento EUR-Lex no encontrado"})
+        if not norma_row:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "Documento EUR-Lex no encontrado"},
+            )
 
-        return {
-            "referencia": row["referencia"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "tipo_documento": row["tipo_documento"],
-            "ambito": row["ambito"],
-            "texto": row["texto"],
-            "url_fuente": row["url_fuente"],
-        }
+        articulos = (
+            db.execute(
+                text(
+                    """
+                    SELECT va.texto
+                    FROM articulo a
+                    JOIN version_articulo va ON va.articulo_id = a.id
+                    WHERE a.norma_id = :norma_id
+                      AND va.vigente_hasta IS NULL
+                    ORDER BY a.id ASC
+                    """
+                ),
+                {"norma_id": norma_row["id"]},
+            )
+            .mappings()
+            .all()
+        )
+
+    texto_completo = "\n\n".join(r["texto"] for r in articulos if r["texto"])
+
+    return {
+        "referencia": norma_row["codigo"],
+        "fecha": str(norma_row["vigente_desde"]) if norma_row["vigente_desde"] else None,
+        "titulo": norma_row["titulo"],
+        "tipo_documento": norma_row["tipo_documento"],
+        "ambito": norma_row["ambito"],
+        "texto": texto_completo,
+        "url_fuente": norma_row["eli_uri"],
+    }

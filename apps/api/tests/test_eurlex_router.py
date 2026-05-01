@@ -1,9 +1,10 @@
 # apps/api/tests/test_eurlex_router.py
 
+import sys
+from pathlib import Path
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from main import app
@@ -192,8 +193,5 @@ async def test_eurlex_detalle_texto_completo_vs_fragmento():
 async def test_eurlex_lista_orden_desc():
     async with _client() as c:
         r = await c.get("/v1/eurlex")
-    dates = []
-    for d in r.json()["documentos"]:
-        if d["fecha"]:
-            dates.append(d["fecha"])
+    dates = [d["fecha"] for d in r.json()["documentos"] if d["fecha"]]
     assert dates == sorted(dates, reverse=True) or len(dates) <= 1

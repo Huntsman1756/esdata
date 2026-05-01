@@ -1,13 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from db import db_session
-from schemas import CNMVDetail, CNMVListResponse
+from fastapi import APIRouter, HTTPException, Query
+from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/cendoj", tags=["cendoj"])
 
 
-@router.get("", response_model=CNMVListResponse, operation_id="listar_cendoj")
+@router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_cendoj")
 async def listar_cendoj(
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tribunal: str | None = Query(None, description="Filtrar por tribunal (tribunal_supremo, audiencia_nacional, tsj)"),
@@ -69,7 +68,7 @@ async def listar_cendoj(
         }
 
 
-@router.get("/{referencia:path}", response_model=CNMVDetail, operation_id="get_cendoj")
+@router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_cendoj")
 async def get_cendoj(referencia: str):
     with db_session() as db:
         row = (

@@ -1,8 +1,10 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from db import db_session
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from mcp_security import guard_mcp_http
 from mcp_server import mount_mcp
 from middleware.api_key_auth import ApiKeyAuthMiddleware
@@ -11,9 +13,13 @@ from middleware.rate_limit import rate_limit_middleware
 from middleware.request_logging import RequestLoggingMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from routers import (
+    aepd,
     ai_audit_log,
+    bde,
     buscar,
     cambios,
+    cendoj,
+    cnmv,
     compliance,
     consulta,
     crd_brrd_emir,
@@ -21,6 +27,7 @@ from routers import (
     doctrina,
     editorial,
     editorial_posiciones,
+    eurlex,
     human_review,
     jurisprudencia,
     legislacion,
@@ -78,7 +85,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-_metrics_endpoint_fn = create_metrics_endpoint()
+_metrics_endpoint_fn = create_metrics_endpoint(status.refresh_worker_status_metrics)
 if _metrics_endpoint_fn is not None:
     app.add_api_route("/metrics", _metrics_endpoint_fn, methods=["GET"], tags=["metrics"])
 
@@ -124,10 +131,50 @@ for router in (
     webhooks.webhook_router,
     editorial.router,
     editorial_posiciones.router,
+    eurlex.router,
+    cnmv.router,
+    bde.router,
+    aepd.router,
+    cendoj.router,
 ):
     app.include_router(router)
 
 mount_mcp(app)
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_GPT_OPENAPI_PATH = _REPO_ROOT / "docs" / "openapi-gpt.json"
+
+
+@app.get("/gpt-actions/modelos/openapi.json", include_in_schema=False)
+def gpt_actions_openapi():
+    return _load_gpt_actions_spec()
+
+
+@app.get("/privacy", include_in_schema=False, response_class=HTMLResponse)
+def privacy_policy():
+    return """
+    <html>
+      <head><title>esdata privacy</title></head>
+      <body>
+        <h1>esdata privacy</h1>
+        <p>
+          esdata procesa consultas y metadatos operativos minimos para ofrecer respuestas
+          trazables sobre fuentes regulatorias y fiscales.
+        </p>
+        <p>
+          No publiques secretos ni datos personales innecesarios en prompts o documentos.
+        </p>
+      </body>
+    </html>
+    """
+
+
+def _load_gpt_actions_spec() -> dict:
+    import json
+
+    with _GPT_OPENAPI_PATH.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def _verify_database_connectivity() -> None:

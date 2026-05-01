@@ -1,13 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from db import db_session
-from schemas import CNMVDetail, CNMVListResponse
+from fastapi import APIRouter, HTTPException, Query
+from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/aepd", tags=["aepd"])
 
 
-@router.get("", response_model=CNMVListResponse, operation_id="listar_aepd")
+@router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_aepd")
 async def listar_aepd(
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)"),
@@ -63,7 +62,7 @@ async def listar_aepd(
         }
 
 
-@router.get("/{referencia:path}", response_model=CNMVDetail, operation_id="get_aepd")
+@router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_aepd")
 async def get_aepd(referencia: str):
     with db_session() as db:
         row = (

@@ -1079,3 +1079,111 @@ class ConsultaFiscalResponse(BaseModel):
     confianza: dict | None = Field(default=None, description="Información de confianza (faithfulness, grounding)")
     cited_chunks: list[ChunkCitation] = Field(default_factory=list, description="Chunks citados con evidencia")
     claim_citations: list[ClaimCitation] = Field(default_factory=list, description="Citas por afirmación factual")
+
+
+# --- EUR-Lex ---------------------------------------------------------------
+# Domain notes: backed by `norma + articulo + version_articulo` (no
+# `documento_interpretativo`). Field naming preserves API contract used by
+# `tests/test_eurlex_router.py`; SQL aliases map storage to contract.
+
+class EurLexListItem(BaseModel):
+    referencia: str = Field(description="Identificador CELEX (norma.codigo)")
+    fecha: str | None = Field(default=None, description="vigente_desde (ISO date)")
+    titulo: str = Field(description="Titulo oficial de la norma")
+    tipo_documento: str = Field(description="reglamento | directiva | decision")
+    ambito: str = Field(description="Ambito EU (mercado_interior, fiscal_ue, ...)")
+    fragmento: str = Field(description="Extracto truncado (<=223 chars) del primer articulo vigente")
+    url_fuente: str | None = Field(default=None, description="URI ELI EUR-Lex (norma.eli_uri)")
+
+
+class EurLexListResponse(BaseModel):
+    documentos: list[EurLexListItem]
+
+
+class EurLexDetail(BaseModel):
+    referencia: str = Field(description="Identificador CELEX (norma.codigo)")
+    fecha: str | None = Field(default=None, description="vigente_desde (ISO date)")
+    titulo: str = Field(description="Titulo oficial de la norma")
+    tipo_documento: str = Field(description="reglamento | directiva | decision")
+    ambito: str = Field(description="Ambito EU")
+    texto: str = Field(description="Concatenacion de articulos vigentes")
+    url_fuente: str | None = Field(default=None, description="URI ELI EUR-Lex")
+
+
+# --- documento_interpretativo (cnmv / bde / aepd / cendoj) -----------------
+# Contrato compartido. Campos opcionales se pueblan solo cuando el router del
+# dominio los proyecta en el SELECT (cendoj -> organismo_emisor;
+# cnmv -> estado_vigencia, numero_circular, fecha_publicacion, referencia_boe).
+
+class DocInterpretativoListItem(BaseModel):
+    referencia: str = Field(description="Identificador del documento")
+    fecha: str | None = Field(default=None, description="Fecha (ISO date)")
+    titulo: str | None = Field(default=None, description="Titulo")
+    tipo_documento: str = Field(description="Tipo de documento")
+    ambito: str = Field(description="Ambito")
+    fragmento: str = Field(description="Extracto truncado (<=223 chars)")
+    url_fuente: str | None = Field(default=None, description="URL fuente oficial")
+    organismo_emisor: str | None = Field(default=None, description="Organismo emisor (cendoj)")
+    estado_vigencia: str | None = Field(default=None, description="Estado vigencia (cnmv)")
+
+
+class DocInterpretativoListResponse(BaseModel):
+    documentos: list[DocInterpretativoListItem]
+    skip: int | None = Field(default=None, description="Offset paginacion (cnmv)")
+    limit: int | None = Field(default=None, description="Limite paginacion (cnmv)")
+    total: int | None = Field(default=None, description="Total resultados (cnmv)")
+
+
+class DocInterpretativoDetail(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    tipo_documento: str
+    ambito: str
+    texto: str
+    url_fuente: str | None = None
+    organismo_emisor: str | None = Field(default=None, description="Organismo emisor (cendoj)")
+    estado_vigencia: str | None = Field(default=None, description="Estado vigencia (cnmv)")
+    numero_circular: str | None = Field(default=None, description="Numero circular (cnmv)")
+    fecha_publicacion: str | None = Field(default=None, description="Fecha publicacion (cnmv)")
+    referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
+
+
+# --- CNMV-specific link / version surfaces --------------------------------
+
+class CNMVVersionItem(BaseModel):
+    version_num: int
+    cambio_tipo: str
+    fecha_version: str | None = None
+    nota: str | None = None
+    url_version: str | None = None
+    texto: str
+
+
+class CNMVVersionResponse(BaseModel):
+    referencia: str
+    versiones: list[CNMVVersionItem]
+    total: int
+
+
+class CNMVRegulationLinkItem(BaseModel):
+    regulacion_id: str
+    relacion_tipo: str
+    nota: str | None = None
+
+
+class CNMVRegulationLinkResponse(BaseModel):
+    referencia: str
+    regulaciones: list[CNMVRegulationLinkItem]
+    total: int
+
+
+class CNMVObligationLinkItem(BaseModel):
+    tipo_obligacion: str
+    nota: str | None = None
+
+
+class CNMVObligationLinkResponse(BaseModel):
+    referencia: str
+    obligaciones: list[CNMVObligationLinkItem]
+    total: int

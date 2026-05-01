@@ -26,7 +26,7 @@ def create_metrics_middleware():
     - faithfulness_score: Histogram of faithfulness scores for trending
     """
     try:
-        from prometheus_client import REGISTRY, Counter, Gauge, Histogram, generate_latest
+        from prometheus_client import REGISTRY, Counter, Gauge, Histogram
     except ImportError:
         logger.warning("prometheus_client not installed, metrics disabled")
         return None
@@ -34,69 +34,69 @@ def create_metrics_middleware():
     # Idempotent registration: re-use existing collectors if already registered
     _existing = REGISTRY._names_to_collectors
     _reuse = "http_requests_total" in _existing and "http_request_duration_seconds" in _existing
-    REQUEST_COUNT: Counter | None = None
-    REQUEST_DURATION: Histogram | None = None
-    CONSULTA_REVIEW_REQUIRED: Counter | None = None
-    CONSULTA_FAITHFULNESS_SCORE: Gauge | None = None
-    RETRIEVAL_LATENCY: Histogram | None = None
-    COMPONENT_ERRORS: Counter | None = None
-    QUERY_TOKENS: Counter | None = None
-    QUERY_MEMORY: Gauge | None = None
-    FAITHFULNESS_HISTOGRAM: Histogram | None = None
+    request_count: Counter | None = None
+    request_duration: Histogram | None = None
+    consulta_review_required: Counter | None = None
+    consulta_faithfulness_score: Gauge | None = None
+    retrieval_latency: Histogram | None = None
+    component_errors: Counter | None = None
+    query_tokens: Counter | None = None
+    query_memory: Gauge | None = None
+    faithfulness_histogram: Histogram | None = None
     if _reuse:
-        REQUEST_COUNT = _collector_by_name(REGISTRY, "http_requests_total")
-        REQUEST_DURATION = _collector_by_name(REGISTRY, "http_request_duration_seconds")
-        CONSULTA_REVIEW_REQUIRED = _collector_by_name(REGISTRY, "consulta_review_required_total")
-        CONSULTA_FAITHFULNESS_SCORE = _collector_by_name(REGISTRY, "consulta_faithfulness_score")
-        RETRIEVAL_LATENCY = _collector_by_name(REGISTRY, "retrieval_latency_seconds")
-        COMPONENT_ERRORS = _collector_by_name(REGISTRY, "component_errors_total")
-        QUERY_TOKENS = _collector_by_name(REGISTRY, "query_tokens_total")
-        QUERY_MEMORY = _collector_by_name(REGISTRY, "query_memory_bytes")
-        FAITHFULNESS_HISTOGRAM = _collector_by_name(REGISTRY, "faithfulness_score")
+        request_count = _collector_by_name(REGISTRY, "http_requests_total")
+        request_duration = _collector_by_name(REGISTRY, "http_request_duration_seconds")
+        consulta_review_required = _collector_by_name(REGISTRY, "consulta_review_required_total")
+        consulta_faithfulness_score = _collector_by_name(REGISTRY, "consulta_faithfulness_score")
+        retrieval_latency = _collector_by_name(REGISTRY, "retrieval_latency_seconds")
+        component_errors = _collector_by_name(REGISTRY, "component_errors_total")
+        query_tokens = _collector_by_name(REGISTRY, "query_tokens_total")
+        query_memory = _collector_by_name(REGISTRY, "query_memory_bytes")
+        faithfulness_histogram = _collector_by_name(REGISTRY, "faithfulness_score")
     else:
-        REQUEST_COUNT = Counter(
+        request_count = Counter(
             "http_requests_total",
             "Total HTTP requests",
             ["method", "endpoint", "status"],
         )
-        REQUEST_DURATION = Histogram(
+        request_duration = Histogram(
             "http_request_duration_seconds",
             "HTTP request duration in seconds",
             ["method", "endpoint"],
             buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
         )
-        CONSULTA_REVIEW_REQUIRED = Counter(  # noqa: F841
+        consulta_review_required = Counter(  # noqa: F841
             "consulta_review_required_total",
             "Total consulta responses grouped by review requirement",
             ["endpoint", "review_required"],
         )
-        CONSULTA_FAITHFULNESS_SCORE = Gauge(  # noqa: F841
+        consulta_faithfulness_score = Gauge(  # noqa: F841
             "consulta_faithfulness_score",
             "Latest faithfulness score observed for consulta endpoint",
             ["endpoint"],
         )
-        RETRIEVAL_LATENCY = Histogram(  # noqa: F841
+        retrieval_latency = Histogram(  # noqa: F841
             "retrieval_latency_seconds",
             "Retrieval-only latency in seconds (P95/P99)",
             ["endpoint", "source"],
             buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
         )
-        COMPONENT_ERRORS = Counter(  # noqa: F841
+        component_errors = Counter(  # noqa: F841
             "component_errors_total",
             "Component errors by source and type",
             ["component", "error_type"],
         )
-        QUERY_TOKENS = Counter(  # noqa: F841
+        query_tokens = Counter(  # noqa: F841
             "query_tokens_total",
             "Input and output tokens per query",
             ["query_type", "token_phase"],
         )
-        QUERY_MEMORY = Gauge(  # noqa: F841
+        query_memory = Gauge(  # noqa: F841
             "query_memory_bytes",
             "RAM/VRAM used per query in bytes",
             ["component"],
         )
-        FAITHFULNESS_HISTOGRAM = Histogram(  # noqa: F841
+        faithfulness_histogram = Histogram(  # noqa: F841
             "faithfulness_score",
             "Faithfulness score distribution for trending",
             buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
@@ -112,12 +112,12 @@ def create_metrics_middleware():
         response = await call_next(request)
 
         duration = time.time() - start_time
-        REQUEST_COUNT.labels(
+        request_count.labels(
             method=request.method,
             endpoint=normalized_endpoint,
             status=response.status_code,
         ).inc()
-        REQUEST_DURATION.labels(
+        request_duration.labels(
             method=request.method,
             endpoint=normalized_endpoint,
         ).observe(duration)
@@ -328,7 +328,7 @@ def record_faithfulness_histogram(score: float) -> None:
     histogram.observe(float(score))
 
 
-def create_metrics_endpoint():
+def create_metrics_endpoint(refresh_metrics=None):
     """Create /metrics endpoint handler.
 
     Returns an async function that serves Prometheus metrics in text format.
@@ -341,13 +341,15 @@ def create_metrics_endpoint():
 
     async def metrics_endpoint():
         try:
+            if refresh_metrics is not None:
+                refresh_metrics()
             metrics_bytes = generate_latest(REGISTRY)
             return Response(
                 content=metrics_bytes,
                 media_type="text/plain; charset=utf-8",
             )
         except Exception as e:
-            logger.error("Failed to generate metrics: %s", e, exc_info=True)
+            logger.exception("Failed to generate metrics: %s", e)
             return Response(
                 content=f"# Error generating metrics: {e}\n",
                 status_code=500,
