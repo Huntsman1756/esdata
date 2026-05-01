@@ -1,7 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import text
 
 from db import db_session
 from schemas import (
+    AEATModeloDetail,
+    AEATModeloListResponse,
     ModeloCampanaOperativaResponse,
     ModeloArtefactosResponse,
     ModeloDetail as ModeloDetailSchema,
@@ -29,6 +32,117 @@ from services.modelos import (
 )
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
+
+
+def _date_to_str(value):
+    return str(value) if value is not None else None
+
+
+def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurso=None, activo=None):
+    rows = db.execute(
+        text(
+            """
+            WITH active_campaign AS (
+                SELECT mc.*
+                FROM modelo_campana mc
+                JOIN (
+                    SELECT modelo_id, MAX(campana) AS campana
+                    FROM modelo_campana
+                    WHERE (:campana IS NULL OR campana = :campana)
+                    GROUP BY modelo_id
+                ) latest ON latest.modelo_id = mc.modelo_id AND latest.campana = mc.campana
+            )
+            SELECT
+                m.codigo,
+                m.nombre,
+                COALESCE(m.activo, true) AS activo,
+                m.impuesto,
+                ac.campana,
+                ac.estado_publicacion,
+                COUNT(mr.id) AS recursos_activos
+            FROM aeat_modelo m
+            LEFT JOIN active_campaign ac ON ac.modelo_id = m.id
+            LEFT JOIN modelo_recurso mr
+                ON mr.campana_id = ac.id
+               AND mr.activa = true
+               AND (:tipo_recurso IS NULL OR mr.tipo_recurso = :tipo_recurso)
+            WHERE (:codigo IS NULL OR m.codigo = :codigo)
+              AND (:impuesto IS NULL OR m.impuesto = :impuesto)
+              AND (:activo IS NULL OR COALESCE(m.activo, true) = :activo)
+            GROUP BY m.id, m.codigo, m.nombre, m.activo, m.impuesto, ac.campana, ac.estado_publicacion
+            ORDER BY m.codigo
+            """
+        ),
+        {
+            "codigo": codigo,
+            "campana": campana,
+            "impuesto": impuesto,
+            "tipo_recurso": tipo_recurso,
+            "activo": activo,
+        },
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def _get_aeat_model_row(db, codigo: str):
+    row = db.execute(
+        text(
+            "SELECT id, codigo, nombre, COALESCE(activo, true) AS activo FROM aeat_modelo WHERE codigo = :codigo"
+        ),
+        {"codigo": codigo},
+    ).mappings().first()
+    return dict(row) if row else None
+
+
+def _get_aeat_campanas(db, modelo_id: int, campana: str | None = None, include_history: bool = False):
+    if include_history:
+        query = text(
+            """
+            SELECT id, campana, activo, estado_publicacion, fecha_publicacion_portal, fecha_actualizacion_portal
+            FROM modelo_campana
+            WHERE modelo_id = :modelo_id
+              AND (:campana IS NULL OR campana = :campana)
+            ORDER BY campana DESC
+            """
+        )
+    else:
+        query = text(
+            """
+            SELECT id, campana, activo, estado_publicacion, fecha_publicacion_portal, fecha_actualizacion_portal
+            FROM modelo_campana
+            WHERE modelo_id = :modelo_id
+              AND (:campana IS NULL OR campana = :campana)
+            ORDER BY activo DESC, campana DESC
+            LIMIT 1
+            """
+        )
+    rows = db.execute(query, {"modelo_id": modelo_id, "campana": campana}).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def _get_aeat_recursos(db, campana_id: int, include_history: bool = False):
+    rows = db.execute(
+        text(
+            f"""
+            SELECT tipo_recurso, formato, url_recurso, sha256_contenido,
+                   fecha_publicacion_recurso, first_seen_at, last_seen_at, activa, id
+            FROM modelo_recurso
+            WHERE campana_id = :campana_id
+            {'ORDER BY tipo_recurso, activa DESC, id DESC' if include_history else 'AND activa = true ORDER BY tipo_recurso'}
+            """
+        ),
+        {"campana_id": campana_id},
+    ).mappings().all()
+    return [
+        {
+            **dict(row),
+            "fecha_publicacion_recurso": _date_to_str(row["fecha_publicacion_recurso"]),
+            "first_seen_at": _date_to_str(row["first_seen_at"]),
+            "last_seen_at": _date_to_str(row["last_seen_at"]),
+            "activa": bool(row["activa"]),
+        }
+        for row in rows
+    ]
 
 
 @router.get(
@@ -67,6 +181,84 @@ async def list_modelos():
                 }
                 for row in rows
             ]
+        }
+
+
+@router.get(
+    "/aeat",
+    operation_id="list_modelos_aeat",
+    response_model=AEATModeloListResponse,
+    summary="Lista modelos AEAT con campana y recursos activos",
+)
+async def list_modelos_aeat(
+    codigo: str | None = Query(None, description="Filtrar por codigo de modelo"),
+    campana: str | None = Query(None, description="Filtrar por campana"),
+    impuesto: str | None = Query(None, description="Filtrar por impuesto"),
+    tipo_recurso: str | None = Query(None, description="Filtrar por tipo de recurso"),
+    activo: bool | None = Query(None, description="Filtrar por estado activo"),
+):
+    with db_session() as db:
+        rows = _list_aeat_modelos(db, codigo, campana, impuesto, tipo_recurso, activo)
+        return {"total": len(rows), "items": rows}
+
+
+@router.get(
+    "/aeat/{codigo}",
+    operation_id="get_modelo_aeat",
+    response_model=AEATModeloDetail,
+    summary="Detalle AEAT con recursos activos e historial opcional",
+)
+async def get_modelo_aeat(
+    codigo: str,
+    campana: str | None = Query(None, description="Campana especifica"),
+    include_history: bool = Query(False, description="Incluir historial de campanas y versiones"),
+):
+    with db_session() as db:
+        model_row = _get_aeat_model_row(db, codigo)
+        if not model_row:
+            raise HTTPException(status_code=404, detail={"error": f"Modelo AEAT {codigo} no encontrado"})
+
+        campanas = _get_aeat_campanas(db, model_row["id"], campana=campana, include_history=include_history)
+        if not campanas:
+            return {
+                "codigo": model_row["codigo"],
+                "nombre": model_row["nombre"],
+                "activo": bool(model_row["activo"]),
+                "campana_actual": None,
+                "historial": [] if include_history else None,
+            }
+
+        campana_actual = campanas[0]
+        campana_actual_payload = {
+            "campana": campana_actual["campana"],
+            "activo": bool(campana_actual["activo"]),
+            "estado_publicacion": campana_actual["estado_publicacion"],
+            "fecha_publicacion_portal": _date_to_str(campana_actual["fecha_publicacion_portal"]),
+            "fecha_actualizacion_portal": _date_to_str(campana_actual["fecha_actualizacion_portal"]),
+            "recursos": _get_aeat_recursos(db, campana_actual["id"], include_history=False),
+        }
+
+        historial_payload = None
+        if include_history:
+            historial_payload = []
+            for camp_row in campanas:
+                historial_payload.append(
+                    {
+                        "campana": camp_row["campana"],
+                        "activo": bool(camp_row["activo"]),
+                        "estado_publicacion": camp_row["estado_publicacion"],
+                        "fecha_publicacion_portal": _date_to_str(camp_row["fecha_publicacion_portal"]),
+                        "fecha_actualizacion_portal": _date_to_str(camp_row["fecha_actualizacion_portal"]),
+                        "recursos": _get_aeat_recursos(db, camp_row["id"], include_history=True),
+                    }
+                )
+
+        return {
+            "codigo": model_row["codigo"],
+            "nombre": model_row["nombre"],
+            "activo": bool(model_row["activo"]),
+            "campana_actual": campana_actual_payload,
+            "historial": historial_payload,
         }
 
 

@@ -370,6 +370,49 @@ class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]
 
 
+class AEATModeloListItem(BaseModel):
+    codigo: str = Field(description="Codigo del modelo AEAT")
+    nombre: str = Field(description="Nombre completo")
+    activo: bool = Field(description="Si el modelo sigue activo en el portal")
+    impuesto: str | None = Field(default=None, description="Impuesto asociado")
+    campana: str | None = Field(default=None, description="Campana activa o solicitada")
+    estado_publicacion: str | None = Field(default=None, description="Estado de publicacion detectado")
+    recursos_activos: int = Field(description="Numero de recursos activos para la campana")
+
+
+class AEATModeloListResponse(BaseModel):
+    total: int = Field(description="Numero total de modelos devueltos")
+    items: list[AEATModeloListItem] = Field(default_factory=list, description="Modelos AEAT")
+
+
+class AEATModeloRecurso(BaseModel):
+    tipo_recurso: str = Field(description="Tipo de recurso")
+    formato: str = Field(description="Formato del recurso")
+    url_recurso: str = Field(description="URL oficial del recurso")
+    sha256_contenido: str = Field(description="Hash SHA-256 del contenido")
+    fecha_publicacion_recurso: str | None = Field(default=None, description="Fecha de publicacion del recurso")
+    first_seen_at: str = Field(description="Primera vez visto por el worker")
+    last_seen_at: str = Field(description="Ultima vez visto por el worker")
+    activa: bool = Field(description="Si esta version es la vigente")
+
+
+class AEATCampanaDetail(BaseModel):
+    campana: str = Field(description="Campana fiscal")
+    activo: bool = Field(description="Si es la campana activa")
+    estado_publicacion: str | None = Field(default=None, description="Estado de publicacion detectado")
+    fecha_publicacion_portal: str | None = Field(default=None, description="Fecha publicada en el portal")
+    fecha_actualizacion_portal: str | None = Field(default=None, description="Fecha de actualizacion del portal")
+    recursos: list[AEATModeloRecurso] = Field(default_factory=list, description="Recursos del modelo para esta campana")
+
+
+class AEATModeloDetail(BaseModel):
+    codigo: str = Field(description="Codigo del modelo")
+    nombre: str = Field(description="Nombre completo")
+    activo: bool = Field(description="Si el modelo sigue activo")
+    campana_actual: AEATCampanaDetail | None = Field(default=None, description="Campana actual con recursos activos")
+    historial: list[AEATCampanaDetail] | None = Field(default=None, description="Historial de campanas y versiones si include_history=true")
+
+
 # ---------------------------------------------------------------------------
 # Consulta fiscal inteligente
 # ---------------------------------------------------------------------------

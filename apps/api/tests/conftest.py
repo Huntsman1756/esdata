@@ -419,6 +419,8 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         periodo TEXT,
         impuesto TEXT,
         url_info TEXT,
+        activo INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
     """,
@@ -456,9 +458,32 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         url_instrucciones TEXT,
         url_normativa   TEXT,
         url_formato     TEXT,
+        fecha_publicacion_portal TEXT,
+        fecha_actualizacion_portal TEXT,
+        estado_publicacion TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         activo          INTEGER NOT NULL DEFAULT 1,
         creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(modelo_id, campana)
+    )
+    """,
+    """
+    CREATE TABLE modelo_recurso (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        campana_id INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
+        tipo_recurso TEXT NOT NULL,
+        formato TEXT NOT NULL,
+        url_recurso TEXT NOT NULL,
+        sha256_contenido TEXT NOT NULL,
+        etag TEXT,
+        last_modified TEXT,
+        content_length INTEGER,
+        fecha_publicacion_recurso TEXT,
+        metadata TEXT NOT NULL DEFAULT '{}',
+        activa INTEGER NOT NULL DEFAULT 1,
+        first_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(campana_id, tipo_recurso, sha256_contenido)
     )
     """,
     """
@@ -515,9 +540,19 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """,
     # --- Seed: campaign for model 100 ---
     """
-    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
-    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones'
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, estado_publicacion, fecha_publicacion_portal)
+    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones', 'publicado', '2025-04-01'
     FROM aeat_modelo m WHERE m.codigo = '100'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, estado_publicacion, fecha_publicacion_portal)
+    SELECT m.id, '2024', 0, 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2024', 'historico', '2024-04-01'
+    FROM aeat_modelo m WHERE m.codigo = '100'
+    """,
+    """
+    INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones, estado_publicacion, fecha_publicacion_portal)
+    SELECT m.id, '2025', 1, 'https://sede.agenciatributaria.gob.es/modelo-303-instrucciones', 'publicado', '2025-01-15'
+    FROM aeat_modelo m WHERE m.codigo = '303'
     """,
     # --- Seed: casillas for model 100 campaign ---
     """
@@ -538,6 +573,24 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
     SELECT m.id, 'BOE-A-2024-26789', 'Orden HAC/1234/2024', '2024-12-20', 'https://www.boe.es/boe/dias/2024/12/20/pdfs/BOE-A-2024-26789.pdf', 'Aprueba el modelo 100'
     FROM aeat_modelo m WHERE m.codigo = '100'
+    """,
+    """
+    INSERT INTO modelo_recurso (campana_id, tipo_recurso, formato, url_recurso, sha256_contenido, fecha_publicacion_recurso, activa, first_seen_at, last_seen_at)
+    SELECT mc.id, 'instrucciones', 'pdf', 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2025.pdf', 'hash-modelo100-2025-v1', '2025-04-01', 1, '2025-04-01T00:00:00Z', '2025-04-02T00:00:00Z'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '100' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_recurso (campana_id, tipo_recurso, formato, url_recurso, sha256_contenido, fecha_publicacion_recurso, activa, first_seen_at, last_seen_at)
+    SELECT mc.id, 'instrucciones', 'pdf', 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2024.pdf', 'hash-modelo100-2024-v1', '2024-04-01', 0, '2024-04-01T00:00:00Z', '2024-04-03T00:00:00Z'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '100' AND mc.campana = '2024'
+    """,
+    """
+    INSERT INTO modelo_recurso (campana_id, tipo_recurso, formato, url_recurso, sha256_contenido, fecha_publicacion_recurso, activa, first_seen_at, last_seen_at)
+    SELECT mc.id, 'formulario_pdf', 'pdf', 'https://sede.agenciatributaria.gob.es/modelo-303-formulario-2025.pdf', 'hash-modelo303-2025-v1', '2025-01-15', 1, '2025-01-15T00:00:00Z', '2025-01-16T00:00:00Z'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '303' AND mc.campana = '2025'
     """,
     # --- EUR-Lex seed (norma + articulo + version_articulo) ---
     # El worker apps/workers/eurlex.py escribe en estas tablas con tipo_fuente='eurlex'.

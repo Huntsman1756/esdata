@@ -560,6 +560,19 @@ async def test_modelos_lista():
 
 
 @pytest.mark.asyncio
+async def test_modelos_aeat_lista_con_total():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/aeat")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total"] == 2
+    assert len(data["items"]) == 2
+    modelo_100 = next(item for item in data["items"] if item["codigo"] == "100")
+    assert modelo_100["campana"] == "2025"
+    assert modelo_100["recursos_activos"] == 1
+
+
+@pytest.mark.asyncio
 async def test_modelo_detalle_con_fuente():
     async with _client() as c:
         r = await c.get("/v1/modelos/100")
@@ -588,6 +601,32 @@ async def test_modelo_detalle_doctrina_derivada():
     doc = next(d for d in data["doctrina_relacionada"] if d["referencia"] == "V0000-26")
     assert doc["organismo_emisor"] == "DGT"
     assert len(doc["via_articulos"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_modelo_aeat_detalle_solo_activos_por_defecto():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/aeat/100")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["codigo"] == "100"
+    assert data["campana_actual"]["campana"] == "2025"
+    assert len(data["campana_actual"]["recursos"]) == 1
+    assert data["historial"] is None
+
+
+@pytest.mark.asyncio
+async def test_modelo_aeat_detalle_con_historial():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/aeat/100?include_history=true")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["codigo"] == "100"
+    assert data["historial"] is not None
+    assert len(data["historial"]) == 2
+    campanas = [camp["campana"] for camp in data["historial"]]
+    assert "2025" in campanas
+    assert "2024" in campanas
 
 
 @pytest.mark.asyncio
