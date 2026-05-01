@@ -1,0 +1,30 @@
+FROM python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+    libxfixes3 libxrandr2 libgbm1 libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN addgroup --system app && adduser --system --ingroup app app
+
+COPY libs/python/esdata_common /tmp/esdata_common
+COPY apps/workers/requirements.txt /tmp/requirements.txt
+RUN sed -i '/esdata_common/d' /tmp/requirements.txt && \
+    pip install --no-cache-dir -r /tmp/requirements.txt && \
+    cp -r /tmp/esdata_common /usr/local/lib/python3.12/site-packages/esdata_common
+
+RUN pip install --no-cache-dir playwright==1.49.0 && \
+    playwright install chromium
+
+COPY apps/workers/ /app
+
+USER app
+
+CMD ["sh", "-c", "WORKER_CMD=${WORKER_CMD:-python aeat_models.py}; exec python entrypoint.py"]

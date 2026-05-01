@@ -11,11 +11,15 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from aeat_models import (
+    FallbackRequired,
+    HttpxClient,
+    PlaywrightClient,
     _discover_aeat_models,
     _extract_model_name,
     _mark_deprecated_models,
     _upsert_aeat_model,
     _get_existing_codes,
+    get_portal_client,
 )
 
 
@@ -70,8 +74,9 @@ class TestDiscoverAeatModels:
         </body>
         </html>
         """
-        with patch("aeat_models._fetch", return_value=html):
-            result = _discover_aeat_models()
+        portal_client = MagicMock()
+        portal_client.fetch_listing.return_value = html
+        result = _discover_aeat_models(portal_client=portal_client)
 
         codigos = {m["codigo"] for m in result}
         assert "303" in codigos
@@ -89,16 +94,18 @@ class TestDiscoverAeatModels:
         </body>
         </html>
         """
-        with patch("aeat_models._fetch", return_value=html):
-            result = _discover_aeat_models()
+        portal_client = MagicMock()
+        portal_client.fetch_listing.return_value = html
+        result = _discover_aeat_models(portal_client=portal_client)
 
         assert len(result) == 2
         codigos = [m["codigo"] for m in result]
         assert codigos.count("303") == 1
 
     def test_returns_empty_on_no_html(self):
-        with patch("aeat_models._fetch", return_value=None):
-            result = _discover_aeat_models()
+        portal_client = MagicMock()
+        portal_client.fetch_listing.side_effect = FallbackRequired("blocked")
+        result = _discover_aeat_models(portal_client=portal_client)
         assert result == []
 
     def test_skips_links_without_model_code(self):
@@ -110,8 +117,9 @@ class TestDiscoverAeatModels:
         </body>
         </html>
         """
-        with patch("aeat_models._fetch", return_value=html):
-            result = _discover_aeat_models()
+        portal_client = MagicMock()
+        portal_client.fetch_listing.return_value = html
+        result = _discover_aeat_models(portal_client=portal_client)
         assert result == []
 
     def test_text_only_pattern(self):
@@ -123,12 +131,50 @@ class TestDiscoverAeatModels:
         </body>
         </html>
         """
-        with patch("aeat_models._fetch", return_value=html):
-            result = _discover_aeat_models()
+        portal_client = MagicMock()
+        portal_client.fetch_listing.return_value = html
+        result = _discover_aeat_models(portal_client=portal_client)
 
         codigos = {m["codigo"] for m in result}
         assert "123" in codigos
         assert "216" in codigos
+
+
+class TestPortalClientSelection:
+    def test_httpx_client_requires_fallback_when_listing_has_no_model_anchors(self):
+        client = HttpxClient()
+        with patch.object(client, "_fetch_text", return_value="<html><body>sin anchors</body></html>"):
+            try:
+                client.fetch_listing()
+                assert False, "Expected FallbackRequired"
+            except FallbackRequired as exc:
+                assert "No anchors in listing" in str(exc)
+
+    def test_get_portal_client_uses_httpx_when_listing_is_usable(self):
+        with patch("aeat_models.HttpxClient.fetch_listing", return_value="<a href='/modelo_100.html'>100</a>"):
+            client = get_portal_client()
+        assert isinstance(client, HttpxClient)
+
+    def test_get_portal_client_falls_back_to_playwright(self):
+        with patch("aeat_models.HttpxClient.fetch_listing", side_effect=FallbackRequired("js")):
+            with patch("aeat_models.PlaywrightClient", return_value="playwright-client") as factory:
+                client = get_portal_client()
+        factory.assert_called_once_with()
+        assert client == "playwright-client"
+
+    def test_get_portal_client_can_force_playwright(self):
+        with patch("aeat_models.PlaywrightClient", return_value="forced-client") as factory:
+            client = get_portal_client(force_playwright=True)
+        factory.assert_called_once_with()
+        assert client == "forced-client"
+
+
+class TestPlaywrightClient:
+    def test_class_is_constructible_when_sync_playwright_is_mocked(self):
+        fake_sync_playwright = MagicMock()
+        with patch.dict(sys.modules, {"playwright.sync_api": MagicMock(sync_playwright=fake_sync_playwright)}):
+            client = PlaywrightClient()
+        assert client._sync_playwright is fake_sync_playwright
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +198,7 @@ class TestUpsertAeatModel:
                         impuesto TEXT,
                         url_info TEXT,
                         activo INTEGER DEFAULT 1,
-                        actualizado_at TEXT
+                        updated_at TEXT
                     )
                     """
                 )
@@ -186,7 +232,7 @@ class TestUpsertAeatModel:
                         impuesto TEXT,
                         url_info TEXT,
                         activo INTEGER DEFAULT 1,
-                        actualizado_at TEXT
+                        updated_at TEXT
                     )
                     """
                 )
@@ -228,7 +274,7 @@ class TestUpsertAeatModel:
                         impuesto TEXT,
                         url_info TEXT,
                         activo INTEGER DEFAULT 1,
-                        actualizado_at TEXT
+                        updated_at TEXT
                     )
                     """
                 )
@@ -274,7 +320,7 @@ class TestMarkDeprecatedModels:
                         impuesto TEXT,
                         url_info TEXT,
                         activo INTEGER DEFAULT 1,
-                        actualizado_at TEXT
+                        updated_at TEXT
                     )
                     """
                 )
