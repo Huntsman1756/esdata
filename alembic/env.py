@@ -93,9 +93,21 @@ def run_migrations_online() -> None:
     conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
     conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS alembic_version (
-            version_num VARCHAR(128) NOT NULL PRIMARY KEY
-        )
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relname = 'alembic_version'
+                  AND n.nspname = current_schema()
+            ) THEN
+                CREATE TABLE alembic_version (
+                    version_num VARCHAR(128) NOT NULL PRIMARY KEY
+                );
+            END IF;
+        END
+        $$
     """))
     conn.commit()
 
