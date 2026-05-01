@@ -20,6 +20,7 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `integrations/README.md` — matriz activa de integraciones LLM/clientes
 - `manual-usuario/README.md` — manual vivo de uso e integracion
 - `reference/model-expansion-spec.md` — guia para nuevos modelos, leyes y organismos
+- `reference/source-compliance-register.md` — restricciones de scraping, licencias y validacion real por fuente
 - `repository-structure.md` — mapa del repo
 
 ## Historico
