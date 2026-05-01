@@ -37,6 +37,11 @@ SEED_FILES = [
     "seed_irs_modelos.py",
     "seed_aeat_models.py",
     "seed_dgt.py",
+    "seed_aepd.py",
+    "seed_bde.py",
+    "seed_borme.py",
+    "seed_cnmv.py",
+    "seed_eurlex.py",
     "seed_screening_worker.py",
     "seed_aeat_irnr.py",
     "seed_boe.py",
@@ -80,7 +85,7 @@ def patch_and_run(seed_filename):
         print(f"  SKIP: {seed_filename} (file not found)")
         return False
 
-    with open(seed_path, "r") as f:
+    with open(seed_path) as f:
         source = f.read()
 
     # Patch DB URL — preserve variable name (DB or DB_URL)

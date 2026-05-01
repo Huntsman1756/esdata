@@ -1,3 +1,23 @@
+"""Worker DGT — Direccion General de Tributos (Ministerio de Hacienda).
+
+Fuente: https://petete.tributos.hacienda.gob.es/ (consultas vinculantes y
+no vinculantes). Discovery via `dgt_doctrina.py` (queue persistente en
+`source_revision`). Persistencia: tabla `documento_interpretativo` con
+`tipo_fuente='dgt'`, `tipo_documento='consulta_dgt'`.
+
+Conflict key: `documento_interpretativo.referencia` UNIQUE
+(formato `V<num>-<anio>` o `<num>-<anio>` segun tipo).
+
+Sync intervalo: diario via cron. Auditoria: `sync_log` (worker='worker-dgt').
+
+Limitaciones conocidas:
+- Sitio sin API publica; scraping HTML sujeto a cambios de marca.
+- TLS upstream: `DGT_SSL_VERIFY=true` por defecto; bajar solo en entorno
+  controlado y nunca en produccion.
+- Enlace a articulos (doctrina↔articulado) en `documento_articulo` es
+  best-effort segun `metodo_enlace` (regex, manual, llm).
+"""
+
 import argparse
 import logging
 import os
@@ -44,7 +64,7 @@ SEED_URLS = [
 
 BASE_URL = "https://petete.tributos.hacienda.gob.es"
 DATABASE_URL = get_database_url()
-DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", False)
+DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", True)
 DGT_DISCOVERY = get_bool_env("DGT_DISCOVERY", False)
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
@@ -537,14 +557,16 @@ def run_sync(
                     len(pending) - batch_processed,
                 )
 
-            log_sync(
-                None,
-                worker_name,
-                "ok",
-                documentos_processed=total_processed,
-                documentos_upserted=total_stored,
-                doctrina_links_created=links_created,
-            )
+            with engine.begin() as conn:
+                _ensure_sync_log_table(conn)
+                log_sync(
+                    conn,
+                    worker_name,
+                    "ok",
+                    documentos_processed=total_processed,
+                    documentos_upserted=total_stored,
+                    doctrina_links_created=links_created,
+                )
 
         return {
             "processed": total_processed,

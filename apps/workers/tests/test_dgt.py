@@ -723,9 +723,15 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
         count = conn.execute(
             text("SELECT COUNT(*) FROM documento_interpretativo")
         ).scalar_one()
+        sync_row = conn.execute(
+            text(
+                "SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log ORDER BY id DESC LIMIT 1"
+            )
+        ).fetchone()
 
     assert result["stored"] == 1
     assert count == 1
+    assert sync_row == ("worker-dgt", "ok", 2, 1)
 
 
 def test_fetch_search_html_for_discovery_returns_none(monkeypatch):

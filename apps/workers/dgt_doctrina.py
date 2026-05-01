@@ -18,7 +18,7 @@ normas objetivo incluye LIRPF (rendimientos mobiliarios) o IRNR.
 import argparse
 import re
 import time
-from datetime import UTC, datetime
+from datetime import datetime
 
 import httpx
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
@@ -48,7 +48,7 @@ SEED_URLS = [
 ]
 
 DATABASE_URL = get_database_url()
-DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", False)
+DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", True)
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
 # Normas objetivo especificas para rendimientos mobiliarios
@@ -108,8 +108,6 @@ def run_sync(
     stored = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(UTC).isoformat()
-
     # Importamos la logica de scraping de dgt.py para reutilizar
     from dgt import (
         _build_document_payload,

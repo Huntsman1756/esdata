@@ -1,3 +1,17 @@
+"""Worker CNMV — Comision Nacional del Mercado de Valores.
+
+Fuente: comunicados, hechos relevantes, criterios y guias publicadas en
+https://www.cnmv.es/. Persistencia: `documento_interpretativo` con
+`tipo_fuente='cnmv'`. Conflict key: `referencia` UNIQUE.
+
+Sync intervalo: semanal (cron-cnmv-weekly). Auditoria via `sync_log`.
+
+Limitaciones conocidas:
+- Tipologia heterogenea (HR, criterios, FAQs); `tipo_documento` se infiere
+  desde la URL/listado y puede requerir reclasificacion manual.
+- Algunos PDFs requieren parsing OCR no incluido por defecto.
+"""
+
 import argparse
 import logging
 import os

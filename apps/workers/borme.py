@@ -1,3 +1,16 @@
+"""Worker BORME — Boletin Oficial del Registro Mercantil.
+
+Fuente: anuncios de actos inscribibles publicados en BORME via
+https://www.boe.es/diario_borme/. Persistencia: `documento_interpretativo`
+con `tipo_fuente='borme'`. Conflict key: `referencia` UNIQUE.
+
+Sync intervalo: diario. Auditoria via `sync_log`.
+
+Limitaciones conocidas:
+- Estructura por seccion/provincia; parser tolerante a discrepancias de
+  formato. Anuncios sin denominacion social estable se marcan `[PARTIAL]`.
+"""
+
 import argparse
 import os
 import re

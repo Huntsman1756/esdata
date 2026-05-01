@@ -1,3 +1,17 @@
+"""Worker CENDOJ — Centro de Documentacion Judicial (CGPJ).
+
+Fuente: jurisprudencia publicada via buscador CENDOJ
+(https://www.poderjudicial.es/search/). Persistencia: `documento_interpretativo`
+con `tipo_fuente='cendoj'`. Conflict key: `referencia` UNIQUE (ROJ).
+
+Sync intervalo: semanal (cuando habilitado). Auditoria via `sync_log`.
+
+Limitaciones conocidas / [BLOCKED]:
+- Acceso programatico restringido (SSO/captcha en upstream); el worker
+  esta gateado por flag `CENDOJ_ENABLED` y no se ejecuta por defecto.
+- Licencia de reuso restrictiva: revisar terminos antes de redistribuir.
+"""
+
 import argparse
 import os
 import re

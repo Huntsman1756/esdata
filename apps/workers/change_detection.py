@@ -58,56 +58,52 @@ def compute_content_hash(content: str | bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+_SOURCE_REVISION_BOOTSTRAP_LOGGED: set[str] = set()
+
+
 def ensure_source_revision_table(conn: Connection) -> None:
-    """Create source_revision table if it doesn't exist (idempotent).
-    
-    Adds dgt_url column for persistent discovery queue if missing.
+    """Garantiza que `source_revision` existe.
+
+    [DEPRECATED en runtime para Postgres] La tabla es propiedad de la migracion
+    `20260501_0053_absorb_runtime_table_drift`. En Postgres este helper es
+    un no-op defensivo: solo registra en debug que se invoco. En SQLite (tests
+    y dev sin Alembic) sigue creando la tabla con `IF NOT EXISTS` para no
+    romper fixtures que no corren migraciones.
+
+    Se mantiene la firma y el call site para reversibilidad: si se necesita
+    reactivar el path runtime se hace en un solo punto.
     """
     dialect_name = conn.engine.dialect.name
-    if dialect_name == "sqlite":
-        ddl = """
-            CREATE TABLE IF NOT EXISTS source_revision (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                worker_name TEXT NOT NULL,
-                source_entity_tipo TEXT NOT NULL,
-                source_entity_id TEXT NOT NULL,
-                content_hash_sha256 TEXT NOT NULL,
-                etag TEXT,
-                last_modified TEXT,
-                content_length INTEGER,
-                fetched_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
-                dgt_url TEXT,
-                UNIQUE(worker_name, source_entity_tipo, source_entity_id)
+    if dialect_name != "sqlite":
+        if dialect_name not in _SOURCE_REVISION_BOOTSTRAP_LOGGED:
+            logger.debug(
+                "ensure_source_revision_table: no-op en %s; schema owned por Alembic "
+                "(20260501_0053_absorb_runtime_table_drift)",
+                dialect_name,
             )
-        """
-    else:
-        ddl = """
-            CREATE TABLE IF NOT EXISTS source_revision (
-                id SERIAL PRIMARY KEY,
-                worker_name TEXT NOT NULL,
-                source_entity_tipo TEXT NOT NULL,
-                source_entity_id TEXT NOT NULL,
-                content_hash_sha256 TEXT NOT NULL,
-                etag TEXT,
-                last_modified TEXT,
-                content_length INTEGER,
-                fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                dgt_url TEXT,
-                UNIQUE(worker_name, source_entity_tipo, source_entity_id)
-            )
-        """
+            _SOURCE_REVISION_BOOTSTRAP_LOGGED.add(dialect_name)
+        return
 
+    ddl = """
+        CREATE TABLE IF NOT EXISTS source_revision (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_name TEXT NOT NULL,
+            source_entity_tipo TEXT NOT NULL,
+            source_entity_id TEXT NOT NULL,
+            content_hash_sha256 TEXT NOT NULL,
+            etag TEXT,
+            last_modified TEXT,
+            content_length INTEGER,
+            fetched_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
+            dgt_url TEXT,
+            UNIQUE(worker_name, source_entity_tipo, source_entity_id)
+        )
+    """
     conn.execute(text(ddl))
 
-    # Add dgt_url column if missing (migration for existing deployments)
     columns = _source_revision_columns(conn)
     if "dgt_url" not in columns:
-        if dialect_name == "sqlite":
-            conn.execute(text("ALTER TABLE source_revision ADD COLUMN IF NOT EXISTS dgt_url TEXT"))
-        else:
-            conn.execute(text(
-                "ALTER TABLE source_revision ADD COLUMN IF NOT EXISTS dgt_url TEXT"
-            ))
+        conn.execute(text("ALTER TABLE source_revision ADD COLUMN dgt_url TEXT"))
 
     if _uses_legacy_source_revision_schema(conn):
         conn.execute(text("""
@@ -118,11 +114,6 @@ def ensure_source_revision_table(conn: Connection) -> None:
         conn.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_source_revision_worker_entity
                 ON source_revision(worker_name, source_entity_tipo, source_entity_id)
-        """))
-        conn.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_source_revision_pending_dgt
-                ON source_revision(worker_name, source_entity_tipo, content_hash_sha256)
-                WHERE content_hash_sha256 = 'pending' AND dgt_url IS NOT NULL
         """))
 
 

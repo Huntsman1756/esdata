@@ -1,3 +1,24 @@
+"""Worker BOE — Boletin Oficial del Estado.
+
+Fuente: https://www.boe.es/diario_boe/xml.php (XML diario) + API ELI.
+Persistencia: tablas `norma`, `articulo`, `version_articulo` con
+`tipo_fuente='boe'`. Conflict key: `norma.codigo` UNIQUE y
+`articulo (norma_id, numero)` UNIQUE.
+
+Sync intervalo: diario via cron (ver `docker-compose.prod.yml`).
+Auditoria: cada ejecucion escribe en `sync_log` (worker='worker-boe').
+
+Limitaciones conocidas:
+- Parser HTML de articulado depende de la estructura del XML BOE; cambios
+  en upstream pueden generar `[PARTIAL]` rows.
+- Consolidacion (texto vigente) parcial: solo se almacena ultima version
+  conocida; histogramas de versiones no se reconstruyen retroactivamente.
+
+Schema-runtime: `_ensure_sync_log_table` es no-op en Postgres (owned por
+Alembic `20260501_0053_absorb_runtime_table_drift`); en SQLite mantiene
+CREATE para tests.
+"""
+
 import argparse
 import logging
 import os
@@ -174,8 +195,27 @@ def _create_base_schema(conn) -> None:
     )
 
 
+_SYNC_LOG_BOOTSTRAP_LOGGED: set[str] = set()
+
+
 def _ensure_sync_log_table(conn) -> None:
-    conn.execute(text(_schema_statements(conn.engine.dialect.name)[-1]))
+    """Garantiza tabla `sync_log` (no-op defensivo en Postgres).
+
+    [DEPRECATED en runtime Postgres] El schema lo gestiona Alembic
+    (`20260501_0053_absorb_runtime_table_drift`). En SQLite mantiene la
+    creacion para tests y dev sin migraciones.
+    """
+    dialect = conn.engine.dialect.name
+    if dialect != "sqlite":
+        if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "_ensure_sync_log_table: no-op en %s; schema owned por Alembic", dialect
+            )
+            _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
+        return
+    conn.execute(text(_schema_statements(dialect)[-1]))
 
 
 @dataclass

@@ -1,3 +1,16 @@
+"""Worker BdE — Banco de Espana.
+
+Fuente: circulares, guias supervisoras y comunicaciones del BdE en
+https://www.bde.es/. Persistencia: `documento_interpretativo` con
+`tipo_fuente='bde'`. Conflict key: `referencia` UNIQUE.
+
+Sync intervalo: semanal. Auditoria via `sync_log`.
+
+Limitaciones conocidas:
+- Algunos documentos solo en PDF; texto extraido sin layout preservado.
+- Vigencia/derogacion no siempre explicita en upstream.
+"""
+
 import argparse
 import os
 import re

@@ -1,3 +1,16 @@
+"""Worker AEPD — Agencia Espanola de Proteccion de Datos.
+
+Fuente: resoluciones publicadas en https://www.aepd.es/ (procedimientos
+sancionadores y otras resoluciones). Persistencia: `documento_interpretativo`
+con `tipo_fuente='aepd'`. Conflict key: `referencia` UNIQUE.
+
+Sync intervalo: semanal. Auditoria via `sync_log`.
+
+Limitaciones conocidas:
+- Listados HTML pueden cambiar estructura; parser tolerante pero limitado.
+- PDFs adjuntos no se parsean por defecto (solo metadata + cuerpo HTML).
+"""
+
 import argparse
 import os
 import re
