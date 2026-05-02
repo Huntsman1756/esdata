@@ -650,6 +650,18 @@ async def test_doctrina_busca_referencia_exacta_dgt():
 
 
 @pytest.mark.asyncio
+async def test_doctrina_buscar_incluye_norma_boe_cuando_se_solicita():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=Ley+37%2F1992&include_boe=true")
+    assert r.status_code == 200
+    data = r.json()
+    item = next(result for result in data["resultados"] if result["referencia"] == "BOE-A-1992-28740")
+    assert item["organismo_emisor"] == "BOE"
+    assert item["tipo_documento"] == "ley"
+    assert item["norma"] == "LIVA"
+
+
+@pytest.mark.asyncio
 async def test_buscar_detecta_comparacion_de_modelos_aeat():
     async with _client() as c:
         r = await c.get("/v1/buscar?q=modelo+100+303+diferencia")
