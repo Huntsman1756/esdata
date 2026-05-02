@@ -115,6 +115,11 @@ def _is_official_model_resource(url: str) -> bool:
     }
 
 
+def _is_valid_aeat_page(html: str) -> bool:
+    lowered = html.lower()
+    return "erro4033.html" not in lowered and "acceso denegado" not in lowered
+
+
 def _infer_campaign(page_text: str, url_info: str | None = None) -> str:
     if url_info:
         match = re.search(r"(?:19|20)\d{2}", url_info)
@@ -432,6 +437,10 @@ def _fetch_model_metadata(
         model_html = client.fetch_detail(url_info)
     except Exception:
         return {"codigo": codigo, "url_info": url_info}
+
+    if not _is_valid_aeat_page(model_html):
+        logger.warning("AEAT blocked detail page for modelo %s: %s", codigo, url_info)
+        return None
 
     model_soup = BeautifulSoup(model_html, "html.parser")
     page_text = model_soup.get_text(" ", strip=True).lower()
@@ -917,6 +926,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
 
                 upserted = 0
                 skipped = 0
+                skipped_resource_failures = 0
 
                 _get_existing_codes(conn)
 
@@ -1011,7 +1021,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                     conn,
                     started_at,
                     datetime.now(UTC),
-                    "ok" if stats["errores"] == 0 else "partial",
+                    "ok" if stats["errores"] == 0 and skipped_resource_failures == 0 else "partial",
                     stats,
                     (
                         f"Skipped {skipped_resource_failures} AEAT official resources after fetch failures"

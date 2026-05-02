@@ -20,6 +20,8 @@ from aeat_models import (
     _discover_aeat_models,
     _extract_model_name,
     _classify_resource,
+    _is_official_model_resource,
+    _normalize_aeat_url,
     _record_sync_log,
     _store_modelo_recurso_version,
     _mark_deprecated_models,
@@ -338,6 +340,18 @@ class TestFetchModelMetadata:
         assert result["url_info"].endswith("modelo-100/index.shtml")
         assert any(r["tipo_recurso"] == "formulario_pdf" for r in result["recursos"])
 
+    def test_skips_aeat_blocked_4033_pages(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = "<html><body>erro4033.html Acceso denegado</body></html>"
+
+        result = aeat_models._fetch_model_metadata(
+            "230",
+            url_info="https://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul",
+            portal_client=portal_client,
+        )
+
+        assert result is None
+
 
 class TestClassifyResource:
     def test_prefers_pdf_instruction_and_design_signals_from_url(self):
@@ -380,6 +394,26 @@ class TestExtractModelResources:
         assert "https://www.oecd.org/example.html" not in resource_urls
         assert "https://sede.agenciatributaria.gob.es/docs/modelo303.pdf" in resource_urls
         assert "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2024-1" in resource_urls
+
+
+class TestNormalizeAeatUrl:
+    def test_repairs_missing_h_in_https_scheme(self):
+        assert _normalize_aeat_url("ttps://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul") == (
+            "https://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul"
+        )
+
+    def test_prefixes_https_for_scheme_less_host(self):
+        assert _normalize_aeat_url("www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul") == (
+            "https://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul"
+        )
+
+
+class TestOfficialModelResource:
+    def test_accepts_official_aeat_resource(self):
+        assert _is_official_model_resource("https://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592") is True
+
+    def test_rejects_non_official_resource(self):
+        assert _is_official_model_resource("https://www.oecd.org/tax/automatic-exchange/crs-implementation-and-assistance/tax-identification-numbers/") is False
 
 
 class TestUpsertAeatModel:

@@ -5,7 +5,31 @@ from fastapi import APIRouter
 from middleware.metrics import record_worker_last_errors, record_worker_metrics
 from sqlalchemy import text
 
+
+def _build_modelos_status(db) -> dict:
+    row = db.execute(
+        text(
+            """
+            SELECT COUNT(*) AS total, MAX(updated_at) AS actualizado_en
+            FROM aeat_modelo
+            """
+        )
+    ).mappings().first()
+
+    total = int((row or {}).get("total") or 0)
+    actualizado_en = (row or {}).get("actualizado_en")
+    return {
+        "status": "ok",
+        "total": total,
+        "updated_at": _serialize_datetime(actualizado_en),
+    }
+
 router = APIRouter()
+
+WORKER_CANONICAL_NAMES = {
+    "modelos": "worker-modelos",
+    "worker-aeat-modelos": "worker-modelos",
+}
 
 WORKER_THRESHOLDS_HOURS = {
     "worker-boe": 25,
@@ -25,10 +49,13 @@ WORKER_THRESHOLDS_HOURS = {
     "worker-sepblac": 24 * 8,
     "cron-sepblac-weekly": 24 * 8,
     "worker-cendoj": 24 * 8,
+    "cron-cendoj-weekly": 24 * 8,
     "worker-eurlex": 24 * 8,
+    "cron-eurlex-weekly": 24 * 8,
     "worker-bde": 24 * 8,
     "cron-bde-weekly": 24 * 8,
     "worker-aepd": 24 * 8,
+    "cron-aepd-weekly": 24 * 8,
 }
 
 
@@ -58,6 +85,10 @@ def _is_stale(worker: str, finished_at) -> bool:
     return age_hours > WORKER_THRESHOLDS_HOURS.get(worker, 25)
 
 
+def _canonical_worker_name(worker: str) -> str:
+    return WORKER_CANONICAL_NAMES.get(worker, worker)
+
+
 @router.get("/status")
 async def status():
     """Estado agregado de la API y de los workers presentes en sync_log."""
@@ -70,11 +101,14 @@ def _build_status_payload():
             "api": "ok",
             "database": "ok",
             "timestamp": datetime.now(UTC).isoformat(),
+            "modelos": {"status": "unknown", "total": 0, "updated_at": None},
             "workers": {
                 worker: {"status": "never_run", "stale": True}
                 for worker in WORKER_THRESHOLDS_HOURS
             },
         }
+
+        result["modelos"] = _build_modelos_status(db)
 
         rows = db.execute(
             text(
@@ -120,14 +154,24 @@ def _build_status_payload():
 
         for row in rows:
             worker = row["worker"]
-            stale = _is_stale(worker, row["finished_at"])
+            canonical_worker = _canonical_worker_name(worker)
+            stale = _is_stale(canonical_worker, row["finished_at"])
             finished_at = _coerce_datetime(row["finished_at"])
+            started_at = _coerce_datetime(row["started_at"])
+
+            existing = result["workers"].get(canonical_worker)
+            if existing and existing.get("last_run"):
+                existing_started_at = _coerce_datetime(existing["last_run"])
+                if existing_started_at is not None and started_at is not None and existing_started_at >= started_at:
+                    continue
+
             lag_seconds = None
             if finished_at is not None:
                 lag_seconds = (datetime.now(UTC) - finished_at).total_seconds()
-            record_worker_metrics(worker, stale=stale, lag_seconds=lag_seconds)
-            record_worker_last_errors(worker, row["errors"])
-            result["workers"][worker] = {
+            record_worker_metrics(canonical_worker, stale=stale, lag_seconds=lag_seconds)
+            record_worker_last_errors(canonical_worker, row["errors"])
+
+            result["workers"][canonical_worker] = {
                 "last_run": _serialize_datetime(row["started_at"]),
                 "finished_at": _serialize_datetime(row["finished_at"]),
                 "status": row["status"],

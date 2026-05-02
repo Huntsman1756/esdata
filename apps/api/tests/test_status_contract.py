@@ -86,3 +86,46 @@ async def test_status_exposes_common_operability_metrics_from_sync_log():
     assert worker["errors"] == 0
     assert worker["duration_ms"] == 120000
     assert worker["stale"] is False
+
+
+@pytest.mark.asyncio
+async def test_status_normalizes_historical_modelos_worker_name():
+    app, _ = _get_app_and_engine()
+    _seed_sync_log("worker-aeat-modelos", finished_at=datetime.now(UTC) - timedelta(hours=1), status="partial")
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["worker-modelos"]
+    assert worker["status"] == "partial"
+    assert worker["stale"] is False
+
+
+@pytest.mark.asyncio
+async def test_status_ignores_historical_modelos_alias_metrics(monkeypatch):
+    app, _ = _get_app_and_engine()
+    now = datetime.now(UTC)
+    _seed_sync_log("modelos", finished_at=now - timedelta(hours=2), status="error")
+    _seed_sync_log("worker-modelos", finished_at=now - timedelta(minutes=30), status="ok")
+
+    recorded_errors = {}
+    recorded_metrics = {}
+
+    def _capture_errors(worker: str, errors: int | None) -> None:
+        recorded_errors[worker] = errors
+
+    def _capture_metrics(worker: str, stale: bool, lag_seconds: float | None) -> None:
+        recorded_metrics[worker] = {"stale": stale, "lag_seconds": lag_seconds}
+
+    monkeypatch.setattr("routers.status.record_worker_last_errors", _capture_errors)
+    monkeypatch.setattr("routers.status.record_worker_metrics", _capture_metrics)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    assert "modelos" not in recorded_errors
+    assert recorded_errors["worker-modelos"] == 0
+    assert "modelos" not in recorded_metrics
+    assert response.json()["workers"]["worker-modelos"]["status"] == "ok"

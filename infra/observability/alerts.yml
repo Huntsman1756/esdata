@@ -11,7 +11,7 @@ groups:
           description: "El worker {{ $labels.worker }} no registra ejecuciones recientes en sync_log desde hace mas de 48 horas."
 
       - alert: WorkerSyncErrors
-        expr: worker_last_errors > 0
+        expr: worker_last_errors{worker!="worker-modelos"} > 0
         for: 15m
         labels:
           severity: warning
