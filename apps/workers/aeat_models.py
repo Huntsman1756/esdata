@@ -49,6 +49,7 @@ SYNC_INTERVAL_SECONDS = get_interval_seconds("AEAT_MODELS_SYNC_INTERVAL", 86400)
 DEFAULT_CAMPAIGN = "current"
 PLAYWRIGHT_BROWSERS_PATH = "/tmp/ms-playwright"
 AEAT_SYNC_LOCK_KEY = 88420031
+AEAT_RESOURCE_FETCH_RETRIES = 3
 
 
 class FallbackRequired(RuntimeError):
@@ -69,7 +70,7 @@ class AEATPortalClient(Protocol):
 
     def fetch_detail(self, url: str) -> str: ...
 
-    def fetch_resource(self, url: str) -> bytes: ...
+    def fetch_resource(self, url: str) -> bytes | None: ...
 
 
 def _has_model_anchors(html: str) -> bool:
@@ -245,14 +246,32 @@ class HttpxClient:
     def fetch_detail(self, url: str) -> str:
         return self._fetch_text(url, "detail")
 
-    def fetch_resource(self, url: str) -> bytes:
-        try:
-            with self._build_client() as client:
-                resp = client.get(url)
-                resp.raise_for_status()
-                return resp.content
-        except Exception as exc:
-            raise FallbackRequired(f"HTTP resource fetch failed for {url}: {exc}") from exc
+    def fetch_resource(self, url: str) -> bytes | None:
+        last_exc: Exception | None = None
+        for attempt in range(1, AEAT_RESOURCE_FETCH_RETRIES + 1):
+            try:
+                with self._build_client() as client:
+                    resp = client.get(url)
+                    resp.raise_for_status()
+                    return resp.content
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "AEAT resource fetch failed for %s on attempt %d/%d: %s",
+                    url,
+                    attempt,
+                    AEAT_RESOURCE_FETCH_RETRIES,
+                    exc,
+                )
+                if attempt < AEAT_RESOURCE_FETCH_RETRIES:
+                    time.sleep(2 ** (attempt - 1))
+
+        logger.error(
+            "AEAT resource fetch exhausted retries for %s: %s",
+            url,
+            last_exc,
+        )
+        return None
 
 
 class PlaywrightClient:
@@ -281,7 +300,7 @@ class PlaywrightClient:
     def fetch_detail(self, url: str) -> str:
         return self._render_page(url)
 
-    def fetch_resource(self, url: str) -> bytes:
+    def fetch_resource(self, url: str) -> bytes | None:
         with self._sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             try:
@@ -850,6 +869,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
             "sin_cambios": 0,
             "errores": 0,
         }
+        skipped_resource_failures = 0
         try:
             with engine.begin() as conn:
                 if not _try_acquire_sync_lock(conn):
@@ -952,6 +972,15 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                                     )
                                     continue
                                 payload = portal_client.fetch_resource(recurso["url_recurso"])
+                                if payload is None:
+                                    skipped_resource_failures += 1
+                                    stats["errores"] += 1
+                                    logger.warning(
+                                        "Skipping official resource %s for modelo %s after fetch failures",
+                                        recurso["url_recurso"],
+                                        codigo,
+                                    )
+                                    continue
                                 stats["recursos_descargados"] += 1
 
                             outcome = _store_modelo_recurso_version(
@@ -984,6 +1013,11 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                     datetime.now(UTC),
                     "ok" if stats["errores"] == 0 else "partial",
                     stats,
+                    (
+                        f"Skipped {skipped_resource_failures} AEAT official resources after fetch failures"
+                        if skipped_resource_failures
+                        else None
+                    ),
                 )
 
             logger.info(

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import httpx
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -268,6 +269,30 @@ class TestPlaywrightClient:
 
         http_fetch.assert_called_once_with("https://example.com/model.pdf")
         assert payload == b"pdf-bytes"
+
+
+class TestHttpxClient:
+    def test_fetch_resource_retries_timeout_then_returns_none(self, monkeypatch):
+        client = HttpxClient()
+        attempts = []
+
+        class FakeClient:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                attempts.append(url)
+                raise httpx.ConnectTimeout("timed out")
+
+        monkeypatch.setattr(client, "_build_client", lambda: FakeClient())
+
+        payload = client.fetch_resource("https://www1.agenciatributaria.gob.es/recurso.pdf")
+
+        assert payload is None
+        assert len(attempts) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -960,3 +985,74 @@ def test_run_sync_skips_when_advisory_lock_is_unavailable(monkeypatch):
         ).fetchone()
 
     assert row == ("partial", 0, 0, "AEAT sync already in progress")
+
+
+def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    errors INTEGER,
+                    rows_processed INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+
+    portal_client = MagicMock()
+    portal_client.fetch_resource.return_value = None
+    stored_payloads = []
+
+    monkeypatch.setattr("aeat_models.get_portal_client", lambda force_playwright=False: portal_client)
+    monkeypatch.setattr(
+        "aeat_models._discover_aeat_models",
+        lambda portal_client=None: [{"codigo": "303", "nombre": "Modelo 303", "url_info": "https://example.com/303"}],
+    )
+    monkeypatch.setattr(
+        "aeat_models._fetch_model_metadata",
+        lambda *args, **kwargs: {
+            "codigo": "303",
+            "nombre": "Modelo 303",
+            "url_info": "https://example.com/303",
+            "campana": "2026",
+            "recursos": [
+                {
+                    "tipo_recurso": "instrucciones",
+                    "formato": "html",
+                    "url_recurso": "https://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr("aeat_models._upsert_aeat_model", lambda *args, **kwargs: True)
+    monkeypatch.setattr("aeat_models._get_modelo_id", lambda *args, **kwargs: 1)
+    monkeypatch.setattr("aeat_models._upsert_modelo_campana", lambda *args, **kwargs: (10, True))
+    monkeypatch.setattr("aeat_models._mark_deprecated_models", lambda *args, **kwargs: 0)
+    monkeypatch.setattr(
+        "aeat_models._store_modelo_recurso_version",
+        lambda *args, **kwargs: stored_payloads.append(args[5]) or "inserted",
+    )
+
+    aeat_models.run_sync(engine, run_once=True)
+
+    assert stored_payloads == []
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT status, errors, error_msg FROM sync_log ORDER BY id DESC LIMIT 1")
+        ).fetchone()
+
+    assert row == ("partial", 1, "Skipped 1 AEAT official resources after fetch failures")
