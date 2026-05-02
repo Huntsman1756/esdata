@@ -1,8 +1,15 @@
 """Quick backfill of documento_fragmento from version_articulo and documento_interpretativo."""
-from sqlalchemy import create_engine, text
+import os
 import re
 
-engine = create_engine("postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata")
+from sqlalchemy import create_engine, text
+
+engine = create_engine(
+    os.getenv(
+        "DATABASE_URL",
+        "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata",
+    )
+)
 
 SECTION_PATTERNS = [
     r"(?:Art[íi]culo|Cap[íi]tulo|Secci[óo]n|Apartado|P[áa]rrafo|Punto|Inciso|Literal)\s+\w+",

@@ -121,6 +121,35 @@ Contrato esperado:
 - endpoint MCP: `https://api.tudominio/mcp` o `https://mcp.tudominio/`
 - cabecera: `X-API-Key: <tu-clave>`
 
+Ejemplo verificado en VPS Arsys:
+
+- URL: `https://api.desuscribir.es/mcp`
+- Header: `X-API-Key: <MCP_API_KEY>`
+
+Ejemplo de config remota para `OpenCode`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "esdata": {
+      "type": "remote",
+      "url": "https://api.desuscribir.es/mcp",
+      "enabled": true,
+      "oauth": false,
+      "headers": {
+        "X-API-Key": "{env:ESDATA_MCP_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+Notas:
+
+- `OpenCode` usa `MCP_API_KEY`, no `ESDATA_API_KEY`
+- `opencode mcp list` debe mostrar el servidor remoto configurado
+
 ## Verificaciones utiles
 
 ### Handshake

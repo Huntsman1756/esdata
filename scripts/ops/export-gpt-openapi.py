@@ -245,7 +245,7 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
         "info": spec.get("info", {}),
         "servers": [
             {
-                "url": "https://api.esdata.org",
+                "url": "https://api.desuscribir.es",
                 "description": "Production API",
             }
         ],

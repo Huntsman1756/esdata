@@ -66,3 +66,7 @@ esdata-dev.db
 
 # Backup volumes
 infra/deploy/backups/
+
+# Local worker certificates and scratch helpers
+apps/workers/certs/
+/tmp_*.sh

@@ -2,12 +2,12 @@
   "openapi": "3.0.3",
   "info": {
     "title": "esdata API",
-    "description": "API de consulta de legislacion espanola consolidada, doctrina interpretativa y modelos tributarios AEAT. Permite buscar articulos por texto, consultar normas, doctrina (DGT, TEAC) y obtener casillas, claves e instrucciones de modelos fiscales.",
+    "description": "API de consulta fiscal-regulatoria con trazabilidad a fuente oficial, superficies de governance y workers observables via sync_log.",
     "version": "0.1.6"
   },
   "servers": [
     {
-      "url": "https://api.esdata.org",
+      "url": "https://api.desuscribir.es",
       "description": "Production API"
     }
   ],
@@ -124,9 +124,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Norma"
-                }
+                "schema": {}
               }
             }
           }
@@ -166,10 +164,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Fecha de vigencia (YYYY-MM-DD)",
               "title": "Vigente En"
-            },
-            "description": "Fecha de vigencia (YYYY-MM-DD)"
+            }
           }
         ],
         "responses": {
@@ -177,9 +173,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ArticuloDetail"
-                }
+                "schema": {}
               }
             }
           }
@@ -358,52 +352,6 @@
   },
   "components": {
     "schemas": {
-      "ArticuloDetail": {
-        "properties": {
-          "norma": {
-            "type": "string",
-            "title": "Norma",
-            "description": "Código de la norma"
-          },
-          "numero": {
-            "type": "string",
-            "title": "Numero",
-            "description": "Número del artículo"
-          },
-          "texto": {
-            "type": "string",
-            "title": "Texto",
-            "description": "Texto vigente del artículo"
-          },
-          "vigente_desde": {
-            "type": "string",
-            "title": "Vigente Desde",
-            "description": "Fecha de inicio de vigencia (YYYY-MM-DD)"
-          },
-          "vigente_hasta": {
-            "type": "string",
-            "title": "Vigente Hasta",
-            "description": "Fecha de fin de vigencia (YYYY-MM-DD)"
-          },
-          "fuente_norma": {
-            "type": "string",
-            "title": "Fuente Norma",
-            "description": "Identificador BOE/ELI de la norma"
-          },
-          "confianza": {
-            "$ref": "#/components/schemas/ConfianzaInfo",
-            "description": "Información de confianza del dato"
-          }
-        },
-        "type": "object",
-        "required": [
-          "norma",
-          "numero",
-          "texto",
-          "confianza"
-        ],
-        "title": "ArticuloDetail"
-      },
       "ArticuloRelacionado": {
         "properties": {
           "norma": {
@@ -610,11 +558,6 @@
             "type": "string",
             "title": "Fragmento",
             "description": "Fragmento del texto con el término buscado"
-          },
-          "source_url": {
-            "type": "string",
-            "title": "Source Url",
-            "description": "URL directa al documento doctrinal"
           }
         },
         "type": "object",
@@ -1040,71 +983,6 @@
         ],
         "title": "ModelosListResponse"
       },
-      "Norma": {
-        "properties": {
-          "codigo": {
-            "type": "string",
-            "title": "Codigo",
-            "description": "Código de la norma (ej: LIVA, LIRPF)"
-          },
-          "titulo": {
-            "type": "string",
-            "title": "Titulo",
-            "description": "Título completo de la norma"
-          },
-          "boe_id": {
-            "type": "string",
-            "title": "Boe Id",
-            "description": "ID de referencia en BOE/CELEX"
-          },
-          "eli_uri": {
-            "type": "string",
-            "title": "Eli Uri",
-            "description": "URI ELI de la norma"
-          },
-          "jurisdiccion": {
-            "type": "string",
-            "title": "Jurisdiccion",
-            "description": "Jurisdicción (es, autonomico, etc.)"
-          },
-          "tipo_fuente": {
-            "type": "string",
-            "title": "Tipo Fuente",
-            "description": "Tipo de fuente (boe, autonomica, etc.)"
-          },
-          "tipo_documento": {
-            "type": "string",
-            "title": "Tipo Documento",
-            "description": "Tipo de documento (ley, real_decreto_legislativo, etc.)"
-          },
-          "ambito": {
-            "type": "string",
-            "title": "Ambito",
-            "description": "Ámbito temático (tributario, etc.)"
-          },
-          "estado_cobertura": {
-            "type": "string",
-            "title": "Estado Cobertura",
-            "description": "Estado de cobertura (ingestada, parcial, etc.)"
-          },
-          "regulacion_relacionada": {
-            "type": "string",
-            "title": "Regulacion Relacionada",
-            "description": "Regulación relacionada (ej: dac_directives)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "codigo",
-          "titulo",
-          "jurisdiccion",
-          "tipo_fuente",
-          "tipo_documento",
-          "ambito",
-          "estado_cobertura"
-        ],
-        "title": "Norma"
-      },
       "SearchResult": {
         "properties": {
           "tipo": {
@@ -1146,21 +1024,6 @@
             "type": "number",
             "title": "Rank",
             "description": "Puntuación de relevancia (ts_rank)"
-          },
-          "fuente_norma": {
-            "type": "string",
-            "title": "Fuente Norma",
-            "description": "Identificador BOE/ELI de la norma"
-          },
-          "source_url": {
-            "type": "string",
-            "title": "Source Url",
-            "description": "URL directa al documento fuente"
-          },
-          "motivo_ranking": {
-            "type": "string",
-            "title": "Motivo Ranking",
-            "description": "Explicación del ranking obtenido"
           },
           "confianza": {
             "$ref": "#/components/schemas/ConfianzaInfo",

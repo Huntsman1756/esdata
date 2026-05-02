@@ -33,6 +33,8 @@ Fuera de alcance inicial:
 
 ## Estado ejecutivo actual
 
+- **Sesion 2026-05-01 — VPS + dominio `desuscribir.es`**: `[PARTIAL]` — despliegue remoto operativo con Docker Compose, DNS publico resuelto para `esdata.desuscribir.es` y `api.desuscribir.es`, HTTPS activo via Caddy, `postgres` healthy, `api /health` = `200`, `api /status` = `200` con `X-API-Key`, `web /` = `200`, workers base (`boe`, `dgt`, `teac`, `modelos`) arriba, timers `systemd` activos (`esdata-boe-daily`, `esdata-dgt-weekly`, `esdata-teac-weekly`, `esdata-modelos-daily`). Integraciones verificadas: `OpenCode` debe usar MCP remoto en `https://api.desuscribir.es/mcp` con `MCP_API_KEY`; `ChatGPT` debe usar Actions/OpenAPI en `https://api.desuscribir.es/gpt-actions/modelos/openapi.json` con `ESDATA_API_KEY`, no MCP. Pendiente exacto: endurecer acceso SSH/no-root, proteger `/mcp` con capa adicional (IP allowlist o Tailscale), decidir si los fixes locales de runtime/proxy se consolidan o se descartan tras la prueba.
+
 - Profesionalizacion del repo: `COMPLETA`
 - Retrieval, chunking y evaluacion: `COMPLETO` con gate aprobado
 - Corpus regulatorio prioritario: `COMPLETO`

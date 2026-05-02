@@ -7,8 +7,8 @@
   },
   "servers": [
     {
-      "url": "https://esdata-production.up.railway.app",
-      "description": "Production API on Railway"
+      "url": "https://api.desuscribir.es",
+      "description": "Production API"
     }
   ],
   "paths": {

@@ -97,6 +97,13 @@ Recomendacion:
 
 - usar spec reducida para Actions
 
+Ejemplo verificado en VPS Arsys:
+
+- spec URL: `https://api.desuscribir.es/gpt-actions/modelos/openapi.json`
+- privacy URL: `https://api.desuscribir.es/privacy`
+- auth en builder: cabecera `X-API-Key` con valor `ESDATA_API_KEY`
+- no usar `/mcp` para ChatGPT
+
 ### 3. Crear el GPT o configurar el workspace
 
 En el builder de `ChatGPT Business`:

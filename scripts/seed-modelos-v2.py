@@ -22,9 +22,9 @@ import argparse
 from pathlib import Path
 
 try:
-    import psycopg2
+    import psycopg
 except ImportError:
-    print("ERROR: psycopg2 not installed. Run: pip install psycopg2-binary")
+    print("ERROR: psycopg not installed. Run: pip install psycopg")
     sys.exit(1)
 
 try:
@@ -891,7 +891,7 @@ def get_db_url(args_db_url):
 
 def connect(db_url):
     try:
-        return psycopg2.connect(db_url)
+        return psycopg.connect(db_url)
     except Exception as e:
         print(f"ERROR: Cannot connect to database: {e}")
         sys.exit(1)

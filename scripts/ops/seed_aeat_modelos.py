@@ -50,6 +50,10 @@ MODELOS = [
         "https://sede.agenciatributaria.gob.es/Sede/irpf.html",
     ),
     (
+        "198", "IRPF Operaciones con activos financieros", "Anual", "IRPF",
+        "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-198.html",
+    ),
+    (
         "200", "Impuesto Sociedades anual", "Anual", "IS",
         "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades.html",
     ),

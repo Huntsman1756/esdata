@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
+import sys
 from pathlib import Path
 
 
@@ -9,6 +10,7 @@ MODULE_PATH = Path(__file__).resolve().parents[1] / "maintenance" / "verify-doc-
 SPEC = importlib.util.spec_from_file_location("verify_doc_artifacts", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
+sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
@@ -82,6 +84,20 @@ def test_verify_artifact_detects_drift_against_expected_json():
     assert "artifact drift" in errors[0]
 
 
+def test_expected_payload_for_openapi_gpt_uses_active_desuscribir_domain():
+    payload = MODULE.expected_payload_for_artifact(MODULE.DOCS_DIR / "openapi-gpt.json")
+
+    assert payload is not None
+    assert payload["servers"][0]["url"] == "https://api.desuscribir.es"
+
+
+def test_expected_payload_for_openapi_gpt_30_uses_active_desuscribir_domain():
+    payload = MODULE.expected_payload_for_artifact(MODULE.DOCS_DIR / "openapi-gpt-3.0.json")
+
+    assert payload is not None
+    assert payload["servers"][0]["url"] == "https://api.desuscribir.es"
+
+
 def test_main_returns_non_zero_when_drift_detected():
     tmp_dir = _reset_tmp_dir()
     artifact = tmp_dir / "openapi-gpt.json"
@@ -93,6 +109,10 @@ def test_main_returns_non_zero_when_drift_detected():
     original_env_example = MODULE.ENV_EXAMPLE
     original_env_doc = MODULE.ENV_DOC
     original_find_forbidden = MODULE.find_forbidden_env_files
+    original_verify_docs_vs_roadmap = MODULE.verify_docs_vs_roadmap
+    original_verify_workers_documented = MODULE.verify_workers_documented
+    original_verify_endpoints_documented = MODULE.verify_endpoints_documented
+    original_verify_markdown_lint = MODULE.verify_markdown_lint
     try:
         MODULE.ARTIFACTS = [artifact]
         MODULE.DOCS_REFERENCES = []
@@ -102,6 +122,10 @@ def test_main_returns_non_zero_when_drift_detected():
         MODULE.ENV_DOC.write_text("| Variable |\n|---|\n| `ESDATA_API_KEY` |\n", encoding="utf-8")
         MODULE.expected_payload_for_artifact = lambda _path: {"openapi": "3.1.0", "paths": {"/x": {}}}
         MODULE.find_forbidden_env_files = lambda _root: []
+        MODULE.verify_docs_vs_roadmap = lambda: []
+        MODULE.verify_workers_documented = lambda: []
+        MODULE.verify_endpoints_documented = lambda: []
+        MODULE.verify_markdown_lint = lambda: []
         errors = MODULE.run()
     finally:
         MODULE.ARTIFACTS = original_artifacts
@@ -110,6 +134,10 @@ def test_main_returns_non_zero_when_drift_detected():
         MODULE.ENV_EXAMPLE = original_env_example
         MODULE.ENV_DOC = original_env_doc
         MODULE.find_forbidden_env_files = original_find_forbidden
+        MODULE.verify_docs_vs_roadmap = original_verify_docs_vs_roadmap
+        MODULE.verify_workers_documented = original_verify_workers_documented
+        MODULE.verify_endpoints_documented = original_verify_endpoints_documented
+        MODULE.verify_markdown_lint = original_verify_markdown_lint
 
     assert len(errors) == 1
     assert "artifact drift" in errors[0]

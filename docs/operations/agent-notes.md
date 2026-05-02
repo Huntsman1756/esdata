@@ -33,6 +33,20 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-01 - Despliegue Compose en VPS: traps reales de runtime y Caddy
+
+- Scope: `apps/api/main.py`, `apps/api/Dockerfile`, `infra/deploy/Caddyfile`, `infra/deploy/.env.prod`, despliegue Compose en VPS
+- Hallazgo: el despliegue Compose puede parecer correcto (`postgres`, `web`, workers) y aun asi fallar por tres traps no obvios: (1) `apps/api/main.py` asumía `Path(__file__).resolve().parents[2]` y rompia en contenedor (`/app/main.py`) con `IndexError`; (2) la imagen API no incluia `docs/openapi-gpt.json`; (3) `Caddyfile` tenia sintaxis invalida para Caddy v2 (`/api/* { ... }`) y ademas falla en seco si `CADDY_EMAIL` queda vacio.
+- Impacto: la API queda `unhealthy`, `caddy` entra en restart loop, HTTPS no responde y el bloqueo parece de DNS/red cuando en realidad es un bug del runtime/proxy.
+- Regla practica: al retomar un VPS Compose de este repo, validar en este orden: `docker compose ps`, `docker compose logs api`, `docker compose logs caddy`, `curl http://127.0.0.1:8000/health`, `curl http://127.0.0.1:3000/`. Si `caddy` no levanta, mirar primero `CADDY_EMAIL` y luego validar `Caddyfile` con `docker run --rm -v /srv/esdata/infra/deploy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile`.
+
+### 2026-05-01 - Integracion real: OpenCode usa MCP, ChatGPT usa Actions
+
+- Scope: `docs/integrations/opencode-local-and-vps.md`, `docs/integrations/chatgpt-business-actions.md`, despliegue remoto HTTPS controlado
+- Hallazgo: para este stack, `OpenCode` y `ChatGPT` no consumen la misma superficie. `OpenCode` debe conectarse a `https://api.desuscribir.es/mcp` con `MCP_API_KEY`; `ChatGPT` debe importar `https://api.desuscribir.es/gpt-actions/modelos/openapi.json` y autenticar contra los endpoints REST con `ESDATA_API_KEY` en cabecera `X-API-Key`.
+- Impacto: si se intenta conectar ChatGPT a `/mcp` o se reutiliza `MCP_API_KEY` en Actions, la integracion falla o mezcla dominios de riesgo.
+- Regla practica: recordar siempre este mapeo: `OpenCode -> MCP -> MCP_API_KEY`; `ChatGPT -> OpenAPI/Actions -> ESDATA_API_KEY`. Si el builder de ChatGPT da guerra con OpenAPI 3.1, preparar la variante `docs/openapi-gpt-3.0.json`.
+
 ### 2026-04-27 - Drift de HTML AEAT en modelos
 
 - Scope: `apps/workers/modelos.py`, `apps/workers/modelos_support.py`, `apps/workers/tests/test_modelos.py`
