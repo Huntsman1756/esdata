@@ -32,6 +32,7 @@ from xml.etree import ElementTree as ET
 
 import httpx
 from sqlalchemy import create_engine, text
+from runtime import sleep_with_heartbeat, touch_heartbeat
 
 logging.basicConfig(
     level=logging.INFO,
@@ -377,7 +378,7 @@ def fetch_index(client: httpx.Client, boe_id: str) -> list[BloqueIndex]:
             f"{BOE_API_BASE}/id/{boe_id}/texto/indice",
             headers={"Accept": "application/json"},
         )
-        if response.status_code == 200:
+        if getattr(response, "status_code", 200) == 200:
             return parse_index(response.json())
     except (httpx.HTTPStatusError, httpx.RequestError):
         pass
@@ -396,7 +397,7 @@ def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto
             f"{BOE_API_BASE}/id/{boe_id}/texto/bloque/{block_id}",
             headers={"Accept": "application/xml"},
         )
-        if response.status_code == 200:
+        if getattr(response, "status_code", 200) == 200:
             return parse_block_xml(block_id, response.text)
     except (httpx.HTTPStatusError, httpx.RequestError):
         pass
@@ -440,7 +441,7 @@ def fetch_metadata(client: httpx.Client, codigo: str, boe_id: str) -> NormaMetad
         response = client.get(
             f"{BOE_API_BASE}/id/{boe_id}/metadatos", headers={"Accept": "application/json"}
         )
-        if response.status_code == 200:
+        if getattr(response, "status_code", 200) == 200:
             return parse_metadata(codigo, boe_id, response.json())
     except (httpx.HTTPStatusError, httpx.RequestError):
         pass
@@ -711,11 +712,11 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
 
     law_patterns = [
         re.compile(
-            r"ART[ÍI]?CULO\s+(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b",
+            r"ART[ÍI]?CULO\s+(\d+)(?:[\.,][0-9A-ZÁÉÍÓÚÜÑº]+\)?(?:\s+[0-9A-ZÁÉÍÓÚÜÑº]+\)?)?)*\s+DE\s+LA\s+LEY\s+(\d+/\d{4})(?:\s+DEL\s+[A-ZÁÉÍÓÚÜÑ]+)?\b",
             re.IGNORECASE,
         ),
         re.compile(
-            r"ART\.?\s*(\d+)(?:[\.,][A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-Z]\))?)?\s+DE\s+LA\s+LEY\s+(\d+/\d{4})\b",
+            r"ART\.?\s*(\d+)(?:[\.,][0-9A-ZÁÉÍÓÚÜÑº]+\)?(?:\s+[0-9A-ZÁÉÍÓÚÜÑº]+\)?)?)*\s+DE\s+LA\s+LEY\s+(\d+/\d{4})(?:\s+DEL\s+[A-ZÁÉÍÓÚÜÑ]+)?\b",
             re.IGNORECASE,
         ),
     ]
@@ -1076,20 +1077,22 @@ def run_sync(
                 except Exception:
                     pass
 
-    from sqlalchemy import text
-    with engine.connect() as check_conn:
-        result = check_conn.execute(
-            text(
-                "SELECT count(*) FROM pg_stat_activity "
-                "WHERE state = 'idle in transaction' "
-                "AND pid != pg_backend_pid()"
+    if engine.dialect.name == "postgresql":
+        from sqlalchemy import text
+
+        with engine.connect() as check_conn:
+            result = check_conn.execute(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity "
+                    "WHERE state = 'idle in transaction' "
+                    "AND pid != pg_backend_pid()"
+                )
             )
-        )
-        idle = result.scalar()
-        if idle > 0:
-            print(
-                f"  DEADLOCK_RISK: {idle} conexiones idle in transaction tras run_sync"
-            )
+            idle = result.scalar()
+            if idle > 0:
+                print(
+                    f"  DEADLOCK_RISK: {idle} conexiones idle in transaction tras run_sync"
+                )
 
     return {"bloques": total_bloques, "articulos": total_articulos}
 
@@ -1154,7 +1157,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting BOE worker in continuous mode (interval={interval}s)")
         while True:
-            Path("/tmp/worker_heartbeat").touch()
+            touch_heartbeat()
             try:
                 result = run_sync()
                 print(
@@ -1162,4 +1165,4 @@ if __name__ == "__main__":
                 )
             except Exception as exc:
                 print(f"[ERROR] Sync failed: {exc} at {datetime.now(timezone.utc).isoformat()}")
-            time.sleep(interval)
+            sleep_with_heartbeat(interval)
