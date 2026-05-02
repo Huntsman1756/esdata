@@ -165,18 +165,23 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esd
 
 ### Cron jobs automaticos
 
-Los workers corren en modo continuo por defecto. Para ejecutarlos como cron:
+Los workers corren en modo continuo por defecto. Los `cron-*` de Compose son one-shot y deben programarse con scheduler externo, preferiblemente `systemd`.
 
 ```bash
-# Opcion 1: Usar perfil cron (contenedores one-shot)
-docker compose -f infra/deploy/docker-compose.prod.yml --profile cron up -d
+# Opcion 1: Configurar systemd timers para todos los cron soportados
+sudo cp infra/deploy/systemd/esdata-job@.service /etc/systemd/system/
+sudo cp infra/deploy/systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now esdata-boe-daily.timer esdata-modelos-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer
+systemctl list-timers --all | grep esdata
 
-# Opcion 2: Configurar systemd timers (ver systemd/)
-# Opcion 3: Usar cron del sistema con docker compose run
+# Opcion 2: Usar cron del sistema con docker compose run
 ```
 
 Si se usa Healthchecks, cada servicio `cron-*` enviara `start`, `success` y `fail`
 automaticamente cuando `HC_PING_URL_CRON_*` este definido en `.env`.
+
+No reiniciar `deploy-alertmanager-1` con la plantilla del repo sin renderizar. En el VPS, `infra/observability/alertmanager.yml` debe contener `bot_token` y `chat_id` ya resueltos.
 
 ### Backup automatico
 

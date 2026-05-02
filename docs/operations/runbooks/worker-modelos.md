@@ -7,8 +7,9 @@ Sincroniza campanas, instrucciones, casillas y claves desde sede AEAT.
 ## Variables clave
 
 - `DATABASE_URL`
-- `MODELOS_SYNC_INTERVAL`
-- `DGT_SSL_VERIFY`
+- `AEAT_MODELS_SYNC_INTERVAL`
+- `MODELOS_SYNC_INTERVAL` como alias usado por Compose
+- `WORKER_NAME` para distinguir `worker-modelos` de `cron-modelos-daily`
 
 ## Síntomas típicos
 
@@ -21,11 +22,14 @@ Sincroniza campanas, instrucciones, casillas y claves desde sede AEAT.
 1. revisar logs del worker
 2. comprobar conectividad a sede AEAT
 3. ejecutar una corrida puntual:
-   - `python apps/workers/modelos.py --run-once`
-4. validar tablas `modelo_campana`, `modelo_casilla`, `modelo_clave` y `modelo_instruccion`
+   - `python apps/workers/aeat_models.py --run-once`
+4. validar tablas `aeat_modelo`, `modelo_campana`, `modelo_casilla`, `modelo_clave`, `modelo_instruccion` y `modelo_recurso`
+5. revisar `sync_log` para diferenciar `worker-modelos` de `cron-modelos-daily`
 
 ## Recuperación básica
 
 1. verificar que el modelo existe en `aeat_modelo`
 2. revisar si ha cambiado el HTML de sede AEAT
-3. relanzar el worker tras ajustar variables o parsing
+3. si falla un recurso oficial AEAT, el sync debe quedar `partial` con mensaje `Skipped N AEAT official resources after fetch failures`, no `error` fatal
+4. recordar que `/status` y Prometheus deben tratar `modelos` y `worker-aeat-modelos` como aliases historicos de `worker-modelos`
+5. relanzar el worker tras ajustar variables o parsing
