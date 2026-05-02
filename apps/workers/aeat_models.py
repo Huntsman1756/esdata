@@ -22,7 +22,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -94,6 +94,26 @@ def _sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _normalize_aeat_url(url: str) -> str:
+    normalized = url.strip()
+    if normalized.startswith("ttps://"):
+        normalized = "h" + normalized
+    elif normalized.startswith("//"):
+        normalized = "https:" + normalized
+    elif not normalized.startswith(("http://", "https://")):
+        normalized = "https://" + normalized.lstrip("/")
+    return normalized
+
+
+def _is_official_model_resource(url: str) -> bool:
+    host = urlparse(_normalize_aeat_url(url)).netloc.lower()
+    return host in {
+        "sede.agenciatributaria.gob.es",
+        "www1.agenciatributaria.gob.es",
+        "www.boe.es",
+    }
+
+
 def _infer_campaign(page_text: str, url_info: str | None = None) -> str:
     if url_info:
         match = re.search(r"(?:19|20)\d{2}", url_info)
@@ -158,7 +178,9 @@ def _extract_model_resources(detail_html: str, detail_url: str) -> list[dict]:
         if not href or href.startswith("javascript:") or href.startswith("#"):
             continue
 
-        url_recurso = href if href.startswith("http") else urljoin(detail_url, href)
+        url_recurso = _normalize_aeat_url(href if href.startswith("http") else urljoin(detail_url, href))
+        if not _is_official_model_resource(url_recurso):
+            continue
         anchor_text = a_tag.get_text(" ", strip=True)
         tipo_recurso, formato = _classify_resource(anchor_text, url_recurso)
         key = (tipo_recurso, url_recurso)
@@ -384,6 +406,8 @@ def _fetch_model_metadata(
     if not url_info:
         logger.warning("Modelo %s not found on portal page", codigo)
         return None
+
+    url_info = _normalize_aeat_url(url_info)
 
     try:
         model_html = client.fetch_detail(url_info)
@@ -920,6 +944,13 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                             if recurso["tipo_recurso"] == "pagina_modelo":
                                 payload = recurso["payload"]
                             else:
+                                if not _is_official_model_resource(recurso["url_recurso"]):
+                                    logger.info(
+                                        "Skipping non-official resource %s for modelo %s",
+                                        recurso["url_recurso"],
+                                        codigo,
+                                    )
+                                    continue
                                 payload = portal_client.fetch_resource(recurso["url_recurso"])
                                 stats["recursos_descargados"] += 1
 
