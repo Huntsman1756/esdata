@@ -11,6 +11,63 @@ from services.search import _build_tsquery_sql, _chunk_rank_boost, _build_fragme
 from services.query_audit import get_query_audit_service
 from services.semantic_search import hybrid_search_doctrina
 
+
+def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
+    params = {"term_like": f"%{q}%", "limit": limit}
+    ley_match = __import__("re").search(r"\b(\d{1,4})\s*/\s*(\d{4})\b", q)
+    numero = ley_match.group(1) if ley_match else None
+    anio = ley_match.group(2) if ley_match else None
+    params["numero"] = numero
+    params["anio"] = anio
+
+    query = text(
+        """
+        SELECT
+            n.boe_id AS referencia,
+            n.tipo_documento,
+            'BOE' AS organismo_emisor,
+            n.vigente_desde AS fecha,
+            n.titulo,
+            n.codigo AS norma,
+            a.numero,
+            n.eli_uri AS source_url,
+            COALESCE(va.texto, '') AS texto
+        FROM norma n
+        LEFT JOIN articulo a ON a.norma_id = n.id
+        LEFT JOIN version_articulo va
+          ON va.articulo_id = a.id
+         AND va.vigente_hasta IS NULL
+        WHERE n.tipo_fuente = 'boe'
+          AND (
+            LOWER(n.titulo) LIKE LOWER(:term_like)
+            OR LOWER(n.codigo) LIKE LOWER(:term_like)
+            OR LOWER(n.boe_id) LIKE LOWER(:term_like)
+            OR (:numero IS NOT NULL AND :anio IS NOT NULL AND LOWER(n.titulo) LIKE LOWER('% ' || :numero || '/' || :anio || '%'))
+            OR (:numero IS NOT NULL AND :anio IS NOT NULL AND LOWER(COALESCE(n.eli_uri, '')) LIKE LOWER('%/' || :anio || '/%/' || :numero))
+            OR LOWER(COALESCE(va.texto, '')) LIKE LOWER(:term_like)
+          )
+        ORDER BY n.vigente_desde DESC, a.numero ASC
+        LIMIT :limit
+        """
+    )
+
+    rows = db.execute(query, params).mappings()
+    return [
+        {
+            "referencia": row["referencia"],
+            "tipo_documento": row["tipo_documento"],
+            "organismo_emisor": row["organismo_emisor"],
+            "fecha": str(row["fecha"]) if row["fecha"] else None,
+            "titulo": row["titulo"],
+            "nivel_enlace": 1.0,
+            "norma": row["norma"],
+            "numero": row["numero"],
+            "fragmento": _build_fragment(row["texto"], q) if row["texto"] else row["titulo"],
+            "source_url": row["source_url"],
+        }
+        for row in rows
+    ]
+
 def _build_doctrina_audit_chunks(result: dict) -> list[dict]:
     chunks: list[dict] = []
     for item in result.get("resultados", []):
@@ -49,6 +106,7 @@ async def buscar_doctrina(
     organismo_emisor: str | None = Query(
         None, description="Filtrar por organismo (DGT, TEAC, etc.)"
     ),
+    include_boe: bool = Query(True, description="Incluir normas BOE relacionadas cuando apliquen"),
 ):
     with db_session() as db:
         is_postgres = db.bind.dialect.name == "postgresql"
@@ -57,6 +115,9 @@ async def buscar_doctrina(
             result = _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor)
         else:
             result = _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor)
+
+        if include_boe and (organismo_emisor is None or organismo_emisor.upper() == "BOE"):
+            result["resultados"].extend(_buscar_normas_boe(db, q))
 
         get_query_audit_service().record_query(
             request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
