@@ -18,3 +18,7 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ['api:8000']
+
+  - job_name: host
+    static_configs:
+      - targets: ['node-exporter:9100']

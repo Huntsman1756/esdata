@@ -7,15 +7,13 @@
 }
 
 {$WEB_DOMAIN} {
-	reverse_proxy web:3000
-
-	/api/* {
-		uri strip_prefix /api
+	handle_path /api/* {
 		reverse_proxy api:8000
 	}
 
-	/grafana* {
-		uri strip_prefix /grafana
+	handle_path /grafana* {
 		reverse_proxy grafana:3000
 	}
+
+	reverse_proxy web:3000
 }
