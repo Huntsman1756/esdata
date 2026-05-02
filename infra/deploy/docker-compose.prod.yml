@@ -462,6 +462,11 @@ services:
       WORKER_NAME: cron-modelos-daily
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_MODELOS_DAILY:-}
       WORKER_CMD: python aeat_models.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
 
   cron-bdns-weekly:
     build:
