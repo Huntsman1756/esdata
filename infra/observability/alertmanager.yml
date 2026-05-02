@@ -27,6 +27,9 @@ receivers:
         send_resolved: true
         message: |
           <b>{{ .Status | toUpper }}</b> {{ .CommonLabels.alertname }}
+          {{- if eq .Status "resolved" }}
+          <i>Estado actual: alerta resuelta. El detalle inferior describe la ultima condicion que la disparo.</i>
+          {{- end }}
           {{- if .CommonLabels.worker }}
           Worker: <code>{{ .CommonLabels.worker }}</code>
           {{- end }}
