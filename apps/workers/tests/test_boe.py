@@ -648,6 +648,12 @@ def _setup_link_test_db():
         )
         c.execute(
             text(
+                "INSERT INTO norma (codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura, vigente_desde) "
+                "VALUES ('LIRPF', 'Ley IRPF', 'BOE-A-2006-20764', NULL, 'es', 'boe', 'ley', 'tributario', 'ingestada', '2007-01-01')"
+            )
+        )
+        c.execute(
+            text(
                 "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
                 "SELECT id, '91', 'Tipos reducidos', 'articulo' FROM norma WHERE codigo = 'LIVA'"
             )
@@ -953,6 +959,50 @@ def test_auto_link_doctrina_matches_articulo_ley_del_iva():
 
     assert links == 1
     assert row == ("LIVA", "104", 1.0)
+
+
+def test_auto_link_doctrina_matches_law_reference_with_numeric_subarticle_suffix():
+    """Pattern: articulo 45.1.a) de la Ley 35/2006 del IRPF -> article 45.
+
+    Real production case from seeded DGT doctrine V2509-20.
+    """
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO articulo (norma_id, numero, titulo, tipo) "
+                "SELECT id, '45', 'Exenciones', 'articulo' FROM norma WHERE codigo = 'LIRPF'"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id) "
+                "SELECT a.id, :texto, '2007-01-01', NULL, 'a45' "
+                "FROM articulo a JOIN norma n ON n.id = a.norma_id WHERE n.codigo = 'LIRPF' AND a.numero = '45'"
+            ),
+            {"texto": "Artículo 45. Exenciones aplicables en el IRPF."},
+        )
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V2509-20', '2021-11-12', 'Test', "
+                "'La exencion prevista en el articulo 45.1.a) de la Ley 35/2006 del IRPF requiere reinversion.', NULL)"
+            )
+        )
+        links = auto_link_doctrina(c)
+        row = c.execute(
+            text(
+                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "WHERE da.documento_id = (SELECT id FROM documento_interpretativo WHERE referencia = 'V2509-20')"
+            )
+        ).fetchone()
+
+    assert links == 1
+    assert row == ("LIRPF", "45", 1.0)
 
 
 def test_auto_link_doctrina_matches_ley_del_iva_separate_article():
