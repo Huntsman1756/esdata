@@ -212,6 +212,23 @@ def record_worker_metrics(worker: str, stale: bool, lag_seconds: float | None) -
         lag_gauge.labels(worker=worker).set(float(lag_seconds))
 
 
+def record_worker_last_errors(worker: str, errors: int | None) -> None:
+    try:
+        from prometheus_client import REGISTRY, Gauge
+    except ImportError:
+        return
+
+    error_gauge = _collector_by_name(REGISTRY, "worker_last_errors")
+    if error_gauge is None:
+        error_gauge = Gauge(
+            "worker_last_errors",
+            "Errors reported by the latest sync_log row for each worker",
+            ["worker"],
+        )
+
+    error_gauge.labels(worker=worker).set(float(errors or 0))
+
+
 def record_source_freshness_metrics(sources: list[dict[str, Any]]) -> None:
     try:
         from prometheus_client import REGISTRY, Gauge

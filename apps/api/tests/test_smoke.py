@@ -630,6 +630,37 @@ async def test_modelo_aeat_detalle_con_historial():
 
 
 @pytest.mark.asyncio
+async def test_modelo_aeat_detalle_admite_campana_null_en_postgres():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/aeat/100")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["codigo"] == "100"
+    assert data["campana_actual"]["campana"] == "2025"
+
+
+@pytest.mark.asyncio
+async def test_doctrina_busca_referencia_exacta_dgt():
+    async with _client() as c:
+        r = await c.get("/v1/doctrina/buscar?q=V0000-26&organismo_emisor=DGT")
+    assert r.status_code == 200
+    data = r.json()
+    referencias = [item["referencia"] for item in data["resultados"]]
+    assert "V0000-26" in referencias
+
+
+@pytest.mark.asyncio
+async def test_buscar_detecta_comparacion_de_modelos_aeat():
+    async with _client() as c:
+        r = await c.get("/v1/buscar?q=modelo+100+303+diferencia")
+    assert r.status_code == 200
+    data = r.json()
+    codigos = {item["numero"] for item in data["resultados"]}
+    assert {"100", "303"}.issubset(codigos)
+    assert all(item["tipo"] == "modelo" for item in data["resultados"])
+
+
+@pytest.mark.asyncio
 async def test_modelo_articulos_endpoint():
     async with _client() as c:
         r = await c.get("/v1/modelos/303/articulos")
@@ -637,6 +668,17 @@ async def test_modelo_articulos_endpoint():
     data = r.json()
     assert data["codigo"] == "303"
     assert len(data["articulos"]) == 0  # no articles seeded for 303 in tests
+
+
+@pytest.mark.asyncio
+async def test_modelo_campana_operativa_endpoint_devuelve_payload_valido():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/100/campana-operativa")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["codigo"] == "100"
+    assert data["campana"] == "2025"
+    assert isinstance(data["fuentes_recomendadas"], list)
 
 
 @pytest.mark.asyncio
@@ -677,6 +719,37 @@ def test_metrics_endpoint_returns_200_with_metrics():
     assert "process_cpu_seconds_total" in body or "http_requests_total" in body, (
         f"/metrics no contiene métricas esperadas. Body preview: {body[:500]}"
     )
+
+
+def test_metrics_endpoint_exposes_worker_last_errors_metric():
+    from unittest.mock import patch
+
+    from middleware.metrics import record_worker_last_errors
+
+    with patch.dict("os.environ", {"APP_ENV": "test", "ESDATA_API_KEY": "test-key", "MCP_API_KEY": "test-key"}):
+        import sys
+        if "main" in sys.modules:
+            del sys.modules["main"]
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from main import app as metrics_app
+
+    record_worker_last_errors("worker-test", 2)
+
+    client = AsyncClient(transport=ASGITransport(app=metrics_app), base_url="http://test")
+
+    async def _check():
+        return await client.get("/metrics")
+
+    import asyncio
+    loop = asyncio.new_event_loop()
+    try:
+        response = loop.run_until_complete(_check())
+    finally:
+        loop.close()
+
+    assert response.status_code == 200
+    assert "worker_last_errors" in response.text
+    assert 'worker_last_errors{worker="worker-test"} 2.0' in response.text
 
 
 def test_status_endpoint_no_session_leaks():

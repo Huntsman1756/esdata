@@ -79,11 +79,23 @@ def _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor):
     tsquery_str, _ = _build_tsquery_sql(q)
     use_ts_rank = bool(tsquery_str)
 
+    exact_reference = q.strip()
+
     if use_ts_rank:
-        chunk_filter = "df.search_vector @@ (" + tsquery_str + ")"
-        rank_expr = "ts_rank(df.search_vector, (" + tsquery_str + "))"
+        chunk_filter = (
+            "(df.search_vector @@ ("
+            + tsquery_str
+            + ") OR LOWER(d.referencia) = LOWER(:exact_referencia))"
+        )
+        rank_expr = (
+            "CASE WHEN LOWER(d.referencia) = LOWER(:exact_referencia) THEN 1.0 "
+            "ELSE ts_rank(df.search_vector, ("
+            + tsquery_str
+            + ")) END"
+        )
+        params["exact_referencia"] = exact_reference
     else:
-        chunk_filter = "df.texto ILIKE :term"
+        chunk_filter = "(df.texto ILIKE :term OR d.titulo ILIKE :term OR d.referencia ILIKE :term)"
         params["term"] = f"%{q}%"
         rank_expr = "0.0"
 
@@ -168,12 +180,23 @@ def _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor):
 def _buscar_doctrina_pg_fallback(db, q, tipo, desde, organismo_emisor, params, use_ts_rank):
     """Fallback search over documento_interpretativo when documento_fragmento is missing."""
     fallback_params: dict = {}
+    exact_reference = q.strip()
     if use_ts_rank:
         tsquery_str, _ = _build_tsquery_sql(q)
-        search_filter = "d.search_vector @@ (" + tsquery_str + ")"
-        rank_expr = "ts_rank(d.search_vector, (" + tsquery_str + "))"
+        search_filter = (
+            "(d.search_vector @@ ("
+            + tsquery_str
+            + ") OR LOWER(d.referencia) = LOWER(:exact_referencia))"
+        )
+        rank_expr = (
+            "CASE WHEN LOWER(d.referencia) = LOWER(:exact_referencia) THEN 1.0 "
+            "ELSE ts_rank(d.search_vector, ("
+            + tsquery_str
+            + ")) END"
+        )
+        fallback_params["exact_referencia"] = exact_reference
     else:
-        search_filter = "LOWER(d.texto) LIKE LOWER(:term)"
+        search_filter = "(LOWER(d.texto) LIKE LOWER(:term) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:term) OR LOWER(d.referencia) LIKE LOWER(:term))"
         fallback_params["term"] = f"%{q}%"
         rank_expr = "0.0"
 
@@ -244,7 +267,7 @@ def _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor):
     """SQLite branch: legacy ILIKE search over documento_interpretativo."""
     params: dict = {"term_like": f"%{q}%"}
     where_parts = [
-        "(LOWER(d.texto) LIKE LOWER(:term_like) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:term_like))"
+        "(LOWER(d.texto) LIKE LOWER(:term_like) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:term_like) OR LOWER(d.referencia) LIKE LOWER(:term_like))"
     ]
 
     if tipo is not None:

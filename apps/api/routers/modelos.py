@@ -42,16 +42,16 @@ def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurs
     rows = db.execute(
         text(
             """
-            WITH active_campaign AS (
-                SELECT mc.*
-                FROM modelo_campana mc
-                JOIN (
-                    SELECT modelo_id, MAX(campana) AS campana
-                    FROM modelo_campana
-                    WHERE (:campana IS NULL OR campana = :campana)
-                    GROUP BY modelo_id
-                ) latest ON latest.modelo_id = mc.modelo_id AND latest.campana = mc.campana
-            )
+             WITH active_campaign AS (
+                 SELECT mc.*
+                 FROM modelo_campana mc
+                 JOIN (
+                     SELECT modelo_id, MAX(campana) AS campana
+                     FROM modelo_campana
+                    WHERE (CAST(:campana AS TEXT) IS NULL OR campana = :campana)
+                     GROUP BY modelo_id
+                 ) latest ON latest.modelo_id = mc.modelo_id AND latest.campana = mc.campana
+             )
             SELECT
                 m.codigo,
                 m.nombre,
@@ -65,10 +65,10 @@ def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurs
             LEFT JOIN modelo_recurso mr
                 ON mr.campana_id = ac.id
                AND mr.activa = true
-               AND (:tipo_recurso IS NULL OR mr.tipo_recurso = :tipo_recurso)
-            WHERE (:codigo IS NULL OR m.codigo = :codigo)
-              AND (:impuesto IS NULL OR m.impuesto = :impuesto)
-              AND (:activo IS NULL OR COALESCE(m.activo, true) = :activo)
+               AND (CAST(:tipo_recurso AS TEXT) IS NULL OR mr.tipo_recurso = :tipo_recurso)
+            WHERE (CAST(:codigo AS TEXT) IS NULL OR m.codigo = :codigo)
+              AND (CAST(:impuesto AS TEXT) IS NULL OR m.impuesto = :impuesto)
+              AND (CAST(:activo AS BOOLEAN) IS NULL OR COALESCE(m.activo, true) = :activo)
             GROUP BY m.id, m.codigo, m.nombre, m.activo, m.impuesto, ac.campana, ac.estado_publicacion
             ORDER BY m.codigo
             """
@@ -95,28 +95,32 @@ def _get_aeat_model_row(db, codigo: str):
 
 
 def _get_aeat_campanas(db, modelo_id: int, campana: str | None = None, include_history: bool = False):
+    where_clause = "WHERE modelo_id = :modelo_id"
+    params: dict[str, object] = {"modelo_id": modelo_id}
+    if campana:
+        where_clause += " AND campana = :campana"
+        params["campana"] = campana
+
     if include_history:
         query = text(
-            """
+            f"""
             SELECT id, campana, activo, estado_publicacion, fecha_publicacion_portal, fecha_actualizacion_portal
             FROM modelo_campana
-            WHERE modelo_id = :modelo_id
-              AND (:campana IS NULL OR campana = :campana)
+            {where_clause}
             ORDER BY campana DESC
             """
         )
     else:
         query = text(
-            """
+            f"""
             SELECT id, campana, activo, estado_publicacion, fecha_publicacion_portal, fecha_actualizacion_portal
             FROM modelo_campana
-            WHERE modelo_id = :modelo_id
-              AND (:campana IS NULL OR campana = :campana)
+            {where_clause}
             ORDER BY activo DESC, campana DESC
             LIMIT 1
             """
         )
-    rows = db.execute(query, {"modelo_id": modelo_id, "campana": campana}).mappings().all()
+    rows = db.execute(query, params).mappings().all()
     return [dict(row) for row in rows]
 
 

@@ -6,6 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system app && adduser --system --ingroup app app
 
 COPY libs/python/esdata_common /tmp/esdata_common
@@ -18,6 +20,7 @@ RUN sed -i '/esdata_common/d' /tmp/requirements.txt && \
 COPY apps/api/ /app
 COPY alembic.ini /app/alembic.ini
 COPY alembic/ /app/alembic/
+COPY docs/openapi-gpt.json /app/docs/openapi-gpt.json
 
 USER app
 

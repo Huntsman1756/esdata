@@ -1,10 +1,69 @@
+import re
+
+from db import db_session
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from services.search import search_legislacion
 from services.semantic_search import hybrid_search_legislacion
 from services.query_audit import get_query_audit_service
 from schemas import LegislacionSearchResponse
+
+
+def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
+    lowered_query = q.lower()
+    if "modelo" not in lowered_query:
+        return None
+
+    codigos = []
+    for codigo in re.findall(r"\b\d{3}\b", q):
+        if codigo not in codigos:
+            codigos.append(codigo)
+
+    if len(codigos) < 2:
+        return None
+
+    placeholders = ", ".join(f":codigo_{index}" for index, _ in enumerate(codigos))
+    params = {f"codigo_{index}": codigo for index, codigo in enumerate(codigos)}
+
+    with db_session() as db:
+        rows = db.execute(
+            text(
+                """
+                SELECT codigo, nombre, url_info
+                FROM aeat_modelo
+                WHERE codigo IN (""" + placeholders + """)
+                ORDER BY codigo
+                """
+            ),
+            params,
+        ).mappings().all()
+
+    if len(rows) < 2:
+        return None
+
+    return {
+        "q": q,
+        "resultados": [
+            {
+                "tipo": "modelo",
+                "norma": "AEAT",
+                "numero": row["codigo"],
+                "texto": row["nombre"],
+                "fragmento": row["nombre"],
+                "vigente_desde": None,
+                "vigente_hasta": None,
+                "rank": 1.0,
+                "confianza": {
+                    "nivel": 2,
+                    "fuentes": [row["url_info"]] if row.get("url_info") else [],
+                    "aviso": None,
+                },
+            }
+            for row in rows
+        ],
+    }
 
 def _build_legislacion_audit_chunks(result: dict) -> list[dict]:
     chunks: list[dict] = []
@@ -42,7 +101,9 @@ async def buscar(
     norma: str | None = Query(None, description="Filtrar por codigo de norma (LIVA, LIRPF, etc.)"),
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
 ):
-    result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
+    result = _buscar_comparacion_modelos_aeat(q)
+    if result is None:
+        result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
     get_query_audit_service().record_query(
         request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
         user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),

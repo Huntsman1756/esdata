@@ -7,6 +7,8 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from mcp_request_context import is_mcp_internal_request
+
 logger = logging.getLogger(__name__)
 
 # Paths that do NOT require authentication
@@ -37,6 +39,12 @@ class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         if _is_mcp_path(path):
+            return await call_next(request)
+
+        # MCP tool calls execute protected REST operations through an in-process
+        # ASGI client. Those internal subrequests are already authorized by the
+        # outer MCP guard and must not be challenged again with ESDATA_API_KEY.
+        if is_mcp_internal_request():
             return await call_next(request)
 
         # Public paths are always allowed

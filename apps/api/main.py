@@ -24,6 +24,7 @@ from routers import (
     consulta,
     crd_brrd_emir,
     data_lineage,
+    dgt_doctrina,
     doctrina,
     editorial,
     editorial_posiciones,
@@ -111,6 +112,7 @@ for router in (
     buscar.router,
     legislacion.router,
     materias.router,
+    dgt_doctrina.router,
     doctrina.router,
     jurisprudencia.router,
     modelos.router,
@@ -142,8 +144,19 @@ for router in (
 mount_mcp(app)
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_GPT_OPENAPI_PATH = _REPO_ROOT / "docs" / "openapi-gpt.json"
+def _resolve_gpt_openapi_path(current_file: Path | None = None) -> Path:
+    resolved = (current_file or Path(__file__)).resolve()
+    search_roots = [resolved.parent, *resolved.parents]
+
+    for root in search_roots:
+        candidate = root / "docs" / "openapi-gpt.json"
+        if candidate.exists():
+            return candidate
+
+    return resolved.parent / "docs" / "openapi-gpt.json"
+
+
+_GPT_OPENAPI_PATH = _resolve_gpt_openapi_path()
 
 
 @app.get("/gpt-actions/modelos/openapi.json", include_in_schema=False)

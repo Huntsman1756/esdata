@@ -192,3 +192,60 @@ async def test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key():
         names = {tool["name"] for tool in tools.json()["result"]["tools"]}
         assert "buscar" in names
         assert "list_modelos" in names
+
+
+@pytest.mark.asyncio
+async def test_mcp_tool_call_can_execute_protected_rest_operation_without_rest_api_key_collision():
+    async with _uvicorn_server(
+        APP_ENV="production",
+        ESDATA_API_KEY="rest-secret",
+        MCP_API_KEY="mcp-secret",
+        MCP_RATE_LIMIT_PER_MINUTE="20",
+    ) as port:
+        session = requests.Session()
+        headers = {"Accept": "text/event-stream", "X-API-Key": "mcp-secret"}
+        handshake = session.get(f"http://127.0.0.1:{port}/mcp", headers=headers, timeout=5)
+
+        session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get("Mcp-Session-Id")
+        assert session_id
+
+        rpc_headers = {
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "X-API-Key": "mcp-secret",
+            "MCP-Session-ID": session_id,
+        }
+
+        initialize = session.post(
+            f"http://127.0.0.1:{port}/mcp",
+            headers=rpc_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest", "version": "1.0"},
+                },
+            },
+            timeout=5,
+        )
+        assert initialize.status_code == 200
+
+        tool_call = session.post(
+            f"http://127.0.0.1:{port}/mcp",
+            headers=rpc_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "list_modelos", "arguments": {}},
+            },
+            timeout=5,
+        )
+
+    assert tool_call.status_code == 200
+    payload = tool_call.json()
+    assert payload.get("result")
+    assert payload["result"].get("isError") is not True

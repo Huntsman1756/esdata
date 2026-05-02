@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from db import SessionLocal
 from fastapi import APIRouter
-from middleware.metrics import record_worker_metrics
+from middleware.metrics import record_worker_last_errors, record_worker_metrics
 from sqlalchemy import text
 
 router = APIRouter()
@@ -126,6 +126,7 @@ def _build_status_payload():
             if finished_at is not None:
                 lag_seconds = (datetime.now(UTC) - finished_at).total_seconds()
             record_worker_metrics(worker, stale=stale, lag_seconds=lag_seconds)
+            record_worker_last_errors(worker, row["errors"])
             result["workers"][worker] = {
                 "last_run": _serialize_datetime(row["started_at"]),
                 "finished_at": _serialize_datetime(row["finished_at"]),

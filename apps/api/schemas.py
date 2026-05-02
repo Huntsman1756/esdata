@@ -257,7 +257,7 @@ class ModeloCampanaOperativaResponse(BaseModel):
     presentacion_resumen: str | None = Field(default=None, description="Resumen de presentación")
     origen_metadato: str | None = Field(default=None, description="Origen del metadato")
     estado_metadato: str | None = Field(default=None, description="Estado del metadato")
-    fuentes_recomendadas: list[str] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
+    fuentes_recomendadas: list["ModeloFuenteOficial"] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
 
 
 class ModeloCampana(BaseModel):
@@ -346,18 +346,26 @@ class ModeloResumenOperativoResponse(BaseModel):
     campana_activa: str | None = Field(default=None, description="Campaña activa")
     quien_debe_presentarlo: str | None = Field(default=None, description="Quién debe presentarlo")
     plazo_presentacion: str | None = Field(default=None, description="Plazo de presentación")
-    fuentes_recomendadas: list[str] = Field(default_factory=list, description="Fuentes recomendadas")
+    fuentes_recomendadas: list[ModeloFuenteOficial] = Field(default_factory=list, description="Fuentes recomendadas")
+
+
+class ModeloArtefacto(BaseModel):
+    tipo: str = Field(description="Tipo de artefacto")
+    titulo: str = Field(description="Título")
+    url: str = Field(description="URL")
+    campana: str | None = Field(default=None, description="Campaña")
+    boe_id: str | None = Field(default=None, description="ID BOE")
+    fecha: str | None = Field(default=None, description="Fecha")
+    formato: str | None = Field(default=None, description="Formato")
+    oficial: bool = Field(description="Si es un artefacto oficial")
+    nota: str | None = Field(default=None, description="Nota descriptiva")
 
 
 class ModeloArtefactosResponse(BaseModel):
     codigo: str = Field(description="Código del modelo")
-    nombre: str = Field(description="Nombre completo")
-    campana: str | None = Field(default=None, description="Campaña activa")
-    articulos: list[ModeloArticulo] = Field(default_factory=list, description="Artículos")
-    casillas: list[ModeloCasilla] = Field(default_factory=list, description="Casillas")
-    claves: list[ModeloClave] = Field(default_factory=list, description="Claves")
-    instrucciones: list[ModeloInstruccion] = Field(default_factory=list, description="Instrucciones")
-    normativa: list[ModeloNormativa] = Field(default_factory=list, description="Normativa BOE")
+    campana_activa: str | None = Field(default=None, description="Campaña activa")
+    criterio_validacion: str = Field(description="Criterio de validación")
+    artefactos: list[ModeloArtefacto] = Field(default_factory=list, description="Artefactos del modelo")
 
 
 class ModelosCampanasOperativasResponse(BaseModel):
