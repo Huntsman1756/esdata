@@ -30,7 +30,7 @@ from change_detection import (
     record_revision,
 )
 from pypdf import PdfReader
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
 from sqlalchemy import create_engine, text
 
 
@@ -290,9 +290,9 @@ if __name__ == "__main__":
     else:
         print(f"Starting AEPD worker in continuous mode (interval={interval}s)")
         while True:
-            Path("/tmp/worker_heartbeat").touch()
+            touch_heartbeat()
             result = run_sync()
             print(
                 f"Synced documentos={result['processed']}, almacenados={result['stored']} at {datetime.now(UTC).isoformat()}"
             )
-            time.sleep(interval)
+            sleep_with_heartbeat(interval)

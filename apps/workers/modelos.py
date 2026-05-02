@@ -28,7 +28,14 @@ from modelos_support import (
     upsert_claves,
     upsert_instructions,
 )
-from runtime import configure_logging, get_bool_env, get_database_url, get_interval_seconds
+from runtime import (
+    configure_logging,
+    get_bool_env,
+    get_database_url,
+    get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("MODELOS_SYNC_INTERVAL", 86400)
@@ -177,7 +184,7 @@ def run_sync(engine, run_once: bool = False):
     logger.info("Starting modelos worker...")
 
     while True:
-        Path("/tmp/worker_heartbeat").touch()
+        touch_heartbeat()
         result = SyncResult()
         logger.info("=== Syncing model data from AEAT ===")
 
@@ -218,7 +225,7 @@ def run_sync(engine, run_once: bool = False):
             break
 
         logger.info(f"Next sync in {SYNC_INTERVAL_SECONDS}s")
-        time.sleep(SYNC_INTERVAL_SECONDS)
+        sleep_with_heartbeat(SYNC_INTERVAL_SECONDS)
 
 
 def main():

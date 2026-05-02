@@ -17,7 +17,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -389,9 +389,9 @@ if __name__ == "__main__":
     else:
         print(f"Starting TEAC worker in continuous mode (interval={interval}s)")
         while True:
-            Path("/tmp/worker_heartbeat").touch()
+            touch_heartbeat()
             result = run_sync()
             print(
                 f"Synced resoluciones={result['processed']}, almacenadas={result['stored']} at {datetime.now().isoformat()}"
             )
-            time.sleep(interval)
+            sleep_with_heartbeat(interval)

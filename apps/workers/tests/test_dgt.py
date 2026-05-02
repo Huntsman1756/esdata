@@ -1,3 +1,4 @@
+import ssl
 import subprocess
 import sys
 from pathlib import Path
@@ -562,6 +563,42 @@ def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
         run_sync(seed_urls=[])
 
     assert captured["verify"] is False
+
+
+def test_run_sync_uses_ssl_context_with_extra_fnmt_chain_when_verification_enabled(
+    monkeypatch,
+):
+    captured = {}
+
+    def fake_client(*args, **kwargs):
+        captured["verify"] = kwargs.get("verify")
+        raise RuntimeError("stop after client init")
+
+    class FakeConnection:
+        def execute(self, *args, **kwargs):
+            return None
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        def begin(self):
+            return FakeBegin()
+
+    monkeypatch.setattr("dgt.httpx.Client", fake_client)
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dgt.DGT_SSL_VERIFY", True)
+
+    with pytest.raises(RuntimeError, match="stop after client init"):
+        run_sync(seed_urls=[])
+
+    assert isinstance(captured["verify"], ssl.SSLContext)
 
 
 def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):

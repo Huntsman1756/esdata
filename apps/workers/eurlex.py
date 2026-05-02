@@ -30,7 +30,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
 
 EURLEX_BASE = os.getenv(
     "EURLEX_BASE",
@@ -1006,7 +1006,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting EUR-Lex worker in continuous mode (interval={interval}s)")
         while True:
-            Path("/tmp/worker_heartbeat").touch()
+            touch_heartbeat()
             try:
                 result = run_sync()
                 print(
@@ -1016,4 +1016,4 @@ if __name__ == "__main__":
                 )
             except Exception as exc:
                 print(f"[ERROR] EUR-Lex sync failed: {exc} at {datetime.now(UTC).isoformat()}")
-            time.sleep(interval)
+            sleep_with_heartbeat(interval)

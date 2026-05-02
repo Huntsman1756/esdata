@@ -17,8 +17,10 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Protocol
 from urllib.parse import urljoin
 
@@ -30,23 +32,36 @@ from runtime import (
     configure_logging,
     get_database_url,
     get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
 )
 
 logger = configure_logging("worker-aeat-modelos")
 
 AEAT_SEDE = "https://sede.agenciatributaria.gob.es"
 AEAT_MODELOS_PORTAL = (
-    "https://www.sede.agenciatributaria.gob.es/Sede/enlectivo_hacienda/"
-    "modelos-informacion-y-declaraciones/"
+    "https://sede.agenciatributaria.gob.es/Sede/"
+    "presentacion-declaraciones-calendario-contribuyente.html"
 )
 AEAT_USER_AGENT = "Mozilla/5.0 (compatible; esdata-bot/1.0; fiscal data worker)"
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("AEAT_MODELS_SYNC_INTERVAL", 86400)
 DEFAULT_CAMPAIGN = "current"
+PLAYWRIGHT_BROWSERS_PATH = "/tmp/ms-playwright"
+AEAT_SYNC_LOCK_KEY = 88420031
 
 
 class FallbackRequired(RuntimeError):
     """Signal that the HTTP client cannot retrieve usable portal HTML."""
+
+
+def _ensure_playwright_browser_installation() -> None:
+    browser_root = Path(os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", PLAYWRIGHT_BROWSERS_PATH))
+    if browser_root.exists():
+        return
+
+    browser_root.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["playwright", "install", "chromium"], check=True)
 
 
 class AEATPortalClient(Protocol):
@@ -58,7 +73,13 @@ class AEATPortalClient(Protocol):
 
 
 def _has_model_anchors(html: str) -> bool:
-    return bool(re.search(r"href[^>]*modelo", html, flags=re.IGNORECASE))
+    return bool(
+        re.search(
+            r"href[^>]*(modelo_\d{3}_|procedimientoini/)|>\s*modelo\s+[0-9A-Z]{2,4}",
+            html,
+            flags=re.IGNORECASE,
+        )
+    )
 
 
 def _normalize_html(html: str) -> bytes:
@@ -93,6 +114,7 @@ def _infer_campaign(page_text: str, url_info: str | None = None) -> str:
 def _classify_resource(anchor_text: str, url: str) -> tuple[str, str]:
     lowered_text = anchor_text.lower()
     lowered_url = url.lower()
+    resource_hint = f"{lowered_text} {lowered_url}"
 
     if lowered_url.endswith(".pdf"):
         formato = "pdf"
@@ -105,15 +127,15 @@ def _classify_resource(anchor_text: str, url: str) -> tuple[str, str]:
     else:
         formato = "other"
 
-    if "instrucc" in lowered_text:
+    if "instrucc" in resource_hint:
         return ("instrucciones", formato)
-    if "dise" in lowered_text or "registro" in lowered_text:
+    if "dise" in resource_hint or "registro" in resource_hint:
         return ("diseno_registro", formato)
-    if "normativa" in lowered_text or "orden" in lowered_text or "boe" in lowered_text:
+    if "normativa" in resource_hint or "orden" in resource_hint or "boe" in resource_hint:
         return ("normativa", formato)
-    if "ayuda" in lowered_text:
+    if "ayuda" in resource_hint:
         return ("ayuda", formato)
-    if "modelo" in lowered_text or "formulario" in lowered_text:
+    if "modelo" in resource_hint or "formulario" in resource_hint:
         return ("formulario_pdf" if formato == "pdf" else "formulario_html", formato)
     return ("recurso_oficial", formato)
 
@@ -180,6 +202,21 @@ class HttpxClient:
     def fetch_listing(self) -> str:
         html = self._fetch_text(AEAT_MODELOS_PORTAL, "listing")
         if not _has_model_anchors(html):
+            soup = BeautifulSoup(html, "html.parser")
+            next_link = soup.find("a", href=re.compile(r"todas-declaraciones-modelo\.html", re.IGNORECASE))
+            if next_link and next_link.get("href"):
+                html = self._fetch_text(urljoin(AEAT_SEDE, next_link["href"]), "listing-index")
+
+        if not _has_model_anchors(html):
+            soup = BeautifulSoup(html, "html.parser")
+            next_link = soup.find(
+                "a",
+                href=re.compile(r"presentar-consultar-declaraciones-modelo\.html", re.IGNORECASE),
+            )
+            if next_link and next_link.get("href"):
+                html = self._fetch_text(urljoin(AEAT_SEDE, next_link["href"]), "listing-catalog")
+
+        if not _has_model_anchors(html):
             raise FallbackRequired("No anchors in listing; JS or geo-block likely required")
         return html
 
@@ -198,6 +235,8 @@ class HttpxClient:
 
 class PlaywrightClient:
     def __init__(self):
+        os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", PLAYWRIGHT_BROWSERS_PATH)
+        _ensure_playwright_browser_installation()
         from playwright.sync_api import sync_playwright
 
         self._sync_playwright = sync_playwright
@@ -225,10 +264,13 @@ class PlaywrightClient:
             browser = playwright.chromium.launch(headless=True)
             try:
                 page = browser.new_page(user_agent=AEAT_USER_AGENT)
-                response = page.goto(url, wait_until="networkidle", timeout=30000)
-                if response is None:
-                    raise FallbackRequired(f"Playwright did not receive a response for {url}")
-                return response.body()
+                try:
+                    response = page.goto(url, wait_until="networkidle", timeout=30000)
+                    if response is None:
+                        raise FallbackRequired(f"Playwright did not receive a response for {url}")
+                    return response.body()
+                except Exception:
+                    return HttpxClient().fetch_resource(url)
             finally:
                 browser.close()
 
@@ -275,7 +317,14 @@ def _discover_aeat_models(portal_client: AEATPortalClient | None = None) -> list
         match = re.search(r"modelo_(\d{3})_", href)
         if match:
             codigo = match.group(1)
-            url_info = href if href.startswith("http") else urljoin(AEAT_MODELOS_PORTAL, href)
+            url_info = href if href.startswith("http") else urljoin(AEAT_SEDE, href)
+
+        if not codigo:
+            match = re.search(r'/procedimientoini/[^"\s>]+', href, re.IGNORECASE)
+            text_match = re.search(r"modelo\s+([0-9A-Z]{2,4})", text, re.IGNORECASE)
+            if match and text_match:
+                codigo = text_match.group(1).zfill(3)
+                url_info = href if href.startswith("http") else urljoin(AEAT_SEDE, href)
 
         if not codigo and text:
             text_match = re.match(r"^(\d{3})\s*[-–—:]", text)
@@ -312,21 +361,25 @@ def _extract_model_name(raw_text: str, codigo: str) -> str:
     return f"Modelo {codigo}"
 
 
-def _fetch_model_metadata(codigo: str, portal_client: AEATPortalClient | None = None) -> dict | None:
+def _fetch_model_metadata(
+    codigo: str,
+    url_info: str | None = None,
+    portal_client: AEATPortalClient | None = None,
+) -> dict | None:
     client = portal_client or get_portal_client()
-    try:
-        html = client.fetch_listing()
-    except Exception:
-        return None
+    if not url_info:
+        try:
+            html = client.fetch_listing()
+        except Exception:
+            return None
 
-    soup = BeautifulSoup(html, "html.parser")
-    url_info = None
+        soup = BeautifulSoup(html, "html.parser")
 
-    for a_tag in soup.find_all("a", href=True):
-        if re.search(rf"modelo_{codigo}_", a_tag["href"]):
-            href = a_tag["href"]
-            url_info = href if href.startswith("http") else urljoin(AEAT_MODELOS_PORTAL, href)
-            break
+        for a_tag in soup.find_all("a", href=True):
+            if re.search(rf"modelo_{codigo}_", a_tag["href"]):
+                href = a_tag["href"]
+                url_info = href if href.startswith("http") else urljoin(AEAT_MODELOS_PORTAL, href)
+                break
 
     if not url_info:
         logger.warning("Modelo %s not found on portal page", codigo)
@@ -522,6 +575,46 @@ def _touch_modelo_recurso(conn, recurso_id: int, metadata: dict | None = None) -
     )
 
 
+def _reactivate_modelo_recurso(conn, recurso_id: int, metadata: dict | None = None) -> None:
+    conn.execute(
+        text(
+            """
+            UPDATE modelo_recurso
+            SET activa = true,
+                url_recurso = COALESCE(:url_recurso, url_recurso),
+                formato = COALESCE(:formato, formato),
+                last_seen_at = CURRENT_TIMESTAMP,
+                etag = COALESCE(:etag, etag),
+                last_modified = COALESCE(:last_modified, last_modified),
+                content_length = COALESCE(:content_length, content_length),
+                metadata = CAST(:metadata AS JSON)
+            WHERE id = :recurso_id
+            """
+        ),
+        {
+            "recurso_id": recurso_id,
+            "url_recurso": metadata.get("url_recurso") if metadata else None,
+            "formato": metadata.get("formato") if metadata else None,
+            "etag": metadata.get("etag") if metadata else None,
+            "last_modified": metadata.get("last_modified") if metadata else None,
+            "content_length": metadata.get("content_length") if metadata else None,
+            "metadata": json.dumps(metadata or {}),
+        },
+    )
+
+
+def _try_acquire_sync_lock(conn) -> bool:
+    dialect = getattr(getattr(conn, "engine", None), "dialect", None)
+    if getattr(dialect, "name", None) != "postgresql":
+        return True
+
+    row = conn.execute(
+        text("SELECT pg_try_advisory_xact_lock(:lock_key)"),
+        {"lock_key": AEAT_SYNC_LOCK_KEY},
+    ).fetchone()
+    return bool(row[0]) if row else False
+
+
 def _store_modelo_recurso_version(
     conn,
     campana_id: int,
@@ -551,6 +644,21 @@ def _store_modelo_recurso_version(
         _touch_modelo_recurso(conn, existing.id, metadata)
         return "unchanged"
 
+    historical = conn.execute(
+        text(
+            """
+            SELECT id
+            FROM modelo_recurso
+            WHERE campana_id = :campana_id
+              AND tipo_recurso = :tipo_recurso
+              AND sha256_contenido = :sha256
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ),
+        {"campana_id": campana_id, "tipo_recurso": tipo_recurso, "sha256": sha256},
+    ).fetchone()
+
     if existing:
         conn.execute(
             text(
@@ -563,6 +671,18 @@ def _store_modelo_recurso_version(
             ),
             {"id": existing.id},
         )
+
+    if historical:
+        _reactivate_modelo_recurso(
+            conn,
+            historical.id,
+            {
+                **(metadata or {}),
+                "url_recurso": url_recurso,
+                "formato": formato,
+            },
+        )
+        return "unchanged"
 
     conn.execute(
         text(
@@ -616,7 +736,7 @@ def _record_sync_log(conn, started_at: datetime, finished_at: datetime, status: 
     inspector = inspect(conn)
     columns = {column["name"] for column in inspector.get_columns("sync_log")}
     payload = {
-        "worker": "worker-aeat-modelos",
+        "worker": os.getenv("WORKER_NAME", "worker-aeat-modelos").strip() or "worker-aeat-modelos",
         "started_at": started_at,
         "finished_at": finished_at,
         "status": status,
@@ -673,11 +793,30 @@ def _get_existing_codes(conn) -> set[str]:
         return set()
 
 
+def _get_seeded_models(conn) -> list[dict]:
+    rows = conn.execute(
+        text(
+            """
+            SELECT codigo, nombre, url_info
+            FROM aeat_modelo
+            WHERE activo = true
+              AND url_info IS NOT NULL
+            ORDER BY codigo
+            """
+        )
+    ).fetchall()
+    return [
+        {"codigo": row.codigo, "nombre": row.nombre or f"Modelo {row.codigo}", "url_info": row.url_info}
+        for row in rows
+    ]
+
+
 def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
     logger.info("Starting AEAT models discovery worker...")
     portal_client = get_portal_client(force_playwright=force_playwright)
 
     while True:
+        touch_heartbeat()
         started_at = datetime.now(UTC)
         stats = {
             "modelos_descubiertos": 0,
@@ -688,30 +827,53 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
             "errores": 0,
         }
         try:
-            discovered = _discover_aeat_models(portal_client=portal_client)
-            if not discovered:
-                logger.warning("No models discovered, skipping sync")
-                stats["modelos_descubiertos"] = 0
-                finished_at = datetime.now(UTC)
-                with engine.begin() as conn:
-                    _record_sync_log(conn, started_at, finished_at, "partial", stats, "No models discovered")
-                if run_once:
-                    break
-                time.sleep(SYNC_INTERVAL_SECONDS)
-                continue
-
-            discovered_codes = {model["codigo"] for model in discovered}
-            stats["modelos_descubiertos"] = len(discovered_codes)
-            logger.info(
-                "Discovered %d models: %s",
-                len(discovered_codes),
-                ", ".join(sorted(discovered_codes)),
-            )
-
-            upserted = 0
-            skipped = 0
-
             with engine.begin() as conn:
+                if not _try_acquire_sync_lock(conn):
+                    logger.warning("Skipping AEAT sync because another run already holds the lock")
+                    _record_sync_log(
+                        conn,
+                        started_at,
+                        datetime.now(UTC),
+                        "partial",
+                        stats,
+                        "AEAT sync already in progress",
+                    )
+                    if run_once:
+                        break
+                    logger.info("Next sync in %ds", SYNC_INTERVAL_SECONDS)
+                    sleep_with_heartbeat(SYNC_INTERVAL_SECONDS)
+                    continue
+
+                discovered = _discover_aeat_models(portal_client=portal_client)
+                if not discovered:
+                    discovered = _get_seeded_models(conn)
+
+                    if discovered:
+                        logger.warning(
+                            "No models discovered from AEAT portal; falling back to %d seeded models",
+                            len(discovered),
+                        )
+                    else:
+                        logger.warning("No models discovered, skipping sync")
+                        stats["modelos_descubiertos"] = 0
+                        _record_sync_log(conn, started_at, datetime.now(UTC), "partial", stats, "No models discovered")
+                        if run_once:
+                            break
+                        logger.info("Next sync in %ds", SYNC_INTERVAL_SECONDS)
+                        sleep_with_heartbeat(SYNC_INTERVAL_SECONDS)
+                        continue
+
+                discovered_codes = {model["codigo"] for model in discovered}
+                stats["modelos_descubiertos"] = len(discovered_codes)
+                logger.info(
+                    "Discovered %d models: %s",
+                    len(discovered_codes),
+                    ", ".join(sorted(discovered_codes)),
+                )
+
+                upserted = 0
+                skipped = 0
+
                 _get_existing_codes(conn)
 
                 for model in discovered:
@@ -720,7 +882,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                         nombre = model["nombre"]
                         url_info = model["url_info"]
 
-                        metadata = _fetch_model_metadata(codigo, portal_client=portal_client)
+                        metadata = _fetch_model_metadata(codigo, url_info=url_info, portal_client=portal_client)
                         if metadata:
                             nombre = metadata.get("nombre", nombre)
                             url_info = metadata.get("url_info", url_info)
@@ -819,7 +981,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
             break
 
         logger.info("Next sync in %ds", SYNC_INTERVAL_SECONDS)
-        time.sleep(SYNC_INTERVAL_SECONDS)
+        sleep_with_heartbeat(SYNC_INTERVAL_SECONDS)
 
 
 def main():

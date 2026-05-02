@@ -1,5 +1,7 @@
 import logging
 import os
+import time
+from pathlib import Path
 
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata"
@@ -32,6 +34,27 @@ def configure_logging(name: str) -> logging.Logger:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     return logging.getLogger(name)
+
+
+def touch_heartbeat(path: str = "/tmp/worker_heartbeat") -> None:
+    Path(path).touch()
+
+
+def sleep_with_heartbeat(
+    interval_seconds: int,
+    *,
+    chunk_seconds: int = 60,
+    heartbeat_path: str = "/tmp/worker_heartbeat",
+) -> None:
+    if interval_seconds <= 0:
+        return
+
+    remaining = interval_seconds
+    while remaining > 0:
+        touch_heartbeat(heartbeat_path)
+        sleep_for = min(chunk_seconds, remaining)
+        time.sleep(sleep_for)
+        remaining -= sleep_for
 
 
 def init_sentry(worker_name: str) -> None:

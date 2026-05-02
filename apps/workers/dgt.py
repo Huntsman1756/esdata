@@ -22,6 +22,7 @@ import argparse
 import logging
 import os
 import re
+import ssl
 import sys
 import time
 from datetime import UTC, datetime
@@ -36,7 +37,13 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_bool_env, get_database_url, get_interval_seconds
+from runtime import (
+    get_bool_env,
+    get_database_url,
+    get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 from sqlalchemy import create_engine, text
 
 logging.basicConfig(
@@ -67,6 +74,19 @@ DATABASE_URL = get_database_url()
 DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", True)
 DGT_DISCOVERY = get_bool_env("DGT_DISCOVERY", False)
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
+FNMT_INTERMEDIATE_CHAIN = (
+    Path(__file__).resolve().parent / "certs" / "fnmt-ac-componentes-informaticos.pem"
+)
+
+
+def build_dgt_tls_verify() -> bool | ssl.SSLContext:
+    if not DGT_SSL_VERIFY:
+        return False
+
+    context = ssl.create_default_context()
+    if FNMT_INTERMEDIATE_CHAIN.exists():
+        context.load_verify_locations(cafile=str(FNMT_INTERMEDIATE_CHAIN))
+    return context
 
 
 def build_search_payload(num_consulta: str) -> dict[str, str]:
@@ -133,8 +153,21 @@ def _clean_html_text(value: str) -> str:
 
 def parse_search_results(html: str) -> list[dict[str, str]]:
     results = []
+    query_match = re.search(
+        r'<input type="hidden" name="query" id="query" value="(?P<query>[^"]+)"',
+        html,
+        re.DOTALL,
+    )
+    order_match = re.search(
+        r'<input type="hidden" name="order" id="order" value="(?P<order>[^"]+)"',
+        html,
+        re.DOTALL,
+    )
+    query_value = unescape(query_match.group("query")) if query_match else None
+    order_value = unescape(order_match.group("order")) if order_match else None
+
     pattern = re.compile(
-        r'<td id="doc_(?P<doc_id>\d+)"[^>]*>.*?<span class="NUM-CONSULTA">.*?(?P<referencia>V\d{4}-\d{2}).*?'
+        r'<td id="doc_(?P<doc_id>\d+)"[^>]*(?:onClick="return viewDocument\(\d+,\s*(?P<tab>\d+)\);")?[^>]*>.*?<span class="NUM-CONSULTA">.*?(?P<referencia>V\d{4}-\d{2}).*?'
         r'<span class="DESCRIPCION-HECHOS">(?P<hechos>.*?)</span>.*?'
         r'<span class="CUESTION-PLANTEADA"><i>(?P<cuestion>.*?)</i></span>',
         re.DOTALL,
@@ -144,6 +177,9 @@ def parse_search_results(html: str) -> list[dict[str, str]]:
         results.append(
             {
                 "doc_id": match.group("doc_id"),
+                "query": query_value,
+                "order": order_value,
+                "tab": match.group("tab") or "2",
                 "referencia": match.group("referencia"),
                 "hechos": _clean_html_text(match.group("hechos")),
                 "cuestion": _clean_html_text(match.group("cuestion")),
@@ -206,6 +242,11 @@ def _extract_num_consulta(url: str) -> str:
 
 
 def _build_document_payload(search_result: dict[str, str]) -> tuple[str, str, str]:
+    query = search_result.get("query")
+    order = search_result.get("order")
+    if query and order:
+        return (query, order, search_result["doc_id"])
+
     referencia = search_result["referencia"]
     return (
         f".EN NUM-CONSULTA ({referencia})",
@@ -338,8 +379,10 @@ def run_sync(
         with httpx.Client(
             base_url=BASE_URL,
             timeout=60.0,
-            verify=DGT_SSL_VERIFY,
+            verify=build_dgt_tls_verify(),
         ) as client:
+            start_session(client)
+
             # Phase 1: Ensure seed URLs are in the queue
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
@@ -442,6 +485,8 @@ def run_sync(
                 ensure_source_revision_table(conn)
 
             while True:
+                start_session(client)
+
                 with engine.begin() as conn:
                     pending = _get_pending_urls(conn, worker_name, limit=batch_size)
 
@@ -475,7 +520,13 @@ def run_sync(
                             continue
 
                         query, order, doc_id = _build_document_payload(results[0])
-                        document_html = fetch_document_html(client, query, order, doc_id)
+                        document_html = fetch_document_html(
+                            client,
+                            query,
+                            order,
+                            doc_id,
+                            results[0].get("tab", "2"),
+                        )
                         document = parse_document_html(document_html)
                         batch_processed += 1
 
@@ -616,7 +667,7 @@ if __name__ == "__main__":
     else:
         print(f"Starting DGT worker in continuous mode (interval={interval}s)")
         while True:
-            Path("/tmp/worker_heartbeat").touch()
+            touch_heartbeat()
             try:
                 result = run_sync()
                 discovered = result.get("discovered", 0)
@@ -626,4 +677,4 @@ if __name__ == "__main__":
                 )
             except Exception as exc:
                 print(f"[ERROR] DGT sync failed: {exc} at {datetime.now().isoformat()}")
-            time.sleep(interval)
+            sleep_with_heartbeat(interval)
