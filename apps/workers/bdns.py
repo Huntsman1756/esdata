@@ -1,10 +1,9 @@
 import argparse
+from datetime import UTC, datetime
+from io import BytesIO
 import os
 import re
 import time
-from datetime import UTC, datetime
-from pathlib import Path
-from io import BytesIO
 from urllib.parse import urlparse
 
 import httpx
@@ -17,7 +16,7 @@ from change_detection import (
     record_revision,
 )
 from pypdf import PdfReader
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
 from sqlalchemy import create_engine, text
 
 
@@ -152,7 +151,6 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
-    sync_start = datetime.now(UTC).isoformat()
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
@@ -244,9 +242,9 @@ if __name__ == "__main__":
     else:
         print(f"Starting BDNS worker in continuous mode (interval={interval}s)")
         while True:
-            Path("/tmp/worker_heartbeat").touch()
+            touch_heartbeat()
             result = run_sync()
             print(
                 f"Synced convocatorias={result['processed']}, almacenadas={result['stored']} at {datetime.utcnow().isoformat()}"
             )
-            time.sleep(interval)
+            sleep_with_heartbeat(interval)

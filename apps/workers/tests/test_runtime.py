@@ -44,3 +44,15 @@ def test_sleep_with_heartbeat_skips_non_positive_intervals(monkeypatch):
 
     assert touched == []
     assert slept == []
+
+
+def test_sleep_with_heartbeat_uses_custom_touch_function(monkeypatch):
+    touched = []
+    slept = []
+
+    monkeypatch.setattr(runtime.time, "sleep", slept.append)
+
+    runtime.sleep_with_heartbeat(125, chunk_seconds=60, touch_fn=lambda: touched.append("touch"))
+
+    assert touched == ["touch", "touch", "touch"]
+    assert slept == [60, 60, 5]

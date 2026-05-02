@@ -45,13 +45,15 @@ def sleep_with_heartbeat(
     *,
     chunk_seconds: int = 60,
     heartbeat_path: str = "/tmp/worker_heartbeat",
+    touch_fn=None,
 ) -> None:
     if interval_seconds <= 0:
         return
 
+    heartbeat_touch = touch_fn or (lambda: touch_heartbeat(heartbeat_path))
     remaining = interval_seconds
     while remaining > 0:
-        touch_heartbeat(heartbeat_path)
+        heartbeat_touch()
         sleep_for = min(chunk_seconds, remaining)
         time.sleep(sleep_for)
         remaining -= sleep_for

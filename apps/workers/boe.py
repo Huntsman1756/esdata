@@ -1037,6 +1037,7 @@ def run_sync(
                 with engine.begin() as conn:
                     upsert_norma(conn, metadata)
                     for item in fetch_index(client, boe_id):
+                        touch_heartbeat()
                         if not _is_supported_block(item.titulo):
                             continue
                         if only_block_ids and item.id not in only_block_ids:

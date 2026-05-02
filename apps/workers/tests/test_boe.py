@@ -1423,3 +1423,90 @@ def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch
         ).fetchall()
 
     assert [w[0] for w in workers] == ["worker-boe", "cron-boe-daily"]
+
+
+def test_run_sync_touches_heartbeat_during_long_boe_processing(monkeypatch):
+    from boe import run_sync
+
+    heartbeat_calls = []
+
+    class FakeConnection:
+        def execute(self, *args, **kwargs):
+            return type("Result", (), {"scalar": lambda self: 0})()
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeConnect(FakeBegin):
+        pass
+
+    class FakeDialect:
+        name = "sqlite"
+
+    class FakeEngine:
+        dialect = FakeDialect()
+
+        def begin(self):
+            return FakeBegin()
+
+        def connect(self):
+            return FakeConnect()
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr("boe.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("boe.httpx.Client", lambda *args, **kwargs: FakeClient())
+    monkeypatch.setattr("boe.DEFAULT_NORMAS", {"LIVA": "BOE-A-1992-28740"})
+    monkeypatch.setattr("boe.KNOWN_BOE_CODES", {"LIVA"})
+    monkeypatch.setattr(
+        "boe.fetch_metadata",
+        lambda client, codigo, boe_id: NormaMetadata(
+            codigo="LIVA",
+            titulo="Ley 37/1992",
+            boe_id="BOE-A-1992-28740",
+            eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
+            jurisdiccion="es",
+            tipo_fuente="boe",
+            tipo_documento="ley",
+            ambito="tributario",
+            estado_cobertura="ingestada",
+            vigente_desde="1993-01-01",
+        ),
+    )
+    monkeypatch.setattr(
+        "boe.fetch_index",
+        lambda client, boe_id: [type("Idx", (), {"id": "art1", "titulo": "Artículo 1"})()],
+    )
+    monkeypatch.setattr(
+        "boe.fetch_block",
+        lambda client, boe_id, block_id: BloqueTexto(
+            bloque_id="art1",
+            tipo_bloque="articulo",
+            numero="1",
+            titulo="Artículo 1",
+            tipo_articulo="articulo",
+            texto="texto",
+            vigente_desde="1993-01-01",
+        ),
+    )
+    monkeypatch.setattr("boe._ensure_schema", lambda conn: None)
+    monkeypatch.setattr("boe.upsert_norma", lambda conn, metadata: None)
+    monkeypatch.setattr("boe.upsert_articulo", lambda conn, codigo, bloque: None)
+    monkeypatch.setattr("boe.auto_link_materias", lambda conn: None)
+    monkeypatch.setattr("boe.auto_link_doctrina", lambda conn: None)
+    monkeypatch.setattr("boe.log_sync", lambda *args, **kwargs: None)
+    monkeypatch.setattr("boe.touch_heartbeat", lambda: heartbeat_calls.append("touch"))
+    monkeypatch.setattr("boe.time.sleep", lambda seconds: None)
+
+    run_sync(codigos=["LIVA"])
+
+    assert heartbeat_calls == ["touch"]

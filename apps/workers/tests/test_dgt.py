@@ -775,3 +775,75 @@ def test_fetch_search_html_for_discovery_returns_none(monkeypatch):
     """fetch_search_html_for_discovery is deprecated — always returns None."""
     from dgt import fetch_search_html_for_discovery
     assert fetch_search_html_for_discovery("V2274-22") is None
+
+
+def test_run_sync_touches_heartbeat_during_long_processing(monkeypatch):
+    heartbeat_calls = []
+    pending_batches = [
+        [("https://example.invalid/?num_consulta=V0001-26", "V0001-26")],
+        [],
+    ]
+
+    class FakeConnection:
+        def execute(self, *args, **kwargs):
+            query = str(args[0]) if args else ""
+            if "SELECT source_entity_id" in query:
+                return type("Result", (), {"fetchall": lambda self: []})()
+            if "FROM source_revision" in query and "content_hash_sha256 = 'pending'" in query:
+                return type("Result", (), {"fetchall": lambda self: [("https://example.invalid/?num_consulta=V0001-26", "V0001-26")]})()
+            return type("Result", (), {"fetchall": lambda self: [], "fetchone": lambda self: None})()
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        def begin(self):
+            return FakeBegin()
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr("dgt.DGT_DISCOVERY", False)
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt.httpx.Client", lambda *args, **kwargs: FakeClient())
+    monkeypatch.setattr("dgt.start_session", lambda client: None)
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.ensure_source_revision_table", lambda conn: None)
+    monkeypatch.setattr("dgt._ensure_dgt_queue", lambda conn, worker_name, seed_list: None)
+    monkeypatch.setattr("dgt._get_pending_urls", lambda conn, worker_name, limit=100: pending_batches.pop(0))
+    monkeypatch.setattr("dgt._extract_num_consulta", lambda url: "V0001-26")
+    monkeypatch.setattr("dgt.fetch_search_html", lambda client, num_consulta: "search")
+    monkeypatch.setattr("dgt.parse_search_results", lambda html: [{"tab": "2"}])
+    monkeypatch.setattr("dgt._build_document_payload", lambda result: ("q", "o", "id"))
+    monkeypatch.setattr("dgt.fetch_document_html", lambda *args, **kwargs: "document")
+    monkeypatch.setattr(
+        "dgt.parse_document_html",
+        lambda html: {
+            "referencia": "V0001-26",
+            "fecha": "2026-01-15",
+            "texto": "texto",
+            "normas_objetivo": ["LIVA"],
+        },
+    )
+    monkeypatch.setattr("dgt._build_titulo", lambda document: "titulo")
+    monkeypatch.setattr(
+        "dgt.check_content_changed",
+        lambda *args, **kwargs: type("Change", (), {"changed": False, "old_hash": "old", "new_hash": None})(),
+    )
+    monkeypatch.setattr("dgt._mark_done", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dgt.auto_link_doctrina", lambda conn: 0)
+    monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dgt.touch_heartbeat", lambda: heartbeat_calls.append("touch"))
+    monkeypatch.setattr("dgt.time.sleep", lambda seconds: None)
+
+    run_sync(seed_urls=[])
+
+    assert heartbeat_calls == ["touch"]

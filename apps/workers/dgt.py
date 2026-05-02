@@ -499,6 +499,7 @@ def run_sync(
                 batch_links = 0
 
                 for url, entity_id in pending:
+                    touch_heartbeat()
                     try:
                         num_consulta = _extract_num_consulta(url)
                         search_html = fetch_search_html(client, num_consulta)
