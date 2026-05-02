@@ -22,7 +22,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -49,6 +49,7 @@ SYNC_INTERVAL_SECONDS = get_interval_seconds("AEAT_MODELS_SYNC_INTERVAL", 86400)
 DEFAULT_CAMPAIGN = "current"
 PLAYWRIGHT_BROWSERS_PATH = "/tmp/ms-playwright"
 AEAT_SYNC_LOCK_KEY = 88420031
+AEAT_RESOURCE_FETCH_RETRIES = 3
 
 
 class FallbackRequired(RuntimeError):
@@ -69,7 +70,7 @@ class AEATPortalClient(Protocol):
 
     def fetch_detail(self, url: str) -> str: ...
 
-    def fetch_resource(self, url: str) -> bytes: ...
+    def fetch_resource(self, url: str) -> bytes | None: ...
 
 
 def _has_model_anchors(html: str) -> bool:
@@ -92,6 +93,31 @@ def _normalize_html(html: str) -> bytes:
 
 def _sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
+
+def _normalize_aeat_url(url: str) -> str:
+    normalized = url.strip()
+    if normalized.startswith("ttps://"):
+        normalized = "h" + normalized
+    elif normalized.startswith("//"):
+        normalized = "https:" + normalized
+    elif not normalized.startswith(("http://", "https://")):
+        normalized = "https://" + normalized.lstrip("/")
+    return normalized
+
+
+def _is_official_model_resource(url: str) -> bool:
+    host = urlparse(_normalize_aeat_url(url)).netloc.lower()
+    return host in {
+        "sede.agenciatributaria.gob.es",
+        "www1.agenciatributaria.gob.es",
+        "www.boe.es",
+    }
+
+
+def _is_valid_aeat_page(html: str) -> bool:
+    lowered = html.lower()
+    return "erro4033.html" not in lowered and "acceso denegado" not in lowered
 
 
 def _infer_campaign(page_text: str, url_info: str | None = None) -> str:
@@ -158,7 +184,7 @@ def _extract_model_resources(detail_html: str, detail_url: str) -> list[dict]:
         if not href or href.startswith("javascript:") or href.startswith("#"):
             continue
 
-        url_recurso = href if href.startswith("http") else urljoin(detail_url, href)
+        url_recurso = _normalize_aeat_url(href if href.startswith("http") else urljoin(detail_url, href))
         anchor_text = a_tag.get_text(" ", strip=True)
         tipo_recurso, formato = _classify_resource(anchor_text, url_recurso)
         key = (tipo_recurso, url_recurso)
@@ -223,14 +249,28 @@ class HttpxClient:
     def fetch_detail(self, url: str) -> str:
         return self._fetch_text(url, "detail")
 
-    def fetch_resource(self, url: str) -> bytes:
-        try:
-            with self._build_client() as client:
-                resp = client.get(url)
-                resp.raise_for_status()
-                return resp.content
-        except Exception as exc:
-            raise FallbackRequired(f"HTTP resource fetch failed for {url}: {exc}") from exc
+    def fetch_resource(self, url: str) -> bytes | None:
+        last_exc: Exception | None = None
+        for attempt in range(1, AEAT_RESOURCE_FETCH_RETRIES + 1):
+            try:
+                with self._build_client() as client:
+                    resp = client.get(url)
+                    resp.raise_for_status()
+                    return resp.content
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "AEAT resource fetch failed for %s on attempt %d/%d: %s",
+                    url,
+                    attempt,
+                    AEAT_RESOURCE_FETCH_RETRIES,
+                    exc,
+                )
+                if attempt < AEAT_RESOURCE_FETCH_RETRIES:
+                    time.sleep(2 ** (attempt - 1))
+
+        logger.error("AEAT resource fetch exhausted retries for %s: %s", url, last_exc)
+        return None
 
 
 class PlaywrightClient:
@@ -259,7 +299,7 @@ class PlaywrightClient:
     def fetch_detail(self, url: str) -> str:
         return self._render_page(url)
 
-    def fetch_resource(self, url: str) -> bytes:
+    def fetch_resource(self, url: str) -> bytes | None:
         with self._sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             try:
@@ -389,6 +429,10 @@ def _fetch_model_metadata(
         model_html = client.fetch_detail(url_info)
     except Exception:
         return {"codigo": codigo, "url_info": url_info}
+
+    if not _is_valid_aeat_page(model_html):
+        logger.warning("AEAT blocked detail page for modelo %s: %s", codigo, url_info)
+        return None
 
     model_soup = BeautifulSoup(model_html, "html.parser")
     page_text = model_soup.get_text(" ", strip=True).lower()
@@ -873,6 +917,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
 
                 upserted = 0
                 skipped = 0
+                skipped_resource_failures = 0
 
                 _get_existing_codes(conn)
 
@@ -920,7 +965,22 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                             if recurso["tipo_recurso"] == "pagina_modelo":
                                 payload = recurso["payload"]
                             else:
+                                if not _is_official_model_resource(recurso["url_recurso"]):
+                                    logger.info(
+                                        "Skipping non-official resource %s for modelo %s",
+                                        recurso["url_recurso"],
+                                        codigo,
+                                    )
+                                    continue
                                 payload = portal_client.fetch_resource(recurso["url_recurso"])
+                                if payload is None:
+                                    skipped_resource_failures += 1
+                                    logger.warning(
+                                        "Skipping official resource %s for modelo %s after fetch failures",
+                                        recurso["url_recurso"],
+                                        codigo,
+                                    )
+                                    continue
                                 stats["recursos_descargados"] += 1
 
                             outcome = _store_modelo_recurso_version(
@@ -951,8 +1011,13 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                     conn,
                     started_at,
                     datetime.now(UTC),
-                    "ok" if stats["errores"] == 0 else "partial",
+                    "ok" if stats["errores"] == 0 and skipped_resource_failures == 0 else "partial",
                     stats,
+                    (
+                        f"Skipped {skipped_resource_failures} AEAT official resources after fetch failures"
+                        if skipped_resource_failures
+                        else None
+                    ),
                 )
 
             logger.info(
