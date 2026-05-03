@@ -10,7 +10,6 @@ Modo hibrido:
 """
 
 import argparse
-import json
 import os
 import sys
 import time
@@ -30,7 +29,13 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
+from runtime import (
+    ensure_database_connection,
+    get_database_url,
+    get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 
 EURLEX_BASE = os.getenv(
     "EURLEX_BASE",
@@ -807,6 +812,7 @@ def run_sync(  # noqa: C901
 ) -> dict[str, int]:
     """Run a full sync cycle: seed CELEXs + SPARQL discovery."""
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     bloques_fetched = 0
     articulos_upserted = 0
     normas_upserted = 0

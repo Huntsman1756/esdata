@@ -38,6 +38,7 @@ from change_detection import (
     record_revision,
 )
 from runtime import (
+    ensure_database_connection,
     get_bool_env,
     get_database_url,
     get_interval_seconds,
@@ -374,6 +375,7 @@ def run_sync(
     total_discovered = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine, logger=logger)
 
     try:
         with httpx.Client(

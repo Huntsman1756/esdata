@@ -5,14 +5,13 @@ for accounting concept lookups, labels, and metadata.
 """
 
 import argparse
-from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
 if __package__:
-    from .runtime import get_database_url
+    pass
 else:
-    from runtime import get_database_url
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -491,7 +490,10 @@ def _insert_do_nothing_sql(table_name: str, columns: tuple[str, ...], conflict_t
 
 
 def run_seed(*, engine=None):
+    from runtime import ensure_database_connection, get_database_url
+
     engine = engine or create_engine(get_database_url(), future=True)
+    ensure_database_connection(engine)
     return seed_taxonomy(engine=engine)
 
 
