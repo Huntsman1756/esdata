@@ -50,9 +50,26 @@ Archivo relevante:
 apps/api/mcp_stdio.py
 ```
 
-## Herramientas MCP relevantes hoy
+## Superficie soportada hoy
 
-Catalogo compartido actual:
+La superficie MCP no es unica: `HTTP` y `stdio` no exponen el mismo catalogo.
+
+### HTTP MCP (`/mcp`)
+
+El transporte HTTP expone operaciones REST estructuradas definidas en `apps/api/mcp_catalog.py` bajo `HTTP_MCP_OPERATIONS`.
+
+Cobertura actual principal:
+
+- legislacion: `list_legislacion`, `get_norma`, `list_articulos`, `get_articulo`, `get_articulo_historial`, `buscar`, `buscar_legislacion`
+- materias: `list_materias`, `get_materia`
+- doctrina: `buscar_doctrina`, `get_doctrina`
+- modelos AEAT: `list_modelos`, `get_modelo*`, `get_modelo_fuentes_oficiales`
+
+### stdio MCP (`apps/api/mcp_stdio.py`)
+
+El servidor stdio expone herramientas de mas alto nivel orientadas a agentes/LLMs locales.
+
+Catalogo actual de stdio:
 
 - `consulta_fiscal`
 - `listar_obligaciones_operativas`
@@ -62,6 +79,11 @@ Catalogo compartido actual:
 - `agente_consulta`
 - `agente_monitoreo_status`
 - `agente_compliance_resumen`
+
+Regla practica:
+
+- no asumir que una tool visible en stdio existe tambien en HTTP MCP
+- no documentar una tool como "MCP general" sin indicar explicitamente si pertenece a `HTTP` o a `stdio`
 
 ## Casos de uso recomendados
 
@@ -79,18 +101,18 @@ Usar `API` normal cuando:
 
 ## Ejemplos conceptuales de uso
 
-`consulta_fiscal`:
+`consulta_fiscal` (solo stdio hoy):
 
 - pregunta: `modelo 216 como rellenar`
 - entrada: `q` obligatorio, con `sujeto`, `pais` y `tipo_operacion` opcionales
 - salida: texto resumido para el LLM y contenido estructurado subyacente
 
-`listar_obligaciones_aplicables`:
+`listar_obligaciones_aplicables` (solo stdio hoy):
 
 - perfil por defecto: `sociedad_valores`
 - flags utiles: `reporting_reservado`, `aml_cft_reforzado`, `cross_border_ue`
 
-`get_obligacion_completa`:
+`get_obligacion_completa` (solo stdio hoy):
 
 - entrada: codigo de obligacion
 - utilidad: recuperar plazos, sanciones, recargos y documentos relacionados

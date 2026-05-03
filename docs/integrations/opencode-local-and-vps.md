@@ -51,6 +51,18 @@ Usar ambos:
 - `MCP_API_KEY` configurada cuando el servicio no sea estrictamente local
 - `OpenCode` configurado para llamar al endpoint MCP correcto
 
+## Alcance exacto de esta guia
+
+Esta guia cubre el uso de `OpenCode` contra el transporte **HTTP MCP** montado en `/mcp`.
+
+No cubre el servidor `stdio` de `apps/api/mcp_stdio.py`.
+
+Regla practica:
+
+- `OpenCode remoto/local via URL` -> usa `HTTP MCP`
+- `stdio` queda reservado para integraciones locales que lancen un proceso hijo explicitamente
+- no asumir que las tools de `stdio` estan disponibles en el endpoint HTTP `/mcp`
+
 ## Modo local
 
 ### Levantar la API localmente
@@ -88,6 +100,7 @@ La configuracion exacta depende del cliente MCP de `OpenCode`, pero el contrato 
 - endpoint MCP: `http://127.0.0.1:8000/mcp`
 - cabecera opcional: `X-API-Key`
 - handshake MCP por `text/event-stream`
+- superficie actual: operaciones REST estructuradas del catalogo HTTP, no las tools de alto nivel del servidor stdio
 
 Si `OpenCode` permite definir un servidor MCP HTTP, usa:
 

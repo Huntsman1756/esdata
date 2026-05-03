@@ -6,6 +6,9 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ## 2026-05-03
 
+### fix/mcp-phase-0-1
+- **PENDING** `fix(api)` — Fase 0.1 del plan MCP: separar explicitamente la superficie `HTTP MCP` de la superficie `stdio` en codigo y documentacion. `apps/api/mcp_catalog.py` vuelve a exponer `get_stdio_tool_definitions()`, `apps/api/mcp_security.py` rechaza `GET /mcp` sin `Accept: text/event-stream` con `406`, y el manual/integraciones dejan de presentar `consulta_fiscal` y `agente_consulta` como tools del endpoint HTTP `/mcp`. Evidencia fresca: `python -m pytest apps/api/tests/test_mcp_private.py apps/api/tests/test_mcp_contract.py apps/api/tests/test_agent_layer.py -q` -> `25 passed`.
+
 ### docs/mcp-remediation-plan
 - **PENDING** `docs(reference)` — auditoria transversal del repo convertida en plan ejecutable de remediacion MCP por fases. Se anade `docs/reference/mcp-remediation-plan.md`, se actualizan `docs/master-execution-roadmap.md`, `docs/README.md`, `docs/operations/README.md` y `docs/operations/agent-notes.md` para dejar el siguiente paso exacto y la memoria operativa reutilizable de la cadena de confianza MCP.
 

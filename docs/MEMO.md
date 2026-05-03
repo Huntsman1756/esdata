@@ -4,6 +4,20 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ---
 
+## fix/mcp-phase-0-1
+
+### Resumen
+Ejecucion de la Fase 0.1 del plan MCP: congelar la superficie canonica antes de tocar contratos, audit trail o retrieval. Se confirma y corrige el drift principal del slice: `HTTP MCP` y `stdio MCP` ya existian como superficies distintas en codigo, pero parte de la documentacion viva seguia tratandolas como si compartieran catalogo. El slice reintroduce `get_stdio_tool_definitions()` en `mcp_catalog.py`, endurece el guard `GET /mcp` al comportamiento ya asumido por los tests (`406` sin `Accept: text/event-stream`) y alinea manual/integraciones para que `consulta_fiscal` y `agente_consulta` queden explicitamente como tools de `stdio`, no de HTTP `/mcp`.
+
+### Commits recientes
+| Commit | Tipo | Descripcion | Archivos afectados |
+|--------|------|-------------|-------------------|
+| PENDING | fix(api) | Fase 0.1 MCP: separar HTTP vs stdio en catalogo, guard y documentacion viva; tests MCP del slice verdes | apps/api/mcp_catalog.py, apps/api/mcp_security.py, apps/api/tests/test_mcp_private.py, apps/api/tests/test_mcp_contract.py, docs/manual-usuario/03-superficies-disponibles.md, docs/manual-usuario/07-mcp-y-clientes.md, docs/manual-usuario/10-casos-de-uso-por-perfil.md, docs/integrations/opencode-local-and-vps.md, docs/architecture.md, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
+
+### Notas
+- Verificacion fresca del slice: `python -m pytest apps/api/tests/test_mcp_private.py apps/api/tests/test_mcp_contract.py apps/api/tests/test_agent_layer.py -q` -> `25 passed`.
+- El siguiente slice autorizado por roadmap es `Fase 0.2`: fijar el contrato minimo obligatorio de respuesta MCP antes de crear las golden questions.
+
 ## docs/mcp-remediation-plan
 
 ### Resumen

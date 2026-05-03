@@ -87,18 +87,18 @@ En el estado actual, el endpoint HTTP MCP se monta en `/mcp`.
 
 La exposicion HTTP del MCP esta protegida por un guard especifico y rate limiting para esa ruta.
 
-Ademas existe una implementacion `stdio` en `apps/api/mcp_stdio.py` y un catalogo compartido de herramientas en `apps/api/mcp_catalog.py`.
+Ademas existe una implementacion `stdio` en `apps/api/mcp_stdio.py` y un modulo de catalogo MCP en `apps/api/mcp_catalog.py` que hoy separa explicitamente la superficie HTTP de la superficie stdio.
+
+Regla importante:
+
+- `HTTP MCP` y `stdio` no comparten el mismo catalogo funcional
+- `HTTP MCP` expone operaciones REST estructuradas del backend
+- `stdio` expone tools de alto nivel como `consulta_fiscal` y `agente_consulta`
 
 Herramientas MCP compartidas relevantes hoy:
 
-- `consulta_fiscal`
-- `listar_obligaciones_operativas`
-- `listar_obligaciones_aplicables`
-- `listar_deadlines`
-- `get_obligacion_completa`
-- `agente_consulta`
-- `agente_monitoreo_status`
-- `agente_compliance_resumen`
+- HTTP MCP: operaciones de legislacion, doctrina, materias y modelos AEAT definidas en `HTTP_MCP_OPERATIONS`
+- stdio MCP: `consulta_fiscal`, `listar_obligaciones_operativas`, `listar_obligaciones_aplicables`, `listar_deadlines`, `get_obligacion_completa`, `agente_consulta`, `agente_monitoreo_status`, `agente_compliance_resumen`
 
 Regla permanente del repo:
 

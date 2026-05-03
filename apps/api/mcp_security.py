@@ -26,6 +26,18 @@ async def guard_mcp_http(request: Request, call_next):
     if not request.url.path.startswith("/mcp"):
         return await call_next(request)
 
+    if request.method == "GET":
+        accept = request.headers.get("accept", "")
+        if "text/event-stream" not in accept.lower():
+            response = JSONResponse(
+                {"detail": "MCP requires Accept: text/event-stream for GET requests"},
+                status_code=406,
+            )
+            request_id = request.headers.get("x-request-id")
+            if request_id:
+                response.headers["X-Request-ID"] = request_id
+            return response
+
     required_key = _required_api_key()
     if not required_key:
         return await call_next(request)
