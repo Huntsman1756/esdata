@@ -26,15 +26,15 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from sqlalchemy import create_engine, inspect, text
-
 from runtime import (
     configure_logging,
+    ensure_database_connection,
     get_database_url,
     get_interval_seconds,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
+from sqlalchemy import create_engine, inspect, text
 
 logger = configure_logging("worker-aeat-modelos")
 
@@ -1072,6 +1072,7 @@ def main():
     logger.info("Force Playwright: %s", args.force_playwright)
 
     engine = create_engine(db_url)
+    ensure_database_connection(engine, logger=logger)
     run_sync(engine, run_once=args.run_once, force_playwright=args.force_playwright)
 
 
