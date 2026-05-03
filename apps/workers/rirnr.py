@@ -38,7 +38,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_bool_env, get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_bool_env, get_database_url, get_interval_seconds
 from sqlalchemy import create_engine, text
 
 # RIRNR = Real Decreto 435/1995, de 27 de marzo
@@ -59,10 +59,12 @@ def run_sync(
     processed = 0
     articulos_upserted = 0
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     sync_start = datetime.now(UTC).isoformat()
+    ssl_verify = get_bool_env("RIRNR_SSL_VERIFY", RIRNR_SSL_VERIFY)
 
     try:
-        with httpx.Client(timeout=60.0, verify=RIRNR_SSL_VERIFY) as client, engine.begin() as conn:
+        with httpx.Client(timeout=60.0, verify=ssl_verify) as client, engine.begin() as conn:
             _create_base_schema(conn)
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
@@ -161,42 +163,60 @@ def log_sync(conn, worker_name, status, **kwargs):
     started_at = kwargs.get("started_at") or datetime.now(UTC).isoformat()
     finished_at = datetime.now(UTC).isoformat()
     duration_ms = max(0, int((datetime.fromisoformat(finished_at) - datetime.fromisoformat(started_at)).total_seconds() * 1000))
+    if conn.engine.dialect.name == "sqlite":
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(sync_log)"))}
+    else:
+        columns = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT column_name FROM information_schema.columns WHERE table_name = 'sync_log'")
+            )
+        }
+
+    values = {
+        "worker": worker_name,
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "status": status,
+        "bloques_processed": kwargs.get("bloques_processed", 0),
+        "articulos_upserted": kwargs.get("articulos_upserted", 0),
+        "documentos_processed": kwargs.get("documentos_processed", 0),
+        "documentos_upserted": kwargs.get("documentos_upserted", 0),
+        "doctrina_links_created": kwargs.get("doctrina_links_created", 0),
+        "error_msg": kwargs.get("error_msg"),
+        "rows_processed": max(
+            kwargs.get("bloques_processed", 0),
+            kwargs.get("articulos_upserted", 0),
+            kwargs.get("documentos_processed", 0),
+            kwargs.get("documentos_upserted", 0),
+            kwargs.get("doctrina_links_created", 0),
+        ),
+        "errors": 0 if not kwargs.get("error_msg") else 1,
+        "duration_ms": duration_ms,
+    }
+
+    ordered_columns = [
+        "worker",
+        "started_at",
+        "finished_at",
+        "status",
+        "bloques_processed",
+        "articulos_upserted",
+        "documentos_processed",
+        "documentos_upserted",
+        "doctrina_links_created",
+        "error_msg",
+        "rows_processed",
+        "errors",
+        "duration_ms",
+    ]
+    insert_columns = [column for column in ordered_columns if column in columns]
+    placeholders = ", ".join(f":{column}" for column in insert_columns)
     conn.execute(
         text(
-            """
-            INSERT INTO sync_log (worker, started_at, finished_at, status,
-                                  bloques_processed, articulos_upserted,
-                                  documentos_processed, documentos_upserted,
-                                  doctrina_links_created, error_msg,
-                                  rows_processed, errors, duration_ms)
-            VALUES (:worker, :started_at, :finished_at, :status,
-                    :bloques_processed, :articulos_upserted,
-                    :documentos_processed, :documentos_upserted,
-                    :doctrina_links_created, :error_msg,
-                    :rows_processed, :errors, :duration_ms)
-            """
+            f"INSERT INTO sync_log ({', '.join(insert_columns)}) VALUES ({placeholders})"
         ),
-        {
-            "worker": worker_name,
-            "started_at": started_at,
-            "finished_at": finished_at,
-            "status": status,
-            "bloques_processed": kwargs.get("bloques_processed", 0),
-            "articulos_upserted": kwargs.get("articulos_upserted", 0),
-            "documentos_processed": kwargs.get("documentos_processed", 0),
-            "documentos_upserted": kwargs.get("documentos_upserted", 0),
-            "doctrina_links_created": kwargs.get("doctrina_links_created", 0),
-            "error_msg": kwargs.get("error_msg"),
-            "rows_processed": max(
-                kwargs.get("bloques_processed", 0),
-                kwargs.get("articulos_upserted", 0),
-                kwargs.get("documentos_processed", 0),
-                kwargs.get("documentos_upserted", 0),
-                kwargs.get("doctrina_links_created", 0),
-            ),
-            "errors": 0 if not kwargs.get("error_msg") else 1,
-            "duration_ms": duration_ms,
-        },
+        {column: values[column] for column in insert_columns},
     )
 
 

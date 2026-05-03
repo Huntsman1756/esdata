@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from runtime import get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_database_url, get_interval_seconds
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -85,6 +85,7 @@ def fetch_giin_csv(urls: list[str] | None = None) -> list[dict] | None:
 
 def upsert_gin(conn, data: dict) -> None:
     """Upsert a GIIN entry."""
+    updated_at_expr = "CURRENT_TIMESTAMP" if conn.engine.dialect.name == "sqlite" else "NOW()"
     conn.execute(
         text("""
             INSERT INTO giin_registry (giin, entidad_nombre, entidad_pais, tipo_entidad,
@@ -103,7 +104,7 @@ def upsert_gin(conn, data: dict) -> None:
                 es_exempt_beneficial_owner = EXCLUDED.es_exempt_beneficial_owner,
                 es_sponsored_ffo = EXCLUDED.es_sponsored_ffo,
                 nota = EXCLUDED.nota,
-                actualizado_en = NOW()
+                actualizado_en = """ + updated_at_expr + """
         """),
         {
             "giin": data["giin"],
@@ -123,6 +124,7 @@ def upsert_gin(conn, data: dict) -> None:
 def run_sync(worker_name: str = "cron-giin-monthly") -> dict:
     """Sync GIIN data from IRS or fallback seed."""
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     sync_start = datetime.now(UTC).isoformat()
     total = 0
     source = "seed"
