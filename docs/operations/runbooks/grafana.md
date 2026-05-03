@@ -21,7 +21,7 @@ Grafana se configura automáticamente vía provisioning en el arranque:
 | Estado de Workers | `esdata-workers` | PostgreSQL | Último run, errores, corpus por fuente |
 | API y Rendimiento | `esdata-api-performance` | Prometheus | Requests, latencia p50/p95/p99 |
 | Corpus y Cobertura | `esdata-corpus` | PostgreSQL | Documentos por fuente, ingestión diaria |
-| Salud del Sistema | `esdata-system-health` | Prometheus + PostgreSQL | Uptime, memoria, CPU, workers activos |
+| Salud del Sistema | `esdata-system-health` | Prometheus + PostgreSQL | Uptime, memoria, CPU, workers activos y `worker_sync_summary` |
 
 ## Añadir un panel nuevo
 
@@ -70,6 +70,83 @@ La contraseña se puede cambiar desde la UI en **Administration → Users → Ad
 - **Config:** `infra/observability/prometheus.yml`
 - **Retención:** 30 días
 - **Scrape:** cada 15s desde `api:8000/metrics`
+
+### Alertas nuevas de observabilidad de workers
+
+Definidas en `infra/observability/alerts.yml`:
+
+- `WorkerFetchErrorsDetected`
+  - dispara si `worker_sync_summary{kind="fetch_errors"} > 0` durante 10m
+- `EurlexNoIndexHigh`
+  - dispara si `worker_sync_summary{worker=~"worker-eurlex|cron-eurlex-weekly",kind="no_index"} > 25` durante 30m
+
+### Paneles nuevos en Salud del Sistema
+
+El dashboard `esdata-system-health` incluye ahora dos series Prometheus nuevas:
+
+- `worker_sync_summary{kind="no_index"}`
+- `worker_sync_summary{kind="fetch_errors"}`
+
+Uso recomendado:
+
+1. Si `fetch_errors` sube por encima de `0`, revisar inmediatamente logs del worker afectado.
+2. Si `no_index` se mantiene alto en EUR-Lex, revisar el fallback RDF/consolidation antes de tocar seeds.
+
+## Prueba manual de Alertmanager / Telegram
+
+Procedimiento reproducible desde el VPS para inyectar una alerta de prueba:
+
+```bash
+cat >/tmp/manual-telegram-test.json <<'EOF'
+[
+  {
+    "labels": {
+      "alertname": "ManualTelegramTest",
+      "severity": "warning",
+      "worker": "cron-eurlex-weekly"
+    },
+    "annotations": {
+      "summary": "Prueba manual reproducible de Telegram",
+      "description": "Validacion controlada del receiver Telegram desde Alertmanager usando /api/v2/alerts y post-file."
+    }
+  }
+]
+EOF
+
+docker exec -i deploy-alertmanager-1 \
+  wget -qO- --header=Content-Type:application/json \
+  --post-file=/tmp/manual-telegram-test.json \
+  http://127.0.0.1:9093/api/v2/alerts
+```
+
+Comprobar la alerta activa:
+
+```bash
+docker exec deploy-alertmanager-1 \
+  wget -qO- http://127.0.0.1:9093/api/v2/alerts
+```
+
+Resolver la alerta de prueba para no dejar ruido:
+
+```bash
+cat >/tmp/manual-telegram-resolve.json <<'EOF'
+[
+  {
+    "labels": {
+      "alertname": "ManualTelegramTest",
+      "severity": "warning",
+      "worker": "cron-eurlex-weekly"
+    },
+    "endsAt": "2026-05-03T14:57:30Z"
+  }
+]
+EOF
+
+docker exec -i deploy-alertmanager-1 \
+  wget -qO- --header=Content-Type:application/json \
+  --post-file=/tmp/manual-telegram-resolve.json \
+  http://127.0.0.1:9093/api/v2/alerts
+```
 
 ## Troubleshooting
 

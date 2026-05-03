@@ -35,7 +35,7 @@ Fuera de alcance inicial:
 
 - **Sesion 2026-05-01 — VPS + dominio `desuscribir.es`**: `[PARTIAL]` — despliegue remoto operativo con Docker Compose, DNS publico resuelto para `esdata.desuscribir.es` y `api.desuscribir.es`, HTTPS activo via Caddy, `postgres` healthy, `api /health` = `200`, `api /status` = `200` con `X-API-Key`, `web /` = `200`, workers base (`boe`, `dgt`, `teac`, `modelos`) arriba, timers `systemd` activos (`esdata-boe-daily`, `esdata-dgt-weekly`, `esdata-teac-weekly`, `esdata-modelos-daily`). Integraciones verificadas: `OpenCode` debe usar MCP remoto en `https://api.desuscribir.es/mcp` con `MCP_API_KEY`; `ChatGPT` debe usar Actions/OpenAPI en `https://api.desuscribir.es/gpt-actions/modelos/openapi.json` con `ESDATA_API_KEY`, no MCP. Pendiente exacto: endurecer acceso SSH/no-root, proteger `/mcp` con capa adicional (IP allowlist o Tailscale), decidir si los fixes locales de runtime/proxy se consolidan o se descartan tras la prueba.
 
-- **Sesion 2026-05-02 — Auditoria integral VPS + cron + modelos AEAT**: `[EN CURSO]` — verificacion fresca del VPS productivo con Compose, `/health` OK, `/status` autenticado, `alertmanager` sin alertas firing, `cron-modelos-daily` manual en `SUCCESS`, fix productivo para degradar timeouts AEAT a `partial` no fatal (`Skipped 1 AEAT official resources after fetch failures`) y MCP remoto validado con handshake HTTP real (`X-API-Key` + `MCP-Session-ID`) devolviendo `initialize` OK y `tools/list` con 23 tools. Hallazgos confirmados: (1) el incidente original de DNS a `postgres` fue transitorio; la reproduccion fresca con `docker compose run --rm cron-boe-daily getent hosts postgres` y la ejecucion real via `systemd` muestran resolucion correcta dentro de la red Compose, asi que no queda confirmado el hallazgo previo de que los `cron-*` oneshot esten fuera de `esdata-internal`; (2) los timers `aepd`, `cendoj`, `eurlex` y `bde` si existen en el VPS y estan `enabled`, por lo que el hallazgo previo de timers ausentes queda descartado; (3) `/status` necesita normalizacion de nombres historicos como `worker-aeat-modelos` para no marcar `never_run` falso; (4) Telegram esta configurado en `alertmanager` y queda pendiente prueba E2E de entrega; (5) `GET /mcp` puede devolver `400 Missing session ID` y aun asi entregar `Mcp-Session-Id`, que es el comportamiento esperado del transporte MCP en este stack. Archivos reclamados en esta sesion: `apps/api/routers/status.py`, `infra/deploy/docker-compose.prod.yml`, `infra/deploy/systemd/*.timer`, `docs/operations/runbooks/worker-modelos.md`, `docs/operations/runbooks/deploy-compose.md`, `docs/deployment/server-installation.md`, `docs/master-execution-roadmap.md`, `docs/operations/agent-notes.md`.
+- **Sesion 2026-05-02 — Auditoria integral VPS + cron + modelos AEAT**: `[EN CURSO]` — verificacion fresca del VPS productivo con Compose, `/health` OK, `/status` autenticado, `alertmanager` sin alertas firing, `cron-modelos-daily` manual en `SUCCESS`, fix productivo para degradar timeouts AEAT a `partial` no fatal (`Skipped 1 AEAT official resources after fetch failures`) y MCP remoto validado con handshake HTTP real (`X-API-Key` + `MCP-Session-ID`) devolviendo `initialize` OK y `tools/list` con 23 tools. BOE ya queda revalidado en produccion tras desplegar `apps/workers/boe.py` con advisory lock en conexion `AUTOCOMMIT`: los solapes nuevos entre `worker-boe` y `cron-boe-daily` degradan a `partial` con `BOE sync already in progress`, una ejecucion manual limpia de `cron-boe-daily` vuelve a completar bloques reales (`241` + `222`) y `pg_stat_activity` termina en `0 rows` para `state = 'idle in transaction'`. Hallazgos confirmados: (1) el incidente original de DNS a `postgres` fue transitorio; la reproduccion fresca con `docker compose run --rm cron-boe-daily getent hosts postgres` y la ejecucion real via `systemd` muestran resolucion correcta dentro de la red Compose, asi que no queda confirmado el hallazgo previo de que los `cron-*` oneshot esten fuera de `esdata-internal`; (2) los timers `aepd`, `cendoj`, `eurlex` y `bde` si existen en el VPS y estan `enabled`, por lo que el hallazgo previo de timers ausentes queda descartado; (3) `/status` necesita normalizacion de nombres historicos como `worker-aeat-modelos` para no marcar `never_run` falso; (4) Telegram esta configurado en `alertmanager` y queda pendiente prueba E2E de entrega; (5) `GET /mcp` puede devolver `400 Missing session ID` y aun asi entregar `Mcp-Session-Id`, que es el comportamiento esperado del transporte MCP en este stack; (6) si un `docker compose run --rm cron-boe-daily` antiguo queda colgado, puede retener el advisory lock y una sesion vieja hasta que se pare ese contenedor residual. Archivos reclamados en esta sesion: `apps/api/routers/status.py`, `infra/deploy/docker-compose.prod.yml`, `infra/deploy/systemd/*.timer`, `docs/operations/runbooks/worker-modelos.md`, `docs/operations/runbooks/deploy-compose.md`, `docs/deployment/server-installation.md`, `docs/master-execution-roadmap.md`, `docs/operations/agent-notes.md`.
 
 - Profesionalizacion del repo: `COMPLETA`
 - Retrieval, chunking y evaluacion: `COMPLETO` con gate aprobado
@@ -213,10 +213,185 @@ Se requiere confirmacion explicita del usuario antes de:
 
 ## Resumen vivo
 
-- Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, AEPD COMPLETOS; BDNS OUT OF SCOPE; CENDOJ BLOCKED:EXTERNAL; TEAC BLOCKED:EXTERNAL; BDE COMPLETADO, EURLEX pendiente) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
+- Objetivo actual: Fase 35 — Poblar datos reales de organismos reguladores (BORME, CNMV, SEPBLAC, AEPD COMPLETOS; BDNS OUT OF SCOPE; CENDOJ BLOCKED:EXTERNAL; TEAC BLOCKED:EXTERNAL; BDE COMPLETADO, EURLEX parcial operativo) y expandir cobertura de datos vacios (XBRL, PGC, IRS, Screening, Corporate, DAC8/9, MiCA, Crypto, PRIIPs, DORA, GIIN, CASP, PBC, MAR, MIFID).
 - Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.9 `COMPLETA`, 35.4 `OUT OF SCOPE`, 35.5 `BLOCKED:EXTERNAL`, 35.6 `COMPLETA`, 35.7 `BLOCKED:EXTERNAL`, 35.8 `COMPLETA`. 264+ documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 11+, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS). **Fase 36 TODOS LOS DOMINIOS COMPLETADA**. DGT: cola persistente con `source_revision` como queue (status='pending' → 'processed'), discovery + processing incremental por batch 100, sin idle-in-transaction timeout ni crash por restart.
-- Estado del agente: cierre transversal de release casi completo. `CNMV` ya corrige la rama `updated` con upsert consistente, el runtime API ya monta middlewares/routers reales y falla en cerrado si faltan `ESDATA_API_KEY`/`MCP_API_KEY`, `ops` queda minimizado para Alembic + verificacion, `web` ya consume `NEXT_PUBLIC_API_BASE_URL` y fija `HOSTNAME=0.0.0.0` para que el healthcheck interno de Compose sea estable, la documentacion activa queda alineada a Compose con `.env.prod`, `npm --prefix apps/web run lint` queda limpio y el smoke Compose en puertos alternativos valida `postgres` saludable, `api /health`, `api /status`, handshake `mcp` con API key y `web` sirviendo `/`, `/admin/cambios` y `/admin/workflow` con estado `healthy`. Verificacion fresca 2026-05-03: `cron-modelos-daily` completo en `SUCCESS`; `cron-boe-daily` sigue ejecutando correctamente y ya marco `Result=success` con `ExecMainStatus=0` aunque el unit siga `activating` mientras termina el wrapper `docker compose run --rm`; MCP remoto verificado contra `https://api.desuscribir.es/mcp` con `X-API-Key`, `initialize` `protocolVersion=2025-03-26` y `tools/list` devolviendo 23 tools; los 12 timers `esdata-*` estan instalados y `enabled` en el VPS. Siguiente paso exacto: **dejar cerrar del todo `esdata-job@cron-boe-daily.service`, revisar el ajuste pendiente de `/status` para nombres historicos de workers, y preparar commit final de docs/estado sin mezclar cambios ajenos**.
-- Reclamo actual: `[EN CURSO]` cierre local de `apps/api/tests/test_xbrl.py` y `apps/api/tests/test_pgc.py`; evidencia fresh inicial `python -m pytest apps/api/tests/test_xbrl.py apps/api/tests/test_pgc.py -q` -> `96 errors`, bloqueados por fixtures ausentes (`xbrl_test_db`, `pgc_test_db`) y drift del slice fixture-first XBRL/PGC. Archivos reclamados: `docs/master-execution-roadmap.md`, `apps/api/main.py`, `apps/api/schemas.py`, `apps/api/tests/conftest.py`, `apps/workers/xbrl.py`.
+- Estado del agente: cierre transversal de release casi completo. `CNMV` ya corrige la rama `updated` con upsert consistente, el runtime API ya monta middlewares/routers reales y falla en cerrado si faltan `ESDATA_API_KEY`/`MCP_API_KEY`, `ops` queda minimizado para Alembic + verificacion, `web` ya consume `NEXT_PUBLIC_API_BASE_URL` y fija `HOSTNAME=0.0.0.0` para que el healthcheck interno de Compose sea estable, la documentacion activa queda alineada a Compose con `.env.prod`, `npm --prefix apps/web run lint` queda limpio y el smoke Compose en puertos alternativos valida `postgres` saludable, `api /health`, `api /status`, handshake `mcp` con API key y `web` sirviendo `/`, `/admin/cambios` y `/admin/workflow` con estado `healthy`. Verificacion fresca 2026-05-03: `cron-modelos-daily` completo en `SUCCESS`; MCP remoto verificado contra `https://api.desuscribir.es/mcp` con `X-API-Key`, `initialize` `protocolVersion=2025-03-26` y `tools/list` devolviendo 23 tools; los 12 timers `esdata-*` estan instalados y `enabled` en el VPS; `/status` no reproduce ahora mismo el falso `never_run` de `worker-modelos` y `python -m pytest apps/api/tests/test_status_contract.py -q` pasa (`4 passed`); BOE queda revalidado con fix desplegado en `_hold_sync_lock()` usando `AUTOCOMMIT`, `cron-boe-daily` limpia bloques reales y `pg_stat_activity` cierra en `0 rows` para `idle in transaction`; EUR-Lex deja de depender del HTML publico bloqueado por AWS WAF y ya ingiere corpus oficial desde `legal-content/.../TXT/XML` + `publications.europa.eu/resource/consolidation/...`, con evidencia fresca en produccion: `worker-eurlex` `ok` con `78` bloques/articulos, `cron-eurlex-weekly` `ok` con `93` bloques/articulos, `version_articulo` ya poblado al menos para `MIFID2_2014_65` (`93`) y `AMLD_2018_843` (`78`), y `worker-eurlex` queda `healthy` tras recreate. Limitacion residual: bastantes CELEX siguen degradando a `SKIP ... has no index` porque algunas rutas oficiales devuelven cuerpo vacio/no parseable o 404, asi que EUR-Lex queda parcial operativo, no completo. Siguiente paso exacto: **auditar los CELEX que siguen en `SKIP` y decidir si ampliar el parser oficial o recortar la seed a CELEX con manifestacion oficial util**.
+- Reclamo actual: `[EN CURSO]` cierre de auditoria operativa VPS/Compose con BOE verificado en produccion y EUR-Lex ya desbloqueado parcialmente sobre fuente oficial. Archivos reclamados: `docs/master-execution-roadmap.md`, `docs/operations/agent-notes.md`.
+- Nota 2026-05-03 12:12Z: tras curar seeds EUR-Lex (`MiFIR 600/2014`, `CRD V 2019/878`, `CRR II 2019/876`, `PSD2 2015/2366`, `DAC6 2018/822`, `DAC7 2021/514`, `PSD3 2024/886`) y redeploy selectivo de `apps/workers/eurlex.py`, `worker-eurlex` cerro en produccion con `status=ok`, `bloques_processed=277`, `articulos_upserted=277`, `rows_processed=277`; `cron-eurlex-weekly` se mantiene en `ok` con `93`.
+- Nota 2026-05-03 12:58Z: la clasificacion final del slice EUR-Lex confirma que la seed curada queda en `28` CELEX y los `28` existen oficialmente (`resource/celex` RDF `200`). De esos `28`, hoy solo `8` normas tienen `version_articulo` poblado en DB (`MIFID2`, `MAR`, `PRIIPs`, `DORA`, `CSRD`, `SFDR`, `AIFMD`, `AMLD`); las otras `20` son CELEX validos pero sin indice util en vivo porque `rest.tx` y `legal-content/.../TXT/XML` estan devolviendo `202` con cuerpo vacio en el runtime del VPS. Los dos casos retirados de la seed por ser dudosos/no alineados con el dominio fueron `APM_2020_683` y `ESG_RATINGS_2023_2819`.
+- Nota 2026-05-03 13:18Z: el nuevo fallback EUR-Lex desde `resource/celex` RDF + prueba de multiples candidatas de `resource/consolidation/...` resuelve el bloqueo principal de retrieval. Evidencia fresca: `cron-eurlex-weekly` cerro en `status=ok`, `bloques_processed=998`, `articulos_upserted=905`, `rows_processed=998`; `worker-eurlex` sigue `healthy`; y la DB ya tiene `22` normas EUR-Lex con `version_articulo` persistido, incluyendo `DAC7_2021_1689` (`42`), `CSDDD_2024_1760` (`38`), `CRD_V_2019_2058` (`4`) y `CRR_II_2019_2057` (`3`).
+- Nota 2026-05-03 14:32Z: `sync_log` de EUR-Lex ya no mezcla resumen operativo con error real. Evidencia fresca tras redeploy y run one-shot: `cron-eurlex-weekly` -> `status=ok`, `bloques_processed=1625`, `articulos_upserted=2`, `rows_processed=1625`, `errors=0`, `error_msg='summary: unchanged=1623; no_index=0; fetch_errors=0'`. Esto confirma que el worker puede cerrar sano aunque casi todo el trabajo sea idempotente (`unchanged`) y deja de confundir runs sanos con fallos.
+- Nota 2026-05-03 14:40Z: el API `/status` ya parsea ese resumen estructurado y lo expone en `workers.<worker>.sync_summary` sin romper el campo `error`. Contrato verificado localmente en `apps/api/tests/test_status_contract.py`: cuando `error_msg='summary: unchanged=1623; no_index=0; fetch_errors=0'`, `/status` devuelve `sync_summary = {unchanged: 1623, no_index: 0, fetch_errors: 0}`; cuando `error_msg` es libre (`boom`), `sync_summary` queda `null`.
+- Nota 2026-05-03 14:42Z: la misma semantica ya queda exportada a Prometheus en `/metrics` bajo `worker_sync_summary{worker,kind}`. Evidencia fresca remota: `worker_sync_summary{kind="unchanged",worker="cron-eurlex-weekly"} 1623.0`, `worker_sync_summary{kind="no_index",worker="cron-eurlex-weekly"} 0.0`, `worker_sync_summary{kind="fetch_errors",worker="cron-eurlex-weekly"} 0.0`.
+- Nota 2026-05-03 14:48Z: el stack de observabilidad ya queda preparado para actuar sobre `worker_sync_summary`: se anaden alertas `WorkerFetchErrorsDetected` y `EurlexNoIndexHigh` en `infra/observability/alerts.yml`, y el dashboard `infra/observability/grafana/dashboards/04_system_health.json` incorpora paneles de series `no_index` y `fetch_errors` por worker. Sintaxis validada localmente (`alerts-yaml-ok`, `dashboard-json-ok`).
+- Nota 2026-05-03 14:57Z: queda documentada una prueba manual reproducible de Alertmanager/Telegram via `POST /api/v2/alerts` usando `wget --post-file` dentro de `deploy-alertmanager-1`; el intento previo con `--post-data=@-` era la causa del `400 Bad Request`. Ademas se limpian de produccion las dos filas EUR-Lex obsoletas ya fuera de la seed activa (`APM_2020_683`, `ESG_RATINGS_2023_2819`), dejando `total_eurlex_normas = 28` y `obsolete_rows = 0`.
+
+### Checklist post-BOE (2026-05-03)
+
+1. **Cerrar evidencia del job BOE**
+   - `systemctl show esdata-job@cron-boe-daily.service -p ActiveState -p SubState -p Result -p ExecMainStatus`
+   - `journalctl -u esdata-job@cron-boe-daily.service -n 80 --no-pager`
+   - criterio: `ActiveState` final no `activating`, `Result=success`, `ExecMainStatus=0`, sin errores tardios en logs
+
+2. **Revalidar runtime Compose en VPS**
+   - `docker compose ... ps` o `docker ps` para `api`, `web`, `postgres` y workers persistentes
+   - criterio: contenedores criticos `healthy` o `Up`, sin restart loops
+
+3. **Revalidar scheduler systemd**
+   - `systemctl list-unit-files 'esdata-*.timer'`
+   - `systemctl list-timers --all 'esdata-*'`
+   - criterio: 12 timers `enabled`, proximas ejecuciones coherentes, sin timers faltantes para `aepd`, `bde`, `cendoj`, `eurlex`
+
+4. **Revalidar API y MCP publicos**
+   - `GET /health`
+   - `GET /status` con `X-API-Key`
+   - MCP HTTP: `GET /mcp` con `Accept: text/event-stream` + `X-API-Key`, capturar `Mcp-Session-Id`, luego `initialize` y `tools/list`
+   - criterio: `api=ok`, `database=ok`, handshake MCP vivo, `tools/list` operativo
+
+5. **Revisar estado operativo por worker/cron**
+   - contrastar `/status` con `sync_log` reciente
+   - criterio: todos los `worker-*` y `cron-*` esperados presentes, `stale=false`; anotar excepciones reales como `worker-modelos`/`cron-modelos-daily = partial` y `worker-eurlex rows_processed=0`
+
+6. **Verificar SQL y esquema en produccion**
+   - `python scripts/maintenance/verify_schema.py` via contenedor `ops` o comprobacion equivalente
+   - revisar drift de Alembic/schema si hay evidencia disponible
+   - criterio: esquema consistente, sin tablas/columnas faltantes para runtime actual
+
+7. **Contar y muestrear tablas clave con datos reales**
+   - minimo: `aeat_modelo`, `norma`, `version_articulo`, `documento_interpretativo`, `source_revision`, `sync_log`
+   - sacar una muestra corta de filas recientes por dominio
+   - criterio: conteos > 0 donde el dominio se considere operativo y timestamps recientes coherentes
+
+8. **Validar dominios por fuente, no solo procesos**
+   - BOE: articulos/versiones recientes y consulta API de muestra
+   - Modelos AEAT: total de modelos, muestra de `100`/`303`, degradacion `partial` documentada si persiste
+   - DGT/TEAC: documentos + doctrina links con endpoints de muestra
+   - CNMV, AEPD, BDE, CENDOJ, BORME, BDNS, SEPBLAC: al menos un conteo y una consulta de muestra por dominio
+   - EUR-Lex: distinguir entre worker sano y corpus realmente poblado; si sigue `rows_processed=0`, marcar `PARTIAL/NEEDS_REVIEW`
+
+9. **Revalidar pruebas Python del scope afectado**
+   - `python -m pytest apps/api/tests/test_status_contract.py -q`
+   - `pytest apps/workers/tests/test_runtime.py -q`
+   - añadir suites puntuales de MCP o BOE/modelos si el checklist detecta desvio
+   - criterio: tests de contrato/verificacion del slice verdes
+
+10. **Cerrar documentacion activa con evidencia**
+   - actualizar `docs/master-execution-roadmap.md` con resultados reales del checklist
+   - si aparece una trampa no obvia, anadir nota en `docs/operations/agent-notes.md`
+   - criterio: no dejar hallazgos stale sobre timers, `/status`, MCP o red interna de cron
+
+### Mapa estructural a tener presente en la verificacion
+
+- `apps/api/`: runtime FastAPI, `/health`, `/status`, `/mcp`, routers `/v1/*`, middleware y servicios
+- `apps/workers/`: workers por fuente, `runtime.py`, `change_detection.py`, entrypoints y healthchecks
+- `apps/web/`: UI interna; no forma parte del problema BOE pero si del smoke Compose y del healthcheck global
+- `infra/deploy/`: `docker-compose.prod.yml`, `Caddyfile`, `.env.prod`, `systemd/*.timer`, `Dockerfile.ops`
+- `alembic/`: migraciones oficiales del esquema
+- `scripts/`: verificaciones (`maintenance/verify_schema.py`), ops, seeds y tooling; revisar aqui antes de asumir que una utilidad manual pertenece al runtime
+
+### Riesgos y foco de auditoria tras BOE
+
+- **Operativo confirmado pero no auditado a fondo**: un worker/crón puede estar `ok` en `/status` y aun asi no poblar el volumen esperado; separar siempre salud de proceso vs salud del corpus
+- **Modelos AEAT**: hoy estan `partial` por fallo puntual de fetch externo; requiere cierre explicito como `PARTIAL` si persiste
+- **EUR-Lex**: runtime `ok` no implica corpus util; si sigue `rows_processed=0`, revisar fuente/corpus local antes de declararlo operativo
+- **Boundary del repo**: `docs/repository-structure.md` y `apps/api/AGENTS.md` dicen que seeds/backfills/herramientas manuales deben vivir en `scripts/`, pero `apps/api/` aun contiene varios ficheros de ingesta/backfill/manuales; no bloquear este cierre por ello, pero dejarlo en backlog tecnico de estructura
+
+### Resultado de auditoria post-BOE (2026-05-03)
+
+#### Evidencia operativa fresca
+
+- `esdata-job@cron-boe-daily.service` cerro en `ActiveState=inactive`, `SubState=dead`, `Result=success`, `ExecMainStatus=0`.
+- Logs finales BOE: `DONE ITPAJD: 0 blocks, 0 articulos`, `[run-once] Bloques: 1009, Artículos: 1009` y aviso `DEADLOCK_RISK: 1 conexiones idle in transaction tras run_sync` sin fallo del job.
+- `docker ps` en VPS: `api`, `web`, `postgres` y 12 workers persistentes `Up`/`healthy`; stack de observabilidad (`prometheus`, `grafana`, `alertmanager`, `node-exporter`) arriba.
+- `systemctl list-unit-files 'esdata-*.timer'`: 12 timers `enabled`.
+- `systemctl list-timers --all 'esdata-*'`: proximas ejecuciones coherentes para modelos, BOE y weekly jobs.
+- `GET /health`: `status=ok`.
+- `GET /status` con `X-API-Key`: `api=ok`, `database=ok`, `modelos.total=219`, workers visibles = 24 entradas (`worker-*` + `cron-*`).
+- MCP remoto: `initialize` OK con `protocolVersion=2025-03-26`; `tools/list` devuelve 23 tools.
+- `python -m pytest apps/api/tests/test_status_contract.py -q`: `4 passed`.
+- `docker compose --profile ops run --rm ops python scripts/maintenance/verify_schema.py`: `Schema OK: modelo_campana_operativa with provenance columns present`.
+
+#### Evidencia de datos reales
+
+- Conteos globales en Postgres prod:
+  - `aeat_modelo = 219`
+  - `norma = 35`
+  - `version_articulo = 942`
+  - `documento_interpretativo = 18720`
+  - `source_revision = 19268`
+  - `sync_log = 257`
+- Muestra `aeat_modelo`: existen modelos reales recientes (`001`, `004`, `005`, `006`, `01C`).
+- Distribucion `documento_interpretativo` por organismo emisor:
+  - `DGT = 18629`
+  - `CNMV = 72`
+  - `TEAC = 10`
+  - `SEPBLAC = 2`
+  - `Banco de España = 3`
+  - `AEPD = 1`
+  - `BDNS = 1`
+  - `BORME = 1`
+  - `Tribunal Supremo = 1`
+- `source_revision` por worker_name:
+  - `worker-dgt = 19078`
+  - `worker-cnmv = 72`
+  - `worker-teac = 10`
+  - `worker-bde = 3`
+  - `worker-aepd/bdns/borme/cendoj = 1`
+  - `worker-sepblac = 2`
+  - cron equivalentes tambien presentes para los dominios schedulados
+- Muestra `version_articulo`: articulado reciente de `LIRPF`/normas vivas presente; top por volumen actual en `version_articulo`:
+  - `LGT = 319`
+  - `LIVA = 232`
+  - `LIRPF = 200`
+  - `LIS = 191`
+
+#### Matriz de cierre
+
+- `OK` — Runtime Compose y observabilidad: contenedores criticos sanos, sin restart loop visible.
+- `OK` — Scheduler systemd: 12 timers instalados y habilitados; BOE/modelos ya ejecutados hoy.
+- `OK` — API publica: `/health` y `/status` responden sano con auth esperada.
+- `OK` — MCP remoto: handshake HTTP funcional, auth correcta via `X-API-Key`, 23 tools visibles.
+- `OK` — BOE: cron diario cerrado correctamente con `SUCCESS`; runtime y datos normativos presentes.
+- `OK` — DGT / TEAC / CNMV: evidencia de datos reales en `documento_interpretativo` y actividad reciente en `sync_log`/`source_revision`.
+- `OK` — BDE / AEPD / BDNS / BORME / CENDOJ / SEPBLAC: jobs y workers sanos, con al menos una muestra real persistida por dominio.
+- `OK` — Esquema SQL minimo del runtime actual: `verify_schema.py` pasa en produccion.
+- `OK` — Modelos AEAT: fix desplegado en `apps/workers/aeat_models.py`; el worker ya no degrada a `partial` por endpoints oficiales transaccionales protegidos de `www1 /wlpl/*?fTramite=...`. Evidencia fresca en produccion: `worker-aeat-modelos` completo en `status=ok`, `documentos_processed=217`, `bloques_processed=9456`, `articulos_upserted=281`, `errors=0`, `error=null` (`started_at=2026-05-03T09:27:01Z`, `finished_at=2026-05-03T09:44:29Z`).
+- `PARTIAL` — EUR-Lex: el redeploy con seeds curadas mejora la ingesta real (`worker-eurlex` ultimo run `ok` con `277` bloques/articulos/rows_processed`; `cron-eurlex-weekly` `ok` con `93`) y corrige filas `norma` como `DAC7_2021_1689 -> 32021L0514`, pero siguen existiendo CELEX validos sin indice util por `TXT/XML` `202` vacio o consolidacion oficial no parseable; mantenerlo como parcial operativo, no cerrado.
+- `PARTIAL` — EUR-Lex seed quality: la seed curada ya no parece el cuello de botella principal. Estado fresco tras auditoria: `28/28` CELEX oficiales en `resource/celex`, `0` CELEX inexistentes en la seed activa, `8` normas con articulado ya persistido y `20` normas validas pero sin indice util en vivo.
+- `OK` — EUR-Lex retrieval fallback: el bloqueo principal del indice en vivo queda resuelto para una parte grande del corpus mediante fallback RDF multi-candidato. Estado fresco: `22` normas EUR-Lex ya con articulado persistido y corrida `cron-eurlex-weekly` con `998/905/998` en produccion. Riesgo residual: aun pueden quedar CELEX validos sin item XHTML util o con consolidaciones futuras rotas, pero ya no se trata del fallo estructural previo.
+- `NEEDS_REVIEW` — BOE idle transaction hygiene: el job finaliza en `success`, pero el log `DEADLOCK_RISK: 1 conexiones idle in transaction tras run_sync` merece triage tecnico separado.
+
+#### Seguimiento especifico: modelos AEAT
+
+- Causa raiz identificada del `partial`: el worker `apps/workers/aeat_models.py` trataba como recurso oficial obligatorio una URL transaccional protegida de AEAT para el modelo `792`: `http://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592`.
+- Evidencia en logs de produccion: tres timeouts sobre esa URL y cierre con `Skipping official resource ... for modelo 792 after fetch failures`.
+- Contraste externo desde el VPS:
+  - `http://www1...GC592` -> `ConnectTimeout`
+  - `https://www1...GC592` -> `200` en `https://sede.agenciatributaria.gob.es/Sede/errores/erro4033.html`
+- Interpretacion: no es un recurso documental estable; es un endpoint oficial pero transaccional/protegido, asi que no debe degradar la salud del corpus igual que un BOE o PDF de instrucciones.
+- Cambio validado localmente y ya desplegado en el VPS:
+  - `_normalize_aeat_url()` fuerza `http://www1.agenciatributaria.gob.es/...` a `https://...`
+  - `_is_protected_transactional_resource()` evita contar como `partial` un fallo de `www1 /wlpl/*?fTramite=...`
+  - se mantiene `partial` cuando falla un recurso oficial documental real
+- Verificacion local del fix: `python -m pytest apps/workers/tests/test_aeat_models.py -q` -> `49 passed`.
+- Verificacion en produccion tras redeploy:
+  - primer intento de `cron-modelos-daily` tras el despliegue detecto una regresion (`UnboundLocalError: resource_url`) al procesar `pagina_modelo`; se corrigio con test de regresion y redeploy inmediato.
+  - `worker-aeat-modelos` completo posterior al fix corregido: `status=ok`, `error=null`, `documentos_processed=217`, `bloques_processed=9456`, `articulos_upserted=281`.
+  - un `cron-modelos-daily` manual posterior quedo en `partial` solo por `AEAT sync already in progress`, al chocar con el advisory lock del worker persistente durante ese run; no refleja fallo funcional del corpus.
+- Estado final: `Modelos AEAT` sube de `PARTIAL` a `OK` para este slice. Queda como riesgo residual normal que algunos endpoints transaccionales AEAT sigan devolviendo `erro4033`, pero ya no degradan la salud del corpus cuando no son recursos documentales.
+
+#### Siguiente paso exacto
+
+1. Abrir slice tecnico para revisar `DEADLOCK_RISK` en `apps/workers/boe.py` y conexiones idle-in-transaction tras `run_sync`.
+2. Abrir slice tecnico de calidad de datos para `EUR-Lex` y clasificar los CELEX restantes en: inexistente, valido con `TXT/XML 202` vacio, o valido con consolidacion parseable pero sin bloques soportados.
+3. Cerrar la inconsistencia documental de `modelos` en este roadmap: el estado del slice ya es `OK`, no `PARTIAL`, segun la evidencia fresca recogida arriba.
+4. Si se quiere aumentar cobertura EUR-Lex de verdad, el siguiente cambio ya no es de seed sino de estrategia de retrieval: cachear RDF/manifiesto oficial o introducir un extractor alternativo cuando `TXT/XML` y `rest.tx` respondan `202` vacio para CELEX oficialmente existentes.
+5. Abrir un slice corto de endurecimiento EUR-Lex para distinguir en `sync_log` entre bloques omitidos por `unchanged` y CELEX realmente sin indice util, y asi no confundir runs `ok` con `0/0/0` frente a runs con cobertura nueva real.
+6. Con el resumen estructurado ya desplegado, el siguiente ajuste natural seria exponer estos contadores en `/status` para no depender de SQL manual al diagnosticar EUR-Lex.
+7. Una vez expuesto `sync_summary` en `/status`, el siguiente paso natural seria llevar la misma semantica a Prometheus o al panel operativo para alertar por `fetch_errors` y vigilar `no_index` sin inspeccion manual.
+8. Con `worker_sync_summary` ya en Prometheus, el siguiente mejor paso es definir alertas/paneles minimos para `fetch_errors > 0` y para `no_index` alto sostenido en EUR-Lex.
+9. Tras anadir alertas y paneles basicos, el siguiente paso util seria desplegar/reload de Prometheus y Grafana en VPS y verificar en vivo si las reglas aparecen en `/api/v1/rules` y el dashboard provisionado muestra las nuevas series.
+4. Si se busca cierre documental fuerte, convertir esta auditoria en resumen para PR/release note y actualizar runbooks solo donde la evidencia cambie el procedimiento, no solo el estado.
 - Archivos afectados:
   - `docs/master-execution-roadmap.md`
   - `apps/workers/cnmv.py`
