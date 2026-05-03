@@ -180,7 +180,7 @@ def apply_claim_level_abstention(
         # No claims are grounded — abstain entirely
         confianza = dict(confianza)
         aviso = grounding_summary.get("aviso") or (
-            "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+            "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
         )
         confianza["aviso"] = aviso
         return [], confianza

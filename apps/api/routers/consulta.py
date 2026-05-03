@@ -203,7 +203,6 @@ def _resolve_modelos(keywords: list[str]) -> list[str]:
 
     # Track how many models each keyword contributes
     keyword_models = {}
-    seen = set()
 
     for kw in sorted_keywords:
         if kw.startswith("_subject_"):
@@ -321,7 +320,6 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
 
     Returns a dict compatible with ConsultaConfianza schema.
     """
-    q_lower = q.lower()
     fuentes = []
     tipos_conteo = {}
 
@@ -548,17 +546,22 @@ def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
 
 
 def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: str) -> list[dict]:
+    source_url_map: dict[str, str] = {}
     all_chunks = []
     seen_ids = set()
     for resultado in resultados:
         chunk_id = _result_citation_id(resultado)
         text = _result_text(resultado)
         source_document = _result_source_document(resultado)
+        evidencia = resultado.get("evidencia") or {}
         if not chunk_id or not text or not source_document:
             continue
         if chunk_id in seen_ids:
             continue
         seen_ids.add(chunk_id)
+        source_url = evidencia.get("source_url") or resultado.get("source_url")
+        if source_url:
+            source_url_map[str(chunk_id)] = str(source_url)
         all_chunks.append({
             "chunk_id": chunk_id,
             "text": text,
@@ -597,6 +600,7 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
             "source_document": ch.source_document,
             "article_number": ch.article_number,
             "rerank_score": float(ch.rerank_score),
+            "source_url": source_url_map.get(ch.chunk_id),
             "excerpt": ch.text[:200],
         } for ch in ranked]
         claim_citations.append({
@@ -609,6 +613,49 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
             "citations": citations,
         })
     return claim_citations
+
+
+def _serialize_cited_chunks_for_response(cited_chunks: list[dict]) -> list[dict]:
+    serialized: list[dict] = []
+    for chunk in cited_chunks:
+        score = float(chunk.get("relevance_score", chunk.get("rerank_score", 0.0)) or 0.0)
+        serialized.append(
+            {
+                "chunk_id": str(chunk.get("chunk_id", "")),
+                "content_preview": chunk.get("excerpt") or chunk.get("content_preview") or "",
+                "relevance_score": normalize_rerank_score(score),
+            }
+        )
+    return serialized
+
+
+def _serialize_claim_citations_for_response(claim_citations: list[dict]) -> list[dict]:
+    serialized: list[dict] = []
+    for item in claim_citations:
+        claim = item.get("claim") or {}
+        citations = item.get("citations") or []
+        top_citation = citations[0] if citations else {}
+        score = float(top_citation.get("confidence", top_citation.get("rerank_score", 0.0)) or 0.0)
+        claim_label = " ".join(
+            str(part)
+            for part in (
+                claim.get("tipo"),
+                claim.get("codigo"),
+                claim.get("articulo"),
+                claim.get("nombre"),
+            )
+            if part not in (None, "")
+        )
+        serialized.append(
+            {
+                "claim": claim_label,
+                "source_chunk_id": str(top_citation.get("chunk_id", "")),
+                "source_url": top_citation.get("source_url"),
+                "grounded": bool(item.get("grounded", False)),
+                "confidence": normalize_rerank_score(score),
+            }
+        )
+    return serialized
 
 
 def _collect_uncovered_query_terms(query: str, resultados: list[dict]) -> set[str]:
@@ -663,12 +710,12 @@ def _apply_grounding_abstention_if_needed(
     uncovered_terms = _collect_uncovered_query_terms(query, resultados)
     if uncovered_terms:
         confianza = dict(confianza)
-        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
         return [], confianza, []
 
     if not cited_chunks:
         confianza = dict(confianza)
-        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
         return [], confianza, []
 
     has_full_article_evidence = any(
@@ -692,7 +739,7 @@ def _apply_grounding_abstention_if_needed(
         return resultados, confianza, cited_chunks
 
     confianza = dict(confianza)
-    confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+    confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
     return [], confianza, []
 
 
@@ -705,7 +752,7 @@ def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tupl
     if aviso_actual == "consulta vacia":
         return [], confianza
     confianza["aviso"] = (
-        "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
     )
     return [], confianza
 
@@ -948,54 +995,55 @@ async def consulta_fiscal(
             db.rollback()
 
     # ── 5. Obtener detalle completo de modelos ──────────────────────────
-    try:
-        modelos_codigo = list(dict.fromkeys(modelos_codigo))
-        modelos_detalle = []
+    modelos_codigo = list(dict.fromkeys(modelos_codigo))
+    modelos_detalle = []
+    if modelos_codigo:
+        try:
+            with db_session() as db:
+                for codigo in modelos_codigo:
+                    rows = db.execute(
+                        text("""
+                            SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info,
+                                   mc.campana, mc.version_form, mc.url_normativa, mc.url_formato,
+                                   mi.seccion, mi.titulo, mi.contenido, mi.orden,
+                                   mco.categoria_obligado, mco.frecuencia_presentacion,
+                                   mco.ventana_presentacion, mco.canal_presentacion,
+                                   mco.obligados_resumen, mco.plazo_resumen, mco.norma_base
+                            FROM aeat_modelo am
+                            LEFT JOIN modelo_campana mc ON mc.modelo_id = am.id AND mc.activo = true
+                            LEFT JOIN modelo_campana_operativa mco ON mco.campana_id = mc.id
+                            LEFT JOIN modelo_instruccion mi ON mi.campana_id = mc.id
+                            WHERE am.codigo = :codigo
+                            ORDER BY mi.orden
+                        """),
+                        {"codigo": codigo},
+                    ).mappings()
 
-        for codigo in modelos_codigo:
-            rows = db.execute(
-                text("""
-                    SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info,
-                           mc.campana, mc.version_form, mc.url_normativa, mc.url_formato,
-                           mi.seccion, mi.titulo, mi.contenido, mi.orden,
-                           mco.categoria_obligado, mco.frecuencia_presentacion,
-                           mco.ventana_presentacion, mco.canal_presentacion,
-                           mco.obligados_resumen, mco.plazo_resumen, mco.norma_base
-                    FROM aeat_modelo am
-                    LEFT JOIN modelo_campana mc ON mc.modelo_id = am.id AND mc.activo = true
-                    LEFT JOIN modelo_campana_operativa mco ON mco.campana_id = mc.id
-                    LEFT JOIN modelo_instruccion mi ON mi.campana_id = mc.id
-                    WHERE am.codigo = :codigo
-                    ORDER BY mi.orden
-                """),
-                {"codigo": codigo},
-            ).mappings()
-
-            rows_list = list(rows)
-            if rows_list:
-                first = rows_list[0]
-                instrucciones = [
-                    {"seccion": r["seccion"], "titulo": r["titulo"], "contenido": r["contenido"], "orden": r["orden"]}
-                    for r in rows_list if r["seccion"]
-                ]
-                modelos_detalle.append({
-                    "codigo": first["codigo"],
-                    "nombre": first["nombre"],
-                    "periodo": first["periodo"],
-                    "impuesto": first["impuesto"],
-                    "url_info": first["url_info"],
-                    "campana": first["campana"],
-                    "categoria_obligado": first["categoria_obligado"],
-                    "frecuencia": first["frecuencia_presentacion"],
-                    "ventana": first["ventana_presentacion"],
-                    "canal": first["canal_presentacion"],
-                    "obligados_resumen": first["obligados_resumen"],
-                    "plazo_resumen": first["plazo_resumen"],
-                    "norma_base": first["norma_base"],
-                    "instrucciones": instrucciones,
-                })
-    except Exception:
-        db.rollback()
+                    rows_list = list(rows)
+                    if rows_list:
+                        first = rows_list[0]
+                        instrucciones = [
+                            {"seccion": r["seccion"], "titulo": r["titulo"], "contenido": r["contenido"], "orden": r["orden"]}
+                            for r in rows_list if r["seccion"]
+                        ]
+                        modelos_detalle.append({
+                            "codigo": first["codigo"],
+                            "nombre": first["nombre"],
+                            "periodo": first["periodo"],
+                            "impuesto": first["impuesto"],
+                            "url_info": first["url_info"],
+                            "campana": first["campana"],
+                            "categoria_obligado": first["categoria_obligado"],
+                            "frecuencia": first["frecuencia_presentacion"],
+                            "ventana": first["ventana_presentacion"],
+                            "canal": first["canal_presentacion"],
+                            "obligados_resumen": first["obligados_resumen"],
+                            "plazo_resumen": first["plazo_resumen"],
+                            "norma_base": first["norma_base"],
+                            "instrucciones": instrucciones,
+                        })
+        except Exception:
+            modelos_detalle = []
 
     # ── 6. Integrated unified multi-source search (if sources filter specified) ─
     if sources and q:
@@ -1010,7 +1058,7 @@ async def consulta_fiscal(
             for item in unified.get("resultados", []):
                 results.append(item)
         except Exception:
-            db.rollback()
+            pass
 
     seen = set()
     unique_results = []
@@ -1071,19 +1119,17 @@ async def consulta_fiscal(
         if not cited_chunks and confianza.get("faithfulness_score", 0.0) < FAITHFULNESS_REVIEW_THRESHOLD:
             final_results = []
             confianza = dict(confianza)
-            confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+            confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
 
     final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
     if not final_results:
         cited_chunks = []
 
     # Build top-level relevancia
-    total_scored = len(scored_results)
     if final_results:
         avg_score = sum(r["_relevancia"]["score"] for r in final_results) / len(final_results)
         alta_count = sum(1 for r in final_results if r["_relevancia"]["nivel"] == "alta")
         relevancia_nivel = "alta" if avg_score >= 0.6 else ("media" if avg_score >= 0.3 else "baja")
-        relevancia_coins = []
         todos_terminos = set()
         encontrados = set()
         for r in final_results:
@@ -1113,27 +1159,11 @@ async def consulta_fiscal(
     user_id = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
     retrieved_chunks = _build_query_audit_chunks(scored_results)
     response_summary = f"resultados={len(final_results)} faithfulness={confianza.get('faithfulness_score', 0.0):.4f} review_required={confianza.get('review_required', False)} grounding={grounding_summary.get('grounding_status', 'unknown')}/{grounding_summary.get('total_claims', 0)} claims"
-    get_query_audit_service().record_query(
-        request_id=request_id,
-        user_id=user_id,
-        path="/v1/consulta",
-        query_text=q or sujeto or tipo_operacion or pais,
-        retrieved_chunks=retrieved_chunks,
-        response_summary=response_summary,
-        model_version=get_ai_version(),
-        config_version=QUERY_AUDIT_CONFIG_VERSION,
-        grounding_status=grounding_summary.get("grounding_status"),
-        prompt_injection_detected=not grounding_summary.get("all_chunks_clean", True),
-        grounding_summary=grounding_summary,
-    )
 
     # ── Observability metrics ──────────────────────────────────────────
     try:
-        import logging
-
         import psutil
 
-        logger = logging.getLogger(__name__)
         process = psutil.Process()
         mem_info = process.memory_info()
         record_query_memory("api", mem_info.rss)
@@ -1148,7 +1178,6 @@ async def consulta_fiscal(
     record_consulta_metrics("/v1/consulta", confianza)
 
     # ── Build unified search metadata ──────────────────────────────────
-    unified_meta = {}
     if sources and q:
         try:
             source_list = [s.strip() for s in sources.split(",") if s.strip()]
@@ -1158,13 +1187,6 @@ async def consulta_fiscal(
                 hybrid_weight=hybrid_weight,
                 limit=20,
             )
-            unified_meta = {
-                "sources_requested": source_list,
-                "sources_with_results": unified.get("sources_with_results", []),
-                "source_breakdown": unified.get("source_breakdown", {}),
-                "search_mode": unified.get("search_mode", "fulltext"),
-                "weights": unified.get("weights", {}),
-            }
             for item in unified.get("resultados", []):
                 results.append(item)
         except Exception:
@@ -1179,13 +1201,30 @@ async def consulta_fiscal(
             seen.add(key)
             deduped.append(r)
 
-    return ConsultaFiscalResponse(
+    response_payload = ConsultaFiscalResponse(
         consulta=q or "",
         modelos=modelos_detalle if modelos_detalle else [],
         resultados=deduped,
         total_resultados=len(deduped),
         relevancia=relevancia,
         confianza=confianza if isinstance(confianza, dict) else None,
-        cited_chunks=cited_chunks if cited_chunks else [],
-        claim_citations=claim_citations if claim_citations else [],
+        cited_chunks=_serialize_cited_chunks_for_response(cited_chunks),
+        claim_citations=_serialize_claim_citations_for_response(claim_citations),
     )
+
+    get_query_audit_service().record_query(
+        request_id=request_id,
+        user_id=user_id,
+        path="/v1/consulta",
+        query_text=q or sujeto or tipo_operacion or pais,
+        retrieved_chunks=retrieved_chunks,
+        response_summary=response_summary,
+        response_payload=response_payload.model_dump(mode="json"),
+        model_version=get_ai_version(),
+        config_version=QUERY_AUDIT_CONFIG_VERSION,
+        grounding_status=grounding_summary.get("grounding_status"),
+        prompt_injection_detected=not grounding_summary.get("all_chunks_clean", True),
+        grounding_summary=grounding_summary,
+    )
+
+    return response_payload

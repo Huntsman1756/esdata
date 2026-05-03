@@ -1,42 +1,10 @@
 """Query audit log router for Fase 30.2 — Persistencia durable."""
 
 from fastapi import APIRouter, Query
-
-from schemas import BaseModel, Field
+from schemas import QueryAuditByRequestResponse, QueryAuditEntryResponse, QueryAuditLogResponse
 from services.query_audit import get_query_audit_service
 
 router = APIRouter(prefix="/v1/ai", tags=["query_audit"])
-
-
-class QueryAuditEntryResponse(BaseModel):
-    """Response model for a single query audit log entry."""
-
-    entry_id: str = Field(description="Unique entry identifier")
-    request_id: str = Field(description="Correlation with original request")
-    user_id: str | None = Field(default=None, description="Authenticated user ID")
-    path: str = Field(description="API path that was queried")
-    query_text: str = Field(description="The query text sent")
-    retrieved_chunks: list[dict] = Field(default_factory=list, description="Chunks retrieved")
-    response_summary: str = Field(default="", description="Summary of the response")
-    model_version: str | None = Field(default=None, description="Model version used")
-    config_version: str | None = Field(default=None, description="Config version used")
-    created_at: str = Field(description="When the query was recorded (ISO 8601)")
-
-
-class QueryAuditLogResponse(BaseModel):
-    """Response model for query audit log query."""
-
-    total: int = Field(description="Total entries matching the query")
-    path: str | None = Field(default=None, description="Path filter applied")
-    entries: list[QueryAuditEntryResponse] = Field(default_factory=list, description="Audit log entries")
-
-
-class QueryAuditByRequestResponse(BaseModel):
-    """Response model for query audit by request ID."""
-
-    request_id: str = Field(description="The request ID queried")
-    total: int = Field(description="Total entries for this request")
-    entries: list[QueryAuditEntryResponse] = Field(default_factory=list, description="Audit entries for the request")
 
 
 @router.get(
@@ -63,10 +31,18 @@ async def get_query_audit_log(
                 path=e.path,
                 query_text=e.query_text,
                 retrieved_chunks=e.retrieved_chunks,
+                sources=e.sources,
                 response_summary=e.response_summary,
+                confidence=e.confidence,
+                completeness=e.completeness,
+                verified=e.verified,
                 model_version=e.model_version,
                 config_version=e.config_version,
                 created_at=e.created_at,
+                grounding_status=e.grounding_status,
+                prompt_injection_detected=e.prompt_injection_detected,
+                grounding_summary=e.grounding_summary,
+                tool_name=e.tool_name,
             )
             for e in entries
         ],
@@ -95,10 +71,18 @@ async def get_query_audit_by_request(request_id: str):
                 path=e.path,
                 query_text=e.query_text,
                 retrieved_chunks=e.retrieved_chunks,
+                sources=e.sources,
                 response_summary=e.response_summary,
+                confidence=e.confidence,
+                completeness=e.completeness,
+                verified=e.verified,
                 model_version=e.model_version,
                 config_version=e.config_version,
                 created_at=e.created_at,
+                grounding_status=e.grounding_status,
+                prompt_injection_detected=e.prompt_injection_detected,
+                grounding_summary=e.grounding_summary,
+                tool_name=e.tool_name,
             )
             for e in entries
         ],

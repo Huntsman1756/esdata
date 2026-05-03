@@ -1,7 +1,8 @@
-import pytest
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
+import pytest
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
@@ -64,6 +65,51 @@ def test_normalize_rerank_score_uses_absolute_sigmoid():
 
     assert 0.0 < normalized < 0.1
     assert normalized == pytest.approx(0.0286, rel=1e-2)
+
+
+def test_serialized_citations_normalize_scores_and_keep_source_url():
+    from routers.consulta import (
+        _serialize_cited_chunks_for_response,
+        _serialize_claim_citations_for_response,
+    )
+    from services.reranker import normalize_rerank_score
+
+    cited_chunks = [
+        {
+            "chunk_id": "hash-lis-69",
+            "rerank_score": -3.5246732234954834,
+            "excerpt": "Articulo 69. Tipo de gravamen del grupo fiscal.",
+        }
+    ]
+    claim_citations = [
+        {
+            "claim": {
+                "tipo": "normativa",
+                "codigo": "LIS",
+                "articulo": "69",
+                "nombre": "Tipo de gravamen",
+            },
+            "citations": [
+                {
+                    "chunk_id": "hash-lis-69",
+                    "rerank_score": 10.8,
+                    "source_url": "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2014-12328",
+                }
+            ],
+        }
+    ]
+
+    serialized_chunks = _serialize_cited_chunks_for_response(cited_chunks)
+    serialized_claims = _serialize_claim_citations_for_response(claim_citations)
+
+    assert serialized_chunks[0]["relevance_score"] == pytest.approx(
+        normalize_rerank_score(-3.5246732234954834), rel=1e-4
+    )
+    assert 0.0 <= serialized_claims[0]["confidence"] <= 1.0
+    assert serialized_claims[0]["confidence"] == pytest.approx(
+        normalize_rerank_score(10.8), rel=1e-4
+    )
+    assert serialized_claims[0]["source_url"] == "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2014-12328"
 
 
 def test_grounding_abstention_keeps_official_full_article_results_when_faithfulness_is_high():
@@ -197,7 +243,8 @@ async def test_consulta_includes_cited_chunks():
     assert isinstance(data["cited_chunks"], list)
     assert data["cited_chunks"]
     assert all("chunk_id" in citation for citation in data["cited_chunks"])
-    assert all("rerank_score" in citation for citation in data["cited_chunks"])
+    assert all("content_preview" in citation for citation in data["cited_chunks"])
+    assert all("relevance_score" in citation for citation in data["cited_chunks"])
 
 
 @pytest.mark.asyncio
@@ -218,3 +265,52 @@ async def test_consulta_out_of_scope_abstains_even_if_model_suggestions_exist():
     assert data["cited_chunks"] == []
     assert data["confianza"]["review_required"] is True
     assert "evidencia insuficiente" in (data["confianza"].get("aviso") or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_consulta_keeps_model_result_when_db_sessions_are_terminal(monkeypatch):
+    import db as db_module
+    import routers.consulta as consulta_module
+    from httpx import ASGITransport, AsyncClient
+    from main import app
+
+    real_session_local = db_module.SessionLocal
+
+    @contextmanager
+    def strict_db_session():
+        session = real_session_local()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    strict_session_local = db_module.sessionmaker(
+        bind=db_module.engine,
+        autoflush=False,
+        autocommit=False,
+        future=True,
+        close_resets_only=False,
+    )
+
+    @contextmanager
+    def strict_consulta_db_session():
+        session = strict_session_local()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    monkeypatch.setattr(db_module, "SessionLocal", strict_session_local)
+    monkeypatch.setattr(db_module, "db_session", strict_db_session)
+    monkeypatch.setattr(consulta_module, "db_session", strict_consulta_db_session)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/consulta?q=modelo+100+irpf")
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert any(item.get("tipo") == "modelo" and item.get("codigo") == "100" for item in data["resultados"])

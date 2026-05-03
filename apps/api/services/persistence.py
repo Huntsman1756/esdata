@@ -104,17 +104,23 @@ DDL_TEMPLATE = [
         id {id_column},
         entry_id TEXT NOT NULL UNIQUE,
         request_id TEXT NOT NULL,
+        tool_name TEXT NOT NULL DEFAULT '',
         user_id TEXT,
         path TEXT NOT NULL,
         query_text TEXT NOT NULL,
         retrieved_chunks TEXT NOT NULL DEFAULT '[]',
+        sources TEXT NOT NULL DEFAULT '[]',
         response_summary TEXT NOT NULL DEFAULT '',
+        confidence TEXT NOT NULL DEFAULT '{{}}',
+        completeness TEXT NOT NULL DEFAULT 'parcial',
+        verified INTEGER NOT NULL DEFAULT 0,
         model_version TEXT,
         config_version TEXT,
         created_at TEXT NOT NULL,
         grounding_status TEXT DEFAULT '',
         prompt_injection_detected INTEGER NOT NULL DEFAULT 0,
-        grounding_summary TEXT NOT NULL DEFAULT '{{}}'
+        grounding_summary TEXT NOT NULL DEFAULT '{{}}',
+        response_payload TEXT NOT NULL DEFAULT '{{}}'
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_query_audit_request ON query_audit_log(request_id)",
@@ -164,12 +170,24 @@ def _ensure_query_audit_log_columns(conn) -> None:
         existing = {row[0] for row in rows}
 
     missing = []
+    if "tool_name" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN tool_name TEXT NOT NULL DEFAULT ''")
     if "grounding_status" not in existing:
         missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_status TEXT DEFAULT ''")
     if "prompt_injection_detected" not in existing:
         missing.append("ALTER TABLE query_audit_log ADD COLUMN prompt_injection_detected INTEGER NOT NULL DEFAULT 0")
     if "grounding_summary" not in existing:
         missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_summary TEXT NOT NULL DEFAULT '{}' ")
+    if "response_payload" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN response_payload TEXT NOT NULL DEFAULT '{}'")
+    if "sources" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'")
+    if "confidence" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN confidence TEXT NOT NULL DEFAULT '{}'")
+    if "completeness" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN completeness TEXT NOT NULL DEFAULT 'parcial'")
+    if "verified" not in existing:
+        missing.append("ALTER TABLE query_audit_log ADD COLUMN verified INTEGER NOT NULL DEFAULT 0")
 
     for statement in missing:
         conn.execute(text(statement))

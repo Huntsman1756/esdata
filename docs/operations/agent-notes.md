@@ -40,6 +40,69 @@ Usar notas cortas con este esquema:
 - Impacto: un modelo o agente externo puede convertir datos parciales o curados en una conclusion operativa aparentemente verificada. Eso afecta especialmente a `modelos AEAT`, `consulta_fiscal/agente_consulta`, y a cualquier tool que no persista `request_id + fuentes + grounding_status + completitud`.
 - Regla practica: antes de corregir prompts o tocar docs, comprobar siempre estas cuatro preguntas: (1) la tool existe en la superficie MCP que usa el cliente real? (2) deja audit trail E2E? (3) la respuesta distingue oficial/curado/heuristico/no verificado? (4) el corpus o modelo tiene bandera de completitud suficiente para una conclusion operativa?
 
+### 2026-05-03 - Fase 1.1 HTTP MCP: no depender de inferencia por path cuando el endpoint ya conoce su operation_id
+
+- Scope: `apps/api/routers/buscar.py`, `apps/api/routers/legislacion.py`, `apps/api/routers/doctrina.py`, `apps/api/routers/modelos.py`, `services/query_audit.py`
+- Hallazgo: para la superficie HTTP MCP prioritaria, confiar solo en `infer_query_audit_tool_name(path)` es fragil porque varios endpoints reales incluyen parametros dinamicos en la ruta y otros comparten prefijo pero no operation_id. El hook mas robusto es pasar `tool_name` explicito desde cada handler cuando ese endpoint forma parte del catalogo MCP.
+- Impacto: sin `tool_name` explicito, una entrada puede persistirse con nombre derivado del ultimo segmento de la URL o no persistirse en absoluto si el handler nunca llama a `record_query()`, rompiendo la reconstruccion E2E por tool.
+- Regla practica: en rutas HTTP que representen operation_ids MCP reales, llamar siempre a `get_query_audit_service().record_query(...)` desde el handler y pasar `tool_name` explicito junto con `path`, `query_text`, `sources/confidence`, `completeness` y `verified`.
+
+### 2026-05-03 - `doctrina/buscar` con `include_boe=true` puede romper filtros semanticos heredados
+
+- Scope: `apps/api/routers/doctrina.py`, `apps/api/tests/test_smoke.py::test_doctrina_buscar_filtra_por_tipo`
+- Hallazgo: el buscador de doctrina puede extender resultados con `_buscar_normas_boe(db, q)` cuando `include_boe=true` y no se restringe `organismo_emisor`. Eso hace que una query filtrada por `tipo` doctrinal siga incluyendo normas BOE relacionadas y rompa asserts heredados que esperan homogeneidad total por `tipo_documento`.
+- Impacto: algunas smokes antiguas sobre filtrado por `tipo` fallan aunque el nuevo audit trail y el endpoint principal sigan funcionando; no debe confundirse con una regresion del slice de auditoria MCP.
+- Regla practica: si aparece un rojo en `test_doctrina_buscar_filtra_por_tipo`, revisar primero la mezcla `doctrina + BOE` del endpoint antes de tocar el audit trail. Es deuda funcional separada de la Fase 1.1.
+
+### 2026-05-03 - Fase 1.2 stdio MCP: la fila auditable debe nacer en `tools/call`, no como post-log sintetico aislado
+
+- Scope: `apps/api/mcp_stdio.py`, `apps/api/tests/test_mcp_stdio_audit.py`
+- Hallazgo: el patron anterior de `stdio` registraba una segunda fila con `request_id` aleatorio, `retrieved_chunks=[]` fijo y `except Exception: pass`. Eso rompia la correlacion E2E con el endpoint REST real y permitia responder con exito aunque la auditoria stdio no hubiera quedado persistida.
+- Impacto: un cliente local podia ver una respuesta correcta en texto pero sin rastro reconstruible por `request_id`, o peor, con una huella negativa artificial que ocultaba el grounding y las fuentes reales del runtime.
+- Regla practica: en `stdio`, generar el `request_id` al entrar en `tools/call`, inyectarlo en todos los subrequests internos (`x-request-id`, `x-user-id`) y persistir la fila `/mcp/tools/<tool_name>` reutilizando la entrada HTTP correlada cuando exista. Si esa persistencia falla, devolver `-32603` y no emitir la respuesta bufferizada como si todo hubiera salido bien.
+
+### 2026-05-03 - Fase 1.3 query-audit: verificar contra runtime real, no solo contra fixtures manuales
+
+- Scope: `apps/api/routers/query_audit.py`, `apps/api/tests/test_query_audit_http.py`
+- Hallazgo: el contrato de `/v1/ai/query-audit` ya exponia `grounding_status`, `prompt_injection_detected`, `grounding_summary`, `completeness` y `verified`, pero la cobertura HTTP solo demostraba esos campos con entradas manuales creadas via `record_query()`. Faltaba fijar que tambien salen bien cuando la fila nace del runtime real de `/v1/consulta`.
+- Impacto: sin esa cobertura, una futura regresion en serializacion o mapping del router podia pasar desapercibida aunque el schema siguiera aceptando los campos y los tests unitarios del servicio siguieran verdes.
+- Regla practica: cuando el roadmap pida "exponer" un campo ya presente en router/schema, no asumir que no hay trabajo. Añadir al menos un test HTTP o E2E que pruebe el dato sobre una fila producida por runtime real, no solo por fixtures o inserts manuales.
+
+### 2026-05-03 - Fase 1.4 query-audit: persistir el payload exacto del cliente, no una variante paralela
+
+- Scope: `apps/api/services/query_audit.py`, `apps/api/routers/consulta.py`, `apps/api/mcp_stdio.py`, `alembic/versions/20260503_0055_query_audit_response_payload.py`
+- Hallazgo: para reconstruir de verdad lo que vio el usuario, `query_audit` no debe guardar solo un resumen ni un payload reinterpretado. En `/v1/consulta` el dato correcto es el `ConsultaFiscalResponse` final serializado tal como sale al cliente; en `stdio` el dato correcto es el payload JSON-RPC final bufferizado (`result` o `error`) que se emite por `tools/call`.
+- Impacto: si se persiste una variante ad hoc, la auditoria puede seguir siendo incompleta aunque exista una columna nueva, porque la reconstruccion no coincide exactamente con la respuesta entregada.
+- Regla practica: cuando un slice pida persistir la respuesta final, reutilizar el response model o payload ya construido para la salida real y persistir ese mismo objeto serializado. Si la suite API en Windows usa `apps/api/tests/conftest.py`, verificar siempre en secuencial para evitar `WinError 32` del SQLite compartido.
+
+### 2026-05-03 - Fase 2.1 DB lifecycle: `next(get_db())` fuera de DI oculta sesiones cerradas hasta que el cierre se vuelve terminal
+
+- Scope: `apps/api/db.py`, `apps/api/routers/consulta.py`, `apps/api/routers/legislacion.py`, `apps/api/routers/jurisprudencia.py`, `apps/api/tests/test_db.py`, `apps/api/tests/test_reranker.py`
+- Hallazgo: con la configuracion por defecto de SQLAlchemy, `Session.close()` puede reabrirse silenciosamente y esconder reusos invalidos de sesiones fuera de contexto. Al fijar `SessionLocal(... close_resets_only=False)`, la sesion cerrada pasa a ser terminal y aflora el patron roto: abrir DB con `db = next(get_db())` fuera del ciclo de dependencias de FastAPI o seguir usando `db` tras salir de `with db_session() as db:`.
+- Impacto: rutas o bloques tardios pueden parecer sanos en tests o runtime aunque esten usando una sesion ya cerrada; cuando el cierre se endurece, el fallo real emerge como `InvalidRequestError: This Session has been permanently closed and is unable to handle any more transaction requests.`
+- Regla practica: fuera de `Depends(get_db)`, no usar `next(get_db())`. Abrir una sesion nueva con `with db_session() as db:` por cada bloque vivo que realmente consulte la DB. Si una ruta necesita una consulta tardia adicional, reabrir otra sesion para ese bloque en vez de reciclar la anterior.
+
+### 2026-05-03 - MCP audit/modelos: un `200` vacio tambien debe dejar rastro E2E si la request fue valida
+
+- Scope: `apps/api/routers/modelos.py`, `apps/api/tests/test_http_mcp_audit_phase_1_1.py`
+- Hallazgo: en `get_modelo_casillas`, `get_modelo_claves` y `get_modelo_instrucciones`, una campaña inexistente de un modelo valido devolvia `200` con lista vacia pero sin pasar por `_record_modelo_query_audit(...)`.
+- Impacto: la auditoria HTTP MCP quedaba rota precisamente en un caso valido y frecuente de cobertura parcial (`campana` no publicada o no disponible), aunque la respuesta al cliente fuese correcta.
+- Regla practica: si un endpoint MCP devuelve `200`, debe registrar `query_audit` tambien cuando el payload sea vacio. El unico caso que no debe registrar como exito es el `404`/error de request invalida.
+
+### 2026-05-03 - Query audit MCP: no dejar que el contrato nuevo dependa solo de `ALTER TABLE` runtime
+
+- Scope: `alembic/versions/20260503_0055_query_audit_response_payload.py`, `apps/api/services/query_audit.py`, `apps/api/tests/test_alembic_integrity.py`
+- Hallazgo: el contrato MCP anadido en Fase 0.2 (`tool_name`, `sources`, `confidence`, `completeness`, `verified`) habia quedado soportado en SQLite/runtime por reparacion dinamica, pero no por la nueva migracion Alembic 0055. Ademas, el singleton eager `_service = QueryAuditService()` disparaba `ensure_governance_tables()` en import.
+- Impacto: un deploy guiado solo por migraciones podia quedar con drift de esquema respecto al runtime real, y un entorno con permisos restringidos podia fallar antes de arrancar al intentar hacer DDL durante import.
+- Regla practica: si un cambio amplia el contrato persistido de `query_audit_log`, respaldarlo en Alembic y no solo en `ensure_governance_tables()`. Para el servicio, preferir singleton lazy (`get_query_audit_service()`) en vez de instanciar con DDL al importar el modulo.
+
+### 2026-05-03 - Reranker: no exponer scores brutos del cross-encoder como si ya estuvieran normalizados
+
+- Scope: `apps/api/routers/consulta.py`, `apps/api/services/reranker.py`, `apps/api/tests/test_reranker.py`
+- Hallazgo: `rerank_score` puede venir fuera de `0..1` (incluyendo negativos y valores > 1). Si se serializa directo como `relevance_score` o `claim confidence`, el contrato externo queda semanticamente enganoso aunque el campo exista. Tambien es facil perder `source_url` al construir `claim_citations` si no se arrastra desde la evidencia del resultado original.
+- Impacto: el cliente puede ver puntuaciones imposibles o interpretar una confianza cruda como probabilidad normalizada; ademas, `ClaimCitation.source_url` puede salir `null` aunque la fuente exista en el resultado base.
+- Regla practica: reutilizar `normalize_rerank_score()` al serializar campos publicos derivados del cross-encoder y propagar `source_url` desde la evidencia original cuando se construyan citas por claim.
+
 ### 2026-05-03 - EUR-Lex: validar seeds contra `resource/celex` RDF antes de asumir que el numero es correcto
 
 - Scope: `apps/workers/eurlex.py`, `EURLEX_NORMAS`, `publications.europa.eu/resource/celex/*`
@@ -119,6 +182,13 @@ Usar notas cortas con este esquema:
 - Hallazgo: la suite de integration debe reutilizar la SQLite compartida que `conftest.py` inicializa al importarse. Recrear `STATEMENTS` o `PGC_SCHEMA_STATEMENTS` encima del mismo `engine` provoca errores tipo `table norma already exists`.
 - Impacto: el archivo puede fallar entero en setup aunque el runtime este bien.
 - Regla practica: en tests de integration de `apps/api/tests`, preferir reutilizar `engine` y fixtures compartidas de `conftest.py` antes de bootstrappear esquema propio.
+
+### 2026-05-03 - SQLite compartida en Windows: no correr `pytest` del API en paralelo
+
+- Scope: `apps/api/tests/conftest.py`, worktrees Windows, suites `pytest` del API
+- Hallazgo: `conftest.py` intenta borrar y recrear `test_esdata.sqlite3` al importarse. En Windows, si se lanzan dos procesos `pytest` a la vez contra `apps/api/tests`, el segundo puede fallar en el `unlink()` con `PermissionError: [WinError 32]` porque el primer proceso mantiene el archivo abierto.
+- Impacto: se obtienen fallos falsos de infraestructura de test al verificar slices en paralelo, incluso cuando el runtime y los tests individuales estan bien.
+- Regla practica: en este repo, las suites `pytest` que importan `apps/api/tests/conftest.py` deben ejecutarse en secuencial dentro del mismo worktree Windows. Si hace falta paralelizar, usar otro worktree o aislar un DB path distinto por proceso.
 
 ### 2026-04-26 - Chunks en SQLite de tests
 

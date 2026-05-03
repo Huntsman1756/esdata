@@ -29,6 +29,22 @@ HTTP_MCP_OPERATIONS = [
 ]
 
 
+QUERY_AUDIT_TOOL_BY_PATH = {
+    "/v1/buscar": "buscar",
+    "/v1/legislacion/buscar": "buscar_legislacion",
+    "/v1/doctrina/buscar": "buscar_doctrina",
+    "/v1/consulta": "consulta_fiscal",
+}
+
+
+def infer_query_audit_tool_name(path: str) -> str:
+    """Return a stable audit tool name for HTTP and stdio surfaces."""
+
+    if path.startswith("/mcp/tools/"):
+        return path.rsplit("/", 1)[-1]
+    return QUERY_AUDIT_TOOL_BY_PATH.get(path, path.rsplit("/", 1)[-1] or path)
+
+
 def get_stdio_tool_definitions() -> list[dict]:
     """Tools exposed by the local stdio MCP server.
 

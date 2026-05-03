@@ -57,6 +57,14 @@ def _infer_categoria_obligado(codigo: str, impuesto: str | None, obligados: str 
     return None
 
 
+def _build_truth_contract(*, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None) -> tuple[str, bool]:
+    if not has_instructions or not has_casillas:
+        return "parcial", False
+    if metadata_state in {None, "inferido"}:
+        return "parcial", False
+    return "completa", True
+
+
 def get_modelo_campana_operativa_row(db, campana_id: int):
     try:
         return db.execute(
@@ -593,6 +601,7 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
     campana_activa = camp_row["campana"] if camp_row else None
     campana_id = camp_row["id"] if camp_row else None
     instrucciones = list_campaign_instructions(db, campana_id) if campana_id else []
+    casillas = list_campaign_casillas(db, campana_id) if campana_id else []
     operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
 
     obligados = None
@@ -671,6 +680,11 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
         if operativa_row and operativa_row.get("estado_metadato")
         else None
     )
+    completeness, verified = _build_truth_contract(
+        has_instructions=bool(instrucciones),
+        has_casillas=bool(casillas),
+        metadata_state=estado_metadato,
+    )
 
     return {
         "codigo": model_row["codigo"],
@@ -688,6 +702,8 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
         "presentacion_resumen": presentacion_payload,
         "origen_metadato": origen_metadato,
         "estado_metadato": estado_metadato,
+        "completeness": completeness,
+        "verified": verified,
         "fuentes_recomendadas": (fuentes or {}).get("fuentes_oficiales", []),
     }
 

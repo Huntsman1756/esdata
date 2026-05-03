@@ -104,13 +104,17 @@ cliente/API/MCP -> apps/api -> services/routers -> PostgreSQL -> respuesta traza
 - usa `FastApiMCP` sobre operaciones HTTP reales del backend
 - el catalogo activo vive en `apps/api/mcp_catalog.py` bajo `HTTP_MCP_OPERATIONS`
 - esta es la superficie documentada para `OpenCode` cuando consume un endpoint remoto/local por URL
+- el contrato minimo auditable que debe poder reconstruirse por respuesta queda fijado en `request_id`, `tool_name`, `sources`, `confidence`, `completeness` y `verified`
 
-### stdio MCP `[PARTIAL]`
+### stdio MCP `[IMPLEMENTED]`
 
 - vive en `apps/api/mcp_stdio.py`
 - expone tools de mas alto nivel orientadas a clientes locales via proceso hijo
 - su catalogo no coincide con `HTTP_MCP_OPERATIONS`
 - incluye herramientas como `consulta_fiscal` y `agente_consulta` que no deben asumirse presentes en HTTP MCP
+- cada `tools/call` genera un `request_id` propio, lo propaga a los subrequests REST y persiste una fila correlada en `query_audit_log`
+- la fila stdio puede reconstruirse con `tool_name`, argumentos, `sources`, `confidence`, `completeness`, `verified`, `grounding_status` y `grounding_summary` heredados del runtime real cuando aplica
+- si la persistencia de auditoria stdio falla, la llamada responde en fail-closed con error MCP explicito
 
 Regla de arquitectura:
 
@@ -256,7 +260,11 @@ Reglas implementadas:
 Toda query relevante debe dejar evidencia durable de:
 
 - quien consulto
+- que tool o superficie respondio
 - que se recupero
+- que fuentes exactas se usaron o si no hubo base suficiente
+- si la respuesta queda `completa` o `parcial`
+- si la respuesta queda `verified` o explicitamente no verificada
 - que modelo/configuracion se uso
 - que se respondio
 - que score de faithfulness y confianza resulto

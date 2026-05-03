@@ -69,6 +69,12 @@ Cobertura actual principal:
 
 El servidor stdio expone herramientas de mas alto nivel orientadas a agentes/LLMs locales.
 
+Contrato operativo actual:
+
+- cada `tools/call` genera un `request_id` real y lo propaga a los subrequests REST internos
+- la fila auditable final queda en `/mcp/tools/<tool_name>` correlada con la del endpoint REST subyacente
+- cuando la persistencia de auditoria stdio falla, el servidor devuelve error `-32603` en lugar de responder con exito silencioso
+
 Catalogo actual de stdio:
 
 - `consulta_fiscal`
@@ -105,7 +111,7 @@ Usar `API` normal cuando:
 
 - pregunta: `modelo 216 como rellenar`
 - entrada: `q` obligatorio, con `sujeto`, `pais` y `tipo_operacion` opcionales
-- salida: texto resumido para el LLM y contenido estructurado subyacente
+- salida: texto resumido para el LLM, `structuredContent` subyacente y audit trail correlado con `/v1/consulta`
 
 `listar_obligaciones_aplicables` (solo stdio hoy):
 

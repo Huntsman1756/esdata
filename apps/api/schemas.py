@@ -257,6 +257,8 @@ class ModeloCampanaOperativaResponse(BaseModel):
     presentacion_resumen: str | None = Field(default=None, description="Resumen de presentación")
     origen_metadato: str | None = Field(default=None, description="Origen del metadato")
     estado_metadato: str | None = Field(default=None, description="Estado del metadato")
+    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
     fuentes_recomendadas: list["ModeloFuenteOficial"] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
 
 
@@ -293,6 +295,8 @@ class ModeloDetail(BaseModel):
     doctrina_relacionada: list[DoctrinaRelacionada] = Field(
         default_factory=list, description="Doctrina relacionada vía artículos"
     )
+    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +321,136 @@ class LegislacionSearchResponse(BaseModel):
 class DoctrinaSearchResponse(BaseModel):
     q: str = Field(description="Término de búsqueda")
     resultados: list[DoctrinaSearchResult]
+
+
+class ObligacionResumen(BaseModel):
+    model_config = {"extra": "allow"}
+
+    codigo: str = Field(description="Codigo de la obligacion")
+    nombre: str = Field(description="Nombre de la obligacion")
+    fuente: str = Field(description="Fuente principal")
+    organismo_emisor: str = Field(description="Organismo emisor")
+    tipo_obligacion: str = Field(description="Tipo de obligacion")
+    sujeto_obligado: str = Field(description="Sujeto obligado")
+    periodicidad: str | None = Field(default=None, description="Periodicidad base")
+    reporte_modelo: str | None = Field(default=None, description="Modelo asociado")
+    ambito: str = Field(description="Ambito")
+    estado_vigencia: str = Field(description="Estado de vigencia")
+    plazo_dias: int | None = Field(default=None, description="Plazo en dias")
+    frecuencia_presentacion: str | None = Field(
+        default=None, description="Frecuencia de presentacion"
+    )
+    ventana_presentacion: str | None = Field(
+        default=None, description="Ventana de presentacion"
+    )
+    trigger_presentacion: str | None = Field(
+        default=None, description="Trigger de presentacion"
+    )
+    sancion_min: str | float | int | None = Field(
+        default=None, description="Sancion minima"
+    )
+    sancion_max: str | float | int | None = Field(
+        default=None, description="Sancion maxima"
+    )
+    prescripcion_anos: int | None = Field(
+        default=None, description="Anos de prescripcion"
+    )
+
+
+class ObligacionDocumento(BaseModel):
+    referencia: str = Field(description="Referencia del documento")
+    organismo_emisor: str = Field(description="Organismo emisor")
+    tipo_fuente: str = Field(description="Tipo de fuente")
+    tipo_documento: str = Field(description="Tipo de documento")
+    tipo_relacion: str = Field(description="Tipo de relacion con la obligacion")
+
+
+class ObligacionDetail(ObligacionResumen):
+    model_config = {"extra": "allow"}
+
+    documento_origen_tipo: str | None = Field(
+        default=None, description="Tipo de documento origen"
+    )
+    documento_origen_ref: str | None = Field(
+        default=None, description="Referencia del documento origen"
+    )
+    seccion_origen: str | None = Field(default=None, description="Seccion origen")
+    anexo_origen: str | None = Field(default=None, description="Anexo origen")
+    nota: str | None = Field(default=None, description="Nota interna")
+    canal_presentacion: str | None = Field(
+        default=None, description="Canal de presentacion"
+    )
+    obligados_resumen: str | None = Field(
+        default=None, description="Resumen de obligados"
+    )
+    recargo_voluntario: str | float | int | None = Field(
+        default=None, description="Recargo voluntario"
+    )
+    recargo_involuntario: str | float | int | None = Field(
+        default=None, description="Recargo involuntario"
+    )
+    interes_demora: str | float | int | None = Field(
+        default=None, description="Interes de demora"
+    )
+    deposito_previo: str | None = Field(default=None, description="Deposito previo")
+    fuentes_operativas: list | dict | None = Field(
+        default=None, description="Fuentes operativas estructuradas"
+    )
+    ultima_actualizacion: str | None = Field(
+        default=None, description="Ultima actualizacion"
+    )
+    origen_metadato: str | None = Field(
+        default=None, description="Origen del metadato"
+    )
+    estado_metadato: str | None = Field(
+        default=None, description="Estado del metadato"
+    )
+    documentos: list[ObligacionDocumento] = Field(
+        default_factory=list, description="Documentos relacionados"
+    )
+
+
+class ObligacionesListResponse(BaseModel):
+    obligaciones: list[ObligacionResumen]
+
+
+class ObligacionesAplicablesResponse(BaseModel):
+    perfil: dict = Field(description="Perfil regulatorio aplicado")
+    obligaciones: list[ObligacionResumen]
+
+
+class EmpresaResumen(BaseModel):
+    id: int = Field(description="ID de la empresa")
+    nombre: str = Field(description="Nombre")
+    nif: str | None = Field(default=None, description="NIF")
+    domicilio: str | None = Field(default=None, description="Domicilio")
+    fuente_inicial: str = Field(description="Fuente inicial")
+    documentos_count: int = Field(description="Numero de documentos enlazados")
+
+
+class EmpresaDocumento(BaseModel):
+    referencia: str = Field(description="Referencia del documento")
+    organismo_emisor: str = Field(description="Organismo emisor")
+    tipo_fuente: str = Field(description="Tipo de fuente")
+    tipo_documento: str = Field(description="Tipo de documento")
+    fecha: str | None = Field(default=None, description="Fecha")
+    rol: str = Field(description="Rol de la empresa en el documento")
+    confianza_extraccion: float = Field(description="Confianza de extraccion")
+
+
+class EmpresaDetail(BaseModel):
+    id: int = Field(description="ID de la empresa")
+    nombre: str = Field(description="Nombre")
+    nif: str | None = Field(default=None, description="NIF")
+    domicilio: str | None = Field(default=None, description="Domicilio")
+    fuente_inicial: str = Field(description="Fuente inicial")
+    documentos: list[EmpresaDocumento] = Field(
+        default_factory=list, description="Documentos vinculados"
+    )
+
+
+class EmpresasListResponse(BaseModel):
+    empresas: list[EmpresaResumen]
 
 
 class ModeloFuenteOficial(BaseModel):
@@ -438,6 +572,58 @@ class ClaimCitation(BaseModel):
     source_url: str | None = Field(default=None, description="URL de la fuente original")
     grounded: bool = Field(description="Si la afirmación está respaldada por evidencia")
     confidence: float = Field(description="Confianza del grounding (0-1)")
+
+
+class MCPConfidenceInfo(BaseModel):
+    score: float = Field(description="Puntuacion de confianza de 0 a 1")
+    label: str = Field(description="Etiqueta cualitativa de confianza")
+
+
+class MCPSourceInfo(BaseModel):
+    title: str | None = Field(default=None, description="Titulo legible de la fuente")
+    url: str | None = Field(default=None, description="URL de la fuente cuando exista")
+    chunk_id: str | None = Field(default=None, description="Chunk usado como evidencia")
+    norma: str | None = Field(default=None, description="Codigo de norma si aplica")
+    numero: str | None = Field(default=None, description="Numero de articulo si aplica")
+    referencia: str | None = Field(default=None, description="Referencia doctrinal o documental")
+    organismo_emisor: str | None = Field(default=None, description="Organismo emisor si aplica")
+    trust_tier: str | None = Field(default=None, description="Jerarquia de confianza de la fuente")
+
+
+class MCPMinimumResponseContract(BaseModel):
+    request_id: str = Field(description="Identificador correlacionado de la respuesta")
+    tool_name: str = Field(description="Nombre estable de la tool o superficie")
+    sources: list[dict] = Field(default_factory=list, description="Fuentes o chunks que respaldan la respuesta")
+    confidence: dict = Field(description="Confianza operativa de la respuesta")
+    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+
+
+class QueryAuditEntryResponse(MCPMinimumResponseContract):
+    entry_id: str = Field(description="Unique entry identifier")
+    user_id: str | None = Field(default=None, description="Authenticated user ID")
+    path: str = Field(description="API path that was queried")
+    query_text: str = Field(description="The query text sent")
+    retrieved_chunks: list[dict] = Field(default_factory=list, description="Chunks retrieved")
+    response_summary: str = Field(default="", description="Summary of the response")
+    model_version: str | None = Field(default=None, description="Model version used")
+    config_version: str | None = Field(default=None, description="Config version used")
+    created_at: str = Field(description="When the query was recorded (ISO 8601)")
+    grounding_status: str | None = Field(default=None, description="Grounding status persisted for the response")
+    prompt_injection_detected: bool = Field(default=False, description="If prompt injection signals were detected in retrieved chunks")
+    grounding_summary: dict = Field(default_factory=dict, description="Persisted grounding summary for the response")
+
+
+class QueryAuditLogResponse(BaseModel):
+    total: int = Field(description="Total entries matching the query")
+    path: str | None = Field(default=None, description="Path filter applied")
+    entries: list[QueryAuditEntryResponse] = Field(default_factory=list, description="Audit log entries")
+
+
+class QueryAuditByRequestResponse(BaseModel):
+    request_id: str = Field(description="The request ID queried")
+    total: int = Field(description="Total entries for this request")
+    entries: list[QueryAuditEntryResponse] = Field(default_factory=list, description="Audit entries for the request")
 
 
 # ---------------------------------------------------------------------------
