@@ -4,6 +4,20 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ---
 
+## docs/mcp-remediation-plan
+
+### Resumen
+Auditoria transversal del repo enfocada en una sola pregunta: que partes permiten que el MCP responda con seguridad correcta, dudosa o peligrosamente segura. Se consolida el diagnostico en un plan de remediacion por fases, persistido en `docs/reference/mcp-remediation-plan.md`. La conclusion operativa es que el problema principal no es una unica respuesta ni una unica capa, sino la cadena de confianza entre datos, superficies MCP, audit trail, completitud de modelos AEAT, workers y deploy.
+
+### Commits recientes
+| Commit | Tipo | Descripcion | Archivos afectados |
+|--------|------|-------------|-------------------|
+| PENDING | docs(reference) | crear plan de remediacion MCP con fases, orden de ejecucion, archivos a tocar, criterios de exito y primer sprint recomendado | docs/reference/mcp-remediation-plan.md, docs/master-execution-roadmap.md, docs/operations/agent-notes.md, docs/README.md, docs/operations/README.md, docs/CHANGELOG.md, docs/MEMO.md |
+
+### Notas
+- El roadmap maestro mantiene el estado activo y el siguiente paso exacto; el plan detallado vive en `docs/reference/mcp-remediation-plan.md`.
+- El siguiente slice recomendado para implementacion es `Fase 0.1`: congelar la superficie MCP canonica y alinear HTTP vs stdio antes de tocar retrieval, datos o deploy.
+
 ## main
 
 

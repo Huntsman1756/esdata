@@ -33,6 +33,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-03 - MCP trust: el riesgo principal no es una sola respuesta mala, sino huecos entre datos, contrato MCP y audit trail
+
+- Scope: `apps/api/*`, `apps/workers/*`, `docs/manual-usuario/*`, `docs/reference/mcp-remediation-plan.md`
+- Hallazgo: el repo tiene buena base de grounding, workers y auditoria, pero una respuesta MCP puede seguir siendo peligrosamente segura si se juntan tres cosas: metadata/modelos parciales, surfaces MCP HTTP vs stdio no alineadas, y endpoints/tool calls sin audit E2E completo. El fallo real es de cadena de confianza, no de una sola capa.
+- Impacto: un modelo o agente externo puede convertir datos parciales o curados en una conclusion operativa aparentemente verificada. Eso afecta especialmente a `modelos AEAT`, `consulta_fiscal/agente_consulta`, y a cualquier tool que no persista `request_id + fuentes + grounding_status + completitud`.
+- Regla practica: antes de corregir prompts o tocar docs, comprobar siempre estas cuatro preguntas: (1) la tool existe en la superficie MCP que usa el cliente real? (2) deja audit trail E2E? (3) la respuesta distingue oficial/curado/heuristico/no verificado? (4) el corpus o modelo tiene bandera de completitud suficiente para una conclusion operativa?
+
 ### 2026-05-03 - EUR-Lex: validar seeds contra `resource/celex` RDF antes de asumir que el numero es correcto
 
 - Scope: `apps/workers/eurlex.py`, `EURLEX_NORMAS`, `publications.europa.eu/resource/celex/*`

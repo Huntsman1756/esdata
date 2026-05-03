@@ -4,6 +4,11 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ---
 
+## 2026-05-03
+
+### docs/mcp-remediation-plan
+- **PENDING** `docs(reference)` — auditoria transversal del repo convertida en plan ejecutable de remediacion MCP por fases. Se anade `docs/reference/mcp-remediation-plan.md`, se actualizan `docs/master-execution-roadmap.md`, `docs/README.md`, `docs/operations/README.md` y `docs/operations/agent-notes.md` para dejar el siguiente paso exacto y la memoria operativa reutilizable de la cadena de confianza MCP.
+
 ## 2026-05-01
 
 ### main
