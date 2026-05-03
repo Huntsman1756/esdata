@@ -47,6 +47,13 @@ Usar notas cortas con este esquema:
 - Impacto: si se intenta conectar ChatGPT a `/mcp` o se reutiliza `MCP_API_KEY` en Actions, la integracion falla o mezcla dominios de riesgo.
 - Regla practica: recordar siempre este mapeo: `OpenCode -> MCP -> MCP_API_KEY`; `ChatGPT -> OpenAPI/Actions -> ESDATA_API_KEY`. Si el builder de ChatGPT da guerra con OpenAPI 3.1, preparar la variante `docs/openapi-gpt-3.0.json`.
 
+### 2026-05-03 - Handshake MCP HTTP en produccion: 400 inicial esperado
+
+- Scope: `apps/api/mcp_security.py`, `apps/api/tests/test_mcp_private.py`, `https://api.desuscribir.es/mcp`
+- Hallazgo: en este stack, el transporte MCP HTTP no se valida con un `POST /mcp` directo. La secuencia correcta es `GET /mcp` con `Accept: text/event-stream` y `X-API-Key`; ese `GET` puede responder `400 Bad Request: Missing session ID` y aun asi incluir `Mcp-Session-Id`. Con ese header, el cliente ya puede hacer `POST /mcp` con `MCP-Session-ID` para `initialize` y `tools/list`.
+- Impacto: si se prueba MCP con `Authorization: Bearer ...` o con un `POST` directo sin `MCP-Session-ID`, parece un fallo de auth o de endpoint cuando en realidad el backend esta funcionando segun contrato.
+- Regla practica: para verificar MCP remoto, usar siempre `X-API-Key`, no `Authorization`; capturar `Mcp-Session-Id` incluso en respuestas `400`; luego llamar `initialize` y `tools/list` con `MCP-Session-ID`. Si hace falta una prueba rapida, el `GET /mcp` con `400 Missing session ID` mas header de sesion ya cuenta como evidencia de handshake vivo.
+
 ### 2026-04-27 - Drift de HTML AEAT en modelos
 
 - Scope: `apps/workers/modelos.py`, `apps/workers/modelos_support.py`, `apps/workers/tests/test_modelos.py`
