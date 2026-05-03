@@ -27,8 +27,8 @@ SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 2592000)
 EURLEX_BASE = os.getenv("EURLEX_BASE", "https://eur-lex.europa.eu")
 
 PBC_NORMAS = [
-    {"codigo": "PBC_CRD_V_2019_879", "boe_id": "EUR-CELEX-32019L0879", "tipo_documento": "directiva", "titulo": "Directiva 2019/879/UE sobre requisitos prudenciales (CRD V / PBC)", "eli_uri": "https://eur-lex.europa.eu/eli/dir/2019/879/oj", "vigente_desde": "2019-05-29", "ambito": "prudencial_bancario", "regulacion": "pbc"},
-    {"codigo": "PBC_CRR_II_2019_2057", "boe_id": "EUR-CELEX-32019R2057", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) 2019/2057 sobre requisitos prudenciales (CRR II / PBC)", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2019/2057/oj", "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario", "regulacion": "pbc"},
+    {"codigo": "PBC_CRD_V_2019_879", "boe_id": "EUR-CELEX-32019L0878", "tipo_documento": "directiva", "titulo": "Directiva 2019/878/UE sobre requisitos prudenciales (CRD V / PBC)", "eli_uri": "https://eur-lex.europa.eu/eli/dir/2019/878/oj", "vigente_desde": "2019-05-29", "ambito": "prudencial_bancario", "regulacion": "pbc"},
+    {"codigo": "PBC_CRR_II_2019_2057", "boe_id": "EUR-CELEX-32019R0876", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) 2019/876 sobre requisitos prudenciales (CRR II / PBC)", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2019/876/oj", "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario", "regulacion": "pbc"},
 ]
 
 SEED_PBC_ENTITIES = [
@@ -80,7 +80,7 @@ def run_sync(worker_name: str = "cron-pbc-monthly") -> dict:
                     continue
                 result = _fetch_eurlex_text(norma)
                 if result:
-                    title, norma_text = result
+                    title, _norma_text = result
                     conn.execute(text("""
                         INSERT INTO normas (codigo, titulo, boe_id, eli_uri,
                                             jurisdiccion, tipo_fuente, tipo_documento,

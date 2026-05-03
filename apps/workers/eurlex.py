@@ -11,11 +11,14 @@ Modo hibrido:
 
 import argparse
 import os
+import re
 import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from html import unescape
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import httpx
 from sqlalchemy import create_engine, text
@@ -47,6 +50,8 @@ SPARQL_BASE = os.getenv(
 )
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
+OFFICIAL_NOTICE_ACCEPT = "application/xml, text/xml;q=0.9, */*;q=0.1"
+OFFICIAL_RDF_ACCEPT = "application/rdf+xml, application/xml;q=0.9, text/xml;q=0.8"
 
 # ============================================================
 # CELEXs hardcodeados — docs clave de legislacion UE
@@ -63,7 +68,7 @@ EURLEX_NORMAS: list[dict] = [
         "vigente_desde": "2014-07-17",
         "ambito": "mercados_financieros",
     },
-    {"codigo": "MIFIR_2014_60", "boe_id": "EUR-CELEX-32014R0060", "tipo_documento": "reglamento",
+    {"codigo": "MIFIR_2014_60", "boe_id": "EUR-CELEX-32014R0600", "tipo_documento": "reglamento",
      "titulo": "Reglamento (UE) n. o 600/2014 sobre los mercados de instrumentos financieros (MiFIR)",
      "vigente_desde": "2014-06-12", "ambito": "mercados_financieros"},
     # --- MAR (Market Abuse Regulation) ---
@@ -98,11 +103,11 @@ EURLEX_NORMAS: list[dict] = [
      "titulo": "Directiva 2009/65/CE sobre los fondos de inversion colectivos (UCITS)",
      "vigente_desde": "2009-08-01", "ambito": "fondos_inversion"},
     # --- CRD V / CRR II ---
-    {"codigo": "CRD_V_2019_2058", "boe_id": "EUR-CELEX-32019L2058", "tipo_documento": "directiva",
-     "titulo": "Directiva (UE) 2019/879 por la que se modifica la Directiva 2013/36/UE (CRD V)",
+    {"codigo": "CRD_V_2019_2058", "boe_id": "EUR-CELEX-32019L0878", "tipo_documento": "directiva",
+     "titulo": "Directiva (UE) 2019/878 por la que se modifica la Directiva 2013/36/UE (CRD V)",
      "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario"},
-    {"codigo": "CRR_II_2019_2057", "boe_id": "EUR-CELEX-32019R2057", "tipo_documento": "reglamento",
-     "titulo": "Reglamento (UE) 2019/2057 por el que se modifica el Reglamento (UE) n. o 575/2013 (CRR II)",
+    {"codigo": "CRR_II_2019_2057", "boe_id": "EUR-CELEX-32019R0876", "tipo_documento": "reglamento",
+     "titulo": "Reglamento (UE) 2019/876 por el que se modifica el Reglamento (UE) n. o 575/2013 (CRR II)",
      "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario"},
     # --- BRRD ---
     {"codigo": "BRRD_2014_59", "boe_id": "EUR-CELEX-32014L0059", "tipo_documento": "directiva",
@@ -113,11 +118,11 @@ EURLEX_NORMAS: list[dict] = [
      "titulo": "Reglamento (UE) n. o 648/2012 sobre los contratos derivados de tipo de cambio y opciones (EMIR)",
      "vigente_desde": "2012-07-16", "ambito": "derivados"},
     # --- PSD2 / PSD3 ---
-    {"codigo": "PSD2_2015_236", "boe_id": "EUR-CELEX-32015L0236", "tipo_documento": "directiva",
+    {"codigo": "PSD2_2015_236", "boe_id": "EUR-CELEX-32015L2366", "tipo_documento": "directiva",
      "titulo": "Directiva (UE) 2015/2366 sobre los servicios de pago en el mercado interior (PSD2)",
      "vigente_desde": "2015-12-22", "ambito": "servicios_pago"},
-    {"codigo": "PSD3_2024_884", "boe_id": "EUR-CELEX-32024R0884", "tipo_documento": "reglamento",
-     "titulo": "Reglamento (UE) 2024/884 sobre los servicios de pago en el mercado interior (PSD3)",
+    {"codigo": "PSD3_2024_884", "boe_id": "EUR-CELEX-32024R0886", "tipo_documento": "reglamento",
+     "titulo": "Reglamento (UE) 2024/886 sobre los servicios de pago en el mercado interior (PSD3)",
      "vigente_desde": "2024-03-20", "ambito": "servicios_pago"},
     # --- IDD (Insurance Distribution Directive) ---
     {"codigo": "IDD_2016_97", "boe_id": "EUR-CELEX-32016L0097", "tipo_documento": "directiva",
@@ -136,11 +141,11 @@ EURLEX_NORMAS: list[dict] = [
      "titulo": "Directiva (UE) 2018/843 sobre prevencion del blanqueo de capitales (AMLD5)",
      "vigente_desde": "2018-06-28", "ambito": "prevencion_blanqueo"},
     # --- DAC ---
-    {"codigo": "DAC6_2018_825", "boe_id": "EUR-CELEX-32018L0825", "tipo_documento": "directiva",
+    {"codigo": "DAC6_2018_825", "boe_id": "EUR-CELEX-32018L0822", "tipo_documento": "directiva",
      "titulo": "Directiva (UE) 2018/822 sobre la divulgacion obligatoria de informes relativos a disposiciones transfronterizas (DAC6)",
      "vigente_desde": "2018-06-25", "ambito": "transparencia_fiscal"},
-    {"codigo": "DAC7_2021_1689", "boe_id": "EUR-CELEX-32021R1689", "tipo_documento": "reglamento",
-     "titulo": "Reglamento (UE) 2021/1689 sobre los requisitos fiscales de aplicacion a los servicios de la sociedad de la informacion (DAC7)",
+    {"codigo": "DAC7_2021_1689", "boe_id": "EUR-CELEX-32021L0514", "tipo_documento": "directiva",
+     "titulo": "Directiva (UE) 2021/514 por la que se modifica la Directiva 2011/16/UE en materia de cooperacion administrativa en el ambito de la fiscalidad (DAC7)",
      "vigente_desde": "2021-10-20", "ambito": "transparencia_fiscal"},
     # --- Prospectus Regulation ---
     {"codigo": "PROSPECTUS_2017_1129", "boe_id": "EUR-CELEX-32017R1129", "tipo_documento": "reglamento",
@@ -150,14 +155,6 @@ EURLEX_NORMAS: list[dict] = [
     {"codigo": "CSDR_2014_909", "boe_id": "EUR-CELEX-32014R0909", "tipo_documento": "reglamento",
      "titulo": "Reglamento (UE) n. o 909/2014 sobre las depositarias centrales de valores (CSDR)",
      "vigente_desde": "2014-09-12", "ambito": "infraestructura_mercados"},
-    # --- Alternative Performance Measures ---
-    {"codigo": "APM_2020_683", "boe_id": "EUR-CELEX-32020R683", "tipo_documento": "reglamento",
-     "titulo": "Reglamento (UE) 2020/683 sobre las metrics financieras alternativas (APM)",
-     "vigente_desde": "2020-07-03", "ambito": "informacion_financiera"},
-    # --- ESG Ratings ---
-    {"codigo": "ESG_RATINGS_2023_2819", "boe_id": "EUR-CELEX-32023R2819", "tipo_documento": "reglamento",
-     "titulo": "Reglamento (UE) 2023/2819 sobre los agentes de calificacion de datos de sostenibilidad (ESG Ratings)",
-     "vigente_desde": "2023-12-20", "ambito": "sostenibilidad"},
     # --- Trade Repository ---
     {"codigo": "TRADE_REPOSITORY_2024_1781", "boe_id": "EUR-CELEX-32024R1781", "tipo_documento": "reglamento",
      "titulo": "Reglamento (UE) 2024/1781 sobre los registros centrales de operaciones (Trade Repository)",
@@ -198,6 +195,9 @@ class NormaCELEX:
     titulo: str
     fecha: str
     tipo: str  # "DIRECTIVE" or "REGULATION"
+
+
+_OFFICIAL_CONSOLIDATION_CACHE: dict[str, list[BloqueTexto]] = {}
 
 
 # ============================================================
@@ -288,20 +288,20 @@ def fetch_index(client: httpx.Client, celex: str) -> list[dict]:
     except (httpx.HTTPStatusError, httpx.RequestError):
         pass
 
+    official_blocks = _fetch_index_official_fallback(client, celex)
+    if official_blocks:
+        return official_blocks
+
     # Fallback: check for local corpus file
     corpus_path = Path(f"corpora/eurlex/{celex}.txt")
     if corpus_path.exists():
-        try:
-            text = corpus_path.read_text(encoding="utf-8")
-            return [
-                {
-                    "id": "corpus",
-                    "titulo": "Texto completo (corpus local)",
-                    "fecha_actualizacion": "",
-                }
-            ]
-        except Exception:
-            pass
+        return [
+            {
+                "id": "corpus",
+                "titulo": "Texto completo (corpus local)",
+                "fecha_actualizacion": "",
+            }
+        ]
 
     # Fallback: scrape the consolidated HTML page for article list
     return _fetch_index_html_fallback(client, celex)
@@ -355,11 +355,221 @@ def _extract_text_from_html(html: str) -> str:
         pass
 
     # Fallback: strip HTML tags with regex
-    import re
-
     text = re.sub(r"<[^>]+>", " ", html)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+def _fetch_index_official_fallback(client: httpx.Client, celex: str) -> list[dict]:
+    """Build an index from the official Publications Office consolidation."""
+    try:
+        blocks = _get_official_consolidation_blocks(client, celex)
+    except Exception as exc:
+        print(f"  [WARN] Official consolidation fallback failed for {celex}: {exc}")
+        return []
+
+    return [
+        {
+            "id": block.bloque_id,
+            "titulo": block.titulo,
+            "fecha_actualizacion": "",
+        }
+        for block in blocks
+        if _is_supported_block(block.titulo)
+    ]
+
+
+def _get_official_consolidation_blocks(client: httpx.Client, celex: str) -> list[BloqueTexto]:
+    cached = _OFFICIAL_CONSOLIDATION_CACHE.get(celex)
+    if cached is not None:
+        return cached
+
+    notice_response = client.get(
+        f"{EURLEX_BASE}/legal-content/ES/TXT/XML/?uri=CELEX:{celex}",
+        headers={"Accept": OFFICIAL_NOTICE_ACCEPT},
+        follow_redirects=True,
+        timeout=30.0,
+    )
+    notice_response.raise_for_status()
+    manifestation_urls: list[str] = []
+    notice_text = notice_response.text or ""
+    if notice_text.strip():
+        manifestation_urls = _extract_consolidation_manifestation_urls(notice_text)
+    if not manifestation_urls:
+        celex_rdf_response = client.get(
+            f"http://publications.europa.eu/resource/celex/{celex}",
+            headers={"Accept": OFFICIAL_RDF_ACCEPT},
+            follow_redirects=True,
+            timeout=30.0,
+        )
+        celex_rdf_response.raise_for_status()
+        manifestation_urls = _extract_consolidation_manifestation_urls_from_celex_rdf(celex_rdf_response.text)
+    if not manifestation_urls:
+        _OFFICIAL_CONSOLIDATION_CACHE[celex] = []
+        return []
+
+    last_error: Exception | None = None
+    for manifestation_url in manifestation_urls:
+        try:
+            manifestation_response = client.get(
+                manifestation_url,
+                headers={"Accept": OFFICIAL_RDF_ACCEPT},
+                follow_redirects=True,
+                timeout=30.0,
+            )
+            manifestation_response.raise_for_status()
+            item_url = _extract_consolidation_item_url(manifestation_response.text)
+            if not item_url:
+                continue
+
+            html_response = client.get(
+                item_url,
+                headers={"Accept": "text/html, application/xhtml+xml"},
+                follow_redirects=True,
+                timeout=30.0,
+            )
+            html_response.raise_for_status()
+            vigente_desde = _extract_consolidation_vigente_desde(manifestation_url)
+            blocks = _parse_official_consolidation_html(celex, html_response.text, vigente_desde=vigente_desde)
+            if blocks:
+                _OFFICIAL_CONSOLIDATION_CACHE[celex] = blocks
+                return blocks
+        except Exception as exc:
+            last_error = exc
+            continue
+
+    if last_error is not None:
+        raise last_error
+    _OFFICIAL_CONSOLIDATION_CACHE[celex] = []
+    return []
+
+
+def _extract_consolidation_manifestation_url(xml_text: str) -> str | None:
+    candidates = _extract_consolidation_manifestation_urls(xml_text)
+    if not candidates:
+        return None
+    return candidates[0]
+
+
+def _extract_consolidation_manifestation_urls(xml_text: str) -> list[str]:
+    root = ET.fromstring(xml_text)  # noqa: S314
+    candidates: list[str] = []
+    for value in root.findall(".//VALUE"):
+        text_value = (value.text or "").strip()
+        if "/resource/consolidation/" not in text_value:
+            continue
+        if ".SPA.xhtml" not in text_value:
+            continue
+        if text_value.endswith(".html"):
+            continue
+        candidates.append(text_value)
+    return _sort_consolidation_manifestation_candidates(candidates)
+
+
+def _extract_consolidation_manifestation_url_from_celex_rdf(rdf_text: str) -> str | None:
+    candidates = _extract_consolidation_manifestation_urls_from_celex_rdf(rdf_text)
+    if not candidates:
+        return None
+    return candidates[0]
+
+
+def _extract_consolidation_manifestation_urls_from_celex_rdf(rdf_text: str) -> list[str]:
+    root = ET.fromstring(rdf_text)  # noqa: S314
+    same_as_attr = "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource"
+    candidates: list[str] = []
+    for elem in root.findall(".//{http://www.w3.org/2002/07/owl#}sameAs"):
+        resource = (elem.attrib.get(same_as_attr) or "").strip()
+        if "/resource/consolidation/" not in resource:
+            continue
+        if resource.endswith(".html"):
+            continue
+        if ".SPA.xhtml" in resource:
+            candidates.append(resource)
+            continue
+        if re.search(r"/resource/consolidation/.+%2F\d{8}(?:_\d+)?$", resource):
+            candidates.append(f"{resource}.SPA.xhtml")
+    return _sort_consolidation_manifestation_candidates(candidates)
+
+
+def _sort_consolidation_manifestation_candidates(candidates: list[str]) -> list[str]:
+    deduped = sorted(set(candidates), key=lambda value: ("_" in value, value), reverse=True)
+    return deduped
+
+
+def _extract_consolidation_item_url(rdf_text: str) -> str | None:
+    root = ET.fromstring(rdf_text)  # noqa: S314
+    same_as_attr = "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource"
+    for elem in root.findall(".//{http://www.w3.org/2002/07/owl#}sameAs"):
+        resource = (elem.attrib.get(same_as_attr) or "").strip()
+        if resource.endswith(".html") and "/resource/consolidation/" in resource:
+            return resource
+    return None
+
+
+def _extract_consolidation_vigente_desde(manifestation_url: str) -> str:
+    match = re.search(r"(?:/|%2F)(\d{8})(?:_|\.)", manifestation_url)
+    if not match:
+        return ""
+    return _yyyymmdd_to_iso(match.group(1))
+
+
+def _normalized_node_text(node) -> str:
+    return " ".join(unescape(node.get_text(" ", strip=True)).split())
+
+
+def _parse_official_consolidation_html(  # noqa: C901
+    celex: str,
+    html_text: str,
+    vigente_desde: str = "",
+) -> list[BloqueTexto]:
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return []
+
+    soup = BeautifulSoup(html_text, "html.parser")
+    body = soup.body
+    if body is None:
+        return []
+
+    blocks: list[BloqueTexto] = []
+    article_nodes = body.select("div.eli-subdivision > p.title-article-norm")
+    if not article_nodes:
+        article_nodes = body.find_all("p", class_="title-article-norm")
+
+    for index, heading in enumerate(article_nodes):
+        title = _normalized_node_text(heading)
+        if not title or not _is_supported_block(title):
+            continue
+
+        parts: list[str] = []
+        container = heading.parent if getattr(heading.parent, "name", None) else body
+        for sibling in heading.next_siblings if container is heading.parent else []:
+            if getattr(sibling, "name", None) is None:
+                continue
+            sibling_text = _normalized_node_text(sibling)
+            if sibling_text and _is_supported_block(sibling_text):
+                break
+            if not sibling_text or sibling_text.startswith(("▼", "►")):
+                continue
+            parts.append(sibling_text)
+
+        if container is not heading.parent:
+            continue
+
+        tipo_articulo, numero = _infer_tipo_y_numero(title)
+        blocks.append(
+            BloqueTexto(
+                bloque_id=f"official:{celex}:{index}",
+                tipo_bloque="official_consolidation",
+                numero=numero,
+                titulo=title,
+                tipo_articulo=tipo_articulo,
+                texto="\n".join(parts).strip(),
+                vigente_desde=vigente_desde,
+            )
+        )
+    return blocks
 
 
 def _fetch_index_html_fallback(client: httpx.Client, celex: str) -> list[dict]:
@@ -373,31 +583,46 @@ def _fetch_index_html_fallback(client: httpx.Client, celex: str) -> list[dict]:
         response = client.get(url, headers={"Accept": "text/html"}, timeout=30.0)
         if response.status_code != 200:
             return []
-        from xml.etree import ElementTree as ET
-
         html_text = response.text
-        root = ET.fromstring(html_text)  # noqa: S314
+        try:
+            from bs4 import BeautifulSoup
+
+            soup = BeautifulSoup(html_text, "html.parser")
+            blocks = []
+            for elem in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+                title = " ".join(elem.get_text(" ", strip=True).split())
+                if title and _is_supported_block(title):
+                    blocks.append(
+                        {
+                            "id": f"html-{len(blocks)}",
+                            "titulo": title,
+                            "fecha_actualizacion": "",
+                        }
+                    )
+            return blocks
+        except ImportError:
+            pass
+
+        import re
+        from html import unescape
 
         blocks = []
-        for h_elem in root.iter():
-            tag = h_elem.tag
-            text = (h_elem.text or "").strip()
-            if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
-                if text and ("articulo" in text.lower() or "disposición" in text.lower() or "sección" in text.lower() or "capítulo" in text.lower()):
-                    blocks.append({
-                        "id": f"html-{len(blocks)}",
-                        "titulo": text,
-                        "fecha_actualizacion": "",
-                    })
-            cls = h_elem.attrib.get("class", "")
-            if cls and ("articulo" in cls.lower() or "disposition" in cls.lower()):
-                text = (h_elem.text or "").strip()
-                if text:
-                    blocks.append({
-                        "id": f"html-{len(blocks)}",
-                        "titulo": text,
-                        "fecha_actualizacion": "",
-                    })
+        for level in range(1, 7):
+            pattern = re.compile(
+                rf"<h{level}[^>]*>(.*?)</h{level}>",
+                re.IGNORECASE | re.DOTALL,
+            )
+            for match in pattern.finditer(html_text):
+                title = re.sub(r"<[^>]+>", " ", match.group(1))
+                title = " ".join(unescape(title).split())
+                if title and _is_supported_block(title):
+                    blocks.append(
+                        {
+                            "id": f"html-{len(blocks)}",
+                            "titulo": title,
+                            "fecha_actualizacion": "",
+                        }
+                    )
         return blocks
     except Exception as exc:
         print(f"  [WARN] HTML fallback failed for {celex}: {exc}")
@@ -406,6 +631,11 @@ def _fetch_index_html_fallback(client: httpx.Client, celex: str) -> list[dict]:
 
 def fetch_block(client: httpx.Client, block_id: str) -> BloqueTexto:
     """Fetch a single block from EUR-Lex."""
+    if block_id.startswith("official:"):
+        _, celex, block_index = block_id.split(":", 2)
+        blocks = _get_official_consolidation_blocks(client, celex)
+        return blocks[int(block_index)]
+
     response = client.get(
         f"{EURLEX_BASE}/rest.tx.legal-acts-index/{block_id}",
         headers={"Accept": "application/xml"},
@@ -415,8 +645,6 @@ def fetch_block(client: httpx.Client, block_id: str) -> BloqueTexto:
 
 
 def _parse_block_xml(block_id: str, xml_text: str) -> BloqueTexto:
-    from xml.etree import ElementTree as ET
-
     root = ET.fromstring(xml_text)  # noqa: S314
     bloque = root.find(".//bloque")
     version = root.find(".//version")
@@ -759,6 +987,7 @@ def log_sync(
     documentos_upserted: int = 0,
     error_msg: str | None = None,
     started_at: str | None = None,
+    errors: int | None = None,
 ) -> None:
     now = datetime.now(UTC).isoformat()
     effective_started_at = started_at or now
@@ -797,7 +1026,7 @@ def log_sync(
             "documentos_upserted": documentos_upserted,
             "error_msg": error_msg,
             "rows_processed": max(bloques, articulos, documentos_processed, documentos_upserted),
-            "errors": 0 if not error_msg else 1,
+            "errors": (0 if not error_msg else 1) if errors is None else errors,
             "duration_ms": duration_ms,
         },
     )
@@ -817,6 +1046,9 @@ def run_sync(  # noqa: C901
     articulos_upserted = 0
     normas_upserted = 0
     nuevos_sparql = 0
+    skipped_no_index = 0
+    skipped_unchanged = 0
+    fetch_errors = 0
     sync_start = datetime.now(UTC).isoformat()
 
     try:
@@ -834,6 +1066,7 @@ def run_sync(  # noqa: C901
                 index = fetch_index(client, celex)
                 if not index:
                     print(f"  [SKIP] {celex} has no index")
+                    skipped_no_index += 1
                     continue
 
                 for item in index:
@@ -844,7 +1077,7 @@ def run_sync(  # noqa: C901
                     # Try live API first, fall back to corpus
                     try:
                         bloque = fetch_block(client, item["id"])
-                    except Exception:  # noqa: S112
+                    except Exception:
                         bloque = fetch_block_from_corpus(celex)
                         if not bloque:
                             continue
@@ -860,6 +1093,7 @@ def run_sync(  # noqa: C901
                         bloque.bloque_id,
                     ):
                         bloques_fetched += 1
+                        skipped_unchanged += 1
                         continue
 
                     invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
@@ -929,7 +1163,7 @@ def run_sync(  # noqa: C901
                                     continue
                                 try:
                                     bloque = fetch_block(client, item["id"])
-                                except Exception:  # noqa: S112
+                                except Exception:
                                     bloque = fetch_block_from_corpus(celex)
                                     if not bloque:
                                         continue
@@ -943,6 +1177,7 @@ def run_sync(  # noqa: C901
                                     bloque.bloque_id,
                                 ):
                                     bloques_fetched += 1
+                                    skipped_unchanged += 1
                                     continue
                                 invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
                                 if invalidated:
@@ -952,22 +1187,34 @@ def run_sync(  # noqa: C901
                                 bloques_fetched += 1
                                 articulos_upserted += 1
                                 time.sleep(1)
+                        else:
+                            skipped_no_index += 1
                 except Exception:
+                    fetch_errors += 1
                     print(f"  [SKIP] Could not process new CELEX {celex}")
 
+            summary_msg = (
+                f"summary: unchanged={skipped_unchanged}; no_index={skipped_no_index}; fetch_errors={fetch_errors}"
+            )
+            log_status = "partial" if fetch_errors else "ok"
             log_sync(
                 conn,
                 worker_name,
-                "ok",
+                log_status,
                 bloques=bloques_fetched,
                 articulos=articulos_upserted,
+                error_msg=summary_msg,
                 started_at=sync_start,
+                errors=fetch_errors,
             )
         return {
             "bloques": bloques_fetched,
             "articulos": articulos_upserted,
             "normas": normas_upserted,
             "nuevos_sparql": nuevos_sparql,
+            "skipped_no_index": skipped_no_index,
+            "skipped_unchanged": skipped_unchanged,
+            "fetch_errors": fetch_errors,
         }
     except Exception as exc:
         with engine.begin() as conn:

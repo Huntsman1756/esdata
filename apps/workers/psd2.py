@@ -16,13 +16,11 @@ Usage:
 
 import argparse
 import os
-from dataclasses import dataclass
-from datetime import UTC, datetime
+import time
 
 import httpx
 from change_detection import (
     check_content_changed,
-    ensure_source_revision_table,
     invalidate_old_embeddings,
     record_revision,
 )
@@ -40,7 +38,7 @@ EURLEX_BASE = os.getenv(
 # Directiva 2015/2366/UE — PSD2
 PSD2_NORMA = {
     "codigo": "PSD2_2015_0236",
-    "boe_id": "EUR-CELEX-32015L0236",
+    "boe_id": "EUR-CELEX-32015L2366",
     "titulo": "Directiva 2015/2366/UE sobre servicios de pago en el mercado interior (PSD2)",
     "eli_uri": "https://eur-lex.europa.eu/eli/dir/2015/2366/oj",
     "jurisdiccion": "ue",
@@ -135,7 +133,7 @@ def fetch_eurlex_articles(norma, db):
     articles = []
     for line in resp.text.split("\n"):
         line = line.strip()
-        if line and (line.startswith("Art") or line.startswith("Article")):
+        if line and line.startswith(("Art", "Article")):
             articles.append(line[:200])
 
     if not articles:
@@ -143,7 +141,7 @@ def fetch_eurlex_articles(norma, db):
 
     norma_id = ensure_norma(db, norma)
     count = 0
-    for i, text in enumerate(articles):
+    for i, article_text in enumerate(articles):
         db.execute(
             text(
                 """INSERT INTO articulo (norma_id, numero, texto, fuente_origen, regulacion_relacionada)
@@ -153,7 +151,7 @@ def fetch_eurlex_articles(norma, db):
             {
                 "norma_id": norma_id,
                 "numero": str(i + 1),
-                "texto": text,
+                "texto": article_text,
                 "regulacion": "psd2_sepa",
             },
         )
@@ -192,8 +190,6 @@ def run_once(domain):
     total = 0
 
     with engine.begin() as conn:
-        db = conn
-
         if domain in ("psd2", "psd3", "all"):
             for key in ("psd2", "psd3"):
                 norma = DOMAIN_NORMAS[key]

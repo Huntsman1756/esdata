@@ -1,8 +1,10 @@
 """Tests for PBC worker - Fase 46.11."""
+
+# ruff: noqa: I001
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -29,6 +31,12 @@ class TestPBCNormas:
     def test_normas_are_pbc_related(self):
         for norma in PBC_NORMAS:
             assert norma["regulacion"] == "pbc"
+
+    def test_normas_use_validated_celex_ids(self):
+        normas_by_codigo = {norma["codigo"]: norma for norma in PBC_NORMAS}
+
+        assert normas_by_codigo["PBC_CRD_V_2019_879"]["boe_id"] == "EUR-CELEX-32019L0878"
+        assert normas_by_codigo["PBC_CRR_II_2019_2057"]["boe_id"] == "EUR-CELEX-32019R0876"
 
 class TestSeedEntities:
     def test_has_4_entities(self):
