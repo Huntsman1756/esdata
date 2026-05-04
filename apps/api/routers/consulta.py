@@ -12,8 +12,7 @@ from middleware.metrics import (
 from schemas import ConsultaFiscalResponse
 from services.ai_disclaimer import get_ai_version
 from services.faithfulness import compute_faithfulness
-from services.grounding import validate_claim_grounding
-from services.human_review import check_review_required
+from services.grounding import apply_claim_level_abstention, validate_claim_grounding
 from services.query_audit import get_query_audit_service
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
@@ -51,10 +50,12 @@ RESULTADO_BOOST = {
 }
 
 FAITHFULNESS_REVIEW_THRESHOLD = 0.5
-FAITHFULNESS_AUTO_APPROVE_THRESHOLD = 0.95
 QUERY_AUDIT_CONFIG_VERSION = "consulta-faithfulness-v1"
 RERANK_TOP_K = 5
 GROUNDING_THRESHOLD = 0.4
+FAIL_CLOSED_AVISO = (
+    "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+)
 
 router = APIRouter(prefix="", tags=["consulta"])
 
@@ -382,11 +383,8 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         faithfulness_score = compute_faithfulness(answer_proxy, chunks_para_faithfulness)
 
     faithfulness_label = "alta" if faithfulness_score >= 0.75 else ("media" if faithfulness_score >= FAITHFULNESS_REVIEW_THRESHOLD else "baja")
-    review_check = check_review_required(
-        faithfulness_score,
-        confidence_threshold=FAITHFULNESS_REVIEW_THRESHOLD,
-        auto_threshold=FAITHFULNESS_AUTO_APPROVE_THRESHOLD,
-    )
+
+    review_required = bool(aviso and "NO VERIFICADO" in aviso)
 
     return {
         "nivel": nivel,
@@ -397,7 +395,7 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         "resultados_clasificados": tipos_conteo,
         "faithfulness_score": faithfulness_score,
         "faithfulness_label": faithfulness_label,
-        "review_required": review_check["requires_review"],
+        "review_required": review_required,
     }
 
 
@@ -710,12 +708,12 @@ def _apply_grounding_abstention_if_needed(
     uncovered_terms = _collect_uncovered_query_terms(query, resultados)
     if uncovered_terms:
         confianza = dict(confianza)
-        confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = FAIL_CLOSED_AVISO
         return [], confianza, []
 
     if not cited_chunks:
         confianza = dict(confianza)
-        confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = FAIL_CLOSED_AVISO
         return [], confianza, []
 
     has_full_article_evidence = any(
@@ -731,7 +729,7 @@ def _apply_grounding_abstention_if_needed(
         )
         for resultado in resultados
     )
-    if has_full_article_evidence and confianza.get("faithfulness_score", 0.0) >= FAITHFULNESS_REVIEW_THRESHOLD:
+    if has_full_article_evidence:
         return resultados, confianza, cited_chunks
 
     best_score = normalize_rerank_score(cited_chunks[0]["rerank_score"])
@@ -739,48 +737,52 @@ def _apply_grounding_abstention_if_needed(
         return resultados, confianza, cited_chunks
 
     confianza = dict(confianza)
-    confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+    confianza["aviso"] = FAIL_CLOSED_AVISO
     return [], confianza, []
 
 
 def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tuple[list[dict], dict]:
-    if confianza.get("faithfulness_score", 0.0) >= FAITHFULNESS_REVIEW_THRESHOLD:
+    aviso_actual = (confianza.get("aviso") or "").strip().lower()
+    if not aviso_actual or aviso_actual == "consulta vacia" or "no verificado" not in aviso_actual:
         return resultados, confianza
 
     confianza = dict(confianza)
-    aviso_actual = (confianza.get("aviso") or "").strip().lower()
-    if aviso_actual == "consulta vacia":
-        return [], confianza
-    confianza["aviso"] = (
-        "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
-    )
+    confianza["aviso"] = FAIL_CLOSED_AVISO
     return [], confianza
+
+
+def _fail_closed_confianza(confianza: dict, reason: str) -> dict:
+    failed = dict(confianza)
+    failed["nivel"] = 0
+    failed["nivel_texto"] = "baja"
+    failed["aviso"] = FAIL_CLOSED_AVISO
+    failed["review_required"] = True
+    failed["faithfulness_score"] = 0.0
+    failed["faithfulness_label"] = "baja"
+    failed["retrieval_error"] = reason
+    return failed
+
+
+def _sync_review_required(confianza: dict) -> dict:
+    updated = dict(confianza)
+    aviso = str(updated.get("aviso") or "")
+    updated["review_required"] = bool(updated.get("retrieval_error") or "NO VERIFICADO" in aviso)
+    return updated
 
 
 def _apply_claim_level_abstention(
     resultados: list[dict],
     claim_citations: list[dict],
+    grounding_summary: dict,
+    confianza: dict,
 ) -> tuple[list[dict], dict]:
-    """Remove ungrounded claims from results when grounding is insufficient."""
-    grounded_keys: set[str] = set()
-    for item in claim_citations:
-        if item.get("grounded"):
-            claim = item.get("claim", {})
-            key = f"{claim.get('tipo')}:{claim.get('codigo')}:{claim.get('articulo')}"
-            grounded_keys.add(key)
-
-    if not grounded_keys:
-        return [], {}
-
-    filtered = []
-    for r in resultados:
-        articulo_val = r.get("articulo", "") or ""
-        codigo_val = r.get("codigo", r.get("referencia", r.get("norma", "")) or "")
-        key = f"{r['tipo']}:{codigo_val}:{articulo_val}"
-        if key in grounded_keys:
-            filtered.append(r)
-
-    return filtered, {}
+    """Delegate claim-level abstention to the shared grounding service."""
+    return apply_claim_level_abstention(
+        resultados,
+        grounding_summary,
+        confianza,
+        enriched_items=claim_citations,
+    )
 
 
 @router.get(
@@ -817,6 +819,7 @@ async def consulta_fiscal(
 ):
     results = []
     modelos_codigo = []
+    retrieval_failures: list[str] = []
 
     # Resolve keywords to model codes
     keywords = _extract_keywords(q, sujeto)
@@ -949,8 +952,9 @@ async def consulta_fiscal(
                         "motivo_ranking": row.get("motivo_ranking"),
                         "evidencia": evidencia,
                     })
-            except Exception:
+            except Exception as exc:
                 db.rollback()
+                retrieval_failures.append(f"legislacion:{type(exc).__name__}")
 
         # ── 4. Buscar doctrina DGT/TEAC ─────────────────────────────────────
         try:
@@ -1055,10 +1059,14 @@ async def consulta_fiscal(
                 hybrid_weight=hybrid_weight,
                 limit=20,
             )
+            retrieval_failures.extend(
+                f"{error['source']}:{error['error']}"
+                for error in unified.get("source_errors", [])
+            )
             for item in unified.get("resultados", []):
                 results.append(item)
-        except Exception:
-            pass
+        except Exception as exc:
+            retrieval_failures.append(f"unified:{type(exc).__name__}")
 
     seen = set()
     unique_results = []
@@ -1111,19 +1119,36 @@ async def consulta_fiscal(
 
     # Apply claim-level abstention when grounding is insufficient
     if claim_citations and grounding_summary.get("grounding_status") in ("partial", "none"):
-        final_results, _ = _apply_claim_level_abstention(
-            final_results, claim_citations
+        final_results, confianza = _apply_claim_level_abstention(
+            final_results,
+            claim_citations,
+            grounding_summary,
+            confianza,
         )
     elif not claim_citations and not resolved_modelos and q:
         # No claim citations and no resolved modelos — check if grounding is empty
-        if not cited_chunks and confianza.get("faithfulness_score", 0.0) < FAITHFULNESS_REVIEW_THRESHOLD:
+        if not cited_chunks:
             final_results = []
             confianza = dict(confianza)
-            confianza["aviso"] = "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+            confianza["aviso"] = FAIL_CLOSED_AVISO
+
+    if not final_results and resolved_modelos:
+        confianza = dict(confianza)
+        confianza["aviso"] = FAIL_CLOSED_AVISO
 
     final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
+    if retrieval_failures:
+        final_results = []
+        claim_citations = []
+        cited_chunks = []
+        confianza = _fail_closed_confianza(
+            confianza,
+            reason=",".join(dict.fromkeys(retrieval_failures)),
+        )
     if not final_results:
         cited_chunks = []
+
+    confianza = _sync_review_required(confianza)
 
     # Build top-level relevancia
     if final_results:

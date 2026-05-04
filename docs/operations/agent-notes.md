@@ -103,6 +103,41 @@ Usar notas cortas con este esquema:
 - Impacto: el cliente puede ver puntuaciones imposibles o interpretar una confianza cruda como probabilidad normalizada; ademas, `ClaimCitation.source_url` puede salir `null` aunque la fuente exista en el resultado base.
 - Regla practica: reutilizar `normalize_rerank_score()` al serializar campos publicos derivados del cross-encoder y propagar `source_url` desde la evidencia original cuando se construyan citas por claim.
 
+### 2026-05-04 - Fase 2.2 retrieval fail-closed: si una fuente critica falla, `consulta` debe abstenerse y no seguir mezclando resultados parciales
+
+- Scope: `apps/api/routers/consulta.py`, `apps/api/services/unified_multi_source_search.py`, `apps/api/tests/test_consulta_fail_closed.py`
+- Hallazgo: el patron `except Exception: pass` en `consulta` y en el search unificado permitia responder con resultados aparentemente validos aunque hubiera fallado parte del retrieval critico pedido por el usuario. El caso mas peligroso era `sources=...`: una fuente podia romperse y aun asi sobrevivir un modelo o resultado lateral no pedido, dando falsa sensacion de cobertura suficiente.
+- Impacto: el cliente podia recibir una respuesta operativa incompleta sin ninguna senal fuerte de degradacion, justo en el slice donde el usuario habia pedido retrieval dirigido.
+- Regla practica: si falla `search_legislacion` o una fuente del retrieval unificado solicitada por `sources`, `/v1/consulta` debe cerrar en abstencion conservadora (`200` + `NO VERIFICADO`, `review_required=true`, `faithfulness_score=0.0`, listas vacias). El servicio unificado no debe tragarse esas excepciones: debe exponer al menos `source_errors` estructurado para que el router decida el fail-closed.
+
+### 2026-05-04 - Fase 2.3 unified retrieval: el handler 31.x debe respetar la fuente pedida y no esconder fallos de embedding
+
+- Scope: `apps/api/services/unified_multi_source_search.py`, `apps/api/tests/test_unified_multi_source_search.py`
+- Hallazgo: tras 2.2 el agregador ya exponia `source_errors`, pero el handler compartido de dominios 31.x seguia buscando contra todos los `documento_origen_tipo` a la vez (`IN (...)`) aunque el usuario pidiera solo `mica`, `dac` o cualquier otro dominio. Ademas, `_31x_fulltext()` llevaba un alias roto (`LOWER(t.texto)`) y un parametro distinto al que realmente se cargaba (`:ts_query` vs `:_31x_ts_query`). Por ultimo, varios helpers vectoriales seguian atrapando `Exception` dentro del propio helper, con lo que un fallo real del embedding backend se convertia en `[]` y nunca llegaba al `source_errors` del agregador.
+- Impacto: una consulta dirigida a un dominio 31.x podia contaminarse con chunks de otros dominios; el SQL fulltext 31.x podia fallar en runtime por alias/parametro inconsistentes; y un fallo de embedding por fuente podia aparentar simplemente "sin resultados" en vez de degradacion explicita.
+- Regla practica: cuando varios source types comparten handler, el dispatcher debe pasar el `source` pedido y el handler debe filtrar por esa fuente exacta. Los helpers internos no deben tragarse excepciones que forman parte del contrato de degradacion por fuente; si el embedding falla, dejar que el agregador convierta ese fallo en `source_errors` y no en lista vacia silenciosa.
+
+### 2026-05-04 - Fase 2.4 abstention: no mantener una implementacion runtime en `consulta` y otra distinta en `services.grounding`
+
+- Scope: `apps/api/services/grounding.py`, `apps/api/routers/consulta.py`, `apps/api/tests/test_grounding_e2e.py`, `apps/api/tests/test_reranker.py`
+- Hallazgo: `services.grounding.apply_claim_level_abstention()` solo funcionaba de verdad cuando los tests le inyectaban `_enriched_items` a mano dentro de `grounding_summary`. En runtime real, `validate_claim_grounding()` no devolvia ese contexto y `consulta.py` se veia obligada a mantener `_apply_claim_level_abstention()` propia para no perder el filtrado por claims.
+- Impacto: habia dos implementaciones de la misma regla de abstencion claim-level, con riesgo claro de drift: los tests del servicio probaban una forma y el router ejecutaba otra.
+- Regla practica: si una fase pide "una sola implementacion en runtime real", el servicio compartido debe exponer todo el contexto que necesita su helper downstream y el router debe delegar ahi, no reimplementar el filtrado. En este repo, `validate_claim_grounding()` debe poder alimentar directamente `apply_claim_level_abstention()` sin estructuras sintéticas solo de test.
+
+### 2026-05-04 - Fase 2.5 faithfulness: no usar `faithfulness_score` como si fuera una señal de control fiable cuando aún no evalúa la respuesta final real
+
+- Scope: `apps/api/services/faithfulness.py`, `apps/api/routers/consulta.py`, `apps/api/tests/test_faithfulness.py`
+- Hallazgo: `compute_faithfulness()` sigue operando sobre un `answer_proxy` construido desde los primeros resultados, no sobre el payload final real que ve el usuario. Aun así, `consulta.py` lo usaba para disparar `review_required`, hacer bypass de grounding y vaciar resultados por debajo de umbral.
+- Impacto: una señal heurística útil para observabilidad podía provocar abstención o revisión obligatoria incluso cuando las señales duras de evidencia iban por otro camino. Eso mezclaba dos niveles distintos: scoring auxiliar vs. control real de la respuesta.
+- Regla practica: mientras `faithfulness_score` no se calcule sobre la respuesta final real, tratarlo como advisory. Mantenerlo visible para auditoría/observabilidad está bien; usarlo para gates duros de runtime no. Las decisiones de control deben depender de señales más fiables: fail-closed explícito, grounding/citas reales y ausencia material de evidencia.
+
+### 2026-05-04 - Fase 3.1 AEAT seeds: `seed-modelos-v2.py` no es bootstrap standalone
+
+- Scope: `scripts/seed-modelos.py`, `scripts/seed-modelos-v2.py`, `scripts/data/seed_all.py`, seeds AEAT legacy
+- Hallazgo: en esta rama MCP, `scripts/seed-modelos-v2.py` solo enriquece campañas y recursos asociados; no crea `aeat_modelo`. Si se ejecuta sin haber corrido antes `scripts/seed-modelos.py`, los inserts por campaña degradan a `SKIP` y el seed no queda completo aunque el script termine.
+- Impacto: es fácil interpretar `seed-modelos-v2.py` como vía canónica suficiente porque contiene casillas, claves, instrucciones y normativa, pero usarlo solo deja el bootstrap AEAT incompleto. También `scripts/data/seed_all.py` puede dar una falsa sensación de flujo productivo único porque sigue listando seeds AEAT legacy dentro del runner bulk.
+- Regla practica: para AEAT en el plan MCP usar siempre esta secuencia: (1) `python scripts/seed-modelos.py --db-url <DATABASE_URL>` y luego (2) `python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>`. Tratar `scripts/data/seed_modelos.py`, `scripts/data/seed_aeat_models.py`, `scripts/data/seed_modelo_articulo.py` y `scripts/seed-fiscal-modelos.sql` como rutas `LEGACY / NO AUTORITATIVO`, no como equivalentes productivos.
+
 ### 2026-05-03 - EUR-Lex: validar seeds contra `resource/celex` RDF antes de asumir que el numero es correcto
 
 - Scope: `apps/workers/eurlex.py`, `EURLEX_NORMAS`, `publications.europa.eu/resource/celex/*`

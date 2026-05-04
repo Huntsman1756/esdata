@@ -12,23 +12,22 @@ Tests cover:
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
-
 from services.unified_multi_source_search import (
+    _31x_fulltext,
+    _31x_vector,
     _articles_build_search_text,
     _entities_build_search_text,
     _modelos_build_search_text,
     _norms_build_search_text,
     _pgc_build_search_text,
-    _screening_build_search_text,
     _rrf_fuse_multi,
+    _screening_build_search_text,
     _search_31x_source,
-    _31x_fulltext,
-    _31x_vector,
     unified_multi_source_search,
 )
-
 
 # ---------------------------------------------------------------------------
 # Text builder tests
@@ -274,6 +273,66 @@ class TestUnifiedMultiSourceSearch:
         assert callable(_search_articles_source)
         assert callable(_search_31x_source)
 
+    def test_unified_search_reports_source_errors_explicitly(self):
+        """Source failures should be exposed, not swallowed silently."""
+        import services.unified_multi_source_search as search_module
+
+        @contextmanager
+        def fake_db_session():
+            yield MagicMock()
+
+        with (
+            patch.object(search_module, "db_session", fake_db_session),
+            patch.object(search_module, "_is_postgres", return_value=False),
+            patch.object(search_module, "_get_embed_fn", return_value=None),
+            patch.object(search_module, "_search_legislacion_source", side_effect=RuntimeError("boom")),
+        ):
+            result = search_module.unified_multi_source_search(
+                q="iva",
+                sources=["legislacion"],
+                hybrid_weight=0.0,
+                limit=5,
+            )
+
+        assert result["resultados"] == []
+        assert result["source_errors"] == [
+            {
+                "source": "legislacion",
+                "error": "RuntimeError",
+            }
+        ]
+
+    def test_unified_search_reports_embed_failures_per_source(self):
+        """Embedding failures inside a source should surface as source_errors."""
+        import services.unified_multi_source_search as search_module
+
+        @contextmanager
+        def fake_db_session():
+            yield MagicMock()
+
+        def embed_fail(_q: str):
+            raise ValueError("embedding backend down")
+
+        with (
+            patch.object(search_module, "db_session", fake_db_session),
+            patch.object(search_module, "_is_postgres", return_value=False),
+            patch.object(search_module, "_get_embed_fn", return_value=embed_fail),
+        ):
+            result = search_module.unified_multi_source_search(
+                q="plan contable",
+                sources=["pgc"],
+                hybrid_weight=1.0,
+                limit=5,
+            )
+
+        assert result["resultados"] == []
+        assert result["source_errors"] == [
+            {
+                "source": "pgc",
+                "error": "ValueError",
+            }
+        ]
+
 
 # ---------------------------------------------------------------------------
 # PGC fulltext tests
@@ -379,7 +438,7 @@ class Test31xSearchHandlers:
         mock_cursor = MagicMock()
         mock_cursor.mappings().fetchall.return_value = []
         mock_db.execute.return_value = mock_cursor
-        results = _search_31x_source(mock_db, "test", True, None, 0.0, 10)
+        results = _search_31x_source(mock_db, "test", "mica", True, None, 0.0, 10)
         assert results == []
 
     def test_search_31x_source_no_embed_fn(self):
@@ -387,22 +446,66 @@ class Test31xSearchHandlers:
         mock_cursor = MagicMock()
         mock_cursor.mappings().fetchall.return_value = []
         mock_db.execute.return_value = mock_cursor
-        results = _search_31x_source(mock_db, "test", True, None, 1.0, 10)
+        results = _search_31x_source(mock_db, "test", "mica", True, None, 1.0, 10)
         assert results == []
+
+    def test_search_31x_source_uses_requested_domain_and_correct_sql_params(self):
+        mock_db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.mappings().fetchall.return_value = [
+            {
+                "id": 7,
+                "documento_origen_tipo": "mica",
+                "documento_origen_id": 42,
+                "chunk_index": 0,
+                "chunk_type": "body",
+                "titulo": "CASP authorization",
+                "texto": "Crypto asset service provider authorization requirements.",
+                "token_count": 12,
+            }
+        ]
+        mock_db.execute.return_value = mock_cursor
+
+        results = _search_31x_source(mock_db, "crypto provider", "mica", True, None, 0.0, 10)
+
+        sql = str(mock_db.execute.call_args.args[0])
+        params = mock_db.execute.call_args.args[1]
+
+        assert "LOWER(df.texto) LIKE :_31x_q0" in sql
+        assert "LOWER(t.texto)" not in sql
+        assert "df.documento_origen_tipo = :source_type" in sql
+        assert ":_31x_ts_query" in sql
+        assert ":ts_query" not in sql
+        assert params["source_type"] == "mica"
+        assert params["_31x_ts_query"] == "crypto provider"
+        assert params["_31x_q0"] == "%crypto%"
+        assert params["_31x_q1"] == "%provider%"
+        assert len(results) == 1
+        assert results[0]["id"] == 7
+        assert results[0]["source_type"] == "mica"
+        assert results[0]["source_id"] == 42
+        assert results[0]["chunk_index"] == 0
+        assert results[0]["chunk_type"] == "body"
+        assert results[0]["titulo"] == "CASP authorization"
+        assert results[0]["chunk_texto"] == "Crypto asset service provider authorization requirements."
+        assert results[0]["search_text"] == "Crypto asset service provider authorization requirements."
+        assert results[0]["score"] == 1.0
+        assert results[0]["token_count"] == 12
+        assert results[0]["rrf_ft_rank"] == 1
 
     def test_31x_fulltext_empty_query(self):
         mock_db = MagicMock()
-        results = _31x_fulltext(mock_db, "", 10)
+        results = _31x_fulltext(mock_db, "", "mica", 10)
         assert results == []
 
     def test_31x_vector_no_embed_fn(self):
         mock_db = MagicMock()
-        results = _31x_vector(mock_db, "test", None, 10)
+        results = _31x_vector(mock_db, "test", "mica", None, 10)
         assert results == []
 
     def test_31x_vector_empty_vec(self):
         mock_db = MagicMock()
-        results = _31x_vector(mock_db, "test", lambda q: None, 10)
+        results = _31x_vector(mock_db, "test", "mica", lambda q: None, 10)
         assert results == []
 
     def test_31x_source_type_dispatch(self):

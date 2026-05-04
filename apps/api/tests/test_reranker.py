@@ -225,6 +225,49 @@ def test_grounding_abstention_rejects_results_when_a_query_term_is_missing_from_
     assert "evidencia insuficiente" in (updated_confianza.get("aviso") or "").lower()
 
 
+def test_consulta_delegates_claim_level_abstention_to_grounding_service(monkeypatch):
+    import routers.consulta as consulta_module
+
+    delegated = {"called": False}
+
+    def fake_apply_claim_level_abstention(resultados, grounding_summary, confianza, enriched_items=None):
+        delegated["called"] = True
+        assert grounding_summary["grounding_status"] == "partial"
+        assert enriched_items == claim_citations
+        return [resultados[0]], {**confianza, "aviso": "delegated"}
+
+    resultados = [
+        {"tipo": "normativa", "codigo": "LIS", "articulo": "14"},
+        {"tipo": "doctrina", "codigo": "DGT", "articulo": "V0001"},
+    ]
+    claim_citations = [
+        {"claim": {"tipo": "normativa", "codigo": "LIS", "articulo": "14"}, "grounded": True},
+        {"claim": {"tipo": "doctrina", "codigo": "DGT", "articulo": "V0001"}, "grounded": False},
+    ]
+    grounding_summary = {
+        "grounding_status": "partial",
+        "ungrounded_claims": 1,
+    }
+    confianza = {"review_required": False, "faithfulness_score": 0.8}
+
+    monkeypatch.setattr(
+        consulta_module,
+        "apply_claim_level_abstention",
+        fake_apply_claim_level_abstention,
+    )
+
+    filtered, updated_confianza = consulta_module._apply_claim_level_abstention(
+        resultados,
+        claim_citations,
+        grounding_summary,
+        confianza,
+    )
+
+    assert delegated["called"] is True
+    assert filtered == [resultados[0]]
+    assert updated_confianza["aviso"] == "delegated"
+
+
 @pytest.mark.asyncio
 async def test_consulta_includes_cited_chunks():
     from httpx import ASGITransport, AsyncClient

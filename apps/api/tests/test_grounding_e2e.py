@@ -9,13 +9,7 @@ Verifies:
 - Threshold boundary conditions
 """
 
-import pytest
-from services.grounding import (
-    GROUNDING_THRESHOLD,
-    validate_claim_grounding,
-    apply_claim_level_abstention,
-)
-
+from services.grounding import GROUNDING_THRESHOLD, apply_claim_level_abstention, validate_claim_grounding
 
 # ── validate_claim_grounding E2E ───────────────────────────────────────
 
@@ -337,6 +331,48 @@ class TestApplyClaimLevelAbstentionE2E:
         assert ("normativa", "LIS", "14") in keys
         assert ("normativa", "LIVA", "91") in keys
         assert ("doctrina", "DGT", "V0001") not in keys
+        assert "aviso" in updated_confianza
+
+    def test_partial_grounding_pipeline_uses_validate_output_without_synthetic_enriched_items(self):
+        """The real validate->abstain pipeline should work with validate() output directly."""
+        claim_citations = [
+            {
+                "claim": {"tipo": "normativa", "codigo": "LIS", "articulo": "14"},
+                "citations": [
+                    {
+                        "chunk_id": "chunk_lis_14",
+                        "source_document": "LIS",
+                        "rerank_score": 0.82,
+                        "excerpt": "Artículo 14 LIS con evidencia suficiente.",
+                    }
+                ],
+            },
+            {
+                "claim": {"tipo": "doctrina", "codigo": "DGT", "articulo": "V0001"},
+                "citations": [
+                    {
+                        "chunk_id": "chunk_dgt_v0001",
+                        "source_document": "DGT",
+                        "rerank_score": 0.12,
+                        "excerpt": "texto poco relevante.",
+                    }
+                ],
+            },
+        ]
+        resultados = [
+            {"tipo": "normativa", "codigo": "LIS", "articulo": "14"},
+            {"tipo": "doctrina", "codigo": "DGT", "articulo": "V0001"},
+        ]
+
+        enriched_claim_citations, grounding_summary = validate_claim_grounding(claim_citations, "consulta mixta")
+        filtered, updated_confianza = apply_claim_level_abstention(
+            resultados,
+            grounding_summary,
+            {},
+            enriched_items=enriched_claim_citations,
+        )
+
+        assert filtered == [{"tipo": "normativa", "codigo": "LIS", "articulo": "14"}]
         assert "aviso" in updated_confianza
 
     def test_empty_enriched_items_returns_empty(self):

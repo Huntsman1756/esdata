@@ -1,3 +1,11 @@
+"""LEGACY / NO AUTORITATIVO.
+
+Legacy seed for `modelo_articulo` mappings.
+
+No usar como flujo canonico productivo AEAT. Esta ruta se mantiene solo como
+compatibilidad temporal hasta endurecer `modelo_articulo` en Fase 3.2.
+"""
+
 import os
 import uuid
 

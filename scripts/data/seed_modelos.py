@@ -1,5 +1,12 @@
 #!/usr/bin/env python
-"""Seed de modelos AEAT curados para consulta fiscal."""
+"""LEGACY / NO AUTORITATIVO.
+
+Seed manual curado de modelos AEAT para consulta fiscal.
+
+No usar como flujo canonico productivo AEAT. La via canonica del repo MCP es:
+1. `python scripts/seed-modelos.py --db-url <DATABASE_URL>`
+2. `python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>`
+"""
 
 import psycopg
 
