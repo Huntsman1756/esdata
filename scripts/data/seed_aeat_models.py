@@ -1,9 +1,15 @@
 #!/usr/bin/env python
-"""Seed de modelos AEAT — extension del seed_modelos.py existente.
+"""LEGACY / NO AUTORITATIVO.
+
+Seed de modelos AEAT — extension del seed_modelos.py existente.
 
 Crea modelos AEAT adicionales en la tabla aeat_modelo (codigo text).
 Los modelos existentes en seed_modelos.py ya cubren los principales.
 Este seed añade modelos complementarios para cobertura completa.
+
+No usar como flujo canonico productivo AEAT. La via canonica del repo MCP es:
+1. `python scripts/seed-modelos.py --db-url <DATABASE_URL>`
+2. `python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>`
 
 Uso:
     python scripts/data/seed_aeat_models.py [--database-url URL]

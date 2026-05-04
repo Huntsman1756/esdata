@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import time
-from pathlib import Path
 from datetime import UTC, datetime
 from io import BytesIO
 from urllib.parse import urlparse
@@ -33,7 +32,13 @@ from change_detection import (
     record_revision,
 )
 from pypdf import PdfReader
-from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
+from runtime import (
+    ensure_database_connection,
+    get_database_url,
+    get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -1160,7 +1165,7 @@ def run_sync(
     worker_name: str = "worker-cnmv",
 ) -> dict[str, int]:
     # Validate before discovery to avoid unnecessary HTTP calls
-    raw = seed_urls or SEED_URLS
+    raw = SEED_URLS if seed_urls is None else seed_urls
     if not raw:
         logger.error(
             "SEED_URLS vacío en %s — worker abortado sin ingestión. "
@@ -1184,6 +1189,7 @@ def run_sync(
     stored = 0
     discovered = len(urls)
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine, logger=logger)
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:

@@ -33,14 +33,17 @@ def main():
     )
     args = parser.parse_args()
 
-    import os
     import time
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     from apps.workers.runtime import configure_logging, get_interval_seconds
 
-    logger = configure_logging("worker-trlmv")
-    interval = args.interval if args.interval is not None else get_interval_seconds("SYNC_INTERVAL_SECONDS", 3600)
+    configure_logging("worker-trlmv")
+    interval = (
+        args.interval
+        if args.interval is not None
+        else get_interval_seconds("SYNC_INTERVAL_SECONDS", 3600)
+    )
 
     if args.run_once:
         result = run_sync(codigos=[NORMA_CODIGO], worker_name="cron-trlmv")
@@ -52,7 +55,7 @@ def main():
         while True:
             result = run_sync(codigos=[NORMA_CODIGO], worker_name="cron-trlmv")
             print(
-                f"TRLMV synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(timezone.utc).isoformat()}"
+                f"TRLMV synced bloques={result['bloques']}, articulos={result['articulos']} at {datetime.now(UTC).isoformat()}"
             )
             time.sleep(interval)
 

@@ -4,7 +4,6 @@ import importlib.util
 import re
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ALEMBIC_VERSIONS = REPO_ROOT / "alembic" / "versions"
 ALEMBIC_ENV = REPO_ROOT / "alembic" / "env.py"
@@ -75,3 +74,20 @@ def test_alembic_env_widens_existing_version_table_before_migration():
 
     assert "ALTER TABLE IF EXISTS alembic_version" in env_text
     assert "ALTER COLUMN version_num TYPE VARCHAR" in env_text
+
+
+def test_query_audit_contract_columns_are_migrated_in_revision_0055():
+    revision_path = (
+        ALEMBIC_VERSIONS / "20260503_0055_query_audit_response_payload.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "ADD COLUMN IF NOT EXISTS tool_name",
+        "ADD COLUMN IF NOT EXISTS sources",
+        "ADD COLUMN IF NOT EXISTS confidence",
+        "ADD COLUMN IF NOT EXISTS completeness",
+        "ADD COLUMN IF NOT EXISTS verified",
+        "ADD COLUMN IF NOT EXISTS response_payload",
+    ):
+        assert fragment in contents

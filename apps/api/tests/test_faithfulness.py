@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
@@ -59,3 +58,39 @@ def test_faithfulness_distingue_buena_de_inventada():
     assert score_buena > score_inventada, (
         f"El scorer no distingue: buena={score_buena}, inventada={score_inventada}"
     )
+
+
+def test_compute_confianza_keeps_faithfulness_as_advisory_signal():
+    from routers.consulta import _compute_confianza
+
+    resultados = [
+        {
+            "tipo": "normativa",
+            "norma": "LIS",
+            "articulo": "14",
+            "texto": "Artículo 14 LIS sobre sujetos pasivos.",
+        }
+    ]
+
+    confianza = _compute_confianza([], resultados, "sujetos pasivos LIS", [])
+
+    assert "faithfulness_score" in confianza
+    assert "faithfulness_label" in confianza
+    assert confianza["review_required"] is False
+
+
+def test_apply_abstention_does_not_fail_closed_only_for_low_faithfulness():
+    from routers.consulta import _apply_abstention_if_needed
+
+    resultados = [{"tipo": "normativa", "codigo": "LIS", "articulo": "14"}]
+    confianza = {
+        "faithfulness_score": 0.0,
+        "faithfulness_label": "baja",
+        "review_required": False,
+        "aviso": None,
+    }
+
+    final_results, updated_confianza = _apply_abstention_if_needed(resultados, confianza)
+
+    assert final_results == resultados
+    assert updated_confianza == confianza

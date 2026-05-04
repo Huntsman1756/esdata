@@ -10,20 +10,35 @@ Cubre:
 - EURLEX_NORMAS (estructura y conteo)
 """
 
-from pathlib import Path
+# ruff: noqa: I001
+
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import pytest
+from sqlalchemy import create_engine, text
+
+import eurlex
 from eurlex import (
+    _extract_consolidation_manifestation_url_from_celex_rdf,
+    _extract_consolidation_manifestation_urls_from_celex_rdf,
+    _extract_consolidation_item_url,
+    _extract_consolidation_manifestation_url,
+    _extract_consolidation_vigente_desde,
+    _fetch_index_html_fallback,
     _infer_tipo_y_numero,
-    _is_supported_block,
     _eli_path,
-    _yyyymmdd_to_iso,
+    _is_supported_block,
     _parse_block_xml,
+    _parse_official_consolidation_html,
+    _yyyymmdd_to_iso,
+    fetch_block,
+    fetch_index,
+    log_sync,
     parse_index,
 )
-import eurlex
 
 
 def test_infer_tipo_y_numero_articulo_accented():
@@ -158,6 +173,374 @@ def test_parse_index_no_bloque_key():
     assert result == []
 
 
+def test_fetch_index_html_fallback_handles_html_entities():
+    class FakeResponse:
+        status_code = 200
+        text = """
+        <html>
+          <body>
+            <h2>Artículo 1&nbsp;Objeto</h2>
+            <h3>Capítulo I&nbsp;Disposiciones generales</h3>
+          </body>
+        </html>
+        """
+
+    class FakeClient:
+        def get(self, url, headers=None, timeout=None):
+            return FakeResponse()
+
+    result = _fetch_index_html_fallback(FakeClient(), "32014R0909")
+
+    assert [item["titulo"] for item in result] == [
+        "Artículo 1 Objeto",
+        "Capítulo I Disposiciones generales",
+    ]
+
+
+def test_extract_consolidation_manifestation_url_prefers_revisioned_xhtml():
+    xml_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <NOTICE>
+      <RESOURCE_LEGAL_BASIS_FOR_ACT_CONSOLIDATED>
+        <EMBEDDED_NOTICE>
+          <EXPRESSION>
+            <EXPRESSION_MANIFESTED_BY_MANIFESTATION>
+              <SAMEAS><URI><VALUE>http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323.SPA.xhtml</VALUE></URI></SAMEAS>
+            </EXPRESSION_MANIFESTED_BY_MANIFESTATION>
+            <EXPRESSION_MANIFESTED_BY_MANIFESTATION>
+              <SAMEAS><URI><VALUE>http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323_0100010.SPA.xhtml</VALUE></URI></SAMEAS>
+            </EXPRESSION_MANIFESTED_BY_MANIFESTATION>
+          </EXPRESSION>
+        </EMBEDDED_NOTICE>
+      </RESOURCE_LEGAL_BASIS_FOR_ACT_CONSOLIDATED>
+    </NOTICE>
+    """
+
+    assert _extract_consolidation_manifestation_url(xml_text) == (
+        "http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323_0100010.SPA.xhtml"
+    )
+
+
+def test_extract_consolidation_item_url_from_rdf():
+    rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323.SPA.xhtml.CL2014L0065ES0100010.0001.html"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+
+    assert _extract_consolidation_item_url(rdf_text) == (
+        "http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323.SPA.xhtml.CL2014L0065ES0100010.0001.html"
+    )
+
+
+def test_extract_consolidation_manifestation_url_from_celex_rdf():
+    rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/eli/dir/2024/1760/2026-03-18"/>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2024L1760%2F20260318_0020020"/>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/celex/02024L1760-20260318"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+
+    assert _extract_consolidation_manifestation_url_from_celex_rdf(rdf_text) == (
+        "http://publications.europa.eu/resource/consolidation/2024L1760%2F20260318_0020020.SPA.xhtml"
+    )
+
+
+def test_extract_consolidation_manifestation_urls_from_celex_rdf_sorts_revisioned_first():
+    rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014R1286%2F20141229"/>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014R1286%2F20161224_0010040"/>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014R1286%2F20141229_0000010"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+
+    assert _extract_consolidation_manifestation_urls_from_celex_rdf(rdf_text) == [
+        "http://publications.europa.eu/resource/consolidation/2014R1286%2F20161224_0010040.SPA.xhtml",
+        "http://publications.europa.eu/resource/consolidation/2014R1286%2F20141229_0000010.SPA.xhtml",
+        "http://publications.europa.eu/resource/consolidation/2014R1286%2F20141229.SPA.xhtml",
+    ]
+
+
+def test_extract_consolidation_vigente_desde_from_manifestation_url():
+    assert _extract_consolidation_vigente_desde(
+        "http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323_0100010.SPA.xhtml"
+    ) == "2023-03-23"
+
+
+def test_parse_official_consolidation_html_extracts_article_blocks():
+    html_text = """
+    <html>
+      <body>
+        <p class="title-article-norm">Artículo 1</p>
+        <p class="stitle-article-norm">Ámbito de aplicación</p>
+        <div class="norm"><span>1.</span><div>La presente Directiva se aplicará.</div></div>
+        <p class="title-article-norm">Artículo 2</p>
+        <p class="stitle-article-norm">Excepciones</p>
+        <div class="norm"><span>1.</span><div>La presente Directiva no se aplicará a:</div></div>
+      </body>
+    </html>
+    """
+
+    blocks = _parse_official_consolidation_html("32014L0065", html_text)
+
+    assert [block.titulo for block in blocks] == ["Artículo 1", "Artículo 2"]
+    assert blocks[0].texto == "Ámbito de aplicación\n1. La presente Directiva se aplicará."
+    assert blocks[1].texto == "Excepciones\n1. La presente Directiva no se aplicará a:"
+
+
+def test_parse_official_consolidation_html_sets_vigente_desde():
+    html_text = """
+    <html>
+      <body>
+        <p class="title-article-norm">Artículo 1</p>
+        <div class="norm">Texto oficial.</div>
+      </body>
+    </html>
+    """
+
+    blocks = _parse_official_consolidation_html("32014L0065", html_text, vigente_desde="2023-03-23")
+
+    assert blocks[0].vigente_desde == "2023-03-23"
+
+
+def test_fetch_index_uses_official_notice_and_consolidation_fallback():
+    eurlex._OFFICIAL_CONSOLIDATION_CACHE.clear()
+
+    notice_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <NOTICE>
+      <RESOURCE_LEGAL_BASIS_FOR_ACT_CONSOLIDATED>
+        <EMBEDDED_NOTICE>
+          <EXPRESSION>
+            <EXPRESSION_MANIFESTED_BY_MANIFESTATION>
+              <SAMEAS><URI><VALUE>http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323_0100010.SPA.xhtml</VALUE></URI></SAMEAS>
+            </EXPRESSION_MANIFESTED_BY_MANIFESTATION>
+          </EXPRESSION>
+        </EMBEDDED_NOTICE>
+      </RESOURCE_LEGAL_BASIS_FOR_ACT_CONSOLIDATED>
+    </NOTICE>
+    """
+    rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014L0065%2F20230323.SPA.xhtml.CL2014L0065ES0100010.0001.html"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+    html_text = """
+    <html>
+      <body>
+        <p class="title-article-norm">Artículo 1</p>
+        <p class="stitle-article-norm">Ámbito de aplicación</p>
+        <div class="norm"><span>1.</span><div>La presente Directiva se aplicará.</div></div>
+      </body>
+    </html>
+    """
+
+    client = _build_official_fallback_client(notice_xml, rdf_text, html_text)
+    result = fetch_index(client, "32014L0065")
+
+    assert result == [
+        {
+            "id": "official:32014L0065:0",
+            "titulo": "Artículo 1",
+            "fecha_actualizacion": "",
+        }
+    ]
+    assert any("legal-content/ES/TXT/XML" in url for url in client.calls)
+    assert any("/resource/consolidation/" in url for url in client.calls)
+
+
+def test_fetch_index_uses_celex_rdf_when_notice_xml_is_202_empty():
+    eurlex._OFFICIAL_CONSOLIDATION_CACHE.clear()
+
+    celex_rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2024L1760%2F20260318_0020020"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+    manifestation_rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2024L1760%2F20260318.SPA.xhtml.CL2024L1760ES0020020.0001.html"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+    html_text = """
+    <html>
+      <body>
+        <p class="title-article-norm">Artículo 1</p>
+        <div class="norm">Texto oficial.</div>
+      </body>
+    </html>
+    """
+
+    client = _build_celex_rdf_fallback_client(celex_rdf_text, manifestation_rdf_text, html_text)
+    result = fetch_index(client, "32024L1760")
+
+    assert result == [
+        {
+            "id": "official:32024L1760:0",
+            "titulo": "Artículo 1",
+            "fecha_actualizacion": "",
+        }
+    ]
+    assert any("/resource/celex/32024L1760" in url for url in client.calls)
+    assert any("/resource/consolidation/2024L1760%2F20260318_0020020.SPA.xhtml" in url for url in client.calls)
+
+
+def test_fetch_index_tries_multiple_celex_rdf_manifestation_candidates():
+    eurlex._OFFICIAL_CONSOLIDATION_CACHE.clear()
+
+    celex_rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014R1286%2F20240109_0040020"/>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014R1286%2F20161224_0010040"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+    manifestation_rdf_text = """<?xml version="1.0" encoding="UTF-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#">
+      <rdf:Description>
+        <owl:sameAs rdf:resource="http://publications.europa.eu/resource/consolidation/2014R1286%2F20161224.SPA.xhtml.CL2014R1286ES0010040.0001.html"/>
+      </rdf:Description>
+    </rdf:RDF>
+    """
+    html_text = """
+    <html>
+      <body>
+        <p class="title-article-norm">Artículo 1</p>
+        <div class="norm">Texto oficial.</div>
+      </body>
+    </html>
+    """
+
+    client = _build_multi_candidate_celex_rdf_client(celex_rdf_text, manifestation_rdf_text, html_text)
+    result = fetch_index(client, "32014R1286")
+
+    assert result == [
+        {
+            "id": "official:32014R1286:0",
+            "titulo": "Artículo 1",
+            "fecha_actualizacion": "",
+        }
+    ]
+    assert any(url.endswith("20240109_0040020.SPA.xhtml") for url in client.calls)
+    assert any(url.endswith("20161224_0010040.SPA.xhtml") for url in client.calls)
+
+
+def test_fetch_block_reads_cached_official_consolidation_block():
+    eurlex._OFFICIAL_CONSOLIDATION_CACHE.clear()
+    eurlex._OFFICIAL_CONSOLIDATION_CACHE["32014L0065"] = [
+        eurlex.BloqueTexto(
+            bloque_id="official:32014L0065:0",
+            tipo_bloque="official_consolidation",
+            numero="1",
+            titulo="Artículo 1",
+            tipo_articulo="articulo",
+            texto="Texto oficial",
+            vigente_desde="",
+        )
+    ]
+
+    bloque = fetch_block(object(), "official:32014L0065:0")
+
+    assert bloque.titulo == "Artículo 1"
+    assert bloque.texto == "Texto oficial"
+
+
+class _FakeOfficialFallbackResponse:
+    def __init__(self, text, status_code=200):
+        self.text = text
+        self.status_code = status_code
+
+    def json(self):
+        return {"data": []}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError("boom")
+
+
+def _get_official_fallback_response(url: str, notice_xml: str, rdf_text: str, html_text: str):
+    if "rest.tx.legal-acts-index" in url:
+        return _FakeOfficialFallbackResponse("{}")
+    if "legal-content/ES/TXT/XML" in url:
+        return _FakeOfficialFallbackResponse(notice_xml)
+    if url.endswith(".SPA.xhtml"):
+        return _FakeOfficialFallbackResponse(rdf_text)
+    if url.endswith(".html"):
+        return _FakeOfficialFallbackResponse(html_text)
+    raise AssertionError(url)
+
+
+def _build_official_fallback_client(notice_xml: str, rdf_text: str, html_text: str):
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def get(self, url, headers=None, timeout=None, follow_redirects=None):
+            self.calls.append(url)
+            return _get_official_fallback_response(url, notice_xml, rdf_text, html_text)
+
+    return FakeClient()
+
+
+def _build_celex_rdf_fallback_client(celex_rdf_text: str, manifestation_rdf_text: str, html_text: str):
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def get(self, url, headers=None, timeout=None, follow_redirects=None):
+            self.calls.append(url)
+            if "rest.tx.legal-acts-index" in url:
+                return _FakeOfficialFallbackResponse("{}", status_code=202)
+            if "legal-content/ES/TXT/XML" in url:
+                return _FakeOfficialFallbackResponse("", status_code=202)
+            if "/resource/celex/" in url:
+                return _FakeOfficialFallbackResponse(celex_rdf_text)
+            if url.endswith(".SPA.xhtml"):
+                return _FakeOfficialFallbackResponse(manifestation_rdf_text)
+            if url.endswith(".html"):
+                return _FakeOfficialFallbackResponse(html_text)
+            raise AssertionError(url)
+
+    return FakeClient()
+
+
+def _build_multi_candidate_celex_rdf_client(celex_rdf_text: str, manifestation_rdf_text: str, html_text: str):
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def get(self, url, headers=None, timeout=None, follow_redirects=None):
+            self.calls.append(url)
+            if "rest.tx.legal-acts-index" in url:
+                return _FakeOfficialFallbackResponse("{}", status_code=202)
+            if "legal-content/ES/TXT/XML" in url:
+                return _FakeOfficialFallbackResponse("", status_code=202)
+            if "/resource/celex/" in url:
+                return _FakeOfficialFallbackResponse(celex_rdf_text)
+            if url.endswith("20240109_0040020.SPA.xhtml"):
+                return _FakeOfficialFallbackResponse("", status_code=404)
+            if url.endswith("20161224_0010040.SPA.xhtml"):
+                return _FakeOfficialFallbackResponse(manifestation_rdf_text)
+            if url.endswith(".html"):
+                return _FakeOfficialFallbackResponse(html_text)
+            raise AssertionError(url)
+
+    return FakeClient()
+
+
 def test_parse_index_block_xml():
     xml_text = """<?xml version="1.0" encoding="UTF-8"?>
     <documento>
@@ -201,11 +584,8 @@ def test_parse_index_block_xml_invalid_no_bloque():
         <version fecha_vigencia="20240101"/>
     </documento>
     """
-    try:
+    with pytest.raises(ValueError, match="Invalid EUR-Lex block payload"):
         _parse_block_xml("block-bad", xml_text)
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Invalid EUR-Lex block payload" in str(e)
 
 
 def test_parse_index_block_xml_invalid_no_version():
@@ -216,11 +596,8 @@ def test_parse_index_block_xml_invalid_no_version():
         </bloque>
     </documento>
     """
-    try:
+    with pytest.raises(ValueError, match="Invalid EUR-Lex block payload"):
         _parse_block_xml("block-bad", xml_text)
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Invalid EUR-Lex block payload" in str(e)
 
 
 def test_eurlex_normas_has_required_fields():
@@ -232,8 +609,8 @@ def test_eurlex_normas_has_required_fields():
 
 
 def test_eurlex_normas_count():
-    """Verificar que tenemos al menos 30 CELEXs."""
-    assert len(eurlex.EURLEX_NORMAS) >= 30, f"Solo {len(eurlex.EURLEX_NORMAS)} CELEXs, se esperan >= 30"
+    """Verificar que tenemos una seed curada amplia sin entradas dudosas obvias."""
+    assert len(eurlex.EURLEX_NORMAS) >= 28, f"Solo {len(eurlex.EURLEX_NORMAS)} CELEXs, se esperan >= 28"
 
 
 def test_eurlex_normas_unique_codigos():
@@ -245,7 +622,28 @@ def test_eurlex_normas_unique_codigos():
 def test_eurlex_normas_boe_id_unique():
     """Verificar que los CELEXs son únicos."""
     celexs = [n["boe_id"] for n in eurlex.EURLEX_NORMAS]
-    assert len(celexs) == len(set(celexs)), f"CELEXs duplicados encontrados"
+    assert len(celexs) == len(set(celexs)), "CELEXs duplicados encontrados"
+
+
+def test_eurlex_normas_uses_corrected_celex_for_known_skips():
+    """Verificar que la seed curada usa los CELEX validados en la auditoria."""
+    normas_by_codigo = {norma["codigo"]: norma for norma in eurlex.EURLEX_NORMAS}
+
+    assert normas_by_codigo["MIFIR_2014_60"]["boe_id"] == "EUR-CELEX-32014R0600"
+    assert normas_by_codigo["CRD_V_2019_2058"]["boe_id"] == "EUR-CELEX-32019L0878"
+    assert normas_by_codigo["CRR_II_2019_2057"]["boe_id"] == "EUR-CELEX-32019R0876"
+    assert normas_by_codigo["PSD2_2015_236"]["boe_id"] == "EUR-CELEX-32015L2366"
+    assert normas_by_codigo["DAC6_2018_825"]["boe_id"] == "EUR-CELEX-32018L0822"
+    assert normas_by_codigo["DAC7_2021_1689"]["boe_id"] == "EUR-CELEX-32021L0514"
+    assert normas_by_codigo["PSD3_2024_884"]["boe_id"] == "EUR-CELEX-32024R0886"
+
+
+def test_eurlex_normas_excludes_dubious_seed_entries():
+    """Verificar que la seed curada no conserva CELEX/titulos ya descartados."""
+    codigos = {norma["codigo"] for norma in eurlex.EURLEX_NORMAS}
+
+    assert "APM_2020_683" not in codigos
+    assert "ESG_RATINGS_2023_2819" not in codigos
 
 
 def test_eurlex_normas_types():
@@ -271,3 +669,46 @@ def test_eli_path_format():
     assert _eli_path("EUR-CELEX-32011L0061") == "dir/2011/61/oj"
     # Decisiones
     assert _eli_path("EUR-CELEX-32013D0048") == "dec/2013/48/oj"
+
+
+def test_log_sync_preserves_zero_errors_when_error_msg_is_summary():
+    engine = create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        log_sync(
+            conn,
+            "worker-eurlex",
+            "ok",
+            bloques=10,
+            articulos=4,
+            error_msg="summary: unchanged=6; no_index=2; fetch_errors=0",
+            started_at="2026-05-03T13:20:00+00:00",
+            errors=0,
+        )
+        row = conn.execute(text("SELECT status, error_msg, errors, rows_processed FROM sync_log")).mappings().one()
+
+    assert row["status"] == "ok"
+    assert row["error_msg"] == "summary: unchanged=6; no_index=2; fetch_errors=0"
+    assert row["errors"] == 0
+    assert row["rows_processed"] == 10
+
+
+def test_log_sync_records_nonzero_errors_when_requested():
+    engine = create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        log_sync(
+            conn,
+            "worker-eurlex",
+            "partial",
+            bloques=5,
+            articulos=3,
+            error_msg="summary: unchanged=1; no_index=1; fetch_errors=2",
+            started_at="2026-05-03T13:20:00+00:00",
+            errors=2,
+        )
+        row = conn.execute(text("SELECT status, error_msg, errors, rows_processed FROM sync_log")).mappings().one()
+
+    assert row["status"] == "partial"
+    assert row["errors"] == 2
+    assert row["rows_processed"] == 5

@@ -18,7 +18,7 @@ Requisitos:
 
 Salida:
     corpora/eurlex/32014L0065.html  (MiFID II) — ~1.3MB
-    corpora/eurlex/32014R0060.html (MiFIR)
+    corpora/eurlex/32014R0600.html (MiFIR)
     ...
 """
 
@@ -97,7 +97,7 @@ def main():
 
     if failed > 0:
         print("\nCELEXs que fallaron:")
-        for celex, titulo in celexes:
+        for celex, _titulo in celexes:
             output_path = OUTPUT_DIR / f"{celex}.html"
             if not output_path.exists() or output_path.stat().st_size <= 1000:
                 print(f"  - {celex}")

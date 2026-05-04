@@ -19,6 +19,24 @@ groups:
           summary: "Worker {{ $labels.worker }} tiene errores en sync_log"
           description: "La ultima fila de sync_log para {{ $labels.worker }} reporta {{ $value }} errores."
 
+      - alert: WorkerFetchErrorsDetected
+        expr: worker_sync_summary{kind="fetch_errors"} > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Worker {{ $labels.worker }} tiene fetch_errors en el ultimo sync"
+          description: "La ultima ejecucion visible en /metrics para {{ $labels.worker }} reporta {{ $value }} fetch_errors en el resumen estructurado del sync."
+
+      - alert: EurlexNoIndexHigh
+        expr: worker_sync_summary{worker=~"worker-eurlex|cron-eurlex-weekly",kind="no_index"} > 25
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "EUR-Lex mantiene no_index alto en {{ $labels.worker }}"
+          description: "El resumen estructurado de {{ $labels.worker }} reporta {{ $value }} bloques/CELEX sin indice util. Revisar retrieval oficial y consolidaciones candidatas."
+
       - alert: APIDown
         expr: up{job="esdata_api"} == 0
         for: 5m

@@ -1,8 +1,11 @@
 import logging
 import os
+import socket
 import time
 from pathlib import Path
 
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata"
 
@@ -34,6 +37,47 @@ def configure_logging(name: str) -> logging.Logger:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     return logging.getLogger(name)
+
+
+def ensure_database_connection(
+    engine,
+    *,
+    attempts: int = 5,
+    base_delay_seconds: int = 2,
+    logger: logging.Logger | None = None,
+) -> None:
+    active_logger = logger or logging.getLogger(__name__)
+    host = getattr(engine.url, "host", None) or "localhost"
+    port = getattr(engine.url, "port", None) or 5432
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            try:
+                resolved = socket.getaddrinfo(host, port)[0][4][0]
+                active_logger.info("DB DNS resolved: %s -> %s", host, resolved)
+            except socket.gaierror as exc:
+                active_logger.warning("DNS probe failed for %s:%s: %s", host, port, exc)
+                raise OSError(exc) from exc
+
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            active_logger.info("DB connection established")
+            return
+        except (OperationalError, OSError) as exc:
+            last_error = exc
+            if attempt == attempts:
+                raise
+            active_logger.warning(
+                "DB connection attempt %s/%s failed: %s",
+                attempt,
+                attempts,
+                exc,
+            )
+            time.sleep(min(base_delay_seconds * (2 ** (attempt - 1)), 30))
+
+    if last_error is not None:
+        raise last_error
 
 
 def touch_heartbeat(path: str = "/tmp/worker_heartbeat") -> None:

@@ -13,11 +13,11 @@ Limitaciones conocidas / [BLOCKED]:
 """
 
 import argparse
-from datetime import UTC, datetime
-from html import unescape
 import os
 import re
 import time
+from datetime import UTC, datetime
+from html import unescape
 from urllib.parse import urlparse
 
 import httpx
@@ -29,7 +29,13 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
+from runtime import (
+    ensure_database_connection,
+    get_database_url,
+    get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 from sqlalchemy import create_engine, text
 
 
@@ -201,6 +207,7 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:

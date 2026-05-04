@@ -79,6 +79,71 @@ STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE empresa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        nif TEXT,
+        domicilio TEXT,
+        fuente_inicial TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE obligacion_regulatoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL,
+        fuente TEXT NOT NULL,
+        organismo_emisor TEXT NOT NULL,
+        tipo_obligacion TEXT NOT NULL,
+        sujeto_obligado TEXT NOT NULL,
+        periodicidad TEXT,
+        reporte_modelo TEXT,
+        ambito TEXT NOT NULL,
+        estado_vigencia TEXT NOT NULL,
+        documento_origen_tipo TEXT,
+        documento_origen_ref TEXT,
+        seccion_origen TEXT,
+        anexo_origen TEXT,
+        nota TEXT,
+        plazo_dias INTEGER,
+        frecuencia_presentacion TEXT,
+        ventana_presentacion TEXT,
+        trigger_presentacion TEXT,
+        canal_presentacion TEXT,
+        obligados_resumen TEXT,
+        sancion_min TEXT,
+        sancion_max TEXT,
+        recargo_voluntario TEXT,
+        recargo_involuntario TEXT,
+        interes_demora TEXT,
+        prescripcion_anos INTEGER,
+        deposito_previo TEXT,
+        fuentes_operativas TEXT,
+        ultima_actualizacion TEXT,
+        origen_metadato TEXT,
+        estado_metadato TEXT
+    )
+    """,
+    """
+    CREATE TABLE obligacion_documento (
+        obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id),
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        tipo_relacion TEXT NOT NULL,
+        PRIMARY KEY (obligacion_id, documento_id)
+    )
+    """,
+    """
+    CREATE TABLE documento_empresa (
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        empresa_id INTEGER NOT NULL REFERENCES empresa(id),
+        rol TEXT NOT NULL,
+        confianza_extraccion REAL NOT NULL,
+        nota TEXT,
+        PRIMARY KEY (documento_id, empresa_id)
+    )
+    """,
+    """
     CREATE TABLE documento_version (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         documento_referencia TEXT NOT NULL,

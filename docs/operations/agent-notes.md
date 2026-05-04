@@ -33,6 +33,156 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-03 - MCP trust: el riesgo principal no es una sola respuesta mala, sino huecos entre datos, contrato MCP y audit trail
+
+- Scope: `apps/api/*`, `apps/workers/*`, `docs/manual-usuario/*`, `docs/reference/mcp-remediation-plan.md`
+- Hallazgo: el repo tiene buena base de grounding, workers y auditoria, pero una respuesta MCP puede seguir siendo peligrosamente segura si se juntan tres cosas: metadata/modelos parciales, surfaces MCP HTTP vs stdio no alineadas, y endpoints/tool calls sin audit E2E completo. El fallo real es de cadena de confianza, no de una sola capa.
+- Impacto: un modelo o agente externo puede convertir datos parciales o curados en una conclusion operativa aparentemente verificada. Eso afecta especialmente a `modelos AEAT`, `consulta_fiscal/agente_consulta`, y a cualquier tool que no persista `request_id + fuentes + grounding_status + completitud`.
+- Regla practica: antes de corregir prompts o tocar docs, comprobar siempre estas cuatro preguntas: (1) la tool existe en la superficie MCP que usa el cliente real? (2) deja audit trail E2E? (3) la respuesta distingue oficial/curado/heuristico/no verificado? (4) el corpus o modelo tiene bandera de completitud suficiente para una conclusion operativa?
+
+### 2026-05-03 - Fase 1.1 HTTP MCP: no depender de inferencia por path cuando el endpoint ya conoce su operation_id
+
+- Scope: `apps/api/routers/buscar.py`, `apps/api/routers/legislacion.py`, `apps/api/routers/doctrina.py`, `apps/api/routers/modelos.py`, `services/query_audit.py`
+- Hallazgo: para la superficie HTTP MCP prioritaria, confiar solo en `infer_query_audit_tool_name(path)` es fragil porque varios endpoints reales incluyen parametros dinamicos en la ruta y otros comparten prefijo pero no operation_id. El hook mas robusto es pasar `tool_name` explicito desde cada handler cuando ese endpoint forma parte del catalogo MCP.
+- Impacto: sin `tool_name` explicito, una entrada puede persistirse con nombre derivado del ultimo segmento de la URL o no persistirse en absoluto si el handler nunca llama a `record_query()`, rompiendo la reconstruccion E2E por tool.
+- Regla practica: en rutas HTTP que representen operation_ids MCP reales, llamar siempre a `get_query_audit_service().record_query(...)` desde el handler y pasar `tool_name` explicito junto con `path`, `query_text`, `sources/confidence`, `completeness` y `verified`.
+
+### 2026-05-03 - `doctrina/buscar` con `include_boe=true` puede romper filtros semanticos heredados
+
+- Scope: `apps/api/routers/doctrina.py`, `apps/api/tests/test_smoke.py::test_doctrina_buscar_filtra_por_tipo`
+- Hallazgo: el buscador de doctrina puede extender resultados con `_buscar_normas_boe(db, q)` cuando `include_boe=true` y no se restringe `organismo_emisor`. Eso hace que una query filtrada por `tipo` doctrinal siga incluyendo normas BOE relacionadas y rompa asserts heredados que esperan homogeneidad total por `tipo_documento`.
+- Impacto: algunas smokes antiguas sobre filtrado por `tipo` fallan aunque el nuevo audit trail y el endpoint principal sigan funcionando; no debe confundirse con una regresion del slice de auditoria MCP.
+- Regla practica: si aparece un rojo en `test_doctrina_buscar_filtra_por_tipo`, revisar primero la mezcla `doctrina + BOE` del endpoint antes de tocar el audit trail. Es deuda funcional separada de la Fase 1.1.
+
+### 2026-05-03 - Fase 1.2 stdio MCP: la fila auditable debe nacer en `tools/call`, no como post-log sintetico aislado
+
+- Scope: `apps/api/mcp_stdio.py`, `apps/api/tests/test_mcp_stdio_audit.py`
+- Hallazgo: el patron anterior de `stdio` registraba una segunda fila con `request_id` aleatorio, `retrieved_chunks=[]` fijo y `except Exception: pass`. Eso rompia la correlacion E2E con el endpoint REST real y permitia responder con exito aunque la auditoria stdio no hubiera quedado persistida.
+- Impacto: un cliente local podia ver una respuesta correcta en texto pero sin rastro reconstruible por `request_id`, o peor, con una huella negativa artificial que ocultaba el grounding y las fuentes reales del runtime.
+- Regla practica: en `stdio`, generar el `request_id` al entrar en `tools/call`, inyectarlo en todos los subrequests internos (`x-request-id`, `x-user-id`) y persistir la fila `/mcp/tools/<tool_name>` reutilizando la entrada HTTP correlada cuando exista. Si esa persistencia falla, devolver `-32603` y no emitir la respuesta bufferizada como si todo hubiera salido bien.
+
+### 2026-05-03 - Fase 1.3 query-audit: verificar contra runtime real, no solo contra fixtures manuales
+
+- Scope: `apps/api/routers/query_audit.py`, `apps/api/tests/test_query_audit_http.py`
+- Hallazgo: el contrato de `/v1/ai/query-audit` ya exponia `grounding_status`, `prompt_injection_detected`, `grounding_summary`, `completeness` y `verified`, pero la cobertura HTTP solo demostraba esos campos con entradas manuales creadas via `record_query()`. Faltaba fijar que tambien salen bien cuando la fila nace del runtime real de `/v1/consulta`.
+- Impacto: sin esa cobertura, una futura regresion en serializacion o mapping del router podia pasar desapercibida aunque el schema siguiera aceptando los campos y los tests unitarios del servicio siguieran verdes.
+- Regla practica: cuando el roadmap pida "exponer" un campo ya presente en router/schema, no asumir que no hay trabajo. Añadir al menos un test HTTP o E2E que pruebe el dato sobre una fila producida por runtime real, no solo por fixtures o inserts manuales.
+
+### 2026-05-03 - Fase 1.4 query-audit: persistir el payload exacto del cliente, no una variante paralela
+
+- Scope: `apps/api/services/query_audit.py`, `apps/api/routers/consulta.py`, `apps/api/mcp_stdio.py`, `alembic/versions/20260503_0055_query_audit_response_payload.py`
+- Hallazgo: para reconstruir de verdad lo que vio el usuario, `query_audit` no debe guardar solo un resumen ni un payload reinterpretado. En `/v1/consulta` el dato correcto es el `ConsultaFiscalResponse` final serializado tal como sale al cliente; en `stdio` el dato correcto es el payload JSON-RPC final bufferizado (`result` o `error`) que se emite por `tools/call`.
+- Impacto: si se persiste una variante ad hoc, la auditoria puede seguir siendo incompleta aunque exista una columna nueva, porque la reconstruccion no coincide exactamente con la respuesta entregada.
+- Regla practica: cuando un slice pida persistir la respuesta final, reutilizar el response model o payload ya construido para la salida real y persistir ese mismo objeto serializado. Si la suite API en Windows usa `apps/api/tests/conftest.py`, verificar siempre en secuencial para evitar `WinError 32` del SQLite compartido.
+
+### 2026-05-03 - Fase 2.1 DB lifecycle: `next(get_db())` fuera de DI oculta sesiones cerradas hasta que el cierre se vuelve terminal
+
+- Scope: `apps/api/db.py`, `apps/api/routers/consulta.py`, `apps/api/routers/legislacion.py`, `apps/api/routers/jurisprudencia.py`, `apps/api/tests/test_db.py`, `apps/api/tests/test_reranker.py`
+- Hallazgo: con la configuracion por defecto de SQLAlchemy, `Session.close()` puede reabrirse silenciosamente y esconder reusos invalidos de sesiones fuera de contexto. Al fijar `SessionLocal(... close_resets_only=False)`, la sesion cerrada pasa a ser terminal y aflora el patron roto: abrir DB con `db = next(get_db())` fuera del ciclo de dependencias de FastAPI o seguir usando `db` tras salir de `with db_session() as db:`.
+- Impacto: rutas o bloques tardios pueden parecer sanos en tests o runtime aunque esten usando una sesion ya cerrada; cuando el cierre se endurece, el fallo real emerge como `InvalidRequestError: This Session has been permanently closed and is unable to handle any more transaction requests.`
+- Regla practica: fuera de `Depends(get_db)`, no usar `next(get_db())`. Abrir una sesion nueva con `with db_session() as db:` por cada bloque vivo que realmente consulte la DB. Si una ruta necesita una consulta tardia adicional, reabrir otra sesion para ese bloque en vez de reciclar la anterior.
+
+### 2026-05-03 - MCP audit/modelos: un `200` vacio tambien debe dejar rastro E2E si la request fue valida
+
+- Scope: `apps/api/routers/modelos.py`, `apps/api/tests/test_http_mcp_audit_phase_1_1.py`
+- Hallazgo: en `get_modelo_casillas`, `get_modelo_claves` y `get_modelo_instrucciones`, una campaña inexistente de un modelo valido devolvia `200` con lista vacia pero sin pasar por `_record_modelo_query_audit(...)`.
+- Impacto: la auditoria HTTP MCP quedaba rota precisamente en un caso valido y frecuente de cobertura parcial (`campana` no publicada o no disponible), aunque la respuesta al cliente fuese correcta.
+- Regla practica: si un endpoint MCP devuelve `200`, debe registrar `query_audit` tambien cuando el payload sea vacio. El unico caso que no debe registrar como exito es el `404`/error de request invalida.
+
+### 2026-05-03 - Query audit MCP: no dejar que el contrato nuevo dependa solo de `ALTER TABLE` runtime
+
+- Scope: `alembic/versions/20260503_0055_query_audit_response_payload.py`, `apps/api/services/query_audit.py`, `apps/api/tests/test_alembic_integrity.py`
+- Hallazgo: el contrato MCP anadido en Fase 0.2 (`tool_name`, `sources`, `confidence`, `completeness`, `verified`) habia quedado soportado en SQLite/runtime por reparacion dinamica, pero no por la nueva migracion Alembic 0055. Ademas, el singleton eager `_service = QueryAuditService()` disparaba `ensure_governance_tables()` en import.
+- Impacto: un deploy guiado solo por migraciones podia quedar con drift de esquema respecto al runtime real, y un entorno con permisos restringidos podia fallar antes de arrancar al intentar hacer DDL durante import.
+- Regla practica: si un cambio amplia el contrato persistido de `query_audit_log`, respaldarlo en Alembic y no solo en `ensure_governance_tables()`. Para el servicio, preferir singleton lazy (`get_query_audit_service()`) en vez de instanciar con DDL al importar el modulo.
+
+### 2026-05-03 - Reranker: no exponer scores brutos del cross-encoder como si ya estuvieran normalizados
+
+- Scope: `apps/api/routers/consulta.py`, `apps/api/services/reranker.py`, `apps/api/tests/test_reranker.py`
+- Hallazgo: `rerank_score` puede venir fuera de `0..1` (incluyendo negativos y valores > 1). Si se serializa directo como `relevance_score` o `claim confidence`, el contrato externo queda semanticamente enganoso aunque el campo exista. Tambien es facil perder `source_url` al construir `claim_citations` si no se arrastra desde la evidencia del resultado original.
+- Impacto: el cliente puede ver puntuaciones imposibles o interpretar una confianza cruda como probabilidad normalizada; ademas, `ClaimCitation.source_url` puede salir `null` aunque la fuente exista en el resultado base.
+- Regla practica: reutilizar `normalize_rerank_score()` al serializar campos publicos derivados del cross-encoder y propagar `source_url` desde la evidencia original cuando se construyan citas por claim.
+
+### 2026-05-04 - Fase 2.2 retrieval fail-closed: si una fuente critica falla, `consulta` debe abstenerse y no seguir mezclando resultados parciales
+
+- Scope: `apps/api/routers/consulta.py`, `apps/api/services/unified_multi_source_search.py`, `apps/api/tests/test_consulta_fail_closed.py`
+- Hallazgo: el patron `except Exception: pass` en `consulta` y en el search unificado permitia responder con resultados aparentemente validos aunque hubiera fallado parte del retrieval critico pedido por el usuario. El caso mas peligroso era `sources=...`: una fuente podia romperse y aun asi sobrevivir un modelo o resultado lateral no pedido, dando falsa sensacion de cobertura suficiente.
+- Impacto: el cliente podia recibir una respuesta operativa incompleta sin ninguna senal fuerte de degradacion, justo en el slice donde el usuario habia pedido retrieval dirigido.
+- Regla practica: si falla `search_legislacion` o una fuente del retrieval unificado solicitada por `sources`, `/v1/consulta` debe cerrar en abstencion conservadora (`200` + `NO VERIFICADO`, `review_required=true`, `faithfulness_score=0.0`, listas vacias). El servicio unificado no debe tragarse esas excepciones: debe exponer al menos `source_errors` estructurado para que el router decida el fail-closed.
+
+### 2026-05-04 - Fase 2.3 unified retrieval: el handler 31.x debe respetar la fuente pedida y no esconder fallos de embedding
+
+- Scope: `apps/api/services/unified_multi_source_search.py`, `apps/api/tests/test_unified_multi_source_search.py`
+- Hallazgo: tras 2.2 el agregador ya exponia `source_errors`, pero el handler compartido de dominios 31.x seguia buscando contra todos los `documento_origen_tipo` a la vez (`IN (...)`) aunque el usuario pidiera solo `mica`, `dac` o cualquier otro dominio. Ademas, `_31x_fulltext()` llevaba un alias roto (`LOWER(t.texto)`) y un parametro distinto al que realmente se cargaba (`:ts_query` vs `:_31x_ts_query`). Por ultimo, varios helpers vectoriales seguian atrapando `Exception` dentro del propio helper, con lo que un fallo real del embedding backend se convertia en `[]` y nunca llegaba al `source_errors` del agregador.
+- Impacto: una consulta dirigida a un dominio 31.x podia contaminarse con chunks de otros dominios; el SQL fulltext 31.x podia fallar en runtime por alias/parametro inconsistentes; y un fallo de embedding por fuente podia aparentar simplemente "sin resultados" en vez de degradacion explicita.
+- Regla practica: cuando varios source types comparten handler, el dispatcher debe pasar el `source` pedido y el handler debe filtrar por esa fuente exacta. Los helpers internos no deben tragarse excepciones que forman parte del contrato de degradacion por fuente; si el embedding falla, dejar que el agregador convierta ese fallo en `source_errors` y no en lista vacia silenciosa.
+
+### 2026-05-04 - Fase 2.4 abstention: no mantener una implementacion runtime en `consulta` y otra distinta en `services.grounding`
+
+- Scope: `apps/api/services/grounding.py`, `apps/api/routers/consulta.py`, `apps/api/tests/test_grounding_e2e.py`, `apps/api/tests/test_reranker.py`
+- Hallazgo: `services.grounding.apply_claim_level_abstention()` solo funcionaba de verdad cuando los tests le inyectaban `_enriched_items` a mano dentro de `grounding_summary`. En runtime real, `validate_claim_grounding()` no devolvia ese contexto y `consulta.py` se veia obligada a mantener `_apply_claim_level_abstention()` propia para no perder el filtrado por claims.
+- Impacto: habia dos implementaciones de la misma regla de abstencion claim-level, con riesgo claro de drift: los tests del servicio probaban una forma y el router ejecutaba otra.
+- Regla practica: si una fase pide "una sola implementacion en runtime real", el servicio compartido debe exponer todo el contexto que necesita su helper downstream y el router debe delegar ahi, no reimplementar el filtrado. En este repo, `validate_claim_grounding()` debe poder alimentar directamente `apply_claim_level_abstention()` sin estructuras sintéticas solo de test.
+
+### 2026-05-04 - Fase 2.5 faithfulness: no usar `faithfulness_score` como si fuera una señal de control fiable cuando aún no evalúa la respuesta final real
+
+- Scope: `apps/api/services/faithfulness.py`, `apps/api/routers/consulta.py`, `apps/api/tests/test_faithfulness.py`
+- Hallazgo: `compute_faithfulness()` sigue operando sobre un `answer_proxy` construido desde los primeros resultados, no sobre el payload final real que ve el usuario. Aun así, `consulta.py` lo usaba para disparar `review_required`, hacer bypass de grounding y vaciar resultados por debajo de umbral.
+- Impacto: una señal heurística útil para observabilidad podía provocar abstención o revisión obligatoria incluso cuando las señales duras de evidencia iban por otro camino. Eso mezclaba dos niveles distintos: scoring auxiliar vs. control real de la respuesta.
+- Regla practica: mientras `faithfulness_score` no se calcule sobre la respuesta final real, tratarlo como advisory. Mantenerlo visible para auditoría/observabilidad está bien; usarlo para gates duros de runtime no. Las decisiones de control deben depender de señales más fiables: fail-closed explícito, grounding/citas reales y ausencia material de evidencia.
+
+### 2026-05-04 - Fase 3.1 AEAT seeds: `seed-modelos-v2.py` no es bootstrap standalone
+
+- Scope: `scripts/seed-modelos.py`, `scripts/seed-modelos-v2.py`, `scripts/data/seed_all.py`, seeds AEAT legacy
+- Hallazgo: en esta rama MCP, `scripts/seed-modelos-v2.py` solo enriquece campañas y recursos asociados; no crea `aeat_modelo`. Si se ejecuta sin haber corrido antes `scripts/seed-modelos.py`, los inserts por campaña degradan a `SKIP` y el seed no queda completo aunque el script termine.
+- Impacto: es fácil interpretar `seed-modelos-v2.py` como vía canónica suficiente porque contiene casillas, claves, instrucciones y normativa, pero usarlo solo deja el bootstrap AEAT incompleto. También `scripts/data/seed_all.py` puede dar una falsa sensación de flujo productivo único porque sigue listando seeds AEAT legacy dentro del runner bulk.
+- Regla practica: para AEAT en el plan MCP usar siempre esta secuencia: (1) `python scripts/seed-modelos.py --db-url <DATABASE_URL>` y luego (2) `python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>`. Tratar `scripts/data/seed_modelos.py`, `scripts/data/seed_aeat_models.py`, `scripts/data/seed_modelo_articulo.py` y `scripts/seed-fiscal-modelos.sql` como rutas `LEGACY / NO AUTORITATIVO`, no como equivalentes productivos.
+
+### 2026-05-03 - EUR-Lex: validar seeds contra `resource/celex` RDF antes de asumir que el numero es correcto
+
+- Scope: `apps/workers/eurlex.py`, `EURLEX_NORMAS`, `publications.europa.eu/resource/celex/*`
+- Hallazgo: en la curacion de seeds EUR-Lex hay dos trampas distintas. Primera: algunos CELEX simplemente no existen como recurso oficial y `http://publications.europa.eu/resource/celex/<CELEX>` devuelve `404` tambien con `Accept: application/rdf+xml`; ejemplo confirmado: `32021R1689`, que estaba mal sembrado para DAC7 y hubo que corregir a `32021L0514`. Segunda: otros CELEX si existen oficialmente y resuelven RDF (`200`) pero `eur-lex.europa.eu/legal-content/.../TXT/XML/?uri=CELEX:...` puede seguir devolviendo `202` con cuerpo vacio, asi que ese `202` no basta para descartar el CELEX; ejemplo confirmado: `32024L1760` existe y no debe sustituirse por `32024L1619`, que es otra directiva distinta.
+- Hallazgo adicional: tras la poda de la seed curada, `EURLEX_NORMAS` queda en `28` CELEX y los `28` responden `200` en `resource/celex` RDF. Los dos casos retirados no eran buenos candidatos para esta seed: `APM_2020_683` apuntaba en realidad a `32020R0683`, que es un reglamento de homologacion y vigilancia de mercado de vehiculos, no un acto de metricas financieras alternativas; `ESG_RATINGS_2023_2819` tampoco existe como reglamento en `resource/celex` y el numero `2023/2819` aparece en el repo asociado a `DAC8` como directiva y en EUR-Lex search como una decision del BCE, no como un reglamento de ESG ratings.
+- Impacto: si se corrige una seed solo por intuicion del numero o por un `202` vacio del endpoint `TXT/XML`, es facil sustituir una norma valida por otra distinta o dejar un CELEX inexistente en la seed curada, manteniendo `SKIP ... has no index` silenciosos.
+- Regla practica: antes de cambiar un CELEX en `EURLEX_NORMAS`, comprobar primero `resource/celex/<CELEX>` con `Accept: application/rdf+xml`. Si da `404`, el CELEX es candidato a corregirse o salir de la seed. Si da `200`, tratarlo como CELEX valido aunque `TXT/XML` responda `202` vacio; en ese caso revisar titulo/ELI/RDF antes de sustituirlo.
+
+### 2026-05-03 - EUR-Lex en produccion: el HTML publico sigue inutil, pero la consolidacion oficial si sirve con redirects + parser por `eli-subdivision`
+
+- Scope: `apps/workers/eurlex.py`, VPS Compose, `publications.europa.eu`
+- Hallazgo: el camino util para EUR-Lex en produccion no es el HTML publico de `eur-lex.europa.eu/legal-content/.../TXT/` sino `legal-content/.../TXT/XML/?uri=CELEX:...` para descubrir la manifestacion y luego `publications.europa.eu/resource/consolidation/...SPA.xhtml` + su item XHTML real. Hay tres traps no obvios: (1) `httpx` debe usar `follow_redirects=True` para los `303` de `publications.europa.eu`; (2) la fecha de vigencia del bloque oficial se tiene que derivar de la URL de consolidacion (`...%2FYYYYMMDD_...SPA.xhtml`) o `upsert_articulo()` rompe con `invalid input syntax for type date: ""`; (3) el XHTML actual encapsula los articulos en `div.eli-subdivision > p.title-article-norm`, asi que buscar solo headings de primer nivel en `body` devuelve `0` bloques aunque el documento sea valido.
+- Hallazgo adicional: cuando `legal-content/.../TXT/XML` devuelve `202` vacio para un CELEX que si existe oficialmente, el worker ya no debe quedarse en `SKIP`. El fallback que funciono de verdad fue: consultar `resource/celex/<CELEX>` en RDF, extraer varias candidatas de `resource/consolidation/...`, probarlas en orden hasta encontrar una manifestacion viva, resolver desde ahi el item XHTML real y solo entonces parsear bloques. Elegir una unica manifestacion "mejor" no basta: varias candidatas revisionadas responden `404`, pero una candidata anterior puede seguir siendo valida y devolver articulado util.
+- Impacto: sin esos tres ajustes, el worker parece seguir bloqueado por upstream/WAF y deja `0` bloques o crashea en Postgres, aunque la fuente oficial ya este devolviendo RDF/XHTML util.
+- Regla practica: para diagnosticar EUR-Lex en VPS, validar el flujo completo dentro del contenedor `cron-eurlex-weekly`: primero `TXT/XML`; si llega vacio o `202`, saltar a `resource/celex/<CELEX>` RDF; de ahi sacar varias candidatas `resource/consolidation/...`; probarlas hasta obtener RDF de manifestacion y item XHTML `DOC_1`; luego exigir `_get_official_consolidation_blocks()` con conteo > 0. Tras este fallback multi-candidato el slice mejoro materialmente: `cron-eurlex-weekly` ya pudo cerrar con `bloques_processed=998`, `articulos_upserted=905`, `rows_processed=998` y la DB quedo con `22` normas EUR-Lex con articulado persistido.
+
+### 2026-05-03 - EUR-Lex: `sync_log` ya distingue `unchanged`, `no_index` y `fetch_errors` sin falsear fallos
+
+- Scope: `apps/workers/eurlex.py`, tabla `sync_log`
+- Hallazgo: antes, un run EUR-Lex con `error_msg` poblado para explicar el estado implicaba `errors=1`, aunque el worker hubiera terminado bien. Eso hacia dificil separar un error real de un run sano con muchos bloques ya idempotentes. Ahora el worker registra un resumen estructurado en `error_msg` incluso cuando el estado es `ok`, pero controla `errors` explicitamente.
+- Impacto: `sync_log` ya permite distinguir entre tres situaciones operativas distintas sin leer logs crudos: `unchanged` alto (run sano, poco trabajo nuevo), `no_index` alto (retrieval aun insuficiente para algunos CELEX) y `fetch_errors` > 0 (fallo real del ciclo o de parte del retrieval). Ejemplo fresco en produccion: `cron-eurlex-weekly` -> `status=ok`, `bloques_processed=1625`, `articulos_upserted=2`, `rows_processed=1625`, `errors=0`, `error_msg='summary: unchanged=1623; no_index=0; fetch_errors=0'`.
+- Hallazgo adicional: `/status` ya expone este resumen estructurado en `workers.<worker>.sync_summary` cuando `error_msg` sigue el formato `summary: unchanged=X; no_index=Y; fetch_errors=Z`. Si el `error_msg` no sigue ese formato, `sync_summary` queda en `null` y el campo `error` conserva el texto original.
+- Hallazgo adicional: `/metrics` ya exporta estos mismos contadores como gauge `worker_sync_summary{worker="...",kind="unchanged|no_index|fetch_errors"}`. Evidencia fresca remota: `worker_sync_summary{kind="unchanged",worker="cron-eurlex-weekly"} 1623.0`, `worker_sync_summary{kind="no_index",worker="cron-eurlex-weekly"} 0.0`, `worker_sync_summary{kind="fetch_errors",worker="cron-eurlex-weekly"} 0.0`.
+- Regla practica: al revisar `sync_log` de EUR-Lex, no interpretar `error_msg` como fallo por si solo. La combinacion correcta es: `status` + `errors` + resumen estructurado. Si `status=ok` y `errors=0`, el run es sano aunque `articulos_upserted` sea bajo; usar `unchanged`, `no_index` y `fetch_errors` para entender por que.
+
+### 2026-05-03 - Alertmanager: prueba manual reproducible via `/api/v2/alerts` requiere `--post-file`, no `--post-data=@-`
+
+- Scope: `deploy-alertmanager-1`, Telegram receiver
+- Hallazgo: la forma robusta de inyectar una alerta manual en Alertmanager desde shell es escribir primero el JSON a un fichero y luego usar `wget --post-file=/tmp/alert.json http://127.0.0.1:9093/api/v2/alerts`. El intento previo con `--post-data=@-` devolvia `400 Bad Request`; con `--post-file` y un payload minimo como `[ { "labels": { "alertname": "ManualTelegramTest", "severity": "warning" } } ]` el endpoint devuelve `200` y la alerta aparece activa en `/api/v2/alerts`.
+- Evidencia: en el VPS quedaron visibles dos alertas activas `ManualTelegramTest` via `GET /api/v2/alerts`, una con `worker=cron-eurlex-weekly` y otra sin `worker`, ambas con receiver `default`. Los logs historicos de Alertmanager ya mostraban `Notify success` para `alertname="ManualTelegramTest"`, por lo que el canal Telegram esta funcional; lo que faltaba era el procedimiento de inyeccion reproducible.
+- Regla practica: despues de una prueba manual, resolverla explicitamente posteando el mismo `alertname` con `endsAt` inmediato para no dejar ruido operativo.
+
+### 2026-05-03 - EUR-Lex: limpiar filas obsoletas en DB cuando la seed activa ya no las usa
+
+- Scope: tabla `norma`, fuente `eurlex`
+- Hallazgo: tras podar la seed activa, seguian dos filas obsoletas en produccion (`APM_2020_683`, `ESG_RATINGS_2023_2819`) con `0` articulos y `0` versiones. No aportaban cobertura real y ensuciaban la lectura de huecos pendientes.
+- Accion: eliminadas de `norma` en produccion. Verificacion fresca: `total_eurlex_normas = 28`, `obsolete_rows = 0`.
+
+### 2026-05-03 - BOE en produccion: advisory lock de sesion requiere `AUTOCOMMIT` y cuidado con `docker compose run --rm`
+
+- Scope: `apps/workers/boe.py`, `infra/deploy/docker-compose.prod.yml`, VPS Compose
+- Hallazgo: en Postgres, mantener el advisory lock BOE con `engine.connect()` normal deja una transaccion abierta solo por ejecutar `SELECT pg_try_advisory_lock(...)`; el fix correcto es abrir esa conexion con `execution_options(isolation_level="AUTOCOMMIT")`. Ademas, si un `docker compose run --rm cron-boe-daily` viejo queda colgado, el contenedor oneshot puede seguir vivo y retener lock + sesion DB aunque los contenedores BOE nuevos ya esten desplegados.
+- Impacto: el lock evita solapes nuevos, pero un proceso residual puede dejar `BOE sync already in progress` en cascada y falsos `DEADLOCK_RISK` hasta que se limpie ese contenedor viejo.
+- Regla practica: si BOE queda bloqueado tras un redeploy, comprobar `docker network inspect deploy_esdata-internal` para mapear la `client_addr` de `pg_stat_activity` al contenedor `deploy-cron-boe-daily-run-*`, pararlo y solo entonces repetir la verificacion. La evidencia buena es doble: `sync_log` con `partial` al solaparse y `pg_stat_activity` en `0 rows` para `state = 'idle in transaction'` tras una ejecucion limpia.
+
 ### 2026-05-01 - Despliegue Compose en VPS: traps reales de runtime y Caddy
 
 - Scope: `apps/api/main.py`, `apps/api/Dockerfile`, `infra/deploy/Caddyfile`, `infra/deploy/.env.prod`, despliegue Compose en VPS
@@ -47,6 +197,13 @@ Usar notas cortas con este esquema:
 - Impacto: si se intenta conectar ChatGPT a `/mcp` o se reutiliza `MCP_API_KEY` en Actions, la integracion falla o mezcla dominios de riesgo.
 - Regla practica: recordar siempre este mapeo: `OpenCode -> MCP -> MCP_API_KEY`; `ChatGPT -> OpenAPI/Actions -> ESDATA_API_KEY`. Si el builder de ChatGPT da guerra con OpenAPI 3.1, preparar la variante `docs/openapi-gpt-3.0.json`.
 
+### 2026-05-03 - Handshake MCP HTTP en produccion: 400 inicial esperado
+
+- Scope: `apps/api/mcp_security.py`, `apps/api/tests/test_mcp_private.py`, `https://api.desuscribir.es/mcp`
+- Hallazgo: en este stack, el transporte MCP HTTP no se valida con un `POST /mcp` directo. La secuencia correcta es `GET /mcp` con `Accept: text/event-stream` y `X-API-Key`; ese `GET` puede responder `400 Bad Request: Missing session ID` y aun asi incluir `Mcp-Session-Id`. Con ese header, el cliente ya puede hacer `POST /mcp` con `MCP-Session-ID` para `initialize` y `tools/list`.
+- Impacto: si se prueba MCP con `Authorization: Bearer ...` o con un `POST` directo sin `MCP-Session-ID`, parece un fallo de auth o de endpoint cuando en realidad el backend esta funcionando segun contrato.
+- Regla practica: para verificar MCP remoto, usar siempre `X-API-Key`, no `Authorization`; capturar `Mcp-Session-Id` incluso en respuestas `400`; luego llamar `initialize` y `tools/list` con `MCP-Session-ID`. Si hace falta una prueba rapida, el `GET /mcp` con `400 Missing session ID` mas header de sesion ya cuenta como evidencia de handshake vivo.
+
 ### 2026-04-27 - Drift de HTML AEAT en modelos
 
 - Scope: `apps/workers/modelos.py`, `apps/workers/modelos_support.py`, `apps/workers/tests/test_modelos.py`
@@ -60,6 +217,13 @@ Usar notas cortas con este esquema:
 - Hallazgo: la suite de integration debe reutilizar la SQLite compartida que `conftest.py` inicializa al importarse. Recrear `STATEMENTS` o `PGC_SCHEMA_STATEMENTS` encima del mismo `engine` provoca errores tipo `table norma already exists`.
 - Impacto: el archivo puede fallar entero en setup aunque el runtime este bien.
 - Regla practica: en tests de integration de `apps/api/tests`, preferir reutilizar `engine` y fixtures compartidas de `conftest.py` antes de bootstrappear esquema propio.
+
+### 2026-05-03 - SQLite compartida en Windows: no correr `pytest` del API en paralelo
+
+- Scope: `apps/api/tests/conftest.py`, worktrees Windows, suites `pytest` del API
+- Hallazgo: `conftest.py` intenta borrar y recrear `test_esdata.sqlite3` al importarse. En Windows, si se lanzan dos procesos `pytest` a la vez contra `apps/api/tests`, el segundo puede fallar en el `unlink()` con `PermissionError: [WinError 32]` porque el primer proceso mantiene el archivo abierto.
+- Impacto: se obtienen fallos falsos de infraestructura de test al verificar slices en paralelo, incluso cuando el runtime y los tests individuales estan bien.
+- Regla practica: en este repo, las suites `pytest` que importan `apps/api/tests/conftest.py` deben ejecutarse en secuencial dentro del mismo worktree Windows. Si hace falta paralelizar, usar otro worktree o aislar un DB path distinto por proceso.
 
 ### 2026-04-26 - Chunks en SQLite de tests
 

@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 """
+CANONICAL AEAT FLOW - STEP 1 OF 2
+
+Bootstrap `aeat_modelo` and verified `modelo_articulo` relationships.
+
+Canonical AEAT execution order:
+1. `python scripts/seed-modelos.py --db-url <DATABASE_URL>`
+2. `python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>`
+
+This script is the canonical bootstrap because `scripts/seed-modelos-v2.py`
+expects `aeat_modelo` to exist already.
+
+Safe mode:
+- use `--dry-run` to inspect intended upserts without writing
+
 Seed all AEAT model-article relationships for esdata.
 
 Populates:

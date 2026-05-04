@@ -2,15 +2,11 @@
 """Worker principal para sincronizar campanas y contenido de modelos AEAT."""
 
 import os
-import time
-from pathlib import Path
-
-from sqlalchemy import create_engine
 
 from modelos_support import (
-    derive_campaign_operativa,
     SyncResult,
     build_client,
+    derive_campaign_operativa,
     detect_campaigns,
     ensure_campaigns,
     fetch_page,
@@ -30,12 +26,14 @@ from modelos_support import (
 )
 from runtime import (
     configure_logging,
+    ensure_database_connection,
     get_bool_env,
     get_database_url,
     get_interval_seconds,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
+from sqlalchemy import create_engine
 
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("MODELOS_SYNC_INTERVAL", 86400)
@@ -247,6 +245,7 @@ def main():
     logger.info(f"Run once: {args.run_once}")
 
     engine = create_engine(db_url)
+    ensure_database_connection(engine, logger=logger)
     run_sync(engine, run_once=args.run_once)
 
 

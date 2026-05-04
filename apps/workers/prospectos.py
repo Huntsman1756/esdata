@@ -27,7 +27,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_database_url, get_interval_seconds
 from sqlalchemy import create_engine, text
 
 EURLEX_BASE = os.getenv(
@@ -290,6 +290,11 @@ def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
     )
 
 
+def upsert_prospectos_norma(conn) -> None:
+    """Backward-compatible helper for prospectos tests and callers."""
+    upsert_norma(conn, PROSPECTOS_NORMA, "2017-06-07")
+
+
 def upsert_articulo(conn, codigo: str, bloque: BloqueTexto, regulacion_relacionada: str) -> None:
     conn.execute(
         text(
@@ -438,6 +443,7 @@ def run_sync(
     domain: str = "prospectos",
 ) -> dict[str, int]:
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     bloques_fetched = 0
     articulos_upserted = 0
     sync_start = datetime.now(UTC).isoformat()

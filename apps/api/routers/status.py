@@ -1,8 +1,13 @@
+import re
 from datetime import UTC, datetime
 
 from db import SessionLocal
 from fastapi import APIRouter
-from middleware.metrics import record_worker_last_errors, record_worker_metrics
+from middleware.metrics import (
+    record_worker_last_errors,
+    record_worker_metrics,
+    record_worker_sync_summary,
+)
 from sqlalchemy import text
 
 
@@ -89,6 +94,23 @@ def _canonical_worker_name(worker: str) -> str:
     return WORKER_CANONICAL_NAMES.get(worker, worker)
 
 
+def _parse_sync_summary(error_msg: str | None) -> dict[str, int] | None:
+    if not error_msg:
+        return None
+    match = re.fullmatch(
+        r"summary:\s*unchanged=(\d+);\s*no_index=(\d+);\s*fetch_errors=(\d+)",
+        error_msg.strip(),
+    )
+    if not match:
+        return None
+    unchanged, no_index, fetch_errors = match.groups()
+    return {
+        "unchanged": int(unchanged),
+        "no_index": int(no_index),
+        "fetch_errors": int(fetch_errors),
+    }
+
+
 @router.get("/status")
 async def status():
     """Estado agregado de la API y de los workers presentes en sync_log."""
@@ -170,6 +192,8 @@ def _build_status_payload():
                 lag_seconds = (datetime.now(UTC) - finished_at).total_seconds()
             record_worker_metrics(canonical_worker, stale=stale, lag_seconds=lag_seconds)
             record_worker_last_errors(canonical_worker, row["errors"])
+            sync_summary = _parse_sync_summary(row["error_msg"])
+            record_worker_sync_summary(canonical_worker, sync_summary)
 
             result["workers"][canonical_worker] = {
                 "last_run": _serialize_datetime(row["started_at"]),
@@ -184,6 +208,7 @@ def _build_status_payload():
                 "errors": row["errors"],
                 "duration_ms": row["duration_ms"],
                 "error": row["error_msg"],
+                "sync_summary": sync_summary,
                 "stale": stale,
             }
 

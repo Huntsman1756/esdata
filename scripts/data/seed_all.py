@@ -4,6 +4,11 @@
 Fixes all seed scripts that use 'postgres:5432' (Docker hostname)
 to use 'localhost:5434' (local port mapping).
 
+WARNING: seed_all.py is not the canonical production AEAT flow.
+For AEAT in the MCP remediation branch, use:
+1. `python scripts/seed-modelos.py --db-url <DATABASE_URL>`
+2. `python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>`
+
 Usage:
     python scripts/data/seed_all.py
 """
@@ -132,6 +137,8 @@ def patch_and_run(seed_filename):
 def main():
     print(f"Seeding database: {DB_URL}")
     print(f"Seeds to run: {len(SEED_FILES)}")
+    print("WARNING: seed_all.py is not the canonical production AEAT flow.")
+    print("WARNING: For AEAT use scripts/seed-modelos.py then scripts/seed-modelos-v2.py.")
     print("=" * 60)
 
     success = 0

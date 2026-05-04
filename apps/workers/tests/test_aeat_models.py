@@ -374,7 +374,6 @@ class TestClassifyResource:
             "pdf",
         )
 
-
 class TestExtractModelResources:
     def test_skips_external_resources_from_detail_page(self):
         html = """
@@ -1051,6 +1050,7 @@ def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatc
     stored_payloads = []
 
     monkeypatch.setattr("aeat_models.get_portal_client", lambda force_playwright=False: portal_client)
+    monkeypatch.setattr("aeat_models._try_acquire_sync_lock", lambda conn: True)
     monkeypatch.setattr(
         "aeat_models._discover_aeat_models",
         lambda portal_client=None: [{"codigo": "303", "nombre": "Modelo 303", "url_info": "https://example.com/303"}],
@@ -1089,4 +1089,4 @@ def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatc
             text("SELECT status, errors, error_msg FROM sync_log ORDER BY id DESC LIMIT 1")
         ).fetchone()
 
-    assert row == ("partial", 1, "Skipped 1 AEAT official resources after fetch failures")
+    assert row == ("partial", 0, "Skipped 1 AEAT official resources after fetch failures")

@@ -20,7 +20,14 @@ def _get_app_and_engine():
     return app, engine
 
 
-def _seed_sync_log(worker: str, *, finished_at: datetime, status: str = "success") -> None:
+def _seed_sync_log(
+    worker: str,
+    *,
+    finished_at: datetime,
+    status: str = "success",
+    error_msg: str | None = None,
+    errors: int = 0,
+) -> None:
     _, engine = _get_app_and_engine()
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM sync_log WHERE worker = :worker"), {"worker": worker})
@@ -50,9 +57,9 @@ def _seed_sync_log(worker: str, *, finished_at: datetime, status: str = "success
                 "documentos_processed": 1,
                 "documentos_upserted": 1,
                 "doctrina_links_created": 0,
-                "error_msg": None,
+                "error_msg": error_msg,
                 "rows_processed": 6,
-                "errors": 0,
+                "errors": errors,
                 "duration_ms": 120000,
             },
         )
@@ -129,3 +136,47 @@ async def test_status_ignores_historical_modelos_alias_metrics(monkeypatch):
     assert recorded_errors["worker-modelos"] == 0
     assert "modelos" not in recorded_metrics
     assert response.json()["workers"]["worker-modelos"]["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_status_exposes_structured_sync_log_summary_fields():
+    app, _ = _get_app_and_engine()
+    _seed_sync_log(
+        "cron-eurlex-weekly",
+        finished_at=datetime.now(UTC) - timedelta(minutes=10),
+        status="ok",
+        error_msg="summary: unchanged=1623; no_index=0; fetch_errors=0",
+        errors=0,
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["cron-eurlex-weekly"]
+    assert worker["error"] == "summary: unchanged=1623; no_index=0; fetch_errors=0"
+    assert worker["sync_summary"] == {
+        "unchanged": 1623,
+        "no_index": 0,
+        "fetch_errors": 0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_status_omits_sync_summary_when_error_message_is_not_structured():
+    app, _ = _get_app_and_engine()
+    _seed_sync_log(
+        "worker-eurlex",
+        finished_at=datetime.now(UTC) - timedelta(minutes=10),
+        status="error",
+        error_msg="boom",
+        errors=1,
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["worker-eurlex"]
+    assert worker["error"] == "boom"
+    assert worker["sync_summary"] is None

@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 """
+CANONICAL AEAT FLOW - STEP 2 OF 2
+
+Populate campaign data after running:
+`python scripts/seed-modelos.py --db-url <DATABASE_URL>`
+
+This script is not a standalone AEAT bootstrap. It enriches existing
+`aeat_modelo` rows with campaign data, casillas, claves, instrucciones,
+normativa and operational metadata.
+
+Safe mode:
+- use `--dry-run` to inspect intended campaign inserts/upserts without writing
+
 Seed v2: campaigns, casillas, claves, instrucciones, normativa, formato
 for all AEAT models in esdata.
 

@@ -29,7 +29,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_bool_env, get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_bool_env, get_database_url, get_interval_seconds
 from sqlalchemy import create_engine
 
 SEED_URLS = [
@@ -108,6 +108,8 @@ def run_sync(
     stored = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
+    ssl_verify = get_bool_env("DGT_SSL_VERIFY", DGT_SSL_VERIFY)
     # Importamos la logica de scraping de dgt.py para reutilizar
     from dgt import (
         _build_document_payload,
@@ -124,7 +126,7 @@ def run_sync(
     )
 
     try:
-        with httpx.Client(timeout=30.0, verify=DGT_SSL_VERIFY) as client, engine.begin() as conn:
+        with httpx.Client(timeout=30.0, verify=ssl_verify) as client, engine.begin() as conn:
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
             for url in urls:

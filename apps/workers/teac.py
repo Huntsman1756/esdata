@@ -5,7 +5,6 @@ import re
 import time
 from datetime import UTC, datetime
 from html import unescape
-from pathlib import Path
 from urllib.parse import urljoin
 
 import httpx
@@ -17,7 +16,13 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
+from runtime import (
+    ensure_database_connection,
+    get_database_url,
+    get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -280,6 +285,7 @@ def run_sync(
     stored = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
 
     try:
         target_urls, prefetched_html = _expand_seed_urls(list(urls))

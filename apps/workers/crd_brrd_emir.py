@@ -27,8 +27,8 @@ SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 2592000)
 EURLEX_BASE = os.getenv("EURLEX_BASE", "https://eur-lex.europa.eu")
 
 CRD_BRRD_NORMAS = [
-    {"codigo": "CRD_V_2019_2058", "boe_id": "EUR-CELEX-32019L2058", "tipo_documento": "directiva", "titulo": "Directiva (UE) 2019/879 modificando la Directiva 2013/36/UE (CRD V)", "eli_uri": "https://eur-lex.europa.eu/eli/dir/2019/879/oj", "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario", "regulacion": "crd_brrd_emir"},
-    {"codigo": "CRR_II_2019_2057", "boe_id": "EUR-CELEX-32019R2057", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) 2019/2057 modificando el Reglamento (UE) n. o 575/2013 (CRR II)", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2019/2057/oj", "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario", "regulacion": "crd_brrd_emir"},
+    {"codigo": "CRD_V_2019_2058", "boe_id": "EUR-CELEX-32019L0878", "tipo_documento": "directiva", "titulo": "Directiva (UE) 2019/878 modificando la Directiva 2013/36/UE (CRD V)", "eli_uri": "https://eur-lex.europa.eu/eli/dir/2019/878/oj", "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario", "regulacion": "crd_brrd_emir"},
+    {"codigo": "CRR_II_2019_2057", "boe_id": "EUR-CELEX-32019R0876", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) 2019/876 modificando el Reglamento (UE) n. o 575/2013 (CRR II)", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2019/876/oj", "vigente_desde": "2019-12-28", "ambito": "prudencial_bancario", "regulacion": "crd_brrd_emir"},
     {"codigo": "BRRD_2014_59", "boe_id": "EUR-CELEX-32014L0059", "tipo_documento": "directiva", "titulo": "Directiva 2014/59/UE por la que se establece un marco de recuperacion y resolution (BRRD)", "eli_uri": "https://eur-lex.europa.eu/eli/dir/2014/59/oj", "vigente_desde": "2014-05-15", "ambito": "resolution_bancaria", "regulacion": "crd_brrd_emir"},
     {"codigo": "EMIR_2012_648", "boe_id": "EUR-CELEX-32012R0648", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) n. o 648/2012 sobre derivados OTC, CCP y registros (EMIR)", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2012/648/oj", "vigente_desde": "2012-07-16", "ambito": "derivados_financieros", "regulacion": "crd_brrd_emir"},
     {"codigo": "EMIR_REVISION_2019_834", "boe_id": "EUR-CELEX-32019R834", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) 2019/834 modificando el Reglamento (UE) n. o 648/2012 (EMIR Revision)", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2019/834/oj", "vigente_desde": "2019-06-28", "ambito": "derivados_financieros", "regulacion": "crd_brrd_emir"},
@@ -84,7 +84,7 @@ def run_sync(worker_name: str = "cron-crd-brrd-emir-monthly") -> dict:
                     continue
                 result = _fetch_eurlex_text(norma)
                 if result:
-                    title, norma_text = result
+                    title, _norma_text = result
                     conn.execute(text("""
                         INSERT INTO normas (codigo, titulo, boe_id, eli_uri,
                                             jurisdiccion, tipo_fuente, tipo_documento,

@@ -27,12 +27,11 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import httpx
+from runtime import ensure_database_connection, sleep_with_heartbeat, touch_heartbeat
 from sqlalchemy import create_engine, text
-from runtime import sleep_with_heartbeat, touch_heartbeat
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1015,6 +1014,7 @@ def run_sync(
         if item.strip()
     ]
     engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
+    ensure_database_connection(engine, logger=logging.getLogger(__name__))
     total_bloques = 0
     total_articulos = 0
 

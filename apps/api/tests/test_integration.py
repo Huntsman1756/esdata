@@ -91,7 +91,7 @@ async def test_legislacion_list_returns_normas(seeded_db):
     assert "normas" in data
     codigos = [n["codigo"] for n in data["normas"]]
     assert "LIVA" in codigos
-    assert "LIRPF" in codigos
+    assert "ITPAJD" in codigos
 
 
 @pytest.mark.integration
@@ -131,8 +131,8 @@ async def test_modelos_list_returns_models(seeded_db):
     data = r.json()
     assert "modelos" in data
     codigos = [m["codigo"] for m in data["modelos"]]
+    assert "100" in codigos
     assert "303" in codigos
-    assert "111" in codigos
 
 
 @pytest.mark.integration

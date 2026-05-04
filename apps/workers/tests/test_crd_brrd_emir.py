@@ -1,8 +1,10 @@
 """Tests for CRD/BRRD/EMIR worker - Fase 46.10."""
+
+# ruff: noqa: I001
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -40,6 +42,12 @@ class TestCRDNormas:
         assert any("CRD" in c for c in codigos)
         assert any("BRRD" in c for c in codigos)
         assert any("EMIR" in c for c in codigos)
+
+    def test_crd_and_crr_normas_use_validated_celex_ids(self):
+        normas_by_codigo = {norma["codigo"]: norma for norma in CRD_BRRD_NORMAS}
+
+        assert normas_by_codigo["CRD_V_2019_2058"]["boe_id"] == "EUR-CELEX-32019L0878"
+        assert normas_by_codigo["CRR_II_2019_2057"]["boe_id"] == "EUR-CELEX-32019R0876"
 
 class TestSeedEntities:
     def test_has_5_entities(self):

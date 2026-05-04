@@ -1,9 +1,9 @@
 import argparse
-from datetime import UTC, datetime
-from io import BytesIO
 import os
 import re
 import time
+from datetime import datetime
+from io import BytesIO
 from urllib.parse import urlparse
 
 import httpx
@@ -16,7 +16,13 @@ from change_detection import (
     record_revision,
 )
 from pypdf import PdfReader
-from runtime import get_database_url, get_interval_seconds, sleep_with_heartbeat, touch_heartbeat
+from runtime import (
+    ensure_database_connection,
+    get_database_url,
+    get_interval_seconds,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 from sqlalchemy import create_engine, text
 
 
@@ -151,6 +157,7 @@ def run_sync(
     processed = 0
     stored = 0
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:

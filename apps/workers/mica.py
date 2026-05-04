@@ -10,15 +10,16 @@ Uso:
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 import httpx
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from runtime import configure_logging, get_database_url, get_interval_seconds
+from runtime import configure_logging, ensure_database_connection, get_database_url, get_interval_seconds
 
 logger = configure_logging("workers.mica")
 
@@ -70,6 +71,8 @@ def normalize_casp(raw: dict) -> dict:
 
 def upsert_casp(db, casp: dict) -> None:
     """Insertar o actualizar un CASP en la BD."""
+    services_json = json.dumps(casp["services_offered"])
+    casp_columns = {column["name"] for column in inspect(db).get_columns("casp")}
     existing = db.execute(
         text(
             "SELECT id FROM casp WHERE registration_number = :reg AND home_member_state = :state"
@@ -81,21 +84,23 @@ def upsert_casp(db, casp: dict) -> None:
     ).mappings().first()
 
     if existing:
+        update_parts = [
+            "name = :name",
+            "passport_active = :passport_active",
+            "services_offered = :services_offered",
+            "status = :status",
+        ]
+        if "updated_at" in casp_columns:
+            update_parts.append("updated_at = CURRENT_TIMESTAMP")
         db.execute(
             text(
-                """
-                UPDATE casp
-                SET name = :name, passport_active = :passport_active,
-                    services_offered = :services_offered,
-                    status = :status, updated_at = NOW()
-                WHERE id = :id
-                """
+                f"UPDATE casp SET {', '.join(update_parts)} WHERE id = :id"
             ),
             {
                 "id": existing["id"],
                 "name": casp["name"],
                 "passport_active": casp["passport_active"],
-                "services_offered": casp["services_offered"],
+                "services_offered": services_json,
                 "status": casp["status"],
             },
         )
@@ -109,7 +114,7 @@ def upsert_casp(db, casp: dict) -> None:
                         :passport_active, :services_offered, :status)
                 """
             ),
-            casp,
+            {**casp, "services_offered": services_json},
         )
 
 
@@ -117,6 +122,7 @@ def run_once() -> None:
     """Ejecutar una ingestion completa desde ESMA."""
     logger.info("Starting MiCA CASP sync from ESMA")
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine, logger=logger)
 
     casps_raw = fetch_esma_casp()
     if not casps_raw:

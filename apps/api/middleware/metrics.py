@@ -229,6 +229,26 @@ def record_worker_last_errors(worker: str, errors: int | None) -> None:
     error_gauge.labels(worker=worker).set(float(errors or 0))
 
 
+def record_worker_sync_summary(worker: str, summary: dict[str, int] | None) -> None:
+    try:
+        from prometheus_client import REGISTRY, Gauge
+    except ImportError:
+        return
+
+    summary_gauge = _collector_by_name(REGISTRY, "worker_sync_summary")
+    if summary_gauge is None:
+        summary_gauge = Gauge(
+            "worker_sync_summary",
+            "Structured sync summary counters from latest sync_log row",
+            ["worker", "kind"],
+        )
+
+    kinds = ("unchanged", "no_index", "fetch_errors")
+    for kind in kinds:
+        value = 0.0 if not summary else float(summary.get(kind, 0))
+        summary_gauge.labels(worker=worker, kind=kind).set(value)
+
+
 def record_source_freshness_metrics(sources: list[dict[str, Any]]) -> None:
     try:
         from prometheus_client import REGISTRY, Gauge
