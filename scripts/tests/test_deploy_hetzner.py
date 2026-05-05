@@ -84,6 +84,17 @@ def _extract_run_once_workers(text: str) -> set[str]:
     return workers
 
 
+def _service_block(text: str, service: str) -> str:
+    marker = f"  {service}:"
+    _, remainder = text.split(marker, 1)
+    lines: list[str] = []
+    for line in remainder.splitlines():
+        if line.startswith("  ") and not line.startswith("    "):
+            break
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def test_deploy_script_builds_ops_and_runs_migrations_before_app_services():
     script = _read("scripts/ops/deploy-hetzner.sh")
 
@@ -136,13 +147,13 @@ def test_canonical_deploy_worker_set_matches_continuous_compose_workers():
 
 
 def test_server_installation_root_matches_systemd_and_runbook_paths():
-    expected_root = "/opt/esdata"
+    expected_root = "/srv/esdata"
 
     server_doc = _read("docs/deployment/server-installation.md")
     runbook = _read("docs/operations/runbooks/deploy-compose.md")
     systemd_service = _read("infra/deploy/systemd/esdata-job@.service")
 
-    assert "cd /opt" in server_doc
+    assert "cd /srv" in server_doc
     assert expected_root in systemd_service
     assert f"{expected_root}/infra/observability/alertmanager.yml" in runbook
 
@@ -187,7 +198,7 @@ def test_canonical_deploy_uses_external_env_file_outside_repo_checkout():
 
     assert "$ROOT_DIR/infra/deploy/.env.prod" not in script
     assert "$ROOT_DIR/infra/deploy/.env.prod" not in backup_script
-    assert "/opt/esdata/infra/deploy/.env.prod" not in systemd_service
+    assert "/srv/esdata/infra/deploy/.env.prod" not in systemd_service
     assert "infra/deploy/.env.prod" not in server_doc
     assert "infra/deploy/.env.prod" not in runbook
 
@@ -221,3 +232,45 @@ def test_compose_profiled_worker_does_not_depend_on_repo_local_env_file():
 
     assert ".env.prod" not in compose
     assert "env_file:" not in compose
+
+
+def test_systemd_cron_service_runs_compose_job_without_touching_dependencies():
+    systemd_service = _read("infra/deploy/systemd/esdata-job@.service")
+
+    assert "run --rm --no-deps %i" in systemd_service
+
+
+def test_runbook_documents_no_deps_for_cron_services():
+    runbook = _read("docs/operations/runbooks/deploy-compose.md")
+    server_doc = _read("docs/deployment/server-installation.md")
+    operations_readme = _read("docs/operations/README.md")
+
+    assert "run --rm --no-deps cron-boe-daily" in runbook
+    assert "run --rm --no-deps cron-cnmv-weekly" in server_doc
+    assert "docker compose run --rm --no-deps cron-*" in operations_readme
+
+
+def test_worker_silent_alert_uses_exported_stale_status_instead_of_global_lag_threshold():
+    alerts = _read("infra/observability/alerts.yml")
+
+    assert "expr: worker_stale_status == 1" in alerts
+    assert "worker_lag_seconds > 172800" not in alerts
+
+
+def test_cron_services_use_esdata_internal_network_for_database_resolution():
+    compose = _read("infra/deploy/docker-compose.prod.yml")
+
+    for service in (
+        "cron-boe-daily",
+        "cron-dgt-weekly",
+        "cron-teac-weekly",
+        "cron-modelos-daily",
+        "cron-bdns-weekly",
+        "cron-borme-weekly",
+        "cron-cnmv-weekly",
+        "cron-sepblac-weekly",
+        "cron-bde-weekly",
+    ):
+        block = _service_block(compose, service)
+        assert "networks:" in block
+        assert "- esdata-internal" in block

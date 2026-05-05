@@ -44,25 +44,27 @@ Los servicios `cron-*` son jobs one-shot y necesitan scheduler externo.
 
 Nota operativa: en produccion es normal ver contenedores `deploy-cron-*` en `Exited (0)` despues de una ejecucion correcta.
 
+Regla operativa: lanzar `cron-*` con `run --rm --no-deps` para no intentar arrancar/parar dependencias del stack vivo ni tocar la red Compose durante un job one-shot.
+
 Ejemplos manuales:
 
 ```bash
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-boe-daily
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-dgt-weekly
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-teac-weekly
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-modelos-daily
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-bdns-weekly
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-borme-weekly
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-cnmv-weekly
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-sepblac-weekly
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-bde-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-boe-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-dgt-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-teac-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-modelos-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-bdns-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-borme-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-cnmv-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-sepblac-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-bde-weekly
 ```
 
 ## Alertmanager y Telegram
 
 `infra/observability/alertmanager.yml` es una plantilla del repo. En el VPS debe existir una version renderizada con `bot_token` y `chat_id` reales antes de reiniciar `deploy-alertmanager-1`.
 
-No copiar la plantilla sin renderizar sobre `/opt/esdata/infra/observability/alertmanager.yml` y reiniciar despues, porque `chat_id: ${TELEGRAM_CHAT_ID}` hace que Alertmanager no arranque al esperar un entero real.
+No copiar la plantilla sin renderizar sobre `/srv/esdata/infra/observability/alertmanager.yml` y reiniciar despues, porque `chat_id: ${TELEGRAM_CHAT_ID}` hace que Alertmanager no arranque al esperar un entero real.
 
 ## Verificaciones post-deploy
 

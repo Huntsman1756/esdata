@@ -102,7 +102,7 @@ docker compose --env-file /etc/esdata/esdata.env \
 
 ```bash
 # Backup diario a las 3am, retención 30 días
-0 3 * * * mkdir -p /srv/backups/esdata && ENV_FILE=/etc/esdata/esdata.env BACKUP_DIR=/srv/backups/esdata /opt/esdata/scripts/ops/backup-postgres.sh
+0 3 * * * mkdir -p /srv/backups/esdata && ENV_FILE=/etc/esdata/esdata.env BACKUP_DIR=/srv/backups/esdata /srv/esdata/scripts/ops/backup-postgres.sh
 0 3 * * * find /srv/backups/esdata -name "*.gz" -mtime +7 -delete
 ```
 

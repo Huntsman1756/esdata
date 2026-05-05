@@ -34,7 +34,7 @@ Los servicios `cron-*` definidos en Compose son jobs one-shot. No planifican su 
 La estrategia activa de scheduling debe ser externa:
 
 - `systemd` via `infra/deploy/systemd/*`, o
-- cron del host llamando `docker compose run --rm cron-*`
+- cron del host llamando `docker compose run --rm --no-deps cron-*`
 
 No usar `docker compose --profile cron up -d` como sustituto de un scheduler.
 

@@ -2,13 +2,13 @@ groups:
   - name: esdata.workers
     rules:
       - alert: WorkerSilent
-        expr: worker_lag_seconds > 172800
+        expr: worker_stale_status == 1
         for: 1h
         labels:
           severity: warning
         annotations:
-          summary: "Worker {{ $labels.worker }} sin sync en >48h"
-          description: "El worker {{ $labels.worker }} no registra ejecuciones recientes en sync_log desde hace mas de 48 horas."
+          summary: "Worker {{ $labels.worker }} marcado como stale"
+          description: "El worker {{ $labels.worker }} supera el umbral de frescura exportado por la API a partir de sync_log."
 
       - alert: WorkerSyncErrors
         expr: worker_last_errors{worker!="worker-modelos"} > 0

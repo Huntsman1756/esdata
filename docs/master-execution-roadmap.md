@@ -218,9 +218,9 @@ Se requiere confirmacion explicita del usuario antes de:
 - Nota 2026-05-04: el estado activo de este bloque queda limitado a las lineas inmediatas siguientes.
 - Objetivo actual: mantener cerrada `Fase 6.8`; el frente MCP queda ya endurecido hasta un criterio operativo explicito de confianza `alta`.
 - Estado actual: **Fase 5.5** `[COMPLETA]`, **Fase 6.1** `[COMPLETA]`, **Fase 6.2** `[COMPLETA]`, **Fase 6.3** `[COMPLETA]`, **Fase 6.4** `[COMPLETA]`, **Fase 6.5** `[COMPLETA]`, **Fase 6.6** `[COMPLETA]`, **Fase 6.7** `[COMPLETA]` y **Fase 6.8** `[COMPLETA]` en `G:\_Proyectos\esdata\.worktrees\next-task`; el repo ya distingue explicitamente `GO minimo`, `GO confianza alta` y `NO-GO` para el scope MCP soportado hoy.
-- Estado del agente activo: tramo MCP `6.5+` cerrado; no queda brecha abierta en este frente para pasar de confianza `media-alta` a `alta`.
-- Reclamo actual: ninguno. `Fase 6.8` queda cerrada tras actualizar `docs/operations/runbooks/mcp-release-gate.md` y `docs/master-execution-roadmap.md`.
-- Siguiente paso exacto: ninguno en el frente MCP `6.5+`; cualquier trabajo posterior ya seria cobertura incremental o nuevo dominio, no cierre de la brecha principal de confianza MCP.
+- Estado del agente activo: incidente operativo en cron `systemd` + Alertmanager bajo investigacion tras falsos positivos `WorkerSilent` en `weekly` y fallos reales de `cron-boe-daily` / `cron-modelos-daily`.
+- Reclamo actual: `[EN CURSO]` hardening minimo de scheduling y alertas. Archivos reclamados: `docs/master-execution-roadmap.md`, `infra/deploy/systemd/esdata-job@.service`, `infra/observability/alerts.yml`, `scripts/tests/test_deploy_hetzner.py`, `docs/operations/runbooks/deploy-compose.md`, `docs/deployment/server-installation.md`, `docs/operations/README.md`, `docs/operations/agent-notes.md`. Inicio: 2026-05-05.
+- Siguiente paso exacto: fijar por test que los `cron-*` de `systemd` usan `docker compose run --rm --no-deps`, alinear `WorkerSilent` con `worker_stale_status`, verificar las suites/documentos tocados y dejar evidencia del incidente real (`daily`) frente al falso positivo (`weekly`).
 
 ### Historial MCP [HISTORICAL]
 

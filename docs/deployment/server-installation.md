@@ -27,9 +27,9 @@ docker compose version
 ## Paso 2: Clonar repo
 
 ```bash
-cd /opt
+cd /srv
 sudo git clone https://github.com/Huntsman1756/esdata.git
-sudo chown -R "$USER":"$USER" /opt/esdata
+sudo chown -R "$USER":"$USER" /srv/esdata
 cd esdata
 ```
 
@@ -54,7 +54,7 @@ Revisar como minimo:
 6. `GRAFANA_ADMIN_PASSWORD` y `GRAFANA_ROOT_URL` si vas a activar observabilidad con perfil `prod`
 7. `HC_PING_URL_CRON_*` si vas a integrar Healthchecks
 
-No guardar secretos reales dentro de `/opt/esdata` ni en ningun `.env` versionado: el deploy canonico usa `/etc/esdata/esdata.env`.
+No guardar secretos reales dentro de `/srv/esdata` ni en ningun `.env` versionado: el deploy canonico usa `/etc/esdata/esdata.env`.
 
 ## Paso 4: Ejecutar deploy canonico
 
@@ -152,6 +152,8 @@ docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.
 
 Los workers corren en modo continuo por defecto. Los `cron-*` de Compose son one-shot y deben programarse con scheduler externo, preferiblemente `systemd`.
 
+Usar `docker compose run --rm --no-deps cron-*` para que el job one-shot no intente gestionar dependencias ni desmontar la red del stack vivo.
+
 ```bash
 # Opcion 1: Configurar los systemd timers versionados en el repo
 sudo cp infra/deploy/systemd/esdata-job@.service /etc/systemd/system/
@@ -161,6 +163,8 @@ sudo systemctl enable --now esdata-boe-daily.timer esdata-modelos-daily.timer es
 systemctl list-timers --all | grep esdata
 
 # Opcion 2: Usar cron del sistema para cron services adicionales no cubiertos por `infra/deploy/systemd/*.timer`
+# Ejemplo manual:
+# docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps cron-cnmv-weekly
 ```
 
 Si se usa Healthchecks, cada cron service solo emitira `start`, `success` y `fail`
@@ -175,7 +179,7 @@ No reiniciar `deploy-alertmanager-1` con la plantilla del repo sin renderizar. E
 crontab -e
 
 # Backup diario a las 3am
-0 3 * * * cd /opt/esdata && docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata | gzip > /backups/esdata_$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz
+0 3 * * * cd /srv/esdata && docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata | gzip > /backups/esdata_$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz
 0 3 * * * find /backups -name "esdata_*.sql.gz" -mtime +30 -delete
 ```
 

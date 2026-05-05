@@ -33,6 +33,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-05 - Cron one-shot en Compose: `run --rm` sin `--no-deps` puede romper el stack vivo
+
+- Scope: `infra/deploy/systemd/esdata-job@.service`, `infra/deploy/docker-compose.prod.yml`, Alertmanager `WorkerSilent`
+- Hallazgo: lanzar `cron-*` one-shot con `docker compose run --rm` desde `systemd` puede intentar gestionar dependencias/profile del proyecto y acabar parando `postgres` o tocando `deploy_esdata-internal`, dejando fallos reales en `cron-boe-daily` y `cron-modelos-daily` aunque el stack continuo siga vivo. El fix minimo es doble: (1) `run --rm --no-deps` para no tocar dependencias del stack; y (2) declarar `networks: [esdata-internal]` en cada `cron-*` DB-backed para que el contenedor one-shot siga resolviendo `postgres` por DNS aun con `--no-deps`. Al mismo tiempo, `WorkerSilent` con un umbral fijo de `48h` produce falsos positivos en jobs `weekly` aunque `/status` y `worker_stale_status` ya usan thresholds por worker de hasta `8 dias`.
+- Impacto: Telegram mezcla ruido de `weekly` sanos con incidentes reales de `daily`, y el scheduler host puede romper jobs one-shot al interferir con la red Compose compartida.
+- Regla practica: para `cron-*` en produccion, usar `docker compose run --rm --no-deps <cron-service>`, verificar que el servicio declara `networks: [esdata-internal]` cuando necesita `postgres` por nombre, y alinear Alertmanager con `worker_stale_status` en vez de recalcular un `lag_seconds` global fijo.
+
 ### 2026-05-05 - Deploy canonico: el worker set debe derivarse del Compose activo, no de una lista historica
 
 - Scope: `infra/deploy/docker-compose.prod.yml`, `scripts/ops/deploy-hetzner.sh`, runbooks de deploy, `infra/deploy/systemd/esdata-job@.service`

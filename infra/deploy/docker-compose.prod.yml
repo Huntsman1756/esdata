@@ -430,6 +430,8 @@ services:
       BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_DAILY:-}
       WORKER_CMD: python boe.py --run-once
+    networks:
+      - esdata-internal
 
   cron-dgt-weekly:
     build:
@@ -441,6 +443,8 @@ services:
       DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_DGT_WEEKLY:-}
       WORKER_CMD: python dgt.py --run-once
+    networks:
+      - esdata-internal
 
   cron-teac-weekly:
     build:
@@ -452,6 +456,8 @@ services:
       TEAC_SEED_URLS: ${TEAC_SEED_URLS:?TEAC_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_TEAC_WEEKLY:-}
       WORKER_CMD: python teac.py --run-once
+    networks:
+      - esdata-internal
 
   cron-modelos-daily:
     build:
@@ -479,6 +485,8 @@ services:
       BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDNS_WEEKLY:-}
       WORKER_CMD: python bdns.py --run-once
+    networks:
+      - esdata-internal
 
   cron-borme-weekly:
     build:
@@ -490,6 +498,8 @@ services:
       BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BORME_WEEKLY:-}
       WORKER_CMD: python borme.py --run-once
+    networks:
+      - esdata-internal
 
   cron-cnmv-weekly:
     build:
@@ -501,6 +511,8 @@ services:
       CNMV_SEED_URLS: ${CNMV_SEED_URLS:?CNMV_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_CNMV_WEEKLY:-}
       WORKER_CMD: python cnmv.py --run-once
+    networks:
+      - esdata-internal
 
   cron-sepblac-weekly:
     build:
@@ -512,6 +524,8 @@ services:
       SEPBLAC_SEED_URLS: ${SEPBLAC_SEED_URLS:?SEPBLAC_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_SEPBLAC_WEEKLY:-}
       WORKER_CMD: python sepblac.py --run-once
+    networks:
+      - esdata-internal
 
   cron-bde-weekly:
     build:
@@ -523,6 +537,8 @@ services:
       BDE_SEED_URLS: ${BDE_SEED_URLS:?BDE_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDE_WEEKLY:-}
       WORKER_CMD: python bde.py --run-once
+    networks:
+      - esdata-internal
 
   backup:
     image: postgres:16-alpine@sha256:1e3604a950df9588c86b955a1e4be0887900210b5c49985ee275c4c2c689cf73

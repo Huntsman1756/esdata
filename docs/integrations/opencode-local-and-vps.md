@@ -44,6 +44,7 @@ Ejemplo de config local para `OpenCode`:
 
 - URL: `https://api.tudominio/mcp`
 - Header: `X-API-Key: <MCP_API_KEY>`
+- Runtime deploy del servidor: secretos y claves reales fuera del checkout, en `/etc/esdata/esdata.env`
 
 Ejemplo de config remota para `OpenCode`:
 
