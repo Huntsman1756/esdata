@@ -33,6 +33,83 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-05 - Deploy canonico: el worker set debe derivarse del Compose activo, no de una lista historica
+
+- Scope: `infra/deploy/docker-compose.prod.yml`, `scripts/ops/deploy-hetzner.sh`, runbooks de deploy, `infra/deploy/systemd/esdata-job@.service`
+- Hallazgo: cuando el Compose activo gana workers continuos nuevos, el deploy canonico y los runbooks pueden quedarse congelados en una lista historica parcial y dejar parte del corpus fuera del runtime real aunque los servicios existan en el repo.
+- Impacto: el equipo cree que produccion ejecuta todo el scope continuo, pero algunos workers nunca se levantan tras deploy; ademas, los chequeos manuales y el scheduler pueden romperse si cada artefacto usa un root distinto del repo.
+- Regla practica: tratar `infra/deploy/docker-compose.prod.yml` como fuente de verdad del worker set continuo (`worker-*` sin `profiles`) y fijar regresiones que comparen contra el comando canonico de deploy. Mantener tambien una sola raiz operativa del repo en docs activas y `systemd` (`/opt/esdata` en este slice).
+
+### 2026-05-05 - Variables de entorno: separar runtime deploy de code-only y legacy
+
+- Scope: `infra/deploy/docker-compose.prod.yml`, `infra/deploy/compose.env.example`, `.env.example`, `docs/environment-variables.md`, deploy docs activas
+- Hallazgo: mezclar en un mismo inventario variables del deploy activo, variables solo de codigo/tests y restos historicos crea falsas suposiciones operativas y puede dejar controles de seguridad "documentados" que el runtime no aplica de verdad.
+- Impacto: un operador puede creer que una variable no cableada forma parte del deploy Compose activo, o confiar en una env var inexistente para proteger una superficie real como `/metrics`.
+- Regla practica: tratar `infra/deploy/docker-compose.prod.yml` como fuente unica del `runtime deploy`; `infra/deploy/compose.env.example` como plantilla exacta de ese boundary; y cualquier inventario amplio (`.env.example`, docs de variables, runbooks) debe explicitar si una variable es `code-only` o `legacy/no cableada` antes de sugerirla como control operativo.
+
+### 2026-05-05 - Secretos de deploy: el fichero runtime vive fuera del checkout
+
+- Scope: `scripts/ops/deploy-hetzner.sh`, `scripts/ops/backup-postgres.sh`, `infra/deploy/docker-compose.prod.yml`, `infra/deploy/systemd/esdata-job@.service`, runbooks activos de deploy/ops
+- Hallazgo: aunque Git ignore `.env.*`, seguir usando `infra/deploy/.env.prod` como path operativo deja los secretos reales dentro de `/opt/esdata` y reabre el riesgo de tratarlos como parte normal del repo o de copiar plantillas/renderizados sensibles por error durante handoffs y tareas manuales.
+- Impacto: el equipo puede creer que "fuera de Git" equivale a "fuera del repo", cuando el runtime secreto sigue residiendo dentro del checkout productivo y varios artefactos operativos lo refuerzan como convencion canonica.
+- Regla practica: para el deploy Compose activo, versionar solo `infra/deploy/compose.env.example` y cargar siempre el runtime real desde `/etc/esdata/esdata.env`. Si un script, unit file o runbook sigue apuntando a `infra/deploy/.env.prod`, tratarlo como drift operativo y corregirlo en el mismo slice.
+
+### 2026-05-05 - verify_schema debe seguir dependencias reales de runtime, no solo columnas nuevas visibles
+
+- Scope: `scripts/maintenance/verify_schema.py`, deploy Compose con contenedor `ops`
+- Hallazgo: un gate de esquema basado solo en columnas "obvias" puede seguir dando verde aunque falten claves estructurales que el runtime usa implicitamente, como identificadores auditables, timestamps de ordenacion o unicidad necesaria para `ON CONFLICT`.
+- Impacto: el deploy puede parecer sano mientras rompe inserciones de auditoria o colas persistentes una vez que el runtime escribe datos reales.
+- Regla practica: cuando un flujo runtime depende de `INSERT`/`SELECT` sobre columnas concretas o de una unicidad contractual (`ON CONFLICT`, ordering persistente, IDs estables), el gate de deploy debe modelar tambien esas dependencias, aunque la fase siga evitando una auditoria estructural completa.
+
+### 2026-05-05 - Deploy canonico: migrar y verificar antes de levantar servicios
+
+- Scope: `scripts/ops/deploy-hetzner.sh`, `.github/workflows/deploy-hetzner.yml`, runbooks de deploy Compose
+- Hallazgo: si el deploy valida esquema pero no ejecuta `alembic upgrade head`, el stack puede arrancar con codigo nuevo sobre esquema viejo y fallar de forma parcial o enganosa.
+- Impacto: API, workers y checks posteriores pueden parecer sanos aunque falten tablas/columnas requeridas por la revision desplegada.
+- Regla practica: en despliegue Docker Compose, tratar `bash scripts/ops/deploy-hetzner.sh` como ruta canonica y exigir siempre este orden: `config`, `build ops`, `up postgres`, `alembic upgrade head`, `verify_schema.py`, y solo despues levantar servicios de aplicacion.
+
+### 2026-05-04 - Fase 4.5 vocabulary validation: validar en el write boundary, no solo en el parser
+
+- Scope: `apps/workers/vocabulary_validation.py`, `upsert_documento_interpretativo(...)` en workers, `apps/workers/vocabulary.py`
+- Hallazgo: un vocabulario controlado no esta realmente activo mientras los workers puedan saltarselo con literales en SQL o payloads sin sanear.
+- Impacto: comprobar solo `build_document_payload(...)` o helpers de deteccion no garantiza que la DB reciba valores permitidos; la validacion real tiene que vivir justo antes del `INSERT ... ON CONFLICT`.
+- Regla practica: dejar que el parser/build use taxonomias locales si ayuda a la extraccion, pero normalizar siempre el `record` final en el boundary de escritura hacia valores ya permitidos por `VOCABULARY`.
+
+### 2026-05-04 - Fase 4.4 link semantics: exacto no significa solo "alta confianza"
+
+- Scope: `documento_articulo.metodo_enlace`, `apps/api/routers/doctrina.py`, `apps/api/routers/dgt_doctrina.py`, `apps/api/services/graph_connectivity.py`, `documento_empresa`
+- Hallazgo: un `confianza_enlace` alto no convierte una inferencia contextual en enlace exacto. En este repo, exacto significa referencia canonica explicita suficiente para resolver norma/articulo sin inferencia adicional, y hoy eso solo ocurre con `manual`, `manual_official` o `auto_link_exact`. `documento_empresa` en BORME sigue siendo extraccion heuristica, no anclaje canonico.
+- Impacto: si los readers/promociones usan umbral de confianza en vez de `metodo_enlace`, `doctrina` y `dgt_doctrina` pueden marcar `verified/completa` de forma enganosa y la conectividad puede propagar semantica falsa. Si se trata `documento_empresa` como exacto, se sobrevende una relacion societaria extraida por heuristica.
+- Regla practica: decidir strong anchors, `verified` y `completeness` solo por presencia de metodos exactos; propagar `da.metodo_enlace` y `da.confianza_enlace` sin cambiar el shape publico; y mantener `documento_empresa` como heuristico hasta que exista un contrato exacto explicito para esa tabla.
+
+### 2026-05-04 - Fase 4.3 row-quality: completeness/provenance vive en la tabla duena de la fila
+
+- Scope: `modelo_recurso`, `documento_interpretativo`, `source_revision`, `sync_log`, `source_manifest`
+- Hallazgo: status de sync, revision por hash y row-quality son contratos distintos. Si se mezclan, ops/API/retrieval pueden sobreinterpretar la calidad real de una fila o de un run.
+- Impacto: meter completeness/provenance en `source_revision` o inferirla solo desde `sync_log` hace que una revision tecnica o un resultado de run parezcan garantia de calidad por fila cuando no lo son.
+- Regla practica: guardar `row_completeness` / `row_provenance` en la tabla que posee la fila persistida; reservar `source_revision` para cambios tecnicos y `sync_log` para outcomes del run. `source_manifest` debe seguir source-level hasta que exista un slice explicito de agregacion row-level.
+
+### 2026-05-04 - Fase 4.2 workers: `partial` solo cuando el run termina con huecos concluidos
+
+- Scope: `apps/workers/runtime.py`, `apps/workers/aeat_models.py`, `apps/workers/cnmv.py`, `apps/workers/dgt.py`
+- Hallazgo: mezclar faltantes reales, documentos fuera de target y errores transitorios/reintentables en un mismo contador rompe la semantica de `sync_log.status`. `partial` debe significar "run terminado con huecos reales", no "hubo cualquier skip o retry".
+- Impacto: si cualquier excepcion o documento descartado cuenta como faltante, ops/API/MCP pueden interpretar cobertura parcial donde en realidad la cola quedo pendiente o el documento era irrelevante para la fuente.
+- Regla practica: usar `finalize_partial_sync_status(...)` solo al cierre del run y pasarle un contador de faltantes concluidos. AEAT/CNMV: contar solo fetch/download failures reales de recursos oficiales/documentos. DGT: contar `search` sin resultados como faltante, no contar documentos fuera de target y no degradar a `partial` por errores transitorios que dejan `dgt_queue` pendiente para retry.
+
+### 2026-05-04 - Fase 4.1 DGT: `source_revision` no debe cargar estado de cola
+
+- Scope: `apps/workers/dgt.py`, `apps/workers/change_detection.py`, `alembic/versions/20260504_0057_dgt_queue_split.py`
+- Hallazgo: cuando DGT usa `source_revision.content_hash_sha256` para guardar `pending` o `empty`, rompe el contrato compartido de change detection porque esa columna deja de significar hash real.
+- Impacto: `check_content_changed()` puede leer una fila de cola como si fuera revision valida y el corpus aparenta tener una semantica de revision que ya no es cierta.
+- Regla practica: cualquier cola persistente nueva o legacy debe vivir fuera de `source_revision`; esa tabla solo admite revisiones reales. Para DGT, usar `dgt_queue` para `pending/processed/empty` y reservar `source_revision` para hashes SHA-256 reales.
+
+### 2026-05-04 - Fase 3.4 modelos: separar chequeos estaticos de drift persistido
+
+- Scope: `scripts/maintenance/check_model_data_quality.py`, `.github/workflows/ci.yml`, tablas `aeat_modelo` / `modelo_*`
+- Hallazgo: los problemas peligrosos de `modelos` viven tanto en archivos fuente/seed como en filas ya persistidas en DB.
+- Impacto: comprobar solo una de las dos superficies deja fuera la mitad del problema.
+- Regla practica: para quality gates de `modelos`, ejecutar siempre chequeos estaticos de seeds/scripts y chequeos DB-backed del contrato persistido actual.
+
 ### 2026-05-03 - MCP trust: el riesgo principal no es una sola respuesta mala, sino huecos entre datos, contrato MCP y audit trail
 
 - Scope: `apps/api/*`, `apps/workers/*`, `docs/manual-usuario/*`, `docs/reference/mcp-remediation-plan.md`
@@ -185,7 +262,7 @@ Usar notas cortas con este esquema:
 
 ### 2026-05-01 - Despliegue Compose en VPS: traps reales de runtime y Caddy
 
-- Scope: `apps/api/main.py`, `apps/api/Dockerfile`, `infra/deploy/Caddyfile`, `infra/deploy/.env.prod`, despliegue Compose en VPS
+- Scope: `apps/api/main.py`, `apps/api/Dockerfile`, `infra/deploy/Caddyfile`, `infra/deploy/compose.env.example`, despliegue Compose en VPS
 - Hallazgo: el despliegue Compose puede parecer correcto (`postgres`, `web`, workers) y aun asi fallar por tres traps no obvios: (1) `apps/api/main.py` asumía `Path(__file__).resolve().parents[2]` y rompia en contenedor (`/app/main.py`) con `IndexError`; (2) la imagen API no incluia `docs/openapi-gpt.json`; (3) `Caddyfile` tenia sintaxis invalida para Caddy v2 (`/api/* { ... }`) y ademas falla en seco si `CADDY_EMAIL` queda vacio.
 - Impacto: la API queda `unhealthy`, `caddy` entra en restart loop, HTTPS no responde y el bloqueo parece de DNS/red cuando en realidad es un bug del runtime/proxy.
 - Regla practica: al retomar un VPS Compose de este repo, validar en este orden: `docker compose ps`, `docker compose logs api`, `docker compose logs caddy`, `curl http://127.0.0.1:8000/health`, `curl http://127.0.0.1:3000/`. Si `caddy` no levanta, mirar primero `CADDY_EMAIL` y luego validar `Caddyfile` con `docker run --rm -v /srv/esdata/infra/deploy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile`.
@@ -224,6 +301,27 @@ Usar notas cortas con este esquema:
 - Hallazgo: `conftest.py` intenta borrar y recrear `test_esdata.sqlite3` al importarse. En Windows, si se lanzan dos procesos `pytest` a la vez contra `apps/api/tests`, el segundo puede fallar en el `unlink()` con `PermissionError: [WinError 32]` porque el primer proceso mantiene el archivo abierto.
 - Impacto: se obtienen fallos falsos de infraestructura de test al verificar slices en paralelo, incluso cuando el runtime y los tests individuales estan bien.
 - Regla practica: en este repo, las suites `pytest` que importan `apps/api/tests/conftest.py` deben ejecutarse en secuencial dentro del mismo worktree Windows. Si hace falta paralelizar, usar otro worktree o aislar un DB path distinto por proceso.
+
+### 2026-05-04 - SQLite + audit E2E: no dejar `MappingResult` vivo antes de escribir `query_audit`
+
+- Scope: `apps/api/services/modelos.py`, `apps/api/services/query_audit.py`, endpoints `modelos` con auditoria E2E
+- Hallazgo: en SQLite, dejar un `MappingResult` perezoso sin consumir y luego abrir otra conexion para persistir `query_audit` puede bloquear el commit con `sqlite3.OperationalError: database is locked`. Ademas, usar `bool(result)` sobre resultados SQLAlchemy no expresa si hay filas y deja el reader abierto mas tiempo del necesario.
+- Impacto: endpoints GET aparentemente inocuos pueden fallar solo al registrar la auditoria, aunque el payload ya este construido y la consulta principal haya devuelto datos.
+- Regla practica: cuando solo haga falta existencia, consumir el resultado inmediatamente con `.first() is not None`; cuando haga falta el contenido completo, materializarlo a `list[dict]` antes de cualquier write posterior o auditoria en otra conexion. No usar truthiness sobre resultados lazy de SQLAlchemy como señal de completitud.
+
+### 2026-05-04 - DGT tests: `run_sync(seed_urls=[])` sigue cayendo en `SEED_URLS`
+
+- Scope: `apps/workers/dgt.py`, `apps/workers/tests/test_dgt.py`
+- Hallazgo: `run_sync(seed_urls=[])` usa `seed_urls or SEED_URLS`, asi que una lista vacia no desactiva los seeds por defecto del modulo.
+- Impacto: un test que pretende correr sin seeds reales puede procesar URLs por defecto, cambiar el conteo del batch y dar falsos `partial` o resultados inesperados.
+- Regla practica: en tests que necesiten cero seeds reales, pasar `seed_urls=[]` y ademas hacer `monkeypatch.setattr("dgt.SEED_URLS", [])`.
+
+### 2026-05-04 - CNMV fixtures HTML en Windows: leer con `encoding="utf-8"`
+
+- Scope: `apps/workers/tests/test_cnmv.py`
+- Hallazgo: `Path.read_text()` sin encoding explicito puede intentar decodificar fixtures HTML con la code page local de Windows y fallar aunque el fixture este bien.
+- Impacto: aparecen `UnicodeDecodeError` falsos en tests de discovery/parseo CNMV sin que el worker ni el fixture esten realmente rotos.
+- Regla practica: en fixtures HTML/PDF/texto del worker CNMV, usar siempre `read_text(encoding="utf-8")` si el archivo esta versionado en UTF-8.
 
 ### 2026-04-26 - Chunks en SQLite de tests
 
@@ -275,7 +373,6 @@ Usar notas cortas con este esquema:
 - Regla practica: workers de crawling/discovery deben usar tabla como cola persistente, nunca listas en memoria. Pattern: `INSERT ... ON CONFLICT DO NOTHING` para discovery, `SELECT ... WHERE status='pending' LIMIT N` para processing, `UPDATE SET status='done'` tras cada commit.
 - Invariantes: nunca `log_sync(None, ...)` sin guard — en `boe.py:log_sync` añadir `if conn is None: return`. `_mark_done` nunca usar `now()` PostgreSQL-only en queries que corren en tests SQLite — siempre parametrizar con `datetime.now(UTC).isoformat()`.
 - Estado: worker desplegado, discovery corriendo 2026→2017, 11 documentos DGT ya procesados, 10 URLs en cola procesadas sin crash.
-- Proximo paso: ampliar `_extract_target_normas` (dgt.py:147) de solo LIVA/LIS a LIRPF, LGT, LIRNR, LITPAJD, LISD, LIAE. Actualmente filtra ~70% del corpus DGT.
 
 ### 2026-04-27 - Carga minima de `LIS` para `IS`
 

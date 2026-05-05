@@ -14,10 +14,13 @@ from schemas import (
     ModeloDetail as ModeloDetailSchema,
 )
 from services.modelos import (
+    build_modelo_truth_contract,
     get_active_campaign,
     get_model_row,
     get_modelo_campana_operativa,
+    get_modelo_campana_operativa_row,
     get_modelo_resumen_operativo,
+    get_modelo_runtime_truth_contract,
     list_campaign_casillas,
     list_campaign_claves,
     list_campaign_instructions,
@@ -190,10 +193,12 @@ async def get_campanas_operativas_modelos(
     codigos: str = Query(..., description="Codigos separados por comas, ej: 124,216,296"),
     campana: str = Query(None, description="Campana especifica"),
 ):
-    lista_codigos = [item.strip() for item in codigos.split(",")]
+    lista_codigos = [item.strip() for item in codigos.split(",") if item.strip()]
     with db_session() as db:
         return {
-            "modelos": list_modelos_campanas_operativas(db, lista_codigos, campana)
+            "codigos": lista_codigos,
+            "campana": campana,
+            "resultados": list_modelos_campanas_operativas(db, lista_codigos, campana),
         }
 
 
@@ -360,6 +365,13 @@ async def get_modelo(
             instr_rows = list_campaign_instructions(db, campana_id)
             instrucciones = [dict(r) for r in instr_rows]
 
+        operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
+        estado_metadato = (
+            operativa_row["estado_metadato"]
+            if operativa_row and operativa_row.get("estado_metadato")
+            else None
+        )
+
         norm_rows = list_modelo_normativa(db, codigo)
         normativa = [
             {
@@ -372,7 +384,11 @@ async def get_modelo(
         camp_rows = list_modelo_campanas(db, codigo)
         campanas = [dict(r) for r in camp_rows]
         doctrina_relacionada = list_related_doctrina(db, articulos)
-        verified = bool(instrucciones and casillas)
+        completeness, verified = build_modelo_truth_contract(
+            has_instructions=bool(instrucciones),
+            has_casillas=bool(casillas),
+            metadata_state=estado_metadato,
+        )
 
         payload = {
             "codigo": model_row["codigo"],
@@ -388,7 +404,7 @@ async def get_modelo(
             "instrucciones": instrucciones,
             "normativa": normativa,
             "doctrina_relacionada": doctrina_relacionada,
-            "completeness": "completa" if verified else "parcial",
+            "completeness": completeness,
             "verified": verified,
         }
         _record_modelo_query_audit(
@@ -482,6 +498,7 @@ async def get_modelo_casillas(
 
         if not camp_row:
             payload = {"codigo": codigo, "casillas": []}
+            completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             _record_modelo_query_audit(
                 request,
                 path=f"/v1/modelos/{codigo}/casillas",
@@ -490,8 +507,8 @@ async def get_modelo_casillas(
                 retrieved_chunks=[],
                 response_summary="casillas=0",
                 confidence={"score": 0.0, "label": "baja"},
-                completeness="parcial",
-                verified=False,
+                completeness=completeness,
+                verified=verified,
             )
             return payload
 
@@ -502,6 +519,7 @@ async def get_modelo_casillas(
             "codigo": codigo,
             "casillas": [dict(r) for r in rows],
         }
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
             request,
             path=f"/v1/modelos/{codigo}/casillas",
@@ -515,9 +533,12 @@ async def get_modelo_casillas(
                 for item in payload["casillas"]
             ],
             response_summary=f"casillas={len(payload['casillas'])}",
-            confidence={"score": 0.9 if payload["casillas"] else 0.0, "label": "alta" if payload["casillas"] else "baja"},
-            completeness="completa" if payload["casillas"] else "parcial",
-            verified=bool(payload["casillas"]),
+            confidence={
+                "score": 0.9 if verified else 0.5 if payload["casillas"] else 0.0,
+                "label": "alta" if verified else "media" if payload["casillas"] else "baja",
+            },
+            completeness=completeness,
+            verified=verified,
         )
         return payload
 
@@ -541,6 +562,7 @@ async def get_modelo_claves(
 
         if not camp_row:
             payload = {"codigo": codigo, "claves": []}
+            completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             _record_modelo_query_audit(
                 request,
                 path=f"/v1/modelos/{codigo}/claves",
@@ -549,8 +571,8 @@ async def get_modelo_claves(
                 retrieved_chunks=[],
                 response_summary="claves=0",
                 confidence={"score": 0.0, "label": "baja"},
-                completeness="parcial",
-                verified=False,
+                completeness=completeness,
+                verified=verified,
             )
             return payload
 
@@ -561,6 +583,7 @@ async def get_modelo_claves(
             "codigo": codigo,
             "claves": [dict(r) for r in rows],
         }
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
             request,
             path=f"/v1/modelos/{codigo}/claves",
@@ -574,9 +597,12 @@ async def get_modelo_claves(
                 for item in payload["claves"]
             ],
             response_summary=f"claves={len(payload['claves'])}",
-            confidence={"score": 0.9 if payload["claves"] else 0.0, "label": "alta" if payload["claves"] else "baja"},
-            completeness="completa" if payload["claves"] else "parcial",
-            verified=bool(payload["claves"]),
+            confidence={
+                "score": 0.9 if verified else 0.5 if payload["claves"] else 0.0,
+                "label": "alta" if verified else "media" if payload["claves"] else "baja",
+            },
+            completeness=completeness,
+            verified=verified,
         )
         return payload
 
@@ -602,6 +628,7 @@ async def get_modelo_instrucciones(
 
         if not camp_row:
             payload = {"codigo": codigo, "instrucciones": []}
+            completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             _record_modelo_query_audit(
                 request,
                 path=f"/v1/modelos/{codigo}/instrucciones",
@@ -610,8 +637,8 @@ async def get_modelo_instrucciones(
                 retrieved_chunks=[],
                 response_summary="instrucciones=0",
                 confidence={"score": 0.0, "label": "baja"},
-                completeness="parcial",
-                verified=False,
+                completeness=completeness,
+                verified=verified,
             )
             return payload
 
@@ -622,6 +649,7 @@ async def get_modelo_instrucciones(
             "codigo": codigo,
             "instrucciones": [dict(r) for r in rows],
         }
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
             request,
             path=f"/v1/modelos/{codigo}/instrucciones",
@@ -635,9 +663,12 @@ async def get_modelo_instrucciones(
                 for item in payload["instrucciones"]
             ],
             response_summary=f"instrucciones={len(payload['instrucciones'])}",
-            confidence={"score": 0.9 if payload["instrucciones"] else 0.0, "label": "alta" if payload["instrucciones"] else "baja"},
-            completeness="completa" if payload["instrucciones"] else "parcial",
-            verified=bool(payload["instrucciones"]),
+            confidence={
+                "score": 0.9 if verified else 0.5 if payload["instrucciones"] else 0.0,
+                "label": "alta" if verified else "media" if payload["instrucciones"] else "baja",
+            },
+            completeness=completeness,
+            verified=verified,
         )
         return payload
 
@@ -728,6 +759,7 @@ async def get_modelo_fuentes_oficiales(
             raise HTTPException(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
             request,
             path=f"/v1/modelos/{codigo}/fuentes-oficiales",
@@ -742,8 +774,8 @@ async def get_modelo_fuentes_oficiales(
                 for item in payload.get("fuentes_oficiales", [])
             ],
             response_summary=f"fuentes_oficiales={len(payload.get('fuentes_oficiales', []))}",
-            confidence={"score": 0.9 if payload.get("fuentes_oficiales") else 0.0, "label": "alta" if payload.get("fuentes_oficiales") else "baja"},
-            completeness="completa" if payload.get("fuentes_oficiales") else "parcial",
-            verified=bool(payload.get("fuentes_oficiales")),
+            confidence={"score": 0.9 if verified else 0.5, "label": "alta" if verified else "media"},
+            completeness=completeness,
+            verified=verified,
         )
         return payload

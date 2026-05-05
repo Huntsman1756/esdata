@@ -493,25 +493,64 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     CREATE TABLE modelo_articulo (
         modelo_id INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
         articulo_id INTEGER NOT NULL REFERENCES articulo(id) ON DELETE CASCADE,
+        norma TEXT NOT NULL,
+        numero TEXT NOT NULL,
+        metodo_enlace TEXT NOT NULL,
+        confianza_enlace REAL NOT NULL,
         casilla TEXT,
         nota TEXT,
         fuente TEXT NOT NULL,
         url_fuente TEXT,
-        PRIMARY KEY (modelo_id, articulo_id)
+        PRIMARY KEY (modelo_id, articulo_id),
+        UNIQUE(modelo_id, norma, numero)
     )
     """,
-    # --- Seed: Modelo 100 linked to LIVA 91 (for testing doctrina derivada) ---
+    # --- Seed: Modelo 100 linked strongly to LIVA 91 ---
     """
     INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info)
     VALUES ('100', 'IRPF Declaración anual', 'anual', 'IRPF', 'https://sede.agenciatributaria.gob.es/modelo-100'),
            ('303', 'IVA Autoliquidación', 'trimestral', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-303')
     """,
     """
-    INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
-    SELECT m.id, a.id, '0002', 'Rendimientos trabajo', 'Instrucciones Modelo 100 2025', 'https://sede.agenciatributaria.gob.es'
+    INSERT INTO modelo_articulo (
+        modelo_id, articulo_id, norma, numero, metodo_enlace, confianza_enlace,
+        casilla, nota, fuente, url_fuente
+    )
+    SELECT
+        m.id,
+        a.id,
+        'LIVA',
+        '91',
+        'manual_official',
+        1.0,
+        '0002',
+        'Rendimientos trabajo',
+        'Instrucciones Modelo 100 2025',
+        'https://sede.agenciatributaria.gob.es'
     FROM aeat_modelo m, articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE m.codigo = '100' AND n.codigo = 'LIVA' AND a.numero = '91'
+    """,
+    # --- Seed: legacy hidden row still present in runtime for modelo 303 ---
+    """
+    INSERT INTO modelo_articulo (
+        modelo_id, articulo_id, norma, numero, metodo_enlace, confianza_enlace,
+        casilla, nota, fuente, url_fuente
+    )
+    SELECT
+        m.id,
+        a.id,
+        'LIVA',
+        '91',
+        'legacy_numero_only',
+        0.0,
+        NULL,
+        'Legacy enlace heredado por numero',
+        'Import legacy modelos seed',
+        'https://sede.agenciatributaria.gob.es'
+    FROM aeat_modelo m, articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE m.codigo = '303' AND n.codigo = 'LIVA' AND a.numero = '91'
     """,
     # --- Modelos v2 schema: campañas, casillas, claves, instrucciones, normativa ---
     """

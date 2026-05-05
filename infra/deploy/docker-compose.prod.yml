@@ -402,11 +402,12 @@ services:
       dockerfile: apps/workers/Dockerfile.aeat
     profiles: ["aeat"]
     restart: "no"
-    env_file:
-      - .env.prod
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      AEAT_MODELS_SYNC_INTERVAL: ${MODELOS_SYNC_INTERVAL:-86400}
+      WORKER_NAME: worker-aeat-modelos
       WORKER_CMD: python aeat_models.py --run-once
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
       PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:

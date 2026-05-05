@@ -2,80 +2,50 @@
 
 ## Que es MCP en esdata
 
-`esdata` expone una superficie `MCP` para clientes compatibles con Model Context Protocol.
+`esdata` expone dos superficies `MCP` distintas para clientes compatibles con Model Context Protocol.
 
-En el estado actual del repo existen dos formas principales:
+- `HTTP MCP`: se publica en `/mcp` y expone el catalogo HTTP definido en `apps/api/mcp_catalog.py` bajo `HTTP_MCP_OPERATIONS`
+- `stdio MCP`: vive en `apps/api/mcp_stdio.py` y expone herramientas de mas alto nivel como `consulta_fiscal` y `agente_consulta`
 
-- MCP HTTP montado en `/mcp`
-- MCP `stdio` implementado en `apps/api/mcp_stdio.py`
+No son dos transportes del mismo catalogo: `HTTP MCP` y `stdio MCP` no comparten ni catalogo ni semantica.
 
-## MCP HTTP
+Eleccion rapida:
 
-La API monta MCP HTTP sobre FastAPI en la ruta:
+- usa `HTTP MCP` si tu cliente MCP consume endpoints HTTP y quieres trabajar con el catalogo HTTP publicado por `esdata`
+- usa `stdio MCP` si tu cliente MCP lanza un proceso local y necesitas tools de mas alto nivel orientadas a agentes
+
+## Recorrido HTTP MCP
+
+El punto de entrada es:
 
 ```text
 /mcp
 ```
 
-La proteccion del endpoint incluye:
+Para un usuario, lo importante es:
 
-- guard especifico para `/mcp`
 - soporte de API key por cabecera `X-API-Key`
-- rate limiting especifico para esa ruta
-- trazabilidad mediante `X-Request-ID` en las operaciones internas que ejecuta el catalogo MCP
+- expone la superficie MCP HTTP de `esdata`, correspondiente al catalogo HTTP anclado en `apps/api/mcp_catalog.py` bajo `HTTP_MCP_OPERATIONS`
+- esta pensado para clientes MCP que hablan HTTP en lugar de lanzar un proceso local
 
-Estado operativo actual:
+En la practica, se usa desde un cliente compatible con MCP configurado para apuntar a `/mcp` y, si el despliegue esta protegido, enviar `X-API-Key`.
 
-- si `MCP_API_KEY` tiene valor, `/mcp` exige `X-API-Key`
-- fuera de `APP_ENV=test`, el runtime no debe arrancar sin `MCP_API_KEY`
-- el rate limit se controla con `MCP_RATE_LIMIT_PER_MINUTE`
-- las herramientas MCP que terminan en `consulta_fiscal` heredan disclaimer IA, score de grounding y abstencion cuando no hay evidencia suficiente
-- en tests de transporte HTTP, `MCP` debe montarse sobre una instancia fresca creada con `create_app()`; reutilizar la `app` global entre event loops puede dejar el session manager interno en estado invalido
-
-Ejemplo de llamada HTTP con API key:
-
-```bash
-curl -s http://127.0.0.1:8000/mcp -H "X-API-Key: secret"
-```
-
-## MCP stdio
-
-El servidor `stdio` usa JSON-RPC sobre `stdin/stdout` con cabeceras `Content-Length`.
-
-Esto esta pensado para clientes locales o integraciones que prefieren un proceso hijo en lugar de exponer un endpoint HTTP.
-
-Archivo relevante:
-
-```text
-apps/api/mcp_stdio.py
-```
-
-## Superficie soportada hoy
-
-La superficie MCP no es unica: `HTTP` y `stdio` no exponen el mismo catalogo.
-
-### HTTP MCP (`/mcp`)
-
-El transporte HTTP expone operaciones REST estructuradas definidas en `apps/api/mcp_catalog.py` bajo `HTTP_MCP_OPERATIONS`.
-
-Cobertura actual principal:
+Capacidades principales hoy:
 
 - legislacion: `list_legislacion`, `get_norma`, `list_articulos`, `get_articulo`, `get_articulo_historial`, `buscar`, `buscar_legislacion`
 - materias: `list_materias`, `get_materia`
 - doctrina: `buscar_doctrina`, `get_doctrina`
-- modelos AEAT: `list_modelos`, `get_modelo*`, `get_modelo_fuentes_oficiales`
+- modelos AEAT: operaciones del catalogo HTTP para listar y consultar modelos y sus fuentes oficiales
 
-### stdio MCP (`apps/api/mcp_stdio.py`)
+## Recorrido stdio MCP
 
-El servidor stdio expone herramientas de mas alto nivel orientadas a agentes/LLMs locales.
+El servidor `stdio` esta pensado para clientes locales o integraciones que prefieren lanzar un proceso hijo en lugar de consumir un endpoint HTTP.
 
-Contrato operativo actual:
+En la practica, el cliente usa `stdio MCP` arrancando un proceso MCP local en vez de conectarse a una URL remota como `/mcp`.
 
-- cada `tools/call` genera un `request_id` real y lo propaga a los subrequests REST internos
-- la fila auditable final queda en `/mcp/tools/<tool_name>` correlada con la del endpoint REST subyacente
-- cuando la persistencia de auditoria stdio falla, el servidor devuelve error `-32603` en lugar de responder con exito silencioso
+El servidor stdio, implementado en `apps/api/mcp_stdio.py`, expone herramientas de mas alto nivel orientadas a agentes y LLMs locales.
 
-Catalogo actual de stdio:
+Tools destacadas hoy:
 
 - `consulta_fiscal`
 - `listar_obligaciones_operativas`
@@ -86,65 +56,46 @@ Catalogo actual de stdio:
 - `agente_monitoreo_status`
 - `agente_compliance_resumen`
 
-Regla practica:
+Ejemplos de tareas tipicas en stdio:
 
+`consulta_fiscal`:
+
+- resolver una consulta fiscal en lenguaje natural
+- orientar a un agente local sobre como enfocar una duda tributaria
+
+`listar_obligaciones_aplicables`:
+
+- revisar obligaciones operativas aplicables a un caso o perfil
+- obtener una vista de plazos y obligaciones relacionadas
+
+`get_obligacion_completa`:
+
+- utilidad: recuperar plazos, sanciones, recargos y documentos relacionados
+
+## Regla practica
+
+- `HTTP MCP` y `stdio MCP` no comparten catalogo ni semantica
 - no asumir que una tool visible en stdio existe tambien en HTTP MCP
 - no documentar una tool como "MCP general" sin indicar explicitamente si pertenece a `HTTP` o a `stdio`
 
 ## Casos de uso recomendados
 
-Usar `MCP` cuando:
+Para elegir entre `HTTP MCP` y `stdio MCP`:
 
-- el consumidor principal es un LLM o agente
-- quieres exponer herramientas semiestructuradas en vez de integrar REST manualmente
-- necesitas tanto texto legible como `structuredContent`
+- usa `HTTP MCP` si tu cliente MCP ya trabaja por HTTP y quieres consumir el catalogo HTTP publicado en `/mcp`
+- usa `stdio MCP` si tu cliente MCP arranca un proceso local y necesitas tools de mas alto nivel como `consulta_fiscal` o `agente_consulta`
 
-Usar `API` normal cuando:
+La API normal encaja mejor cuando:
 
 - integras con otro backend o servicio propio
 - necesitas control fino de errores, reintentos y versionado de contrato
 - no trabajas con clientes MCP
 
-## Ejemplos conceptuales de uso
-
-`consulta_fiscal` (solo stdio hoy):
-
-- pregunta: `modelo 216 como rellenar`
-- entrada: `q` obligatorio, con `sujeto`, `pais` y `tipo_operacion` opcionales
-- salida: texto resumido para el LLM, `structuredContent` subyacente y audit trail correlado con `/v1/consulta`
-
-`listar_obligaciones_aplicables` (solo stdio hoy):
-
-- perfil por defecto: `sociedad_valores`
-- flags utiles: `reporting_reservado`, `aml_cft_reforzado`, `cross_border_ue`
-
-`get_obligacion_completa` (solo stdio hoy):
-
-- entrada: codigo de obligacion
-- utilidad: recuperar plazos, sanciones, recargos y documentos relacionados
-
 ## Regla de seguridad
 
 No tratar `MCP` como una superficie publica abierta por defecto.
 
-No tratar tampoco la respuesta del MCP como verdad autosuficiente.
+No tratar tampoco la respuesta del MCP como verdad autosuficiente; verifica siempre contra la fuente oficial citada.
 
-Para uso interno correcto:
+En despliegues protegidos, `HTTP MCP` puede requerir API key y controles perimetrales adicionales.
 
-- si la respuesta incluye aviso de evidencia insuficiente, no usarla para decidir sin revisar fuente oficial
-- si la herramienta devuelve pocos o ningun resultado, eso debe interpretarse como abstencion, no como confirmacion negativa del hecho consultado
-- las decisiones fiscales o regulatorias deben verificarse contra la fuente oficial citada o contra el endpoint REST equivalente
-
-Si se expone por HTTP fuera de local o red controlada, revisar al menos:
-
-- `MCP_API_KEY`
-- `MCP_RATE_LIMIT_PER_MINUTE`
-- proxy o perimetro delante del servicio
-- logs y observabilidad
-
-## Referencias
-
-- `../../apps/api/mcp_server.py`
-- `../../apps/api/mcp_catalog.py`
-- `../../apps/api/mcp_stdio.py`
-- `../../apps/api/tests/test_mcp_private.py`

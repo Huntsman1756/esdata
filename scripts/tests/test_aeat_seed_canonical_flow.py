@@ -37,3 +37,31 @@ def test_seed_all_warns_that_aeat_is_not_canonical_there():
     assert "WARNING: seed_all.py is not the canonical production AEAT flow." in seed_all
     assert "scripts/seed-modelos.py" in seed_all
     assert "scripts/seed-modelos-v2.py" in seed_all
+
+
+def test_canonical_root_seed_persists_exact_key_and_strong_provenance():
+    seed_modelos = _read("scripts/seed-modelos.py")
+
+    required_fragments = [
+        "INSERT INTO modelo_articulo (",
+        "JOIN norma n ON n.id = a.norma_id",
+        "WHERE n.codigo = %s AND a.numero = %s",
+        "norma,",
+        "numero,",
+        "metodo_enlace,",
+        "confianza_enlace",
+        "'manual_official'",
+        "norma = EXCLUDED.norma",
+        "numero = EXCLUDED.numero",
+        "metodo_enlace = EXCLUDED.metodo_enlace",
+        "confianza_enlace = EXCLUDED.confianza_enlace",
+        "if not url_fuente or not url_fuente.strip():",
+        'SKIP: missing url_fuente for',
+    ]
+
+    for fragment in required_fragments:
+        assert fragment in seed_modelos
+
+    assert "db_url[:40]" not in seed_modelos
+    url_guard_index = seed_modelos.index("if not url_fuente or not url_fuente.strip():")
+    assert url_guard_index < seed_modelos.index("if dry_run:", url_guard_index)

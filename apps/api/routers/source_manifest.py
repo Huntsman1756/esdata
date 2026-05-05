@@ -12,6 +12,8 @@ router = APIRouter(prefix="/v1/sources", tags=["source-manifest"])
 
 @router.get("/manifest")
 def source_manifest():
+    # In 4.3 these HTTP surfaces stay source-level; row-level quality data lives
+    # behind persistence-oriented MCP access instead of this router response.
     with db_session() as db:
         sources = get_source_manifest(db)
     return {"total": len(sources), "sources": sources}

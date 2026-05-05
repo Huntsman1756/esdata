@@ -689,6 +689,8 @@ class TestModeloRecursoVersioning:
                         formato TEXT NOT NULL,
                         url_recurso TEXT NOT NULL,
                         sha256_contenido TEXT NOT NULL,
+                        row_completeness TEXT NOT NULL,
+                        row_provenance TEXT NOT NULL,
                         etag TEXT,
                         last_modified TEXT,
                         content_length INTEGER,
@@ -720,6 +722,25 @@ class TestModeloRecursoVersioning:
 
         assert total == 1
         assert active == 1
+
+    def test_inserted_resource_sets_row_quality_contract(self):
+        engine = self._setup_db()
+        with engine.begin() as conn:
+            assert _store_modelo_recurso_version(
+                conn,
+                1,
+                "instrucciones",
+                "pdf",
+                "https://example.com/a.pdf",
+                b"same",
+            ) == "inserted"
+            row = conn.execute(
+                text(
+                    "SELECT row_completeness, row_provenance FROM modelo_recurso WHERE campana_id = 1 AND tipo_recurso = 'instrucciones'"
+                )
+            ).fetchone()
+
+        assert row == ("complete", "official_exact")
 
     def test_hash_cambia_rota_version(self):
         engine = self._setup_db()

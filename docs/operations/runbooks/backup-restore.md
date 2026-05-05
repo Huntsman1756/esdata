@@ -17,31 +17,31 @@ Procedimientos para backup y restore de la base de datos PostgreSQL de esdata.
 ## Backup completo (pg_dumpall)
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres pg_dumpall -U esdata > infra/backups/esdata-full-$(date +%Y%m%d-%H%M%S).sql
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dumpall -U esdata > infra/backups/esdata-full-$(date +%Y%m%d-%H%M%S).sql
 ```
 
 ### Backup de esquema + datos (pg_dump)
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --format=custom --file=/tmp/esdata-backup.dump
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --format=custom --file=/tmp/esdata-backup.dump
 ```
 
 ### Backup solo de esquema
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --schema-only > infra/backups/esdata-schema-$(date +%Y%m%d-%H%M%S).sql
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --schema-only > infra/backups/esdata-schema-$(date +%Y%m%d-%H%M%S).sql
 ```
 
 ### Backup de un solo schema/tabla
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --table=norma > infra/backups/esdata-norma-$(date +%Y%m%d-%H%M%S).sql
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --table=norma > infra/backups/esdata-norma-$(date +%Y%m%d-%H%M%S).sql
 ```
 
 ### Backup con compresión
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --format=custom | gzip > infra/backups/esdata-backup-$(date +%Y%m%d-%H%M%S).dump.gz
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata -d esdata --format=custom | gzip > infra/backups/esdata-backup-$(date +%Y%m%d-%H%M%S).dump.gz
 ```
 
 ## Restaurar desde backup
@@ -49,25 +49,25 @@ docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.
 ### Restaurar backup completo (pg_dumpall)
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata -d postgres < infra/backups/esdata-full-YYYYMMDD-HHMMSS.sql
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata -d postgres < infra/backups/esdata-full-YYYYMMDD-HHMMSS.sql
 ```
 
 ### Restaurar backup custom (pg_dump)
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec -T postgres pg_restore -U esdata -d esdata --clean --if-exists /tmp/esdata-backup.dump
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec -T postgres pg_restore -U esdata -d esdata --clean --if-exists /tmp/esdata-backup.dump
 ```
 
 ### Restaurar backup comprimido
 
 ```bash
-gunzip -c infra/backups/esdata-backup-YYYYMMDD-HHMMSS.dump.gz | docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec -T postgres pg_restore -U esdata -d esdata --clean --if-exists
+gunzip -c infra/backups/esdata-backup-YYYYMMDD-HHMMSS.dump.gz | docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec -T postgres pg_restore -U esdata -d esdata --clean --if-exists
 ```
 
 ### Restaurar solo esquema
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata -d esdata < infra/backups/esdata-schema-YYYYMMDD-HHMMSS.sql
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U esdata -d esdata < infra/backups/esdata-schema-YYYYMMDD-HHMMSS.sql
 ```
 
 ## Backup automático con cron
@@ -80,18 +80,18 @@ comprimidos en `infra/deploy/backups/` con retención de 7 días.
 
 ```bash
 # Iniciar con el perfil prod (incluye backup)
-docker compose --env-file infra/deploy/.env.prod \
+docker compose --env-file /etc/esdata/esdata.env \
   -f infra/deploy/docker-compose.prod.yml up -d
 
 # Verificar que el contenedor de backup está corriendo
-docker compose --env-file infra/deploy/.env.prod \
+docker compose --env-file /etc/esdata/esdata.env \
   -f infra/deploy/docker-compose.prod.yml logs backup
 
 # Listar backups generados
 ls -lh infra/deploy/backups/
 
 # Ver logs del último backup
-docker compose --env-file infra/deploy/.env.prod \
+docker compose --env-file /etc/esdata/esdata.env \
   -f infra/deploy/docker-compose.prod.yml logs backup | tail -20
 ```
 
@@ -102,7 +102,7 @@ docker compose --env-file infra/deploy/.env.prod \
 
 ```bash
 # Backup diario a las 3am, retención 30 días
-0 3 * * * mkdir -p /srv/backups/esdata && ENV_FILE=/opt/esdata/infra/deploy/.env.prod BACKUP_DIR=/srv/backups/esdata /opt/esdata/scripts/ops/backup-postgres.sh
+0 3 * * * mkdir -p /srv/backups/esdata && ENV_FILE=/etc/esdata/esdata.env BACKUP_DIR=/srv/backups/esdata /opt/esdata/scripts/ops/backup-postgres.sh
 0 3 * * * find /srv/backups/esdata -name "*.gz" -mtime +7 -delete
 ```
 
@@ -114,7 +114,7 @@ $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $backupDir = "G:\_Proyectos\esdata\infra\backups"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
-docker compose --env-file G:\_Proyectos\esdata\infra\deploy\.env.prod `
+docker compose --env-file G:\_Proyectos\esdata-secrets\esdata.env `
   -f G:\_Proyectos\esdata\infra\deploy\docker-compose.prod.yml `
   exec -T postgres pg_dump -U esdata -d esdata --format=custom |
   Out-File -FilePath "$backupDir\esdata-$timestamp.dump"
@@ -129,27 +129,27 @@ Get-ChildItem $backupDir -Filter "esdata-*.dump" |
 
 ```bash
 # Verificar que el archivo no esta corrompido (custom format)
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres pg_restore -l infra/backups/esdata-backup.dump
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_restore -l infra/backups/esdata-backup.dump
 
 # Verificar SQL (formato texto)
 head -50 infra/backups/esdata-full-YYYYMMDD-HHMMSS.sql
 grep -c "CREATE TABLE" infra/backups/esdata-full-YYYYMMDD-HHMMSS.sql
 
 # Contar tablas en el backup
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres pg_restore -l infra/backups/esdata-backup.dump | grep "TABLE DATA" | wc -l
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_restore -l infra/backups/esdata-backup.dump | grep "TABLE DATA" | wc -l
 ```
 
 ## Tamaño de la base de datos
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c "SELECT pg_size_pretty(pg_database_size('esdata'));"
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c "SELECT pg_size_pretty(pg_database_size('esdata'));"
 ```
 
 ## Checklist de restore
 
 1. [ ] Verificar integridad del archivo de backup
 2. [ ] Notificar downtime si es restore en produccion
-3. [ ] Detener API y workers: `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml stop api web worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd`
+3. [ ] Detener API y workers: `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml stop api web worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd`
 4. [ ] Ejecutar restore
 5. [ ] Verificar integridad post-restore (contar filas de tablas criticas)
 6. [ ] Reiniciar API y workers

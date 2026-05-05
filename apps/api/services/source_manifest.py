@@ -148,6 +148,8 @@ def _compute_stale(last_success_at: str | None, stale_after_hours: int) -> bool:
 
 
 def get_source_manifest(db) -> list[dict]:
+    # MCP 4.3 keeps row-level completeness/provenance in persistence only; this
+    # service intentionally remains source-level until that boundary changes.
     ensure_governance_tables()
     sources = _parse_manifest()
     for source in sources:

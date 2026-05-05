@@ -19,6 +19,9 @@ Llevar `esdata` a un estado en el que el MCP solo pueda devolver respuestas:
 5. los workers materializan cobertura parcial en estados legibles por API/MCP
 6. el deploy real aplica migraciones, verifica esquema y ejecuta smoke checks
 7. existe una suite de regresion para preguntas de alto riesgo
+8. existe una matriz CI MCP ampliada para transporte, auditoria y regresion factual
+9. `stdio MCP` entra de forma explicita en el criterio de release cuando se declara soportado
+10. existe un gate de release que diferencia confianza `media-alta` de confianza `alta`
 
 ## Principios
 
@@ -337,16 +340,18 @@ Archivos a tocar:
 - `docs/deployment/server-installation.md`
 - `docs/operations/runbooks/deploy-compose.md`
 
-#### 5.5 Sacar secretos reales del repo y rotar
+#### 5.5 Sacar secretos reales del checkout y alinear el contrato operativo
 
 Archivos a tocar:
 
-- `infra/deploy/.env.prod`
+- `/etc/esdata/esdata.env` (generado desde `infra/deploy/compose.env.example` y fuera del checkout)
 - docs operativas asociadas
 
 ### Fase 6 - Docs, contratos y gates de release
 
-Objetivo: que la documentacion no sobreprometa y que haya gate real antes de usar el MCP como superficie fiable.
+Objetivo: que la documentacion no sobreprometa, que exista un gate real antes de usar el MCP como superficie fiable y que el siguiente endurecimiento de confianza quede definido de forma explicita.
+
+Las fases `6.1` a `6.4` cierran la remediacion base. Las fases `6.5` a `6.8` endurecen el MCP desde una confianza operativa `media-alta` hasta una `alta`.
 
 #### 6.1 Alinear docs con comportamiento real
 
@@ -379,6 +384,110 @@ Archivos a tocar:
 - `.github/workflows/ci.yml`
 - tests de golden questions y contratos
 
+#### 6.5 Ampliar la matriz CI MCP con suites ya existentes
+
+Objetivo:
+
+- pasar de una senal MCP minima en CI a una matriz MCP mas representativa usando suites ya presentes en el repo
+
+Archivos a tocar:
+
+- `.github/workflows/ci.yml`
+- `apps/api/tests/test_mcp_transport.py`
+- `apps/api/tests/test_mcp_audit.py`
+- `apps/api/tests/test_http_mcp_audit_phase_1_1.py`
+- `docs/master-execution-roadmap.md`
+
+Por que existe:
+
+- el bloque MCP actual en CI solo cubre contrato minimo y no valida todavia de forma explicita transporte HTTP MCP ni auditoria MCP mas rica
+
+Evidencia minima esperada:
+
+- lectura del workflow mostrando estas suites MCP dentro de `test-python` o del gate MCP equivalente
+- verificacion de que las rutas de tests referenciadas siguen existiendo y forman parte del workflow actualizado
+
+Riesgo residual:
+
+- la cobertura estructural MCP mejora, pero la confianza factual sigue dependiendo de regresiones de verdad y de la abstencion correcta
+
+#### 6.6 Convertir la regresion factual MCP en gate explicito
+
+Objetivo:
+
+- fijar en CI la regresion factual de consultas MCP historicamente peligrosas y las respuestas fail-closed cuando falte base suficiente
+
+Archivos a tocar:
+
+- `.github/workflows/ci.yml`
+- `apps/api/tests/test_mcp_truth_regressions.py`
+- `apps/api/tests/test_modelos_truth_contract.py` si la ampliacion factual lo requiere
+- `docs/master-execution-roadmap.md`
+
+Por que existe:
+
+- una superficie MCP puede estar bien documentada, autenticada y auditada, y aun asi producir respuestas operativas malas si la logica factual o la abstencion fallan
+
+Evidencia minima esperada:
+
+- workflow con bloque explicito para la regresion factual MCP
+- suite verde para las preguntas de riesgo fijadas
+
+Riesgo residual:
+
+- la confianza factual mejora materialmente, pero `stdio MCP` puede seguir siendo una superficie menos endurecida si no entra aun en el gate explicito
+
+#### 6.7 Endurecer cobertura explicita de `stdio MCP`
+
+Objetivo:
+
+- asegurar que `stdio MCP` deja de ser una superficie implicita o secundaria en el criterio de confianza alta
+
+Archivos a tocar:
+
+- `.github/workflows/ci.yml`
+- `apps/api/tests/test_mcp_stdio_audit.py`
+- `docs/operations/runbooks/mcp-release-gate.md`
+- `docs/master-execution-roadmap.md`
+
+Por que existe:
+
+- parte del riesgo historico del repo vino precisamente de mezclar o desalinear `HTTP MCP` y `stdio MCP`
+
+Evidencia minima esperada:
+
+- suite `stdio` verde y visible en CI o en el gate definido por la fase
+- documentacion de release dejando claro que `HTTP MCP` y `stdio MCP` se validan explicitamente
+
+Riesgo residual:
+
+- quedara aun pendiente convertir el gate de release de minimo a fuerte, con una definicion mas dura de confianza operativa alta
+
+#### 6.8 Gate de release mas fuerte y criterio de confianza alta
+
+Objetivo:
+
+- convertir el estado MCP de usable con confianza `media-alta` a release-ready con confianza `alta` mediante un gate de release mas exigente y una definicion operativa clara de esa confianza
+
+Archivos a tocar:
+
+- `docs/operations/runbooks/mcp-release-gate.md`
+- `docs/master-execution-roadmap.md`
+- `.github/workflows/ci.yml` si el gate fuerte se automatiza adicionalmente
+
+Por que existe:
+
+- el gate de release MCP actual es correcto pero minimo; sirve para uso serio, pero no equivale todavia a una postura de confianza alta y cobertura amplia
+
+Evidencia minima esperada:
+
+- runbook actualizado con el nuevo criterio de `GO / NO-GO`
+- roadmap dejando explicito que el frente MCP ya no esta solo remediado, sino endurecido hasta confianza alta
+
+Riesgo residual:
+
+- cualquier ampliacion posterior ya seria mejora incremental o nueva cobertura de dominio, no el cierre de la brecha principal entre confianza `media-alta` y `alta`
+
 ## Orden de ejecucion recomendado
 
 1. Fase 0.1
@@ -400,10 +509,15 @@ Archivos a tocar:
 17. Fase 5.2
 18. Fase 5.3
 19. Fase 5.4
-20. Fase 6.1
-21. Fase 6.2
-22. Fase 6.3
-23. Fase 6.4
+20. Fase 5.5
+21. Fase 6.1
+22. Fase 6.2
+23. Fase 6.3
+24. Fase 6.4
+25. Fase 6.5
+26. Fase 6.6
+27. Fase 6.7
+28. Fase 6.8
 
 ## Primer sprint recomendado
 
@@ -434,3 +548,6 @@ La remediacion no se considera cerrada hasta que se cumplan estas condiciones:
 6. no hay `modelo_articulo` sin provenance fuerte
 7. deploy aplica migraciones y smoke tests obligatorios
 8. las golden questions no producen respuestas operativas sin base
+9. la CI MCP cubre de forma explicita contrato, transporte, auditoria y regresiones factuales del scope soportado
+10. `stdio MCP` entra en la validacion explicita de release cuando se declara soportado
+11. el gate de release define y exige el salto de confianza `media-alta` a `alta`

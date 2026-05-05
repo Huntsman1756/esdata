@@ -1,5 +1,7 @@
-from pathlib import Path
+# ruff: noqa: I001
+
 import sys
+from pathlib import Path
 
 import httpx
 from sqlalchemy import create_engine, text
@@ -126,7 +128,7 @@ def test_upsert_documento_interpretativo_stores_borme_fields_once():
     )
 
 
-def test_upsert_empresas_and_link_documento_empresas():
+def test_upsert_empresas_and_link_documento_empresas_keeps_heuristic_contract():
     engine = create_engine("sqlite:///:memory:", future=True)
 
     with engine.begin() as conn:
@@ -200,13 +202,13 @@ def test_upsert_empresas_and_link_documento_empresas():
 
         rows = conn.execute(
             text(
-                "SELECT e.nombre, e.domicilio, de.rol, de.confianza_extraccion FROM empresa e JOIN documento_empresa de ON de.empresa_id = e.id ORDER BY e.nombre"
+                "SELECT e.nombre, e.domicilio, de.rol, de.confianza_extraccion, de.nota FROM empresa e JOIN documento_empresa de ON de.empresa_id = e.id ORDER BY e.nombre"
             )
         ).fetchall()
 
     assert rows == [
-        ("ALDITRAEX SOCIEDAD LIMITADA", "C SANTA LUCIA 19", "absorbente", 0.7),
-        ("MURILLO BARRERO SOCIEDAD LIMITADA", None, "absorbida", 0.7),
+        ("ALDITRAEX SOCIEDAD LIMITADA", "C SANTA LUCIA 19", "absorbente", 0.7, "absorcion"),
+        ("MURILLO BARRERO SOCIEDAD LIMITADA", None, "absorbida", 0.7, "absorcion"),
     ]
 
 
@@ -379,8 +381,6 @@ def test_run_sync_empty_seed_urls_returns_error_without_http_calls(monkeypatch):
     monkeypatch.setattr("borme.httpx.Client", lambda *args, **kwargs: mock_client)
 
     calls_made = []
-    original_get = mock_client.get if hasattr(mock_client, "get") else None
-
     result = run_sync(seed_urls=[], worker_name="test-worker")
 
     assert result == {"processed": 0, "stored": 0}

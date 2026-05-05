@@ -28,136 +28,121 @@ docker compose version
 
 ```bash
 cd /opt
-sudo git clone https://github.com/tuusuario/esdata.git
+sudo git clone https://github.com/Huntsman1756/esdata.git
+sudo chown -R "$USER":"$USER" /opt/esdata
 cd esdata
 ```
 
-## Paso 3: Configurar .env
+## Paso 3: Configurar `/etc/esdata/esdata.env`
 
-Crear archivo `.env` en la raiz del repo:
+Partir siempre del template activo del deploy Compose y copiarlo fuera del checkout:
 
 ```bash
-cat > .env << 'EOF'
-# --- Base de datos ---
-POSTGRES_USER=esdata
-POSTGRES_PASSWORD=<contraseña_segura>
-POSTGRES_DB=esdata
-DATABASE_URL=postgresql+psycopg://esdata:${POSTGRES_PASSWORD}@postgres:5432/esdata
-
-# --- Dominios ---
-API_DOMAIN=api.tudominio.com
-WEB_DOMAIN=tudominio.com
-CADDY_EMAIL=tuemail@ejemplo.com
-
-# --- Frontend ---
-ESDATA_API_BASE_URL=https://api.tudominio.com
-ESDATA_API_KEY=<api_key_obligatoria>
-
-# --- BOE ---
-BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada
-BOE_LEGISLACION_NORMAS=LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU
-SYNC_INTERVAL_SECONDS=3600
-
-# --- Fuentes ---
-BDNS_SEED_URLS=
-BORME_SEED_URLS=
-CNMV_SEED_URLS=https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133
-SEPBLAC_SEED_URLS=https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/
-CENDOJ_SEED_URLS=
-EURLEX_SEED_URLS=
-BDE_SEED_URLS=https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/
-AEPD_SEED_URLS=
-
-# --- DGT ---
-DGT_SSL_VERIFY=false
-
-# --- TEAC ---
-TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/
-
-# --- Modelos ---
-MODELOS_SYNC_INTERVAL=86400
-
-# --- Cloudflare/MCP ---
-MCP_API_KEY=<mcp_api_key_obligatoria>
-MCP_SECRET_ACTIVE=
-MCP_SECRET_PREVIOUS=
-CLOUDFLARE_ZONE_ID=
-CLOUDFLARE_API_TOKEN=
-
-# --- Healthchecks (opcional, recomendado para crons) ---
-HC_PING_URL_CRON_BOE_DAILY=
-HC_PING_URL_CRON_DGT_WEEKLY=
-HC_PING_URL_CRON_TEAC_WEEKLY=
-HC_PING_URL_CRON_MODELOS_DAILY=
-HC_PING_URL_CRON_BDNS_WEEKLY=
-HC_PING_URL_CRON_BORME_WEEKLY=
-HC_PING_URL_CRON_CNMV_WEEKLY=
-HC_PING_URL_CRON_SEPBLAC_WEEKLY=
-HC_PING_URL_CRON_BDE_WEEKLY=
-EOF
+sudo mkdir -p /etc/esdata
+sudo cp infra/deploy/compose.env.example /etc/esdata/esdata.env
+sudo chmod 600 /etc/esdata/esdata.env
+sudo ${EDITOR:-nano} /etc/esdata/esdata.env
 ```
 
-## Paso 4: Levantar servicios
+Revisar como minimo:
+
+1. `POSTGRES_PASSWORD`
+2. `DATABASE_URL` si cambian credenciales, host o nombre de DB
+3. `ESDATA_API_KEY`
+4. `MCP_API_KEY`
+5. `API_DOMAIN`, `WEB_DOMAIN`, `CADDY_EMAIL`
+6. `GRAFANA_ADMIN_PASSWORD` y `GRAFANA_ROOT_URL` si vas a activar observabilidad con perfil `prod`
+7. `HC_PING_URL_CRON_*` si vas a integrar Healthchecks
+
+No guardar secretos reales dentro de `/opt/esdata` ni en ningun `.env` versionado: el deploy canonico usa `/etc/esdata/esdata.env`.
+
+## Paso 4: Ejecutar deploy canonico
+
+```bash
+bash scripts/ops/deploy-hetzner.sh
+```
+
+Este script es la ruta canonica de despliegue y exige este orden antes de arrancar la aplicacion:
+
+1. validar `docker compose`
+2. construir el contenedor `ops`
+3. levantar `postgres`
+4. ejecutar `alembic upgrade head`
+5. ejecutar `python scripts/maintenance/verify_schema.py`
+6. levantar `caddy`, `api`, `web` y todo el worker set continuo definido en Compose
+
+## Paso 5: Levantar servicios manualmente por partes
 
 ```bash
 # Construir imagenes
-docker compose -f infra/deploy/docker-compose.prod.yml build
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml build
 
 # Levantar Postgres primero
-docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d postgres
 
 # Verificar estado
-docker compose -f infra/deploy/docker-compose.prod.yml ps
-```
-
-## Paso 5: Verificar healthchecks
-
-```bash
-# Esperar a que todos los servicios esten healthy
-sleep 30
-docker compose -f infra/deploy/docker-compose.prod.yml ps
-
-# Verificar API
-curl -s https://api.tudominio.com/health
-
-# Verificar Web
-curl -s https://tudominio.com | head -20
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
 ```
 
 ## Paso 6: Migraciones
 
 ```bash
 # Aplicar migraciones y verificar esquema desde el contenedor ops
-docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
-docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
 ```
 
 ## Paso 7: Levantar API y frontend
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml up -d api web caddy
-docker compose -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
 ```
 
-## Paso 8: Ingestion inicial
+Si ya ejecutaste `bash scripts/ops/deploy-hetzner.sh`, este paso y el de migraciones ya quedan cubiertos por el flujo canonico.
+
+## Paso 8: Verificar healthchecks
+
+```bash
+# Esperar a que todos los servicios esten healthy
+sleep 30
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
+
+# Verificar API
+curl -s https://api.tudominio.com/health
+
+# Verificar status autenticado
+curl -s -H "X-API-Key: $ESDATA_API_KEY" https://api.tudominio.com/status
+
+# Verificar Web
+curl -s https://tudominio.com | head -20
+```
+
+## Paso 9: Ingestion inicial
 
 ```bash
 # Ejecutar worker BOE (ingesta principal)
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-boe python boe.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-boe python boe.py --run-once
 
 # Ejecutar otros workers segun necesidad
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt python dgt.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-modelos python modelos.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-cnmv python cnmv.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-sepblac python sepblac.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-bde python bde.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt python dgt.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-teac python teac.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-modelos python aeat_models.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-bdns python bdns.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-borme python borme.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-cnmv python cnmv.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-sepblac python sepblac.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-cendoj python cendoj.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-eurlex python eurlex.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-bde python bde.py --run-once
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm worker-aepd python aepd.py --run-once
 ```
 
-## Paso 9: Verificar datos
+## Paso 10: Verificar datos
 
 ```bash
 # Contar documentos ingeridos
-docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esdata -d esdata -c \
   "SELECT COUNT(*) FROM version_articulo; SELECT COUNT(*) FROM norma;"
 ```
 
@@ -168,18 +153,18 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esd
 Los workers corren en modo continuo por defecto. Los `cron-*` de Compose son one-shot y deben programarse con scheduler externo, preferiblemente `systemd`.
 
 ```bash
-# Opcion 1: Configurar systemd timers para todos los cron soportados
+# Opcion 1: Configurar los systemd timers versionados en el repo
 sudo cp infra/deploy/systemd/esdata-job@.service /etc/systemd/system/
 sudo cp infra/deploy/systemd/*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now esdata-boe-daily.timer esdata-modelos-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer
+sudo systemctl enable --now esdata-boe-daily.timer esdata-modelos-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer
 systemctl list-timers --all | grep esdata
 
-# Opcion 2: Usar cron del sistema con docker compose run
+# Opcion 2: Usar cron del sistema para cron services adicionales no cubiertos por `infra/deploy/systemd/*.timer`
 ```
 
-Si se usa Healthchecks, cada servicio `cron-*` enviara `start`, `success` y `fail`
-automaticamente cuando `HC_PING_URL_CRON_*` este definido en `.env`.
+Si se usa Healthchecks, cada cron service solo emitira `start`, `success` y `fail`
+si su `HC_PING_URL_CRON_*` esta realmente cableado en `infra/deploy/docker-compose.prod.yml` y definido en `/etc/esdata/esdata.env`.
 
 No reiniciar `deploy-alertmanager-1` con la plantilla del repo sin renderizar. En el VPS, `infra/observability/alertmanager.yml` debe contener `bot_token` y `chat_id` ya resueltos.
 
@@ -190,7 +175,7 @@ No reiniciar `deploy-alertmanager-1` con la plantilla del repo sin renderizar. E
 crontab -e
 
 # Backup diario a las 3am
-0 3 * * * cd /opt/esdata && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata | gzip > /backups/esdata_$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz
+0 3 * * * cd /opt/esdata && docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec postgres pg_dump -U esdata esdata | gzip > /backups/esdata_$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz
 0 3 * * * find /backups -name "esdata_*.sql.gz" -mtime +30 -delete
 ```
 
@@ -198,16 +183,16 @@ crontab -e
 
 ```bash
 # Ver logs en tiempo real
-docker compose -f infra/deploy/docker-compose.prod.yml logs -f
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs -f
 
 # Ver consumo de recursos
 docker stats
 
 # Verificar salud de contenedores
-docker compose -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
 
 # Verificar ultimos cron jobs monitorizados
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm \
   -e WORKER_CMD="python --version" \
   ops python scripts/maintenance/validate-cron-run.py --db-url "$DATABASE_URL"
 ```
@@ -217,14 +202,14 @@ docker compose -f infra/deploy/docker-compose.prod.yml run --rm \
 ### Postgres no arranca
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml logs postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs postgres
 # Verificar que POSTGRES_PASSWORD esta definido correctamente
 ```
 
 ### API no responde
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml logs api
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs api
 # Verificar DATABASE_URL
 # Verificar que postgres esta healthy antes de api
 ```
@@ -232,9 +217,9 @@ docker compose -f infra/deploy/docker-compose.prod.yml logs api
 ### Workers no ingieren datos
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml logs worker-boe
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs worker-boe
 # Verificar que hay migraciones aplicadas
-docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
 ```
 
 ### SSL no funciona
@@ -244,7 +229,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm op
 dig api.tudominio.com
 
 # Verificar Caddy logs
-docker compose -f infra/deploy/docker-compose.prod.yml logs caddy
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs caddy
 
 # Verificar que puertos 80/443 estan abiertos
 sudo ss -tlnp | grep -E ':(80|443)'

@@ -6,6 +6,8 @@ La `API` HTTP es la forma mas estable de integrar `esdata` en otras aplicaciones
 
 La documentacion de contrato debe consultarse siempre en OpenAPI, pero este capitulo da ejemplos practicos de uso.
 
+La integracion MCP se documenta aparte en `07-mcp-y-clientes.md`. Este capitulo se limita a `REST/OpenAPI`.
+
 ## Endpoints base utiles
 
 - `GET /health`
@@ -19,7 +21,6 @@ La documentacion de contrato debe consultarse siempre en OpenAPI, pero este capi
 | `/v1/consulta` | Legislacion + modelos, con grounding y abstencion | `?q=tipo+reducido+IVA` |
 | `/v1/buscar` | Legislacion indexada unicamente | `?q=prescripcion+LGT` |
 | `/v1/modelos/` | Modelos tributarios (303, 349, 100...) | `/v1/modelos/303` |
-| `/mcp` | Protocolo MCP para agentes | SSE con `Accept: text/event-stream` |
 
 `/v1/buscar?q=modelo+303` devuelve vacio por diseno: los modelos tributarios no son legislacion y se sirven desde `/v1/modelos/`.
 
@@ -55,7 +56,7 @@ curl -s http://127.0.0.1:8000/health
 Estado agregado de workers:
 
 ```bash
-curl -s http://127.0.0.1:8000/status
+curl -s -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/status
 ```
 
 Panel minimo de observabilidad:

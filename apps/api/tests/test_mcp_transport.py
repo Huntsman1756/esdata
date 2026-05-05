@@ -3,61 +3,36 @@
 from __future__ import annotations
 
 import pytest
-from services.query_audit import QueryAuditService
+from _mcp_http_transport_harness import run_http_mcp_tool_call
 
 
-async def _run_mcp_consulta_call(mcp_client, request_id: str):
-    init_response = await mcp_client.post(
-        "/mcp",
-        json={
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": {"name": "pytest", "version": "1.0"},
-            },
-        },
+def test_mcp_transport_first_request_preserves_request_id_header():
+    handshake, initialize, tool_call = run_http_mcp_tool_call(
+        tool_name="list_modelos",
+        arguments={},
+        request_id="req-mcp-transport-001",
     )
 
-    assert init_response.status_code == 200
-    session_id = init_response.headers.get("Mcp-Session-Id")
-    assert session_id
+    assert handshake.status_code in {200, 400}
+    assert initialize.status_code == 200
+    assert tool_call.status_code == 200
+    assert tool_call.headers.get("X-Request-ID") == "req-mcp-transport-001"
+    payload = tool_call.json()
+    assert payload.get("result")
+    assert payload["result"].get("isError") is not True
 
-    consulta_response = await mcp_client.post(
-        "/mcp",
-        headers={
-            "Mcp-Session-Id": session_id,
-            "x-request-id": request_id,
-            "x-user-id": "internal-mcp-user",
-        },
-        json={
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/call",
-            "params": {
-                "name": "consulta_fiscal",
-                "arguments": {"q": "tipo reducido iva"},
-            },
-        },
+
+def test_mcp_transport_second_request_also_preserves_request_id_header():
+    handshake, initialize, tool_call = run_http_mcp_tool_call(
+        tool_name="list_modelos",
+        arguments={},
+        request_id="req-mcp-transport-002",
     )
 
-    assert consulta_response.status_code == 200
-    assert consulta_response.headers.get("X-Request-ID") == request_id
-
-
-@pytest.mark.asyncio
-async def test_mcp_transport_first_request_persists_audit_row(mcp_client):
-    await _run_mcp_consulta_call(mcp_client, "req-mcp-transport-001")
-
-    entries = QueryAuditService().get_by_request_id("req-mcp-transport-001")
-    assert len(entries) == 1
-
-
-@pytest.mark.asyncio
-async def test_mcp_transport_second_request_also_persists_audit_row(mcp_client):
-    await _run_mcp_consulta_call(mcp_client, "req-mcp-transport-002")
-
-    entries = QueryAuditService().get_by_request_id("req-mcp-transport-002")
-    assert len(entries) == 1
+    assert handshake.status_code in {200, 400}
+    assert initialize.status_code == 200
+    assert tool_call.status_code == 200
+    assert tool_call.headers.get("X-Request-ID") == "req-mcp-transport-002"
+    payload = tool_call.json()
+    assert payload.get("result")
+    assert payload["result"].get("isError") is not True

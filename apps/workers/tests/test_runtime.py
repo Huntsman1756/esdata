@@ -119,3 +119,36 @@ def test_ensure_database_connection_retries_dns_and_connect(monkeypatch):
         ("info", "DB DNS resolved: postgres -> 172.19.0.5"),
         ("info", "DB connection established"),
     ]
+
+
+def test_finalize_partial_sync_status_keeps_ok_without_missing_artifacts():
+    status, error_msg = runtime.finalize_partial_sync_status(
+        base_status="ok",
+        missing_count=0,
+        source_label="DGT documents",
+    )
+
+    assert status == "ok"
+    assert error_msg is None
+
+
+def test_finalize_partial_sync_status_degrades_ok_to_partial_with_message():
+    status, error_msg = runtime.finalize_partial_sync_status(
+        base_status="ok",
+        missing_count=2,
+        source_label="CNMV documents",
+    )
+
+    assert status == "partial"
+    assert error_msg == "Skipped 2 CNMV documents after fetch failures"
+
+
+def test_finalize_partial_sync_status_preserves_non_ok_base_status():
+    status, error_msg = runtime.finalize_partial_sync_status(
+        base_status="partial",
+        missing_count=1,
+        source_label="AEAT official resources",
+    )
+
+    assert status == "partial"
+    assert error_msg == "Skipped 1 AEAT official resources after fetch failures"

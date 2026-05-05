@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import httpx
 import pytest
@@ -8,27 +8,26 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cnmv import (
+    _detect_ambito,
+    _detect_document_type,
+    _detect_obligaciones,
+    _detect_regulaciones,
+    _detect_vigencia,
+    _discover_cnmv_circulares,
+    _discover_new_urls,
+    _extract_boe_reference,
+    _extract_circular_number,
+    _extract_publication_date,
+    _extract_reference,
+    _get_next_version,
+    _record_version,
+    _upsert_obligation_links,
+    _upsert_regulation_links,
     build_document_payload,
     run_sync,
     upsert_documento_interpretativo,
     upsert_with_versioning,
-    _detect_document_type,
-    _detect_ambito,
-    _detect_regulaciones,
-    _detect_obligaciones,
-    _upsert_regulation_links,
-    _upsert_obligation_links,
-    _extract_reference,
-    _extract_circular_number,
-    _extract_publication_date,
-    _extract_boe_reference,
-    _detect_vigencia,
-    _discover_new_urls,
-    _discover_cnmv_circulares,
-    _record_version,
-    _get_next_version,
 )
-
 
 MINIMAL_CNMV_PDF = b"""%PDF-1.4
 1 0 obj
@@ -411,6 +410,115 @@ def test_upsert_with_enriched_columns():
     assert row[4] == "vigente"
 
 
+def test_upsert_documento_interpretativo_sets_row_quality_contract():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT,
+                    numero_circular TEXT,
+                    fecha_publicacion TEXT,
+                    referencia_boe TEXT,
+                    estado_vigencia TEXT,
+                    row_completeness TEXT NOT NULL,
+                    row_provenance TEXT NOT NULL
+                )
+                """
+            )
+        )
+
+        payload = {
+            "referencia": "BOE-A-2009-133",
+            "fecha": "2009-01-02",
+            "titulo": "Circular 9/2008",
+            "tipo_documento": "circular_cnmv",
+            "organismo_emisor": "CNMV",
+            "jurisdiccion": "es",
+            "tipo_fuente": "cnmv",
+            "ambito": "reporting_regulatorio_cnmv",
+            "texto": "Normas contables.",
+            "url_fuente": "https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133",
+            "numero_circular": "9/2008",
+            "fecha_publicacion": "2009",
+            "referencia_boe": "BOE-A-2009-133",
+            "estado_vigencia": "vigente",
+        }
+
+        upsert_documento_interpretativo(conn, payload)
+
+        row = conn.execute(
+            text(
+                "SELECT row_completeness, row_provenance FROM documento_interpretativo WHERE referencia = 'BOE-A-2009-133'"
+            )
+        ).fetchone()
+
+    assert row == ("complete", "official_exact")
+
+
+def test_upsert_documento_interpretativo_normalizes_non_vocabulary_cnmv_values():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT,
+                    estado_vigencia TEXT
+                )
+                """
+            )
+        )
+
+        payload = {
+            "referencia": "CNMV-RES-1",
+            "fecha": "2025-01-02",
+            "titulo": "Resolucion de supervision general",
+            "tipo_documento": "resolucion_cnmv",
+            "organismo_emisor": "CNMV",
+            "jurisdiccion": "es",
+            "tipo_fuente": "cnmv",
+            "ambito": "general_cnmv",
+            "texto": "Documento de supervision general de la CNMV.",
+            "url_fuente": "https://www.cnmv.es/res1.pdf",
+            "estado_vigencia": "vigente",
+        }
+
+        upsert_documento_interpretativo(conn, payload)
+
+        row = conn.execute(
+            text(
+                "SELECT tipo_documento, ambito, estado_vigencia "
+                "FROM documento_interpretativo WHERE referencia = 'CNMV-RES-1'"
+            )
+        ).fetchone()
+
+    assert row == ("documento_cnmv", "mercados", "vigente")
+
+
 # ---------------------------------------------------------------------------
 # Sync
 # ---------------------------------------------------------------------------
@@ -509,10 +617,94 @@ def test_run_sync_persists_cnmv_document_and_metrics(monkeypatch):
         "BOE-A-2009-133",
         "CNMV",
         "cnmv",
-        "reporting_regulatorio_cnmv",
+        "reporting_regulatorio",
         "circular_cnmv",
     )
     assert sync == ("worker-cnmv", "ok", 1, 1)
+
+
+def test_run_sync_marks_partial_when_a_cnmv_document_fetch_fails(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT,
+                    numero_circular TEXT,
+                    fecha_publicacion TEXT,
+                    referencia_boe TEXT,
+                    estado_vigencia TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    urls_discovered INTEGER,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("boom", request=request)
+
+    monkeypatch.setattr("cnmv.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr(
+        "cnmv._discover_new_urls",
+        lambda seed_urls=None: ["https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133"],
+    )
+
+    result = run_sync(seed_urls=["https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133"])
+
+    with engine.begin() as conn:
+        sync = conn.execute(
+            text(
+                "SELECT status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+            )
+        ).fetchone()
+
+    assert result == {"processed": 0, "stored": 0, "discovered": 1}
+    assert sync == (
+        "partial",
+        0,
+        0,
+        "Skipped 1 CNMV documents after fetch failures",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -529,19 +721,20 @@ def test_discover_cnmv_circulares_from_main_page(monkeypatch):
             status_code = 200
             def __init__(self, url):
                 if "Circulares.aspx" in str(url) and "-20" not in str(url) and "-15" not in str(url) and "-10" not in str(url) and "-05" not in str(url) and "-00" not in str(url):
-                    self.text = fixture_path.read_text()
+                    self.text = fixture_path.read_text(encoding="utf-8")
                 elif "Circulares-2021-2025" in str(url):
                     self.text = (
                         fixture_path.resolve().parent / "cnmv-circulares-2021-2025.html"
-                    ).read_text()
+                    ).read_text(encoding="utf-8")
                 else:
                     self.text = "<html></html>"
         return httpx.Response(200, content=b"<html></html>")
 
     # Use fixture directly
-    main_html = fixture_path.read_text()
-    from bs4 import BeautifulSoup
+    main_html = fixture_path.read_text(encoding="utf-8")
     import re
+
+    from bs4 import BeautifulSoup
     soup = BeautifulSoup(main_html, "html.parser")
     pattern = re.compile(r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE)
     links = []
@@ -688,7 +881,9 @@ def test_discover_new_urls_fallback(monkeypatch):
 
     # Re-import to pick up new env var
     import importlib
+
     import cnmv
+
     importlib.reload(cnmv)
 
     urls = cnmv._discover_new_urls()

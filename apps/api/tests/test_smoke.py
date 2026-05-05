@@ -1,16 +1,57 @@
-# apps/api/tests/test_smoke.py
+import sys
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from pathlib import Path
 from sqlalchemy import text
-import sys
 
 
 def _client():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from main import app
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+def _seed_doctrina_fixture(reference: str, metodo_enlace: str, confianza_enlace: float):
+    from conftest import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente,
+                    ambito, referencia, fecha, titulo, texto, url_fuente
+                )
+                VALUES (
+                    'consulta_vinculante', 'DGT', 'es', 'dgt',
+                    'fiscal', :reference, '2026-01-15', 'Consulta DGT fixture',
+                    'Documento fixture relacionado con LIVA 91.', :url_fuente
+                )
+                """
+            ),
+            {
+                "reference": reference,
+                "url_fuente": f"https://example.invalid/dgt/{reference}",
+            },
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
+                SELECT d.id, a.id, :metodo_enlace, :confianza_enlace, 'Test fixture'
+                FROM documento_interpretativo d
+                JOIN articulo a ON a.numero = '91'
+                JOIN norma n ON n.id = a.norma_id
+                WHERE d.referencia = :reference AND n.codigo = 'LIVA'
+                """
+            ),
+            {
+                "reference": reference,
+                "metodo_enlace": metodo_enlace,
+                "confianza_enlace": confianza_enlace,
+            },
+        )
 
 
 @pytest.mark.asyncio
@@ -95,7 +136,8 @@ async def test_liva_articulo_91():
         r = await c.get("/v1/legislacion/LIVA/articulos/91")
     assert r.status_code == 200
     data = r.json()
-    assert "texto" in data and len(data["texto"]) > 0
+    assert "texto" in data
+    assert len(data["texto"]) > 0
     assert data["confianza"]["nivel"] >= 1
 
 
@@ -195,7 +237,9 @@ async def test_doctrina_buscar_por_texto():
 @pytest.mark.asyncio
 async def test_doctrina_buscar_filtra_por_tipo():
     async with _client() as c:
-        r = await c.get("/v1/doctrina/buscar?q=tipo+reducido&tipo=consulta_vinculante")
+        r = await c.get(
+            "/v1/doctrina/buscar?q=tipo+reducido&tipo=consulta_vinculante&include_boe=false"
+        )
     assert r.status_code == 200
     data = r.json()
     assert len(data["resultados"]) >= 1
@@ -525,6 +569,76 @@ async def test_doctrina_detalle_expone_articulos_relacionados():
 
 
 @pytest.mark.asyncio
+async def test_doctrina_detail_marks_heuristic_only_links_as_partial():
+    from services.query_audit import QueryAuditService, reset_query_audit_service
+
+    reference = "VHEUR-26"
+    request_id = "req-doctrina-heuristic-detail-001"
+    reset_query_audit_service()
+
+    _seed_doctrina_fixture(reference, "auto_link_heuristic", 0.85)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=__import__("main").app),
+        base_url="http://test",
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": request_id,
+            "x-user-id": "internal-doctrina-user",
+        },
+    ) as client:
+        response = await client.get(f"/v1/doctrina/{reference}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["articulos_relacionados"] == [
+        {
+            "norma": "LIVA",
+            "numero": "91",
+            "metodo_enlace": "auto_link_heuristic",
+            "confianza_enlace": 0.85,
+        }
+    ]
+    assert data["confianza"]["nivel"] == 1
+
+    entries = QueryAuditService().get_by_request_id(request_id)
+    assert len(entries) == 1
+    assert entries[0].completeness == "parcial"
+    assert entries[0].verified is False
+
+
+@pytest.mark.asyncio
+async def test_doctrina_detail_requires_exact_link_for_complete_audit():
+    from services.query_audit import QueryAuditService, reset_query_audit_service
+
+    reference = "VEXACT-26"
+    request_id = "req-doctrina-exact-detail-001"
+    reset_query_audit_service()
+
+    _seed_doctrina_fixture(reference, "manual", 1.0)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=__import__("main").app),
+        base_url="http://test",
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": request_id,
+            "x-user-id": "internal-doctrina-user",
+        },
+    ) as client:
+        response = await client.get(f"/v1/doctrina/{reference}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["confianza"]["nivel"] == 2
+
+    entries = QueryAuditService().get_by_request_id(request_id)
+    assert len(entries) == 1
+    assert entries[0].completeness == "completa"
+    assert entries[0].verified is True
+
+
+@pytest.mark.asyncio
 async def test_articulo_inexistente_devuelve_404():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos/9999")
@@ -542,8 +656,10 @@ async def test_cobertura_muestra_normas():
     codigos = [n["codigo"] for n in data["normas"]]
     assert "LIVA" in codigos
     liva = next(n for n in data["normas"] if n["codigo"] == "LIVA")
-    assert "articulos" in liva and liva["articulos"] >= 1
-    assert "versiones" in liva and liva["versiones"] >= 1
+    assert "articulos" in liva
+    assert liva["articulos"] >= 1
+    assert "versiones" in liva
+    assert liva["versiones"] >= 1
 
 
 @pytest.mark.asyncio
@@ -584,7 +700,8 @@ async def test_modelo_detalle_con_fuente():
     art = data["articulos"][0]
     assert "norma" in art
     assert "numero" in art
-    assert "fuente" in art and art["fuente"] is not None
+    assert "fuente" in art
+    assert art["fuente"] is not None
     assert "url_fuente" in art
 
 
@@ -694,6 +811,17 @@ async def test_modelo_campana_operativa_endpoint_devuelve_payload_valido():
 
 
 @pytest.mark.asyncio
+async def test_modelos_campanas_operativas_endpoint_devuelve_envelope_valido():
+    async with _client() as c:
+        r = await c.get("/v1/modelos/campanas-operativas?codigos=100,303&campana=2025")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["codigos"] == ["100", "303"]
+    assert data["campana"] == "2025"
+    assert [item["codigo"] for item in data["resultados"]] == ["100", "303"]
+
+
+@pytest.mark.asyncio
 async def test_modelo_inexistente_404():
     async with _client() as c:
         r = await c.get("/v1/modelos/999")
@@ -770,13 +898,7 @@ def test_status_endpoint_no_session_leaks():
     El pool de conexiones debe tener checkedout == 0 después de la request.
     Esto detecta regresiones donde se abre Session sin context manager.
     """
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from main import app
-
-    from httpx import ASGITransport, AsyncClient
 
     client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
@@ -790,9 +912,9 @@ def test_status_endpoint_no_session_leaks():
     finally:
         loop.close()
 
-    engine = app.state.engine if hasattr(app.state, "engine") else None
     # Si no hay engine expuesto, verificamos por el pool de db.py
     from db import engine as api_engine
+
     assert api_engine.pool.checkedout() == 0, (
         f"Session leak detectado: {api_engine.pool.checkedout()} conexiones checkout"
     )
@@ -804,7 +926,6 @@ def test_worker_heartbeat_file_created():
     El heartbeat se usa para los healthchecks de Docker. Si no se crea,
     Docker no puede detectar crash loops silenciosos.
     """
-    import os
     import tempfile
     from pathlib import Path
 

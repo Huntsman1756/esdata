@@ -1,16 +1,18 @@
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from schemas import (
-    DoctrinaDetail as DoctrinaDetailSchema,
-)
-from schemas import (
-    DoctrinaSearchResponse,
-)
+from schemas import DoctrinaDetail as DoctrinaDetailSchema
+from schemas import DoctrinaSearchResponse
 from services.query_audit import get_query_audit_service
 from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
 from services.semantic_search import hybrid_search_doctrina
 from sqlalchemy import text
+
+EXACT_LINK_METHODS = {"manual", "manual_official", "auto_link_exact"}
+
+
+def _has_exact_anchor(linked_articles: list[dict]) -> bool:
+    return any(item["metodo_enlace"] in EXACT_LINK_METHODS for item in linked_articles)
 
 
 def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
@@ -466,11 +468,8 @@ async def get_doctrina(request: Request, referencia: str):
             ).mappings()
         )
 
-        max_confidence = max(
-            (float(item["confianza_enlace"]) for item in linked_articles), default=0.0
-        )
-        has_strong_anchor = max_confidence >= 0.85
         has_any_anchor = bool(linked_articles)
+        has_exact_anchor = _has_exact_anchor(linked_articles)
 
         payload = {
             "referencia": row["referencia"],
@@ -487,7 +486,7 @@ async def get_doctrina(request: Request, referencia: str):
                 for item in linked_articles
             ],
             "confianza": {
-                "nivel": 2 if has_strong_anchor else (1 if has_any_anchor else 0),
+                "nivel": 2 if has_exact_anchor else (1 if has_any_anchor else 0),
                 "fuentes": [row["referencia"]],
                 "aviso": None
                 if has_any_anchor
@@ -511,11 +510,11 @@ async def get_doctrina(request: Request, referencia: str):
             ],
             response_summary=f"articulos_relacionados={len(linked_articles)}",
             confidence={
-                "score": 0.9 if has_strong_anchor else (0.5 if has_any_anchor else 0.0),
-                "label": "alta" if has_strong_anchor else ("media" if has_any_anchor else "baja"),
+                "score": 0.9 if has_exact_anchor else (0.5 if has_any_anchor else 0.0),
+                "label": "alta" if has_exact_anchor else ("media" if has_any_anchor else "baja"),
             },
-            completeness="completa" if has_any_anchor else "parcial",
-            verified=has_any_anchor,
+            completeness="completa" if has_exact_anchor else "parcial",
+            verified=has_exact_anchor,
         )
         return payload
 

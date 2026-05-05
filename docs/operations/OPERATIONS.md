@@ -10,15 +10,17 @@ Operacion diaria minima de `esdata` para un despliegue privado con Docker Compos
 - `api`
 - `web`
 - `caddy`
-- workers continuos activados (`worker-boe`, `worker-dgt`, `worker-teac`, `worker-modelos` y los adicionales que se hayan habilitado)
+- workers continuos del deploy canonico (`worker-boe`, `worker-dgt`, `worker-teac`, `worker-modelos`, `worker-bdns`, `worker-borme`, `worker-cnmv`, `worker-sepblac`, `worker-cendoj`, `worker-eurlex`, `worker-bde`, `worker-aepd`)
 - jobs `cron-*` si el entorno los programa externamente
 
 ## Comprobaciones rapidas
 
+Los ejemplos con `curl` asumen que `ESDATA_API_KEY` y `MCP_API_KEY` ya estan exportadas en la shell actual o se sustituyen inline desde `/etc/esdata/esdata.env`.
+
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
 curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/status
+curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/status
 curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/v1/modelos
 curl -i -H "Accept: text/event-stream" -H "X-API-Key: $MCP_API_KEY" http://127.0.0.1:8000/mcp
 ```
@@ -26,18 +28,18 @@ curl -i -H "Accept: text/event-stream" -H "X-API-Key: $MCP_API_KEY" http://127.0
 ## Logs
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f api
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f postgres
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f worker-boe worker-dgt worker-teac worker-modelos
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs -f api
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs -f postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs -f worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
 ```
 
 ## Operaciones frecuentes
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml restart api
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml restart worker-boe worker-dgt worker-teac worker-modelos
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d --build api web
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml down
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml restart api
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml restart worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d --build api web
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml down
 ```
 
 ## Cambios de configuracion
@@ -45,17 +47,23 @@ docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.
 Cuando cambie el fichero de entorno:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml config
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d api web caddy
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml config
+bash scripts/ops/deploy-hetzner.sh
+```
+
+Si solo necesitas recrear el runtime continuo tras un cambio ya migrado y verificado:
+
+```bash
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
 ```
 
 ## Base de datos y migraciones
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade heads
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
 ```
 
 ## Backup minimo
@@ -63,7 +71,7 @@ docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.
 Usar el script oficial:
 
 ```bash
-ENV_FILE=infra/deploy/.env.prod BACKUP_DIR=/srv/backups/esdata scripts/ops/backup-postgres.sh
+ENV_FILE=/etc/esdata/esdata.env BACKUP_DIR=/srv/backups/esdata scripts/ops/backup-postgres.sh
 ```
 
 ## Incidencias comunes

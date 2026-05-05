@@ -2,7 +2,7 @@
 
 Fuente: https://petete.tributos.hacienda.gob.es/ (consultas vinculantes y
 no vinculantes). Discovery via `dgt_doctrina.py` (queue persistente en
-`source_revision`). Persistencia: tabla `documento_interpretativo` con
+`dgt_queue`). Persistencia: tabla `documento_interpretativo` con
 `tipo_fuente='dgt'`, `tipo_documento='consulta_dgt'`.
 
 Conflict key: `documento_interpretativo.referencia` UNIQUE
@@ -39,6 +39,7 @@ from change_detection import (
 )
 from runtime import (
     ensure_database_connection,
+    finalize_partial_sync_status,
     get_bool_env,
     get_database_url,
     get_interval_seconds,
@@ -46,6 +47,7 @@ from runtime import (
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
+from vocabulary_validation import sanitize_documento_payload
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +56,8 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+_DGT_QUEUE_BOOTSTRAP_LOGGED: set[str] = set()
 
 
 SEED_URLS = [
@@ -153,7 +157,6 @@ def _clean_html_text(value: str) -> str:
 
 
 def parse_search_results(html: str) -> list[dict[str, str]]:
-    results = []
     query_match = re.search(
         r'<input type="hidden" name="query" id="query" value="(?P<query>[^"]+)"',
         html,
@@ -174,20 +177,18 @@ def parse_search_results(html: str) -> list[dict[str, str]]:
         re.DOTALL,
     )
 
-    for match in pattern.finditer(html):
-        results.append(
-            {
-                "doc_id": match.group("doc_id"),
-                "query": query_value,
-                "order": order_value,
-                "tab": match.group("tab") or "2",
-                "referencia": match.group("referencia"),
-                "hechos": _clean_html_text(match.group("hechos")),
-                "cuestion": _clean_html_text(match.group("cuestion")),
-            }
-        )
-
-    return results
+    return [
+        {
+            "doc_id": match.group("doc_id"),
+            "query": query_value,
+            "order": order_value,
+            "tab": match.group("tab") or "2",
+            "referencia": match.group("referencia"),
+            "hechos": _clean_html_text(match.group("hechos")),
+            "cuestion": _clean_html_text(match.group("cuestion")),
+        }
+        for match in pattern.finditer(html)
+    ]
 
 
 def _extract_field(html: str, field_class: str) -> str | None:
@@ -262,41 +263,69 @@ def _build_titulo(document: dict[str, str | list[str]]) -> str:
 
 
 def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
+    payload = dict(payload)
+
+    if conn.engine.dialect.name == "sqlite":
+        table_columns = {
+            row[1]
+            for row in conn.execute(text("PRAGMA table_info(documento_interpretativo)"))
+        }
+    else:
+        table_columns = {
+            row[0]
+            for row in conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'documento_interpretativo'
+                    """
+                )
+            )
+        }
+
+    payload.setdefault("tipo_documento", "consulta_vinculante")
+    payload.setdefault("organismo_emisor", "DGT")
+    payload.setdefault("jurisdiccion", "es")
+    payload.setdefault("tipo_fuente", "dgt")
+    payload.setdefault("ambito", "fiscal")
+    payload.setdefault("row_completeness", "complete")
+    payload.setdefault("row_provenance", "official_exact")
+    payload = sanitize_documento_payload(payload)
+
+    ordered_columns = [
+        "tipo_documento",
+        "organismo_emisor",
+        "jurisdiccion",
+        "tipo_fuente",
+        "ambito",
+        "referencia",
+        "fecha",
+        "titulo",
+        "texto",
+        "url_fuente",
+        "row_completeness",
+        "row_provenance",
+    ]
+    insert_columns = [column for column in ordered_columns if column in table_columns]
+    update_columns = [
+        column
+        for column in ("fecha", "titulo", "texto", "url_fuente")
+        if column in insert_columns
+    ]
+    assignments = [f"{column} = excluded.{column}" for column in update_columns]
+
     conn.execute(
         text(
-            """
-            INSERT INTO documento_interpretativo (
-                tipo_documento,
-                organismo_emisor,
-                jurisdiccion,
-                tipo_fuente,
-                ambito,
-                referencia,
-                fecha,
-                titulo,
-                texto,
-                url_fuente
-            )
-            VALUES (
-                'consulta_vinculante',
-                'DGT',
-                'es',
-                'dgt',
-                'fiscal',
-                :referencia,
-                :fecha,
-                :titulo,
-                :texto,
-                :url_fuente
-            )
+            f"""
+            INSERT INTO documento_interpretativo ({', '.join(insert_columns)})
+            VALUES ({', '.join(f':{column}' for column in insert_columns)})
             ON CONFLICT (referencia) DO UPDATE SET
-                fecha = excluded.fecha,
-                titulo = excluded.titulo,
-                texto = excluded.texto,
-                url_fuente = excluded.url_fuente
+                {', '.join(assignments)}
             """
         ),
-        payload,
+        {column: payload[column] for column in insert_columns},
     )
 
 
@@ -305,17 +334,62 @@ def fetch_search_html_for_discovery(num_consulta: str) -> str | None:
     return None
 
 
+def ensure_dgt_queue_table(conn) -> None:
+    """Garantiza que `dgt_queue` existe en SQLite/tests.
+
+    En Postgres la tabla es propiedad de la migracion
+    `20260504_0057_dgt_queue_split`, asi que este helper degrada a no-op
+    defensivo y solo conserva bootstrap local para SQLite.
+    """
+    dialect_name = conn.engine.dialect.name
+    if dialect_name != "sqlite":
+        if dialect_name not in _DGT_QUEUE_BOOTSTRAP_LOGGED:
+            logger.debug(
+                "ensure_dgt_queue_table: no-op en %s; schema owned por Alembic "
+                "(20260504_0057_dgt_queue_split)",
+                dialect_name,
+            )
+            _DGT_QUEUE_BOOTSTRAP_LOGGED.add(dialect_name)
+        return
+
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS dgt_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                worker_name TEXT NOT NULL,
+                source_entity_id TEXT NOT NULL,
+                dgt_url TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'processed', 'empty')),
+                queued_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
+                processed_at TIMESTAMP,
+                UNIQUE(worker_name, source_entity_id)
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            CREATE INDEX IF NOT EXISTS idx_dgt_queue_pending
+                ON dgt_queue(worker_name, status, id)
+            """
+        )
+    )
+
+
 def _ensure_dgt_queue(conn, worker_name: str, seed_urls: list[str]) -> None:
-    """Insert seed URLs into source_revision as pending queue entries."""
+    """Insert seed URLs into `dgt_queue` as pending queue entries."""
+    ensure_dgt_queue_table(conn)
     for url in seed_urls:
         num_consulta = _extract_num_consulta(url)
         conn.execute(
             text("""
-                INSERT INTO source_revision (
-                    worker_name, source_entity_tipo, source_entity_id,
-                    content_hash_sha256, dgt_url
-                ) VALUES (:worker, 'consulta', :entity_id, 'pending', :url)
-                ON CONFLICT (worker_name, source_entity_tipo, source_entity_id) DO NOTHING
+                INSERT INTO dgt_queue (
+                    worker_name, source_entity_id, dgt_url, status
+                ) VALUES (:worker, :entity_id, :url, 'pending')
+                ON CONFLICT (worker_name, source_entity_id) DO NOTHING
             """),
             {
                 "worker": worker_name,
@@ -330,11 +404,9 @@ def _get_pending_urls(conn, worker_name: str, limit: int = 100) -> list[tuple[st
     result = conn.execute(
         text("""
             SELECT dgt_url, source_entity_id
-            FROM source_revision
+            FROM dgt_queue
             WHERE worker_name = :worker
-              AND source_entity_tipo = 'consulta'
-              AND content_hash_sha256 = 'pending'
-              AND dgt_url IS NOT NULL
+              AND status = 'pending'
             ORDER BY id ASC
             LIMIT :limit
         """),
@@ -343,28 +415,30 @@ def _get_pending_urls(conn, worker_name: str, limit: int = 100) -> list[tuple[st
     return result.fetchall()
 
 
-def _mark_done(conn, worker_name: str, entity_id: str, content_hash: str) -> None:
-    """Mark a queue entry as processed by updating its hash."""
+def _mark_done(conn, worker_name: str, entity_id: str, status: str) -> None:
+    """Mark a queue entry as processed or empty."""
+    if status not in {"processed", "empty"}:
+        raise ValueError(f"Unsupported DGT queue status: {status}")
+
     conn.execute(
         text("""
-            UPDATE source_revision
-            SET content_hash_sha256 = :hash,
-                fetched_at = :ts
+            UPDATE dgt_queue
+            SET status = :status,
+                processed_at = :ts
             WHERE worker_name = :worker
-              AND source_entity_tipo = 'consulta'
               AND source_entity_id = :entity_id
-              AND content_hash_sha256 = 'pending'
+              AND status = 'pending'
         """),
         {
             "worker": worker_name,
-            "hash": content_hash,
+            "status": status,
             "entity_id": entity_id,
             "ts": datetime.now(UTC).isoformat(),
         },
     )
 
 
-def run_sync(
+def run_sync(  # noqa: C901
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-dgt",
     batch_size: int = 100,
@@ -374,6 +448,7 @@ def run_sync(
     total_stored = 0
     total_discovered = 0
     links_created = 0
+    missing_document_failures = 0
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine, logger=logger)
 
@@ -389,6 +464,7 @@ def run_sync(
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
                 ensure_source_revision_table(conn)
+                ensure_dgt_queue_table(conn)
                 _ensure_dgt_queue(conn, worker_name, seed_list)
 
             # Phase 2: Discovery — insert new URLs into pending queue
@@ -401,9 +477,8 @@ def run_sync(
                         row[0] for row in conn.execute(
                             text("""
                                 SELECT source_entity_id
-                                FROM source_revision
+                                FROM dgt_queue
                                 WHERE worker_name = :worker
-                                  AND source_entity_tipo = 'consulta'
                             """),
                             {"worker": worker_name},
                         ).fetchall()
@@ -468,11 +543,10 @@ def run_sync(
                         with engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO source_revision (
-                                        worker_name, source_entity_tipo, source_entity_id,
-                                        content_hash_sha256, dgt_url
-                                    ) VALUES (:worker, 'consulta', :entity_id, 'pending', :url)
-                                    ON CONFLICT (worker_name, source_entity_tipo, source_entity_id) DO NOTHING
+                                    INSERT INTO dgt_queue (
+                                        worker_name, source_entity_id, dgt_url, status
+                                    ) VALUES (:worker, :entity_id, :url, 'pending')
+                                    ON CONFLICT (worker_name, source_entity_id) DO NOTHING
                                 """),
                                 batch_inserts,
                             )
@@ -485,6 +559,7 @@ def run_sync(
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
                 ensure_source_revision_table(conn)
+                ensure_dgt_queue_table(conn)
 
             while True:
                 start_session(client)
@@ -499,6 +574,7 @@ def run_sync(
                 batch_processed = 0
                 batch_stored = 0
                 batch_links = 0
+                batch_missing_documents = 0
 
                 for url, entity_id in pending:
                     touch_heartbeat()
@@ -507,19 +583,9 @@ def run_sync(
                         search_html = fetch_search_html(client, num_consulta)
                         results = parse_search_results(search_html)
                         if not results:
-                            # Mark as done (no content) to avoid retrying
+                            batch_missing_documents += 1
                             with engine.begin() as conn:
-                                conn.execute(
-                                    text("""
-                                        UPDATE source_revision
-                                        SET content_hash_sha256 = 'empty'
-                                        WHERE worker_name = :worker
-                                          AND source_entity_tipo = 'consulta'
-                                          AND source_entity_id = :entity_id
-                                          AND content_hash_sha256 = 'pending'
-                                    """),
-                                    {"worker": worker_name, "entity_id": entity_id},
-                                )
+                                _mark_done(conn, worker_name, entity_id, "empty")
                             continue
 
                         query, order, doc_id = _build_document_payload(results[0])
@@ -534,19 +600,8 @@ def run_sync(
                         batch_processed += 1
 
                         if not document["normas_objetivo"]:
-                            # Mark as done (no target normas)
                             with engine.begin() as conn:
-                                conn.execute(
-                                    text("""
-                                        UPDATE source_revision
-                                        SET content_hash_sha256 = 'empty'
-                                        WHERE worker_name = :worker
-                                          AND source_entity_tipo = 'consulta'
-                                          AND source_entity_id = :entity_id
-                                          AND content_hash_sha256 = 'pending'
-                                    """),
-                                    {"worker": worker_name, "entity_id": entity_id},
-                                )
+                                _mark_done(conn, worker_name, entity_id, "empty")
                             continue
 
                         # Check content change
@@ -584,12 +639,12 @@ def run_sync(
 
                             # Mark queue entry as done
                             with engine.begin() as conn:
-                                _mark_done(conn, worker_name, entity_id, change.new_hash or "processed")
+                                _mark_done(conn, worker_name, entity_id, "processed")
                         else:
                             print(f"  [SKIP] {document['referencia']} unchanged")
                             # Mark queue entry as done (already processed)
                             with engine.begin() as conn:
-                                _mark_done(conn, worker_name, entity_id, change.old_hash or "unchanged")
+                                _mark_done(conn, worker_name, entity_id, "processed")
 
                         time.sleep(1)
 
@@ -605,6 +660,7 @@ def run_sync(
 
                 total_processed += batch_processed
                 total_stored += batch_stored
+                missing_document_failures += batch_missing_documents
                 logger.info(
                     "DGT batch: %d processed, %d stored, %d pending remaining",
                     batch_processed, batch_stored,
@@ -613,13 +669,19 @@ def run_sync(
 
             with engine.begin() as conn:
                 _ensure_sync_log_table(conn)
+                final_status, final_error_msg = finalize_partial_sync_status(
+                    base_status="ok",
+                    missing_count=missing_document_failures,
+                    source_label="DGT documents",
+                )
                 log_sync(
                     conn,
                     worker_name,
-                    "ok",
+                    final_status,
                     documentos_processed=total_processed,
                     documentos_upserted=total_stored,
                     doctrina_links_created=links_created,
+                    error_msg=final_error_msg,
                 )
 
         return {

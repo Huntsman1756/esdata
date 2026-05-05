@@ -1,12 +1,16 @@
-from pathlib import Path
+import importlib
 import sys
+from pathlib import Path
 
 import httpx
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from bde import build_document_payload, run_sync, upsert_documento_interpretativo
+bde = importlib.import_module("bde")
+build_document_payload = bde.build_document_payload
+run_sync = bde.run_sync
+upsert_documento_interpretativo = bde.upsert_documento_interpretativo
 
 
 MINIMAL_BDE_PDF = (
@@ -104,7 +108,7 @@ def test_upsert_documento_interpretativo_stores_bde_fields_once():
     assert row == (
         "BDE-informes-2024-estabilidad",
         "informe_bde",
-        "Banco de España",
+        "Banco de Espana",
         "bde",
         "estabilidad_financiera",
         1,
@@ -183,7 +187,7 @@ def test_run_sync_persists_bde_document_and_metrics(monkeypatch):
             )
         ).fetchone()
 
-    assert doc[1] == "Banco de España"
+    assert doc[1] == "Banco de Espana"
     assert doc[2] == "bde"
     assert doc[3] == "estabilidad_financiera"
     assert doc[4] == "informe_bde"

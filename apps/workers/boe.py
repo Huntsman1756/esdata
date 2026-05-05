@@ -656,12 +656,12 @@ def auto_link_doctrina(conn) -> int:
     for doc in docs:
         found_refs = _extract_doctrina_refs(doc["texto"])
 
-        for codigo, numero, confianza in found_refs:
+        for codigo, numero, confianza, metodo_enlace in found_refs:
             conn.execute(
                 text(
                     """
                 INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
-                SELECT :doc_id, a.id, 'auto_link', :confianza_enlace, :nota
+                SELECT :doc_id, a.id, :metodo_enlace, :confianza_enlace, :nota
                 FROM articulo a
                 JOIN norma n ON n.id = a.norma_id
                 WHERE n.codigo = :codigo AND a.numero = :numero
@@ -670,13 +670,35 @@ def auto_link_doctrina(conn) -> int:
                     metodo_enlace = EXCLUDED.metodo_enlace,
                     confianza_enlace = EXCLUDED.confianza_enlace,
                     nota = EXCLUDED.nota
-                WHERE EXCLUDED.confianza_enlace > documento_articulo.confianza_enlace
+                WHERE documento_articulo.metodo_enlace IN (
+                    'auto_link',
+                    'auto_link_exact',
+                    'auto_link_heuristic'
+                )
+                AND (
+                    (
+                        EXCLUDED.metodo_enlace = 'auto_link_exact'
+                        AND documento_articulo.metodo_enlace IN (
+                            'auto_link',
+                            'auto_link_heuristic'
+                        )
+                    )
+                    OR (
+                        EXCLUDED.metodo_enlace = 'auto_link_heuristic'
+                        AND documento_articulo.metodo_enlace = 'auto_link'
+                    )
+                    OR (
+                        EXCLUDED.metodo_enlace = documento_articulo.metodo_enlace
+                        AND EXCLUDED.confianza_enlace > documento_articulo.confianza_enlace
+                    )
+                )
                 """
                 ),
                 {
                     "doc_id": doc["id"],
                     "codigo": codigo,
                     "numero": numero,
+                    "metodo_enlace": metodo_enlace,
                     "confianza_enlace": confianza,
                     "nota": f"Referencia auto-detectada: {codigo} art. {numero}",
                 },
@@ -686,7 +708,7 @@ def auto_link_doctrina(conn) -> int:
     return links_created
 
 
-def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
+def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float, str]]:
     explicit_norma_refs = set()
     source = text_value.upper()
 
@@ -707,7 +729,7 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
                 numero, codigo = first, second
             else:
                 codigo, numero = first, second
-            explicit_norma_refs.add((codigo.upper(), numero, 1.00))
+            explicit_norma_refs.add((codigo.upper(), numero, 1.00, "auto_link_exact"))
 
     law_patterns = [
         re.compile(
@@ -725,7 +747,7 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
             numero, ley = match.groups()
             codigo = LAW_TO_NORMA.get(ley)
             if codigo:
-                explicit_norma_refs.add((codigo, numero, 1.00))
+                explicit_norma_refs.add((codigo, numero, 1.00, "auto_link_exact"))
 
     # Named law alias: "de la Ley del IVA" -> LIVA
     for pattern in [
@@ -739,7 +761,7 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         ),
     ]:
         for match in pattern.finditer(source):
-            explicit_norma_refs.add(("LIVA", match.group(1), 1.00))
+            explicit_norma_refs.add(("LIVA", match.group(1), 1.00, "auto_link_exact"))
 
     if explicit_norma_refs:
         return explicit_norma_refs
@@ -756,18 +778,18 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
         sola_norma = explicit_law_normas.pop()
         article_refs = set()
         for match in re.finditer(r"(?:ART[ÍI]?CULO|ART\.?)\s+(\d+)\b", source):
-            article_refs.add((sola_norma, match.group(1), 1.00))
+            article_refs.add((sola_norma, match.group(1), 1.00, "auto_link_exact"))
         if article_refs:
             return article_refs
 
     # Small first contextual heuristic for doctrine without explicit article citation.
     # TEAC resolutions about IVA + base imponible often target LIVA art. 91 in our MVP set.
     if "IVA" in source and "BASE IMPONIBLE" in source:
-        return {("LIVA", "91", 0.75)}
+        return {("LIVA", "91", 0.75, "auto_link_heuristic")}
     if "IVA" in source and "REGIMEN ESPECIAL" in source:
-        return {("LIVA", "91", 0.75)}
+        return {("LIVA", "91", 0.75, "auto_link_heuristic")}
     if "IVA" in source and "RECARGO DE EQUIVALENCIA" in source:
-        return {("LIVA", "24", 0.75)}
+        return {("LIVA", "24", 0.75, "auto_link_heuristic")}
 
     context_normas = []
     for codigo in DEFAULT_NORMAS:
@@ -786,7 +808,7 @@ def _extract_doctrina_refs(text_value: str) -> set[tuple[str, str, float]]:
 
     contextual_refs = set()
     for match in re.finditer(r"(?:ART[ÍI]?CULO|ART\.?)\s+(\d+)\b", source):
-        contextual_refs.add((context_normas[0], match.group(1), 0.85))
+        contextual_refs.add((context_normas[0], match.group(1), 0.85, "auto_link_heuristic"))
 
     return contextual_refs
 

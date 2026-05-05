@@ -871,6 +871,11 @@ def seed_modelos(conn, dry_run: bool = False):
                 skipped += 1
                 continue
 
+            if not url_fuente or not url_fuente.strip():
+                print(f"SKIP: missing url_fuente for {modelo_codigo} -> {norma} art. {numero}")
+                skipped += 1
+                continue
+
             if dry_run:
                 print(
                     f"[DRY-RUN] Would insert: {modelo_codigo} → {norma} art. {numero} "
@@ -907,15 +912,30 @@ def seed_modelos(conn, dry_run: bool = False):
             # Upsert relationship
             cur.execute(
                 """
-                INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO modelo_articulo (
+                    modelo_id,
+                    articulo_id,
+                    norma,
+                    numero,
+                    casilla,
+                    nota,
+                    fuente,
+                    url_fuente,
+                    metodo_enlace,
+                    confianza_enlace
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'manual_official', 1.0)
                 ON CONFLICT (modelo_id, articulo_id) DO UPDATE SET
+                    norma = EXCLUDED.norma,
+                    numero = EXCLUDED.numero,
                     casilla = EXCLUDED.casilla,
                     nota = EXCLUDED.nota,
                     fuente = EXCLUDED.fuente,
-                    url_fuente = EXCLUDED.url_fuente
+                    url_fuente = EXCLUDED.url_fuente,
+                    metodo_enlace = EXCLUDED.metodo_enlace,
+                    confianza_enlace = EXCLUDED.confianza_enlace
                 """,
-                (modelo_id, articulo_id, casilla, nota, fuente, url_fuente),
+                (modelo_id, articulo_id, norma, numero, casilla, nota, fuente, url_fuente),
             )
             inserted += 1
 
@@ -932,7 +952,7 @@ def main():
     args = parser.parse_args()
 
     db_url = get_db_url(args.db_url)
-    print(f"Database: {db_url[:40]}...")
+    print("Database connection target configured")
     print(f"Dry run: {args.dry_run}")
 
     conn = connect(db_url)

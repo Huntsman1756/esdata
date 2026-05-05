@@ -7,7 +7,7 @@ Validar y operar `worker-aeat` contra `sede.agenciatributaria.gob.es` desde un e
 ## Estado actual
 
 - El worker existe en codigo y despliegue.
-- El servicio Compose productivo es `worker-aeat`.
+- El servicio Compose disponible para ejecucion manual es `worker-aeat`.
 - El servicio solo se expone via `profile` manual `aeat`.
 - No arranca con `docker compose up` por defecto.
 - La validacion live no puede hacerse desde el entorno de desarrollo actual por bloqueo/resolucion DNS de AEAT fuera de IP espanola.
@@ -15,8 +15,8 @@ Validar y operar `worker-aeat` contra `sede.agenciatributaria.gob.es` desde un e
 ## Precondiciones
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   exec postgres psql -U esdata -d esdata \
   -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'modelo_recurso' LIMIT 5;"
 ```
@@ -24,8 +24,8 @@ docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.
 Si `modelo_recurso` no existe o no devuelve filas:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
-  --profile ops run --rm ops alembic upgrade heads
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
+  --profile ops run --rm ops alembic upgrade head
 ```
 
 ## Ejecucion manual
@@ -33,14 +33,14 @@ docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.
 Modo normal:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   --profile aeat run --rm worker-aeat 2>&1 | tee /tmp/aeat_run.log
 ```
 
 Forzando Playwright:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   --profile aeat run --rm \
   -e WORKER_CMD="python aeat_models.py --run-once --force-playwright" \
   worker-aeat 2>&1 | tee /tmp/aeat_run.log
@@ -75,22 +75,22 @@ grep -Ei "error|exception|failed|traceback" /tmp/aeat_run.log
 ## Verificaciones SQL post-run
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   exec postgres psql -U esdata -d esdata \
   -c "SELECT codigo, activo, url_listado FROM aeat_modelo ORDER BY codigo LIMIT 10;"
 
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   exec postgres psql -U esdata -d esdata \
   -c "SELECT m.codigo, c.campana, c.estado_publicacion
       FROM modelo_campana c JOIN aeat_modelo m ON m.id = c.modelo_id
       ORDER BY m.codigo, c.campana DESC LIMIT 10;"
 
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   exec postgres psql -U esdata -d esdata \
   -c "SELECT campana_id, tipo_recurso, formato, LEFT(sha256_contenido, 12) AS sha_prefix, activa
       FROM modelo_recurso ORDER BY first_seen_at DESC LIMIT 10;"
 
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   exec postgres psql -U esdata -d esdata \
   -c "SELECT worker, documentos_processed, documentos_upserted, articulos_upserted, errors, created_at
       FROM sync_log WHERE worker = 'worker-aeat-modelos'
@@ -131,7 +131,7 @@ curl -A "Mozilla/5.0" -I "https://www.sede.agenciatributaria.gob.es/Sede/enlecti
 - revisar schema e indices:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml \
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml \
   exec postgres psql -U esdata -d esdata -c "\d+ modelo_recurso"
 ```
 

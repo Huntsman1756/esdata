@@ -179,13 +179,13 @@ class ModeloSummary(BaseModel):
 
 
 class ModeloArticulo(BaseModel):
-    norma: str = Field(description="Código de la norma")
-    numero: str = Field(description="Número del artículo")
-    titulo: str | None = Field(default=None, description="Título del artículo")
-    casilla: str | None = Field(default=None, description="Casilla asociada")
-    nota: str | None = Field(default=None, description="Nota explicativa")
-    fuente: str = Field(description="Fuente del enlace")
-    url_fuente: str | None = Field(default=None, description="URL de la fuente")
+    norma: str = Field(description="Código de la norma verificada para el enlace visible")
+    numero: str = Field(description="Número del artículo verificado para el enlace visible")
+    titulo: str | None = Field(default=None, description="Título del artículo visible enlazado de forma verificada")
+    casilla: str | None = Field(default=None, description="Casilla asociada al enlace verificado visible")
+    nota: str | None = Field(default=None, description="Nota explicativa del enlace verificado visible")
+    fuente: str = Field(description="Fuente oficial usada para verificar el enlace visible")
+    url_fuente: str | None = Field(default=None, description="URL oficial que respalda el enlace visible")
 
 
 class DoctrinaViaArticulo(BaseModel):

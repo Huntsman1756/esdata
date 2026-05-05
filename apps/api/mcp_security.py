@@ -5,6 +5,8 @@ from collections import defaultdict, deque
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from mcp_request_context import mcp_request_scope
+
 
 _RATE_BUCKETS: dict[str, deque[float]] = defaultdict(deque)
 
@@ -57,4 +59,7 @@ async def guard_mcp_http(request: Request, call_next):
         return JSONResponse({"detail": "MCP rate limit exceeded"}, status_code=429)
 
     bucket.append(now)
-    return await call_next(request)
+    request_id = request.headers.get("x-request-id") or request.headers.get("X-Request-ID")
+    user_id = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
+    with mcp_request_scope(request_id=request_id, user_id=user_id):
+        return await call_next(request)

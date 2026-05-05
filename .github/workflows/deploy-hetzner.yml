@@ -25,4 +25,5 @@ jobs:
             git fetch --all --prune
             git checkout main
             git pull --ff-only origin main
+            echo "Running canonical deploy script with migrations required"
             bash scripts/ops/deploy-hetzner.sh

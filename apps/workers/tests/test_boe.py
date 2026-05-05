@@ -1,9 +1,9 @@
-import sys
 import subprocess
+import sys
 from pathlib import Path
-import httpx
 from unittest.mock import patch
 
+import httpx
 from sqlalchemy import create_engine, event, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -11,8 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from boe import (
     BloqueTexto,
     NormaMetadata,
-    _ensure_sync_log_table,
     _ensure_schema,
+    _ensure_sync_log_table,
     _schema_statements,
     auto_link_doctrina,
     auto_link_materias,
@@ -547,8 +547,9 @@ def test_run_once_flag_accepts_argparse():
 
 def test_run_sync_returns_dict_with_bloques_and_articulos():
     """Verify run_sync returns a dict with separate bloques and articulos counts."""
-    from boe import run_sync
     import inspect
+
+    from boe import run_sync
 
     sig = inspect.signature(run_sync)
     assert sig.return_annotation == dict[str, int]
@@ -747,12 +748,8 @@ def test_auto_link_materias_creates_link():
     assert row == (2, "tipo-reducido-iva")
 
 
-def test_auto_link_doctrina_upgrades_confidence_when_better_match_found():
-    """Verify that a better match (1.0 > 0.85) upgrades the existing link.
-
-    This is the production bug: links created at 0.85 were never upgraded
-    when explicit 1.0 patterns were added later.
-    """
+def test_auto_link_doctrina_upgrades_to_exact_method_when_better_match_found():
+    """Verify an exact match upgrades an existing heuristic row."""
     eng = _setup_link_test_db()
     with eng.begin() as c:
         # Create a document and seed a link at 0.85 (simulating old contextual match)
@@ -767,7 +764,7 @@ def test_auto_link_doctrina_upgrades_confidence_when_better_match_found():
         c.execute(
             text(
                 "INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota) "
-                "SELECT di.id, a.id, 'contextual_fallback', 0.85, 'Old contextual match' "
+                "SELECT di.id, a.id, 'auto_link_heuristic', 0.85, 'Old contextual match' "
                 "FROM documento_interpretativo di, articulo a JOIN norma n ON n.id = a.norma_id "
                 "WHERE di.referencia = 'UPGRADE-TEST' AND n.codigo = 'LIVA' AND a.numero = '91'"
             )
@@ -785,12 +782,10 @@ def test_auto_link_doctrina_upgrades_confidence_when_better_match_found():
             )
         ).fetchone()
 
-    assert row[0] == 1.0  # confidence upgraded
-    assert row[1] == "auto_link"
-    assert row[2] == "Referencia auto-detectada: LIVA art. 91"
+    assert row == (1.0, "auto_link_exact", "Referencia auto-detectada: LIVA art. 91")
 
 
-def test_auto_link_doctrina_creates_strong_links_for_explicit_norma_and_article():
+def test_auto_link_doctrina_persists_exact_method_for_explicit_norma_and_article():
     eng = _setup_link_test_db()
     with eng.begin() as c:
         c.execute(
@@ -804,7 +799,7 @@ def test_auto_link_doctrina_creates_strong_links_for_explicit_norma_and_article(
         links = auto_link_doctrina(c)
         rows = c.execute(
             text(
-                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "SELECT n.codigo, a.numero, da.metodo_enlace, da.confianza_enlace "
                 "FROM documento_articulo da "
                 "JOIN articulo a ON a.id = da.articulo_id "
                 "JOIN norma n ON n.id = a.norma_id "
@@ -813,10 +808,13 @@ def test_auto_link_doctrina_creates_strong_links_for_explicit_norma_and_article(
         ).fetchall()
 
     assert links == 2
-    assert rows == [("LIS", "15", 1.0), ("LIVA", "91", 1.0)]
+    assert rows == [
+        ("LIS", "15", "auto_link_exact", 1.0),
+        ("LIVA", "91", "auto_link_exact", 1.0),
+    ]
 
 
-def test_auto_link_doctrina_uses_single_norma_context_for_article_reference():
+def test_auto_link_doctrina_persists_heuristic_method_for_contextual_match():
     eng = _setup_link_test_db()
     with eng.begin() as c:
         c.execute(
@@ -830,7 +828,7 @@ def test_auto_link_doctrina_uses_single_norma_context_for_article_reference():
         links = auto_link_doctrina(c)
         row = c.execute(
             text(
-                "SELECT n.codigo, a.numero, da.confianza_enlace "
+                "SELECT n.codigo, a.numero, da.metodo_enlace, da.confianza_enlace "
                 "FROM documento_articulo da "
                 "JOIN articulo a ON a.id = da.articulo_id "
                 "JOIN norma n ON n.id = a.norma_id "
@@ -839,7 +837,115 @@ def test_auto_link_doctrina_uses_single_norma_context_for_article_reference():
         ).fetchone()
 
     assert links == 1
-    assert row == ("LIVA", "91", 0.85)
+    assert row == ("LIVA", "91", "auto_link_heuristic", 0.85)
+
+
+def test_auto_link_doctrina_reclassifies_legacy_auto_link_row_on_rerun():
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'V0003-26', '2026-01-15', 'Test', "
+                "'Consulta sobre el IVA. De acuerdo con el articulo 91, procede aplicar el tipo reducido.', NULL)"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota) "
+                "SELECT di.id, a.id, 'auto_link', 0.85, 'Legacy auto link' "
+                "FROM documento_interpretativo di, articulo a JOIN norma n ON n.id = a.norma_id "
+                "WHERE di.referencia = 'V0003-26' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        )
+
+        auto_link_doctrina(c)
+
+        row = c.execute(
+            text(
+                "SELECT da.metodo_enlace, da.confianza_enlace, da.nota "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "JOIN documento_interpretativo di ON di.id = da.documento_id "
+                "WHERE di.referencia = 'V0003-26' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        ).fetchone()
+
+    assert row == ("auto_link_heuristic", 0.85, "Referencia auto-detectada: LIVA art. 91")
+
+
+def test_auto_link_doctrina_does_not_overwrite_manual_row_with_exact_match():
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('resolucion_teac', 'TEAC', 'es', 'teac', 'fiscal', 'MANUAL-GUARD', '2026-04-12', 'Test', "
+                "'Resolucion sobre LIVA 91 en materia de IVA.', NULL)"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota) "
+                "SELECT di.id, a.id, 'manual_official', 1.00, 'Official curated link' "
+                "FROM documento_interpretativo di, articulo a JOIN norma n ON n.id = a.norma_id "
+                "WHERE di.referencia = 'MANUAL-GUARD' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        )
+
+        auto_link_doctrina(c)
+
+        row = c.execute(
+            text(
+                "SELECT da.metodo_enlace, da.confianza_enlace, da.nota "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "JOIN documento_interpretativo di ON di.id = da.documento_id "
+                "WHERE di.referencia = 'MANUAL-GUARD' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        ).fetchone()
+
+    assert row == ("manual_official", 1.0, "Official curated link")
+
+
+def test_auto_link_doctrina_does_not_downgrade_exact_row_with_heuristic_match():
+    eng = _setup_link_test_db()
+    with eng.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO documento_interpretativo "
+                "(tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito, referencia, fecha, titulo, texto, url_fuente) "
+                "VALUES ('consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal', 'EXACT-GUARD', '2026-01-15', 'Test', "
+                "'Consulta sobre el IVA. De acuerdo con el articulo 91, procede aplicar el tipo reducido.', NULL)"
+            )
+        )
+        c.execute(
+            text(
+                "INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota) "
+                "SELECT di.id, a.id, 'auto_link_exact', 1.00, 'Exact auto link already present' "
+                "FROM documento_interpretativo di, articulo a JOIN norma n ON n.id = a.norma_id "
+                "WHERE di.referencia = 'EXACT-GUARD' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        )
+
+        auto_link_doctrina(c)
+
+        row = c.execute(
+            text(
+                "SELECT da.metodo_enlace, da.confianza_enlace, da.nota "
+                "FROM documento_articulo da "
+                "JOIN articulo a ON a.id = da.articulo_id "
+                "JOIN norma n ON n.id = a.norma_id "
+                "JOIN documento_interpretativo di ON di.id = da.documento_id "
+                "WHERE di.referencia = 'EXACT-GUARD' AND n.codigo = 'LIVA' AND a.numero = '91'"
+            )
+        ).fetchone()
+
+    assert row == ("auto_link_exact", 1.0, "Exact auto link already present")
 
 
 def test_auto_link_doctrina_skips_ambiguous_article_reference():
@@ -921,13 +1027,13 @@ def test_auto_link_doctrina_art_norma_variants():
     from boe import _extract_doctrina_refs
 
     refs = _extract_doctrina_refs("Resolucion sobre art. 91 LIVA en materia de IVA.")
-    assert ("LIVA", "91", 1.0) in refs
+    assert ("LIVA", "91", 1.0, "auto_link_exact") in refs
 
     refs = _extract_doctrina_refs("Conforme Art. 15 LIS se determina la base.")
-    assert ("LIS", "15", 1.0) in refs
+    assert ("LIS", "15", 1.0, "auto_link_exact") in refs
 
     refs = _extract_doctrina_refs("Aplicable el ART 50 LGT al presente caso.")
-    assert ("LGT", "50", 1.0) in refs
+    assert ("LGT", "50", 1.0, "auto_link_exact") in refs
 
 
 def test_auto_link_doctrina_matches_articulo_ley_del_iva():
@@ -1499,6 +1605,7 @@ def test_run_sync_touches_heartbeat_during_long_boe_processing(monkeypatch):
         ),
     )
     monkeypatch.setattr("boe._ensure_schema", lambda conn: None)
+    monkeypatch.setattr("boe.ensure_database_connection", lambda *args, **kwargs: None)
     monkeypatch.setattr("boe.upsert_norma", lambda conn, metadata: None)
     monkeypatch.setattr("boe.upsert_articulo", lambda conn, codigo, bloque: None)
     monkeypatch.setattr("boe.auto_link_materias", lambda conn: None)
