@@ -938,6 +938,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                 _get_existing_codes(conn)
 
                 for model in discovered:
+                    touch_heartbeat()
                     try:
                         codigo = model["codigo"]
                         nombre = model["nombre"]

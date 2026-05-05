@@ -926,6 +926,55 @@ def test_run_sync_uses_heartbeat_sleep(monkeypatch):
     assert sleep_calls == [aeat_models.SYNC_INTERVAL_SECONDS]
 
 
+def test_run_sync_refreshes_heartbeat_while_processing_models(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    heartbeat_calls = []
+    sleep_calls = []
+
+    class LoopStopped(BaseException):
+        pass
+
+    discovered = [{"codigo": "303", "nombre": "Modelo 303", "url_info": "https://example.com/303"}]
+
+    monkeypatch.setattr("aeat_models.get_portal_client", lambda force_playwright=False: object())
+    monkeypatch.setattr("aeat_models._try_acquire_sync_lock", lambda conn: True)
+    monkeypatch.setattr("aeat_models._discover_aeat_models", lambda portal_client=None: discovered)
+    monkeypatch.setattr("aeat_models._upsert_aeat_model", lambda *args, **kwargs: True)
+    monkeypatch.setattr("aeat_models._get_modelo_id", lambda *args, **kwargs: 1)
+    monkeypatch.setattr("aeat_models._upsert_modelo_campana", lambda *args, **kwargs: (1, True))
+    monkeypatch.setattr("aeat_models._store_modelo_recurso_version", lambda *args, **kwargs: "unchanged")
+    monkeypatch.setattr("aeat_models._mark_deprecated_models", lambda *args, **kwargs: 0)
+    monkeypatch.setattr("aeat_models._record_sync_log", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "aeat_models._fetch_model_metadata",
+        lambda codigo, url_info=None, portal_client=None: {
+            "codigo": codigo,
+            "nombre": "Modelo 303",
+            "url_info": url_info,
+            "campana": "2025",
+            "periodo": "trimestral",
+            "impuesto": "IVA",
+            "recursos": [],
+        },
+    )
+    monkeypatch.setattr("aeat_models.touch_heartbeat", lambda: heartbeat_calls.append("touch"), raising=False)
+
+    def fake_sleep_with_heartbeat(seconds):
+        sleep_calls.append(seconds)
+        raise LoopStopped
+
+    monkeypatch.setattr("aeat_models.sleep_with_heartbeat", fake_sleep_with_heartbeat, raising=False)
+
+    try:
+        aeat_models.run_sync(engine, run_once=False)
+        assert False, "Expected LoopStopped"
+    except LoopStopped:
+        pass
+
+    assert heartbeat_calls == ["touch", "touch"]
+    assert sleep_calls == [aeat_models.SYNC_INTERVAL_SECONDS]
+
+
 def test_run_sync_falls_back_to_seeded_models_when_discovery_is_empty(monkeypatch):
     engine = create_engine("sqlite:///:memory:")
 
