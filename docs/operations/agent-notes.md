@@ -45,7 +45,7 @@ Usar notas cortas con este esquema:
 - Scope: `infra/deploy/docker-compose.prod.yml`, `scripts/ops/deploy-hetzner.sh`, runbooks de deploy, `infra/deploy/systemd/esdata-job@.service`
 - Hallazgo: cuando el Compose activo gana workers continuos nuevos, el deploy canonico y los runbooks pueden quedarse congelados en una lista historica parcial y dejar parte del corpus fuera del runtime real aunque los servicios existan en el repo.
 - Impacto: el equipo cree que produccion ejecuta todo el scope continuo, pero algunos workers nunca se levantan tras deploy; ademas, los chequeos manuales y el scheduler pueden romperse si cada artefacto usa un root distinto del repo.
-- Regla practica: tratar `infra/deploy/docker-compose.prod.yml` como fuente de verdad del worker set continuo (`worker-*` sin `profiles`) y fijar regresiones que comparen contra el comando canonico de deploy. Mantener tambien una sola raiz operativa del repo en docs activas y `systemd` (`/opt/esdata` en este slice).
+- Regla practica: tratar `infra/deploy/docker-compose.prod.yml` como fuente de verdad del worker set continuo (`worker-*` sin `profiles`) y fijar regresiones que comparen contra el comando canonico de deploy. Mantener tambien una sola raiz operativa del repo en docs activas y `systemd` (`/srv/esdata` en este slice).
 
 ### 2026-05-05 - Variables de entorno: separar runtime deploy de code-only y legacy
 
@@ -57,7 +57,7 @@ Usar notas cortas con este esquema:
 ### 2026-05-05 - Secretos de deploy: el fichero runtime vive fuera del checkout
 
 - Scope: `scripts/ops/deploy-hetzner.sh`, `scripts/ops/backup-postgres.sh`, `infra/deploy/docker-compose.prod.yml`, `infra/deploy/systemd/esdata-job@.service`, runbooks activos de deploy/ops
-- Hallazgo: aunque Git ignore `.env.*`, seguir usando `infra/deploy/.env.prod` como path operativo deja los secretos reales dentro de `/opt/esdata` y reabre el riesgo de tratarlos como parte normal del repo o de copiar plantillas/renderizados sensibles por error durante handoffs y tareas manuales.
+- Hallazgo: aunque Git ignore `.env.*`, seguir usando `infra/deploy/.env.prod` como path operativo deja los secretos reales dentro de `/srv/esdata` y reabre el riesgo de tratarlos como parte normal del repo o de copiar plantillas/renderizados sensibles por error durante handoffs y tareas manuales.
 - Impacto: el equipo puede creer que "fuera de Git" equivale a "fuera del repo", cuando el runtime secreto sigue residiendo dentro del checkout productivo y varios artefactos operativos lo refuerzan como convencion canonica.
 - Regla practica: para el deploy Compose activo, versionar solo `infra/deploy/compose.env.example` y cargar siempre el runtime real desde `/etc/esdata/esdata.env`. Si un script, unit file o runbook sigue apuntando a `infra/deploy/.env.prod`, tratarlo como drift operativo y corregirlo en el mismo slice.
 

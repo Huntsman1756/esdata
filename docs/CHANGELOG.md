@@ -4,6 +4,14 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ---
 
+## 2026-05-05
+
+### main
+- **c5b94bc** `fix(ops)` — harden cron scheduling and stale alerts: alinear la raiz operativa del VPS con `/srv/esdata`, ejecutar los `cron-*` de `systemd` con `docker compose run --rm --no-deps`, mantener los `cron-*` con DB en `esdata-internal` y cambiar `WorkerSilent` a `worker_stale_status` para que los `weekly` no alerten por un umbral global fijo de `48h`. Evidencia fresca: `python -m pytest scripts/tests/test_deploy_hetzner.py -q` -> `14 passed`; `python -m ruff check scripts/tests/test_deploy_hetzner.py --select F,I` -> `All checks passed!`.
+
+### docs
+- **PENDING** `docs(ops)` — cerrar el slice de scheduling/alertas en el roadmap, sincronizar las docs activas con `/srv/esdata` y registrar la trazabilidad viva del hardening operativo en `docs/CHANGELOG.md` y `docs/MEMO.md`.
+
 ## 2026-05-03
 
 ### fix/mcp-phase-0-1
