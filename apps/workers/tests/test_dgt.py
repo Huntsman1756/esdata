@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from change_detection import ensure_source_revision_table
+from dgt import FNMT_INTERMEDIATE_CHAIN
 from dgt import (
     _ensure_dgt_queue,
     _get_pending_urls,
@@ -774,6 +775,9 @@ def test_run_sync_uses_ssl_context_with_extra_fnmt_chain_when_verification_enabl
     monkeypatch,
 ):
     captured = {}
+
+    assert FNMT_INTERMEDIATE_CHAIN.exists()
+    assert "BEGIN CERTIFICATE" in FNMT_INTERMEDIATE_CHAIN.read_text(encoding="utf-8")
 
     def fake_client(*args, **kwargs):
         captured["verify"] = kwargs.get("verify")
