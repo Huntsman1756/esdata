@@ -44,6 +44,7 @@ router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
 def _date_to_str(value):
     return str(value) if value is not None else None
 
+
 def _record_modelo_query_audit(
     request: Request,
     *,
@@ -57,9 +58,7 @@ def _record_modelo_query_audit(
     verified: bool,
 ):
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
+        request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
         user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
         path=path,
         query_text=query_text,
@@ -77,9 +76,10 @@ def _clean_fields(row: dict, fields: tuple[str, ...]) -> dict:
 
 
 def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurso=None, activo=None):
-    rows = db.execute(
-        text(
-            """
+    rows = (
+        db.execute(
+            text(
+                """
              WITH active_campaign AS (
                  SELECT mc.*
                  FROM modelo_campana mc
@@ -110,25 +110,30 @@ def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurs
             GROUP BY m.id, m.codigo, m.nombre, m.activo, m.impuesto, ac.campana, ac.estado_publicacion
             ORDER BY m.codigo
             """
-        ),
-        {
-            "codigo": codigo,
-            "campana": campana,
-            "impuesto": impuesto,
-            "tipo_recurso": tipo_recurso,
-            "activo": activo,
-        },
-    ).mappings().all()
+            ),
+            {
+                "codigo": codigo,
+                "campana": campana,
+                "impuesto": impuesto,
+                "tipo_recurso": tipo_recurso,
+                "activo": activo,
+            },
+        )
+        .mappings()
+        .all()
+    )
     return [dict(row) for row in rows]
 
 
 def _get_aeat_model_row(db, codigo: str):
-    row = db.execute(
-        text(
-            "SELECT id, codigo, nombre, COALESCE(activo, true) AS activo FROM aeat_modelo WHERE codigo = :codigo"
-        ),
-        {"codigo": codigo},
-    ).mappings().first()
+    row = (
+        db.execute(
+            text("SELECT id, codigo, nombre, COALESCE(activo, true) AS activo FROM aeat_modelo WHERE codigo = :codigo"),
+            {"codigo": codigo},
+        )
+        .mappings()
+        .first()
+    )
     return dict(row) if row else None
 
 
@@ -163,18 +168,22 @@ def _get_aeat_campanas(db, modelo_id: int, campana: str | None = None, include_h
 
 
 def _get_aeat_recursos(db, campana_id: int, include_history: bool = False):
-    rows = db.execute(
-        text(
-            f"""
+    rows = (
+        db.execute(
+            text(
+                f"""
             SELECT tipo_recurso, formato, url_recurso, sha256_contenido,
                    fecha_publicacion_recurso, first_seen_at, last_seen_at, activa, id
             FROM modelo_recurso
             WHERE campana_id = :campana_id
-            {'ORDER BY tipo_recurso, activa DESC, id DESC' if include_history else 'AND activa = true ORDER BY tipo_recurso'}
+            {"ORDER BY tipo_recurso, activa DESC, id DESC" if include_history else "AND activa = true ORDER BY tipo_recurso"}
             """
-        ),
-        {"campana_id": campana_id},
-    ).mappings().all()
+            ),
+            {"campana_id": campana_id},
+        )
+        .mappings()
+        .all()
+    )
     return [
         {
             **dict(row),
@@ -332,9 +341,7 @@ async def get_modelo(
         model_row = get_model_row(db, codigo)
 
         if not model_row:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
 
         camp_row = get_active_campaign(db, codigo, campana)
         campana_id = camp_row["id"] if camp_row else None
@@ -372,13 +379,9 @@ async def get_modelo(
 
         operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
         estado_metadato = (
-            operativa_row["estado_metadato"]
-            if operativa_row and operativa_row.get("estado_metadato")
-            else None
+            operativa_row["estado_metadato"] if operativa_row and operativa_row.get("estado_metadato") else None
         )
-        cleanliness = assess_modelo_cleanliness(
-            model_row["nombre"], casillas, claves, instrucciones
-        )
+        cleanliness = assess_modelo_cleanliness(model_row["nombre"], casillas, claves, instrucciones)
         casillas = [_clean_fields(row, ("etiqueta", "descripcion")) for row in casillas]
         claves = [_clean_fields(row, ("etiqueta", "descripcion")) for row in claves]
         instrucciones = [_clean_fields(row, ("titulo", "contenido")) for row in instrucciones]
@@ -468,9 +471,7 @@ async def get_modelo_articulos(codigo: str):
         model_row = get_model_row(db, codigo)
 
         if not model_row:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
 
         rows = list_modelo_articulos(db, codigo)
 
@@ -498,16 +499,13 @@ async def get_modelo_articulos(codigo: str):
     summary="Casillas de un modelo",
 )
 async def get_modelo_casillas(
-    request: Request,
-    codigo: str, campana: str = Query(None, description="Campana especifica")
+    request: Request, codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     """Lista todas las casillas de un modelo para una campaña."""
     with db_session() as db:
         model_row = get_model_row(db, codigo)
         if not model_row:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
 
         camp_row = get_active_campaign(db, codigo, campana)
 
@@ -558,20 +556,15 @@ async def get_modelo_casillas(
         return payload
 
 
-@router.get(
-    "/{codigo}/claves", operation_id="get_modelo_claves", summary="Claves de un modelo"
-)
+@router.get("/{codigo}/claves", operation_id="get_modelo_claves", summary="Claves de un modelo")
 async def get_modelo_claves(
-    request: Request,
-    codigo: str, campana: str = Query(None, description="Campana especifica")
+    request: Request, codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     """Lista todas las claves de un modelo para una campaña."""
     with db_session() as db:
         model_row = get_model_row(db, codigo)
         if not model_row:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
 
         camp_row = get_active_campaign(db, codigo, campana)
 
@@ -628,16 +621,13 @@ async def get_modelo_claves(
     summary="Instrucciones de un modelo",
 )
 async def get_modelo_instrucciones(
-    request: Request,
-    codigo: str, campana: str = Query(None, description="Campana especifica")
+    request: Request, codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     """Lista las instrucciones de un modelo para una campaña."""
     with db_session() as db:
         model_row = get_model_row(db, codigo)
         if not model_row:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
 
         camp_row = get_active_campaign(db, codigo, campana)
 
@@ -707,15 +697,11 @@ async def get_modelo_normativa(codigo: str):
     summary="Artefactos técnicos disponibles para un modelo",
     openapi_extra={"x-beta": True},
 )
-async def get_modelo_artefactos(
-    codigo: str, campana: str = Query(None, description="Campana especifica")
-):
+async def get_modelo_artefactos(codigo: str, campana: str = Query(None, description="Campana especifica")):
     with db_session() as db:
         payload = list_modelo_artefactos(db, codigo, campana)
         if not payload:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
         return payload
 
 
@@ -726,15 +712,11 @@ async def get_modelo_artefactos(
     summary="Resumen operativo para agentes sobre un modelo",
     openapi_extra={"x-beta": True},
 )
-async def get_resumen_operativo_modelo(
-    codigo: str, campana: str = Query(None, description="Campana especifica")
-):
+async def get_resumen_operativo_modelo(codigo: str, campana: str = Query(None, description="Campana especifica")):
     with db_session() as db:
         payload = get_modelo_resumen_operativo(db, codigo, campana)
         if not payload:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
         return payload
 
 
@@ -745,15 +727,11 @@ async def get_resumen_operativo_modelo(
     summary="Vista de campaña operativa para agentes",
     openapi_extra={"x-beta": True},
 )
-async def get_campana_operativa_modelo(
-    codigo: str, campana: str = Query(None, description="Campana especifica")
-):
+async def get_campana_operativa_modelo(codigo: str, campana: str = Query(None, description="Campana especifica")):
     with db_session() as db:
         payload = get_modelo_campana_operativa(db, codigo, campana)
         if not payload:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
         return payload
 
 
@@ -765,15 +743,12 @@ async def get_campana_operativa_modelo(
     openapi_extra={"x-beta": True},
 )
 async def get_modelo_fuentes_oficiales(
-    request: Request,
-    codigo: str, campana: str = Query(None, description="Campana especifica")
+    request: Request, codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     with db_session() as db:
         payload = list_modelo_fuentes_oficiales(db, codigo, campana)
         if not payload:
-            raise HTTPException(
-                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": f"Modelo {codigo} no encontrado"})
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
             request,
@@ -794,4 +769,6 @@ async def get_modelo_fuentes_oficiales(
             verified=verified,
         )
         return payload
+
+
 # ruff: noqa: E501

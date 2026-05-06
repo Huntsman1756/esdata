@@ -47,12 +47,8 @@ def test_queue_seed_entries_live_in_dgt_queue_not_source_revision():
         _ensure_dgt_queue(conn, "worker-dgt", [url])
 
         pending = _get_pending_urls(conn, "worker-dgt")
-        queue_rows = conn.execute(
-            text("SELECT source_entity_id, dgt_url, status FROM dgt_queue")
-        ).fetchall()
-        source_rows = conn.execute(
-            text("SELECT source_entity_id, content_hash_sha256 FROM source_revision")
-        ).fetchall()
+        queue_rows = conn.execute(text("SELECT source_entity_id, dgt_url, status FROM dgt_queue")).fetchall()
+        source_rows = conn.execute(text("SELECT source_entity_id, content_hash_sha256 FROM source_revision")).fetchall()
 
     assert pending == [(url, "V0001-26")]
     assert queue_rows == [("V0001-26", url, "pending")]
@@ -186,9 +182,7 @@ def test_upsert_documento_interpretativo_sets_row_quality_contract():
         upsert_documento_interpretativo(conn, payload)
 
         row = conn.execute(
-            text(
-                "SELECT row_completeness, row_provenance FROM documento_interpretativo WHERE referencia = 'V2274-22'"
-            )
+            text("SELECT row_completeness, row_provenance FROM documento_interpretativo WHERE referencia = 'V2274-22'")
         ).fetchone()
 
     assert row == ("complete", "official_exact")
@@ -236,10 +230,7 @@ def test_start_session_sets_cookie_and_ajax_headers():
 
     assert client.cookies.get("JSESSIONID") == "abc123"
     assert client.headers["X-Requested-With"] == "XMLHttpRequest"
-    assert (
-        client.headers["Referer"]
-        == "https://petete.tributos.hacienda.gob.es/consultas/"
-    )
+    assert client.headers["Referer"] == "https://petete.tributos.hacienda.gob.es/consultas/"
 
 
 def test_fetch_search_and_document_html_use_ajax_flow():
@@ -273,9 +264,7 @@ def test_fetch_search_and_document_html_use_ajax_flow():
 
     start_session(client)
     search_html = fetch_search_html(client, "V2274-22")
-    document_html = fetch_document_html(
-        client, ".EN NUM-CONSULTA (V2274-22)", "NUM-CONSULTA|0", "46632"
-    )
+    document_html = fetch_document_html(client, ".EN NUM-CONSULTA (V2274-22)", "NUM-CONSULTA|0", "46632")
 
     assert "V2274-22" in search_html
     assert "Contestación completa" in document_html
@@ -445,9 +434,7 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
 
     with engine.begin() as conn:
         row = conn.execute(
-            text(
-                "SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo"
-            )
+            text("SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo")
         ).fetchone()
         queue_row = conn.execute(
             text(
@@ -725,12 +712,8 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
     result = run_sync()
 
     with engine.begin() as conn:
-        count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_interpretativo")
-        ).scalar_one()
-        link_count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_articulo")
-        ).scalar_one()
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
+        link_count = conn.execute(text("SELECT COUNT(*) FROM documento_articulo")).scalar_one()
         queue_row = conn.execute(
             text(
                 """
@@ -886,9 +869,7 @@ def test_run_sync_skips_when_advisory_lock_is_unavailable(monkeypatch):
     monkeypatch.setattr("dgt._ensure_dgt_queue", fail_mutation)
     monkeypatch.setattr(
         "dgt.httpx.Client",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("HTTP client should not start without lock")
-        ),
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("HTTP client should not start without lock")),
     )
 
     result = run_sync(seed_urls=[])
@@ -1111,8 +1092,7 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
     """
 
     no_results_html = (
-        '<div class="extra_padding"><div class="message">'
-        "La consulta realizada no devuelve resultados.</div></div>"
+        '<div class="extra_padding"><div class="message">La consulta realizada no devuelve resultados.</div></div>'
     )
 
     document_html = (FIXTURES / "V2274-22-document.html").read_text(encoding="utf-8")
@@ -1150,9 +1130,7 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
     result = run_sync(seed_urls=[])
 
     with engine.begin() as conn:
-        count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_interpretativo")
-        ).scalar_one()
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
         sync_row = conn.execute(
             text(
                 "SELECT worker, status, documentos_processed, documentos_upserted "
@@ -1168,6 +1146,7 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
 def test_fetch_search_html_for_discovery_returns_none(monkeypatch):
     """fetch_search_html_for_discovery is deprecated — always returns None."""
     from dgt import fetch_search_html_for_discovery
+
     assert fetch_search_html_for_discovery("V2274-22") is None
 
 
@@ -1187,11 +1166,7 @@ def test_run_sync_touches_heartbeat_during_long_processing(monkeypatch):
                 return type(
                     "Result",
                     (),
-                    {
-                        "fetchall": lambda self: [
-                            ("https://example.invalid/?num_consulta=V0001-26", "V0001-26")
-                        ]
-                    },
+                    {"fetchall": lambda self: [("https://example.invalid/?num_consulta=V0001-26", "V0001-26")]},
                 )()
             return type("Result", (), {"fetchall": lambda self: [], "fetchone": lambda self: None})()
 
@@ -1308,9 +1283,7 @@ def test_run_sync_does_not_mark_partial_for_transient_pending_fetch_error(monkey
     )
     monkeypatch.setattr(
         "dgt._mark_done",
-        lambda conn, worker_name, entity_id, status: marked_done.append(
-            (worker_name, entity_id, status)
-        ),
+        lambda conn, worker_name, entity_id, status: marked_done.append((worker_name, entity_id, status)),
     )
     monkeypatch.setattr("dgt.auto_link_doctrina", lambda conn: 0)
     monkeypatch.setattr("dgt.log_sync", fake_log_sync)

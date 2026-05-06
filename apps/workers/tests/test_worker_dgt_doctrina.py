@@ -232,14 +232,11 @@ def test_run_sync_persists_dgt_rendimiento_document(monkeypatch):
 
     with engine.begin() as conn:
         row = conn.execute(
-            text(
-                "SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo"
-            )
+            text("SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo")
         ).fetchone()
         sync_row = conn.execute(
             text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created "
-                "FROM sync_log"
+                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created FROM sync_log"
             )
         ).fetchone()
 
@@ -347,14 +344,9 @@ def test_run_sync_skips_non_rendimiento_documents(monkeypatch):
     result = run_sync(worker_name="test-dgt-rendimiento")
 
     with engine.begin() as conn:
-        count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_interpretativo")
-        ).scalar_one()
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
         sync_row = conn.execute(
-            text(
-                "SELECT worker, status, documentos_processed, documentos_upserted "
-                "FROM sync_log"
-            )
+            text("SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log")
         ).fetchone()
 
     assert result == {"processed": 1, "stored": 0}

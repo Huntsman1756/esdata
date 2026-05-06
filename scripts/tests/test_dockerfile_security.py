@@ -99,11 +99,7 @@ def test_dockerfiles_do_not_use_latest_or_unpinned_python_bases():
 
 def test_dockerfiles_do_not_copy_env_files_or_secrets():
     for path in DOCKERFILES:
-        copy_lines = [
-            line.lower()
-            for line in _meaningful_lines(path)
-            if line.upper().startswith(("COPY ", "ADD "))
-        ]
+        copy_lines = [line.lower() for line in _meaningful_lines(path) if line.upper().startswith(("COPY ", "ADD "))]
 
         for line in copy_lines:
             assert not any(token in line for token in FORBIDDEN_COPY_TOKENS), (

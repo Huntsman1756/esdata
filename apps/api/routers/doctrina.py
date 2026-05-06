@@ -83,6 +83,7 @@ def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
         for row in rows
     ]
 
+
 def _build_doctrina_audit_chunks(result: dict) -> list[dict]:
     return [
         {
@@ -110,9 +111,7 @@ def _record_doctrina_query_audit(
     verified: bool = True,
 ):
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
+        request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
         user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
         path=path,
         query_text=query_text,
@@ -136,17 +135,13 @@ router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
 )
 async def buscar_doctrina(
     request: Request,
-    q: str = Query(
-        ..., min_length=1, description="Termino de busqueda en texto de doctrina"
-    ),
+    q: str = Query(..., min_length=1, description="Termino de busqueda en texto de doctrina"),
     tipo: str | None = Query(
         None,
         description="Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)",
     ),
     desde: str | None = Query(None, description="Fecha minima (YYYY-MM-DD)"),
-    organismo_emisor: str | None = Query(
-        None, description="Filtrar por organismo (DGT, TEAC, etc.)"
-    ),
+    organismo_emisor: str | None = Query(None, description="Filtrar por organismo (DGT, TEAC, etc.)"),
     include_boe: bool = Query(True, description="Incluir normas BOE relacionadas cuando apliquen"),
 ):
     with db_session() as db:
@@ -192,16 +187,10 @@ def _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor):
     exact_reference = q.strip()
 
     if use_ts_rank:
-        chunk_filter = (
-            "(df.search_vector @@ ("
-            + tsquery_str
-            + ") OR LOWER(d.referencia) = LOWER(:exact_referencia))"
-        )
+        chunk_filter = "(df.search_vector @@ (" + tsquery_str + ") OR LOWER(d.referencia) = LOWER(:exact_referencia))"
         rank_expr = (
             "CASE WHEN LOWER(d.referencia) = LOWER(:exact_referencia) THEN 1.0 "
-            "ELSE ts_rank(df.search_vector, ("
-            + tsquery_str
-            + ")) END"
+            "ELSE ts_rank(df.search_vector, (" + tsquery_str + ")) END"
         )
         params["exact_referencia"] = exact_reference
     else:
@@ -267,18 +256,20 @@ def _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor):
             elif chunk_texto:
                 fragmento = chunk_texto[:220] + ("..." if len(chunk_texto) > 220 else "")
 
-            results.append({
-                "referencia": row["referencia"],
-                "tipo_documento": row["tipo_documento"],
-                "organismo_emisor": row["organismo_emisor"],
-                "fecha": str(row["fecha"]) if row["fecha"] else None,
-                "titulo": row["titulo"],
-                "nivel_enlace": float(row["nivel_enlace"] or 0),
-                "norma": row["norma"],
-                "numero": row["numero"],
-                "fragmento": fragmento or "",
-                "source_url": row.get("url_fuente"),
-            })
+            results.append(
+                {
+                    "referencia": row["referencia"],
+                    "tipo_documento": row["tipo_documento"],
+                    "organismo_emisor": row["organismo_emisor"],
+                    "fecha": str(row["fecha"]) if row["fecha"] else None,
+                    "titulo": row["titulo"],
+                    "nivel_enlace": float(row["nivel_enlace"] or 0),
+                    "norma": row["norma"],
+                    "numero": row["numero"],
+                    "fragmento": fragmento or "",
+                    "source_url": row.get("url_fuente"),
+                }
+            )
 
         return {"q": q, "resultados": results}
 
@@ -293,16 +284,10 @@ def _buscar_doctrina_pg_fallback(db, q, tipo, desde, organismo_emisor, params, u
     exact_reference = q.strip()
     if use_ts_rank:
         tsquery_str, _ = _build_tsquery_sql(q)
-        search_filter = (
-            "(d.search_vector @@ ("
-            + tsquery_str
-            + ") OR LOWER(d.referencia) = LOWER(:exact_referencia))"
-        )
+        search_filter = "(d.search_vector @@ (" + tsquery_str + ") OR LOWER(d.referencia) = LOWER(:exact_referencia))"
         rank_expr = (
             "CASE WHEN LOWER(d.referencia) = LOWER(:exact_referencia) THEN 1.0 "
-            "ELSE ts_rank(d.search_vector, ("
-            + tsquery_str
-            + ")) END"
+            "ELSE ts_rank(d.search_vector, (" + tsquery_str + ")) END"
         )
         fallback_params["exact_referencia"] = exact_reference
     else:
@@ -357,18 +342,20 @@ def _buscar_doctrina_pg_fallback(db, q, tipo, desde, organismo_emisor, params, u
             chunk_rank = float(chunk_rank)
 
         texto = row["texto"] or ""
-        results.append({
-            "referencia": row["referencia"],
-            "tipo_documento": row["tipo_documento"],
-            "organismo_emisor": row["organismo_emisor"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "nivel_enlace": float(row["nivel_enlace"] or 0),
-            "norma": row["norma"],
-            "numero": row["numero"],
-            "fragmento": _build_fragment(texto, q) if texto else "",
-            "source_url": row.get("url_fuente"),
-        })
+        results.append(
+            {
+                "referencia": row["referencia"],
+                "tipo_documento": row["tipo_documento"],
+                "organismo_emisor": row["organismo_emisor"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "nivel_enlace": float(row["nivel_enlace"] or 0),
+                "norma": row["norma"],
+                "numero": row["numero"],
+                "fragmento": _build_fragment(texto, q) if texto else "",
+                "source_url": row.get("url_fuente"),
+            }
+        )
 
     return {"q": q, "resultados": results}
 
@@ -420,18 +407,20 @@ def _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor):
     results = []
     for row in rows:
         texto = row["texto"] or ""
-        results.append({
-            "referencia": row["referencia"],
-            "tipo_documento": row["tipo_documento"],
-            "organismo_emisor": row["organismo_emisor"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "nivel_enlace": float(row["nivel_enlace"] or 0),
-            "norma": row["norma"],
-            "numero": row["numero"],
-            "fragmento": texto[:220] + ("..." if len(texto) > 220 else ""),
-            "source_url": row.get("url_fuente"),
-        })
+        results.append(
+            {
+                "referencia": row["referencia"],
+                "tipo_documento": row["tipo_documento"],
+                "organismo_emisor": row["organismo_emisor"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "nivel_enlace": float(row["nivel_enlace"] or 0),
+                "norma": row["norma"],
+                "numero": row["numero"],
+                "fragmento": texto[:220] + ("..." if len(texto) > 220 else ""),
+                "source_url": row.get("url_fuente"),
+            }
+        )
 
     return {"q": q, "resultados": results}
 
@@ -464,9 +453,7 @@ async def get_doctrina(request: Request, referencia: str):
             .first()
         )
         if not row:
-            raise HTTPException(
-                status_code=404, detail={"error": "Documento no encontrado"}
-            )
+            raise HTTPException(status_code=404, detail={"error": "Documento no encontrado"})
 
         linked_articles = list(
             db.execute(
@@ -508,9 +495,7 @@ async def get_doctrina(request: Request, referencia: str):
             "confianza": {
                 "nivel": 2 if has_exact_anchor else (1 if has_any_anchor else 0),
                 "fuentes": [row["referencia"]],
-                "aviso": None
-                if has_any_anchor
-                else "Criterio sin anclaje normativo suficiente",
+                "aviso": None if has_any_anchor else "Criterio sin anclaje normativo suficiente",
             },
         }
         _record_doctrina_query_audit(
@@ -545,11 +530,13 @@ async def buscar_doctrina_hybrid(
     tipo: str | None = Query(None, description="Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)"),
     desde: str | None = Query(None, description="Fecha minima (YYYY-MM-DD)"),
     organismo_emisor: str | None = Query(None, description="Filtrar por organismo (DGT, TEAC, etc.)"),
-    hybrid_weight: float = Query(0.3, ge=0.0, le=1.0, description="Peso busqueda vectorial (0.0=fulltext, 0.3=optimo, 1.0=vectorial)"),
+    hybrid_weight: float = Query(
+        0.3, ge=0.0, le=1.0, description="Peso busqueda vectorial (0.0=fulltext, 0.3=optimo, 1.0=vectorial)"
+    ),
     limit: int = Query(10, ge=1, le=50, description="Numero maximo de resultados"),
 ):
-    result = hybrid_search_doctrina(
-        q, tipo, desde, organismo_emisor, hybrid_weight, limit
-    )
+    result = hybrid_search_doctrina(q, tipo, desde, organismo_emisor, hybrid_weight, limit)
     return JSONResponse(content=result)
+
+
 # ruff: noqa: E501

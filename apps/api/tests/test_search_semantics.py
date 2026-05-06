@@ -23,10 +23,7 @@ def _seed_source_pair(
     texto: str,
 ) -> None:
     conn.execute(
-        text(
-            "DELETE FROM version_articulo "
-            "WHERE articulo_id IN (SELECT id FROM articulo WHERE numero = :numero)"
-        ),
+        text("DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE numero = :numero)"),
         {"numero": numero},
     )
     conn.execute(text("DELETE FROM articulo WHERE numero = :numero"), {"numero": numero})

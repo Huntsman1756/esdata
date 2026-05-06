@@ -130,7 +130,9 @@ def _infer_categoria_obligado(codigo: str, impuesto: str | None, obligados: str 
     return None
 
 
-def _build_truth_contract(*, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None) -> tuple[str, bool]:
+def _build_truth_contract(
+    *, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None
+) -> tuple[str, bool]:
     if not has_instructions or not has_casillas:
         return "parcial", False
     if metadata_state in {None, "inferido"}:
@@ -148,24 +150,16 @@ def build_modelo_truth_contract(
     )
 
 
-def get_modelo_runtime_truth_contract(
-    db, codigo: str, campana: str | None = None
-) -> tuple[str, bool]:
+def get_modelo_runtime_truth_contract(db, codigo: str, campana: str | None = None) -> tuple[str, bool]:
     camp_row = get_active_campaign(db, codigo, campana)
     campana_id = camp_row["id"] if camp_row else None
     # Consume existence checks immediately so SQLite does not keep read locks
     # around when the audit service opens its write transaction.
-    has_instructions = (
-        list_campaign_instructions(db, campana_id).first() is not None if campana_id else False
-    )
-    has_casillas = (
-        list_campaign_casillas(db, campana_id).first() is not None if campana_id else False
-    )
+    has_instructions = list_campaign_instructions(db, campana_id).first() is not None if campana_id else False
+    has_casillas = list_campaign_casillas(db, campana_id).first() is not None if campana_id else False
     operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
     metadata_state = (
-        operativa_row["estado_metadato"]
-        if operativa_row and operativa_row.get("estado_metadato")
-        else None
+        operativa_row["estado_metadato"] if operativa_row and operativa_row.get("estado_metadato") else None
     )
     return build_modelo_truth_contract(
         has_instructions=has_instructions,
@@ -176,9 +170,10 @@ def get_modelo_runtime_truth_contract(
 
 def get_modelo_campana_operativa_row(db, campana_id: int):
     try:
-        return db.execute(
-            text(
-                """
+        return (
+            db.execute(
+                text(
+                    """
                 SELECT
                     categoria_obligado,
                     frecuencia_presentacion,
@@ -195,14 +190,18 @@ def get_modelo_campana_operativa_row(db, campana_id: int):
                 WHERE campana_id = :campana_id
                 LIMIT 1
                 """
-            ),
-            {"campana_id": campana_id},
-        ).mappings().first()
+                ),
+                {"campana_id": campana_id},
+            )
+            .mappings()
+            .first()
+        )
     except Exception:
         try:
-            return db.execute(
-                text(
-                    """
+            return (
+                db.execute(
+                    text(
+                        """
                     SELECT
                         categoria_obligado,
                         frecuencia_presentacion,
@@ -217,53 +216,69 @@ def get_modelo_campana_operativa_row(db, campana_id: int):
                     WHERE campana_id = :campana_id
                     LIMIT 1
                     """
-                ),
-                {"campana_id": campana_id},
-            ).mappings().first()
+                    ),
+                    {"campana_id": campana_id},
+                )
+                .mappings()
+                .first()
+            )
         except Exception:
             return None
 
 
 def get_model_row(db, codigo: str):
-    return db.execute(
-        text(
-            """
+    return (
+        db.execute(
+            text(
+                """
             SELECT codigo, nombre, periodo, impuesto, url_info
             FROM aeat_modelo
             WHERE codigo = :codigo
             LIMIT 1
             """
-        ),
-        {"codigo": codigo},
-    ).mappings().first()
+            ),
+            {"codigo": codigo},
+        )
+        .mappings()
+        .first()
+    )
 
 
 def get_active_campaign(db, codigo: str, campana: str | None = None):
     if campana:
-        return db.execute(
-            text(
-                """
+        return (
+            db.execute(
+                text(
+                    """
                 SELECT id, campana, url_instrucciones, url_normativa, url_formato
                 FROM modelo_campana
                 WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
                   AND campana = :campana
                 LIMIT 1
                 """
-            ),
-            {"codigo": codigo, "campana": campana},
-        ).mappings().first()
+                ),
+                {"codigo": codigo, "campana": campana},
+            )
+            .mappings()
+            .first()
+        )
 
     try:
-        return db.execute(
-            text(
-                "SELECT id, campana, url_instrucciones, url_normativa, url_formato FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+        return (
+            db.execute(
+                text(
+                    "SELECT id, campana, url_instrucciones, url_normativa, url_formato FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
+                ),
+                {"codigo": codigo},
+            )
+            .mappings()
+            .first()
+        )
     except Exception:
-        return db.execute(
-            text(
-                """
+        return (
+            db.execute(
+                text(
+                    """
                 SELECT id, campana, url_instrucciones, url_normativa, url_formato
                 FROM modelo_campana
                 WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
@@ -271,9 +286,12 @@ def get_active_campaign(db, codigo: str, campana: str | None = None):
                 ORDER BY campana DESC
                 LIMIT 1
                 """
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+                ),
+                {"codigo": codigo},
+            )
+            .mappings()
+            .first()
+        )
 
 
 def list_modelos_summary(db):
@@ -446,9 +464,7 @@ def list_related_doctrina(db, articulos: list[dict]):
                 "fecha": str(row["fecha"]) if row["fecha"] else None,
                 "via_articulos": [],
             }
-        doctrina_map[referencia]["via_articulos"].append(
-            {"norma": row["norma"], "numero": row["numero"]}
-        )
+        doctrina_map[referencia]["via_articulos"].append({"norma": row["norma"], "numero": row["numero"]})
 
     return list(doctrina_map.values())
 
@@ -739,20 +755,11 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
             presentacion = row["contenido"]
 
     if not obligados:
-        obligados = (
-            f"Consultar las instrucciones AEAT del modelo {codigo} para confirmar "
-            "los obligados de la campaña."
-        )
+        obligados = f"Consultar las instrucciones AEAT del modelo {codigo} para confirmar los obligados de la campaña."
     if not plazo:
-        plazo = (
-            f"Consultar la sede AEAT y la campaña activa del modelo {codigo} para confirmar "
-            "el plazo oficial."
-        )
+        plazo = f"Consultar la sede AEAT y la campaña activa del modelo {codigo} para confirmar el plazo oficial."
     if not presentacion:
-        presentacion = (
-            f"Consultar la ficha AEAT del modelo {codigo} para verificar la forma "
-            "de presentación admitida."
-        )
+        presentacion = f"Consultar la ficha AEAT del modelo {codigo} para verificar la forma de presentación admitida."
 
     fuentes = list_modelo_fuentes_oficiales(db, codigo, campana)
     frecuencia = (
@@ -777,29 +784,19 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
     )
     norma_base = operativa_row["norma_base"] if operativa_row and operativa_row["norma_base"] else None
     obligados_payload = (
-        operativa_row["obligados_resumen"]
-        if operativa_row and operativa_row["obligados_resumen"]
-        else obligados
+        operativa_row["obligados_resumen"] if operativa_row and operativa_row["obligados_resumen"] else obligados
     )
-    plazo_payload = (
-        operativa_row["plazo_resumen"]
-        if operativa_row and operativa_row["plazo_resumen"]
-        else plazo
-    )
+    plazo_payload = operativa_row["plazo_resumen"] if operativa_row and operativa_row["plazo_resumen"] else plazo
     presentacion_payload = (
         operativa_row["presentacion_resumen"]
         if operativa_row and operativa_row["presentacion_resumen"]
         else presentacion
     )
     origen_metadato = (
-        operativa_row["origen_metadato"]
-        if operativa_row and operativa_row.get("origen_metadato")
-        else None
+        operativa_row["origen_metadato"] if operativa_row and operativa_row.get("origen_metadato") else None
     )
     estado_metadato = (
-        operativa_row["estado_metadato"]
-        if operativa_row and operativa_row.get("estado_metadato")
-        else None
+        operativa_row["estado_metadato"] if operativa_row and operativa_row.get("estado_metadato") else None
     )
     completeness, verified = build_modelo_truth_contract(
         has_instructions=bool(instrucciones),
@@ -845,16 +842,20 @@ def list_modelos_campanas_operativas(db, codigos: list[str], campana: str | None
 
 def get_modelos_status(db):
     try:
-        row = db.execute(
-            text(
-                """
+        row = (
+            db.execute(
+                text(
+                    """
                 SELECT
                     COUNT(*) FILTER (WHERE campana_id IS NOT NULL) AS campanas_activas,
                     MAX(actualizado_at) AS ultima_actualizacion
                 FROM modelo_campana_operativa
                 """
+                )
             )
-        ).mappings().first()
+            .mappings()
+            .first()
+        )
     except Exception:
         return {
             "campanas_activas": 0,
@@ -876,4 +877,6 @@ def get_modelos_status(db):
         ),
         "estado": "ok" if campanas_activas > 0 and ultima_actualizacion else "sin_datos",
     }
+
+
 # ruff: noqa: E501

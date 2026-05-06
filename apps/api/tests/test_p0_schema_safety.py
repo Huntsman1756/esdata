@@ -42,11 +42,7 @@ class FakeConnection:
         sql = str(statement)
         self.statements.append(sql)
         if "information_schema.columns" in sql:
-            rows = [
-                (table_name, column)
-                for table_name, columns in self.columns_by_table.items()
-                for column in columns
-            ]
+            rows = [(table_name, column) for table_name, columns in self.columns_by_table.items() for column in columns]
             return FakeColumnResult(rows)
         if "relrowsecurity" in sql:
             return FakeColumnResult([("source_freshness_snapshot",)] if self.rls_missing else [])
@@ -135,8 +131,7 @@ def test_api_persistence_postgres_missing_columns_raise_without_runtime_ddl(monk
     from services import persistence
 
     columns_by_table = {
-        table_name: set(columns)
-        for table_name, columns in persistence.REQUIRED_GOVERNANCE_COLUMNS.items()
+        table_name: set(columns) for table_name, columns in persistence.REQUIRED_GOVERNANCE_COLUMNS.items()
     }
     columns_by_table["source_freshness_snapshot"].remove("payload")
     fake_engine = FakeEngine(FakeConnection(columns_by_table=columns_by_table))

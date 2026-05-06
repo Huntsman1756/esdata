@@ -27,12 +27,12 @@ def _add_accents(text: str) -> str:
     """
     # Common Spanish words that need accent restoration
     accent_map = {
-        'a': ['a', 'á', 'à', 'â', 'ä', 'ã'],
-        'e': ['e', 'é', 'è', 'ê', 'ë'],
-        'i': ['i', 'í', 'ì', 'î', 'ï'],
-        'o': ['o', 'ó', 'ò', 'ô', 'ö', 'õ'],
-        'u': ['u', 'ú', 'ù', 'û', 'ü'],
-        'n': ['n', 'ñ'],
+        "a": ["a", "á", "à", "â", "ä", "ã"],
+        "e": ["e", "é", "è", "ê", "ë"],
+        "i": ["i", "í", "ì", "î", "ï"],
+        "o": ["o", "ó", "ò", "ô", "ö", "õ"],
+        "u": ["u", "ú", "ù", "û", "ü"],
+        "n": ["n", "ñ"],
     }
     # Reverse map: accented -> base
     reverse = {}
@@ -42,14 +42,14 @@ def _add_accents(text: str) -> str:
 
     # Words that commonly need accent in Spanish search context
     accent_fixes = {
-        'autoliquidacion': 'autoliquidación',
-        'declaracion': 'declaración',
-        'procedimiento': 'procedimiento',
-        'tributario': 'tributario',
-        'administracion': 'administración',
-        'resolucion': 'resolución',
-        'prescripcion': 'prescripción',
-        'contabilidad': 'contabilidad',
+        "autoliquidacion": "autoliquidación",
+        "declaracion": "declaración",
+        "procedimiento": "procedimiento",
+        "tributario": "tributario",
+        "administracion": "administración",
+        "resolucion": "resolución",
+        "prescripcion": "prescripción",
+        "contabilidad": "contabilidad",
     }
 
     # First try exact word match for common words
@@ -72,16 +72,29 @@ def _strip_norma_codes(value: str) -> tuple[str, set[str]]:
     Returns (cleaned_query, stripped_codes).
     """
     # Map from query word -> DB norma code (same as _extract_norma_from_query)
-    known_codes = frozenset({
-        "IRNR", "LIRNR",
-        "IRPF", "LIRPF", "RIRPF",
-        "IVA", "LIVA", "RIVA",
-        "IS", "LIS", "RIS",
-        "LGT",
-        "ITPAJD", "ITP", "AJD",
-        "IIEE",
-        "DAC6", "DAC6RD", "DAC6EU",
-    })
+    known_codes = frozenset(
+        {
+            "IRNR",
+            "LIRNR",
+            "IRPF",
+            "LIRPF",
+            "RIRPF",
+            "IVA",
+            "LIVA",
+            "RIVA",
+            "IS",
+            "LIS",
+            "RIS",
+            "LGT",
+            "ITPAJD",
+            "ITP",
+            "AJD",
+            "IIEE",
+            "DAC6",
+            "DAC6RD",
+            "DAC6EU",
+        }
+    )
 
     words = re.findall(r"[A-Za-z0-9]+", value)
     stripped = set()
@@ -109,7 +122,7 @@ def _build_tsquery_sql(value: str) -> tuple[str, dict]:
         return "", {}
     # Strip norma codes before building tsquery
     cleaned, _ = _strip_norma_codes(value)
-    
+
     if not cleaned or not cleaned.strip():
         return "", {}
 
@@ -136,11 +149,7 @@ def _build_tsquery_sql(value: str) -> tuple[str, dict]:
 
 
 def _build_fragment(text_value: str, query: str, max_length: int = 220) -> str:
-    terms = [
-        term
-        for term in re.findall(r"[\wáéíóúüñ]+", query, flags=re.IGNORECASE)
-        if len(term) >= 3
-    ]
+    terms = [term for term in re.findall(r"[\wáéíóúüñ]+", query, flags=re.IGNORECASE) if len(term) >= 3]
     if not text_value:
         return ""
 
@@ -182,21 +191,32 @@ def _chunk_rank_boost(has_chunks: bool, base_rank: float) -> float:
 
 def _extract_norma_from_query(q: str) -> str | None:
     """Extract a known law code from the query to use as a norma filter.
-    
+
     This prevents convention articles from drowning out actual law results.
     E.g., "IRNR rentas sin establecimiento permanente" -> "IRNR"
     Returns the DB code (n.codigo value), not the search alias.
     """
     # Map from query word -> DB norma code
     query_to_db = {
-        "IRNR": "IRNR", "LIRNR": "IRNR",
-        "IRPF": "LIRPF", "LIRPF": "LIRPF", "RIRPF": "LIRPF",
-        "IVA": "LIVA", "LIVA": "LIVA", "RIVA": "LIVA",
-        "IS": "LIS", "LIS": "LIS", "RIS": "LIS",
+        "IRNR": "IRNR",
+        "LIRNR": "IRNR",
+        "IRPF": "LIRPF",
+        "LIRPF": "LIRPF",
+        "RIRPF": "LIRPF",
+        "IVA": "LIVA",
+        "LIVA": "LIVA",
+        "RIVA": "LIVA",
+        "IS": "LIS",
+        "LIS": "LIS",
+        "RIS": "LIS",
         "LGT": "LGT",
-        "ITPAJD": "ITPAJD", "ITP": "ITPAJD", "AJD": "ITPAJD",
+        "ITPAJD": "ITPAJD",
+        "ITP": "ITPAJD",
+        "AJD": "ITPAJD",
         "IIEE": "IIEE",
-        "DAC6": "DAC6", "DAC6RD": "DAC6RD", "DAC6EU": "DAC6EU",
+        "DAC6": "DAC6",
+        "DAC6RD": "DAC6RD",
+        "DAC6EU": "DAC6EU",
     }
     words = re.findall(r"[A-Za-z0-9]+", q)
     # Check longer tokens first to avoid partial matches (e.g. DAC6RD before DAC6)
@@ -224,13 +244,23 @@ def search_legislacion(
 
 
 _NORMA_ALIASES = {
-    "IRNR": "IRNR", "LIRNR": "IRNR",
-    "IRPF": "LIRPF", "LIRPF": "LIRPF", "RIRPF": "LIRPF",
-    "IVA": "LIVA", "LIVA": "LIVA", "RIVA": "LIVA",
-    "IS": "LIS", "LIS": "LIS", "RIS": "LIS",
+    "IRNR": "IRNR",
+    "LIRNR": "IRNR",
+    "IRPF": "LIRPF",
+    "LIRPF": "LIRPF",
+    "RIRPF": "LIRPF",
+    "IVA": "LIVA",
+    "LIVA": "LIVA",
+    "RIVA": "LIVA",
+    "IS": "LIS",
+    "LIS": "LIS",
+    "RIS": "LIS",
     "IIEE": "IIEE",
-    "DAC6": "DAC6", "DAC6RD": "DAC6RD", "DAC6EU": "DAC6EU",
+    "DAC6": "DAC6",
+    "DAC6RD": "DAC6RD",
+    "DAC6EU": "DAC6EU",
 }
+
 
 def _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params):
     """Build filters shared across both chunked and non-chunked branches."""
@@ -262,7 +292,7 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     # Auto-detect norma code from query words if not explicitly provided
     if norma is None:
         norma = _extract_norma_from_query(q)
-    
+
     # When norma was auto-detected from the query, strip it from the query
     # before building tsquery. The norma word lives in n.codigo, not in chunk text,
     # so including it in tsquery causes zero matches (e.g. "IRNR rentas..." fails
@@ -274,24 +304,35 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     elif norma is not None:
         # Strip the detected norma word from the query to avoid tsquery mismatch
         query_to_norma = {
-            "IRNR": "IRNR", "LIRNR": "IRNR",
-            "IRPF": "LIRPF", "LIRPF": "LIRPF", "RIRPF": "LIRPF",
-            "IVA": "LIVA", "LIVA": "LIVA", "RIVA": "LIVA",
-            "IS": "LIS", "LIS": "LIS", "RIS": "LIS",
+            "IRNR": "IRNR",
+            "LIRNR": "IRNR",
+            "IRPF": "LIRPF",
+            "LIRPF": "LIRPF",
+            "RIRPF": "LIRPF",
+            "IVA": "LIVA",
+            "LIVA": "LIVA",
+            "RIVA": "LIVA",
+            "IS": "LIS",
+            "LIS": "LIS",
+            "RIS": "LIS",
             "LGT": "LGT",
-            "ITPAJD": "ITPAJD", "ITP": "ITPAJD", "AJD": "ITPAJD",
+            "ITPAJD": "ITPAJD",
+            "ITP": "ITPAJD",
+            "AJD": "ITPAJD",
             "IIEE": "IIEE",
-            "DAC6": "DAC6", "DAC6RD": "DAC6RD", "DAC6EU": "DAC6EU",
+            "DAC6": "DAC6",
+            "DAC6RD": "DAC6RD",
+            "DAC6EU": "DAC6EU",
         }
         db_code = norma
         for query_word, norm_code in query_to_norma.items():
             if norm_code == db_code:
-                search_q = re.sub(r'\b' + re.escape(query_word) + r'\b', '', search_q, flags=re.IGNORECASE).strip()
+                search_q = re.sub(r"\b" + re.escape(query_word) + r"\b", "", search_q, flags=re.IGNORECASE).strip()
         if not search_q:
             # If stripping removed everything (e.g. query was just "IRNR"),
             # use ILIKE fallback instead of tsquery to avoid zero matches.
             search_q = None
-    
+
     params: dict = {}
     if search_q is not None:
         tsquery_str, tsq_params = _build_tsquery_sql(search_q)
@@ -330,8 +371,7 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     vig_subquery_params: dict = {}
     if vigente_en is not None:
         vig_subquery_where += (
-            " AND v2.vigente_desde <= :vigente_en "
-            "AND (v2.vigente_hasta IS NULL OR v2.vigente_hasta >= :vigente_en)"
+            " AND v2.vigente_desde <= :vigente_en AND (v2.vigente_hasta IS NULL OR v2.vigente_hasta >= :vigente_en)"
         )
         vig_subquery_params["vigente_en"] = vigente_en
 
@@ -377,8 +417,8 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     )
     params.update(vig_subquery_params)
 
-    query_with_binds = query.bindparams(**{k: v for k, v in params.items() if k in ('tsq', 'accents')})
-    remaining_params = {k: v for k, v in params.items() if k not in ('tsq', 'accents')}
+    query_with_binds = query.bindparams(**{k: v for k, v in params.items() if k in ("tsq", "accents")})
+    remaining_params = {k: v for k, v in params.items() if k not in ("tsq", "accents")}
     try:
         rows = db.execute(query_with_binds, remaining_params).mappings()
     except ProgrammingError as exc:
@@ -404,43 +444,39 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
         if chunk_texto:
             fragmento = _build_fragment(chunk_texto, q)
 
-        results.append({
-            "doc_id": int(row["doc_id"]),
-            "tipo": row["tipo"],
-            "norma": row["codigo"],
-            "numero": row["numero"],
-            "texto": row["texto"],
-            "fragmento": fragmento or _build_fragment(row["texto"], q),
-            "vigente_desde": str(row["vigente_desde"]),
-            "vigente_hasta": str(row["vigente_hasta"])
-            if row["vigente_hasta"]
-            else None,
-            "rank": round(float(rank), 4) if rank is not None else None,
-            "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
-            "source_url": (
-                f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
-                if row.get("boe_id")
-                else row.get("eli_uri")
-            ),
-            "chunk_id": row.get("chunk_id"),
-            "source_hash": _build_source_hash(
-                row["codigo"],
-                row["numero"],
-                row.get("chunk_id"),
-                row.get("chunk_texto") or row["texto"],
-                row.get("boe_id") or row.get("eli_uri"),
-            ),
-            "motivo_ranking": (
-                f"ts_rank={round(float(rank), 4)}"
-                if rank is not None
-                else "ILIKE match"
-            ),
-            "confianza": {
-                "nivel": 1,
-                "fuentes": [f"{row['codigo']} art. {row['numero']}"],
-                "aviso": None,
-            },
-        })
+        results.append(
+            {
+                "doc_id": int(row["doc_id"]),
+                "tipo": row["tipo"],
+                "norma": row["codigo"],
+                "numero": row["numero"],
+                "texto": row["texto"],
+                "fragmento": fragmento or _build_fragment(row["texto"], q),
+                "vigente_desde": str(row["vigente_desde"]),
+                "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+                "rank": round(float(rank), 4) if rank is not None else None,
+                "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
+                "source_url": (
+                    f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
+                    if row.get("boe_id")
+                    else row.get("eli_uri")
+                ),
+                "chunk_id": row.get("chunk_id"),
+                "source_hash": _build_source_hash(
+                    row["codigo"],
+                    row["numero"],
+                    row.get("chunk_id"),
+                    row.get("chunk_texto") or row["texto"],
+                    row.get("boe_id") or row.get("eli_uri"),
+                ),
+                "motivo_ranking": (f"ts_rank={round(float(rank), 4)}" if rank is not None else "ILIKE match"),
+                "confianza": {
+                    "nivel": 1,
+                    "fuentes": [f"{row['codigo']} art. {row['numero']}"],
+                    "aviso": None,
+                },
+            }
+        )
 
     # Fallback: if no chunked results, search version_articulo directly
     # (documento_fragmento may not be backfilled yet)
@@ -460,7 +496,7 @@ def _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, 
     # Auto-detect norma code from query words if not explicitly provided
     if norma is None:
         norma = _extract_norma_from_query(q)
-    
+
     params: dict = {}
     tsquery_str, tsq_params = _build_tsquery_sql(q)
     use_ts_rank = bool(tsquery_str)
@@ -482,8 +518,7 @@ def _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, 
     vig_subquery_where = "a2.id = a.id"
     if vigente_en is not None:
         vig_subquery_where += (
-            " AND v2.vigente_desde <= :vigente_en "
-            "AND (v2.vigente_hasta IS NULL OR v2.vigente_hasta >= :vigente_en)"
+            " AND v2.vigente_desde <= :vigente_en AND (v2.vigente_hasta IS NULL OR v2.vigente_hasta >= :vigente_en)"
         )
 
     vig_subquery = (
@@ -527,41 +562,37 @@ def _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, 
         if rank is not None and use_ts_rank:
             rank = float(rank)
 
-        results.append({
-            "tipo": row["tipo"],
-            "norma": row["codigo"],
-            "numero": row["numero"],
-            "texto": row["texto"],
-            "fragmento": _build_fragment(row["texto"], q),
-            "vigente_desde": str(row["vigente_desde"]),
-            "vigente_hasta": str(row["vigente_hasta"])
-            if row["vigente_hasta"]
-            else None,
-            "rank": round(rank, 4) if rank is not None else None,
-            "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
-            "source_url": (
-                f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
-                if row.get("boe_id")
-                else row.get("eli_uri")
-            ),
-            "chunk_id": None,
-            "source_hash": _build_source_hash(
-                row["codigo"],
-                row["numero"],
-                row["texto"],
-                row.get("boe_id") or row.get("eli_uri"),
-            ),
-            "motivo_ranking": (
-                f"ts_rank={round(rank, 4)}"
-                if rank is not None
-                else "ILIKE match"
-            ),
-            "confianza": {
-                "nivel": 1,
-                "fuentes": [f"{row['codigo']} art. {row['numero']}"],
-                "aviso": None,
-            },
-        })
+        results.append(
+            {
+                "tipo": row["tipo"],
+                "norma": row["codigo"],
+                "numero": row["numero"],
+                "texto": row["texto"],
+                "fragmento": _build_fragment(row["texto"], q),
+                "vigente_desde": str(row["vigente_desde"]),
+                "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+                "rank": round(rank, 4) if rank is not None else None,
+                "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
+                "source_url": (
+                    f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
+                    if row.get("boe_id")
+                    else row.get("eli_uri")
+                ),
+                "chunk_id": None,
+                "source_hash": _build_source_hash(
+                    row["codigo"],
+                    row["numero"],
+                    row["texto"],
+                    row.get("boe_id") or row.get("eli_uri"),
+                ),
+                "motivo_ranking": (f"ts_rank={round(rank, 4)}" if rank is not None else "ILIKE match"),
+                "confianza": {
+                    "nivel": 1,
+                    "fuentes": [f"{row['codigo']} art. {row['numero']}"],
+                    "aviso": None,
+                },
+            }
+        )
 
     return results
 
@@ -607,37 +638,37 @@ def _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en):
     rows = db.execute(query, params).mappings()
     results = []
     for row in rows:
-        results.append({
-            "tipo": row["tipo"],
-            "norma": row["codigo"],
-            "numero": row["numero"],
-            "texto": row["texto"],
-            "fragmento": _build_fragment(row["texto"], q),
-            "vigente_desde": str(row["vigente_desde"]),
-            "vigente_hasta": str(row["vigente_hasta"])
-            if row["vigente_hasta"]
-            else None,
-            "rank": None,
-            "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
-            "source_url": (
-                f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
-                if row.get("boe_id")
-                else row.get("eli_uri")
-            ),
-            "chunk_id": None,
-            "source_hash": _build_source_hash(
-                row["codigo"],
-                row["numero"],
-                row["texto"],
-                row.get("boe_id") or row.get("eli_uri"),
-            ),
-            "motivo_ranking": "ILIKE match",
-            "confianza": {
-                "nivel": 1,
-                "fuentes": [f"{row['codigo']} art. {row['numero']}"],
-                "aviso": None,
-            },
-        })
+        results.append(
+            {
+                "tipo": row["tipo"],
+                "norma": row["codigo"],
+                "numero": row["numero"],
+                "texto": row["texto"],
+                "fragmento": _build_fragment(row["texto"], q),
+                "vigente_desde": str(row["vigente_desde"]),
+                "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+                "rank": None,
+                "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
+                "source_url": (
+                    f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
+                    if row.get("boe_id")
+                    else row.get("eli_uri")
+                ),
+                "chunk_id": None,
+                "source_hash": _build_source_hash(
+                    row["codigo"],
+                    row["numero"],
+                    row["texto"],
+                    row.get("boe_id") or row.get("eli_uri"),
+                ),
+                "motivo_ranking": "ILIKE match",
+                "confianza": {
+                    "nivel": 1,
+                    "fuentes": [f"{row['codigo']} art. {row['numero']}"],
+                    "aviso": None,
+                },
+            }
+        )
 
     return {
         "q": q,

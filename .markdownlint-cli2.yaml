@@ -1,0 +1,5 @@
+config:
+  default: false
+
+ignores:
+  - docs/archive/**

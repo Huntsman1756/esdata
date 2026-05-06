@@ -106,9 +106,7 @@ def test_serialized_citations_normalize_scores_and_keep_source_url():
         normalize_rerank_score(-3.5246732234954834), rel=1e-4
     )
     assert 0.0 <= serialized_claims[0]["confidence"] <= 1.0
-    assert serialized_claims[0]["confidence"] == pytest.approx(
-        normalize_rerank_score(10.8), rel=1e-4
-    )
+    assert serialized_claims[0]["confidence"] == pytest.approx(normalize_rerank_score(10.8), rel=1e-4)
     assert serialized_claims[0]["source_url"] == "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2014-12328"
 
 
@@ -223,6 +221,7 @@ def test_grounding_abstention_rejects_results_when_a_query_term_is_missing_from_
     assert final_results == []
     assert updated_cited_chunks == []
     assert "evidencia insuficiente" in (updated_confianza.get("aviso") or "").lower()
+
 
 def test_consulta_delegates_claim_level_abstention_to_grounding_service(monkeypatch):
     import routers.consulta as consulta_module

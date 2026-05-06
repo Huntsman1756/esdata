@@ -48,8 +48,7 @@ def verify_webhook_signature(
 
     if not received_sig or not hmac.compare_digest(received_sig, expected_sig):
         logger.warning(
-            "Webhook signature verification failed: "
-            "missing header=%s, length=%d",
+            "Webhook signature verification failed: missing header=%s, length=%d",
             signature_header,
             len(received_sig),
         )

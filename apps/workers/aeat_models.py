@@ -43,8 +43,7 @@ logger = configure_logging("worker-aeat-modelos")
 
 AEAT_SEDE = "https://sede.agenciatributaria.gob.es"
 AEAT_MODELOS_PORTAL = (
-    "https://sede.agenciatributaria.gob.es/Sede/"
-    "presentacion-declaraciones-calendario-contribuyente.html"
+    "https://sede.agenciatributaria.gob.es/Sede/presentacion-declaraciones-calendario-contribuyente.html"
 )
 AEAT_USER_AGENT = "Mozilla/5.0 (compatible; esdata-bot/1.0; fiscal data worker)"
 DATABASE_URL = get_database_url()
@@ -415,11 +414,13 @@ def _discover_aeat_models(portal_client: AEATPortalClient | None = None) -> list
 
         if codigo and url_info:
             nombre = _extract_model_name(text, codigo)
-            models.append({
-                "codigo": codigo,
-                "nombre": nombre,
-                "url_info": url_info,
-            })
+            models.append(
+                {
+                    "codigo": codigo,
+                    "nombre": nombre,
+                    "url_info": url_info,
+                }
+            )
 
     seen = set()
     unique = []
@@ -520,7 +521,9 @@ def _fetch_model_metadata(
     }
 
 
-def _upsert_aeat_model(conn, codigo: str, nombre: str, url_info: str, periodo: str | None = None, impuesto: str | None = None) -> bool:
+def _upsert_aeat_model(
+    conn, codigo: str, nombre: str, url_info: str, periodo: str | None = None, impuesto: str | None = None
+) -> bool:
     try:
         conn.execute(
             text(
@@ -578,9 +581,7 @@ def _upsert_modelo_campana(
     )
 
     existing = conn.execute(
-        text(
-            "SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id AND campana = :campana"
-        ),
+        text("SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id AND campana = :campana"),
         {"modelo_id": modelo_id, "campana": campana},
     ).fetchone()
 
@@ -639,9 +640,7 @@ def _upsert_modelo_campana(
     )
 
     row = conn.execute(
-        text(
-            "SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id AND campana = :campana"
-        ),
+        text("SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id AND campana = :campana"),
         {"modelo_id": modelo_id, "campana": campana},
     ).fetchone()
     return (row[0] if row else None, existing is None)
@@ -860,7 +859,9 @@ def _store_modelo_recurso_version(
     return "rotated" if existing else "inserted"
 
 
-def _record_sync_log(conn, started_at: datetime, finished_at: datetime, status: str, stats: dict, error_msg: str | None = None) -> None:
+def _record_sync_log(
+    conn, started_at: datetime, finished_at: datetime, status: str, stats: dict, error_msg: str | None = None
+) -> None:
     inspector = inspect(conn)
     columns = {column["name"] for column in inspector.get_columns("sync_log")}
     payload = {
@@ -882,9 +883,7 @@ def _record_sync_log(conn, started_at: datetime, finished_at: datetime, status: 
     insert_columns = ", ".join(payload.keys())
     insert_values = ", ".join(f":{key}" for key in payload)
     conn.execute(
-        text(
-            f"INSERT INTO sync_log ({insert_columns}) VALUES ({insert_values})"
-        ),
+        text(f"INSERT INTO sync_log ({insert_columns}) VALUES ({insert_values})"),
         payload,
     )
 
@@ -934,8 +933,7 @@ def _get_seeded_models(conn) -> list[dict]:
         )
     ).fetchall()
     return [
-        {"codigo": row.codigo, "nombre": row.nombre or f"Modelo {row.codigo}", "url_info": row.url_info}
-        for row in rows
+        {"codigo": row.codigo, "nombre": row.nombre or f"Modelo {row.codigo}", "url_info": row.url_info} for row in rows
     ]
 
 
@@ -1150,9 +1148,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Discover and update AEAT models from the official portal"
-    )
+    parser = argparse.ArgumentParser(description="Discover and update AEAT models from the official portal")
     parser.add_argument("--db-url", help="Database URL")
     parser.add_argument("--run-once", action="store_true", help="Run once and exit")
     parser.add_argument("--interval", type=int, help="Sync interval in seconds")

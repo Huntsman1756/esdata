@@ -9,6 +9,7 @@ from sqlalchemy import text
 def _client():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from main import app
+
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 
@@ -255,15 +256,11 @@ async def test_doctrina_buscar_por_texto():
 @pytest.mark.asyncio
 async def test_doctrina_buscar_filtra_por_tipo():
     async with _client() as c:
-        r = await c.get(
-            "/v1/doctrina/buscar?q=tipo+reducido&tipo=consulta_vinculante&include_boe=false"
-        )
+        r = await c.get("/v1/doctrina/buscar?q=tipo+reducido&tipo=consulta_vinculante&include_boe=false")
     assert r.status_code == 200
     data = r.json()
     assert len(data["resultados"]) >= 1
-    assert all(
-        item["tipo_documento"] == "consulta_vinculante" for item in data["resultados"]
-    )
+    assert all(item["tipo_documento"] == "consulta_vinculante" for item in data["resultados"])
 
 
 @pytest.mark.asyncio
@@ -273,9 +270,7 @@ async def test_doctrina_buscar_filtra_por_organismo_y_expone_senal_de_enlace():
     assert r.status_code == 200
     data = r.json()
     assert len(data["resultados"]) >= 1
-    item = next(
-        result for result in data["resultados"] if result["referencia"] == "V0000-26"
-    )
+    item = next(result for result in data["resultados"] if result["referencia"] == "V0000-26")
     assert item["organismo_emisor"] == "DGT"
     assert item["nivel_enlace"] == 1.0
     assert item["norma"] == "LIVA"
@@ -310,11 +305,7 @@ async def test_doctrina_buscar_filtra_teac():
         r = await c.get("/v1/doctrina/buscar?q=criterio&organismo_emisor=TEAC")
     assert r.status_code == 200
     data = r.json()
-    item = next(
-        result
-        for result in data["resultados"]
-        if result["referencia"] == "00/1234/2024"
-    )
+    item = next(result for result in data["resultados"] if result["referencia"] == "00/1234/2024")
     assert item["organismo_emisor"] == "TEAC"
     assert item["tipo_documento"] == "resolucion_teac"
 
@@ -358,11 +349,7 @@ async def test_doctrina_buscar_expone_teac_con_enlace():
         r = await c.get("/v1/doctrina/buscar?q=Ley+37%2F1992&organismo_emisor=TEAC")
     assert r.status_code == 200
     data = r.json()
-    item = next(
-        result
-        for result in data["resultados"]
-        if result["referencia"] == "00/1234/2025"
-    )
+    item = next(result for result in data["resultados"] if result["referencia"] == "00/1234/2025")
     assert item["organismo_emisor"] == "TEAC"
     assert item["norma"] == "LIVA"
     assert item["numero"] == "91"
@@ -439,11 +426,7 @@ async def test_doctrina_buscar_expone_teac_con_enlace_contextual():
         r = await c.get("/v1/doctrina/buscar?q=base+imponible&organismo_emisor=TEAC")
     assert r.status_code == 200
     data = r.json()
-    item = next(
-        result
-        for result in data["resultados"]
-        if result["referencia"] == "00/9876/2024"
-    )
+    item = next(result for result in data["resultados"] if result["referencia"] == "00/9876/2024")
     assert item["organismo_emisor"] == "TEAC"
     assert item["norma"] == "LIVA"
     assert item["numero"] == "91"
@@ -489,11 +472,7 @@ async def test_doctrina_buscar_expone_teac_con_enlace_regimen_especial():
         r = await c.get("/v1/doctrina/buscar?q=regimen+especial&organismo_emisor=TEAC")
     assert r.status_code == 200
     data = r.json()
-    item = next(
-        result
-        for result in data["resultados"]
-        if result["referencia"] == "00/2468/2024"
-    )
+    item = next(result for result in data["resultados"] if result["referencia"] == "00/2468/2024")
     assert item["organismo_emisor"] == "TEAC"
     assert item["norma"] == "LIVA"
     assert item["numero"] == "91"
@@ -546,16 +525,10 @@ async def test_doctrina_buscar_expone_teac_con_enlace_recargo():
         )
 
     async with _client() as c:
-        r = await c.get(
-            "/v1/doctrina/buscar?q=recargo+de+equivalencia&organismo_emisor=TEAC"
-        )
+        r = await c.get("/v1/doctrina/buscar?q=recargo+de+equivalencia&organismo_emisor=TEAC")
     assert r.status_code == 200
     data = r.json()
-    item = next(
-        result
-        for result in data["resultados"]
-        if result["referencia"] == "00/3579/2024"
-    )
+    item = next(result for result in data["resultados"] if result["referencia"] == "00/3579/2024")
     assert item["organismo_emisor"] == "TEAC"
     assert item["norma"] == "LIVA"
     assert item["numero"] == "24"
@@ -857,6 +830,7 @@ def test_metrics_endpoint_returns_200_with_metrics():
     with patch.dict("os.environ", {"APP_ENV": "test", "ESDATA_API_KEY": "test-key", "MCP_API_KEY": "test-key"}):
         # Importar main con las vars de entorno correctas
         import sys
+
         if "main" in sys.modules:
             del sys.modules["main"]
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -868,6 +842,7 @@ def test_metrics_endpoint_returns_200_with_metrics():
         return await client.get("/metrics")
 
     import asyncio
+
     loop = asyncio.new_event_loop()
     try:
         response = loop.run_until_complete(_check())
@@ -888,6 +863,7 @@ def test_metrics_endpoint_exposes_worker_last_errors_metric():
 
     with patch.dict("os.environ", {"APP_ENV": "test", "ESDATA_API_KEY": "test-key", "MCP_API_KEY": "test-key"}):
         import sys
+
         if "main" in sys.modules:
             del sys.modules["main"]
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -901,6 +877,7 @@ def test_metrics_endpoint_exposes_worker_last_errors_metric():
         return await client.get("/metrics")
 
     import asyncio
+
     loop = asyncio.new_event_loop()
     try:
         response = loop.run_until_complete(_check())
@@ -926,6 +903,7 @@ def test_status_endpoint_no_session_leaks():
         return await client.get("/status")
 
     import asyncio
+
     loop = asyncio.new_event_loop()
     try:
         loop.run_until_complete(_call_status())
@@ -956,6 +934,7 @@ def test_worker_heartbeat_file_created():
         assert heartbeat_path.exists(), "El archivo heartbeat debe existir"
         mtime = heartbeat_path.stat().st_mtime
         import time
+
         time.sleep(0.1)
         heartbeat_path.touch()
         new_mtime = heartbeat_path.stat().st_mtime
