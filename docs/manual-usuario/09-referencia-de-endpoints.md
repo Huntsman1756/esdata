@@ -81,6 +81,20 @@ Uso recomendado:
 - usa `/{codigo}` cuando quieras una vista completa
 - usa endpoints especializados cuando necesites payload mas pequeno o UI mas focalizada
 
+## Convenios DTA y retenciones internacionales
+
+- `GET /v1/internacional/convenios` — listado de convenios DTA con filtros por `pais_a`, `pais_b`, `estado` y `tipo_acuerdo`
+- `GET /v1/internacional/convenios/{codigo}` — detalle de un convenio DTA
+- `GET /v1/internacional/convenios/retenciones` — listado de reglas de retencion por tipo de renta y pais
+- `GET /v1/internacional/convenios/retenciones/{codigo}` — detalle de una regla de retencion
+- `POST /v1/internacional/convenios/retencion` — calculo cruzado de retencion aplicable segun pais de residencia, tipo de renta y convenio DTA vigente
+
+Uso recomendado:
+
+- usa `convenios` para explorar cobertura efectiva por pais en la instancia actual
+- usa `retenciones` para inspeccionar la regla base por tipo de renta
+- usa `retencion` cuando necesites la respuesta operativa final con `tipo_retencion_aplicable`, `tiene_convenio_dta`, `codigo_convenio` y `formulario_recomendado`
+
 ## Obligaciones, cambios y compliance
 
 - `GET /v1/obligaciones`

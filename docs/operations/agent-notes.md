@@ -33,6 +33,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-06 - Cron semanales en produccion: `--no-deps` en systemd rompe jobs y `WorkerSilent` no puede usar 48h fijo
+
+- Scope: `infra/deploy/systemd/esdata-job@.service`, `infra/observability/alerts.yml`, VPS Compose/productivo
+- Hallazgo: si el unit instalado de `esdata-job@.service` deriva y ejecuta `docker compose ... run --rm --no-deps %i`, varios `cron-*` semanales pueden fallar antes de arrancar el worker real con el error `container ... is not connected to the network deploy_esdata-internal`; en ese estado no hay fila nueva en `sync_log` porque el fallo sucede antes del codigo Python.
+- Impacto: los cron one-shot quedan rotos aunque los timers `systemd` sigan disparando, y la monitorizacion se vuelve enganosa si `WorkerSilent` se basa en `worker_lag_seconds > 172800` en lugar de usar el contrato real de stale ya calculado por la API.
+- Regla practica: el unit instalado debe mantenerse alineado con el repo y ejecutar `docker compose ... run --rm %i` sin `--no-deps`; `WorkerSilent` debe evaluar `worker_stale_status == 1`; y tras cambiar reglas de Prometheus hay que refrescar `/status` antes de validar alertas.
+
 ### 2026-05-03 - EUR-Lex: validar seeds contra `resource/celex` RDF antes de asumir que el numero es correcto
 
 - Scope: `apps/workers/eurlex.py`, `EURLEX_NORMAS`, `publications.europa.eu/resource/celex/*`

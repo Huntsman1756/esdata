@@ -32,12 +32,12 @@ sudo git clone https://github.com/tuusuario/esdata.git
 cd esdata
 ```
 
-## Paso 3: Configurar .env
+## Paso 3: Configurar `.env.prod`
 
-Crear archivo `.env` en la raiz del repo:
+Crear archivo `infra/deploy/.env.prod` a partir de `infra/deploy/compose.env.example`:
 
 ```bash
-cat > .env << 'EOF'
+cat > infra/deploy/.env.prod << 'EOF'
 # --- Base de datos ---
 POSTGRES_USER=esdata
 POSTGRES_PASSWORD=<contraseña_segura>
@@ -56,7 +56,7 @@ ESDATA_API_KEY=<api_key_obligatoria>
 # --- BOE ---
 BOE_API_BASE=https://www.boe.es/datosabiertos/api/legislacion-consolidada
 BOE_LEGISLACION_NORMAS=LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU
-SYNC_INTERVAL_SECONDS=3600
+BOE_SYNC_INTERVAL_SECONDS=3600
 
 # --- Fuentes ---
 BDNS_SEED_URLS=
@@ -94,6 +94,9 @@ HC_PING_URL_CRON_BORME_WEEKLY=
 HC_PING_URL_CRON_CNMV_WEEKLY=
 HC_PING_URL_CRON_SEPBLAC_WEEKLY=
 HC_PING_URL_CRON_BDE_WEEKLY=
+HC_PING_URL_CRON_CENDOJ_WEEKLY=
+HC_PING_URL_CRON_AEPD_WEEKLY=
+HC_PING_URL_CRON_EURLEX_WEEKLY=
 EOF
 ```
 
@@ -101,13 +104,13 @@ EOF
 
 ```bash
 # Construir imagenes
-docker compose -f infra/deploy/docker-compose.prod.yml build
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml build
 
 # Levantar Postgres primero
-docker compose -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres
 
 # Verificar estado
-docker compose -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
 ```
 
 ## Paso 5: Verificar healthchecks
@@ -115,7 +118,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml ps
 ```bash
 # Esperar a que todos los servicios esten healthy
 sleep 30
-docker compose -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
 
 # Verificar API
 curl -s https://api.tudominio.com/health
@@ -135,22 +138,22 @@ docker compose -f infra/deploy/docker-compose.prod.yml --profile ops run --rm op
 ## Paso 7: Levantar API y frontend
 
 ```bash
-docker compose -f infra/deploy/docker-compose.prod.yml up -d api web caddy
-docker compose -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
 ```
 
 ## Paso 8: Ingestion inicial
 
 ```bash
 # Ejecutar worker BOE (ingesta principal)
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-boe python boe.py --run-once
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm worker-boe python boe.py --run-once
 
 # Ejecutar otros workers segun necesidad
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt python dgt.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-modelos python modelos.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-cnmv python cnmv.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-sepblac python sepblac.py --run-once
-docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-bde python bde.py --run-once
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm worker-dgt python dgt.py --run-once
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm worker-modelos python aeat_models.py --run-once
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm worker-cnmv python cnmv.py --run-once
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm worker-sepblac python sepblac.py --run-once
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm worker-bde python bde.py --run-once
 ```
 
 ## Paso 9: Verificar datos
@@ -168,15 +171,24 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esd
 Los workers corren en modo continuo por defecto. Para ejecutarlos como cron:
 
 ```bash
-# Opcion 1: Usar perfil cron (contenedores one-shot)
-docker compose -f infra/deploy/docker-compose.prod.yml --profile cron up -d
+# Opcion 1: Ejecutar cron manualmente
+docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-boe-daily
 
-# Opcion 2: Configurar systemd timers (ver systemd/)
+# Opcion 2: Instalar timers systemd para todos los cron soportados
+sudo cp infra/deploy/systemd/esdata-job@.service /etc/systemd/system/
+sudo cp infra/deploy/systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now esdata-boe-daily.timer esdata-modelos-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer
+systemctl cat esdata-job@.service
+python scripts/ops/worker_scheduler_guard.py check --repo-root /srv/esdata --installed-unit /etc/systemd/system/esdata-job@.service
+
 # Opcion 3: Usar cron del sistema con docker compose run
 ```
 
 Si se usa Healthchecks, cada servicio `cron-*` enviara `start`, `success` y `fail`
 automaticamente cuando `HC_PING_URL_CRON_*` este definido en `.env`.
+
+En el VPS la materializacion operativa del entorno vive en `/etc/esdata/esdata.env`. `infra/deploy/.env.prod` sigue siendo la referencia del repo para Compose y documentacion, pero el unit instalado debe apuntar al fichero externalizado del host. Si `systemctl cat esdata-job@.service` muestra `--no-deps`, hay drift operativo y debe corregirse antes de confiar en los cron semanales.
 
 ### Backup automatico
 
