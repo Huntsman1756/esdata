@@ -1,15 +1,17 @@
+from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-
-from db import db_session
+from mcp_request_context import is_mcp_internal_request
 from schemas import (
     DoctrinaDetail as DoctrinaDetailSchema,
+)
+from schemas import (
     DoctrinaSearchResponse,
 )
-from services.search import _build_tsquery_sql, _chunk_rank_boost, _build_fragment
 from services.query_audit import get_query_audit_service
+from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
 from services.semantic_search import hybrid_search_doctrina
+from sqlalchemy import text
 
 
 def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
@@ -69,19 +71,17 @@ def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
     ]
 
 def _build_doctrina_audit_chunks(result: dict) -> list[dict]:
-    chunks: list[dict] = []
-    for item in result.get("resultados", []):
-        chunks.append(
-            {
-                "referencia": item.get("referencia"),
-                "tipo_documento": item.get("tipo_documento"),
-                "organismo_emisor": item.get("organismo_emisor"),
-                "source_url": item.get("source_url"),
-                "norma": item.get("norma"),
-                "numero": item.get("numero"),
-            }
-        )
-    return chunks
+    return [
+        {
+            "referencia": item.get("referencia"),
+            "tipo_documento": item.get("tipo_documento"),
+            "organismo_emisor": item.get("organismo_emisor"),
+            "source_url": item.get("source_url"),
+            "norma": item.get("norma"),
+            "numero": item.get("numero"),
+        }
+        for item in result.get("resultados", [])
+    ]
 
 
 router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
@@ -119,14 +119,15 @@ async def buscar_doctrina(
         if include_boe and (organismo_emisor is None or organismo_emisor.upper() == "BOE"):
             result["resultados"].extend(_buscar_normas_boe(db, q))
 
-        get_query_audit_service().record_query(
-            request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
-            user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
-            path="/v1/doctrina/buscar",
-            query_text=q,
-            retrieved_chunks=_build_doctrina_audit_chunks(result),
-            response_summary=f"resultados={len(result.get('resultados', []))}",
-        )
+        if not is_mcp_internal_request():
+            get_query_audit_service().record_query(
+                request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
+                user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+                path="/v1/doctrina/buscar",
+                query_text=q,
+                retrieved_chunks=_build_doctrina_audit_chunks(result),
+                response_summary=f"resultados={len(result.get('resultados', []))}",
+            )
         return result
 
 
@@ -482,3 +483,4 @@ async def buscar_doctrina_hybrid(
         q, tipo, desde, organismo_emisor, hybrid_weight, limit
     )
     return JSONResponse(content=result)
+# ruff: noqa: E501

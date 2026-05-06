@@ -3,12 +3,12 @@ import re
 from db import db_session
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-
+from mcp_request_context import is_mcp_internal_request
+from schemas import LegislacionSearchResponse
+from services.query_audit import get_query_audit_service
 from services.search import search_legislacion
 from services.semantic_search import hybrid_search_legislacion
-from services.query_audit import get_query_audit_service
-from schemas import LegislacionSearchResponse
+from sqlalchemy import text
 
 
 def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
@@ -104,14 +104,15 @@ async def buscar(
     result = _buscar_comparacion_modelos_aeat(q)
     if result is None:
         result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
-    get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
-        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
-        path="/v1/buscar",
-        query_text=q,
-        retrieved_chunks=_build_legislacion_audit_chunks(result),
-        response_summary=f"resultados={len(result.get('resultados', []))}",
-    )
+    if not is_mcp_internal_request():
+        get_query_audit_service().record_query(
+            request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
+            user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+            path="/v1/buscar",
+            query_text=q,
+            retrieved_chunks=_build_legislacion_audit_chunks(result),
+            response_summary=f"resultados={len(result.get('resultados', []))}",
+        )
     return result
 
 
@@ -144,3 +145,4 @@ async def buscar_legislacion_hybrid(
         q, norma, fuente, ambito, tipo, vigente_en, hybrid_weight, limit
     )
     return JSONResponse(content=result)
+# ruff: noqa: E501

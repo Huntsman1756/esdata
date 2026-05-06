@@ -34,7 +34,7 @@ async def test_mcp_transport_preserves_request_id_header():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
             "/mcp",
-            headers={"x-api-key": "test-mcp-key", "x-request-id": "req-mcp-contract-001"},
+            headers={"x-api-key": "test-key", "x-request-id": "req-mcp-contract-001"},
         )
 
     assert response.status_code == 406
@@ -48,7 +48,7 @@ async def test_mcp_transport_get_without_explicit_lifespan_does_not_500():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
             "/mcp",
-            headers={"x-api-key": "test-mcp-key", "x-request-id": "req-mcp-contract-002"},
+            headers={"x-api-key": "test-key", "x-request-id": "req-mcp-contract-002"},
         )
 
     assert response.status_code == 406

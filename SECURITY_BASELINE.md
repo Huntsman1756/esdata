@@ -41,7 +41,7 @@
 
 ### 5. Pagos/Webhooks ✅ IMPLEMENTED
 - **Regla:** Verificación criptográfica de firma + idempotencia por `event.id`.
-- **Estado:** `apps/api/services/webhook_verification.py` — HMAC-SHA256 + idempotencia por `event_id` con tabla `webhook_events` auto-creada.
+- **Estado:** `apps/api/services/webhook_verification.py` — HMAC-SHA256 + idempotencia por `event_id`; tabla `webhook_events` propiedad de Alembic y fail-fast si falta en runtime.
 - **Archivos:** `apps/api/services/webhook_verification.py`, `apps/api/routers/webhooks.py`
 
 ### 6. Env vars ✅ IMPLEMENTED

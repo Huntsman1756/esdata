@@ -96,7 +96,7 @@ async def handle_generic_webhook(
     verify_webhook_signature(request, body)
 
     # 2. Verificar idempotencia
-    is_duplicate = await check_idempotency(db, payload.event_id)
+    is_duplicate = check_idempotency(db, payload.event_id)
     if is_duplicate:
         logger.info("Duplicate webhook event: event_id=%s", payload.event_id)
         return JSONResponse(
@@ -110,7 +110,7 @@ async def handle_generic_webhook(
         event_type=payload.event_type,
         payload=payload.payload,
     )
-    await record_webhook_event(db, webhook_event)
+    record_webhook_event(db, webhook_event)
 
     # 4. Procesar evento (aqui va la logica de negocio del webhook)
     logger.info(

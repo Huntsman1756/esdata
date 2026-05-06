@@ -1,4 +1,77 @@
+import re
+
 from sqlalchemy import text
+
+DIRTY_AEAT_PATTERNS = [
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"<script",
+        r"</script",
+        r"static_files",
+        r"saltar al contenido principal",
+        r"logotipo del gobierno",
+        r"logotipo organismo",
+        r"menú móvil",
+        r"menu móvil",
+        r"abrir menú móvil",
+        r"<[^>]+\sclass\s*=",
+        r"<[^>]+\ssrc\s*=",
+        r"[\"']\s*(?:class|src)\s*=",
+    )
+]
+
+AEAT_STOP_PHRASES = (
+    "Agencia Tributaria",
+    "Saltar al contenido principal",
+    "Logotipo del Gobierno de España",
+    "Logotipo Organismo",
+    "Menú móvil",
+    "Menu móvil",
+    "Abrir menú móvil",
+)
+
+
+def is_dirty_aeat_text(value) -> bool:
+    return isinstance(value, str) and any(pattern.search(value) for pattern in DIRTY_AEAT_PATTERNS)
+
+
+def clean_aeat_text(value):
+    if not isinstance(value, str):
+        return value
+    cleaned = re.sub(r"<script\b[^>]*>.*?</script>", " ", value, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r"<style\b[^>]*>.*?</style>", " ", cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+    cleaned = re.sub(r"&nbsp;", " ", cleaned, flags=re.IGNORECASE)
+    for phrase in AEAT_STOP_PHRASES:
+        cleaned = re.sub(re.escape(phrase), " ", cleaned, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def assess_modelo_cleanliness(*values) -> dict:
+    def walk(value):
+        if value is None:
+            return []
+        if isinstance(value, dict):
+            found = []
+            for item in value.values():
+                found.extend(walk(item))
+            return found
+        if isinstance(value, (list, tuple)):
+            found = []
+            for item in value:
+                found.extend(walk(item))
+            return found
+        return [value] if is_dirty_aeat_text(value) else []
+
+    dirty_values = []
+    for value in values:
+        dirty_values.extend(walk(value))
+    warnings = ["aeat_parser_residue_detected"] if dirty_values else []
+    return {
+        "verified": not dirty_values,
+        "completeness": "partial" if dirty_values else None,
+        "warnings": warnings,
+    }
 
 
 def _infer_frecuencia(periodo: str | None, plazo: str | None) -> str | None:
@@ -739,3 +812,4 @@ def get_modelos_status(db):
         ),
         "estado": "ok" if campanas_activas > 0 and ultima_actualizacion else "sin_datos",
     }
+# ruff: noqa: E501

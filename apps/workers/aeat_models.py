@@ -91,6 +91,27 @@ def _normalize_html(html: str) -> bytes:
     return normalized.encode("utf-8")
 
 
+def _clean_aeat_display_text(text: str | None) -> str:
+    if not text:
+        return ""
+    soup = BeautifulSoup(text, "html.parser")
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+    cleaned = soup.get_text(" ", strip=True)
+    cleaned = re.sub(r"&nbsp;", " ", cleaned, flags=re.IGNORECASE)
+    for phrase in (
+        "Agencia Tributaria",
+        "Saltar al contenido principal",
+        "Logotipo del Gobierno de España",
+        "Logotipo Organismo",
+        "Menú móvil",
+        "Menu móvil",
+        "Abrir menú móvil",
+    ):
+        cleaned = re.sub(re.escape(phrase), " ", cleaned, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
 def _sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
@@ -392,10 +413,18 @@ def _discover_aeat_models(portal_client: AEATPortalClient | None = None) -> list
 
 
 def _extract_model_name(raw_text: str, codigo: str) -> str:
-    if raw_text:
-        name = re.sub(r"<[^>]+>", " ", raw_text)
-        name = re.sub(r"&nbsp;", " ", name)
-        name = re.sub(r"[;\-–—:]+", " ", name).strip()
+    name = _clean_aeat_display_text(raw_text)
+    if name:
+        name = re.sub(rf"^\s*{re.escape(codigo)}\s*(?:[;\-–—:]\s*)?", "", name).strip()
+        if not re.match(rf"^Modelo\s+{re.escape(codigo)}\b", name, flags=re.IGNORECASE):
+            name = f"Modelo {codigo}. {name}" if name else f"Modelo {codigo}"
+        name = re.sub(rf"^(Modelo\s+{re.escape(codigo)})\s+(?![.;:])", r"\1. ", name, flags=re.IGNORECASE)
+        name = re.sub(
+            rf"^(Modelo\s+{re.escape(codigo)}\.?)\s+Modelo\s+{re.escape(codigo)}\.?",
+            r"\1",
+            name,
+            flags=re.IGNORECASE,
+        ).strip()
         if len(name) > 5:
             return name[:200]
     return f"Modelo {codigo}"
@@ -1078,3 +1107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# ruff: noqa: E501

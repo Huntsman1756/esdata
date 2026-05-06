@@ -248,6 +248,9 @@ if __name__ == "__main__":
         while True:
             result = run_sync()
             print(
-                f"Synced documentos={result['processed']}, almacenados={result['stored']} at {datetime.now().isoformat()}"
+                "Synced "
+                f"documentos={result['processed']}, "
+                f"almacenados={result['stored']} "
+                f"at {datetime.now().isoformat()}"
             )
             time.sleep(interval)

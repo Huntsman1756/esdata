@@ -11,24 +11,22 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import aeat_models
-
 from aeat_models import (
     FallbackRequired,
     HttpxClient,
     PlaywrightClient,
+    _classify_resource,
     _discover_aeat_models,
     _extract_model_name,
-    _classify_resource,
+    _get_existing_codes,
     _is_official_model_resource,
+    _mark_deprecated_models,
     _normalize_aeat_url,
     _record_sync_log,
     _store_modelo_recurso_version,
-    _mark_deprecated_models,
     _upsert_aeat_model,
-    _get_existing_codes,
     get_portal_client,
 )
-
 
 # ---------------------------------------------------------------------------
 # Model name extraction
@@ -57,6 +55,18 @@ class TestExtractModelName:
         name = _extract_model_name("100 &amp; IRPF", "100")
         assert "&amp;" not in name
         assert "IRPF" in name
+
+    def test_strips_aeat_navigation_residue(self):
+        raw = "Agencia Tributaria  Modelo 303. IVA. Autoliquidación. Saltar al contenido principal Logotipo del Gobierno de España"
+        name = _extract_model_name(raw, "303")
+        assert name == "Modelo 303. IVA. Autoliquidación."
+
+    def test_does_not_store_script_or_markup_fragments_as_name(self):
+        raw = '303 <script src="/static_files/common/script/aeat.07.js"></script> Modelo 303. IVA.'
+        name = _extract_model_name(raw, "303")
+        assert "script" not in name.lower()
+        assert "static_files" not in name.lower()
+        assert name.startswith("Modelo 303")
 
 
 # ---------------------------------------------------------------------------
@@ -1029,3 +1039,4 @@ def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatc
         ).fetchone()
 
     assert row == ("partial", 0, "Skipped 1 AEAT official resources after fetch failures")
+# ruff: noqa: E501

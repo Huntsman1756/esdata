@@ -1,14 +1,16 @@
 """HTTP integration tests for ai_audit_log, human_review, data_lineage, and model_registry routers (Fase 30.2)."""
 
+# ruff: noqa: E402, I001
+
 import os
 import sys
 import tempfile
-from pathlib import Path
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
@@ -49,15 +51,13 @@ def _patched_db_session():
 
 _db_module.db_session = _db_module.contextmanager(_patched_db_session)
 
-# Import persistence first (needed for DDL), then patch all service modules
+# Import test bootstrap first (needed for SQLite schema), then patch all service modules
+from governance_bootstrap import bootstrap_governance_tables  # noqa: E402
 import services.persistence as _persistence  # noqa: E402
 
 # Create all governance tables BEFORE importing other service modules
 # (services/model_registry has a module-level singleton that queries these tables)
-_ddl_statements = _persistence._ddl_statements_for_dialect("sqlite")
-with test_engine.begin() as conn:
-    for stmt in _ddl_statements:
-        conn.execute(text(stmt))
+bootstrap_governance_tables(test_engine)
 
 # Now patch service modules and import them (singleton init will find tables)
 import services.ai_audit as _ai_audit  # noqa: E402

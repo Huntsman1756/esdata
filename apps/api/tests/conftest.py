@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from governance_bootstrap import bootstrap_governance_tables
 from sqlalchemy import create_engine, text
 
 # Configure test environment BEFORE any module imports that read os.environ
@@ -153,6 +154,71 @@ STATEMENTS = [
         error_msg TEXT
     )
     """,
+    """
+    CREATE TABLE webhook_events (
+        event_id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        processed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE empresa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL UNIQUE,
+        nif TEXT,
+        domicilio TEXT,
+        fuente_inicial TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE documento_empresa (
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        empresa_id INTEGER NOT NULL REFERENCES empresa(id),
+        rol TEXT NOT NULL,
+        confianza_extraccion REAL NOT NULL,
+        nota TEXT,
+        PRIMARY KEY (documento_id, empresa_id)
+    )
+    """,
+    """
+    CREATE TABLE obligacion_regulatoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL,
+        fuente TEXT NOT NULL,
+        organismo_emisor TEXT NOT NULL,
+        tipo_obligacion TEXT NOT NULL,
+        sujeto_obligado TEXT NOT NULL,
+        periodicidad TEXT,
+        reporte_modelo TEXT,
+        ambito TEXT NOT NULL,
+        estado_vigencia TEXT NOT NULL,
+        documento_origen_tipo TEXT NOT NULL,
+        documento_origen_ref TEXT NOT NULL,
+        seccion_origen TEXT,
+        anexo_origen TEXT,
+        nota TEXT,
+        plazo_dias INTEGER,
+        frecuencia_presentacion TEXT,
+        ventana_presentacion TEXT,
+        trigger_presentacion TEXT,
+        canal_presentacion TEXT,
+        obligados_resumen TEXT,
+        sancion_min REAL,
+        sancion_max REAL,
+        recargo_voluntario TEXT,
+        recargo_involuntario TEXT,
+        interes_demora TEXT,
+        prescripcion_anos INTEGER,
+        deposito_previo TEXT,
+        fuentes_operativas TEXT,
+        ultima_actualizacion TEXT,
+        origen_metadato TEXT DEFAULT 'seed_curado',
+        estado_metadato TEXT DEFAULT 'curado',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
     # --- Tablas editoriales (corpus autoritativo) ---
     """
     CREATE TABLE nota_editorial_interna (
@@ -259,6 +325,17 @@ STATEMENTS = [
         tipo_documento, ambito, estado_cobertura, vigente_desde
     )
     VALUES (
+        'LIRPF', 'Ley del Impuesto sobre la Renta de las Personas Fisicas', 'BOE-A-2006-20764',
+        'https://www.boe.es/eli/es/l/2006/11/28/35/con', 'es', 'boe',
+        'ley', 'tributario', 'ingestada', '2007-01-01'
+    )
+    """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
         'ITPAJD',
         'Texto refundido del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados',
         'BOE-A-1993-253',
@@ -271,7 +348,7 @@ STATEMENTS = [
         '1993-09-25'
     )
     """,
-    # --- LIVA 91: fixture de test con texto realista del BOE ---
+    # --- LIVA 91: fixture representativo de ley vigente para regresion ---
     # Este no es un placeholder de producción; el worker BOE ingesta el texto real.
     # Aquí usamos un extracto representativo para que los tests verifiquen búsqueda y estructura.
     """
@@ -281,10 +358,10 @@ STATEMENTS = [
     """
     INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
     SELECT a.id, 'Artículo 91. Tipos impositivos reducidos.
-Uno. Se aplicará el tipo reducido a las siguientes operaciones:
+Uno. Se aplicará el tipo del 10 por ciento a las siguientes operaciones:
 1. Las entregas de bienes de primera necesidad.
 2. Los servicios de hostelería y restaurante.
-Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', NULL, 'a91'
+Dos. Se aplicará el tipo del 4 por ciento al pan, leche y libros.', '2025-04-03', NULL, 'a91'
     FROM articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE n.codigo = 'LIVA' AND a.numero = '91'
@@ -637,3 +714,6 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
 with engine.begin() as conn:
     for statement in STATEMENTS:
         conn.execute(text(statement))
+
+bootstrap_governance_tables(engine)
+# ruff: noqa: E501

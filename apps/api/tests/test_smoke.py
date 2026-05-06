@@ -1,10 +1,11 @@
 # apps/api/tests/test_smoke.py
 
+import sys
+from pathlib import Path
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from pathlib import Path
 from sqlalchemy import text
-import sys
 
 
 def _client():
@@ -101,12 +102,27 @@ async def test_liva_articulo_91():
 
 @pytest.mark.asyncio
 async def test_liva_articulo_91_vigente_en_fecha():
+    fecha_vigencia = "2026-05-06"
     async with _client() as c:
-        r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2020-01-01")
+        r = await c.get(f"/v1/legislacion/LIVA/articulos/91?vigente_en={fecha_vigencia}")
     assert r.status_code == 200
     data = r.json()
-    assert data["vigente_desde"] <= "2020-01-01"
-    assert data.get("vigente_hasta") is None or data["vigente_hasta"] >= "2020-01-01"
+    assert data["vigente_desde"] <= fecha_vigencia
+    assert data.get("vigente_hasta") is None or data["vigente_hasta"] >= fecha_vigencia
+
+
+@pytest.mark.asyncio
+async def test_liva_articulo_91_current_fixture_uses_current_reduced_rates():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2026-05-06")
+
+    assert r.status_code == 200
+    data = r.json()
+    text = data["texto"].lower()
+    assert "10 por ciento" in text
+    assert "4 por ciento" in text
+    assert "6 por 100" not in text
+    assert "3 por 100" not in text
 
 
 @pytest.mark.asyncio
@@ -774,9 +790,8 @@ def test_status_endpoint_no_session_leaks():
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from main import app
-
     from httpx import ASGITransport, AsyncClient
+    from main import app
 
     client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
@@ -790,7 +805,6 @@ def test_status_endpoint_no_session_leaks():
     finally:
         loop.close()
 
-    engine = app.state.engine if hasattr(app.state, "engine") else None
     # Si no hay engine expuesto, verificamos por el pool de db.py
     from db import engine as api_engine
     assert api_engine.pool.checkedout() == 0, (
@@ -804,7 +818,6 @@ def test_worker_heartbeat_file_created():
     El heartbeat se usa para los healthchecks de Docker. Si no se crea,
     Docker no puede detectar crash loops silenciosos.
     """
-    import os
     import tempfile
     from pathlib import Path
 

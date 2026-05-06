@@ -1,7 +1,6 @@
+from db import get_db
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
-
-from db import get_db
 
 router = APIRouter(prefix="/v1/legislacion", tags=["legislacion"])
 
@@ -116,6 +115,19 @@ async def list_articulos(codigo: str, tipo: str | None = None):
     return {"norma": codigo, "articulos": rows}
 
 
+def _known_accuracy_warning(
+    codigo: str, numero: str, texto_value: str, vigente_en: str | None
+) -> str | None:
+    if codigo.upper() == "LIVA" and numero == "91" and vigente_en:
+        lowered = texto_value.lower()
+        if "6 por 100" in lowered or "3 por 100" in lowered:
+            return (
+                "Texto potencialmente obsoleto para LIVA art. 91 en la fecha "
+                "solicitada; no usar como fuente vigente sin revalidación BOE."
+            )
+    return None
+
+
 @router.get("/{codigo}/articulos/{numero}", operation_id="get_articulo")
 async def get_articulo(codigo: str, numero: str, vigente_en: str | None = None):
     db = next(get_db())
@@ -160,7 +172,9 @@ async def get_articulo(codigo: str, numero: str, vigente_en: str | None = None):
         "confianza": {
             "nivel": 1,
             "fuentes": [f"{row['codigo']} art. {row['numero']}"],
-            "aviso": None,
+            "aviso": _known_accuracy_warning(
+                row["codigo"], row["numero"], row["texto"] or "", vigente_en
+            ),
         },
     }
 

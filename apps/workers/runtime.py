@@ -47,8 +47,9 @@ def ensure_database_connection(
     logger: logging.Logger | None = None,
 ) -> None:
     active_logger = logger or logging.getLogger(__name__)
-    host = getattr(engine.url, "host", None) or "localhost"
-    port = getattr(engine.url, "port", None) or 5432
+    engine_url = getattr(engine, "url", None)
+    host = getattr(engine_url, "host", None) or "localhost"
+    port = getattr(engine_url, "port", None) or 5432
     last_error: Exception | None = None
 
     for attempt in range(1, attempts + 1):
@@ -60,7 +61,8 @@ def ensure_database_connection(
                 active_logger.warning("DNS probe failed for %s:%s: %s", host, port, exc)
                 raise OSError(exc) from exc
 
-            with engine.connect() as conn:
+            connect = getattr(engine, "connect", None) or engine.begin
+            with connect() as conn:
                 conn.execute(text("SELECT 1"))
             active_logger.info("DB connection established")
             return

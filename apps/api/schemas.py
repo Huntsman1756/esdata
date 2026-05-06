@@ -3,7 +3,7 @@
 Focused on the endpoints exposed to Custom GPT Actions.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Shared
@@ -272,9 +272,70 @@ class ModeloDetail(BaseModel):
     impuesto: str = Field(description="Impuesto asociado")
     url_info: str | None = Field(default=None, description="URL a la sede AEAT")
     campana_activa: str | None = Field(default=None, description="Campaña activa (año)")
+    completeness: str | None = Field(default=None, description="Estado de completitud del dato")
+    verified: bool | None = Field(default=None, description="Si el dato no muestra residuos de parser conocidos")
+    warnings: list[str] = Field(default_factory=list, description="Advertencias de calidad del dato")
     campanas: list[ModeloCampana] = Field(
         default_factory=list, description="Campañas disponibles"
     )
+    articulos: list[ModeloArticulo] = Field(default_factory=list)
+    casillas: list[ModeloCasilla] = Field(default_factory=list)
+    claves: list[ModeloClave] = Field(default_factory=list)
+    instrucciones: list[ModeloInstruccion] = Field(default_factory=list)
+    normativa: list[ModeloNormativa] = Field(default_factory=list)
+    doctrina_relacionada: list[DoctrinaRelacionada] = Field(default_factory=list)
+
+
+class EmpresaListItem(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    nombre: str
+    nif: str | None = None
+    domicilio: str | None = None
+    fuente_inicial: str
+    documentos_count: int = 0
+
+
+class EmpresasListResponse(BaseModel):
+    empresas: list[EmpresaListItem]
+
+
+class EmpresaDetail(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    nombre: str
+    nif: str | None = None
+    domicilio: str | None = None
+    fuente_inicial: str
+    documentos: list[dict] = Field(default_factory=list)
+
+
+class ObligacionItem(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    codigo: str
+    nombre: str
+    fuente: str
+    organismo_emisor: str
+    tipo_obligacion: str
+    sujeto_obligado: str
+    ambito: str
+    estado_vigencia: str
+
+
+class ObligacionesListResponse(BaseModel):
+    obligaciones: list[ObligacionItem]
+
+
+class ObligacionesAplicablesResponse(BaseModel):
+    perfil: dict
+    obligaciones: list[ObligacionItem]
+
+
+class ObligacionDetail(ObligacionItem):
+    documentos: list[dict] = Field(default_factory=list)
     articulos: list[ModeloArticulo] = Field(
         default_factory=list, description="Artículos de ley vinculados"
     )
@@ -430,6 +491,7 @@ class ChunkCitation(BaseModel):
     chunk_id: str = Field(description="ID del chunk recuperado")
     content_preview: str = Field(description="Vista previa del contenido del chunk")
     relevance_score: float = Field(description="Puntuación de relevancia")
+    rerank_score: float | None = Field(default=None, description="Puntuación cruda del reranker")
 
 
 class ClaimCitation(BaseModel):
@@ -1238,3 +1300,4 @@ class CNMVObligationLinkResponse(BaseModel):
     referencia: str
     obligaciones: list[CNMVObligationLinkItem]
     total: int
+# ruff: noqa: E501

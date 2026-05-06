@@ -55,6 +55,10 @@ FAITHFULNESS_AUTO_APPROVE_THRESHOLD = 0.95
 QUERY_AUDIT_CONFIG_VERSION = "consulta-faithfulness-v1"
 RERANK_TOP_K = 5
 GROUNDING_THRESHOLD = 0.4
+INSUFFICIENT_EVIDENCE_MESSAGE = (
+    "evidencia insuficiente para responder con fiabilidad; "
+    "revise la fuente oficial antes de tomar decisiones"
+)
 
 router = APIRouter(prefix="", tags=["consulta"])
 
@@ -192,7 +196,7 @@ def _extract_keywords(q: str, sujeto: str) -> list[str]:
 
 def _resolve_modelos(keywords: list[str]) -> list[str]:
     """Resolve keywords to a prioritized list of model codes.
-    
+
     Prioritizes longer/more specific keywords over generic ones.
     E.g., "irnr" (2 chars, tax-specific) beats "renta" (5 chars, generic).
     Also prioritizes subject hints over keyword matches.
@@ -203,7 +207,6 @@ def _resolve_modelos(keywords: list[str]) -> list[str]:
 
     # Track how many models each keyword contributes
     keyword_models = {}
-    seen = set()
 
     for kw in sorted_keywords:
         if kw.startswith("_subject_"):
@@ -260,7 +263,13 @@ def _score_resultado(r: dict, q: str, expanded_keywords: list[str]) -> dict:
     q_lower = q.lower()
     q_terms = set(re.findall(r"[a-záéíóúñ]{3,}", q_lower))
     if not q_terms:
-        r["_relevancia"] = {"nivel": "baja", "score": 0.0, "coincidencia": "sin terminos relevantes", "terminos_encontrados": [], "terminos_faltantes": list(q_terms)}
+        r["_relevancia"] = {
+            "nivel": "baja",
+            "score": 0.0,
+            "coincidencia": "sin terminos relevantes",
+            "terminos_encontrados": [],
+            "terminos_faltantes": list(q_terms),
+        }
         return r
 
     texto_para_buscar = ""
@@ -321,7 +330,6 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
 
     Returns a dict compatible with ConsultaConfianza schema.
     """
-    q_lower = q.lower()
     fuentes = []
     tipos_conteo = {}
 
@@ -383,7 +391,11 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         answer_proxy = " ".join(filter(None, [_result_text(resultado) for resultado in resultados[:3]]))
         faithfulness_score = compute_faithfulness(answer_proxy, chunks_para_faithfulness)
 
-    faithfulness_label = "alta" if faithfulness_score >= 0.75 else ("media" if faithfulness_score >= FAITHFULNESS_REVIEW_THRESHOLD else "baja")
+    faithfulness_label = (
+        "alta"
+        if faithfulness_score >= 0.75
+        else ("media" if faithfulness_score >= FAITHFULNESS_REVIEW_THRESHOLD else "baja")
+    )
     review_check = check_review_required(
         faithfulness_score,
         confidence_threshold=FAITHFULNESS_REVIEW_THRESHOLD,
@@ -425,6 +437,25 @@ def _build_query_audit_chunks(resultados: list[dict]) -> list[dict]:
                 "rerank_score": resultado.get("_rerank_score"),
                 "motivo_ranking": evidencia.get("motivo_ranking") or resultado.get("motivo_ranking"),
                 "rank": resultado.get("rank"),
+            }
+        )
+    return chunks
+
+
+def _build_query_audit_chunks_from_citations(cited_chunks: list[dict]) -> list[dict]:
+    chunks: list[dict] = []
+    for citation in cited_chunks:
+        chunk_id = citation.get("chunk_id")
+        if chunk_id in (None, ""):
+            continue
+        chunks.append(
+            {
+                "chunk_id": str(chunk_id),
+                "source_document": citation.get("source_document"),
+                "article_number": citation.get("article_number"),
+                "rerank_score": citation.get("rerank_score"),
+                "content_preview": citation.get("content_preview") or citation.get("excerpt"),
+                "relevance_score": citation.get("relevance_score"),
             }
         )
     return chunks
@@ -538,6 +569,8 @@ def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
     return [
         {
             "chunk_id": chunk.chunk_id,
+            "content_preview": chunk.text[:200],
+            "relevance_score": float(normalize_rerank_score(chunk.rerank_score)),
             "source_document": chunk.source_document,
             "article_number": chunk.article_number,
             "rerank_score": float(chunk.rerank_score),
@@ -611,6 +644,77 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
     return claim_citations
 
 
+def _claim_to_text(claim: object) -> str:
+    if isinstance(claim, str):
+        return claim
+    if not isinstance(claim, dict):
+        return str(claim or "")
+
+    parts = [
+        str(value)
+        for value in (
+            claim.get("tipo"),
+            claim.get("codigo"),
+            claim.get("articulo"),
+            claim.get("nombre"),
+        )
+        if value not in (None, "")
+    ]
+    return " ".join(parts)
+
+
+def _normalize_claim_citations_for_response(claim_citations: list[dict]) -> list[dict]:
+    normalized: list[dict] = []
+    for item in claim_citations:
+        citations = item.get("citations") or []
+        best = next(
+            (
+                citation
+                for citation in citations
+                if citation.get("chunk_id") not in (None, "")
+                and citation.get("grounded") is True
+            ),
+            {},
+        )
+        source_chunk_id = best.get("chunk_id")
+        if source_chunk_id in (None, ""):
+            continue
+        score = float(best.get("rerank_score") or 0.0)
+        normalized.append(
+            {
+                "claim": _claim_to_text(item.get("claim")),
+                "source_chunk_id": str(source_chunk_id),
+                "source_url": best.get("source_url"),
+                "grounded": bool(item.get("grounded")),
+                "confidence": float(normalize_rerank_score(score)),
+            }
+        )
+    return normalized
+
+
+def _claim_key_from_claim(claim: dict) -> str:
+    return f"{claim.get('tipo')}:{claim.get('codigo')}:{claim.get('articulo') or ''}"
+
+
+def _claim_key_from_result(resultado: dict) -> str:
+    articulo_val = resultado.get("articulo", "") or ""
+    codigo_val = resultado.get("codigo", resultado.get("referencia", resultado.get("norma", "")) or "")
+    return f"{resultado['tipo']}:{codigo_val}:{articulo_val}"
+
+
+def _filter_claim_citations_to_results(
+    claim_citations: list[dict],
+    retained_results: list[dict],
+) -> list[dict]:
+    retained_keys = {_claim_key_from_result(result) for result in retained_results}
+    return [
+        item
+        for item in claim_citations
+        if item.get("grounded") is True
+        and _claim_key_from_claim(item.get("claim") or {}) in retained_keys
+    ]
+
+
 def _collect_uncovered_query_terms(query: str, resultados: list[dict]) -> set[str]:
     query_terms = set(re.findall(r"[a-záéíóúñ0-9]{3,}", (query or "").lower()))
     if not query_terms or not resultados:
@@ -663,12 +767,12 @@ def _apply_grounding_abstention_if_needed(
     uncovered_terms = _collect_uncovered_query_terms(query, resultados)
     if uncovered_terms:
         confianza = dict(confianza)
-        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = INSUFFICIENT_EVIDENCE_MESSAGE
         return [], confianza, []
 
     if not cited_chunks:
         confianza = dict(confianza)
-        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = INSUFFICIENT_EVIDENCE_MESSAGE
         return [], confianza, []
 
     has_full_article_evidence = any(
@@ -692,7 +796,7 @@ def _apply_grounding_abstention_if_needed(
         return resultados, confianza, cited_chunks
 
     confianza = dict(confianza)
-    confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+    confianza["aviso"] = INSUFFICIENT_EVIDENCE_MESSAGE
     return [], confianza, []
 
 
@@ -760,13 +864,34 @@ def _apply_claim_level_abstention(
 )
 async def consulta_fiscal(
     request: Request,
-    q: str = Query("", description="Pregunta fiscal en lenguaje natural (ej: 'facta no residente', 'irpf dividendos ue', 'iva entregas intracomunitarias')"),
+    q: str = Query(
+        "",
+        description=(
+            "Pregunta fiscal en lenguaje natural "
+            "(ej: 'facta no residente', 'irpf dividendos ue', 'iva entregas intracomunitarias')"
+        ),
+    ),
     sujeto: str = Query("", description="Tipo de sujeto: contribuyente, no_residente, empresa, retenedor, etc."),
     pais: str = Query("", description="País/territorio: es, ue, intracomunitario, fuera_ue, etc."),
-    tipo_operacion: str = Query("", description="Tipo de operación: entrega_bienes, prestacion_servicios, dividendos, retencion, etc."),
+    tipo_operacion: str = Query(
+        "",
+        description="Tipo de operación: entrega_bienes, prestacion_servicios, dividendos, retencion, etc.",
+    ),
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
-    sources: str | None = Query(None, description="Filtrar fuentes por tipo, separadas por coma. Valores: legislacion, doctrina, pgc, modelos, screening, entities, norms, articles. Si no se indica, usa todas las fuentes por defecto."),
-    hybrid_weight: float = Query(0.3, ge=0.0, le=1.0, description="Peso del componente vectorial (0.0=fulltext, 0.3=hibrido, 1.0=vectorial)"),
+    sources: str | None = Query(
+        None,
+        description=(
+            "Filtrar fuentes por tipo, separadas por coma. Valores: legislacion, doctrina, "
+            "pgc, modelos, screening, entities, norms, articles. Si no se indica, usa todas "
+            "las fuentes por defecto."
+        ),
+    ),
+    hybrid_weight: float = Query(
+        0.3,
+        ge=0.0,
+        le=1.0,
+        description="Peso del componente vectorial (0.0=fulltext, 0.3=hibrido, 1.0=vectorial)",
+    ),
 ):
     results = []
     modelos_codigo = []
@@ -833,7 +958,10 @@ async def consulta_fiscal(
             oblig_filters = ["1=1"]
             oblig_params: dict = {}
             if q:
-                oblig_filters.append("(o.nombre ILIKE :q OR o.tipo_obligacion ILIKE :q OR o.fuente ILIKE :q OR o.nota ILIKE :q)")
+                oblig_filters.append(
+                    "(o.nombre ILIKE :q OR o.tipo_obligacion ILIKE :q "
+                    "OR o.fuente ILIKE :q OR o.nota ILIKE :q)"
+                )
                 oblig_params["q"] = f"%{q}%"
             if sujeto:
                 oblig_filters.append("o.sujeto_obligado ILIKE :suj")
@@ -1066,24 +1194,24 @@ async def consulta_fiscal(
         final_results, _ = _apply_claim_level_abstention(
             final_results, claim_citations
         )
+        claim_citations = _filter_claim_citations_to_results(claim_citations, final_results)
     elif not claim_citations and not resolved_modelos and q:
         # No claim citations and no resolved modelos — check if grounding is empty
         if not cited_chunks and confianza.get("faithfulness_score", 0.0) < FAITHFULNESS_REVIEW_THRESHOLD:
             final_results = []
             confianza = dict(confianza)
-            confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+            confianza["aviso"] = INSUFFICIENT_EVIDENCE_MESSAGE
 
     final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
+    claim_citations = _filter_claim_citations_to_results(claim_citations, final_results)
     if not final_results:
         cited_chunks = []
 
     # Build top-level relevancia
-    total_scored = len(scored_results)
     if final_results:
         avg_score = sum(r["_relevancia"]["score"] for r in final_results) / len(final_results)
         alta_count = sum(1 for r in final_results if r["_relevancia"]["nivel"] == "alta")
         relevancia_nivel = "alta" if avg_score >= 0.6 else ("media" if avg_score >= 0.3 else "baja")
-        relevancia_coins = []
         todos_terminos = set()
         encontrados = set()
         for r in final_results:
@@ -1112,7 +1240,15 @@ async def consulta_fiscal(
     request_id = request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown"
     user_id = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
     retrieved_chunks = _build_query_audit_chunks(scored_results)
-    response_summary = f"resultados={len(final_results)} faithfulness={confianza.get('faithfulness_score', 0.0):.4f} review_required={confianza.get('review_required', False)} grounding={grounding_summary.get('grounding_status', 'unknown')}/{grounding_summary.get('total_claims', 0)} claims"
+    if not retrieved_chunks:
+        retrieved_chunks = _build_query_audit_chunks_from_citations(cited_chunks)
+    response_summary = (
+        f"resultados={len(final_results)} "
+        f"faithfulness={confianza.get('faithfulness_score', 0.0):.4f} "
+        f"review_required={confianza.get('review_required', False)} "
+        f"grounding={grounding_summary.get('grounding_status', 'unknown')}/"
+        f"{grounding_summary.get('total_claims', 0)} claims"
+    )
     get_query_audit_service().record_query(
         request_id=request_id,
         user_id=user_id,
@@ -1129,11 +1265,8 @@ async def consulta_fiscal(
 
     # ── Observability metrics ──────────────────────────────────────────
     try:
-        import logging
-
         import psutil
 
-        logger = logging.getLogger(__name__)
         process = psutil.Process()
         mem_info = process.memory_info()
         record_query_memory("api", mem_info.rss)
@@ -1148,7 +1281,6 @@ async def consulta_fiscal(
     record_consulta_metrics("/v1/consulta", confianza)
 
     # ── Build unified search metadata ──────────────────────────────────
-    unified_meta = {}
     if sources and q:
         try:
             source_list = [s.strip() for s in sources.split(",") if s.strip()]
@@ -1158,13 +1290,6 @@ async def consulta_fiscal(
                 hybrid_weight=hybrid_weight,
                 limit=20,
             )
-            unified_meta = {
-                "sources_requested": source_list,
-                "sources_with_results": unified.get("sources_with_results", []),
-                "source_breakdown": unified.get("source_breakdown", {}),
-                "search_mode": unified.get("search_mode", "fulltext"),
-                "weights": unified.get("weights", {}),
-            }
             for item in unified.get("resultados", []):
                 results.append(item)
         except Exception:
@@ -1187,5 +1312,5 @@ async def consulta_fiscal(
         relevancia=relevancia,
         confianza=confianza if isinstance(confianza, dict) else None,
         cited_chunks=cited_chunks if cited_chunks else [],
-        claim_citations=claim_citations if claim_citations else [],
+        claim_citations=_normalize_claim_citations_for_response(claim_citations),
     )

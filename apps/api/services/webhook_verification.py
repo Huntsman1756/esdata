@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from fastapi import HTTPException, Request, status
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -74,15 +74,11 @@ def check_idempotency(db: Session, event_id: str) -> bool:
     Returns True if event is a duplicate (already processed).
     Returns False if event is new (should be processed).
 
-    Creates idempotency tracking table if it does not exist.
+    The idempotency table is owned by Alembic in production. SQLite tests may
+    bootstrap it explicitly in conftest.py.
     """
-    db.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {WEBHOOK_IDEMPOTENCY_TABLE} (
-            event_id    TEXT PRIMARY KEY,
-            event_type  TEXT NOT NULL,
-            processed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    """))
+    if not inspect(db.bind).has_table(WEBHOOK_IDEMPOTENCY_TABLE):
+        raise RuntimeError("webhook_events table missing; run Alembic migrations before webhook processing")
 
     result = db.execute(
         text(f"SELECT 1 FROM {WEBHOOK_IDEMPOTENCY_TABLE} WHERE event_id = :eid"),

@@ -1,22 +1,24 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from db import db_session
+from fastapi import APIRouter, HTTPException, Query
 from schemas import (
     AEATModeloDetail,
     AEATModeloListResponse,
-    ModeloCampanaOperativaResponse,
     ModeloArtefactosResponse,
-    ModeloDetail as ModeloDetailSchema,
+    ModeloCampanaOperativaResponse,
     ModeloFuentesOficialesResponse,
     ModeloResumenOperativoResponse,
     ModelosCampanasOperativasResponse,
     ModelosListResponse,
 )
+from schemas import (
+    ModeloDetail as ModeloDetailSchema,
+)
 from services.modelos import (
+    assess_modelo_cleanliness,
+    clean_aeat_text,
     get_active_campaign,
-    get_modelo_campana_operativa,
     get_model_row,
+    get_modelo_campana_operativa,
     get_modelo_resumen_operativo,
     list_campaign_casillas,
     list_campaign_claves,
@@ -24,18 +26,23 @@ from services.modelos import (
     list_modelo_artefactos,
     list_modelo_articulos,
     list_modelo_campanas,
-    list_modelos_campanas_operativas,
     list_modelo_fuentes_oficiales,
     list_modelo_normativa,
+    list_modelos_campanas_operativas,
     list_modelos_summary,
     list_related_doctrina,
 )
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
 
 
 def _date_to_str(value):
     return str(value) if value is not None else None
+
+
+def _clean_fields(row: dict, fields: tuple[str, ...]) -> dict:
+    return {**row, **{field: clean_aeat_text(row.get(field)) for field in fields}}
 
 
 def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurso=None, activo=None):
@@ -329,6 +336,13 @@ async def get_modelo(
             instr_rows = list_campaign_instructions(db, campana_id)
             instrucciones = [dict(r) for r in instr_rows]
 
+        cleanliness = assess_modelo_cleanliness(
+            model_row["nombre"], casillas, claves, instrucciones
+        )
+        casillas = [_clean_fields(row, ("etiqueta", "descripcion")) for row in casillas]
+        claves = [_clean_fields(row, ("etiqueta", "descripcion")) for row in claves]
+        instrucciones = [_clean_fields(row, ("titulo", "contenido")) for row in instrucciones]
+
         norm_rows = list_modelo_normativa(db, codigo)
         normativa = [
             {
@@ -344,11 +358,14 @@ async def get_modelo(
 
         return {
             "codigo": model_row["codigo"],
-            "nombre": model_row["nombre"],
+            "nombre": clean_aeat_text(model_row["nombre"]),
             "periodo": model_row["periodo"],
             "impuesto": model_row["impuesto"],
             "url_info": model_row["url_info"],
             "campana_activa": campana_activa,
+            "completeness": cleanliness["completeness"],
+            "verified": cleanliness["verified"],
+            "warnings": cleanliness["warnings"],
             "campanas": campanas,
             "articulos": articulos,
             "casillas": casillas,
@@ -410,7 +427,7 @@ async def get_modelo_casillas(
 
         return {
             "codigo": codigo,
-            "casillas": [dict(r) for r in rows],
+            "casillas": [_clean_fields(dict(r), ("etiqueta", "descripcion")) for r in rows],
         }
 
 
@@ -432,7 +449,7 @@ async def get_modelo_claves(
 
         return {
             "codigo": codigo,
-            "claves": [dict(r) for r in rows],
+            "claves": [_clean_fields(dict(r), ("etiqueta", "descripcion")) for r in rows],
         }
 
 
@@ -456,7 +473,7 @@ async def get_modelo_instrucciones(
 
         return {
             "codigo": codigo,
-            "instrucciones": [dict(r) for r in rows],
+            "instrucciones": [_clean_fields(dict(r), ("titulo", "contenido")) for r in rows],
         }
 
 
@@ -546,3 +563,4 @@ async def get_modelo_fuentes_oficiales(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
         return payload
+# ruff: noqa: E501

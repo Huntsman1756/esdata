@@ -71,6 +71,7 @@ SEED_URLS = [
 
 
 BASE_URL = "https://petete.tributos.hacienda.gob.es"
+DGT_SYNC_LOCK_KEY = 406_887_321_611
 DATABASE_URL = get_database_url()
 DGT_SSL_VERIFY = get_bool_env("DGT_SSL_VERIFY", True)
 DGT_DISCOVERY = get_bool_env("DGT_DISCOVERY", False)
@@ -88,6 +89,69 @@ def build_dgt_tls_verify() -> bool | ssl.SSLContext:
     if FNMT_INTERMEDIATE_CHAIN.exists():
         context.load_verify_locations(cafile=str(FNMT_INTERMEDIATE_CHAIN))
     return context
+
+
+def _engine_supports_postgres_advisory_locks(engine) -> bool:
+    dialect = getattr(engine, "dialect", None)
+    if dialect is None:
+        dialect = getattr(getattr(engine, "engine", None), "dialect", None)
+
+    dialect_name = getattr(dialect, "name", None)
+    if dialect_name is not None:
+        return dialect_name == "postgresql"
+
+    url = getattr(engine, "url", None)
+    drivername = getattr(url, "drivername", None)
+    return isinstance(drivername, str) and drivername.startswith("postgresql")
+
+
+def _ensure_database_connection_if_supported(engine) -> None:
+    if getattr(engine, "url", None) is None or not callable(getattr(engine, "connect", None)):
+        logger.info("Skipping DB connectivity probe for non-SQLAlchemy test engine")
+        return
+    ensure_database_connection(engine, logger=logger)
+
+
+class _ExistingConnectionContext:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def __enter__(self):
+        return self.conn
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
+def _open_lock_connection(engine):
+    connect = getattr(engine, "connect", None)
+    if callable(connect):
+        conn = connect()
+        if hasattr(conn, "__enter__") and hasattr(conn, "__exit__"):
+            return conn
+        return _ExistingConnectionContext(conn)
+    return engine.begin()
+
+
+def _try_acquire_sync_lock(conn) -> bool:
+    if not _engine_supports_postgres_advisory_locks(conn):
+        return True
+
+    row = conn.execute(
+        text("SELECT pg_try_advisory_lock(:lock_key)"),
+        {"lock_key": DGT_SYNC_LOCK_KEY},
+    ).fetchone()
+    return bool(row[0]) if row else False
+
+
+def _release_sync_lock(conn) -> None:
+    if not _engine_supports_postgres_advisory_locks(conn):
+        return
+
+    conn.execute(
+        text("SELECT pg_advisory_unlock(:lock_key)"),
+        {"lock_key": DGT_SYNC_LOCK_KEY},
+    )
 
 
 def build_search_payload(num_consulta: str) -> dict[str, str]:
@@ -168,7 +232,9 @@ def parse_search_results(html: str) -> list[dict[str, str]]:
     order_value = unescape(order_match.group("order")) if order_match else None
 
     pattern = re.compile(
-        r'<td id="doc_(?P<doc_id>\d+)"[^>]*(?:onClick="return viewDocument\(\d+,\s*(?P<tab>\d+)\);")?[^>]*>.*?<span class="NUM-CONSULTA">.*?(?P<referencia>V\d{4}-\d{2}).*?'
+        r'<td id="doc_(?P<doc_id>\d+)"[^>]*'
+        r'(?:onClick="return viewDocument\(\d+,\s*(?P<tab>\d+)\);")?[^>]*>.*?'
+        r'<span class="NUM-CONSULTA">.*?(?P<referencia>V\d{4}-\d{2}).*?'
         r'<span class="DESCRIPCION-HECHOS">(?P<hechos>.*?)</span>.*?'
         r'<span class="CUESTION-PLANTEADA"><i>(?P<cuestion>.*?)</i></span>',
         re.DOTALL,
@@ -375,9 +441,72 @@ def run_sync(
     total_discovered = 0
     links_created = 0
     engine = create_engine(DATABASE_URL, future=True)
-    ensure_database_connection(engine, logger=logger)
+    _ensure_database_connection_if_supported(engine)
 
     try:
+        lock_acquired = False
+        with _open_lock_connection(engine) as lock_conn:
+            lock_acquired = _try_acquire_sync_lock(lock_conn)
+            if not lock_acquired:
+                logger.warning("Skipping DGT sync because another run already holds the lock")
+                with engine.begin() as conn:
+                    _ensure_sync_log_table(conn)
+                    log_sync(
+                        conn,
+                        worker_name,
+                        "partial",
+                        documentos_processed=0,
+                        documentos_upserted=0,
+                        doctrina_links_created=0,
+                        error_msg="DGT sync already in progress",
+                    )
+                return {
+                    "processed": total_processed,
+                    "stored": total_stored,
+                    "discovered": total_discovered,
+                }
+
+            try:
+                result = _run_sync_locked(
+                    engine,
+                    seed_list,
+                    worker_name,
+                    batch_size,
+                    total_processed,
+                    total_stored,
+                    total_discovered,
+                    links_created,
+                )
+            finally:
+                if lock_acquired:
+                    _release_sync_lock(lock_conn)
+
+        return result
+    except Exception as exc:
+        with engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            log_sync(
+                conn,
+                worker_name,
+                "error",
+                documentos_processed=total_processed,
+                documentos_upserted=total_stored,
+                doctrina_links_created=links_created,
+                error_msg=str(exc),
+            )
+        raise
+
+
+def _run_sync_locked(
+    engine,
+    seed_list: list[str],
+    worker_name: str,
+    batch_size: int,
+    total_processed: int,
+    total_stored: int,
+    total_discovered: int,
+    links_created: int,
+) -> dict[str, int]:
         with httpx.Client(
             base_url=BASE_URL,
             timeout=60.0,
@@ -627,19 +756,6 @@ def run_sync(
             "stored": total_stored,
             "discovered": total_discovered,
         }
-    except Exception as exc:
-        with engine.begin() as conn:
-            _ensure_sync_log_table(conn)
-            log_sync(
-                conn,
-                worker_name,
-                "error",
-                documentos_processed=total_processed,
-                documentos_upserted=total_stored,
-                doctrina_links_created=links_created,
-                error_msg=str(exc),
-            )
-        raise
 
 
 if __name__ == "__main__":
