@@ -94,6 +94,9 @@ HC_PING_URL_CRON_BORME_WEEKLY=
 HC_PING_URL_CRON_CNMV_WEEKLY=
 HC_PING_URL_CRON_SEPBLAC_WEEKLY=
 HC_PING_URL_CRON_BDE_WEEKLY=
+HC_PING_URL_CRON_CENDOJ_WEEKLY=
+HC_PING_URL_CRON_AEPD_WEEKLY=
+HC_PING_URL_CRON_EURLEX_WEEKLY=
 EOF
 ```
 
@@ -168,15 +171,26 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esd
 Los workers corren en modo continuo por defecto. Para ejecutarlos como cron:
 
 ```bash
-# Opcion 1: Usar perfil cron (contenedores one-shot)
-docker compose -f infra/deploy/docker-compose.prod.yml --profile cron up -d
+# Opcion 1: Ejecutar cron manualmente con el env file del host
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-boe-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-dgt-weekly
 
-# Opcion 2: Configurar systemd timers (ver systemd/)
+# Opcion 2: Instalar timers systemd para todos los cron soportados
+sudo install -m 0644 infra/deploy/systemd/esdata-job@.service /etc/systemd/system/esdata-job@.service
+sudo install -m 0644 infra/deploy/systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now esdata-boe-daily.timer esdata-modelos-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer
+
+# Verificar la unidad instalada en el host
+systemctl cat esdata-job@.service
+
 # Opcion 3: Usar cron del sistema con docker compose run
 ```
 
 Si se usa Healthchecks, cada servicio `cron-*` enviara `start`, `success` y `fail`
 automaticamente cuando `HC_PING_URL_CRON_*` este definido en `.env`.
+
+Advertencia: si la unidad instalada deriva del repo y conserva `docker compose run --rm --no-deps %i`, o si no apunta a `/etc/esdata/esdata.env`, hay drift y es una configuracion incorrecta para este stack. Ese drift puede dejar los cron semanales fuera de la red `deploy_esdata-internal` o romper el arranque antes de cargar el entorno real del host.
 
 ### Backup automatico
 

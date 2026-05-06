@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata AEPD weekly sync
+
+[Timer]
+OnCalendar=Tue *-*-* 15:00:00
+Persistent=true
+Unit=esdata-job@cron-aepd-weekly.service
+
+[Install]
+WantedBy=timers.target

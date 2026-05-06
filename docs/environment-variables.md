@@ -148,6 +148,9 @@ Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidado
 | `HC_PING_URL_CRON_CNMV_WEEKLY` | No | | URL base de Healthchecks para `cron-cnmv-weekly` | Infra cron |
 | `HC_PING_URL_CRON_SEPBLAC_WEEKLY` | No | | URL base de Healthchecks para `cron-sepblac-weekly` | Infra cron |
 | `HC_PING_URL_CRON_BDE_WEEKLY` | No | | URL base de Healthchecks para `cron-bde-weekly` | Infra cron |
+| `HC_PING_URL_CRON_CENDOJ_WEEKLY` | No | | URL base de Healthchecks para `cron-cendoj-weekly` | Infra cron |
+| `HC_PING_URL_CRON_AEPD_WEEKLY` | No | | URL base de Healthchecks para `cron-aepd-weekly` | Infra cron |
+| `HC_PING_URL_CRON_EURLEX_WEEKLY` | No | | URL base de Healthchecks para `cron-eurlex-weekly` | Infra cron |
 
 ## Uso en Docker Compose
 

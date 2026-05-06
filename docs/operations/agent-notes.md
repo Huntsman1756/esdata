@@ -31,6 +31,13 @@ Usar notas cortas con este esquema:
 - Impacto: que se rompe o que error aparece si se ignora
 - Regla practica: que debe hacer el siguiente agente
 
+## Trap reutilizable - systemd + stale alerts
+
+- Scope: `infra/deploy/systemd/esdata-job@.service`, `infra/observability/alerts.yml`, VPS Compose
+- Hallazgo: una unidad `systemd` instalada con `docker compose run --rm --no-deps %i` puede romper los cron semanales con `not connected to the network deploy_esdata-internal`. Tambien hay drift si el unit del repo apunta a un env file distinto del contrato real del host (`/etc/esdata/esdata.env`). La alerta `WorkerSilent` tampoco puede usar una ventana fija de 48h; debe evaluar el contrato exportado por la API en `worker_stale_status` a partir de `sync_log`.
+- Impacto: los jobs manuales desde el repo pueden funcionar mientras el timer real del host falla por drift de unidad o por cargar un env file inexistente; en paralelo, una alerta basada en `worker_lag_seconds > 172800` dispara o silencia falsos positivos al ignorar el umbral real por worker.
+- Regla practica: validar `systemctl cat esdata-job@.service` antes de depurar timers, exigir `--env-file /etc/esdata/esdata.env` y ausencia de `--no-deps`, reiniciar o recrear Prometheus tras tocar `alerts.yml` y recordar que `/metrics` ya recalcula `worker_stale_status` desde `sync_log`; `/status` sirve como comprobacion humana del mismo contrato, no como prerrequisito tecnico para refrescar la metrica.
+
 ## Notas actuales
 
 ### 2026-05-03 - EUR-Lex: validar seeds contra `resource/celex` RDF antes de asumir que el numero es correcto

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata BDE weekly sync
+
+[Timer]
+OnCalendar=Tue *-*-* 13:00:00
+Persistent=true
+Unit=esdata-job@cron-bde-weekly.service
+
+[Install]
+WantedBy=timers.target
