@@ -3703,6 +3703,73 @@ class DocInterpretativoDetail(BaseModel):
     referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
 
 
+class IrsDttaConventionSummary(BaseModel):
+    id: int
+    codigo: str
+    pais_origen: str
+    pais_destino: str
+    titulo: str
+    fecha_firma: str | None = None
+    fecha_vigencia: str | None = None
+    tipo_acuerdo: str | None = None
+    estado: str
+
+
+class IrsDttaConventionDetail(IrsDttaConventionSummary):
+    boe_referencia: str | None = None
+    articulos: str | None = None
+    texto_completo: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class IrsDttaConventionListResponse(BaseModel):
+    convenios: list[IrsDttaConventionSummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsWithholdingRuleSummary(BaseModel):
+    id: int
+    codigo: str
+    tipo_renta: str
+    tipo_renta_espanol: str | None = None
+    tipo_retencion_default: float
+    tipo_retencion_dta: float | None = None
+    pais_aplicable: str | None = None
+    estado: str
+
+
+class IrsWithholdingRuleDetail(IrsWithholdingRuleSummary):
+    descripcion: str | None = None
+    norma_referencia: str | None = None
+    articulo_referencia: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class IrsWithholdingRuleListResponse(BaseModel):
+    reglas: list[IrsWithholdingRuleSummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsFiscalCheckRequest(BaseModel):
+    pais_residencia: str | None = None
+    tipo_renta: str
+    tiene_formulario_w8: bool = False
+    entidad_giin: str | None = None
+
+
+class IrsFiscalCheckResponse(BaseModel):
+    pais_residencia: str | None = None
+    tipo_renta: str
+    tipo_retencion_aplicable: float
+    tiene_convenio_dta: bool
+    codigo_convenio: str | None = None
+    requiere_w8: bool
+    formulario_recomendado: str | None = None
+    notas: str | None = None
+
+
 # --- CNMV-specific link / version surfaces --------------------------------
 
 class CNMVVersionItem(BaseModel):
