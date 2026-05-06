@@ -12,10 +12,10 @@ from sqlalchemy.pool import StaticPool
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from change_detection import ensure_source_revision_table
-from dgt import FNMT_INTERMEDIATE_CHAIN
 from dgt import (
-    _ensure_dgt_queue,
+    FNMT_INTERMEDIATE_CHAIN,
     _engine_supports_postgres_advisory_locks,
+    _ensure_dgt_queue,
     _get_pending_urls,
     build_search_payload,
     ensure_dgt_queue_table,
@@ -451,12 +451,23 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
         ).fetchone()
         queue_row = conn.execute(
             text(
-                "SELECT status, dgt_url FROM dgt_queue WHERE worker_name = 'worker-dgt' AND source_entity_id = 'V2274-22'"
+                """
+                SELECT status, dgt_url
+                FROM dgt_queue
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_id = 'V2274-22'
+                """
             )
         ).fetchone()
         revision_row = conn.execute(
             text(
-                "SELECT content_hash_sha256 FROM source_revision WHERE worker_name = 'worker-dgt' AND source_entity_tipo = 'consulta' AND source_entity_id = 'V2274-22'"
+                """
+                SELECT content_hash_sha256
+                FROM source_revision
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_tipo = 'consulta'
+                  AND source_entity_id = 'V2274-22'
+                """
             )
         ).fetchone()
 
@@ -520,7 +531,11 @@ def test_run_sync_marks_partial_when_dgt_search_returns_no_results(monkeypatch):
         if request.url.path == "/consultas/do/search":
             return httpx.Response(
                 200,
-                text='<div class="extra_padding"><div class="message">La consulta realizada no devuelve resultados.</div></div>',
+                text=(
+                    '<div class="extra_padding"><div class="message">'
+                    "La consulta realizada no devuelve resultados."
+                    "</div></div>"
+                ),
             )
         raise AssertionError(f"Unexpected request: {request.method} {request.url}")
 
@@ -541,7 +556,12 @@ def test_run_sync_marks_partial_when_dgt_search_returns_no_results(monkeypatch):
     with engine.begin() as conn:
         sync_row = conn.execute(
             text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+                """
+                SELECT worker, status, documentos_processed, documentos_upserted, error_msg
+                FROM sync_log
+                ORDER BY id DESC
+                LIMIT 1
+                """
             )
         ).fetchone()
 
@@ -713,17 +733,33 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
         ).scalar_one()
         queue_row = conn.execute(
             text(
-                "SELECT status, dgt_url FROM dgt_queue WHERE worker_name = 'worker-dgt' AND source_entity_id = 'V0001-26'"
+                """
+                SELECT status, dgt_url
+                FROM dgt_queue
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_id = 'V0001-26'
+                """
             )
         ).fetchone()
         source_revision_count = conn.execute(
             text(
-                "SELECT COUNT(*) FROM source_revision WHERE worker_name = 'worker-dgt' AND source_entity_tipo = 'consulta' AND source_entity_id = 'V0001-26'"
+                """
+                SELECT COUNT(*)
+                FROM source_revision
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_tipo = 'consulta'
+                  AND source_entity_id = 'V0001-26'
+                """
             )
         ).scalar_one()
         sync_row = conn.execute(
             text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+                """
+                SELECT worker, status, documentos_processed, documentos_upserted, error_msg
+                FROM sync_log
+                ORDER BY id DESC
+                LIMIT 1
+                """
             )
         ).fetchone()
 

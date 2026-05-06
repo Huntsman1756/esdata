@@ -419,6 +419,9 @@ async def get_modelo(
             "completeness": completeness,
             "verified": verified,
         }
+        if cleanliness["warnings"]:
+            payload["completeness"] = cleanliness["completeness"]
+            payload["verified"] = cleanliness["verified"]
         _record_modelo_query_audit(
             request,
             path=f"/v1/modelos/{codigo}",

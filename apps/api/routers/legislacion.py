@@ -93,7 +93,8 @@ async def get_norma(request: Request, codigo: str):
             db.execute(
                 text(
                     """
-                SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura
+                SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+                       tipo_documento, ambito, estado_cobertura
                 FROM norma
                 WHERE codigo = :codigo
                 """

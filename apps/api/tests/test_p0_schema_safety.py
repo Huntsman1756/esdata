@@ -93,6 +93,7 @@ def test_forbidden_runtime_create_table_patterns_are_limited_to_sqlite_bootstrap
     allowed_files = {
         ROOT / "apps/api/services/persistence.py",
         ROOT / "apps/api/tests/conftest.py",
+        ROOT / "apps/api/tests/test_alembic_integrity.py",
     }
     offenders = []
 

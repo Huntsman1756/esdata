@@ -1,9 +1,9 @@
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from mcp_request_context import is_mcp_internal_request
 from schemas import DoctrinaDetail as DoctrinaDetailSchema
 from schemas import DoctrinaSearchResponse
-from mcp_request_context import is_mcp_internal_request
 from services.query_audit import get_query_audit_service
 from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
 from services.semantic_search import hybrid_search_doctrina
