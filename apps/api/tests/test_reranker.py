@@ -224,7 +224,6 @@ def test_grounding_abstention_rejects_results_when_a_query_term_is_missing_from_
     assert updated_cited_chunks == []
     assert "evidencia insuficiente" in (updated_confianza.get("aviso") or "").lower()
 
-
 def test_consulta_delegates_claim_level_abstention_to_grounding_service(monkeypatch):
     import routers.consulta as consulta_module
 
@@ -266,6 +265,68 @@ def test_consulta_delegates_claim_level_abstention_to_grounding_service(monkeypa
     assert delegated["called"] is True
     assert filtered == [resultados[0]]
     assert updated_confianza["aviso"] == "delegated"
+
+
+def test_claim_citation_response_uses_first_grounded_real_citation():
+    from routers.consulta import _normalize_claim_citations_for_response
+
+    normalized = _normalize_claim_citations_for_response(
+        [
+            {
+                "claim": {"tipo": "normativa", "codigo": "LIVA", "articulo": "91"},
+                "grounded": True,
+                "citations": [
+                    {"chunk_id": "dirty", "rerank_score": 0.99, "grounded": False},
+                    {"chunk_id": "clean", "rerank_score": 0.8, "grounded": True},
+                ],
+            }
+        ]
+    )
+
+    assert len(normalized) == 1
+    assert normalized[0]["source_chunk_id"] == "clean"
+    assert normalized[0]["grounded"] is True
+
+
+def test_claim_citation_response_omits_claim_without_real_grounded_citation():
+    from routers.consulta import _normalize_claim_citations_for_response
+
+    normalized = _normalize_claim_citations_for_response(
+        [
+            {
+                "claim": {"tipo": "normativa", "codigo": "LIVA", "articulo": "91"},
+                "grounded": False,
+                "citations": [
+                    {"chunk_id": "dirty", "rerank_score": 0.99, "grounded": False},
+                ],
+            }
+        ]
+    )
+
+    assert normalized == []
+
+
+def test_claim_citations_filter_to_retained_grounded_results():
+    from routers.consulta import _filter_claim_citations_to_results
+
+    retained_results = [{"tipo": "normativa", "norma": "LIVA", "articulo": "91"}]
+    claim_citations = [
+        {
+            "claim": {"tipo": "normativa", "codigo": "LIVA", "articulo": "91"},
+            "grounded": True,
+            "citations": [{"chunk_id": "liva-91", "grounded": True, "rerank_score": 0.9}],
+        },
+        {
+            "claim": {"tipo": "normativa", "codigo": "LIS", "articulo": "10"},
+            "grounded": False,
+            "citations": [{"chunk_id": "lis-10", "grounded": False, "rerank_score": 0.1}],
+        },
+    ]
+
+    filtered = _filter_claim_citations_to_results(claim_citations, retained_results)
+
+    assert len(filtered) == 1
+    assert filtered[0]["claim"]["codigo"] == "LIVA"
 
 
 @pytest.mark.asyncio

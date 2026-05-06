@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from schemas import DoctrinaDetail as DoctrinaDetailSchema
 from schemas import DoctrinaSearchResponse
+from mcp_request_context import is_mcp_internal_request
 from services.query_audit import get_query_audit_service
 from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
 from services.semantic_search import hybrid_search_doctrina
@@ -159,14 +160,22 @@ async def buscar_doctrina(
         if include_boe and tipo is None and (organismo_emisor is None or organismo_emisor.upper() == "BOE"):
             result["resultados"].extend(_buscar_normas_boe(db, q))
 
-        get_query_audit_service().record_query(
-            request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
-            user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
-            path="/v1/doctrina/buscar",
-            query_text=q,
-            retrieved_chunks=_build_doctrina_audit_chunks(result),
-            response_summary=f"resultados={len(result.get('resultados', []))}",
-        )
+        if not is_mcp_internal_request():
+            resultados = result.get("resultados", [])
+            _record_doctrina_query_audit(
+                request,
+                path="/v1/doctrina/buscar",
+                query_text=q,
+                tool_name="buscar_doctrina",
+                retrieved_chunks=_build_doctrina_audit_chunks(result),
+                response_summary=f"resultados={len(resultados)}",
+                confidence={
+                    "score": 0.9 if resultados else 0.0,
+                    "label": "alta" if resultados else "baja",
+                },
+                completeness="completa" if resultados else "parcial",
+                verified=bool(resultados),
+            )
         return result
 
 
@@ -543,3 +552,4 @@ async def buscar_doctrina_hybrid(
         q, tipo, desde, organismo_emisor, hybrid_weight, limit
     )
     return JSONResponse(content=result)
+# ruff: noqa: E501

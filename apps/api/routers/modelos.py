@@ -14,7 +14,9 @@ from schemas import (
     ModeloDetail as ModeloDetailSchema,
 )
 from services.modelos import (
+    assess_modelo_cleanliness,
     build_modelo_truth_contract,
+    clean_aeat_text,
     get_active_campaign,
     get_model_row,
     get_modelo_campana_operativa,
@@ -42,7 +44,6 @@ router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
 def _date_to_str(value):
     return str(value) if value is not None else None
 
-
 def _record_modelo_query_audit(
     request: Request,
     *,
@@ -69,6 +70,10 @@ def _record_modelo_query_audit(
         completeness=completeness,
         verified=verified,
     )
+
+
+def _clean_fields(row: dict, fields: tuple[str, ...]) -> dict:
+    return {**row, **{field: clean_aeat_text(row.get(field)) for field in fields}}
 
 
 def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurso=None, activo=None):
@@ -371,6 +376,12 @@ async def get_modelo(
             if operativa_row and operativa_row.get("estado_metadato")
             else None
         )
+        cleanliness = assess_modelo_cleanliness(
+            model_row["nombre"], casillas, claves, instrucciones
+        )
+        casillas = [_clean_fields(row, ("etiqueta", "descripcion")) for row in casillas]
+        claves = [_clean_fields(row, ("etiqueta", "descripcion")) for row in claves]
+        instrucciones = [_clean_fields(row, ("titulo", "contenido")) for row in instrucciones]
 
         norm_rows = list_modelo_normativa(db, codigo)
         normativa = [
@@ -392,11 +403,12 @@ async def get_modelo(
 
         payload = {
             "codigo": model_row["codigo"],
-            "nombre": model_row["nombre"],
+            "nombre": clean_aeat_text(model_row["nombre"]),
             "periodo": model_row["periodo"],
             "impuesto": model_row["impuesto"],
             "url_info": model_row["url_info"],
             "campana_activa": campana_activa,
+            "warnings": cleanliness["warnings"],
             "campanas": campanas,
             "articulos": articulos,
             "casillas": casillas,
@@ -517,7 +529,7 @@ async def get_modelo_casillas(
 
         payload = {
             "codigo": codigo,
-            "casillas": [dict(r) for r in rows],
+            "casillas": [_clean_fields(dict(r), ("etiqueta", "descripcion")) for r in rows],
         }
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
@@ -581,7 +593,7 @@ async def get_modelo_claves(
 
         payload = {
             "codigo": codigo,
-            "claves": [dict(r) for r in rows],
+            "claves": [_clean_fields(dict(r), ("etiqueta", "descripcion")) for r in rows],
         }
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
@@ -647,7 +659,7 @@ async def get_modelo_instrucciones(
 
         payload = {
             "codigo": codigo,
-            "instrucciones": [dict(r) for r in rows],
+            "instrucciones": [_clean_fields(dict(r), ("titulo", "contenido")) for r in rows],
         }
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
@@ -779,3 +791,4 @@ async def get_modelo_fuentes_oficiales(
             verified=verified,
         )
         return payload
+# ruff: noqa: E501

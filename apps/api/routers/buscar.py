@@ -3,6 +3,7 @@ import re
 from db import db_session
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
+from mcp_request_context import is_mcp_internal_request
 from schemas import LegislacionSearchResponse
 from services.query_audit import get_query_audit_service
 from services.search import search_legislacion
@@ -129,13 +130,14 @@ async def buscar(
     result = _buscar_comparacion_modelos_aeat(q)
     if result is None:
         result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
-    _record_search_query_audit(
-        request,
-        path="/v1/buscar",
-        query_text=q,
-        tool_name="buscar",
-        result=result,
-    )
+    if not is_mcp_internal_request():
+        _record_search_query_audit(
+            request,
+            path="/v1/buscar",
+            query_text=q,
+            tool_name="buscar",
+            result=result,
+        )
     return result
 
 
@@ -151,13 +153,14 @@ async def buscar_legislacion(
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
 ):
     result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
-    _record_search_query_audit(
-        request,
-        path="/v1/legislacion/buscar",
-        query_text=q,
-        tool_name="buscar_legislacion",
-        result=result,
-    )
+    if not is_mcp_internal_request():
+        _record_search_query_audit(
+            request,
+            path="/v1/legislacion/buscar",
+            query_text=q,
+            tool_name="buscar_legislacion",
+            result=result,
+        )
     return JSONResponse(content=result)
 
 
@@ -176,3 +179,4 @@ async def buscar_legislacion_hybrid(
         q, norma, fuente, ambito, tipo, vigente_en, hybrid_weight, limit
     )
     return JSONResponse(content=result)
+# ruff: noqa: E501

@@ -1,11 +1,9 @@
 import hashlib
 import re
-import unicodedata
-
-from sqlalchemy import text
-from sqlalchemy.exc import ProgrammingError
 
 from db import db_session
+from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 
 
 def _build_source_hash(*parts: object) -> str:
@@ -240,22 +238,22 @@ def _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params):
     if norma is not None:
         # Normalize aliases to DB code
         norm = _NORMA_ALIASES.get(norma.upper(), norma)
-        escaped_norma = norm.replace("'", "''")
-        filters.append(f"n.codigo = '{escaped_norma}'")
+        filters.append("n.codigo = :norma")
+        params["norma"] = norm
     if fuente is not None:
-        escaped_fuente = fuente.replace("'", "''")
-        filters.append(f"n.tipo_fuente = '{escaped_fuente}'")
+        filters.append("n.tipo_fuente = :fuente")
+        params["fuente"] = fuente
     if ambito is not None:
-        escaped_ambito = ambito.replace("'", "''")
-        filters.append(f"n.ambito = '{escaped_ambito}'")
+        filters.append("n.ambito = :ambito")
+        params["ambito"] = ambito
     if tipo is not None:
-        escaped_tipo = tipo.replace("'", "''")
-        filters.append(f"a.tipo = '{escaped_tipo}'")
+        filters.append("a.tipo = :tipo")
+        params["tipo"] = tipo
     if vigente_en is not None:
-        escaped_vig = vigente_en.replace("'", "''")
         filters.append(
-            f"va.vigente_desde <= '{escaped_vig}' AND (va.vigente_hasta IS NULL OR va.vigente_hasta >= '{escaped_vig}')"
+            "(va.vigente_desde <= :vigente_en AND (va.vigente_hasta IS NULL OR va.vigente_hasta >= :vigente_en))"
         )
+        params["vigente_en"] = vigente_en
     return filters
 
 
@@ -447,7 +445,9 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     # Fallback: if no chunked results, search version_articulo directly
     # (documento_fragmento may not be backfilled yet)
     if not results:
-        results = _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, params, vig_subquery_params)
+        results = _search_version_articulo_pg(
+            db, q, norma, fuente, ambito, tipo, vigente_en, params, vig_subquery_params
+        )
 
     return {
         "q": q,
@@ -572,8 +572,13 @@ def _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en):
     filters: list[str] = []
 
     if q:
-        filters.append("LOWER(va.texto) LIKE LOWER(:term)")
-        params["term"] = f"%{q}%"
+        term_filters = []
+        for index, term in enumerate(re.findall(r"[\wáéíóúüñ]+", q, flags=re.IGNORECASE)):
+            param_name = f"term_{index}"
+            term_filters.append(f"LOWER(va.texto) LIKE LOWER(:{param_name})")
+            params[param_name] = f"%{term}%"
+        if term_filters:
+            filters.append("(" + " AND ".join(term_filters) + ")")
 
     common_filters = _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params)
     filters.extend(common_filters)

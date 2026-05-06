@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "workers"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from main import app
+from services.modelos import is_dirty_aeat_text
 
 
 @pytest.fixture
@@ -125,7 +126,7 @@ async def test_legislacion_get_cobertura(seeded_db):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_modelos_list_returns_models(seeded_db):
-    """Modelos list returns seeded AEAT models."""
+    """Modelos list returns seeded AEAT models and fixture-specific coverage."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         r = await c.get("/v1/modelos")
     assert r.status_code == 200
@@ -146,6 +147,36 @@ async def test_modelos_get_detail(seeded_db):
     data = r.json()
     assert data["codigo"] == "303"
     assert "campanas" in data
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_modelo_303_dirty_parser_content_is_not_verified(seeded_db, integration_db):
+    with integration_db.begin() as conn:
+        conn.execute(
+            text("""
+                UPDATE aeat_modelo
+                SET nombre = 'Agencia Tributaria Modelo 303. IVA. Autoliquidacion. Saltar al contenido principal <script src=""/static_files/common/script/aeat.07.js""></script>'
+                WHERE codigo = '303'
+            """)
+        )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/v1/modelos/303", params={"campana": "2025"})
+    assert resp.status_code == 200
+    data = resp.json()
+    serialized = str(data).lower()
+    assert "saltar al contenido principal" not in serialized
+    assert "static_files" not in serialized
+    assert data["verified"] is False
+    assert data["completeness"] == "partial"
+    assert "aeat_parser_residue_detected" in data["warnings"]
+
+
+def test_aeat_dirty_detection_ignores_plain_src_class_text():
+    assert is_dirty_aeat_text("Campo class=tributario como texto explicativo") is False
+    assert is_dirty_aeat_text("Código src=interno documentado como texto") is False
+    assert is_dirty_aeat_text('<span class="nav"><script src="/static_files/common/script/aeat.07.js"></script></span>') is True
 
 
 @pytest.mark.integration
@@ -428,3 +459,4 @@ async def test_lirpf_articulo_detail_with_vigente_en_after_legalize_seed(integra
     assert data["norma"] == "LIRPF"
     assert data["numero"] == "1"
     assert "impuesto" in data["texto"].lower()
+# ruff: noqa: E501

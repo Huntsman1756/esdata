@@ -1,6 +1,9 @@
 import sys
 from pathlib import Path
 
+import sys
+from pathlib import Path
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -146,12 +149,27 @@ async def test_liva_articulo_91():
 
 @pytest.mark.asyncio
 async def test_liva_articulo_91_vigente_en_fecha():
+    fecha_vigencia = "2026-05-06"
     async with _client() as c:
-        r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2020-01-01")
+        r = await c.get(f"/v1/legislacion/LIVA/articulos/91?vigente_en={fecha_vigencia}")
     assert r.status_code == 200
     data = r.json()
-    assert data["vigente_desde"] <= "2020-01-01"
-    assert data.get("vigente_hasta") is None or data["vigente_hasta"] >= "2020-01-01"
+    assert data["vigente_desde"] <= fecha_vigencia
+    assert data.get("vigente_hasta") is None or data["vigente_hasta"] >= fecha_vigencia
+
+
+@pytest.mark.asyncio
+async def test_liva_articulo_91_current_fixture_uses_current_reduced_rates():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2026-05-06")
+
+    assert r.status_code == 200
+    data = r.json()
+    text = data["texto"].lower()
+    assert "10 por ciento" in text
+    assert "4 por ciento" in text
+    assert "6 por 100" not in text
+    assert "3 por 100" not in text
 
 
 @pytest.mark.asyncio
