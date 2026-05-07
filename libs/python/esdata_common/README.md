@@ -17,8 +17,8 @@ esdata_common/
 ### API
 
 ```python
-# apps/api/requirements.txt debe incluir:
-# -e ../../libs/python/esdata_common
+# apps/api/requirements.txt debe incluir, desde la raiz del repo:
+# -e libs/python/esdata_common
 
 from esdata_common import config, db, logging
 

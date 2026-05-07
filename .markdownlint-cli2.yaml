@@ -1,0 +1,17 @@
+config:
+  MD013: false
+  MD024: false
+ignores:
+  - docs/archive/**
+  - docs/superpowers/**
+  - docs/master-execution-roadmap.md
+  - docs/MEMO.md
+  - docs/plans/**
+  - docs/operations/runbooks/grafana.md
+  - docs/operations/runbooks/screening-datasets.md
+  - docs/operations/worker-failures.md
+  - docs/ownership-mapping.md
+  - docs/repository-structure.md
+  - docs/CHANGELOG.md
+  - docs/database.md
+  - docs/manual-usuario/curacion-lineas-criterio.md

@@ -33,6 +33,7 @@ from services.unified_multi_source_search import (
 # Text builder tests
 # ---------------------------------------------------------------------------
 
+
 class TestTextBuilders:
     """Test that search text builders correctly assemble fields."""
 
@@ -126,6 +127,7 @@ class TestTextBuilders:
 # RRF fusion tests
 # ---------------------------------------------------------------------------
 
+
 class TestRRFFusion:
     """Test RRF fusion across multiple sources."""
 
@@ -163,10 +165,7 @@ class TestRRFFusion:
 
     def test_rrf_fuse_limit(self):
         source_results = {
-            "pgc": [
-                {"source_id": i, "rrf_ft_rank": i, "source_type": "pgc"}
-                for i in range(1, 11)
-            ],
+            "pgc": [{"source_id": i, "rrf_ft_rank": i, "source_type": "pgc"} for i in range(1, 11)],
         }
         fused = _rrf_fuse_multi(source_results, ft_weight=1.0, vec_weight=0.0, limit=5)
         assert len(fused) == 5
@@ -193,6 +192,7 @@ class TestRRFFusion:
 # Unified multi-source search tests
 # ---------------------------------------------------------------------------
 
+
 class TestUnifiedMultiSourceSearch:
     """Integration-style tests for unified_multi_source_search."""
 
@@ -206,9 +206,7 @@ class TestUnifiedMultiSourceSearch:
 
     def test_unified_search_all_sources(self):
         """Test search with all sources (default)."""
-        with patch(
-            "services.unified_multi_source_search.unified_multi_source_search"
-        ):
+        with patch("services.unified_multi_source_search.unified_multi_source_search"):
             # This tests the function exists and is callable
             # Full integration requires DB which is complex to mock
             pass
@@ -243,6 +241,7 @@ class TestUnifiedMultiSourceSearch:
         assert unified_multi_source_search.__doc__ is not None
         # Verify the function signature
         import inspect
+
         sig = inspect.signature(unified_multi_source_search)
         params = list(sig.parameters.keys())
         assert "q" in params
@@ -263,6 +262,7 @@ class TestUnifiedMultiSourceSearch:
             _search_pgc_source,
             _search_screening_source,
         )
+
         assert callable(_search_legislacion_source)
         assert callable(_search_doctrina_source)
         assert callable(_search_pgc_source)
@@ -338,6 +338,7 @@ class TestUnifiedMultiSourceSearch:
 # PGC fulltext tests
 # ---------------------------------------------------------------------------
 
+
 class TestPGCFulltext:
     """Tests for PGC fulltext search logic."""
 
@@ -368,6 +369,7 @@ class TestPGCFulltext:
 # ---------------------------------------------------------------------------
 # Screening text builder with JSON parsing
 # ---------------------------------------------------------------------------
+
 
 class TestScreeningTextBuilder:
     """Tests for screening entry text builder with JSON fields."""
@@ -426,6 +428,7 @@ class TestScreeningTextBuilder:
 # ---------------------------------------------------------------------------
 # Fase 31.x regulatory domain search tests
 # ---------------------------------------------------------------------------
+
 
 class Test31xSearchHandlers:
     """Tests for the 4 Fase 31.x source handlers (mica, dac, pbc, fraud)."""
@@ -542,6 +545,7 @@ class Test31xSearchHandlers:
         from services.unified_multi_source_search import (
             _search_31x_source,
         )
+
         assert callable(_search_31x_source)
 
     def test_31x_source_in_default_sources(self):
@@ -549,10 +553,12 @@ class Test31xSearchHandlers:
         from services.unified_multi_source_search import (
             _search_31x_source,
         )
+
         # The dispatch map is built inside the function, verify the handler exists
         assert callable(_search_31x_source)
         # Verify it handles all 9 domains by checking the source table map
         from services.unified_multi_source_search import _31x_SOURCE_TABLES
+
         for domain in ("mica", "dac", "pbc", "fraud", "mifid", "mar", "dora", "priips", "transparency"):
             assert domain in _31x_SOURCE_TABLES
 

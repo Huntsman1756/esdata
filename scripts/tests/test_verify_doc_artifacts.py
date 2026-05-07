@@ -5,7 +5,6 @@ import shutil
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parents[1] / "maintenance" / "verify-doc-artifacts.py"
 SPEC = importlib.util.spec_from_file_location("verify_doc_artifacts", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)

@@ -1,0 +1,5 @@
+accept = [200, 206, 429]
+exclude = [
+  "^https?://",
+  "^mailto:",
+]
