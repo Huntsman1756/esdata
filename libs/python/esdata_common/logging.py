@@ -114,7 +114,7 @@ def log_duration(logger: logging.Logger, label: str):
         def __init__(self, logger, label):
             self.logger = logger
             self.label = label
-            self.start = 0
+            self.start = 0.0
 
         def __enter__(self):
             self.start = time.monotonic()

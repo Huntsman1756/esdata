@@ -233,6 +233,18 @@
               "title": "Organismo Emisor"
             },
             "description": "Filtrar por organismo (DGT, TEAC, etc.)"
+          },
+          {
+            "name": "include_boe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluir normas BOE relacionadas cuando apliquen",
+              "default": true,
+              "title": "Include Boe"
+            },
+            "description": "Incluir normas BOE relacionadas cuando apliquen"
           }
         ],
         "responses": {
@@ -630,37 +642,37 @@
           "norma": {
             "type": "string",
             "title": "Norma",
-            "description": "Código de la norma"
+            "description": "Código de la norma verificada para el enlace visible"
           },
           "numero": {
             "type": "string",
             "title": "Numero",
-            "description": "Número del artículo"
+            "description": "Número del artículo verificado para el enlace visible"
           },
           "titulo": {
             "type": "string",
             "title": "Titulo",
-            "description": "Título del artículo"
+            "description": "Título del artículo visible enlazado de forma verificada"
           },
           "casilla": {
             "type": "string",
             "title": "Casilla",
-            "description": "Casilla asociada"
+            "description": "Casilla asociada al enlace verificado visible"
           },
           "nota": {
             "type": "string",
             "title": "Nota",
-            "description": "Nota explicativa"
+            "description": "Nota explicativa del enlace verificado visible"
           },
           "fuente": {
             "type": "string",
             "title": "Fuente",
-            "description": "Fuente del enlace"
+            "description": "Fuente oficial usada para verificar el enlace visible"
           },
           "url_fuente": {
             "type": "string",
             "title": "Url Fuente",
-            "description": "URL de la fuente"
+            "description": "URL oficial que respalda el enlace visible"
           }
         },
         "type": "object",
@@ -793,6 +805,24 @@
             "title": "Campana Activa",
             "description": "Campaña activa (año)"
           },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "Estado de completitud del dato"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Si el dato no muestra residuos de parser conocidos"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Advertencias de calidad del dato"
+          },
           "campanas": {
             "items": {
               "$ref": "#/components/schemas/ModeloCampana"
@@ -806,48 +836,42 @@
               "$ref": "#/components/schemas/ModeloArticulo"
             },
             "type": "array",
-            "title": "Articulos",
-            "description": "Artículos de ley vinculados"
+            "title": "Articulos"
           },
           "casillas": {
             "items": {
               "$ref": "#/components/schemas/ModeloCasilla"
             },
             "type": "array",
-            "title": "Casillas",
-            "description": "Casillas de la campaña activa"
+            "title": "Casillas"
           },
           "claves": {
             "items": {
               "$ref": "#/components/schemas/ModeloClave"
             },
             "type": "array",
-            "title": "Claves",
-            "description": "Claves de la campaña activa"
+            "title": "Claves"
           },
           "instrucciones": {
             "items": {
               "$ref": "#/components/schemas/ModeloInstruccion"
             },
             "type": "array",
-            "title": "Instrucciones",
-            "description": "Instrucciones"
+            "title": "Instrucciones"
           },
           "normativa": {
             "items": {
               "$ref": "#/components/schemas/ModeloNormativa"
             },
             "type": "array",
-            "title": "Normativa",
-            "description": "Normativa BOE"
+            "title": "Normativa"
           },
           "doctrina_relacionada": {
             "items": {
               "$ref": "#/components/schemas/DoctrinaRelacionada"
             },
             "type": "array",
-            "title": "Doctrina Relacionada",
-            "description": "Doctrina relacionada vía artículos"
+            "title": "Doctrina Relacionada"
           }
         },
         "type": "object",

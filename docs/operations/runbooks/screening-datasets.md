@@ -68,7 +68,7 @@ curl "http://localhost:8000/v1/screening/entries?codigo=OFAC_SDN&limit=1" | pyth
 ## Integracion de fuente real: EU Sanctions
 
 ### Fuente
-- URL: https://data.consilium.europa.eu/api/download/latest.json
+- URL: https://data.europa.eu/data/datasets/consolidated-list-of-persons-groups-and-entities-subject-to-eu-financial-sanctions?locale=en
 - Formato: JSON (lista de personas y entidades sancionadas)
 
 ### Pasos
@@ -86,7 +86,7 @@ uv run screening --source eu_sanctions --run-once
 ## Integracion de fuente real: UN Sanctions
 
 ### Fuente
-- URL: https://www.un.org/security/council/committees/1267/sanctions-list-consolidated-docs
+- URL: https://www.un.org/securitycouncil/content/un-sc-consolidated-list
 - Formato: PDF/JSON
 
 ### Pasos
