@@ -4,9 +4,7 @@ from collections import defaultdict, deque
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-
 from mcp_request_context import mcp_request_scope
-
 
 _RATE_BUCKETS: dict[str, deque[float]] = defaultdict(deque)
 

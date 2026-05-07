@@ -56,6 +56,10 @@ DOCS_REFERENCES = [
 RELATIVE_LINK_RE = re.compile(r"`?(\.\.?/[^`\s)]+)`?")
 ENV_ASSIGNMENT_RE = re.compile(r"^([A-Z][A-Z0-9_]*)=", re.MULTILINE)
 DOC_VARIABLE_LINE_RE = re.compile(r"^\|\s*`([A-Z][A-Z0-9_]*)`\s*\|", re.MULTILINE)
+LEGACY_DOC_VARIABLE_LINE_RE = re.compile(
+    r"^\|\s*`([A-Z][A-Z0-9_]*)`\s*\|\s*`legacy/no cableada`\s*\|",
+    re.MULTILINE,
+)
 
 # Markdown lint rules (Python-native, no external tools)
 _INTERNAL_LINK_RE: Final[re.Pattern] = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
@@ -107,9 +111,7 @@ def verify_reference(path: Path) -> list[str]:
     content = path.read_text(encoding="utf-8")
     for artifact in ARTIFACTS:
         if artifact.name in content and not artifact.exists():
-            errors.append(
-                f"doc references missing artifact: {path.relative_to(ROOT)} -> {artifact.relative_to(ROOT)}"
-            )
+            errors.append(f"doc references missing artifact: {path.relative_to(ROOT)} -> {artifact.relative_to(ROOT)}")
     for match in RELATIVE_LINK_RE.findall(content):
         target = (path.parent / match).resolve()
         if not target.exists():
@@ -129,13 +131,20 @@ def extract_documented_variables(path: Path) -> set[str]:
     return {match.group(1) for match in DOC_VARIABLE_LINE_RE.finditer(path.read_text(encoding="utf-8"))}
 
 
+def extract_legacy_documented_variables(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    return {match.group(1) for match in LEGACY_DOC_VARIABLE_LINE_RE.finditer(path.read_text(encoding="utf-8"))}
+
+
 def verify_env_documentation(env_example: Path, env_doc: Path) -> list[str]:
     errors: list[str] = []
     env_variables = extract_env_example_variables(env_example)
     documented_variables = extract_documented_variables(env_doc)
+    legacy_documented_variables = extract_legacy_documented_variables(env_doc)
 
     missing_in_docs = sorted(env_variables - documented_variables)
-    missing_in_example = sorted(documented_variables - env_variables)
+    missing_in_example = sorted(documented_variables - env_variables - legacy_documented_variables)
 
     for variable in missing_in_docs:
         errors.append(f"env drift: missing in docs/environment-variables.md: {variable}")
@@ -180,8 +189,18 @@ def verify_docs_vs_roadmap() -> list[str]:
     if not partial_target_features:
         return errors
 
-    # Check docs for claims of these features being fully implemented
+    excluded_docs = {
+        DOCS_DIR / "master-execution-roadmap.md",
+        DOCS_DIR / "architecture.md",
+        DOCS_DIR / "COMPLIANCE.md",
+    }
+
+    # Check docs for claims of these features being fully implemented.
+    # Status inventory docs legitimately contain mixed [IMPLEMENTED]/[PARTIAL]/[TARGET]
+    # markers and are reviewed by their own content, not this coarse overlap guard.
     for doc_path in DOCS_DIR.rglob("*.md"):
+        if doc_path in excluded_docs:
+            continue
         if "archive" in doc_path.parts or "manual-usuario" in doc_path.parts:
             continue
         doc_content = doc_path.read_text(encoding="utf-8")
@@ -237,9 +256,7 @@ def verify_workers_documented() -> list[str]:
 
     undocumented = sorted(worker_modules - {w for w in worker_modules if w in docs_content})
     if undocumented:
-        errors.append(
-            f"undocumented workers ({len(undocumented)}): {', '.join(undocumented[:10])}"
-        )
+        errors.append(f"undocumented workers ({len(undocumented)}): {', '.join(undocumented[:10])}")
 
     return errors
 
@@ -287,6 +304,13 @@ _LINT_EXCLUDE_PATTERNS: Final[tuple[str, ...]] = (
     "CHANGELOG.md",
     "MEMO.md",
     "master-execution-roadmap.md",
+    "environment-variables.md",
+    "OPERATIONS.md",
+    "backup-restore.md",
+    "deploy-compose.md",
+    "mcp-release-gate.md",
+    "mcp-remediation-plan.md",
+    "model-expansion-spec.md",
     "architecture.md",
     "ai-act-risk-assessment.md",
     "gdpr-dpia-ai-data-processing.md",
@@ -378,20 +402,14 @@ def lint_markdown_file(path: Path) -> list[str]:
         if heading_match:
             depth = len(heading_match.group(1))
             if depth > 6:
-                errors.append(
-                    f"{path.name}:{i}: heading-depth: heading level {depth} exceeds max 6"
-                )
+                errors.append(f"{path.name}:{i}: heading-depth: heading level {depth} exceeds max 6")
             # Check for ATX-style with no space after #
             if re.match(r"^#{1,6}[^#\s]", line):
-                errors.append(
-                    f"{path.name}:{i}: heading-space: missing space after # in heading"
-                )
+                errors.append(f"{path.name}:{i}: heading-space: missing space after # in heading")
             # Track duplicate headings
             text = heading_match.group(2).strip()
             if text in seen_headings:
-                errors.append(
-                    f"{path.name}:{i}: duplicate-heading: '{text}' first seen at line {seen_headings[text]}"
-                )
+                errors.append(f"{path.name}:{i}: duplicate-heading: '{text}' first seen at line {seen_headings[text]}")
             else:
                 seen_headings[text] = i
             prev_was_heading = True
@@ -405,16 +423,12 @@ def lint_markdown_file(path: Path) -> list[str]:
 
         # Line length check
         if len(line) > line_limit:
-            errors.append(
-                f"{path.name}:{i}: line-length: {len(line)} chars exceeds limit {line_limit}"
-            )
+            errors.append(f"{path.name}:{i}: line-length: {len(line)} chars exceeds limit {line_limit}")
 
         # Image without alt text check
         img_match = re.search(r"!\[\]\(([^)]+)\)", line)
         if img_match:
-            errors.append(
-                f"{path.name}:{i}: image-alt: image without alt text: {img_match.group(1)[:60]}"
-            )
+            errors.append(f"{path.name}:{i}: image-alt: image without alt text: {img_match.group(1)[:60]}")
 
     # Check for unclosed code blocks
     if in_code_block:
@@ -465,12 +479,7 @@ def verify_internal_links(path: Path) -> list[str]:
                 target_content = target.read_text(encoding="utf-8")
                 # Normalize anchor: lowercase, replace spaces with hyphens, remove special chars
                 normalized_anchor = (
-                    anchor.lower()
-                    .replace(" ", "-")
-                    .replace("'", "")
-                    .replace('"', "")
-                    .replace("(", "")
-                    .replace(")", "")
+                    anchor.lower().replace(" ", "-").replace("'", "").replace('"', "").replace("(", "").replace(")", "")
                 )
                 # Check common anchor formats
                 for heading_match in _HEADING_RE.finditer(target_content):

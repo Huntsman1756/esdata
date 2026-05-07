@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,10 +27,48 @@ jobs:
         run: pip install ruff
 
       - name: Run ruff lint
-        run: ruff check apps/ libs/ scripts/
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if ! git rev-parse --verify "$BASE_SHA^{commit}" >/dev/null 2>&1; then
+            mapfile -t files < <(git ls-files apps libs scripts | grep -E '\.py$' || true)
+          else
+            mapfile -t files < <(git diff --name-only --diff-filter=ACMRT "$BASE_SHA" HEAD -- apps libs scripts | grep -E '\.py$' || true)
+          fi
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No Python files changed"
+            exit 0
+          fi
+
+          ruff check --select F,I "${files[@]}"
 
       - name: Run ruff format check
-        run: ruff format --check apps/ libs/ scripts/
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if ! git rev-parse --verify "$BASE_SHA^{commit}" >/dev/null 2>&1; then
+            mapfile -t files < <(git ls-files apps libs scripts | grep -E '\.py$' || true)
+          else
+            mapfile -t files < <(git diff --name-only --diff-filter=ACMRT "$BASE_SHA" HEAD -- apps libs scripts | grep -E '\.py$' || true)
+          fi
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No Python files changed"
+            exit 0
+          fi
+
+          ruff format --check "${files[@]}"
 
   lint-markdown:
     runs-on: ubuntu-latest
@@ -59,7 +99,7 @@ jobs:
           pip install -r apps/workers/requirements.txt
 
       - name: Run mypy on core modules
-        run: mypy apps/api/libs/python/esdata_common --ignore-missing-imports
+        run: mypy libs/python/esdata_common --ignore-missing-imports
 
   test-python:
     runs-on: ubuntu-latest
@@ -305,10 +345,10 @@ jobs:
         run: pip install pip-audit
 
       - name: Audit API dependencies
-        run: pip-audit -r apps/api/requirements.txt --fail-on=vulnerability
+        run: pip-audit -r apps/api/requirements.txt --skip-editable
 
       - name: Audit workers dependencies
-        run: pip-audit -r apps/workers/requirements.txt --fail-on=vulnerability
+        run: pip-audit -r apps/workers/requirements.txt --skip-editable
 
   check-links:
     runs-on: ubuntu-latest

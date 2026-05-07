@@ -13,9 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 class ConfianzaInfo(BaseModel):
     nivel: int = Field(description="Nivel de confianza (0-2)")
     fuentes: list[str] = Field(description="Fuentes que respaldan la respuesta")
-    aviso: str | None = Field(
-        default=None, description="Advertencia si la confianza es baja"
-    )
+    aviso: str | None = Field(default=None, description="Advertencia si la confianza es baja")
 
 
 # ---------------------------------------------------------------------------
@@ -28,13 +26,9 @@ class Norma(BaseModel):
     titulo: str = Field(description="Título completo de la norma")
     jurisdiccion: str = Field(description="Jurisdicción (es, autonomico, etc.)")
     tipo_fuente: str = Field(description="Tipo de fuente (boe, autonomica, etc.)")
-    tipo_documento: str = Field(
-        description="Tipo de documento (ley, real_decreto_legislativo, etc.)"
-    )
+    tipo_documento: str = Field(description="Tipo de documento (ley, real_decreto_legislativo, etc.)")
     ambito: str = Field(description="Ámbito temático (tributario, etc.)")
-    estado_cobertura: str = Field(
-        description="Estado de cobertura (ingestada, parcial, etc.)"
-    )
+    estado_cobertura: str = Field(description="Estado de cobertura (ingestada, parcial, etc.)")
 
 
 class ArticuloListItem(BaseModel):
@@ -47,12 +41,8 @@ class ArticuloDetail(BaseModel):
     norma: str = Field(description="Código de la norma")
     numero: str = Field(description="Número del artículo")
     texto: str = Field(description="Texto vigente del artículo")
-    vigente_desde: str | None = Field(
-        default=None, description="Fecha de inicio de vigencia (YYYY-MM-DD)"
-    )
-    vigente_hasta: str | None = Field(
-        default=None, description="Fecha de fin de vigencia (YYYY-MM-DD)"
-    )
+    vigente_desde: str | None = Field(default=None, description="Fecha de inicio de vigencia (YYYY-MM-DD)")
+    vigente_hasta: str | None = Field(default=None, description="Fecha de fin de vigencia (YYYY-MM-DD)")
     confianza: ConfianzaInfo = Field(description="Información de confianza del dato")
 
 
@@ -62,15 +52,9 @@ class SearchResult(BaseModel):
     numero: str = Field(description="Número del artículo")
     texto: str = Field(description="Texto del artículo")
     fragmento: str = Field(description="Fragmento destacado con el término buscado")
-    vigente_desde: str | None = Field(
-        default=None, description="Fecha de inicio de vigencia"
-    )
-    vigente_hasta: str | None = Field(
-        default=None, description="Fecha de fin de vigencia"
-    )
-    rank: float | None = Field(
-        default=None, description="Puntuación de relevancia (ts_rank)"
-    )
+    vigente_desde: str | None = Field(default=None, description="Fecha de inicio de vigencia")
+    vigente_hasta: str | None = Field(default=None, description="Fecha de fin de vigencia")
+    rank: float | None = Field(default=None, description="Puntuación de relevancia (ts_rank)")
     confianza: ConfianzaInfo = Field(description="Información de confianza del dato")
 
 
@@ -87,12 +71,8 @@ class ArticuloRelacionado(BaseModel):
 
 
 class DoctrinaDetail(BaseModel):
-    referencia: str = Field(
-        description="Referencia del documento (ej: V0000-26, 00/1234/2024)"
-    )
-    tipo_documento: str = Field(
-        description="Tipo (consulta_vinculante, resolucion_teac, etc.)"
-    )
+    referencia: str = Field(description="Referencia del documento (ej: V0000-26, 00/1234/2024)")
+    tipo_documento: str = Field(description="Tipo (consulta_vinculante, resolucion_teac, etc.)")
     organismo_emisor: str = Field(description="Organismo emisor (DGT, TEAC, etc.)")
     texto: str = Field(description="Texto completo del documento")
     articulos_relacionados: list[ArticuloRelacionado] = Field(
@@ -105,9 +85,7 @@ class DoctrinaSearchResult(BaseModel):
     referencia: str = Field(description="Referencia del documento")
     tipo_documento: str = Field(description="Tipo de documento")
     organismo_emisor: str = Field(description="Organismo emisor")
-    fecha: str | None = Field(
-        default=None, description="Fecha del documento (YYYY-MM-DD)"
-    )
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
     titulo: str | None = Field(default=None, description="Título del documento")
     nivel_enlace: float = Field(description="Máxima confianza de enlace (0-1)")
     norma: str | None = Field(default=None, description="Código de norma vinculada")
@@ -119,9 +97,7 @@ class JurisprudenciaSearchResult(BaseModel):
     referencia: str = Field(description="Referencia del documento")
     tipo_documento: str = Field(description="Tipo de documento")
     organismo_emisor: str = Field(description="Organismo emisor")
-    fecha: str | None = Field(
-        default=None, description="Fecha del documento (YYYY-MM-DD)"
-    )
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
     titulo: str | None = Field(default=None, description="Título del documento")
     nivel_enlace: float = Field(description="Máxima confianza de enlace (0-1)")
     norma: str | None = Field(default=None, description="Código de norma vinculada")
@@ -137,9 +113,7 @@ class JurisprudenciaSearchResponse(BaseModel):
 class JurisprudenciaArticuloRelacionado(BaseModel):
     norma: str = Field(description="Código de la norma vinculada")
     numero: str = Field(description="Número del artículo vinculado")
-    titulo: str | None = Field(
-        default=None, description="Título del artículo vinculado"
-    )
+    titulo: str | None = Field(default=None, description="Título del artículo vinculado")
     metodo_enlace: str = Field(description="Método de enlace (manual, auto_link, etc.)")
     confianza_enlace: float = Field(description="Confianza del enlace (0-1)")
     nota: str | None = Field(default=None, description="Nota del enlace")
@@ -170,9 +144,7 @@ class JurisprudenciaDetail(BaseModel):
 class ModeloSummary(BaseModel):
     codigo: str = Field(description="Código del modelo (ej: 100, 303)")
     nombre: str = Field(description="Nombre completo del modelo")
-    periodo: str | None = Field(
-        default=None, description="Periodo de presentación (anual, trimestral, etc.)"
-    )
+    periodo: str | None = Field(default=None, description="Periodo de presentación (anual, trimestral, etc.)")
     impuesto: str = Field(description="Impuesto asociado (IRPF, IVA, etc.)")
     articulos_count: int = Field(description="Número de artículos de ley vinculados")
     casillas_count: int = Field(description="Número de casillas en la campaña activa")
@@ -206,9 +178,7 @@ class ModeloCasilla(BaseModel):
     codigo: str = Field(description="Código de la casilla")
     etiqueta: str = Field(description="Etiqueta descriptiva")
     descripcion: str | None = Field(default=None, description="Descripción breve")
-    tipo_casilla: str | None = Field(
-        default=None, description="Tipo (importe, checkbox, texto, etc.)"
-    )
+    tipo_casilla: str | None = Field(default=None, description="Tipo (importe, checkbox, texto, etc.)")
     pagina: int | None = Field(default=None, description="Página del PDF donde aparece")
     orden: int | None = Field(default=None, description="Orden de aparición")
 
@@ -217,15 +187,11 @@ class ModeloClave(BaseModel):
     codigo: str = Field(description="Código de la clave")
     etiqueta: str = Field(description="Etiqueta descriptiva")
     descripcion: str | None = Field(default=None, description="Descripción de la clave")
-    tipo_clave: str | None = Field(
-        default=None, description="Tipo (rendimiento, regimen, etc.)"
-    )
+    tipo_clave: str | None = Field(default=None, description="Tipo (rendimiento, regimen, etc.)")
 
 
 class ModeloInstruccion(BaseModel):
-    seccion: str = Field(
-        description="Sección (caracteristicas, quien-debe, como-rellenar, plazo)"
-    )
+    seccion: str = Field(description="Sección (caracteristicas, quien-debe, como-rellenar, plazo)")
     titulo: str = Field(description="Título de la sección")
     contenido: str = Field(description="Contenido paso a paso")
     orden: int = Field(description="Orden de presentación")
@@ -234,9 +200,7 @@ class ModeloInstruccion(BaseModel):
 class ModeloNormativa(BaseModel):
     boe_id: str | None = Field(default=None, description="Identificador BOE")
     titulo: str = Field(description="Título de la norma")
-    fecha: str | None = Field(
-        default=None, description="Fecha de publicación (YYYY-MM-DD)"
-    )
+    fecha: str | None = Field(default=None, description="Fecha de publicación (YYYY-MM-DD)")
     url_boe: str | None = Field(default=None, description="URL al BOE")
     resumen: str | None = Field(default=None, description="Breve descripción")
 
@@ -259,7 +223,9 @@ class ModeloCampanaOperativaResponse(BaseModel):
     estado_metadato: str | None = Field(default=None, description="Estado del metadato")
     completeness: str = Field(description="Estado de completitud: completa o parcial")
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
-    fuentes_recomendadas: list["ModeloFuenteOficial"] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
+    fuentes_recomendadas: list["ModeloFuenteOficial"] = Field(
+        default_factory=list, description="Fuentes oficiales recomendadas"
+    )
 
 
 class ModeloCampana(BaseModel):
@@ -274,24 +240,12 @@ class ModeloDetail(BaseModel):
     impuesto: str = Field(description="Impuesto asociado")
     url_info: str | None = Field(default=None, description="URL a la sede AEAT")
     campana_activa: str | None = Field(default=None, description="Campaña activa (año)")
-    campanas: list[ModeloCampana] = Field(
-        default_factory=list, description="Campañas disponibles"
-    )
-    articulos: list[ModeloArticulo] = Field(
-        default_factory=list, description="Artículos de ley vinculados"
-    )
-    casillas: list[ModeloCasilla] = Field(
-        default_factory=list, description="Casillas de la campaña activa"
-    )
-    claves: list[ModeloClave] = Field(
-        default_factory=list, description="Claves de la campaña activa"
-    )
-    instrucciones: list[ModeloInstruccion] = Field(
-        default_factory=list, description="Instrucciones"
-    )
-    normativa: list[ModeloNormativa] = Field(
-        default_factory=list, description="Normativa BOE"
-    )
+    campanas: list[ModeloCampana] = Field(default_factory=list, description="Campañas disponibles")
+    articulos: list[ModeloArticulo] = Field(default_factory=list, description="Artículos de ley vinculados")
+    casillas: list[ModeloCasilla] = Field(default_factory=list, description="Casillas de la campaña activa")
+    claves: list[ModeloClave] = Field(default_factory=list, description="Claves de la campaña activa")
+    instrucciones: list[ModeloInstruccion] = Field(default_factory=list, description="Instrucciones")
+    normativa: list[ModeloNormativa] = Field(default_factory=list, description="Normativa BOE")
     doctrina_relacionada: list[DoctrinaRelacionada] = Field(
         default_factory=list, description="Doctrina relacionada vía artículos"
     )
@@ -337,24 +291,12 @@ class ObligacionResumen(BaseModel):
     ambito: str = Field(description="Ambito")
     estado_vigencia: str = Field(description="Estado de vigencia")
     plazo_dias: int | None = Field(default=None, description="Plazo en dias")
-    frecuencia_presentacion: str | None = Field(
-        default=None, description="Frecuencia de presentacion"
-    )
-    ventana_presentacion: str | None = Field(
-        default=None, description="Ventana de presentacion"
-    )
-    trigger_presentacion: str | None = Field(
-        default=None, description="Trigger de presentacion"
-    )
-    sancion_min: str | float | int | None = Field(
-        default=None, description="Sancion minima"
-    )
-    sancion_max: str | float | int | None = Field(
-        default=None, description="Sancion maxima"
-    )
-    prescripcion_anos: int | None = Field(
-        default=None, description="Anos de prescripcion"
-    )
+    frecuencia_presentacion: str | None = Field(default=None, description="Frecuencia de presentacion")
+    ventana_presentacion: str | None = Field(default=None, description="Ventana de presentacion")
+    trigger_presentacion: str | None = Field(default=None, description="Trigger de presentacion")
+    sancion_min: str | float | int | None = Field(default=None, description="Sancion minima")
+    sancion_max: str | float | int | None = Field(default=None, description="Sancion maxima")
+    prescripcion_anos: int | None = Field(default=None, description="Anos de prescripcion")
 
 
 class ObligacionDocumento(BaseModel):
@@ -368,46 +310,22 @@ class ObligacionDocumento(BaseModel):
 class ObligacionDetail(ObligacionResumen):
     model_config = {"extra": "allow"}
 
-    documento_origen_tipo: str | None = Field(
-        default=None, description="Tipo de documento origen"
-    )
-    documento_origen_ref: str | None = Field(
-        default=None, description="Referencia del documento origen"
-    )
+    documento_origen_tipo: str | None = Field(default=None, description="Tipo de documento origen")
+    documento_origen_ref: str | None = Field(default=None, description="Referencia del documento origen")
     seccion_origen: str | None = Field(default=None, description="Seccion origen")
     anexo_origen: str | None = Field(default=None, description="Anexo origen")
     nota: str | None = Field(default=None, description="Nota interna")
-    canal_presentacion: str | None = Field(
-        default=None, description="Canal de presentacion"
-    )
-    obligados_resumen: str | None = Field(
-        default=None, description="Resumen de obligados"
-    )
-    recargo_voluntario: str | float | int | None = Field(
-        default=None, description="Recargo voluntario"
-    )
-    recargo_involuntario: str | float | int | None = Field(
-        default=None, description="Recargo involuntario"
-    )
-    interes_demora: str | float | int | None = Field(
-        default=None, description="Interes de demora"
-    )
+    canal_presentacion: str | None = Field(default=None, description="Canal de presentacion")
+    obligados_resumen: str | None = Field(default=None, description="Resumen de obligados")
+    recargo_voluntario: str | float | int | None = Field(default=None, description="Recargo voluntario")
+    recargo_involuntario: str | float | int | None = Field(default=None, description="Recargo involuntario")
+    interes_demora: str | float | int | None = Field(default=None, description="Interes de demora")
     deposito_previo: str | None = Field(default=None, description="Deposito previo")
-    fuentes_operativas: list | dict | None = Field(
-        default=None, description="Fuentes operativas estructuradas"
-    )
-    ultima_actualizacion: str | None = Field(
-        default=None, description="Ultima actualizacion"
-    )
-    origen_metadato: str | None = Field(
-        default=None, description="Origen del metadato"
-    )
-    estado_metadato: str | None = Field(
-        default=None, description="Estado del metadato"
-    )
-    documentos: list[ObligacionDocumento] = Field(
-        default_factory=list, description="Documentos relacionados"
-    )
+    fuentes_operativas: list | dict | None = Field(default=None, description="Fuentes operativas estructuradas")
+    ultima_actualizacion: str | None = Field(default=None, description="Ultima actualizacion")
+    origen_metadato: str | None = Field(default=None, description="Origen del metadato")
+    estado_metadato: str | None = Field(default=None, description="Estado del metadato")
+    documentos: list[ObligacionDocumento] = Field(default_factory=list, description="Documentos relacionados")
 
 
 class ObligacionesListResponse(BaseModel):
@@ -444,9 +362,7 @@ class EmpresaDetail(BaseModel):
     nif: str | None = Field(default=None, description="NIF")
     domicilio: str | None = Field(default=None, description="Domicilio")
     fuente_inicial: str = Field(description="Fuente inicial")
-    documentos: list[EmpresaDocumento] = Field(
-        default_factory=list, description="Documentos vinculados"
-    )
+    documentos: list[EmpresaDocumento] = Field(default_factory=list, description="Documentos vinculados")
 
 
 class EmpresasListResponse(BaseModel):
@@ -552,7 +468,9 @@ class AEATModeloDetail(BaseModel):
     nombre: str = Field(description="Nombre completo")
     activo: bool = Field(description="Si el modelo sigue activo")
     campana_actual: AEATCampanaDetail | None = Field(default=None, description="Campana actual con recursos activos")
-    historial: list[AEATCampanaDetail] | None = Field(default=None, description="Historial de campanas y versiones si include_history=true")
+    historial: list[AEATCampanaDetail] | None = Field(
+        default=None, description="Historial de campanas y versiones si include_history=true"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -615,7 +533,9 @@ class QueryAuditEntryResponse(MCPMinimumResponseContract):
     config_version: str | None = Field(default=None, description="Config version used")
     created_at: str = Field(description="When the query was recorded (ISO 8601)")
     grounding_status: str | None = Field(default=None, description="Grounding status persisted for the response")
-    prompt_injection_detected: bool = Field(default=False, description="If prompt injection signals were detected in retrieved chunks")
+    prompt_injection_detected: bool = Field(
+        default=False, description="If prompt injection signals were detected in retrieved chunks"
+    )
     grounding_summary: dict = Field(default_factory=dict, description="Persisted grounding summary for the response")
 
 
@@ -641,7 +561,9 @@ class CASPCreate(BaseModel):
     registration_number: str | None = Field(default=None, description="Número de registro ESMA")
     home_member_state: str | None = Field(default=None, description="Estado miembro ISO 3166-1 alpha-2")
     passport_active: bool = Field(default=False, description="Si tiene pasaporte activo")
-    services_offered: list[str] = Field(default_factory=list, description="Servicios: custody, exchange, execution, payment")
+    services_offered: list[str] = Field(
+        default_factory=list, description="Servicios: custody, exchange, execution, payment"
+    )
 
 
 class CASPUpdate(BaseModel):
@@ -649,7 +571,9 @@ class CASPUpdate(BaseModel):
     registration_number: str | None = Field(default=None, description="Número de registro ESMA")
     home_member_state: str | None = Field(default=None, description="Estado miembro ISO 3166-1 alpha-2")
     passport_active: bool | None = Field(default=None, description="Si tiene pasaporte activo")
-    services_offered: list[str] | None = Field(default=None, description="Servicios: custody, exchange, execution, payment")
+    services_offered: list[str] | None = Field(
+        default=None, description="Servicios: custody, exchange, execution, payment"
+    )
     status: str | None = Field(default=None, description="Estado: active, suspended, revoked")
 
 
@@ -1190,7 +1114,9 @@ class NotaEditorialSummary(BaseModel):
     id: int = Field(description="ID")
     titulo: str = Field(description="Título")
     resumen_ejecutivo: str | None = Field(default=None, description="Resumen ejecutivo")
-    tipo_contenido: str | None = Field(default=None, description="Tipo: resumen_interno, criterio_experto, nota_operativa")
+    tipo_contenido: str | None = Field(
+        default=None, description="Tipo: resumen_interno, criterio_experto, nota_operativa"
+    )
     fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial (BOE, etc.)")
     fuente_verificada: bool = Field(default=False, description="Si la fuente fue verificada por humano")
     estado: str | None = Field(default=None, description="Estado: borrador, vigente, revisar, obsoleto")
@@ -1220,12 +1146,18 @@ class NotaEditorialCreate(BaseModel):
     contexto: str | None = Field(default=None, description="Contexto")
     impacto_practico: str | None = Field(default=None, description="Impacto práctico")
     advertencias: str | None = Field(default=None, description="Advertencias")
-    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial (BOE-A-..., etc.)")
-    documento_origen_referencia: str | None = Field(default=None, description="Referencia documento interpretativo origen")
+    fuente_oficial_referencia: str | None = Field(
+        default=None, description="Referencia fuente oficial (BOE-A-..., etc.)"
+    )
+    documento_origen_referencia: str | None = Field(
+        default=None, description="Referencia documento interpretativo origen"
+    )
     autor_id: str | None = Field(default=None, description="ID autor")
     revisor_id: str | None = Field(default=None, description="ID revisor")
     estado: str = Field(default="borrador", description="Estado: borrador, vigente, revisar, obsoleto")
-    tipo_contenido: str | None = Field(default=None, description="Tipo: resumen_interno, criterio_experto, nota_operativa")
+    tipo_contenido: str | None = Field(
+        default=None, description="Tipo: resumen_interno, criterio_experto, nota_operativa"
+    )
     fecha_revision: str | None = Field(default=None, description="Fecha de revisión")
 
 
@@ -1287,8 +1219,12 @@ class PosicionInterpretativaCreate(BaseModel):
     titulo: str = Field(description="Título")
     descripcion: str | None = Field(default=None, description="Descripción")
     contenido: str | None = Field(default=None, description="Contenido")
-    fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial (BOE-A-..., etc.)")
-    documento_origen_referencia: str | None = Field(default=None, description="Referencia documento interpretativo origen")
+    fuente_oficial_referencia: str | None = Field(
+        default=None, description="Referencia fuente oficial (BOE-A-..., etc.)"
+    )
+    documento_origen_referencia: str | None = Field(
+        default=None, description="Referencia documento interpretativo origen"
+    )
     autor_id: str | None = Field(default=None, description="ID autor")
     revisor_id: str | None = Field(default=None, description="ID revisor")
     estado: str = Field(default="borrador", description="Estado: borrador, vigente, revisar, obsoleto")
@@ -1328,6 +1264,7 @@ class ConsultaFiscalResponse(BaseModel):
 # `documento_interpretativo`). Field naming preserves API contract used by
 # `tests/test_eurlex_router.py`; SQL aliases map storage to contract.
 
+
 class EurLexListItem(BaseModel):
     referencia: str = Field(description="Identificador CELEX (norma.codigo)")
     fecha: str | None = Field(default=None, description="vigente_desde (ISO date)")
@@ -1356,6 +1293,7 @@ class EurLexDetail(BaseModel):
 # Contrato compartido. Campos opcionales se pueblan solo cuando el router del
 # dominio los proyecta en el SELECT (cendoj -> organismo_emisor;
 # cnmv -> estado_vigencia, numero_circular, fecha_publicacion, referencia_boe).
+
 
 class DocInterpretativoListItem(BaseModel):
     referencia: str = Field(description="Identificador del documento")
@@ -1392,6 +1330,7 @@ class DocInterpretativoDetail(BaseModel):
 
 
 # --- CNMV-specific link / version surfaces --------------------------------
+
 
 class CNMVVersionItem(BaseModel):
     version_num: int

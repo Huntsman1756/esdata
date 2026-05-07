@@ -177,37 +177,43 @@ class MCPStdioServer:
 
     def _send_jsonrpc(self, request_id: Any, result: Any | None, error: dict | None = None):
         if error:
-            self._send({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": error,
-            })
+            self._send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": error,
+                }
+            )
         else:
-            self._send({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": result,
-            })
+            self._send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": result,
+                }
+            )
 
     def _send_error(self, request_id: Any, code: int, message: str):
         self._current_tool_status = 500
         self._send_jsonrpc(request_id, None, {"code": code, "message": message})
 
     def _handle_initialize(self, message: dict):
-        self._send({
-            "jsonrpc": "2.0",
-            "id": message.get("id"),
-            "result": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {
-                    "tools": {"listChanged": False},
+        self._send(
+            {
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "result": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {
+                        "tools": {"listChanged": False},
+                    },
+                    "serverInfo": {
+                        "name": "esdata-fiscal",
+                        "version": "0.1.0",
+                    },
                 },
-                "serverInfo": {
-                    "name": "esdata-fiscal",
-                    "version": "0.1.0",
-                },
-            },
-        })
+            }
+        )
 
     def _handle_tools_list(self, msg_id: Any):
         tools = get_stdio_tool_definitions()
@@ -221,6 +227,7 @@ class MCPStdioServer:
         user_id = "mcp-client"
 
         import time as _time
+
         _start = _time.time()
         self._current_tool_status = 200
         buffered_messages: list[dict[str, Any]] = []
@@ -245,19 +252,23 @@ class MCPStdioServer:
                 self._dispatch_tool(tool_name, arguments, msg_id)
             except Exception as e:
                 self._current_tool_status = 500
-                buffered_messages.append({
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "error": {"code": -32603, "message": f"Error executing {tool_name}: {e!s}"},
-                })
+                buffered_messages.append(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "error": {"code": -32603, "message": f"Error executing {tool_name}: {e!s}"},
+                    }
+                )
 
             if not buffered_messages:
                 self._current_tool_status = 500
-                buffered_messages.append({
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "error": {"code": -32603, "message": f"Tool {tool_name} produced no response."},
-                })
+                buffered_messages.append(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "error": {"code": -32603, "message": f"Tool {tool_name} produced no response."},
+                    }
+                )
 
             _elapsed = (_time.time() - _start) * 1000
             try:
@@ -271,11 +282,13 @@ class MCPStdioServer:
                     status_code=self._current_tool_status,
                 )
             except Exception as e:
-                original_send({
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "error": {"code": -32603, "message": f"Audit persistence error: {e!s}"},
-                })
+                original_send(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "error": {"code": -32603, "message": f"Audit persistence error: {e!s}"},
+                    }
+                )
                 return
         finally:
             self._send = original_send
@@ -288,7 +301,6 @@ class MCPStdioServer:
 
         if tool_name == "consulta_fiscal":
             try:
-
                 q = arguments.get("q", "")
                 sujeto = arguments.get("sujeto", "")
                 pais = arguments.get("pais", "")
@@ -304,10 +316,13 @@ class MCPStdioServer:
                     data = response.json()
                     # Format as readable text for the LLM
                     output = self._format_response(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -327,10 +342,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_obligaciones_operativas(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -348,10 +366,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_deadlines(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -371,10 +392,13 @@ class MCPStdioServer:
                 response.raise_for_status()
                 data = response.json()
                 output = self._format_obligaciones_aplicables(data)
-                self._send_jsonrpc(msg_id, {
-                    "content": [{"type": "text", "text": output}],
-                    "structuredContent": data,
-                })
+                self._send_jsonrpc(
+                    msg_id,
+                    {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    },
+                )
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing listar_obligaciones_aplicables: {e!s}")
         elif tool_name == "get_obligacion_completa":
@@ -386,10 +410,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_obligacion_completa(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -410,10 +437,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_response(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -423,10 +453,13 @@ class MCPStdioServer:
                 from agent_monitor import get_monitor_status
 
                 status = get_monitor_status()
-                self._send_jsonrpc(msg_id, {
-                    "content": [{"type": "text", "text": json.dumps(status, ensure_ascii=False, indent=2)}],
-                    "structuredContent": status,
-                })
+                self._send_jsonrpc(
+                    msg_id,
+                    {
+                        "content": [{"type": "text", "text": json.dumps(status, ensure_ascii=False, indent=2)}],
+                        "structuredContent": status,
+                    },
+                )
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error getting monitor status: {e!s}")
         elif tool_name == "agente_compliance_resumen":
@@ -447,10 +480,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_compliance_resumen(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -468,10 +504,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_sfdr_products(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -483,10 +522,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_sfdr_product_detail(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -504,10 +546,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_sfdr_pacai(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -517,10 +562,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/sfdr/pacai-indicators/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -538,10 +586,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_sfdr_entity_paci(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -551,10 +602,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/sfdr/entity-paci/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -572,10 +626,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_sfdr_pre_contractual(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -585,10 +642,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/sfdr/pre-contractual/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -606,10 +666,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_sfdr_annual_reports(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -619,10 +682,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/sfdr/annual-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -641,10 +707,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_csrd_entity_reports(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -654,10 +723,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/csrd/entity-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -675,10 +747,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_csrd_esg_data(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -688,10 +763,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/csrd/esg-data-points/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -709,10 +787,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_csrd_ess(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -722,10 +803,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/csrd/ess/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -739,10 +823,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_csrd_double_materiality(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -752,10 +839,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/csrd/double-materiality/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -773,10 +863,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_aifmd_funds(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -786,10 +879,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/aifmd/funds/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -806,10 +902,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_aifmd_reports(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -819,10 +918,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/aifmd/regulatory-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -839,10 +941,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_aifmd_liquidity(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -852,10 +957,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/aifmd/liquidity-management/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -873,10 +981,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_ucits_funds(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -886,10 +997,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/ucits/funds/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -906,10 +1020,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_ucits_reports(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -919,10 +1036,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/ucits/regulatory-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -940,10 +1060,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_crd_capital(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -953,10 +1076,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/crd/capital-positions/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -974,10 +1100,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_crd_stress_tests(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -987,10 +1116,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/crd/stress-tests/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -1004,10 +1136,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_brrd_bail_in(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -1017,10 +1152,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/crd/bail-in/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -1038,10 +1176,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_emir_trades(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -1051,10 +1192,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/emir/trade-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -1071,10 +1215,13 @@ class MCPStdioServer:
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_emir_clearing(data)
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": output}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": output}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -1084,10 +1231,13 @@ class MCPStdioServer:
                 response = _internal_get(f"/v1/emir/clearing-members/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
-                    self._send_jsonrpc(msg_id, {
-                        "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
-                        "structuredContent": data,
-                    })
+                    self._send_jsonrpc(
+                        msg_id,
+                        {
+                            "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
+                            "structuredContent": data,
+                        },
+                    )
                 else:
                     self._send_error(msg_id, -32603, f"API error: {response.status_code}")
             except Exception as e:
@@ -1145,7 +1295,9 @@ class MCPStdioServer:
             relevancia_r = resultado.get("_relevancia", {})
             relevancia_str = ""
             if relevancia_r:
-                relevancia_str = f" [relevancia: {relevancia_r.get('nivel', 'N/A')} (score: {relevancia_r.get('score', 0):.2f})]"
+                relevancia_str = (
+                    f" [relevancia: {relevancia_r.get('nivel', 'N/A')} (score: {relevancia_r.get('score', 0):.2f})]"
+                )
 
             if resultado["tipo"] == "normativa":
                 lines.append(f"  Normativa: {resultado['norma']} art. {resultado['articulo']}{relevancia_str}")
@@ -1154,7 +1306,9 @@ class MCPStdioServer:
                 if evidencia and evidencia.get("motivo_ranking"):
                     lines.append(f"    Motivo: {evidencia['motivo_ranking']}")
             elif resultado["tipo"] == "doctrina":
-                lines.append(f"  Doctrina: {resultado.get('referencia', '')} — {resultado.get('titulo', '')}{relevancia_str}")
+                lines.append(
+                    f"  Doctrina: {resultado.get('referencia', '')} — {resultado.get('titulo', '')}{relevancia_str}"
+                )
                 lines.append(f"    {resultado.get('fragmento', '')[:300]}")
             elif resultado["tipo"] == "obligacion":
                 lines.append(f"  Obligacion: {resultado['nombre']}{relevancia_str}")
@@ -1347,7 +1501,9 @@ class MCPStdioServer:
         lines = [f"Productos SFDR: {total} resultados"]
         for p in items:
             paci = "SI" if p.get("principal_adverse_impact") == "true" else "NO"
-            lines.append(f"  [{p.get('id')}] {p.get('product_name')} | {p.get('product_type')} | {p.get('sustainability_strategy', 'N/A')} | PACI: {paci} | {p.get('status')}")
+            lines.append(
+                f"  [{p.get('id')}] {p.get('product_name')} | {p.get('product_type')} | {p.get('sustainability_strategy', 'N/A')} | PACI: {paci} | {p.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_sfdr_product_detail(self, data: dict) -> str:
@@ -1367,35 +1523,45 @@ class MCPStdioServer:
         lines = [f"Indicadores PCAI SFDR: {len(items)} resultados"]
         for i in items:
             val = i.get("value")
-            lines.append(f"  [{i.get('id')}] {i.get('indicator_code')} — {i.get('indicator_name')}: {val} {i.get('unit', '')} | ref: {i.get('reference_period', 'N/A')}")
+            lines.append(
+                f"  [{i.get('id')}] {i.get('indicator_code')} — {i.get('indicator_name')}: {val} {i.get('unit', '')} | ref: {i.get('reference_period', 'N/A')}"
+            )
         return "\n".join(lines)
 
     def _format_sfdr_entity_paci(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"PCAI Entidad SFDR: {len(items)} resultados"]
         for p in items:
-            lines.append(f"  [{p.get('id')}] Entidad {p.get('entity_id')} | Ano: {p.get('reporting_year')} | {p.get('status')}")
+            lines.append(
+                f"  [{p.get('id')}] Entidad {p.get('entity_id')} | Ano: {p.get('reporting_year')} | {p.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_sfdr_pre_contractual(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Docs precontractuales SFDR: {len(items)} resultados"]
         for d in items:
-            lines.append(f"  [{d.get('id')}] {d.get('document_type')} | Producto {d.get('product_id')} | Pub: {d.get('published_date', 'N/A')} | {d.get('status')}")
+            lines.append(
+                f"  [{d.get('id')}] {d.get('document_type')} | Producto {d.get('product_id')} | Pub: {d.get('published_date', 'N/A')} | {d.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_sfdr_annual_reports(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Informes anuales SFDR: {len(items)} resultados"]
         for r in items:
-            lines.append(f"  [{r.get('id')}] Entidad {r.get('entity_id')} | Ano: {r.get('reporting_year')} | {r.get('status')}")
+            lines.append(
+                f"  [{r.get('id')}] Entidad {r.get('entity_id')} | Ano: {r.get('reporting_year')} | {r.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_csrd_entity_reports(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Informes CSRD: {len(items)} resultados"]
         for r in items:
-            lines.append(f"  [{r.get('id')}] Entidad {r.get('entity_id')} | Ano: {r.get('reporting_year')} | Aseguramiento: {r.get('assurance_status', 'N/A')} | {r.get('status')}")
+            lines.append(
+                f"  [{r.get('id')}] Entidad {r.get('entity_id')} | Ano: {r.get('reporting_year')} | Aseguramiento: {r.get('assurance_status', 'N/A')} | {r.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_csrd_esg_data(self, data: dict) -> str:
@@ -1403,21 +1569,27 @@ class MCPStdioServer:
         lines = [f"Puntos de datos ESG CSRD: {len(items)} resultados"]
         for d in items:
             val = d.get("value")
-            lines.append(f"  [{d.get('id')}] {d.get('topic')} | {d.get('indicator_code', 'N/A')}: {val} {d.get('unit', '')} | scope: {d.get('scope', 'N/A')}")
+            lines.append(
+                f"  [{d.get('id')}] {d.get('topic')} | {d.get('indicator_code', 'N/A')}: {val} {d.get('unit', '')} | scope: {d.get('scope', 'N/A')}"
+            )
         return "\n".join(lines)
 
     def _format_csrd_ess(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Estàndares ESRS CSRD: {len(items)} resultados"]
         for e in items:
-            lines.append(f"  [{e.get('id')}] {e.get('standard_code')} — {e.get('topic', 'N/A')} | Aplica desde: {e.get('applicable_from_year', 'N/A')} | {e.get('description', '')[:100]}")
+            lines.append(
+                f"  [{e.get('id')}] {e.get('standard_code')} — {e.get('topic', 'N/A')} | Aplica desde: {e.get('applicable_from_year', 'N/A')} | {e.get('description', '')[:100]}"
+            )
         return "\n".join(lines)
 
     def _format_csrd_double_materiality(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Evaluaciones doble materialidad CSRD: {len(items)} resultados"]
         for m in items:
-            lines.append(f"  [{m.get('id')}] Entidad {m.get('entity_id')} | Fecha: {m.get('assessment_date', 'N/A')} | {m.get('status')}")
+            lines.append(
+                f"  [{m.get('id')}] Entidad {m.get('entity_id')} | Fecha: {m.get('assessment_date', 'N/A')} | {m.get('status')}"
+            )
             impacts = m.get("key_impacts")
             if impacts:
                 lines.append(f"    Impactos clave: {impacts[:200]}")
@@ -1430,14 +1602,18 @@ class MCPStdioServer:
             aum = f.get("total_aum_eur")
             aum_str = f"{aum:,.0f} EUR" if aum else "N/A"
             passport = "SI" if f.get("cross_border_passport") else "NO"
-            lines.append(f"  [{f.get('id')}] {f.get('fund_name')} | {f.get('fund_type')} | AUM: {aum_str} | Passport: {passport} | {f.get('home_member_state', 'N/A')}")
+            lines.append(
+                f"  [{f.get('id')}] {f.get('fund_name')} | {f.get('fund_type')} | AUM: {aum_str} | Passport: {passport} | {f.get('home_member_state', 'N/A')}"
+            )
         return "\n".join(lines)
 
     def _format_aifmd_reports(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Informes regulatorios AIFMD: {len(items)} resultados"]
         for r in items:
-            lines.append(f"  [{r.get('id')}] Fondo {r.get('fund_id')} | {r.get('report_type')} | {r.get('reporting_period', 'N/A')} | {r.get('status')}")
+            lines.append(
+                f"  [{r.get('id')}] Fondo {r.get('fund_id')} | {r.get('report_type')} | {r.get('reporting_period', 'N/A')} | {r.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_aifmd_liquidity(self, data: dict) -> str:
@@ -1447,7 +1623,9 @@ class MCPStdioServer:
             susp = "SI" if item.get("redemption_suspended") else "NO"
             gate = "SI" if item.get("gating_applied") else "NO"
             swing = "SI" if item.get("swing_price_applied") else "NO"
-            lines.append(f"  [{item.get('id')}] Fondo {item.get('fund_id')} | Suspensiòn: {susp} | Gate: {gate} | Swing: {swing} | Freq: {item.get('valuation_frequency', 'N/A')}")
+            lines.append(
+                f"  [{item.get('id')}] Fondo {item.get('fund_id')} | Suspensiòn: {susp} | Gate: {gate} | Swing: {swing} | Freq: {item.get('valuation_frequency', 'N/A')}"
+            )
         return "\n".join(lines)
 
     def _format_ucits_funds(self, data: dict) -> str:
@@ -1457,35 +1635,45 @@ class MCPStdioServer:
             aum = f.get("total_aum_eur")
             aum_str = f"{aum:,.0f} EUR" if aum else "N/A"
             passport = "SI" if f.get("cross_border_passport") else "NO"
-            lines.append(f"  [{f.get('id')}] {f.get('fund_name')} | Gestor: {f.get('management_company', 'N/A')} | AUM: {aum_str} | Passport: {passport} | {f.get('risk_profile', 'N/A')}")
+            lines.append(
+                f"  [{f.get('id')}] {f.get('fund_name')} | Gestor: {f.get('management_company', 'N/A')} | AUM: {aum_str} | Passport: {passport} | {f.get('risk_profile', 'N/A')}"
+            )
         return "\n".join(lines)
 
     def _format_ucits_reports(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Informes regulatorios UCITS: {len(items)} resultados"]
         for r in items:
-            lines.append(f"  [{r.get('id')}] Fondo {r.get('fund_id')} | {r.get('report_type')} | {r.get('reporting_period', 'N/A')} | {r.get('status')}")
+            lines.append(
+                f"  [{r.get('id')}] Fondo {r.get('fund_id')} | {r.get('report_type')} | {r.get('reporting_period', 'N/A')} | {r.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_crd_capital(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Posiciones capital CRD/CRR: {len(items)} resultados"]
         for p in items:
-            lines.append(f"  [{p.get('id')}] Entidad {p.get('entity_id')} | Fecha: {p.get('reporting_date')} | CET1: {p.get('cet1_ratio')}% | Tier1: {p.get('tier1_ratio')}% | Total: {p.get('total_capital_ratio')}% | Leverage: {p.get('leverage_ratio')}%")
+            lines.append(
+                f"  [{p.get('id')}] Entidad {p.get('entity_id')} | Fecha: {p.get('reporting_date')} | CET1: {p.get('cet1_ratio')}% | Tier1: {p.get('tier1_ratio')}% | Total: {p.get('total_capital_ratio')}% | Leverage: {p.get('leverage_ratio')}%"
+            )
         return "\n".join(lines)
 
     def _format_crd_stress_tests(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Pruebas de estrès CRD: {len(items)} resultados"]
         for t in items:
-            lines.append(f"  [{t.get('id')}] Entidad {t.get('entity_id')} | {t.get('scenario_name', 'N/A')} | Fecha: {t.get('test_date')} | CET1 impact: {t.get('cet1_impact_pct')}% | Autoridad: {t.get('competent_authority', 'N/A')}")
+            lines.append(
+                f"  [{t.get('id')}] Entidad {t.get('entity_id')} | {t.get('scenario_name', 'N/A')} | Fecha: {t.get('test_date')} | CET1 impact: {t.get('cet1_impact_pct')}% | Autoridad: {t.get('competent_authority', 'N/A')}"
+            )
         return "\n".join(lines)
 
     def _format_brrd_bail_in(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Bail-in MREL BRRD: {len(items)} resultados"]
         for b in items:
-            lines.append(f"  [{b.get('id')}] Entidad {b.get('entity_id')} | MREL target: {b.get('mrel_target_pct')}% | Compliance: {b.get('mrel_compliance_pct')}% | Internal MREL: {b.get('internal_mrel')}% | Resolution: {b.get('resolution_status', 'N/A')}")
+            lines.append(
+                f"  [{b.get('id')}] Entidad {b.get('entity_id')} | MREL target: {b.get('mrel_target_pct')}% | Compliance: {b.get('mrel_compliance_pct')}% | Internal MREL: {b.get('internal_mrel')}% | Resolution: {b.get('resolution_status', 'N/A')}"
+            )
         return "\n".join(lines)
 
     def _format_emir_trades(self, data: dict) -> str:
@@ -1493,14 +1681,18 @@ class MCPStdioServer:
         lines = [f"Reportes operaciòn EMIR: {len(items)} resultados"]
         for t in items:
             clear = "SI" if t.get("clearing_obligation_applied") else "NO"
-            lines.append(f"  [{t.get('id')}] Trade {t.get('trade_id')} | {t.get('asset_class')} | {t.get('instrument_class', 'N/A')} | Clearing: {clear} | Counterparty: {t.get('counterparty_type', 'N/A')} | Delay: {t.get('reporting_delay_days', 'N/A')}d")
+            lines.append(
+                f"  [{t.get('id')}] Trade {t.get('trade_id')} | {t.get('asset_class')} | {t.get('instrument_class', 'N/A')} | Clearing: {clear} | Counterparty: {t.get('counterparty_type', 'N/A')} | Delay: {t.get('reporting_delay_days', 'N/A')}d"
+            )
         return "\n".join(lines)
 
     def _format_emir_clearing(self, data: dict) -> str:
         items = data.get("items", [])
         lines = [f"Miembros liquidaciòn EMIR: {len(items)} resultados"]
         for c in items:
-            lines.append(f"  [{c.get('id')}] Entidad {c.get('entity_id')} | {c.get('emir_registration', 'N/A')} | {c.get('clearing_type')} | {c.get('status')}")
+            lines.append(
+                f"  [{c.get('id')}] Entidad {c.get('entity_id')} | {c.get('emir_registration', 'N/A')} | {c.get('clearing_type')} | {c.get('status')}"
+            )
         return "\n".join(lines)
 
     def _format_compliance_resumen(self, data: list[dict]) -> str:

@@ -1,7 +1,7 @@
 """Tests for the agent layer: MCP catalog tools, stdio handlers, and agent monitor."""
 
-import os
 import io
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -33,6 +33,7 @@ def _clear_env():
     ]:
         os.environ.pop(key, None)
     import agent_monitor as am
+
     am._monitor_status = None
     am._monitor_task = None
 
@@ -126,6 +127,7 @@ class TestAgentMonitorStatus:
         os.environ["AGENT_MONITOR_PRIORIDAD"] = "alta"
 
         import agent_monitor as am
+
         am._monitor_status = None
 
         from agent_monitor import get_monitor_status

@@ -146,23 +146,25 @@ def test_query_audit_repairs_legacy_postgres_columns():
     )
 
     with engine.begin() as conn:
-        columns = {
-            row[1] for row in conn.execute(text("PRAGMA table_info(query_audit_log)"))
-        }
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(query_audit_log)"))}
 
     assert {"grounding_status", "prompt_injection_detected", "grounding_summary", "response_payload"}.issubset(columns)
 
     with engine.begin() as conn:
-        row = conn.execute(
-            text(
-                """
+        row = (
+            conn.execute(
+                text(
+                    """
                 SELECT grounding_status, prompt_injection_detected, grounding_summary, response_payload
                 FROM query_audit_log
                 WHERE entry_id = :entry_id
                 """
-            ),
-            {"entry_id": created.entry_id},
-        ).mappings().one()
+                ),
+                {"entry_id": created.entry_id},
+            )
+            .mappings()
+            .one()
+        )
 
     assert row["grounding_status"] == "full"
     assert row["prompt_injection_detected"] == 0
@@ -196,9 +198,7 @@ def test_query_audit_legacy_repair_covers_full_mcp_contract_columns():
     QueryAuditService()
 
     with engine.begin() as conn:
-        columns = {
-            row[1] for row in conn.execute(text("PRAGMA table_info(query_audit_log)"))
-        }
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(query_audit_log)"))}
 
     assert {
         "tool_name",
@@ -218,7 +218,11 @@ async def test_consulta_runtime_persists_query_audit_entry():
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"x-api-key": "test-secret-key", "x-request-id": "req-consulta-audit-001", "x-user-id": "internal-user"},
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": "req-consulta-audit-001",
+            "x-user-id": "internal-user",
+        },
     ) as client:
         response = await client.get("/v1/consulta?q=tipo+reducido+iva")
 
@@ -245,7 +249,11 @@ async def test_buscar_runtime_persists_query_audit_entry():
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-audit-001", "x-user-id": "internal-search-user"},
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": "req-buscar-audit-001",
+            "x-user-id": "internal-search-user",
+        },
     ) as client:
         response = await client.get("/v1/buscar?q=tipo+reducido+iva")
 
@@ -267,7 +275,11 @@ async def test_buscar_legislacion_alias_persists_query_audit_entry():
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-leg-audit-001", "x-user-id": "internal-leg-user"},
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": "req-buscar-leg-audit-001",
+            "x-user-id": "internal-leg-user",
+        },
     ) as client:
         response = await client.get("/v1/legislacion/buscar?q=tipo+reducido+iva")
 
@@ -295,7 +307,11 @@ async def test_buscar_legislacion_hybrid_persists_query_audit_entry(monkeypatch)
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-hybrid-audit-001", "x-user-id": "internal-hybrid-user"},
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": "req-buscar-hybrid-audit-001",
+            "x-user-id": "internal-hybrid-user",
+        },
     ) as client:
         response = await client.get("/v1/legislacion/buscar/hybrid?q=tipo+reducido+iva")
 
@@ -315,7 +331,11 @@ async def test_buscar_legislacion_hybrid_sqlite_fallback_persists_query_audit_en
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-hybrid-sqlite-001", "x-user-id": "internal-hybrid-user"},
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": "req-buscar-hybrid-sqlite-001",
+            "x-user-id": "internal-hybrid-user",
+        },
     ) as client:
         response = await client.get("/v1/legislacion/buscar/hybrid?q=tipo+reducido+iva")
 
@@ -333,7 +353,11 @@ async def test_doctrina_buscar_runtime_persists_query_audit_entry():
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"x-api-key": "test-secret-key", "x-request-id": "req-doctrina-audit-001", "x-user-id": "internal-doctrina-user"},
+        headers={
+            "x-api-key": "test-secret-key",
+            "x-request-id": "req-doctrina-audit-001",
+            "x-user-id": "internal-doctrina-user",
+        },
     ) as client:
         response = await client.get("/v1/doctrina/buscar?q=tipo+reducido+iva")
 

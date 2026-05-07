@@ -8,14 +8,13 @@ from pathlib import Path
 
 import pytest
 import requests
-from httpx import ASGITransport, AsyncClient
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from main import app
 from mcp_security import reset_mcp_rate_limit_state
-
 
 API_DIR = Path(__file__).resolve().parents[1]
 

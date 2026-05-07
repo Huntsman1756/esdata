@@ -1,17 +1,13 @@
 """Tests para el servicio y router de calendario fiscal."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from services import calendario_fiscal as cf
 from main import app
+from services import calendario_fiscal as cf
 
 
 def test_calendario_router_is_registered():
-    operation_ids = {
-        route.operation_id
-        for route in app.routes
-        if getattr(route, "operation_id", None)
-    }
+    operation_ids = {route.operation_id for route in app.routes if getattr(route, "operation_id", None)}
 
     assert "list_calendario_fiscal" in operation_ids
     assert "get_proximo_vencimiento" in operation_ids
