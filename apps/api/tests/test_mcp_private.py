@@ -105,6 +105,9 @@ async def test_mcp_catalog_exposes_expected_core_http_operations():
     assert "buscar_doctrina" in operation_names
     assert "list_modelos" in operation_names
     assert "get_modelo_fuentes_oficiales" in operation_names
+    assert "list_calendario_fiscal" in operation_names
+    assert "get_proximo_vencimiento" in operation_names
+    assert "get_calendario_modelo" in operation_names
 
 
 @pytest.mark.asyncio

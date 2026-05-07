@@ -86,6 +86,10 @@ def _build_legislacion_audit_chunks(result: dict) -> list[dict]:
     return chunks
 
 
+def _search_audit_confidence(has_results: bool) -> dict:
+    return {"score": 0.9 if has_results else 0.0, "label": "alta" if has_results else "baja"}
+
+
 def _record_search_query_audit(
     request: Request,
     *,
@@ -106,7 +110,7 @@ def _record_search_query_audit(
         retrieved_chunks=_build_legislacion_audit_chunks(result),
         response_summary=f"resultados={len(resultados)}",
         tool_name=tool_name,
-        confidence={"score": 0.9 if has_results else 0.0, "label": "alta" if has_results else "baja"},
+        confidence=_search_audit_confidence(has_results),
         completeness="completa" if has_results else "parcial",
         verified=has_results,
     )
@@ -163,6 +167,7 @@ async def buscar_legislacion(
 
 @router.get("/v1/legislacion/buscar/hybrid", operation_id="buscar_legislacion_hybrid")
 async def buscar_legislacion_hybrid(
+    request: Request,
     q: str = Query(..., min_length=1, description="Termino de busqueda"),
     norma: str | None = Query(None, description="Filtrar por codigo de norma"),
     fuente: str | None = Query(None, description="Filtrar por fuente"),
@@ -174,5 +179,22 @@ async def buscar_legislacion_hybrid(
 ):
     result = hybrid_search_legislacion(
         q, norma, fuente, ambito, tipo, vigente_en, hybrid_weight, limit
+    )
+    resultados = result.get("resultados", [])
+    has_results = bool(resultados)
+    get_query_audit_service().record_query(
+        request_id=request.headers.get("x-request-id")
+        or request.headers.get("X-Request-ID")
+        or "unknown",
+        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        path="/v1/legislacion/buscar/hybrid",
+        query_text=q,
+        retrieved_chunks=_build_legislacion_audit_chunks(result),
+        response_summary=f"resultados={len(resultados)}",
+        tool_name="buscar_legislacion_hybrid",
+        confidence=_search_audit_confidence(has_results),
+        completeness="completa" if has_results else "parcial",
+        verified=has_results,
+        config_version=f"hybrid_weight={hybrid_weight};limit={limit}",
     )
     return JSONResponse(content=result)

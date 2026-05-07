@@ -26,8 +26,8 @@ def mount_mcp(app) -> None:
             base_url="http://apiserver",
             timeout=10.0,
         ),
-        include_operations=HTTP_MCP_OPERATIONS,
         headers=["authorization", "x-request-id", "x-user-id"],
+        include_operations=HTTP_MCP_OPERATIONS,
     )
     mcp.mount_http(mount_path="/mcp")
     app.state._mcp = mcp
