@@ -573,12 +573,20 @@ def main() -> None:
         run_once()
         return
 
+    from runtime import handle_worker_failure
+    from sqlalchemy import create_engine
+
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
+    engine = create_engine(db_url)
+
     print(f"[screening] Running every {args.interval} seconds...")
     while True:
         try:
             run_once()
-        except Exception:
-            print(f"[screening] Error: {sys.exc_info()[1]}", exc_info=True)
+        except Exception as exc:
+            print(f"[screening] Error: {exc}", exc_info=True)
+            if not handle_worker_failure(engine, "screening", "loop", "main", exc):
+                raise
         time.sleep(args.interval)
 
 

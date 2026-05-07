@@ -121,16 +121,16 @@ def _build_tsquery_sql(value: str) -> tuple[str, dict]:
         return "", {}
 
     # For each word, build plainto_tsquery (handles stemming)
-    # Also add accent-restored version for Spanish stemmer edge cases
+    # PostgreSQL plaintext params: escape single quotes only (plainto_tsquery does NOT accept bind params)
     ts_parts = []
     accents_parts = []
     for w in words:
-        escaped = w.replace("'", "''")
+        escaped_w = w.replace("'", "''")
         accents = _add_accents(w).replace("'", "''")
-        ts_parts.append(f"plainto_tsquery('spanish', '{escaped}')")
+        ts_parts.append(f"plainto_tsquery('spanish', '{escaped_w}')")
         accents_parts.append(f"plainto_tsquery('spanish', '{accents}')")
 
-    # OR all word queries together
+    # OR all word queries together — no params needed (all values are escaped inline)
     ts_query = " || ".join(ts_parts)
     accents_query = " || ".join(accents_parts)
 

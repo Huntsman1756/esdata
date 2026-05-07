@@ -34,6 +34,8 @@ DATABASE_URL = os.getenv(
 )
 SYNC_INTERVAL_SECONDS = int(os.getenv("JURISPRUDENCIA_SYNC_INTERVAL", "604800"))
 
+logger = logging.getLogger(__name__)
+
 # ===========================================================================
 # Seed de sentencias clave en materia tributaria.
 # Cada tupla: (ecli, roj, tribunal, fecha_str, resumen, legislacion_citada, url_fuente)
@@ -686,6 +688,12 @@ def main():
         )
         return
 
+    from runtime import handle_worker_failure
+    from sqlalchemy import create_engine
+
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
+    engine = create_engine(db_url)
+
     # Continuous mode
     print(f"Starting jurisprudencia worker (sync every {SYNC_INTERVAL_SECONDS}s)")
     while True:
@@ -695,7 +703,8 @@ def main():
                 f"Sync done: {result['stored']} upserted, {result['links']} links, {result['errors']} errors."
             )
         except Exception as e:
-            print(f"Sync error: {e}")
+            if not handle_worker_failure(engine, "jurisprudencia", "loop", "main", e):
+                raise
 
         time.sleep(SYNC_INTERVAL_SECONDS)
 

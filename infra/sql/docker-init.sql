@@ -10,3 +10,5 @@
 \i /docker-entrypoint-initdb.d/009_irpf_brackets.sql
 \i /docker-entrypoint-initdb.d/010_ss_rates.sql
 \i /docker-entrypoint-initdb.d/011_fiscal_indicators.sql
+\i /docker-entrypoint-initdb.d/012_dead_letter_queue.sql
+\i /docker-entrypoint-initdb.d/013_regulatory_changes.sql

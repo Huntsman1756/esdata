@@ -1,5 +1,17 @@
 """Rate limiting middleware for esdata API.
 
+WARNING: This rate limiter is 100% in-memory. All rate limit buckets are stored
+in the process memory of a single container. This means:
+
+- Container restarts reset all rate limit counters to full capacity.
+- In a multi-container deployment, each container has its own independent rate
+  limiter (no shared state between containers).
+- Memory usage grows with the number of unique client keys (one bucket per
+  client+endpoint combination).
+
+For production use with persistence across restarts and shared state across
+containers, consider a Redis-backed rate limiter instead.
+
 Uses an in-memory token bucket algorithm. Configurable per-endpoint via
 ESDATA_RATE_LIMIT_* environment variables.
 
@@ -60,6 +72,14 @@ class RateLimiter:
             "/mcp": {"default": (30, 60)},
         }
         self._default_limit: tuple[int, int] = (30, 60)  # (tokens, window_seconds)
+        self._warning_emitted: bool = False
+
+        if not self._warning_emitted:
+            self._warning_emitted = True
+            logger.warning(
+                "Rate limiter is in-memory only. Container restart resets all limits. "
+                "Consider Redis-backed rate limiting for production."
+            )
 
     def _get_client_key(self, request: Request) -> str:
         """Extract client identifier from request."""

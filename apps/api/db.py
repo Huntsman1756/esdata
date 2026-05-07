@@ -1,3 +1,4 @@
+import logging
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -18,6 +19,12 @@ DATABASE_URL = os.getenv(
 engine_kwargs = {"future": True, "pool_pre_ping": True}
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "SQLite detected: operating in reduced-quality mode. "
+        "Vector search, fulltext, and pgvector features are disabled. "
+        "Use PostgreSQL for production."
+    )
 else:
     # Pool conservador. Con PgBouncer (transaction pooling) delante, este pool
     # es por proceso de API; el pool agregado lo gestiona PgBouncer. Ajustable

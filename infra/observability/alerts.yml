@@ -19,6 +19,15 @@ groups:
           summary: "Worker {{ $labels.worker }} tiene errores en sync_log"
           description: "La ultima fila de sync_log para {{ $labels.worker }} reporta {{ $value }} errores."
 
+      - alert: WorkerCronErrors
+        expr: worker_last_errors{worker=~"cron-.*"} > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cron worker {{ $labels.worker }} tiene errores en sync_log"
+          description: "La ultima fila de sync_log para {{ $labels.worker }} reporta {{ $value }} errores. Los cron workers son programados y sus errores indican fallos en la ejecucion planificada."
+
       - alert: WorkerFetchErrorsDetected
         expr: worker_sync_summary{kind="fetch_errors"} > 0
         for: 10m

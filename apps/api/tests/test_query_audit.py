@@ -82,14 +82,23 @@ def test_query_audit_repairs_legacy_postgres_columns():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     entry_id TEXT NOT NULL UNIQUE,
                     request_id TEXT NOT NULL,
+                    tool_name TEXT NOT NULL DEFAULT '',
                     user_id TEXT,
                     path TEXT NOT NULL,
                     query_text TEXT NOT NULL,
                     retrieved_chunks TEXT NOT NULL DEFAULT '[]',
+                    sources TEXT NOT NULL DEFAULT '[]',
                     response_summary TEXT NOT NULL DEFAULT '',
+                    confidence TEXT NOT NULL DEFAULT '{}',
+                    completeness TEXT NOT NULL DEFAULT 'parcial',
+                    verified INTEGER NOT NULL DEFAULT 0,
                     model_version TEXT,
                     config_version TEXT,
-                    created_at TEXT NOT NULL
+                    created_at TEXT NOT NULL,
+                    grounding_status TEXT DEFAULT '',
+                    prompt_injection_detected INTEGER NOT NULL DEFAULT 0,
+                    grounding_summary TEXT NOT NULL DEFAULT '{}',
+                    response_payload TEXT NOT NULL DEFAULT '{}'
                 )
                 """
             )

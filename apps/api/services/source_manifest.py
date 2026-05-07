@@ -353,7 +353,7 @@ def check_and_create_freshness_alerts(db) -> list[dict]:
                 WHERE source_id = :source_id
                   AND alert_level IN ('warning', 'critical')
                   AND acknowledged = 0
-                  AND strftime('%Y-%m-%d', created_at) = :today
+                   AND DATE(created_at) = :today
                 """
             ),
             {"source_id": source_id, "today": today},

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -290,8 +291,17 @@ def get_query_audit_service() -> QueryAuditService:
 
 
 def reset_query_audit_service() -> None:
-    global _service
-    ensure_governance_tables()
-    with engine.begin() as conn:
-        conn.execute(text("DELETE FROM query_audit_log"))
-    _service = QueryAuditService()
+    import os
+
+    from services.persistence import ensure_governance_tables
+
+    # Append-only in production for compliance; allow reset in test mode only.
+    if os.environ.get("APP_ENV", "").lower() == "test":
+        ensure_governance_tables()
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM query_audit_log"))
+        global _service
+        _service = QueryAuditService()
+    else:
+        logger = logging.getLogger(__name__)
+        logger.warning("reset_query_audit_service() is disabled: audit logs must be append-only for compliance")

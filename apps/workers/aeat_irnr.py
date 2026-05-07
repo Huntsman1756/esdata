@@ -21,6 +21,7 @@ from runtime import (
     configure_logging,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
 )
 from sqlalchemy import create_engine, text
 
@@ -273,6 +274,11 @@ def run_sync(engine, run_once: bool = False):
 
         except Exception as exc:
             logger.exception("IRNR sync failed: %s", exc)
+            if not handle_worker_failure(engine, "aeat_irnr", "loop", "main", exc):
+                raise
+            if run_once:
+                break
+            break
 
         if run_once:
             break

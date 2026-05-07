@@ -27,8 +27,15 @@ from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
 
 import httpx
-from runtime import ensure_database_connection, sleep_with_heartbeat, touch_heartbeat
+from runtime import (
+    ensure_database_connection,
+    handle_worker_failure,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+)
 from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -933,8 +940,8 @@ def run_sync(
                                 error_msg=str(exc),
                                 started_at=ley_start,
                             )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.error("Failed to write sync_log for error logging: %s", e)
 
     _report_idle_in_transaction_connections(engine)
 

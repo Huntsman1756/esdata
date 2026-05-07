@@ -179,16 +179,24 @@ def _ensure_query_audit_log_columns(conn) -> None:
         )
         existing = {row[0] for row in rows}
 
-    missing = []
-    if "grounding_status" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_status TEXT DEFAULT ''")
-    if "prompt_injection_detected" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN prompt_injection_detected INTEGER NOT NULL DEFAULT 0")
-    if "grounding_summary" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_summary TEXT NOT NULL DEFAULT '{}' ")
-
-    for statement in missing:
-        conn.execute(text(statement))
+    # Columns added by migration 0055 (query_audit_response_payload)
+    for col, ddl in [
+        ("tool_name", "ALTER TABLE query_audit_log ADD COLUMN tool_name TEXT NOT NULL DEFAULT ''"),
+        ("sources", "ALTER TABLE query_audit_log ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'"),
+        ("confidence", "ALTER TABLE query_audit_log ADD COLUMN confidence TEXT NOT NULL DEFAULT '{}'"),
+        ("completeness", "ALTER TABLE query_audit_log ADD COLUMN completeness TEXT NOT NULL DEFAULT 'parcial'"),
+        ("verified", "ALTER TABLE query_audit_log ADD COLUMN verified INTEGER NOT NULL DEFAULT 0"),
+        ("response_payload", "ALTER TABLE query_audit_log ADD COLUMN response_payload TEXT NOT NULL DEFAULT '{}'"),
+        # Columns added by migration 0037a (grounding)
+        ("grounding_status", "ALTER TABLE query_audit_log ADD COLUMN grounding_status TEXT DEFAULT ''"),
+        ("prompt_injection_detected", "ALTER TABLE query_audit_log ADD COLUMN prompt_injection_detected INTEGER NOT NULL DEFAULT 0"),
+        ("grounding_summary", "ALTER TABLE query_audit_log ADD COLUMN grounding_summary TEXT NOT NULL DEFAULT '{}'"),
+    ]:
+        if col not in existing:
+            try:
+                conn.execute(text(ddl))
+            except Exception:
+                pass  # column may already exist from Alembic migration
 
 
 def ensure_governance_tables() -> None:

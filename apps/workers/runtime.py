@@ -45,6 +45,27 @@ def configure_logging(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
+_SQLITE_WARNING_SHOWN: bool = False
+
+
+def _log_sqlite_fallback_warning(active_logger: logging.Logger) -> None:
+    global _SQLITE_WARNING_SHOWN
+    if _SQLITE_WARNING_SHOWN:
+        return
+    _SQLITE_WARNING_SHOWN = True
+    url = getattr(active_logger, "effectiveLevel", None)
+    try:
+        import sqlalchemy as sa
+        engine_url = active_logger.manager.loggerDict  # dummy
+    except Exception:
+        pass
+    active_logger.warning(
+        "SQLite detected: operating in reduced-quality mode. "
+        "Vector search, fulltext, and pgvector features are unavailable. "
+        "Use PostgreSQL for production."
+    )
+
+
 def ensure_database_connection(
     engine,
     *,
@@ -52,8 +73,13 @@ def ensure_database_connection(
     base_delay_seconds: int = 2,
     logger: logging.Logger | None = None,
 ) -> None:
+    from sqlalchemy import engine as sa_engine
+
     active_logger = logger or logging.getLogger(__name__)
     engine_url = getattr(engine, "url", None)
+    if getattr(engine_url, "drivername", None) == "sqlite":
+        _log_sqlite_fallback_warning(active_logger)
+
     host = getattr(engine_url, "host", None) or "localhost"
     port = getattr(engine_url, "port", None) or 5432
     last_error: Exception | None = None

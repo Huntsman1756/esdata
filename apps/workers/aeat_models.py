@@ -13,6 +13,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -674,10 +675,37 @@ def _try_acquire_sync_lock(conn) -> bool:
         return True
 
     row = conn.execute(
-        text("SELECT pg_try_advisory_xact_lock(:lock_key)"),
+        text("SELECT pg_try_advisory_lock(:lock_key)"),
         {"lock_key": AEAT_SYNC_LOCK_KEY},
     ).fetchone()
     return bool(row[0]) if row else False
+
+
+@contextmanager
+def _hold_sync_lock(engine):
+    if engine.dialect.name != "postgresql":
+        yield True
+        return
+
+    lock_conn = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+    acquired = False
+    try:
+        acquired = bool(
+            lock_conn.execute(
+                text("SELECT pg_try_advisory_lock(:lock_key)"),
+                {"lock_key": AEAT_SYNC_LOCK_KEY},
+            ).scalar()
+        )
+        yield acquired
+    finally:
+        try:
+            if acquired:
+                lock_conn.execute(
+                    text("SELECT pg_advisory_unlock(:lock_key)"),
+                    {"lock_key": AEAT_SYNC_LOCK_KEY},
+                )
+        finally:
+            lock_conn.close()
 
 
 def _store_modelo_recurso_version(
@@ -899,167 +927,172 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
         }
         skipped_resource_failures = 0
         try:
-            with engine.begin() as conn:
-                if not _try_acquire_sync_lock(conn):
-                    logger.warning("Skipping AEAT sync because another run already holds the lock")
-                    _record_sync_log(
-                        conn,
-                        started_at,
-                        datetime.now(UTC),
-                        "partial",
-                        stats,
-                        "AEAT sync already in progress",
-                    )
+            with _hold_sync_lock(engine) as lock_acquired:
+                if not lock_acquired:
+                    logger.warning("DEADLOCK_RISK: another AEAT sync already in progress, skipping")
+                    try:
+                        with engine.begin() as conn:
+                            _record_sync_log(
+                                conn,
+                                started_at,
+                                datetime.now(UTC),
+                                "skipped",
+                                stats,
+                                "AEAT sync already in progress",
+                            )
+                    except Exception:
+                        pass
                     if run_once:
                         break
                     logger.info("Next sync in %ds", SYNC_INTERVAL_SECONDS)
                     sleep_with_heartbeat(SYNC_INTERVAL_SECONDS)
                     continue
 
-                discovered = _discover_aeat_models(portal_client=portal_client)
-                if not discovered:
-                    discovered = _get_seeded_models(conn)
+                with engine.begin() as conn:
+                    discovered = _discover_aeat_models(portal_client=portal_client)
+                    if not discovered:
+                        discovered = _get_seeded_models(conn)
 
-                    if discovered:
-                        logger.warning(
-                            "No models discovered from AEAT portal; falling back to %d seeded models",
-                            len(discovered),
-                        )
-                    else:
-                        logger.warning("No models discovered, skipping sync")
-                        stats["modelos_descubiertos"] = 0
-                        _record_sync_log(conn, started_at, datetime.now(UTC), "partial", stats, "No models discovered")
-                        if run_once:
-                            break
-                        logger.info("Next sync in %ds", SYNC_INTERVAL_SECONDS)
-                        sleep_with_heartbeat(SYNC_INTERVAL_SECONDS)
-                        continue
-
-                discovered_codes = {model["codigo"] for model in discovered}
-                stats["modelos_descubiertos"] = len(discovered_codes)
-                logger.info(
-                    "Discovered %d models: %s",
-                    len(discovered_codes),
-                    ", ".join(sorted(discovered_codes)),
-                )
-
-                upserted = 0
-                skipped = 0
-                skipped_resource_failures = 0
-
-                _get_existing_codes(conn)
-
-                for model in discovered:
-                    touch_heartbeat()
-                    try:
-                        codigo = model["codigo"]
-                        nombre = model["nombre"]
-                        url_info = model["url_info"]
-
-                        metadata = _fetch_model_metadata(codigo, url_info=url_info, portal_client=portal_client)
-                        if metadata:
-                            nombre = metadata.get("nombre", nombre)
-                            url_info = metadata.get("url_info", url_info)
-                            periodo = metadata.get("periodo")
-                            impuesto = metadata.get("impuesto")
-                        else:
-                            periodo = None
-                            impuesto = None
-
-                        if not _upsert_aeat_model(conn, codigo, nombre, url_info, periodo, impuesto):
-                            skipped += 1
-                            stats["errores"] += 1
-                            continue
-
-                        upserted += 1
-                        modelo_id = _get_modelo_id(conn, codigo)
-                        if modelo_id is None:
-                            skipped += 1
-                            stats["errores"] += 1
-                            continue
-
-                        campana, campana_inserted = _upsert_modelo_campana(
-                            conn,
-                            modelo_id,
-                            (metadata or {}).get("campana", DEFAULT_CAMPAIGN),
-                            metadata or {},
-                        )
-                        if campana is None:
-                            skipped += 1
-                            stats["errores"] += 1
-                            continue
-                        stats["campanas_upserted"] += 1 if campana_inserted else 0
-
-                        for recurso in (metadata or {}).get("recursos", []):
-                            if recurso["tipo_recurso"] == "pagina_modelo":
-                                resource_url = _normalize_aeat_url(recurso["url_recurso"])
-                                payload = recurso["payload"]
-                            else:
-                                if not _is_official_model_resource(recurso["url_recurso"]):
-                                    logger.info(
-                                        "Skipping non-official resource %s for modelo %s",
-                                        recurso["url_recurso"],
-                                        codigo,
-                                    )
-                                    continue
-                                resource_url = _normalize_aeat_url(recurso["url_recurso"])
-                                payload = portal_client.fetch_resource(resource_url)
-                                if payload is None:
-                                    if not _is_protected_transactional_resource(resource_url):
-                                        skipped_resource_failures += 1
-                                    logger.warning(
-                                        "Skipping official resource %s for modelo %s after fetch failures",
-                                        resource_url,
-                                        codigo,
-                                    )
-                                    continue
-                                stats["recursos_descargados"] += 1
-
-                            outcome = _store_modelo_recurso_version(
-                                conn,
-                                campana,
-                                recurso["tipo_recurso"],
-                                recurso["formato"],
-                                resource_url,
-                                payload,
-                                recurso.get("metadata"),
+                        if discovered:
+                            logger.warning(
+                                "No models discovered from AEAT portal; falling back to %d seeded models",
+                                len(discovered),
                             )
-                            if outcome == "unchanged":
-                                stats["sin_cambios"] += 1
+                        else:
+                            logger.warning("No models discovered, skipping sync")
+                            stats["modelos_descubiertos"] = 0
+                            _record_sync_log(conn, started_at, datetime.now(UTC), "partial", stats, "No models discovered")
+                            if run_once:
+                                break
+                            logger.info("Next sync in %ds", SYNC_INTERVAL_SECONDS)
+                            sleep_with_heartbeat(SYNC_INTERVAL_SECONDS)
+                            continue
+
+                    discovered_codes = {model["codigo"] for model in discovered}
+                    stats["modelos_descubiertos"] = len(discovered_codes)
+                    logger.info(
+                        "Discovered %d models: %s",
+                        len(discovered_codes),
+                        ", ".join(sorted(discovered_codes)),
+                    )
+
+                    upserted = 0
+                    skipped = 0
+                    skipped_resource_failures = 0
+
+                    _get_existing_codes(conn)
+
+                    for model in discovered:
+                        touch_heartbeat()
+                        try:
+                            codigo = model["codigo"]
+                            nombre = model["nombre"]
+                            url_info = model["url_info"]
+
+                            metadata = _fetch_model_metadata(codigo, url_info=url_info, portal_client=portal_client)
+                            if metadata:
+                                nombre = metadata.get("nombre", nombre)
+                                url_info = metadata.get("url_info", url_info)
+                                periodo = metadata.get("periodo")
+                                impuesto = metadata.get("impuesto")
                             else:
-                                stats["versiones_nuevas"] += 1
+                                periodo = None
+                                impuesto = None
 
-                        logger.info("  Upserted modelo %s (%s)", codigo, nombre)
-                    except Exception as exc:
-                        stats["errores"] += 1
-                        logger.error("Failed to process modelo %s: %s", model.get("codigo"), exc)
-                        raise
+                            if not _upsert_aeat_model(conn, codigo, nombre, url_info, periodo, impuesto):
+                                skipped += 1
+                                stats["errores"] += 1
+                                continue
 
-                deprecated_count = _mark_deprecated_models(conn, discovered_codes)
-                if deprecated_count:
-                    logger.info("Marked %d models as deprecated", deprecated_count)
+                            upserted += 1
+                            modelo_id = _get_modelo_id(conn, codigo)
+                            if modelo_id is None:
+                                skipped += 1
+                                stats["errores"] += 1
+                                continue
 
-                final_status, final_error_msg = finalize_partial_sync_status(
-                    base_status="ok" if stats["errores"] == 0 else "partial",
-                    missing_count=skipped_resource_failures,
-                    source_label="AEAT official resources",
+                            campana, campana_inserted = _upsert_modelo_campana(
+                                conn,
+                                modelo_id,
+                                (metadata or {}).get("campana", DEFAULT_CAMPAIGN),
+                                metadata or {},
+                            )
+                            if campana is None:
+                                skipped += 1
+                                stats["errores"] += 1
+                                continue
+                            stats["campanas_upserted"] += 1 if campana_inserted else 0
+
+                            for recurso in (metadata or {}).get("recursos", []):
+                                if recurso["tipo_recurso"] == "pagina_modelo":
+                                    resource_url = _normalize_aeat_url(recurso["url_recurso"])
+                                    payload = recurso["payload"]
+                                else:
+                                    if not _is_official_model_resource(recurso["url_recurso"]):
+                                        logger.info(
+                                            "Skipping non-official resource %s for modelo %s",
+                                            recurso["url_recurso"],
+                                            codigo,
+                                        )
+                                        continue
+                                    resource_url = _normalize_aeat_url(recurso["url_recurso"])
+                                    payload = portal_client.fetch_resource(resource_url)
+                                    if payload is None:
+                                        if not _is_protected_transactional_resource(resource_url):
+                                            skipped_resource_failures += 1
+                                        logger.warning(
+                                            "Skipping official resource %s for modelo %s after fetch failures",
+                                            resource_url,
+                                            codigo,
+                                        )
+                                        continue
+                                    stats["recursos_descargados"] += 1
+
+                                outcome = _store_modelo_recurso_version(
+                                    conn,
+                                    campana,
+                                    recurso["tipo_recurso"],
+                                    recurso["formato"],
+                                    resource_url,
+                                    payload,
+                                    recurso.get("metadata"),
+                                )
+                                if outcome == "unchanged":
+                                    stats["sin_cambios"] += 1
+                                else:
+                                    stats["versiones_nuevas"] += 1
+
+                            logger.info("  Upserted modelo %s (%s)", codigo, nombre)
+                        except Exception as exc:
+                            stats["errores"] += 1
+                            logger.error("Failed to process modelo %s: %s", model.get("codigo"), exc)
+                            raise
+
+                    deprecated_count = _mark_deprecated_models(conn, discovered_codes)
+                    if deprecated_count:
+                        logger.info("Marked %d models as deprecated", deprecated_count)
+
+                    final_status, final_error_msg = finalize_partial_sync_status(
+                        base_status="ok" if stats["errores"] == 0 else "partial",
+                        missing_count=skipped_resource_failures,
+                        source_label="AEAT official resources",
+                    )
+
+                    _record_sync_log(
+                        conn,
+                        started_at,
+                        datetime.now(UTC),
+                        final_status,
+                        stats,
+                        final_error_msg,
+                    )
+
+                logger.info(
+                    "Sync complete: %d upserted, %d skipped, %d deprecated",
+                    upserted,
+                    skipped,
+                    deprecated_count,
                 )
-
-                _record_sync_log(
-                    conn,
-                    started_at,
-                    datetime.now(UTC),
-                    final_status,
-                    stats,
-                    final_error_msg,
-                )
-
-            logger.info(
-                "Sync complete: %d upserted, %d skipped, %d deprecated",
-                upserted,
-                skipped,
-                deprecated_count,
-            )
 
         except Exception as exc:
             entity_id = "aeat_models"

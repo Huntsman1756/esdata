@@ -315,12 +315,20 @@ def main():
 
     interval = args.interval or SYNC_INTERVAL_SECONDS
 
+    from runtime import handle_worker_failure
+    from sqlalchemy import create_engine
+
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
+    engine = create_engine(db_url)
+
     while True:
         try:
             result = run_once()
             print(f"[entity_identity] {result}")
-        except Exception:
-            print(f"[entity_identity] Error: {__builtins__}", exc_info=True)
+        except Exception as exc:
+            print(f"[entity_identity] Error: {type(exc).__name__}: {exc}", exc_info=True)
+            if not handle_worker_failure(engine, "entity_identity", "loop", "main", exc):
+                raise
 
         if args.run_once:
             break

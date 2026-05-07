@@ -153,12 +153,20 @@ def main():
         print(f"Consumer Credit worker: {total} articulos procesados")
         return
 
+    from runtime import handle_worker_failure
+    from sqlalchemy import create_engine
+
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
+    engine = create_engine(db_url)
+
     while True:
         try:
             total = run_once()
             print(f"Consumer Credit worker: {total} articulos, next sync in {SYNC_INTERVAL_SECONDS}s")
-        except Exception as e:
-            print(f"Consumer Credit worker error: {e}")
+        except Exception as exc:
+            print(f"Consumer Credit worker error: {exc}")
+            if not handle_worker_failure(engine, "consumer_credit", "loop", "main", exc):
+                raise
 
         time.sleep(SYNC_INTERVAL_SECONDS)
 

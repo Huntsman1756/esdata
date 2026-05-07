@@ -310,9 +310,12 @@ if __name__ == "__main__":
     parser.add_argument("--run-once", action="store_true")
     parser.add_argument("--interval", type=int, default=None)
     args = parser.parse_args()
-    from runtime import init_sentry
+    from runtime import handle_worker_failure, init_sentry
+    from sqlalchemy import create_engine
     init_sentry("xbrl")
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
+    engine = create_engine(db_url)
     if args.run_once:
         result = run_sync()
         print(f"[run-once] XBRL: {result['processed']} total (companies={result['companies']})")
@@ -321,6 +324,10 @@ if __name__ == "__main__":
     else:
         print(f"Starting XBRL worker (interval={interval}s)")
         while True:
-            result = run_sync()
-            print(f"XBRL: {result['processed']} total at {datetime.now(UTC).isoformat()}")
+            try:
+                result = run_sync()
+                print(f"XBRL: {result['processed']} total at {datetime.now(UTC).isoformat()}")
+            except Exception as exc:
+                if not handle_worker_failure(engine, "xbrl", "loop", "main", exc):
+                    raise
             time.sleep(interval)

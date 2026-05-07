@@ -31,6 +31,7 @@ from runtime import (
     ensure_database_connection,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
@@ -815,4 +816,6 @@ if __name__ == "__main__":
                 )
             except Exception as exc:
                 print(f"[ERROR] Regulatory watch failed: {exc} at {datetime.now(UTC).isoformat()}")
+                if not handle_worker_failure(engine, "regulatory_watch", "loop", "main", exc):
+                    break
             sleep_with_heartbeat(interval)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 from db import engine
@@ -151,8 +152,17 @@ def get_audit_store() -> AIAuditLogStore:
 
 
 def reset_audit_store() -> None:
-    global _audit_store
-    ensure_governance_tables()
-    with engine.begin() as conn:
-        conn.execute(text("DELETE FROM ai_audit_log"))
-    _audit_store = AIAuditLogStore()
+    import os
+
+    from services.persistence import ensure_governance_tables
+
+    # Append-only in production for compliance; allow reset in test mode only.
+    if os.environ.get("APP_ENV", "").lower() == "test":
+        ensure_governance_tables()
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM ai_audit_log"))
+        global _audit_store
+        _audit_store = AIAuditLogStore()
+    else:
+        logger = logging.getLogger(__name__)
+        logger.warning("reset_audit_store() is disabled: audit logs must be append-only for compliance")

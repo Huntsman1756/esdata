@@ -31,6 +31,7 @@ from runtime import (
     get_database_url,
     get_interval_seconds,
     sleep_with_heartbeat,
+    handle_worker_failure,
     touch_heartbeat,
 )
 from sqlalchemy import create_engine
@@ -199,9 +200,10 @@ def run_sync(engine, run_once: bool = False):
                 try:
                     logger.info(f"  Syncing {modelo_codigo}...")
                     sync_model(engine, modelo_codigo, url_info or "", url_instr, result)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.error(f"  ERROR {modelo_codigo}: {exc}")
                     result.errors.append(f"{modelo_codigo}: {exc}")
+                    handle_worker_failure(engine, "aeat_modelos", modelo_codigo, "sync_entity", exc)
 
             logger.info(
                 f"Sync complete: {result.models_checked} checked, "
@@ -216,8 +218,8 @@ def run_sync(engine, run_once: bool = False):
                 logger.warning(f"Errors: {result.errors}")
 
             _log_sync(engine, result)
-        except Exception as exc:  # noqa: BLE001
-            logger.error(f"Sync failed: {exc}")
+        except Exception as exc:
+            logger.error(f"Sync failed: {exc}", exc_info=True)
 
         if run_once:
             break

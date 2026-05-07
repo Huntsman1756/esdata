@@ -33,12 +33,12 @@ from change_detection import (
     record_revision,
 )
 from runtime import (
+    configure_logging,
     ensure_database_connection,
-    get_database_url,
-    get_interval_seconds,
     handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
+    init_sentry,
 )
 
 EURLEX_BASE = os.getenv(
@@ -52,6 +52,8 @@ SPARQL_BASE = os.getenv(
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 OFFICIAL_NOTICE_ACCEPT = "application/xml, text/xml;q=0.9, */*;q=0.1"
+
+logger = logging.getLogger(__name__)
 OFFICIAL_RDF_ACCEPT = "application/rdf+xml, application/xml;q=0.9, text/xml;q=0.8"
 
 # ============================================================
