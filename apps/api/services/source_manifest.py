@@ -8,8 +8,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from services.persistence import dumps_json, ensure_governance_tables, rows_to_dicts
 from sqlalchemy import text
+
+from services.persistence import dumps_json, ensure_governance_tables, rows_to_dicts
 
 
 def _find_manifest() -> Path:
@@ -316,7 +317,141 @@ def _snapshot_changed_since_previous(snapshots: list[dict]) -> bool:
     )
 
 
+def _parse_cadencia_hours(cadencia: str) -> int:
+    mapping = {
+        "hourly": 1,
+        "daily": 24,
+        "weekly": 24 * 7,
+        "biweekly": 24 * 14,
+        "monthly": 24 * 30,
+    }
+    return mapping.get(cadencia, 24 * 7)
+
+
+def check_and_create_freshness_alerts(db) -> list[dict]:
+    ensure_governance_tables()
+    sources = get_source_manifest(db)
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    created: list[dict] = []
+
+    for source in sources:
+        source_id = source["source_id"]
+        cadencia = source.get("cadencia", "weekly")
+        stale_after = source.get("stale_after_hours", 24 * 8)
+        expected_hours = _parse_cadencia_hours(cadencia)
+        last_success = source.get("last_success_at")
+
+        is_stale = _compute_stale(last_success, stale_after)
+
+        existing = db.execute(
+            text(
+                """
+                SELECT id, alert_level
+                FROM data_freshness_alerts
+                WHERE source_id = :source_id
+                  AND alert_level IN ('warning', 'critical')
+                  AND acknowledged = 0
+                  AND strftime('%Y-%m-%d', created_at) = :today
+                """
+            ),
+            {"source_id": source_id, "today": today},
+        ).mappings().first()
+
+        if is_stale and not existing:
+            age_hours = (datetime.now(UTC) - _coerce_datetime(last_success)).total_seconds() / 3600 if last_success else float("inf")
+            alert_level = "critical" if age_hours > expected_hours * 2 else "warning"
+
+            message = (
+                f"Fuente '{source_id}' sin actualizaciones. "
+                f"Ultimo exito: {last_success}. "
+                f"Cadencia esperada: {cadencia}. "
+                f"Nivel: {alert_level}."
+            )
+
+            db.execute(
+                text(
+                    """
+                    INSERT INTO data_freshness_alerts (
+                        alert_id, source_id, alert_level, stale_since,
+                        expected_interval, message, acknowledged, created_at
+                    )
+                    VALUES (
+                        :alert_id, :source_id, :alert_level, :stale_since,
+                        :expected_interval, :message, 0, :created_at
+                    )
+                    """
+                ),
+                {
+                    "alert_id": uuid4().hex,
+                    "source_id": source_id,
+                    "alert_level": alert_level,
+                    "stale_since": last_success,
+                    "expected_interval": cadencia,
+                    "message": message,
+                    "created_at": datetime.now(UTC).isoformat(),
+                },
+            )
+            created.append({
+                "source_id": source_id,
+                "alert_level": alert_level,
+                "stale_since": last_success,
+                "expected_interval": cadencia,
+                "message": message,
+            })
+
+        elif not is_stale and existing and existing["alert_level"] in ("warning", "critical"):
+            db.execute(
+                text(
+                    """
+                    INSERT INTO data_freshness_alerts (
+                        alert_id, source_id, alert_level, stale_since,
+                        expected_interval, message, acknowledged, created_at, resolved_at
+                    )
+                    VALUES (
+                        :alert_id, :source_id, 'resolved', :stale_since,
+                        :expected_interval, :message, 0, :created_at, :resolved_at
+                    )
+                    """
+                ),
+                {
+                    "alert_id": uuid4().hex,
+                    "source_id": source_id,
+                    "stale_since": last_success,
+                    "expected_interval": cadencia,
+                    "message": f"Alerta '{existing['alert_level']}' resuelta para fuente '{source_id}'. Fuente actualizada correctamente.",
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "resolved_at": datetime.now(UTC).isoformat(),
+                },
+            )
+
+    if hasattr(db, "commit"):
+        db.commit()
+    return created
+
+
+def get_freshness_alerts(db) -> list[dict]:
+    ensure_governance_tables()
+    rows = rows_to_dicts(
+        db.execute(
+            text(
+                """
+                SELECT alert_id, source_id, alert_level, stale_since,
+                       expected_interval, message, acknowledged, created_at, resolved_at
+                FROM data_freshness_alerts
+                WHERE acknowledged = 0
+                  AND alert_level IN ('warning', 'critical')
+                ORDER BY
+                    CASE alert_level WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 END ASC,
+                    created_at DESC
+                """
+            )
+        )
+    )
+    return rows
+
+
 def get_source_manifest_summary(db) -> dict:
     sources = get_source_manifest(db)
     stale = sum(1 for source in sources if source["stale"])
+    check_and_create_freshness_alerts(db)
     return {"total": len(sources), "stale": stale, "ok": len(sources) - stale}

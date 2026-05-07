@@ -39,7 +39,7 @@ async def listar_obligaciones(
         rows = db.execute(
             text(
                 """
-                SELECT codigo, nombre, fuente, organismo_emisor, tipo_obligacion,
+                SELECT id, codigo, nombre, fuente, organismo_emisor, tipo_obligacion,
                        sujeto_obligado, periodicidad, reporte_modelo, ambito, estado_vigencia,
                        plazo_dias, frecuencia_presentacion, ventana_presentacion,
                        trigger_presentacion, sancion_min, sancion_max, prescripcion_anos
@@ -72,7 +72,7 @@ async def listar_obligaciones_aplicables(
         rows = db.execute(
             text(
                 """
-                SELECT codigo, nombre, fuente, organismo_emisor, tipo_obligacion,
+                SELECT id, codigo, nombre, fuente, organismo_emisor, tipo_obligacion,
                        sujeto_obligado, periodicidad, reporte_modelo, ambito, estado_vigencia,
                        plazo_dias, frecuencia_presentacion, ventana_presentacion,
                        trigger_presentacion, sancion_min, sancion_max, prescripcion_anos
@@ -190,7 +190,7 @@ async def get_obligacion(codigo: str):
             db.execute(
                 text(
                     """
-                    SELECT codigo, nombre, fuente, organismo_emisor, tipo_obligacion,
+                    SELECT id, codigo, nombre, fuente, organismo_emisor, tipo_obligacion,
                            sujeto_obligado, periodicidad, reporte_modelo, ambito,
                            estado_vigencia, documento_origen_tipo, documento_origen_ref,
                            seccion_origen, anexo_origen, nota,

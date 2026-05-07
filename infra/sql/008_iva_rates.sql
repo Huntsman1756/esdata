@@ -9,6 +9,8 @@ CREATE TABLE iva_rates (
     rate            NUMERIC(5,2) NOT NULL,            -- percentage
     applies_to      TEXT,                             -- description of applicable goods/services
     source          TEXT,                             -- legal reference (e.g. 'Ley 37/1992, art. 90')
+    source_url      TEXT,                             -- direct URL to source document (BOE, AEAT, etc.)
+    ingestion_timestamp TIMESTAMPTZ DEFAULT now(),    -- when this record was ingested
     creado_at       TIMESTAMPTZ DEFAULT now(),
     UNIQUE(year, territory, rate_type)
 );
@@ -20,7 +22,10 @@ CREATE TABLE iva_surcharges (
     vat_rate_label  TEXT,                             -- e.g. 'tabaco'
     surcharge_rate  NUMERIC(5,2) NOT NULL,            -- percentage
     source          TEXT,
-    creado_at       TIMESTAMPTZ DEFAULT now()
+    source_url      TEXT,
+    ingestion_timestamp TIMESTAMPTZ DEFAULT now(),
+    creado_at       TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(year, vat_rate, vat_rate_label)
 );
 
 CREATE TABLE iva_exemptions (
@@ -28,6 +33,8 @@ CREATE TABLE iva_exemptions (
     year            INTEGER NOT NULL,
     category        TEXT NOT NULL,                    -- e.g. 'Servicios medicos y sanitarios'
     source          TEXT,                             -- legal reference
+    source_url      TEXT,
+    ingestion_timestamp TIMESTAMPTZ DEFAULT now(),
     creado_at       TIMESTAMPTZ DEFAULT now(),
     UNIQUE(year, category)
 );

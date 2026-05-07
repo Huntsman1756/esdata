@@ -142,7 +142,7 @@ async def crear_nota_editorial(body: NotaEditorialCreate):
                 text(
                     """
                     SELECT id FROM documento_interpretativo
-                    WHERE referencia = :referencia
+                    WHERE referencia = :referencia OR referencia_boe = :referencia
                     LIMIT 1
                     """
                 ),
@@ -215,26 +215,23 @@ async def crear_nota_editorial(body: NotaEditorialCreate):
 @router.patch("/{nota_id}", response_model=NotaEditorialDetail, operation_id="actualizar_nota_editorial")
 async def actualizar_nota_editorial(nota_id: str, body: NotaEditorialUpdate):
     with db_session() as db:
-        # Validate fuente_oficial_referencia when transitioning to vigente/revisar
-        new_estado = body.estado
-        if new_estado and new_estado in ("vigente", "revisar"):
-            existing = db.execute(
-                text("SELECT fuente_oficial_referencia FROM nota_editorial_interna WHERE id = :nota_id LIMIT 1"),
-                {"nota_id": nota_id},
-            ).mappings().first()
-            if not existing or not existing.get("fuente_oficial_referencia"):
-                raise HTTPException(
-                    status_code=400,
-                    detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
-                )
-
         existing = db.execute(
-            text("SELECT id FROM nota_editorial_interna WHERE id = :nota_id LIMIT 1"),
+            text("SELECT id, fuente_oficial_referencia FROM nota_editorial_interna WHERE id = :nota_id LIMIT 1"),
             {"nota_id": nota_id},
         ).mappings().first()
 
         if not existing:
             raise HTTPException(status_code=404, detail={"error": "Nota editorial no encontrada"})
+
+        # Validate fuente_oficial_referencia when transitioning to vigente/revisar
+        new_estado = body.estado
+        if new_estado and new_estado in ("vigente", "revisar"):
+            new_fuente = body.fuente_oficial_referencia
+            if not existing or (not existing.get("fuente_oficial_referencia") and not new_fuente):
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
+                )
 
         updates = []
         params: dict = {"nota_id": nota_id}

@@ -46,17 +46,20 @@ async def test_status_tiene_workers():
         "worker-sepblac",
         "cron-sepblac-weekly",
         "worker-cendoj",
+        "cron-cendoj-weekly",
         "worker-eurlex",
+        "cron-eurlex-weekly",
         "worker-bde",
         "cron-bde-weekly",
         "worker-aepd",
+        "cron-aepd-weekly",
     ]:
         assert w in data["workers"]
 
 
 @pytest.mark.asyncio
 async def test_status_expone_metricas_dgt_si_existen():
-    from conftest import engine
+    from .conftest import engine
 
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM sync_log WHERE worker = 'worker-dgt'"))
@@ -222,7 +225,7 @@ async def test_doctrina_buscar_filtra_por_organismo_y_expone_senal_de_enlace():
 
 @pytest.mark.asyncio
 async def test_doctrina_buscar_filtra_teac():
-    from conftest import engine
+    from .conftest import engine
 
     with engine.begin() as conn:
         conn.execute(
@@ -239,6 +242,7 @@ async def test_doctrina_buscar_filtra_teac():
                     'Se fija criterio TEAC sobre la base imponible del IVA.',
                     'https://serviciostelematicosext.hacienda.gob.es/TEAC/00-1234-2024'
                 )
+                ON CONFLICT DO NOTHING
                 """
             )
         )
@@ -258,7 +262,7 @@ async def test_doctrina_buscar_filtra_teac():
 
 @pytest.mark.asyncio
 async def test_doctrina_buscar_expone_teac_con_enlace():
-    from conftest import engine
+    from .conftest import engine
 
     with engine.begin() as conn:
         conn.execute(
@@ -308,7 +312,7 @@ async def test_doctrina_buscar_expone_teac_con_enlace():
 
 @pytest.mark.asyncio
 async def test_doctrina_detalle_teac_acepta_referencia_con_slash():
-    from conftest import engine
+    from .conftest import engine
 
     with engine.begin() as conn:
         conn.execute(
@@ -339,7 +343,7 @@ async def test_doctrina_detalle_teac_acepta_referencia_con_slash():
 
 @pytest.mark.asyncio
 async def test_doctrina_buscar_expone_teac_con_enlace_contextual():
-    from conftest import engine
+    from .conftest import engine
 
     with engine.begin() as conn:
         conn.execute(
@@ -389,7 +393,7 @@ async def test_doctrina_buscar_expone_teac_con_enlace_contextual():
 
 @pytest.mark.asyncio
 async def test_doctrina_buscar_expone_teac_con_enlace_regimen_especial():
-    from conftest import engine
+    from .conftest import engine
 
     with engine.begin() as conn:
         conn.execute(
@@ -439,7 +443,7 @@ async def test_doctrina_buscar_expone_teac_con_enlace_regimen_especial():
 
 @pytest.mark.asyncio
 async def test_doctrina_buscar_expone_teac_con_enlace_recargo():
-    from conftest import engine
+    from .conftest import engine
 
     with engine.begin() as conn:
         conn.execute(
@@ -553,9 +557,10 @@ async def test_modelos_lista():
     assert r.status_code == 200
     data = r.json()
     assert "modelos" in data
-    assert len(data["modelos"]) == 2  # 100, 303 in test fixture
+    assert len(data["modelos"]) == 3  # 100, 111, 303 in test fixture
     codigos = [m["codigo"] for m in data["modelos"]]
     assert "100" in codigos
+    assert "111" in codigos
     assert "303" in codigos
 
 
@@ -565,8 +570,8 @@ async def test_modelos_aeat_lista_con_total():
         r = await c.get("/v1/modelos/aeat")
     assert r.status_code == 200
     data = r.json()
-    assert data["total"] == 2
-    assert len(data["items"]) == 2
+    assert data["total"] == 3
+    assert len(data["items"]) == 3
     modelo_100 = next(item for item in data["items"] if item["codigo"] == "100")
     assert modelo_100["campana"] == "2025"
     assert modelo_100["recursos_activos"] == 1

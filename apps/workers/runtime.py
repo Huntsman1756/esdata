@@ -1,6 +1,8 @@
 import logging
 import os
+import signal
 import socket
+import threading
 import time
 from pathlib import Path
 
@@ -8,6 +10,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata"
+
+
+class GracefulShutdownRequested(Exception):
+    """Raised to break out of the main worker loop on shutdown signal."""
 
 
 def get_database_url() -> str:
@@ -47,8 +53,9 @@ def ensure_database_connection(
     logger: logging.Logger | None = None,
 ) -> None:
     active_logger = logger or logging.getLogger(__name__)
-    host = getattr(engine.url, "host", None) or "localhost"
-    port = getattr(engine.url, "port", None) or 5432
+    engine_url = getattr(engine, "url", None)
+    host = getattr(engine_url, "host", None) or "localhost"
+    port = getattr(engine_url, "port", None) or 5432
     last_error: Exception | None = None
 
     for attempt in range(1, attempts + 1):
@@ -60,7 +67,9 @@ def ensure_database_connection(
                 active_logger.warning("DNS probe failed for %s:%s: %s", host, port, exc)
                 raise OSError(exc) from exc
 
-            with engine.connect() as conn:
+            connect = getattr(engine, "connect", None)
+            connection_context = connect() if callable(connect) else engine.begin()
+            with connection_context as conn:
                 conn.execute(text("SELECT 1"))
             active_logger.info("DB connection established")
             return
@@ -90,17 +99,22 @@ def sleep_with_heartbeat(
     chunk_seconds: int = 60,
     heartbeat_path: str = "/tmp/worker_heartbeat",
     touch_fn=None,
-) -> None:
+    shutdown_event=None,
+) -> bool:
     if interval_seconds <= 0:
-        return
+        return False
 
     heartbeat_touch = touch_fn or (lambda: touch_heartbeat(heartbeat_path))
     remaining = interval_seconds
     while remaining > 0:
+        if shutdown_event is not None and shutdown_event.is_set():
+            return True
         heartbeat_touch()
         sleep_for = min(chunk_seconds, remaining)
         time.sleep(sleep_for)
         remaining -= sleep_for
+
+    return False
 
 
 def init_sentry(worker_name: str) -> None:
@@ -119,3 +133,63 @@ def init_sentry(worker_name: str) -> None:
     )
     sentry_sdk.set_tag("worker", worker_name)
     logging.getLogger(__name__).info("Sentry enabled for worker %s", worker_name)
+
+
+def register_signal_handlers(logger: logging.Logger) -> threading.Event:
+    """Register SIGTERM/SIGINT handlers and return a shutdown event."""
+    is_shutdown = threading.Event()
+
+    def handler(signum, frame):
+        sig_name = signal.Signals(signum).name
+        logger.warning("Received %s — initiating graceful shutdown", sig_name)
+        is_shutdown.set()
+
+    signal.signal(signal.SIGTERM, handler)
+    signal.signal(signal.SIGINT, handler)
+    return is_shutdown
+
+
+def graceful_shutdown_handler(
+    logger: logging.Logger, is_shutdown: threading.Event
+) -> None:
+    """Stop the main loop gracefully. Call from worker entrypoints."""
+    if is_shutdown.is_set():
+        logger.info("Shutdown already signaled — exiting main loop")
+        raise GracefulShutdownRequested()
+
+
+def handle_worker_failure(
+    engine,
+    worker_name: str,
+    entity_id: str,
+    entity_type: str,
+    exc: Exception,
+    max_retries: int = 3,
+) -> bool:
+    """Handle a worker failure, adding to dead-letter queue if max retries exceeded.
+
+    Returns True if the entity should be retried, False if moved to dead-letter.
+    """
+    import traceback
+
+    from .dead_letter import add_dead_letter
+
+    error_msg = str(exc)[:5000]
+    error_tb = traceback.format_exc()[:2000]
+
+    retry_count = add_dead_letter(
+        engine, worker_name, entity_id, entity_type, error_msg, error_tb, max_retries
+    )
+
+    if retry_count >= max_retries:
+        logger.error(
+            "Entity %s (%s) exceeded max retries (%d) in worker %s. Moved to dead-letter.",
+            entity_id, entity_type, max_retries, worker_name,
+        )
+        return False  # Stop retrying
+
+    logger.warning(
+        "Entity %s (%s) failed in worker %s (retry %d/%d). Will retry.",
+        entity_id, entity_type, worker_name, retry_count, max_retries,
+    )
+    return True  # Retry is still allowed

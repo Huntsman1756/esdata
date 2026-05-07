@@ -1,5 +1,6 @@
 """Consulta fiscal inteligente — responde preguntas naturales devolviendo modelos, obligaciones y normativa."""
 
+import logging
 import re
 
 from db import db_session
@@ -20,6 +21,8 @@ from services.search import search_legislacion
 from services.unified_multi_source_search import unified_multi_source_search
 from sqlalchemy import text
 
+logger = logging.getLogger(__name__)
+
 # ── Sinonimos juridicos para expansion semantica ──────────────────────────
 SINONIMOS_JURIDICOS = {
     "no residente": ["irnr", "extranjero", "residente fuera"],
@@ -34,7 +37,7 @@ SINONIMOS_JURIDICOS = {
     "hacendario": ["aeat", "agencia tributaria", "hacienda"],
 }
 
-# ── Mapeo termino → tipo resultado preferido ──────────────────────────────
+#  Mapeo termino → tipo resultado preferido
 TERMINO_TIPO = {
     "modelo": ["modelo", "formulario", "aeat"],
     "normativa": ["articulo", "ley", "real decreto", "disposicion", "vigente"],
@@ -42,7 +45,7 @@ TERMINO_TIPO = {
     "obligacion": ["obligacion", "deber", "comunicar", "presentar", "reportar"],
 }
 
-# ── Boost por tipo de resultado ───────────────────────────────────────────
+#  Boost por tipo de resultado
 RESULTADO_BOOST = {
     "modelo": 2.0,
     "normativa": 1.5,
@@ -58,7 +61,11 @@ GROUNDING_THRESHOLD = 0.4
 
 router = APIRouter(prefix="", tags=["consulta"])
 
-# ── Keyword → modelo mapping ──────────────────────────────────────────
+
+def _ci_like(column: str, param_name: str) -> str:
+    return f"LOWER({column}) LIKE LOWER(:{param_name})"
+
+#  Keyword → modelo mapping
 KEYWORD_MODELOS = {
     # FactA / intracomunitario
     "facta": ["216", "349", "124"],
@@ -160,7 +167,7 @@ KEYWORD_MODELOS = {
     "modelo DAC6": ["DAC6"],
 }
 
-# ── Sujeto → modelo mapping ──────────────────────────────────────────
+#  Sujeto → modelo mapping
 SUJETO_MODELOS = {
     "no_residente": ["124", "216", "123", "296"],
     "retenedor": ["124", "123"],
@@ -776,7 +783,7 @@ async def consulta_fiscal(
     resolved_modelos = _resolve_modelos(keywords)
 
     with db_session() as db:
-        # ── 1. Buscar modelos por resolución de keywords ──────────────────
+        #  1. Buscar modelos por resolución de keywords
         if resolved_modelos:
             try:
                 placeholders = ",".join([f":m{i}" for i in range(len(resolved_modelos))])
@@ -801,18 +808,17 @@ async def consulta_fiscal(
                     })
             except Exception:
                 db.rollback()
-
-        # ── 1b. Fallback: buscar por nombre/instrucciones si no hay matches ─
+                logger.warning("Modelo resolution failed for resolved_modelos=%s", resolved_modelos)
         if not resolved_modelos and q:
             try:
                 model_rows = db.execute(
                     text("""
                         SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info
                         FROM aeat_modelo am
-                        WHERE am.nombre ILIKE :q
+                        WHERE {name_filter}
                            OR am.codigo = :q
                         ORDER BY am.codigo
-                    """),
+                    """.format(name_filter=_ci_like("am.nombre", "q"))),
                     {"q": f"%{q}%"},
                 ).mappings()
 
@@ -827,19 +833,25 @@ async def consulta_fiscal(
                     })
             except Exception:
                 db.rollback()
-
-        # ── 2. Buscar obligaciones regulatorias ─────────────────────────────
+                logger.warning("Modelo fallback search failed for query='%s'", q)
         try:
             oblig_filters = ["1=1"]
             oblig_params: dict = {}
             if q:
-                oblig_filters.append("(o.nombre ILIKE :q OR o.tipo_obligacion ILIKE :q OR o.fuente ILIKE :q OR o.nota ILIKE :q)")
+                oblig_filters.append(
+                    "(" + " OR ".join([
+                        _ci_like("o.nombre", "q"),
+                        _ci_like("o.tipo_obligacion", "q"),
+                        _ci_like("o.fuente", "q"),
+                        _ci_like("o.nota", "q"),
+                    ]) + ")"
+                )
                 oblig_params["q"] = f"%{q}%"
             if sujeto:
-                oblig_filters.append("o.sujeto_obligado ILIKE :suj")
+                oblig_filters.append(_ci_like("o.sujeto_obligado", "suj"))
                 oblig_params["suj"] = f"%{sujeto}%"
             if pais:
-                oblig_filters.append("o.ambito ILIKE :pai")
+                oblig_filters.append(_ci_like("o.ambito", "pai"))
                 oblig_params["pai"] = f"%{pais}%"
 
             oblig_rows = db.execute(
@@ -869,8 +881,7 @@ async def consulta_fiscal(
                 })
         except Exception:
             db.rollback()
-
-        # ── 3. Buscar legislación relevante (via search_legislacion service) ─
+            logger.warning("Obligations search failed for q='%s' sujeto='%s'", q, sujeto)
         if q:
             try:
                 search_result = search_legislacion(
@@ -904,8 +915,7 @@ async def consulta_fiscal(
                     })
             except Exception:
                 db.rollback()
-
-        # ── 4. Buscar doctrina DGT/TEAC ─────────────────────────────────────
+                logger.warning("Legislacion search failed for q='%s'", q)
         try:
             if q:
                 doc_filters = [
@@ -946,8 +956,9 @@ async def consulta_fiscal(
                     })
         except Exception:
             db.rollback()
+            logger.warning("Doctrina search failed for q='%s'", q)
 
-    # ── 5. Obtener detalle completo de modelos ──────────────────────────
+    #  5. Obtener detalle completo de modelos
     try:
         modelos_codigo = list(dict.fromkeys(modelos_codigo))
         modelos_detalle = []
@@ -996,8 +1007,9 @@ async def consulta_fiscal(
                 })
     except Exception:
         db.rollback()
+        logger.warning("Modelo detail lookup failed for codigos=%s", modelos_codigo)
 
-    # ── 6. Integrated unified multi-source search (if sources filter specified) ─
+    #  6. Integrated unified multi-source search (if sources filter specified)
     if sources and q:
         try:
             source_list = [s.strip() for s in sources.split(",") if s.strip()]
@@ -1036,7 +1048,7 @@ async def consulta_fiscal(
     cited_chunks = _build_cited_chunks(ranked_chunks)
     claim_citations = _build_claim_citations(scored_results, ranked_chunks, q)
 
-    # ── Grounding hard — per-claim validation ──────────────────────────
+    #  Grounding hard — per-claim validation
     grounding_summary = {
         "total_claims": 0,
         "grounded_claims": 0,
@@ -1127,7 +1139,7 @@ async def consulta_fiscal(
         grounding_summary=grounding_summary,
     )
 
-    # ── Observability metrics ──────────────────────────────────────────
+    #  Observability metrics
     try:
         import logging
 
@@ -1147,7 +1159,7 @@ async def consulta_fiscal(
 
     record_consulta_metrics("/v1/consulta", confianza)
 
-    # ── Build unified search metadata ──────────────────────────────────
+    #  Build unified search metadata
     unified_meta = {}
     if sources and q:
         try:

@@ -46,6 +46,15 @@ from sqlalchemy import text
 router = APIRouter(prefix="/v1/mifid", tags=["mifid"])
 
 
+def _as_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 # ===========================================================================
 # Client Categories
 # ===========================================================================
@@ -71,8 +80,12 @@ async def list_mifid_client_categories(
         filters.append("mc.category = :category")
         params["category"] = category
     if search:
-        filters.append("mc.entity_id = :search::integer")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("mc.entity_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(
@@ -144,11 +157,13 @@ async def list_mifid_suitability_reports(
         filters.append("ms.status = :status")
         params["status"] = status
     if search:
-        filters.append(
-            "(ms.client_id = :search::integer OR ms.product_id = :search2::integer)"
-        )
-        params["search"] = search
-        params["search2"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("(ms.client_id = :search OR ms.product_id = :search2)")
+            params["search"] = search_int
+            params["search2"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(
@@ -221,10 +236,14 @@ async def list_mifid_best_execution_records(
         filters.append("mb.status = :status")
         params["status"] = status
     if search:
-        filters.append(
-            "(mb.order_id = :search::integer OR LOWER(mb.venue) LIKE LOWER(:search_like))"
-        )
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append(
+                "(mb.order_id = :search OR LOWER(mb.venue) LIKE LOWER(:search_like))"
+            )
+            params["search"] = search_int
+        else:
+            filters.append("LOWER(mb.venue) LIKE LOWER(:search_like)")
         params["search_like"] = f"%{search}%"
 
     with db_session() as db:
@@ -376,8 +395,12 @@ async def list_mifid_product_governance(
         filters.append("mg.status = :status")
         params["status"] = status
     if search:
-        filters.append("mg.product_id = :search::integer")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("mg.product_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(
@@ -453,10 +476,14 @@ async def list_mifid_order_records(
         filters.append("mo.direction = :direction")
         params["direction"] = direction
     if search:
-        filters.append(
-            "(mo.client_id = :search::integer OR LOWER(mo.instrument) LIKE LOWER(:search_like))"
-        )
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append(
+                "(mo.client_id = :search OR LOWER(mo.instrument) LIKE LOWER(:search_like))"
+            )
+            params["search"] = search_int
+        else:
+            filters.append("LOWER(mo.instrument) LIKE LOWER(:search_like)")
         params["search_like"] = f"%{search}%"
 
     with db_session() as db:
@@ -604,8 +631,12 @@ async def list_mifid_compensation_policies(
         filters.append("mp.status = :status")
         params["status"] = status
     if search:
-        filters.append("mp.entity_id = :search::integer")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("mp.entity_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(

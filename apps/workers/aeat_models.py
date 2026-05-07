@@ -99,6 +99,8 @@ def _normalize_aeat_url(url: str) -> str:
     normalized = url.strip()
     if normalized.startswith("ttps://"):
         normalized = "h" + normalized
+    elif normalized.startswith("http://www1.agenciatributaria.gob.es/"):
+        normalized = "https://" + normalized[len("http://") :]
     elif normalized.startswith("//"):
         normalized = "https:" + normalized
     elif not normalized.startswith(("http://", "https://")):
@@ -113,6 +115,15 @@ def _is_official_model_resource(url: str) -> bool:
         "www1.agenciatributaria.gob.es",
         "www.boe.es",
     }
+
+
+def _is_protected_transactional_resource(url: str) -> bool:
+    normalized = _normalize_aeat_url(url)
+    parsed = urlparse(normalized)
+    if parsed.netloc.lower() != "www1.agenciatributaria.gob.es":
+        return False
+
+    return parsed.path.startswith("/wlpl/") and "fTramite=" in parsed.query
 
 
 def _is_valid_aeat_page(html: str) -> bool:
@@ -963,6 +974,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
 
                         for recurso in (metadata or {}).get("recursos", []):
                             if recurso["tipo_recurso"] == "pagina_modelo":
+                                resource_url = _normalize_aeat_url(recurso["url_recurso"])
                                 payload = recurso["payload"]
                             else:
                                 if not _is_official_model_resource(recurso["url_recurso"]):
@@ -972,12 +984,14 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                                         codigo,
                                     )
                                     continue
-                                payload = portal_client.fetch_resource(recurso["url_recurso"])
+                                resource_url = _normalize_aeat_url(recurso["url_recurso"])
+                                payload = portal_client.fetch_resource(resource_url)
                                 if payload is None:
-                                    skipped_resource_failures += 1
+                                    if not _is_protected_transactional_resource(resource_url):
+                                        skipped_resource_failures += 1
                                     logger.warning(
                                         "Skipping official resource %s for modelo %s after fetch failures",
-                                        recurso["url_recurso"],
+                                        resource_url,
                                         codigo,
                                     )
                                     continue
@@ -988,7 +1002,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                                 campana,
                                 recurso["tipo_recurso"],
                                 recurso["formato"],
-                                recurso["url_recurso"],
+                                resource_url,
                                 payload,
                                 recurso.get("metadata"),
                             )

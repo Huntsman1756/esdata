@@ -276,11 +276,13 @@ async def list_mar_insider_communications(
     params: dict = {}
 
     if search:
-        filters.append(
-            "(ms.sender_id = :search::integer OR ms.receiver_id = :search2::integer)"
-        )
-        params["search"] = search
-        params["search2"] = search
+        try:
+            search_id = int(search)
+        except ValueError:
+            filters.append("0=1")
+        else:
+            filters.append("(ms.sender_id = :search_id OR ms.receiver_id = :search_id)")
+            params["search_id"] = search_id
 
     with db_session() as db:
         rows = db.execute(

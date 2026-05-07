@@ -20,5 +20,8 @@ def mount_mcp(app) -> None:
             timeout=10.0,
         ),
         include_operations=HTTP_MCP_OPERATIONS,
+        headers=["authorization", "x-request-id", "x-user-id"],
     )
     mcp.mount_http(mount_path="/mcp")
+    app.state._mcp = mcp
+    app.state._mcp_http_transport = mcp._http_transport

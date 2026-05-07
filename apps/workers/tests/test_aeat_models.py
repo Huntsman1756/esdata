@@ -345,6 +345,11 @@ class TestNormalizeAeatUrl:
             "https://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul"
         )
 
+    def test_upgrades_http_scheme_for_www1_aeat_host(self):
+        assert _normalize_aeat_url("http://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592") == (
+            "https://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592"
+        )
+
 
 class TestOfficialModelResource:
     def test_accepts_official_aeat_resource(self):
@@ -1003,9 +1008,9 @@ def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatc
             "campana": "2025",
             "recursos": [
                 {
-                    "tipo_recurso": "instrucciones",
+                    "tipo_recurso": "normativa",
                     "formato": "html",
-                    "url_recurso": "https://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592",
+                    "url_recurso": "https://www.boe.es/buscar/act.php?id=BOE-A-2024-1771",
                 }
             ],
         },
@@ -1029,3 +1034,147 @@ def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatc
         ).fetchone()
 
     assert row == ("partial", 0, "Skipped 1 AEAT official resources after fetch failures")
+
+
+def test_run_sync_ignores_failed_protected_official_resource_and_finishes_ok(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    errors INTEGER,
+                    rows_processed INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+
+    portal_client = MagicMock()
+    portal_client.fetch_resource.return_value = None
+    stored_payloads = []
+
+    monkeypatch.setattr("aeat_models.get_portal_client", lambda force_playwright=False: portal_client)
+    monkeypatch.setattr("aeat_models._try_acquire_sync_lock", lambda conn: True)
+    monkeypatch.setattr(
+        "aeat_models._discover_aeat_models",
+        lambda portal_client=None: [{"codigo": "792", "nombre": "Modelo 792", "url_info": "https://example.com/792"}],
+    )
+    monkeypatch.setattr(
+        "aeat_models._fetch_model_metadata",
+        lambda *args, **kwargs: {
+            "codigo": "792",
+            "nombre": "Modelo 792",
+            "url_info": "https://example.com/792",
+            "campana": "2025",
+            "recursos": [
+                {
+                    "tipo_recurso": "recurso_oficial",
+                    "formato": "other",
+                    "url_recurso": "http://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr("aeat_models._upsert_aeat_model", lambda *args, **kwargs: True)
+    monkeypatch.setattr("aeat_models._get_modelo_id", lambda *args, **kwargs: 1)
+    monkeypatch.setattr("aeat_models._upsert_modelo_campana", lambda *args, **kwargs: (10, True))
+    monkeypatch.setattr(
+        "aeat_models._store_modelo_recurso_version",
+        lambda *args, **kwargs: stored_payloads.append(args[5]) or "inserted",
+    )
+    monkeypatch.setattr("aeat_models._mark_deprecated_models", lambda *args, **kwargs: 0)
+
+    aeat_models.run_sync(engine, run_once=True)
+
+    assert stored_payloads == []
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT status, errors, error_msg FROM sync_log ORDER BY id DESC LIMIT 1")
+        ).fetchone()
+
+    assert row == ("ok", 0, None)
+
+
+def test_run_sync_stores_pagina_modelo_without_resource_url_regression(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    errors INTEGER,
+                    rows_processed INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+
+    portal_client = MagicMock()
+    stored_urls = []
+
+    monkeypatch.setattr("aeat_models.get_portal_client", lambda force_playwright=False: portal_client)
+    monkeypatch.setattr("aeat_models._try_acquire_sync_lock", lambda conn: True)
+    monkeypatch.setattr(
+        "aeat_models._discover_aeat_models",
+        lambda portal_client=None: [{"codigo": "001", "nombre": "Modelo 001", "url_info": "https://example.com/001"}],
+    )
+    monkeypatch.setattr(
+        "aeat_models._fetch_model_metadata",
+        lambda *args, **kwargs: {
+            "codigo": "001",
+            "nombre": "Modelo 001",
+            "url_info": "https://example.com/001",
+            "campana": "2025",
+            "recursos": [
+                {
+                    "tipo_recurso": "pagina_modelo",
+                    "formato": "html",
+                    "url_recurso": "https://example.com/001",
+                    "payload": b"<html>pagina modelo</html>",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr("aeat_models._upsert_aeat_model", lambda *args, **kwargs: True)
+    monkeypatch.setattr("aeat_models._get_modelo_id", lambda *args, **kwargs: 1)
+    monkeypatch.setattr("aeat_models._upsert_modelo_campana", lambda *args, **kwargs: (10, True))
+    monkeypatch.setattr(
+        "aeat_models._store_modelo_recurso_version",
+        lambda *args, **kwargs: stored_urls.append(args[4]) or "inserted",
+    )
+    monkeypatch.setattr("aeat_models._mark_deprecated_models", lambda *args, **kwargs: 0)
+
+    aeat_models.run_sync(engine, run_once=True)
+
+    assert stored_urls == ["https://example.com/001"]
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT status, errors, error_msg FROM sync_log ORDER BY id DESC LIMIT 1")
+        ).fetchone()
+
+    assert row == ("ok", 0, None)

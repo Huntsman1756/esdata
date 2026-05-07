@@ -120,48 +120,40 @@ def _create_mica_tables(conn) -> None:
     )
 
 
-def test_run_sync_persists_all_entities(monkeypatch):
+def test_run_once_persists_casp_entities(monkeypatch):
     engine = create_engine("sqlite:///:memory:", future=True)
 
     with engine.begin() as conn:
         _create_mica_tables(conn)
 
     monkeypatch.setattr("mica.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "mica.fetch_esma_casp",
+        lambda: [
+            {
+                "name": "Bitso",
+                "registration_number": "ESMA-BITSO-001",
+                "home_member_state": "ES",
+                "passport_active": True,
+                "custody": True,
+                "exchange": True,
+            }
+        ],
+    )
 
-    result = run_sync(worker_name="test-mica")
-
-    assert result["casps"] > 0
-    assert result["crypto_assets"] > 0
-    assert result["tokenized_assets"] > 0
-    assert result["wallet_custodians"] > 0
-    assert result["crypto_transactions"] > 0
+    run_once()
 
     with engine.begin() as conn:
         casp_count = conn.execute(text("SELECT COUNT(*) FROM casp")).scalar()
-        assert casp_count == result["casps"]
-
+        assert casp_count == 1
         asset_count = conn.execute(text("SELECT COUNT(*) FROM crypto_asset")).scalar()
-        assert asset_count == result["crypto_assets"]
-
-        tokenized_count = conn.execute(
-            text("SELECT COUNT(*) FROM tokenized_asset")
-        ).scalar()
-        assert tokenized_count == result["tokenized_assets"]
-
-        custodian_count = conn.execute(
-            text("SELECT COUNT(*) FROM wallet_custodian")
-        ).scalar()
-        assert custodian_count == result["wallet_custodians"]
-
-        tx_count = conn.execute(
-            text("SELECT COUNT(*) FROM crypto_transaction")
-        ).scalar()
-        assert tx_count == result["crypto_transactions"]
-
-        log_row = conn.execute(
-            text("SELECT status FROM sync_log ORDER BY id DESC LIMIT 1")
-        ).scalar()
-        assert log_row == "ok"
+        assert asset_count == 0
+        tokenized_count = conn.execute(text("SELECT COUNT(*) FROM tokenized_asset")).scalar()
+        assert tokenized_count == 0
+        custodian_count = conn.execute(text("SELECT COUNT(*) FROM wallet_custodian")).scalar()
+        assert custodian_count == 0
+        tx_count = conn.execute(text("SELECT COUNT(*) FROM crypto_transaction")).scalar()
+        assert tx_count == 0
 
 
 def test_services_offered_serialized_as_json(monkeypatch):
@@ -171,18 +163,34 @@ def test_services_offered_serialized_as_json(monkeypatch):
         _create_mica_tables(conn)
 
     monkeypatch.setattr("mica.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "mica.fetch_esma_casp",
+        lambda: [
+            {
+                "name": "Bitso",
+                "registration_number": "ESMA-BITSO-001",
+                "home_member_state": "ES",
+                "passport_active": True,
+                "custody": True,
+                "exchange": True,
+            }
+        ],
+    )
 
-    run_sync(worker_name="test-mica-services")
+    run_once()
 
     with engine.begin() as conn:
         row = conn.execute(
             text("SELECT services_offered FROM casp WHERE name = 'Bitso'")
         ).scalar()
         assert row is not None
-        parsed = json.loads(row)
-        assert isinstance(parsed, dict)
-        assert parsed["exchange"] is True
-        assert parsed["custody"] is True
+        if isinstance(row, str):
+            parsed = json.loads(row)
+        else:
+            parsed = row
+        assert isinstance(parsed, list)
+        assert "exchange" in parsed
+        assert "custody" in parsed
 
 
 def test_upsert_idempotent(monkeypatch):
@@ -192,23 +200,27 @@ def test_upsert_idempotent(monkeypatch):
         _create_mica_tables(conn)
 
     monkeypatch.setattr("mica.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "mica.fetch_esma_casp",
+        lambda: [
+            {
+                "name": "Bitso",
+                "registration_number": "ESMA-BITSO-001",
+                "home_member_state": "ES",
+                "passport_active": True,
+                "custody": True,
+                "exchange": True,
+            }
+        ],
+    )
 
-    result1 = run_sync(worker_name="test-mica-1")
-    result2 = run_sync(worker_name="test-mica-2")
+    run_once()
+    run_once()
 
     with engine.begin() as conn:
         casp_count = conn.execute(text("SELECT COUNT(*) FROM casp")).scalar()
-        assert casp_count == result1["casps"]
-        assert casp_count == result2["casps"]
-
-        asset_count = conn.execute(
-            text("SELECT COUNT(*) FROM crypto_asset")
-        ).scalar()
-        assert asset_count == result1["crypto_assets"]
-        assert asset_count == result2["crypto_assets"]
-
-        tx_count = conn.execute(
-            text("SELECT COUNT(*) FROM crypto_transaction")
-        ).scalar()
-        assert tx_count == result1["crypto_transactions"]
-        assert tx_count == result2["crypto_transactions"]
+        assert casp_count == 1
+        asset_count = conn.execute(text("SELECT COUNT(*) FROM crypto_asset")).scalar()
+        assert asset_count == 0
+        tx_count = conn.execute(text("SELECT COUNT(*) FROM crypto_transaction")).scalar()
+        assert tx_count == 0

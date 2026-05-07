@@ -937,44 +937,10 @@ _SYNC_LOG_BOOTSTRAP_LOGGED: set[str] = set()
 
 
 def _ensure_sync_log_table(conn) -> None:
-    """Garantiza tabla `sync_log` (no-op defensivo en Postgres).
-
-    [DEPRECATED en runtime Postgres] El schema lo gestiona Alembic
-    (`20260501_0053_absorb_runtime_table_drift`). En SQLite sigue creando
-    para tests/dev sin migraciones.
-    """
+    """Garantiza tabla `sync_log` (no-op; schema owned por Alembic)."""
     dialect = conn.engine.dialect.name
-    if dialect != "sqlite":
-        if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
-            import logging
-
-            logging.getLogger(__name__).debug(
-                "_ensure_sync_log_table[eurlex]: no-op en %s; schema owned por Alembic",
-                dialect,
-            )
-            _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
-        return
-    conn.execute(
-        text(
-            """
-            CREATE TABLE IF NOT EXISTS sync_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                worker TEXT NOT NULL,
-                started_at TIMESTAMP NOT NULL,
-                finished_at TIMESTAMP,
-                status TEXT NOT NULL,
-                bloques_processed INTEGER,
-                articulos_upserted INTEGER,
-                documentos_processed INTEGER,
-                documentos_upserted INTEGER,
-                error_msg TEXT,
-                rows_processed INTEGER,
-                errors INTEGER DEFAULT 0,
-                duration_ms INTEGER
-            )
-            """
-        )
-    )
+    if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
+        _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
 
 
 def log_sync(

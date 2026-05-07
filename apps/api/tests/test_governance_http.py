@@ -1,92 +1,38 @@
 """HTTP integration tests for ai_audit_log, human_review, data_lineage, and model_registry routers (Fase 30.2)."""
 
-import os
 import sys
-import tempfile
 from pathlib import Path
-from contextlib import contextmanager
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, text
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
-
-# Use a temp file-based SQLite DB (memory DB creates fresh DB per connection)
-_TMP_DB = Path(tempfile.gettempdir()) / f"esdata_gov_test_{os.getpid()}.db"
-if _TMP_DB.exists():
-    try:
-        _TMP_DB.unlink()
-    except PermissionError:
-        pass
-os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB}"
-os.environ.setdefault("APP_ENV", "test")
-os.environ.setdefault("ESDATA_API_KEY", "test-secret-key")
-os.environ.setdefault("MCP_API_KEY", "test-mcp-key")
-os.environ.setdefault("ESDATA_ALLOW_INSECURE_TEST_AUTH", "true")
-
-# Import and patch the real db module (same pattern as conftest.py)
-import db as _db_module  # noqa: E402
-test_engine = create_engine(
-    os.environ["DATABASE_URL"],
-    future=True,
-    connect_args={"check_same_thread": False},
-)
-_db_module.engine = test_engine
-_db_module.SessionLocal = _db_module.sessionmaker(
-    bind=test_engine, autoflush=False, autocommit=False, future=True,
-)
-
-@contextmanager
-def _patched_db_session():
-    db = _db_module.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-_db_module.db_session = _db_module.contextmanager(_patched_db_session)
-
-# Import persistence first (needed for DDL), then patch all service modules
-import services.persistence as _persistence  # noqa: E402
-
-# Create all governance tables BEFORE importing other service modules
-# (services/model_registry has a module-level singleton that queries these tables)
-_ddl_statements = _persistence._ddl_statements_for_dialect("sqlite")
-with test_engine.begin() as conn:
-    for stmt in _ddl_statements:
-        conn.execute(text(stmt))
-
-# Now patch service modules and import them (singleton init will find tables)
-import services.ai_audit as _ai_audit  # noqa: E402
-import services.human_review as _human_review  # noqa: E402
-import services.model_registry as _model_registry  # noqa: E402
-import services.data_lineage as _data_lineage  # noqa: E402
-import services.query_audit as _query_audit  # noqa: E402
-
-for _mod in (_persistence, _ai_audit, _human_review, _model_registry, _data_lineage, _query_audit):
-    _mod.engine = test_engine
 
 from main import app
 from services.ai_audit import reset_audit_store
 from services.data_lineage import reset_data_lineage_service
 from services.human_review import reset_review_store
 from services.model_registry import reset_model_registry
+from services.persistence import ensure_governance_tables
+from services.query_audit import reset_query_audit_service
 
 
 @pytest.fixture(autouse=True)
 def clean_all():
+    ensure_governance_tables()
     reset_audit_store()
     reset_data_lineage_service()
     reset_review_store()
     reset_model_registry()
+    reset_query_audit_service()
     yield
     reset_audit_store()
     reset_data_lineage_service()
     reset_review_store()
     reset_model_registry()
+    reset_query_audit_service()
 
 
 # --- AI Audit Log ---

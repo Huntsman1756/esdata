@@ -1,5 +1,6 @@
 """Unit tests for request_logging middleware."""
 
+import asyncio
 from pathlib import Path
 import sys
 from unittest.mock import MagicMock
@@ -53,10 +54,7 @@ class TestRequestLoggingMiddleware:
         async def next_fn(req):
             return mock_response
 
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
-            middleware.dispatch(request, next_fn)
-        )
+        asyncio.run(middleware.dispatch(request, next_fn))
         assert "x-request-id" in mock_response.headers
         assert len(mock_response.headers["x-request-id"]) > 0
 
@@ -76,10 +74,7 @@ class TestRequestLoggingMiddleware:
         async def next_fn(req):
             return mock_response
 
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
-            middleware.dispatch(request, next_fn)
-        )
+        asyncio.run(middleware.dispatch(request, next_fn))
         assert mock_response.headers["x-request-id"] == "my-id-123"
 
     def test_dispatch_injects_new_request_id_when_missing(self):
@@ -98,10 +93,7 @@ class TestRequestLoggingMiddleware:
         async def next_fn(req):
             return mock_response
 
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
-            middleware.dispatch(request, next_fn)
-        )
+        asyncio.run(middleware.dispatch(request, next_fn))
         rid = mock_response.headers["x-request-id"]
         assert len(rid) == 8
         assert all(c in "0123456789abcdef" for c in rid)  # hex truncated UUID

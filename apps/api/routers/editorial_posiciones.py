@@ -140,7 +140,7 @@ async def crear_posicion_interpretativa(body: PosicionInterpretativaCreate):
                 text(
                     """
                     SELECT id FROM documento_interpretativo
-                    WHERE referencia = :referencia
+                    WHERE referencia = :referencia OR referencia_boe = :referencia
                     LIMIT 1
                     """
                 ),
@@ -227,26 +227,23 @@ async def crear_posicion_interpretativa(body: PosicionInterpretativaCreate):
 @router.patch("/{posicion_id}", response_model=PosicionInterpretativaDetail, operation_id="actualizar_posicion_interpretativa")
 async def actualizar_posicion_interpretativa(posicion_id: str, body: PosicionInterpretativaUpdate):
     with db_session() as db:
-        # Validate fuente_oficial_referencia when transitioning to vigente/revisar
-        new_estado = body.estado
-        if new_estado and new_estado in ("vigente", "revisar"):
-            existing = db.execute(
-                text("SELECT fuente_oficial_referencia FROM posicion_interpretativa WHERE id = :posicion_id LIMIT 1"),
-                {"posicion_id": posicion_id},
-            ).mappings().first()
-            if not existing or not existing.get("fuente_oficial_referencia"):
-                raise HTTPException(
-                    status_code=400,
-                    detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
-                )
-
         existing = db.execute(
-            text("SELECT id FROM posicion_interpretativa WHERE id = :posicion_id LIMIT 1"),
+            text("SELECT id, fuente_oficial_referencia FROM posicion_interpretativa WHERE id = :posicion_id LIMIT 1"),
             {"posicion_id": posicion_id},
         ).mappings().first()
 
         if not existing:
             raise HTTPException(status_code=404, detail={"error": "Posicion interpretativa no encontrada"})
+
+        # Validate fuente_oficial_referencia when transitioning to vigente/revisar
+        new_estado = body.estado
+        if new_estado and new_estado in ("vigente", "revisar"):
+            new_fuente = body.fuente_oficial_referencia
+            if not existing or (not existing.get("fuente_oficial_referencia") and not new_fuente):
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error": "fuente_oficial_referencia es obligatorio cuando estado=vigente o revisar"},
+                )
 
         updates = []
         params: dict = {"posicion_id": posicion_id}

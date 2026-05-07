@@ -132,10 +132,13 @@ class QueryAuditService:
         return [self._map_entry(row) for row in rows]
 
 
-_service = QueryAuditService()
+_service: QueryAuditService | None = None
 
 
 def get_query_audit_service() -> QueryAuditService:
+    global _service
+    if _service is None:
+        _service = QueryAuditService()
     return _service
 
 

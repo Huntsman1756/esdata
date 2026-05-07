@@ -5,6 +5,7 @@ import re
 from functools import lru_cache
 from typing import NamedTuple
 
+from services.cache_invalidation import register_invalidation_callback
 
 MODEL_NAME = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 
@@ -40,6 +41,16 @@ def _load_model():
         return CrossEncoder(MODEL_NAME, max_length=512)
     except Exception:
         return None
+
+
+def _invalidate_reranker_cache() -> None:
+    _load_model.cache_clear()
+    logger = __import__("logging").getLogger(__name__)
+    logger.info("Invalidated reranker model cache")
+
+
+def register_reranker_callbacks() -> None:
+    register_invalidation_callback("reranker", _invalidate_reranker_cache)
 
 
 def rerank(query: str, chunks: list[dict], top_k: int = 5) -> list[RankedChunk]:

@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "workers"))
 
 import pytest
 import pytest_asyncio
-from conftest import engine
+from .conftest import engine
 from httpx import ASGITransport, AsyncClient
 from main import app
 from sqlalchemy import text

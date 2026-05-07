@@ -32,6 +32,15 @@ from sqlalchemy import text
 router = APIRouter(prefix="/v1/priips", tags=["priips"])
 
 
+def _as_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _parse_priips_kid_row(row):
     """Parse JSON columns in KID rows."""
     import contextlib
@@ -69,8 +78,12 @@ async def list_priips_kids(
         filters.append("mk.product_type = :product_type")
         params["product_type"] = product_type
     if search:
-        filters.append("mk.product_id = CAST(:search AS INTEGER)")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("mk.product_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(
@@ -147,11 +160,15 @@ async def list_priips_products(
         filters.append("mp.currency = :currency")
         params["currency"] = currency
     if search:
-        filters.append(
-            "(LOWER(mp.product_name) LIKE LOWER(:search) OR mp.issuer_id = :search2::integer)"
-        )
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append(
+                "(LOWER(mp.product_name) LIKE LOWER(:search) OR mp.issuer_id = :search2)"
+            )
+            params["search2"] = search_int
+        else:
+            filters.append("LOWER(mp.product_name) LIKE LOWER(:search)")
         params["search"] = f"%{search}%"
-        params["search2"] = search
 
     with db_session() as db:
         rows = db.execute(
@@ -228,8 +245,12 @@ async def list_livmc_client_protections(
         filters.append("ml.protection_type = :protection_type")
         params["protection_type"] = protection_type
     if search:
-        filters.append("ml.client_id = :search::integer")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("ml.client_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(
@@ -305,8 +326,12 @@ async def list_livmc_voice_procedures(
         filters.append("mv.procedure_type = :procedure_type")
         params["procedure_type"] = procedure_type
     if search:
-        filters.append("mv.entity_id = :search::integer")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("mv.entity_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(

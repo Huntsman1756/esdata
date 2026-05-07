@@ -16,20 +16,41 @@ from sqlalchemy.engine import Connection
 logger = logging.getLogger(__name__)
 
 
+def _result_rows(result: object) -> list[object]:
+    fetchall = getattr(result, "fetchall", None)
+    if callable(fetchall):
+        return list(fetchall())
+
+    all_rows = getattr(result, "all", None)
+    if callable(all_rows):
+        return list(all_rows())
+
+    try:
+        return list(result)  # type: ignore[arg-type]
+    except TypeError:
+        fetchone = getattr(result, "fetchone", None)
+        if callable(fetchone):
+            row = fetchone()
+            return [] if row is None else [row]
+        return []
+
+
 def _source_revision_columns(conn: Connection) -> set[str]:
     dialect_name = conn.engine.dialect.name
     if dialect_name == "sqlite":
-        rows = conn.execute(text("PRAGMA table_info(source_revision)"))
+        rows = _result_rows(conn.execute(text("PRAGMA table_info(source_revision)")))
         return {row[1] for row in rows}
 
-    rows = conn.execute(
-        text(
-            """
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = current_schema()
-              AND table_name = 'source_revision'
-            """
+    rows = _result_rows(
+        conn.execute(
+            text(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'source_revision'
+                """
+            )
         )
     )
     return {row[0] for row in rows}

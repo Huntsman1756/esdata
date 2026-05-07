@@ -380,6 +380,7 @@ def test_dgt_doctrina_run_once_flag_accepts_argparse():
 
 def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
     captured = {}
+    monkeypatch.setenv("DGT_SSL_VERIFY", "false")
 
     def fake_client(*args, **kwargs):
         captured["verify"] = kwargs.get("verify")

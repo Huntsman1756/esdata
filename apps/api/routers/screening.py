@@ -101,7 +101,7 @@ def _build_match_row(row: dict) -> ScreeningMatch:
 @router.post("/", response_model=ScreeningCheckResponse, operation_id="screening_check")
 async def screening_check(req: ScreeningCheckRequest):
     """Evaluate an entity against screening lists and return matches with scoring."""
-    nombre_evaluado = req.nombre.strip()
+    nombre_evaluado = (req.nombre or "").strip()
     nif_evaluado = (req.nif or "").strip().upper()
     tipo_entidad = req.tipo_entidad or None
 

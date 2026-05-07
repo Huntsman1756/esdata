@@ -107,7 +107,7 @@ DDL_TEMPLATE = [
         user_id TEXT,
         path TEXT NOT NULL,
         query_text TEXT NOT NULL,
-        retrieved_chunks TEXT NOT NULL DEFAULT '[]',
+        retrieved_chunks TEXT NOT NULL DEFAULT '[]'::jsonb,
         response_summary TEXT NOT NULL DEFAULT '',
         model_version TEXT,
         config_version TEXT,
@@ -138,6 +138,22 @@ DDL_TEMPLATE = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_source_snapshot_source ON source_freshness_snapshot(source_id, snapshot_at)",
     "CREATE INDEX IF NOT EXISTS idx_source_snapshot_version ON source_freshness_snapshot(snapshot_version)",
+    """
+    CREATE TABLE IF NOT EXISTS data_freshness_alerts (
+        id {id_column},
+        alert_id TEXT NOT NULL UNIQUE,
+        source_id TEXT NOT NULL,
+        alert_level TEXT NOT NULL,
+        stale_since TEXT,
+        expected_interval TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
+        acknowledged INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        resolved_at TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_freshness_alerts_source ON data_freshness_alerts(source_id, stale_since DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_freshness_alerts_level ON data_freshness_alerts(alert_level, acknowledged)",
 ]
 
 

@@ -14,13 +14,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "workers"))
 
-import os
-
-os.environ["APP_ENV"] = "test"
-os.environ["ESDATA_API_KEY"] = "test-secret-key"
-os.environ["MCP_API_KEY"] = "test-secret-key"
-os.environ["DATABASE_URL"] = "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata"
-
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient

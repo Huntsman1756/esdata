@@ -50,8 +50,8 @@ services:
   # Userlist real (con hash SCRAM) se monta desde infra/deploy/pgbouncer/userlist.txt
   # (gitignored). Generar segun instrucciones en userlist.txt.example.
   pgbouncer:
-    # TODO[pin-digest]: fijar por sha256 tras validacion en staging.
-    image: edoburu/pgbouncer:1.23.1
+    # TODO[pin-pgbouncer-digest]: pin to verified sha256 digest before production deploy
+    image: edoburu/pgbouncer:1.23.1@sha256:PLACEHOLDER
     profiles: ["pgbouncer"]
     restart: unless-stopped
     volumes:
@@ -146,10 +146,6 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -205,6 +201,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-modelos:
     build:
@@ -225,6 +226,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-bdns:
     build:
@@ -245,6 +251,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-borme:
     build:
@@ -265,6 +276,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-cnmv:
     build:
@@ -285,6 +301,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-sepblac:
     build:
@@ -305,6 +326,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-cendoj:
     build:
@@ -325,6 +351,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-eurlex:
     build:
@@ -346,6 +377,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-bde:
     build:
@@ -366,6 +402,11 @@ services:
       - esdata-internal
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   worker-aepd:
     build:
@@ -429,6 +470,13 @@ services:
       BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_DAILY:-}
       WORKER_CMD: python boe.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-dgt-weekly:
     build:
@@ -437,9 +485,16 @@ services:
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-false}
+      DGT_SSL_VERIFY: ${DGT_SSL_VERIFY:-true}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_DGT_WEEKLY:-}
       WORKER_CMD: python dgt.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-teac-weekly:
     build:
@@ -451,6 +506,13 @@ services:
       TEAC_SEED_URLS: ${TEAC_SEED_URLS:?TEAC_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_TEAC_WEEKLY:-}
       WORKER_CMD: python teac.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-modelos-daily:
     build:
@@ -462,6 +524,13 @@ services:
       WORKER_NAME: cron-modelos-daily
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_MODELOS_DAILY:-}
       WORKER_CMD: python aeat_models.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-bdns-weekly:
     build:
@@ -473,6 +542,13 @@ services:
       BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDNS_WEEKLY:-}
       WORKER_CMD: python bdns.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-borme-weekly:
     build:
@@ -484,6 +560,13 @@ services:
       BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BORME_WEEKLY:-}
       WORKER_CMD: python borme.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-cnmv-weekly:
     build:
@@ -495,6 +578,13 @@ services:
       CNMV_SEED_URLS: ${CNMV_SEED_URLS:?CNMV_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_CNMV_WEEKLY:-}
       WORKER_CMD: python cnmv.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-sepblac-weekly:
     build:
@@ -506,6 +596,13 @@ services:
       SEPBLAC_SEED_URLS: ${SEPBLAC_SEED_URLS:?SEPBLAC_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_SEPBLAC_WEEKLY:-}
       WORKER_CMD: python sepblac.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   cron-bde-weekly:
     build:
@@ -517,6 +614,68 @@ services:
       BDE_SEED_URLS: ${BDE_SEED_URLS:?BDE_SEED_URLS is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDE_WEEKLY:-}
       WORKER_CMD: python bde.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
+  cron-cendoj-weekly:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      CENDOJ_SEED_URLS: ${CENDOJ_SEED_URLS:?CENDOJ_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_CENDOJ_WEEKLY:-}
+      WORKER_CMD: python cendoj.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
+  cron-aepd-weekly:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      AEPD_SEED_URLS: ${AEPD_SEED_URLS:?AEPD_SEED_URLS is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_AEPD_WEEKLY:-}
+      WORKER_CMD: python aepd.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
+  cron-eurlex-weekly:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      EURLEX_SEED_URLS: ${EURLEX_SEED_URLS:-}
+      SPARQL_BASE: ${SPARQL_BASE:-https://data.europa.eu/sparql}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_EURLEX_WEEKLY:-}
+      WORKER_CMD: python eurlex.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
 
   backup:
     image: postgres:16-alpine@sha256:1e3604a950df9588c86b955a1e4be0887900210b5c49985ee275c4c2c689cf73
@@ -541,6 +700,12 @@ services:
       - esdata-internal
     security_opt:
       - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "test $(ls -1 /backups/*.sql.gz 2>/dev/null | wc -l) -gt 0"]
+      interval: 86400
+      timeout: 10s
+      retries: 3
+      start_period: 300s
 
   ops:
     build:

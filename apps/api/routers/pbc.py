@@ -232,7 +232,7 @@ async def list_suspicious_activity_reports(
                        status, sepblac_reference
                 FROM suspicious_activity_report sar
                 WHERE {" AND ".join(filters)}
-                ORDER BY sar.submission_date DESC NULLS LAST
+                ORDER BY sar.submission_date DESC
                 """
             ),
             params,

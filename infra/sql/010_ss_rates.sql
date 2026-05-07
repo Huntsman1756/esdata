@@ -11,6 +11,9 @@ CREATE TABLE ss_rates (
     rate_accident   NUMERIC(5,2),                     -- accident insurance rate % (varies by risk category)
     total_rate      NUMERIC(5,2),                     -- combined rate %
     source          TEXT,
+    source_url      TEXT,
+    ingestion_timestamp TIMESTAMPTZ DEFAULT now(),
+    superseded      INTEGER NOT NULL DEFAULT 0,
     creado_at       TIMESTAMPTZ DEFAULT now(),
     UNIQUE(year, category)
 );

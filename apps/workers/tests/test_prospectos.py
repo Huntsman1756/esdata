@@ -18,6 +18,7 @@ from prospectos import (
     _yyyymmdd_to_iso,
     parse_block_xml,
     run_sync,
+    upsert_prospectos_norma,
 
 )
 

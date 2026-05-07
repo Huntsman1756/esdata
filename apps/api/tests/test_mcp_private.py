@@ -134,7 +134,7 @@ async def test_mcp_http_accepts_valid_api_key_when_enabled():
 @pytest.mark.asyncio
 async def test_mcp_http_rate_limits_repeated_requests():
     async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="2") as client:
-        headers = {"X-API-Key": "secret"}
+        headers = {"X-API-Key": "secret", "Accept": "text/event-stream"}
         first = await client.get("/mcp", headers=headers)
         second = await client.get("/mcp", headers=headers)
         third = await client.get("/mcp", headers=headers)

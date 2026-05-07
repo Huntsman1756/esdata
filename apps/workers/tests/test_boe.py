@@ -1,5 +1,6 @@
 import sys
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 import httpx
 from unittest.mock import patch
@@ -11,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from boe import (
     BloqueTexto,
     NormaMetadata,
+    _hold_sync_lock,
     _ensure_sync_log_table,
     _ensure_schema,
     _schema_statements,
@@ -205,6 +207,292 @@ def test_run_sync_ingests_itpajd_article_and_version():
         "a7",
         "Artículo 7. Operaciones societarias.\nUno. Son operaciones societarias sujetas las previstas en esta norma.",
     )
+
+
+def test_run_sync_does_not_fetch_remote_blocks_inside_transaction():
+    from boe import run_sync
+
+    class FakeResponse:
+        def __init__(self, *, json_data=None, text_data=""):
+            self._json_data = json_data
+            self.text = text_data
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._json_data
+
+    class FakeClient:
+        def __init__(self, engine):
+            self.engine = engine
+            self.transaction_states = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, headers=None):
+            if "/texto/indice" in url or "/texto/bloque/" in url:
+                self.transaction_states.append(self.engine.in_transaction)
+            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+                return FakeResponse(
+                    json_data={
+                        "data": [
+                            {
+                                "titulo": "Real Decreto Legislativo 1/1993",
+                                "fecha_vigencia": "19930925",
+                                "url_eli": "https://www.boe.es/eli/es/rdlg/1993/09/24/1",
+                            }
+                        ]
+                    }
+                )
+            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
+                return FakeResponse(
+                    json_data={
+                        "data": [
+                            {
+                                "bloque": [
+                                    {
+                                        "id": "a7",
+                                        "titulo": "Artículo 7",
+                                        "fecha_actualizacion": "20240101",
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                )
+            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
+                return FakeResponse(
+                    text_data="""
+                    <response>
+                      <data>
+                        <bloque id="a7" tipo="precepto" titulo="Artículo 7">
+                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                            <p class="articulo">Artículo 7. Operaciones societarias.</p>
+                          </version>
+                        </bloque>
+                      </data>
+                    </response>
+                    """
+                )
+            raise AssertionError(f"Unexpected URL requested: {url}")
+
+    class FakeConnection:
+        engine = type("DialectEngine", (), {"dialect": type("Dialect", (), {"name": "sqlite"})()})()
+
+    class FakeBegin:
+        def __init__(self, engine):
+            self.engine = engine
+
+        def __enter__(self):
+            self.engine.in_transaction = True
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            self.engine.in_transaction = False
+            return False
+
+    class FakeEngine:
+        def __init__(self):
+            self.in_transaction = False
+            self.dialect = type("Dialect", (), {"name": "sqlite"})()
+
+        def begin(self):
+            return FakeBegin(self)
+
+    fake_engine = FakeEngine()
+    fake_client = FakeClient(fake_engine)
+
+    with patch("boe.httpx.Client", return_value=fake_client):
+        with patch("boe.create_engine", return_value=fake_engine):
+            with patch("boe.ensure_database_connection"):
+                with patch("boe._ensure_schema"):
+                    with patch("boe.upsert_norma"):
+                        with patch("boe.upsert_articulo"):
+                            with patch("boe.auto_link_materias"):
+                                with patch("boe.auto_link_doctrina"):
+                                    with patch("boe.log_sync"):
+                                        with patch("boe.time.sleep"):
+                                            run_sync(["ITPAJD"])
+
+    assert fake_client.transaction_states == [False, False]
+
+
+def test_auto_link_doctrina_materializes_documents_before_writes():
+    from boe import auto_link_doctrina
+
+    class FakeMappingsResult:
+        def __init__(self, rows, conn):
+            self._rows = rows
+            self._conn = conn
+
+        def __iter__(self):
+            self._conn.iterating_docs = True
+            try:
+                yield from self._rows
+            finally:
+                self._conn.iterating_docs = False
+
+        def all(self):
+            return list(self._rows)
+
+    class FakeConn:
+        def __init__(self):
+            self.iterating_docs = False
+            self.insert_calls = 0
+
+        def execute(self, statement, params=None):
+            sql = str(statement)
+            if "SELECT id, referencia, texto FROM documento_interpretativo" in sql:
+                return type(
+                    "Result",
+                    (),
+                    {
+                        "mappings": lambda _self: FakeMappingsResult(
+                            [{"id": 1, "referencia": "V0000-24", "texto": "LIVA 91"}],
+                            self,
+                        )
+                    },
+                )()
+            if "INSERT INTO documento_articulo" in sql:
+                if self.iterating_docs:
+                    raise AssertionError("write attempted while docs cursor still open")
+                self.insert_calls += 1
+                return None
+            raise AssertionError(f"Unexpected SQL: {sql}")
+
+    conn = FakeConn()
+
+    links = auto_link_doctrina(conn)
+
+    assert links == 1
+    assert conn.insert_calls == 1
+
+
+def test_run_sync_skips_when_boe_lock_is_unavailable(monkeypatch):
+    from boe import run_sync
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+
+    monkeypatch.setattr("boe.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr("boe.ensure_database_connection", lambda *args, **kwargs: None)
+    monkeypatch.setattr("boe._ensure_schema", lambda conn: None)
+    monkeypatch.setattr("boe.DEFAULT_NORMAS", {"LIVA": "BOE-A-1992-28740"})
+    monkeypatch.setattr("boe.KNOWN_BOE_CODES", {"LIVA"})
+    monkeypatch.setattr(
+        "boe.httpx.Client",
+        lambda *args, **kwargs: type(
+            "Client",
+            (),
+            {"__enter__": lambda self: self, "__exit__": lambda self, exc_type, exc, tb: False},
+        )(),
+    )
+    monkeypatch.setattr(
+        "boe.fetch_metadata",
+        lambda client, codigo, boe_id: NormaMetadata(
+            codigo="LIVA",
+            titulo="Ley 37/1992",
+            boe_id="BOE-A-1992-28740",
+            eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
+            jurisdiccion="es",
+            tipo_fuente="boe",
+            tipo_documento="ley",
+            ambito="tributario",
+            estado_cobertura="ingestada",
+            vigente_desde="1993-01-01",
+        ),
+    )
+    @contextmanager
+    def fake_hold_sync_lock(engine):
+        yield False
+
+    monkeypatch.setattr("boe._hold_sync_lock", fake_hold_sync_lock)
+    monkeypatch.setattr(
+        "boe.fetch_index",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("fetch_index should not run without lock")),
+    )
+
+    run_sync(codigos=["LIVA"])
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT status, bloques_processed, articulos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1")
+        ).fetchone()
+
+    assert row == ("partial", 0, 0, "BOE sync already in progress")
+
+
+def test_hold_sync_lock_uses_autocommit_connection_for_postgres():
+    class FakeResult:
+        def __init__(self, value):
+            self._value = value
+
+        def scalar(self):
+            return self._value
+
+    class FakeConnection:
+        def __init__(self):
+            self.execution_options_calls = []
+            self.execute_calls = []
+            self.closed = False
+
+        def execution_options(self, **kwargs):
+            self.execution_options_calls.append(kwargs)
+            return self
+
+        def execute(self, statement, params):
+            sql = str(statement)
+            self.execute_calls.append((sql, params))
+            if "pg_try_advisory_lock" in sql:
+                return FakeResult(True)
+            if "pg_advisory_unlock" in sql:
+                return FakeResult(True)
+            raise AssertionError(f"Unexpected SQL: {sql}")
+
+        def close(self):
+            self.closed = True
+
+    class FakeEngine:
+        def __init__(self, conn):
+            self.dialect = type("Dialect", (), {"name": "postgresql"})()
+            self._conn = conn
+
+        def connect(self):
+            return self._conn
+
+    conn = FakeConnection()
+    engine = FakeEngine(conn)
+
+    with _hold_sync_lock(engine) as acquired:
+        assert acquired is True
+
+    assert conn.execution_options_calls == [{"isolation_level": "AUTOCOMMIT"}]
+    assert conn.closed is True
 
 
 def test_upsert_norma_inserts_record():
@@ -1449,6 +1737,7 @@ def test_run_sync_touches_heartbeat_during_long_boe_processing(monkeypatch):
 
     class FakeEngine:
         dialect = FakeDialect()
+        url = type("Url", (), {"host": "localhost"})()
 
         def begin(self):
             return FakeBegin()

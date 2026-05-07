@@ -26,12 +26,17 @@ class ConfianzaInfo(BaseModel):
 class Norma(BaseModel):
     codigo: str = Field(description="Código de la norma (ej: LIVA, LIRPF)")
     titulo: str = Field(description="Título completo de la norma")
+    boe_id: str | None = Field(default=None, description="Identificador BOE")
+    eli_uri: str | None = Field(default=None, description="URI ELI de la norma")
     jurisdiccion: str = Field(description="Jurisdicción (es, autonomico, etc.)")
     tipo_fuente: str = Field(description="Tipo de fuente (boe, autonomica, etc.)")
     tipo_documento: str = Field(
         description="Tipo de documento (ley, real_decreto_legislativo, etc.)"
     )
     ambito: str = Field(description="Ámbito temático (tributario, etc.)")
+    regulacion_relacionada: str | None = Field(
+        default=None, description="Regulación relacionada"
+    )
     estado_cobertura: str = Field(
         description="Estado de cobertura (ingestada, parcial, etc.)"
     )
@@ -54,6 +59,19 @@ class ArticuloDetail(BaseModel):
         default=None, description="Fecha de fin de vigencia (YYYY-MM-DD)"
     )
     confianza: ConfianzaInfo = Field(description="Información de confianza del dato")
+
+
+class ArticuloHistoryItem(BaseModel):
+    numero: str = Field(description="Número del artículo")
+    titulo: str | None = Field(default=None, description="Título del artículo")
+    tipo: str = Field(description="Tipo (articulo, disposicion, etc.)")
+    texto: str = Field(description="Texto de la versión del artículo")
+    vigente_desde: str | None = Field(
+        default=None, description="Fecha de inicio de vigencia (YYYY-MM-DD)"
+    )
+    vigente_hasta: str | None = Field(
+        default=None, description="Fecha de fin de vigencia (YYYY-MM-DD)"
+    )
 
 
 class SearchResult(BaseModel):
@@ -302,11 +320,18 @@ class ModeloDetail(BaseModel):
 
 class NormasListResponse(BaseModel):
     normas: list[Norma]
+    total: int | None = None
 
 
 class ArticulosListResponse(BaseModel):
     norma: str = Field(description="Código de la norma")
     articulos: list[ArticuloListItem]
+    total: int | None = None
+
+
+class ArticulosHistoryResponse(BaseModel):
+    norma: str = Field(description="Código de la norma")
+    articulos: list[ArticuloHistoryItem]
 
 
 class LegislacionSearchResponse(BaseModel):
@@ -422,22 +447,483 @@ class AEATModeloDetail(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Criterio jurisprudencial/doctrinal
+# ---------------------------------------------------------------------------
+
+
+class LineaCriterioSummary(BaseModel):
+    id: int
+    titulo: str
+    cuestion_practica: str
+    estado: str
+    autor_id: int | None = None
+    revisor_id: int | None = None
+    ultimo_cambio: str | None = None
+    activo: bool
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class LineaCriterioReferencia(BaseModel):
+    id: int
+    documento_referencia: str
+    tipo_documento: str | None = None
+    organismo_emisor: str | None = None
+    fecha: str | None = None
+    rol_en_linea: str | None = None
+    orden: int
+
+
+class LineaCriterioDetail(LineaCriterioSummary):
+    descripcion: str | None = None
+    criterio_dominante: str | None = None
+    matices: str | None = None
+    excepciones: str | None = None
+    referencias: list[LineaCriterioReferencia] = Field(default_factory=list)
+
+
+class LineaCriterioCreate(BaseModel):
+    titulo: str
+    cuestion_practica: str
+    descripcion: str | None = None
+    criterio_dominante: str | None = None
+    matices: str | None = None
+    excepciones: str | None = None
+    estado: str | None = None
+
+
+class LineaCriterioUpdate(BaseModel):
+    titulo: str | None = None
+    cuestion_practica: str | None = None
+    descripcion: str | None = None
+    criterio_dominante: str | None = None
+    matices: str | None = None
+    excepciones: str | None = None
+    estado: str | None = None
+    ultimo_cambio: str | None = None
+
+
+class LineaCriterioReferenciaCreate(BaseModel):
+    documento_referencia: str
+    tipo_documento: str | None = None
+    organismo_emisor: str | None = None
+    fecha: str | None = None
+    rol_en_linea: str | None = None
+    orden: int = 0
+
+
+class LineaCriterioListResponse(BaseModel):
+    lineas: list[LineaCriterioSummary] = Field(default_factory=list)
+    total: int
+
+
+class CuracionCandidate(BaseModel):
+    id: int
+    referencia: str
+    tipo_documento: str | None = None
+    organismo_emisor: str | None = None
+    ambito: str | None = None
+    fecha: str | None = None
+    titulo: str | None = None
+    url_fuente: str | None = None
+    score: int
+
+
+class LineaCriterioCuracionItem(BaseModel):
+    linea_id: int
+    linea_titulo: str
+    candidatos: list[CuracionCandidate] = Field(default_factory=list)
+    total_sugeridos: int
+
+
+class LineaCriterioCuracionResponse(BaseModel):
+    sugerencias: list[LineaCriterioCuracionItem] = Field(default_factory=list)
+    total_lineas: int
+
+
+class CuracionAssignRequest(BaseModel):
+    linea_id: int
+    documento_referencia: str
+    rol_en_linea: str = "soporte"
+
+
+class CuracionAssignResponse(BaseModel):
+    assigned: bool
+    linea_id: int
+    documento_referencia: str
+    referencia_existia: bool
+
+
+# ---------------------------------------------------------------------------
+# Playbooks operativos y evidencias
+# ---------------------------------------------------------------------------
+
+
+class PlaybookStepSummary(BaseModel):
+    id: str
+    orden: int
+    titulo: str
+    tipo_paso: str | None = None
+    responsable_rol: str | None = None
+    activo: bool
+
+
+class PlaybookStepDetail(PlaybookStepSummary):
+    descripcion: str | None = None
+    input_requerido: str | None = None
+    output_esperado: str | None = None
+    prerrequisito_step_id: str | None = None
+    checklist: list[str] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class PlaybookStepCreate(BaseModel):
+    orden: int
+    titulo: str
+    descripcion: str | None = None
+    tipo_paso: str | None = None
+    responsable_rol: str | None = None
+    input_requerido: str | None = None
+    output_esperado: str | None = None
+    prerrequisito_step_id: str | None = None
+    checklist: list[str] | None = None
+
+
+class PlaybookStepUpdate(BaseModel):
+    orden: int | None = None
+    titulo: str | None = None
+    descripcion: str | None = None
+    tipo_paso: str | None = None
+    responsable_rol: str | None = None
+    input_requerido: str | None = None
+    output_esperado: str | None = None
+    prerrequisito_step_id: str | None = None
+    checklist: list[str] | None = None
+    activo: bool | None = None
+
+
+class EvidenciaControlSummary(BaseModel):
+    id: str
+    codigo: str
+    nombre: str
+    tipo_evidencia: str | None = None
+    obligatoria: bool
+    estado: str | None = None
+    conservacion_dias: int | None = None
+
+
+class EvidenciaControlDetail(EvidenciaControlSummary):
+    descripcion: str | None = None
+    formato_requerido: str | None = None
+    capturado_en: str | None = None
+    verificado_por: str | None = None
+    verificado_en: str | None = None
+    nota: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class EvidenciaControlUpdate(BaseModel):
+    estado: str | None = None
+    capturado_en: str | None = None
+    verificado_por: str | None = None
+    verificado_en: str | None = None
+    nota: str | None = None
+
+
+class EvidenciaControlListResponse(BaseModel):
+    evidencias: list[EvidenciaControlSummary] = Field(default_factory=list)
+    total: int
+
+
+class PlaybookOperativoSummary(BaseModel):
+    id: str
+    codigo: str
+    nombre: str
+    obligacion_codigo: str | None = None
+    frecuencia: str | None = None
+    owner_rol: str | None = None
+    estado: str
+    version: int
+
+
+class PlaybookOperativoDetail(PlaybookOperativoSummary):
+    descripcion: str | None = None
+    owner_id: str | None = None
+    sistema_apoyo: str | None = None
+    errores_frecuentes: str | None = None
+    version_anterior_id: str | None = None
+    pasos: list[PlaybookStepDetail] = Field(default_factory=list)
+    evidencias: list[EvidenciaControlDetail] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class PlaybookOperativoCreate(BaseModel):
+    codigo: str
+    nombre: str
+    obligacion_codigo: str | None = None
+    descripcion: str | None = None
+    frecuencia: str | None = None
+    owner_rol: str | None = None
+    owner_id: str | None = None
+    sistema_apoyo: str | None = None
+    errores_frecuentes: str | None = None
+    estado: str = "activo"
+
+
+class PlaybookOperativoUpdate(BaseModel):
+    nombre: str | None = None
+    descripcion: str | None = None
+    frecuencia: str | None = None
+    owner_rol: str | None = None
+    owner_id: str | None = None
+    sistema_apoyo: str | None = None
+    errores_frecuentes: str | None = None
+    estado: str | None = None
+
+
+class PlaybookOperativoListResponse(BaseModel):
+    playbooks: list[PlaybookOperativoSummary] = Field(default_factory=list)
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# Risk-control matrix
+# ---------------------------------------------------------------------------
+
+
+class RiesgoControlLinkPruebaSummary(BaseModel):
+    id: str
+    fecha_prueba: str | None = None
+    resultado: str
+    evidencia_descripcion: str | None = None
+    ejecutado_por: str | None = None
+
+
+class RiesgoRegulatorioSummary(BaseModel):
+    id: str
+    codigo: str
+    nombre: str
+    obligacion_codigo: str | None = None
+    categoria: str | None = None
+    severidad: str | None = None
+    probabilidad: str | None = None
+    riesgo_inherente: str | None = None
+    area_responsable: str | None = None
+    owner_rol: str | None = None
+    estado: str
+
+
+class RiesgoRegulatorioDetail(RiesgoRegulatorioSummary):
+    descripcion: str | None = None
+    controles: list[dict] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class RiesgoRegulatorioCreate(BaseModel):
+    codigo: str
+    nombre: str
+    descripcion: str | None = None
+    obligacion_codigo: str | None = None
+    categoria: str | None = None
+    severidad: str | None = None
+    probabilidad: str | None = None
+    area_responsable: str | None = None
+    owner_rol: str | None = None
+    estado: str = "identificado"
+
+
+class RiesgoRegulatorioUpdate(BaseModel):
+    nombre: str | None = None
+    descripcion: str | None = None
+    obligacion_codigo: str | None = None
+    categoria: str | None = None
+    severidad: str | None = None
+    probabilidad: str | None = None
+    area_responsable: str | None = None
+    owner_rol: str | None = None
+    estado: str | None = None
+
+
+class RiesgoRegulatorioListResponse(BaseModel):
+    riesgos: list[RiesgoRegulatorioSummary] = Field(default_factory=list)
+    total: int
+
+
+class ControlInternoSummary(BaseModel):
+    id: str
+    codigo: str
+    nombre: str
+    tipo_control: str | None = None
+    frecuencia: str | None = None
+    owner_rol: str | None = None
+    estado: str
+
+
+class ControlInternoDetail(ControlInternoSummary):
+    descripcion: str | None = None
+    sistema_apoyo: str | None = None
+    pruebas: list[RiesgoControlLinkPruebaSummary] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class ControlInternoCreate(BaseModel):
+    codigo: str
+    nombre: str
+    descripcion: str | None = None
+    tipo_control: str | None = None
+    frecuencia: str | None = None
+    owner_rol: str | None = None
+    sistema_apoyo: str | None = None
+    estado: str = "activo"
+
+
+class ControlInternoUpdate(BaseModel):
+    nombre: str | None = None
+    descripcion: str | None = None
+    tipo_control: str | None = None
+    frecuencia: str | None = None
+    owner_rol: str | None = None
+    sistema_apoyo: str | None = None
+    estado: str | None = None
+
+
+class ControlInternoListResponse(BaseModel):
+    controles: list[ControlInternoSummary] = Field(default_factory=list)
+    total: int
+
+
+class RiesgoControlLinkDetail(BaseModel):
+    id: str
+    riesgo_codigo: str
+    riesgo_nombre: str
+    control_codigo: str
+    control_nombre: str
+    efectividad: str | None = None
+    riesgo_residual: str | None = None
+    frecuencia_prueba: str | None = None
+    criterio_suficiencia: str | None = None
+    caducidad_dias: int | None = None
+    activo: bool
+    pruebas: list[RiesgoControlLinkPruebaSummary] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class RiesgoControlLinkCreate(BaseModel):
+    riesgo_id: str
+    control_id: str
+    efectividad: str | None = None
+    riesgo_residual: str | None = None
+    frecuencia_prueba: str | None = None
+    criterio_suficiencia: str | None = None
+    caducidad_dias: int | None = None
+
+
+class RiesgoControlLinkListResponse(BaseModel):
+    links: list[RiesgoControlLinkDetail] = Field(default_factory=list)
+    total: int
+
+
+class PruebaControlDetail(BaseModel):
+    id: str
+    link_id: str
+    fecha_prueba: str
+    resultado: str
+    evidencia_descripcion: str | None = None
+    evidencia_url: str | None = None
+    ejecutado_por: str | None = None
+    nota: str | None = None
+    activo: bool
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class PruebaControlCreate(BaseModel):
+    link_id: str
+    fecha_prueba: str
+    resultado: str
+    evidencia_descripcion: str | None = None
+    evidencia_url: str | None = None
+    ejecutado_por: str | None = None
+    nota: str | None = None
+
+
+class PruebaControlListResponse(BaseModel):
+    pruebas: list[RiesgoControlLinkPruebaSummary] = Field(default_factory=list)
+    total: int
+
+
+class ControlGapItem(BaseModel):
+    riesgo_codigo: str
+    riesgo_nombre: str
+    severidad: str | None = None
+    obligacion_codigo: str | None = None
+    controles_asignados: int
+    controles_efectivos: int
+    estado: str
+    ultima_prueba_fecha: str | None = None
+    ultima_prueba_resultado: str | None = None
+
+
+class ControlGapResumen(BaseModel):
+    sin_control: int = 0
+    parcial: int = 0
+    completo: int = 0
+    total: int = 0
+
+
+class ControlGapsResponse(BaseModel):
+    gaps: list[ControlGapItem] = Field(default_factory=list)
+    total: int
+    resumen: ControlGapResumen
+
+
+# ---------------------------------------------------------------------------
 # Consulta fiscal inteligente
 # ---------------------------------------------------------------------------
 
 
 class ChunkCitation(BaseModel):
     chunk_id: str = Field(description="ID del chunk recuperado")
-    content_preview: str = Field(description="Vista previa del contenido del chunk")
-    relevance_score: float = Field(description="Puntuación de relevancia")
+    source_document: str = Field(description="Documento fuente del chunk")
+    article_number: str | None = Field(default=None, description="Numero de articulo si aplica")
+    rerank_score: float = Field(description="Puntuacion de reranking")
+    excerpt: str = Field(description="Vista previa del contenido del chunk")
 
 
 class ClaimCitation(BaseModel):
-    claim: str = Field(description="Afirmación factual")
-    source_chunk_id: str = Field(description="Chunk que respalda la afirmación")
-    source_url: str | None = Field(default=None, description="URL de la fuente original")
-    grounded: bool = Field(description="Si la afirmación está respaldada por evidencia")
-    confidence: float = Field(description="Confianza del grounding (0-1)")
+    claim: dict = Field(description="Afirmacion factual estructurada")
+    citations: list[ChunkCitation] = Field(default_factory=list, description="Chunks que respaldan la afirmacion")
+    grounded: bool | None = Field(default=None, description="Si la afirmacion esta respaldada por evidencia")
+
+
+class ObligacionInternacionalItem(BaseModel):
+    id: int
+    codigo: str
+    titulo: str
+    tipo: str
+    jurisdiccion_origen: str | None = None
+    jurisdiccion_aplicacion: str | None = None
+    vigente_desde: str | None = None
+    vigente_hasta: str | None = None
+    estado: str
+    descripcion: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class ObligacionInternacionalListResponse(BaseModel):
+    items: list[ObligacionInternacionalItem] = Field(default_factory=list)
+    total: int
+
+
+class ObligacionInternacionalDetailResponse(BaseModel):
+    item: ObligacionInternacionalItem
 
 
 # ---------------------------------------------------------------------------
@@ -648,6 +1134,195 @@ class WalletCustodianDetail(BaseModel):
 
 class WalletCustodianListResponse(BaseModel):
     items: list[WalletCustodianSummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# AIFMD / UCITS
+# ---------------------------------------------------------------------------
+
+
+class AifmdFundSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    fund_name: str = Field(description="Nombre del fondo")
+    aifm_id: int | None = Field(default=None, description="ID del AIFM")
+    fund_type: str = Field(description="Tipo de fondo")
+    registration_date: str = Field(description="Fecha de registro")
+    home_member_state: str | None = Field(default=None, description="Estado miembro de origen")
+    cross_border_passport: bool = Field(description="Passporting")
+    total_aum_eur: float | None = Field(default=None, description="AUM total EUR")
+    investor_type: str | None = Field(default=None, description="Tipo de inversor")
+    lock_up_period: str | None = Field(default=None, description="Periodo lock-up")
+    redemption_frequency: str | None = Field(default=None, description="Frecuencia de reembolso")
+    leverage_method: str | None = Field(default=None, description="Metodo de apalancamiento")
+    leverage_max_pct: float | None = Field(default=None, description="Apalancamiento maximo")
+    status: str = Field(description="Estado")
+
+    @field_validator("registration_date", mode="before")
+    @classmethod
+    def _dt_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class AifmdFundDetail(AifmdFundSummary):
+    created_at: str = Field(description="Fecha de creacion")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class AifmdFundListResponse(BaseModel):
+    items: list[AifmdFundSummary]
+    total: int
+
+
+class AifmdRegulatoryReportSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    fund_id: int = Field(description="ID del fondo")
+    report_type: str = Field(description="Tipo de reporte")
+    reporting_period: str | None = Field(default=None, description="Periodo")
+    url: str | None = Field(default=None, description="URL")
+    filed_date: str | None = Field(default=None, description="Fecha de presentacion")
+    status: str = Field(description="Estado")
+
+    @field_validator("filed_date", mode="before")
+    @classmethod
+    def _filed_date_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class AifmdRegulatoryReportDetail(AifmdRegulatoryReportSummary):
+    created_at: str = Field(description="Fecha de creacion")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class AifmdRegulatoryReportListResponse(BaseModel):
+    items: list[AifmdRegulatoryReportSummary]
+    total: int
+
+
+class AifmdLiquidityManagementSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    fund_id: int = Field(description="ID del fondo")
+    redemption_suspended: bool = Field(description="Reembolso suspendido")
+    suspension_date: str | None = Field(default=None, description="Fecha de suspension")
+    gating_applied: bool = Field(description="Gating aplicado")
+    swing_price_applied: bool = Field(description="Swing pricing aplicado")
+    side_pocket_applied: bool = Field(description="Side pocket aplicado")
+    stress_test_result: str | None = Field(default=None, description="Resultado stress test")
+    valuation_frequency: str | None = Field(default=None, description="Frecuencia valoracion")
+
+    @field_validator("suspension_date", mode="before")
+    @classmethod
+    def _suspension_date_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class AifmdLiquidityManagementDetail(AifmdLiquidityManagementSummary):
+    created_at: str = Field(description="Fecha de creacion")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class AifmdLiquidityManagementListResponse(BaseModel):
+    items: list[AifmdLiquidityManagementSummary]
+    total: int
+
+
+class UcitsFundSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    fund_name: str = Field(description="Nombre del fondo")
+    management_company: str | None = Field(default=None, description="Gestora")
+    registration_date: str = Field(description="Fecha de registro")
+    home_member_state: str | None = Field(default=None, description="Estado miembro de origen")
+    cross_border_passport: bool = Field(description="Passporting")
+    total_aum_eur: float | None = Field(default=None, description="AUM total EUR")
+    depositary_id: int | None = Field(default=None, description="ID del depositario")
+    krid_url: str | None = Field(default=None, description="URL KRID")
+    investment_strategy: str | None = Field(default=None, description="Estrategia")
+    risk_profile: str | None = Field(default=None, description="Perfil de riesgo")
+    status: str = Field(description="Estado")
+
+    @field_validator("registration_date", mode="before")
+    @classmethod
+    def _registration_date_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class UcitsFundDetail(UcitsFundSummary):
+    created_at: str = Field(description="Fecha de creacion")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class UcitsFundListResponse(BaseModel):
+    items: list[UcitsFundSummary]
+    total: int
+
+
+class UcitsRegulatoryReportSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int = Field(description="ID")
+    fund_id: int = Field(description="ID del fondo")
+    report_type: str = Field(description="Tipo de reporte")
+    reporting_period: str | None = Field(default=None, description="Periodo")
+    url: str | None = Field(default=None, description="URL")
+    filed_date: str | None = Field(default=None, description="Fecha de presentacion")
+    status: str = Field(description="Estado")
+
+    @field_validator("filed_date", mode="before")
+    @classmethod
+    def _filed_date_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class UcitsRegulatoryReportDetail(UcitsRegulatoryReportSummary):
+    created_at: str = Field(description="Fecha de creacion")
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_to_str(cls, v):
+        if v is None or isinstance(v, str):
+            return v
+        return v.isoformat()
+
+
+class UcitsRegulatoryReportListResponse(BaseModel):
+    items: list[UcitsRegulatoryReportSummary]
     total: int
 
 
@@ -1002,6 +1677,7 @@ class NotaEditorialSummary(BaseModel):
     tipo_contenido: str | None = Field(default=None, description="Tipo: resumen_interno, criterio_experto, nota_operativa")
     fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial (BOE, etc.)")
     fuente_verificada: bool = Field(default=False, description="Si la fuente fue verificada por humano")
+    autor_id: str | None = Field(default=None, description="ID autor")
     estado: str | None = Field(default=None, description="Estado: borrador, vigente, revisar, obsoleto")
     fecha_creacion: str | None = Field(default=None, description="Fecha de creación")
     fecha_revision: str | None = Field(default=None, description="Fecha de revisión")
@@ -1068,6 +1744,7 @@ class PosicionInterpretativaSummary(BaseModel):
     descripcion: str | None = Field(default=None, description="Descripción")
     fuente_oficial_referencia: str | None = Field(default=None, description="Referencia fuente oficial")
     fuente_verificada: bool = Field(default=False, description="Si la fuente fue verificada por humano")
+    autor_id: str | None = Field(default=None, description="ID autor")
     estado: str | None = Field(default=None, description="Estado")
     version: int | None = Field(default=None, description="Versión")
     vigencia_desde: str | None = Field(default=None, description="Vigencia desde")
@@ -1121,6 +1798,1466 @@ class PosicionInterpretativaListResponse(BaseModel):
     total: int
 
 
+# ---------------------------------------------------------------------------
+# Banking
+# ---------------------------------------------------------------------------
+
+
+class IbanValidateRequest(BaseModel):
+    iban: str = Field(description="IBAN a validar")
+
+
+class IbanValidateResponse(BaseModel):
+    result: dict = Field(description="Resultado de validacion IBAN")
+
+
+class Iso20022ParseResponse(BaseModel):
+    valid: bool = Field(description="Si el XML es valido")
+    document_type: str | None = Field(default=None, description="Tipo de documento")
+    namespace: str | None = Field(default=None, description="Namespace detectado")
+    group_header: dict | None = Field(default=None, description="Cabecera de grupo")
+    payment_informations: list[dict] = Field(default_factory=list, description="Bloques de pago")
+    total_transactions: int | None = Field(default=None, description="Numero total de transacciones")
+    total_control_sum: str | None = Field(default=None, description="Importe total")
+    errors: list[str] = Field(default_factory=list, description="Errores de parseo")
+
+
+class N43ParseResponse(BaseModel):
+    model_config = {"extra": "allow"}
+
+
+class SepaBicValidateRequest(BaseModel):
+    bic: str = Field(description="BIC a validar")
+
+
+class SepaBicValidateResponse(BaseModel):
+    result: dict = Field(description="Resultado de validacion BIC")
+
+
+class SepaTransactionInput(BaseModel):
+    creditor_name: str | None = Field(default=None, description="Nombre del acreedor")
+    creditor_iban: str = Field(description="IBAN del acreedor")
+    amount: float = Field(description="Importe")
+    currency: str = Field(default="EUR", description="Divisa")
+    creditor_bic: str | None = Field(default=None, description="BIC del acreedor")
+    remittance_info: str | None = Field(default=None, description="Concepto")
+    end_to_end_id: str | None = Field(default=None, description="EndToEndId")
+    instruction_id: str | None = Field(default=None, description="InstructionId")
+
+
+class SepaGenerateRequest(BaseModel):
+    debtor_name: str = Field(description="Nombre del ordenante")
+    debtor_iban: str = Field(description="IBAN del ordenante")
+    debtor_bic: str | None = Field(default=None, description="BIC del ordenante")
+    execution_date: str | None = Field(default=None, description="Fecha de ejecucion")
+    payment_info_id_prefix: str | None = Field(default=None, description="Prefijo payment info")
+    batch_booking: bool = Field(default=False, description="Batch booking")
+    transactions: list[SepaTransactionInput] = Field(default_factory=list, description="Transacciones")
+
+
+class SepaGenerateResponse(BaseModel):
+    valid: bool = Field(description="Si la generacion fue valida")
+    document_type: str = Field(description="Tipo de documento")
+    namespace: str = Field(description="Namespace")
+    group_header_msg_id: str | None = Field(default=None, description="MsgId")
+    group_header_creation_date: str | None = Field(default=None, description="Fecha creacion")
+    group_header_nb_of_txs: str | None = Field(default=None, description="Numero transacciones")
+    group_header_control_sum: str | None = Field(default=None, description="Suma control")
+    payment_info_count: int = Field(description="Numero de bloques payment info")
+    xml_size_bytes: int = Field(description="Tamano XML")
+
+
+class SepaGroupTransactionInput(BaseModel):
+    creditor_iban: str = Field(description="Campo de agrupacion por defecto")
+    amount: float = Field(description="Importe")
+
+    model_config = {"extra": "allow"}
+
+
+class SepaGroupTransactionsRequest(BaseModel):
+    transactions: list[SepaGroupTransactionInput] = Field(default_factory=list, description="Transacciones")
+    max_batch_size: int | None = Field(default=None, description="Tamano maximo por lote")
+    group_by: str = Field(default="creditor_iban", description="Campo de agrupacion")
+
+
+class SepaGroupBatch(BaseModel):
+    group_key: str = Field(description="Clave del grupo")
+    transaction_count: int = Field(description="Numero de transacciones")
+    total_amount: float = Field(description="Importe total")
+    transactions: list[dict] = Field(default_factory=list, description="Transacciones del lote")
+
+
+class SepaGroupTransactionsResponse(BaseModel):
+    total_transactions: int = Field(description="Numero total de transacciones")
+    total_batches: int = Field(description="Numero total de lotes")
+    batches: list[SepaGroupBatch] = Field(default_factory=list, description="Lotes")
+
+
+# ---------------------------------------------------------------------------
+# CSRD
+# ---------------------------------------------------------------------------
+
+
+class CsrdEntityReportSummary(BaseModel):
+    id: int
+    entity_id: int
+    reporting_year: int
+    esap_url: str | None = None
+    assurance_status: str | None = None
+    reporting_standard: str | None = None
+    status: str
+
+
+class CsrdEntityReportDetail(CsrdEntityReportSummary):
+    created_at: str | None = None
+
+
+class CsrdEntityReportListResponse(BaseModel):
+    items: list[CsrdEntityReportSummary]
+    total: int
+
+
+class CsrdEsgDataPointSummary(BaseModel):
+    id: int
+    report_id: int
+    topic: str
+    indicator_code: str
+    value: float | None = None
+    unit: str | None = None
+    scope: int | None = None
+    verification_status: str | None = None
+
+
+class CsrdEsgDataPointDetail(CsrdEsgDataPointSummary):
+    created_at: str | None = None
+
+
+class CsrdEsgDataPointListResponse(BaseModel):
+    items: list[CsrdEsgDataPointSummary]
+    total: int
+
+
+class CsrdEssSummary(BaseModel):
+    id: int
+    standard_code: str
+    topic: str
+    applicable_from_year: int | None = None
+    description: str | None = None
+    status: str
+
+
+class CsrdEssDetail(CsrdEssSummary):
+    created_at: str | None = None
+
+
+class CsrdEssListResponse(BaseModel):
+    items: list[CsrdEssSummary]
+    total: int
+
+
+class CsrdDoubleMaterialitySummary(BaseModel):
+    id: int
+    entity_id: int
+    impact_materiality: dict | str | None = None
+    financial_materiality: dict | str | None = None
+    assessment_date: str | None = None
+    key_impacts: str | None = None
+    key_dependencies: str | None = None
+    status: str
+
+
+class CsrdDoubleMaterialityDetail(CsrdDoubleMaterialitySummary):
+    created_at: str | None = None
+
+
+class CsrdDoubleMaterialityListResponse(BaseModel):
+    items: list[CsrdDoubleMaterialitySummary]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# DAC8 / DORA / Entity Identity
+# ---------------------------------------------------------------------------
+
+
+class DacReportingEntitySummary(BaseModel):
+    id: int
+    tin: str
+    entity_type: str
+    member_state: str
+    dac8_registered: bool
+    dac9_registered: bool
+    status: str
+
+
+class DacReportingEntityDetail(DacReportingEntitySummary):
+    created_at: str | None = None
+
+
+class DacReportingEntityListResponse(BaseModel):
+    entities: list[DacReportingEntitySummary]
+    total: int
+
+
+class DacCryptoReportSummary(BaseModel):
+    id: int
+    entity_id: int
+    reporting_period: str
+    status: str
+    crypto_transactions_count: int
+    wallet_holders_count: int
+
+
+class DacCryptoReportDetail(DacCryptoReportSummary):
+    submitted_at: str | None = None
+    created_at: str | None = None
+
+
+class DacCryptoReportListResponse(BaseModel):
+    reports: list[DacCryptoReportSummary]
+    total: int
+
+
+class DacWalletHolderSummary(BaseModel):
+    id: int
+    report_id: int
+    wallet_address: str
+    holder_tin: str | None = None
+    holder_member_state: str | None = None
+    holder_type: str
+    total_value_eur: float | None = None
+    verification_status: str | None = None
+
+
+class DacWalletHolderDetail(DacWalletHolderSummary):
+    created_at: str | None = None
+
+
+class DacWalletHolderListResponse(BaseModel):
+    holders: list[DacWalletHolderSummary]
+    total: int
+
+
+class DoraTicIncidentSummary(BaseModel):
+    id: int
+    incident_severity: str
+    classification: str | None = None
+    status: str
+
+
+class DoraTicIncidentDetail(DoraTicIncidentSummary):
+    entity_id: int
+    description: str | None = None
+    impact_scope: str | None = None
+    detection_date: str | None = None
+    resolution_date: str | None = None
+    root_cause: str | None = None
+    created_at: str | None = None
+
+
+class DoraTicIncidentListResponse(BaseModel):
+    items: list[DoraTicIncidentSummary]
+    total: int
+
+
+class DoraThirdPartyProviderSummary(BaseModel):
+    id: int
+    provider_name: str
+    provider_type: str
+    criticality_assessment: str | None = None
+    status: str
+
+
+class DoraThirdPartyProviderDetail(DoraThirdPartyProviderSummary):
+    contract_start: str | None = None
+    contract_end: str | None = None
+    eu_supervision_status: str | None = None
+    exit_strategy: str | None = None
+    created_at: str | None = None
+
+
+class DoraThirdPartyProviderListResponse(BaseModel):
+    items: list[DoraThirdPartyProviderSummary]
+    total: int
+
+
+class DoraIctRiskRegisterSummary(BaseModel):
+    id: int
+    risk_description: str
+    likelihood: str | None = None
+    impact: str | None = None
+    owner: str | None = None
+    status: str
+
+
+class DoraIctRiskRegisterDetail(DoraIctRiskRegisterSummary):
+    entity_id: int
+    mitigation: str | None = None
+    review_date: str | None = None
+    created_at: str | None = None
+
+
+class DoraIctRiskRegisterListResponse(BaseModel):
+    items: list[DoraIctRiskRegisterSummary]
+    total: int
+
+
+class DoraPenetrationTestSummary(BaseModel):
+    id: int
+    test_type: str
+    tester: str | None = None
+    findings_count: int | None = None
+    critical_findings: int | None = None
+    status: str
+
+
+class DoraPenetrationTestDetail(DoraPenetrationTestSummary):
+    entity_id: int
+    test_date: str | None = None
+    remediation_deadline: str | None = None
+    created_at: str | None = None
+
+
+class DoraPenetrationTestListResponse(BaseModel):
+    items: list[DoraPenetrationTestSummary]
+    total: int
+
+
+class DoraIncidentClassificationFrameworkSummary(BaseModel):
+    id: int
+    framework_version: str
+    effective_date: str | None = None
+    status: str
+
+
+class DoraIncidentClassificationFrameworkDetail(DoraIncidentClassificationFrameworkSummary):
+    severity_thresholds: dict | str | None = None
+    reporting_timelines: dict | str | None = None
+    created_at: str | None = None
+
+
+class DoraIncidentClassificationFrameworkListResponse(BaseModel):
+    items: list[DoraIncidentClassificationFrameworkSummary]
+    total: int
+
+
+class EntityAlias(BaseModel):
+    alias: str
+    alias_normalizado: str
+    fuente: str | None = None
+    confianza: float
+
+
+class EntityIdentifier(BaseModel):
+    id: int
+    lei: str
+    nombre_legal: str
+    pais: str | None = None
+    estado: str | None = None
+    vigencia_desde: str | None = None
+    vigencia_hasta: str | None = None
+    vlei_status: str | None = None
+    vlei_cred_url: str | None = None
+    fuente_ref: str | None = None
+    aliases: list[EntityAlias] = Field(default_factory=list)
+
+
+class EntityLeiResponse(BaseModel):
+    entidad: EntityIdentifier
+
+
+class EntitySearchResult(BaseModel):
+    id: int
+    nombre: str
+    lei: str | None = None
+    nombre_legal: str | None = None
+    pais: str | None = None
+    estado: str | None = None
+    confianza: float
+    motivo: str
+
+
+class EntitySearchResponse(BaseModel):
+    q: str
+    resultados: list[EntitySearchResult]
+
+
+class FraudPreventionProgramSummary(BaseModel):
+    id: int
+    entity_id: int
+    code_of_conduct: bool
+    internal_reporting_system: bool
+    training_schedule: str | None = None
+    audit_frequency: str | None = None
+    compliance_officer_name: str | None = None
+    status: str
+
+
+class FraudPreventionProgramDetail(FraudPreventionProgramSummary):
+    created_at: str | None = None
+
+
+class FraudPreventionProgramListResponse(BaseModel):
+    programs: list[FraudPreventionProgramSummary] = Field(default_factory=list)
+    total: int
+
+
+class FraudRiskAssessmentSummary(BaseModel):
+    id: int
+    entity_id: int
+    assessment_date: str
+    risk_areas: str | None = None
+    mitigation_measures: str | None = None
+    next_review_date: str | None = None
+
+
+class FraudRiskAssessmentDetail(FraudRiskAssessmentSummary):
+    created_at: str | None = None
+
+
+class FraudRiskAssessmentListResponse(BaseModel):
+    assessments: list[FraudRiskAssessmentSummary] = Field(default_factory=list)
+    total: int
+
+
+class FraudIncidentSummary(BaseModel):
+    id: int
+    entity_id: int
+    incident_date: str
+    amount_eur: float | None = None
+    status: str
+    resolution_date: str | None = None
+    regulatory_notification: bool
+
+
+class FraudIncidentDetail(FraudIncidentSummary):
+    description: str
+    created_at: str | None = None
+
+
+class FraudIncidentListResponse(BaseModel):
+    incidents: list[FraudIncidentSummary] = Field(default_factory=list)
+    total: int
+
+
+class MarInsiderTransactionSummary(BaseModel):
+    id: int
+    ppi_name: str
+    instrument: str
+    transaction_type: str
+    value_eur: float | None = None
+    status: str
+
+
+class MarInsiderTransactionDetail(MarInsiderTransactionSummary):
+    ppi_role: str | None = None
+    quantity: float | None = None
+    price: float | None = None
+    date_time: str | None = None
+    country: str | None = None
+    created_at: str | None = None
+
+
+class MarInsiderTransactionListResponse(BaseModel):
+    items: list[MarInsiderTransactionSummary] = Field(default_factory=list)
+    total: int
+
+
+class MarSuspiciousTransactionReportSummary(BaseModel):
+    id: int
+    instrument: str
+    severity: str | None = None
+    submitted_to_cnmv: bool
+    cnmv_reference: str | None = None
+    status: str
+
+
+class MarSuspiciousTransactionReportDetail(MarSuspiciousTransactionReportSummary):
+    entity_id: int
+    pattern_description: str | None = None
+    detection_method: str | None = None
+    created_at: str | None = None
+
+
+class MarSuspiciousTransactionReportListResponse(BaseModel):
+    items: list[MarSuspiciousTransactionReportSummary] = Field(default_factory=list)
+    total: int
+
+
+class MarMarketManipulationIndicatorSummary(BaseModel):
+    id: int
+    pattern_type: str
+    instrument: str
+    confidence_score: float | None = None
+    status: str
+
+
+class MarMarketManipulationIndicatorDetail(MarMarketManipulationIndicatorSummary):
+    time_window: str | None = None
+    volume_anomaly_pct: float | None = None
+    price_anomaly_pct: float | None = None
+    created_at: str | None = None
+
+
+class MarMarketManipulationIndicatorListResponse(BaseModel):
+    items: list[MarMarketManipulationIndicatorSummary] = Field(default_factory=list)
+    total: int
+
+
+class MarInsiderCommunicationSummary(BaseModel):
+    id: int
+    sender_id: int
+    receiver_id: int
+    content_summary: str | None = None
+    channel: str | None = None
+    timestamp: str | None = None
+
+
+class MarInsiderCommunicationDetail(MarInsiderCommunicationSummary):
+    inside_info_reference: str | None = None
+    created_at: str | None = None
+
+
+class MarInsiderCommunicationListResponse(BaseModel):
+    items: list[MarInsiderCommunicationSummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidClientCategorySummary(BaseModel):
+    id: int
+    entity_id: int
+    category: str
+    assessment_date: str
+    status: str
+
+
+class MifidClientCategoryDetail(MifidClientCategorySummary):
+    knowledge_level: str | None = None
+    experience_level: str | None = None
+    created_at: str | None = None
+
+
+class MifidClientCategoryListResponse(BaseModel):
+    items: list[MifidClientCategorySummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidSuitabilityReportSummary(BaseModel):
+    id: int
+    client_id: int
+    product_id: int
+    assessment_date: str
+    suitability_score: int | float
+    recommendation: str
+    status: str
+
+
+class MifidSuitabilityReportDetail(MifidSuitabilityReportSummary):
+    advisor_id: int | None = None
+    created_at: str | None = None
+
+
+class MifidSuitabilityReportListResponse(BaseModel):
+    items: list[MifidSuitabilityReportSummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidBestExecutionRecordSummary(BaseModel):
+    id: int
+    order_id: int
+    venue: str
+    execution_price: float | None = None
+    status: str
+
+
+class MifidBestExecutionRecordDetail(MifidBestExecutionRecordSummary):
+    market_impact: float | None = None
+    speed_ms: int | None = None
+    quality_metrics: dict | str | None = None
+    execution_timestamp: str | None = None
+    created_at: str | None = None
+
+
+class MifidBestExecutionRecordListResponse(BaseModel):
+    items: list[MifidBestExecutionRecordSummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidConflictOfInterestSummary(BaseModel):
+    id: int
+    department: str
+    conflict_type: str
+    status: str
+
+
+class MifidConflictOfInterestDetail(MifidConflictOfInterestSummary):
+    description: str | None = None
+    mitigation_measure: str | None = None
+    identified_date: str | None = None
+    review_date: str | None = None
+    created_at: str | None = None
+
+
+class MifidConflictOfInterestListResponse(BaseModel):
+    items: list[MifidConflictOfInterestSummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidProductGovernanceSummary(BaseModel):
+    id: int
+    product_id: int
+    target_market: str
+    risk_level: int | float | None = None
+    status: str
+
+
+class MifidProductGovernanceDetail(MifidProductGovernanceSummary):
+    distribution_channels: str | None = None
+    key_features: str | None = None
+    review_date: str | None = None
+    created_at: str | None = None
+
+
+class MifidProductGovernanceListResponse(BaseModel):
+    items: list[MifidProductGovernanceSummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidOrderRecordSummary(BaseModel):
+    id: int
+    client_id: int
+    instrument: str
+    direction: str
+    quantity: float | None = None
+    price: float | None = None
+    status: str
+
+
+class MifidOrderRecordDetail(MifidOrderRecordSummary):
+    timestamp: str | None = None
+    venue: str | None = None
+    retention_until: str | None = None
+    created_at: str | None = None
+
+
+class MifidOrderRecordListResponse(BaseModel):
+    items: list[MifidOrderRecordSummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidInsiderListSummary(BaseModel):
+    id: int
+    insider_name: str
+    entity_id: int
+    inside_information_description: str
+    status: str
+
+
+class MifidInsiderListDetail(MifidInsiderListSummary):
+    insider_tin: str | None = None
+    date_created: str | None = None
+    date_removed: str | None = None
+    created_at: str | None = None
+
+
+class MifidInsiderListResponse(BaseModel):
+    items: list[MifidInsiderListSummary] = Field(default_factory=list)
+    total: int
+
+
+class MifidCompensationPolicySummary(BaseModel):
+    id: int
+    entity_id: int
+    policy_version: str
+    alignment_score: int | float | None = None
+    status: str
+
+
+class MifidCompensationPolicyDetail(MifidCompensationPolicySummary):
+    risk_adjustment_applied: bool | None = None
+    approval_date: str | None = None
+    next_review: str | None = None
+    created_at: str | None = None
+
+
+class MifidCompensationPolicyListResponse(BaseModel):
+    items: list[MifidCompensationPolicySummary] = Field(default_factory=list)
+    total: int
+
+
+class PbcObligatedSubjectSummary(BaseModel):
+    id: int
+    subject_type: str
+    tin: str
+    registration_number: str
+    supervisory_authority: str
+    pbc_license: str | None = None
+    status: str
+
+
+class PbcObligatedSubjectDetail(PbcObligatedSubjectSummary):
+    created_at: str | None = None
+
+
+class PbcObligatedSubjectListResponse(BaseModel):
+    subjects: list[PbcObligatedSubjectSummary] = Field(default_factory=list)
+    total: int
+
+
+class PbcInternalControlSummary(BaseModel):
+    id: int
+    obligated_subject_id: int
+    risk_assessment_date: str | None = None
+    compliance_officer: str | None = None
+    internal_reporting_channel: bool | None = None
+    training_program: bool | None = None
+    audit_trail: bool | None = None
+
+
+class PbcInternalControlDetail(PbcInternalControlSummary):
+    created_at: str | None = None
+
+
+class PbcInternalControlListResponse(BaseModel):
+    controls: list[PbcInternalControlSummary] = Field(default_factory=list)
+    total: int
+
+
+class SuspiciousActivityReportSummary(BaseModel):
+    id: int
+    obligated_subject_id: int
+    submission_date: str | None = None
+    severity: str | None = None
+    status: str
+    sepblac_reference: str | None = None
+
+
+class SuspiciousActivityReportDetail(SuspiciousActivityReportSummary):
+    description: str | None = None
+    created_at: str | None = None
+
+
+class SuspiciousActivityReportListResponse(BaseModel):
+    reports: list[SuspiciousActivityReportSummary] = Field(default_factory=list)
+    total: int
+
+
+class BeneficialOwnerRecordSummary(BaseModel):
+    id: int
+    entity_id: int
+    owner_name: str
+    ownership_percentage: float | None = None
+    acquisition_date: str | None = None
+    verification_method: str | None = None
+    verification_date: str | None = None
+
+
+class BeneficialOwnerRecordDetail(BeneficialOwnerRecordSummary):
+    created_at: str | None = None
+
+
+class BeneficialOwnerRecordListResponse(BaseModel):
+    records: list[BeneficialOwnerRecordSummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsFiscalNormaSummary(BaseModel):
+    id: int
+    codigo: str
+    titulo: str
+    tipo: str
+    anio_vigencia: int | None = None
+    estado: str
+
+
+class IrsFiscalNormaDetail(IrsFiscalNormaSummary):
+    texto: str | None = None
+    url_fuente: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class IrsFiscalNormaListResponse(BaseModel):
+    normas: list[IrsFiscalNormaSummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsDttaConventionSummary(BaseModel):
+    id: int
+    codigo: str
+    pais_origen: str
+    pais_destino: str
+    titulo: str
+    fecha_firma: str | None = None
+    fecha_vigencia: str | None = None
+    tipo_acuerdo: str | None = None
+    estado: str
+
+
+class IrsDttaConventionDetail(IrsDttaConventionSummary):
+    boe_referencia: str | None = None
+    articulos: str | None = None
+    texto_completo: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class IrsDttaConventionListResponse(BaseModel):
+    convenios: list[IrsDttaConventionSummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsWithholdingRuleSummary(BaseModel):
+    id: int
+    codigo: str
+    tipo_renta: str
+    tipo_renta_espanol: str | None = None
+    tipo_retencion_default: float
+    tipo_retencion_dta: float | None = None
+    pais_aplicable: str | None = None
+    estado: str
+
+
+class IrsWithholdingRuleDetail(IrsWithholdingRuleSummary):
+    descripcion: str | None = None
+    norma_referencia: str | None = None
+    articulo_referencia: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class IrsWithholdingRuleListResponse(BaseModel):
+    reglas: list[IrsWithholdingRuleSummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsW8FormSummary(BaseModel):
+    id: int
+    codigo: str
+    nombre: str
+    tipo_sujeto: str
+    validez_anios: int | None = None
+    estado: str
+
+
+class IrsW8FormDetail(IrsW8FormSummary):
+    descripcion: str | None = None
+    finalidad: str | None = None
+    partes: str | None = None
+    obligacion_asociada: str | None = None
+    texto_detalle: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class IrsW8FormListResponse(BaseModel):
+    formularios: list[IrsW8FormSummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsTinReferenceSummary(BaseModel):
+    id: int
+    codigo_pais: str
+    pais_nombre: str
+    formato_tin: str | None = None
+    ejemplo_tin: str | None = None
+    es_ocde: bool
+    es_eu_vat: bool
+
+
+class IrsTinReferenceDetail(IrsTinReferenceSummary):
+    emisor_espana: str | None = None
+    emisor_pais: str | None = None
+    creado_en: str | None = None
+
+
+class IrsTinReferenceListResponse(BaseModel):
+    referencias: list[IrsTinReferenceSummary] = Field(default_factory=list)
+    total: int
+
+
+class GiinRegistrySummary(BaseModel):
+    id: int
+    giin: str
+    entidad_nombre: str
+    entidad_pais: str | None = None
+    tipo_entidad: str
+    estado_fatca: str
+    fecha_expiracion: str | None = None
+
+
+class GiinRegistryDetail(GiinRegistrySummary):
+    fecha_registro: str | None = None
+    es_exempt_beneficial_owner: bool | None = None
+    es_sponsored_ffo: bool | None = None
+    nota: str | None = None
+    creado_en: str | None = None
+    actualizado_en: str | None = None
+
+
+class GiinRegistryListResponse(BaseModel):
+    registros: list[GiinRegistrySummary] = Field(default_factory=list)
+    total: int
+
+
+class IrsFiscalCheckRequest(BaseModel):
+    pais_residencia: str | None = None
+    tipo_renta: str
+    tiene_formulario_w8: bool = False
+    entidad_giin: str | None = None
+
+
+class IrsFiscalCheckResponse(BaseModel):
+    pais_residencia: str | None = None
+    tipo_renta: str
+    tipo_retencion_aplicable: float
+    tiene_convenio_dta: bool
+    codigo_convenio: str | None = None
+    requiere_w8: bool
+    formulario_recomendado: str | None = None
+    notas: str | None = None
+
+
+class PriipsKidSummary(BaseModel):
+    id: int
+    product_id: int
+    product_type: str
+    risk_scale: int | float | None = None
+    cost_impact: dict | str | None = None
+    status: str
+
+
+class PriipsKidDetail(PriipsKidSummary):
+    currency: str | None = None
+    negative_scenario_returns: dict | str | None = None
+    version: str | None = None
+    publication_date: str | None = None
+    created_at: str | None = None
+
+
+class PriipsKidListResponse(BaseModel):
+    items: list[PriipsKidSummary] = Field(default_factory=list)
+    total: int
+
+
+class PriipsProductSummary(BaseModel):
+    id: int
+    product_name: str
+    currency: str | None = None
+    status: str
+
+
+class PriipsProductDetail(PriipsProductSummary):
+    issuer_id: int | None = None
+    underlying_assets: dict | list | str | None = None
+    maturity_date: str | None = None
+    min_investment: float | None = None
+    distribution_channels: dict | list | str | None = None
+    created_at: str | None = None
+
+
+class PriipsProductListResponse(BaseModel):
+    items: list[PriipsProductSummary] = Field(default_factory=list)
+    total: int
+
+
+class LivmcClientProtectionSummary(BaseModel):
+    id: int
+    client_id: int
+    protection_type: str
+    coverage_amount: float | None = None
+    status: str
+
+
+class LivmcClientProtectionDetail(LivmcClientProtectionSummary):
+    provider_id: int | None = None
+    created_at: str | None = None
+
+
+class LivmcClientProtectionListResponse(BaseModel):
+    items: list[LivmcClientProtectionSummary] = Field(default_factory=list)
+    total: int
+
+
+class LivmcVoiceProcedureSummary(BaseModel):
+    id: int
+    entity_id: int
+    procedure_type: str
+    description: str | None = None
+    effective_date: str | None = None
+    status: str
+
+
+class LivmcVoiceProcedureDetail(LivmcVoiceProcedureSummary):
+    next_review: str | None = None
+    created_at: str | None = None
+
+
+class LivmcVoiceProcedureListResponse(BaseModel):
+    items: list[LivmcVoiceProcedureSummary] = Field(default_factory=list)
+    total: int
+
+
+class SfdrProductSummary(BaseModel):
+    id: int
+    product_name: str
+    product_type: str
+    sustainability_strategy: str | None = None
+    principal_adverse_impact: str | bool | None = None
+    paci_aggregated: dict | str | None = None
+    distribution_country: list | str | None = None
+    status: str
+
+
+class SfdrProductDetail(SfdrProductSummary):
+    paci_detailed_url: str | None = None
+    created_at: str | None = None
+
+
+class SfdrProductListResponse(BaseModel):
+    items: list[SfdrProductSummary] = Field(default_factory=list)
+    total: int
+
+
+class SfdrPaciiIndicatorSummary(BaseModel):
+    id: int
+    product_id: int
+    indicator_code: str
+    indicator_name: str
+    value: float | None = None
+    unit: str | None = None
+    reference_period: str | None = None
+    status: str
+
+
+class SfdrPaciiIndicatorDetail(SfdrPaciiIndicatorSummary):
+    methodology: str | None = None
+    created_at: str | None = None
+
+
+class SfdrPaciiIndicatorListResponse(BaseModel):
+    items: list[SfdrPaciiIndicatorSummary] = Field(default_factory=list)
+    total: int
+
+
+class SfdrEntityPaciSummary(BaseModel):
+    id: int
+    entity_id: int
+    reporting_year: int
+    aggregated_paci: dict | str | None = None
+    sectoral_decarbonization: dict | str | None = None
+    status: str
+
+
+class SfdrEntityPaciDetail(SfdrEntityPaciSummary):
+    created_at: str | None = None
+
+
+class SfdrEntityPaciListResponse(BaseModel):
+    items: list[SfdrEntityPaciSummary] = Field(default_factory=list)
+    total: int
+
+
+class SfdrPreContractualSummary(BaseModel):
+    id: int
+    product_id: int
+    document_type: str
+    url: str
+    published_date: str | None = None
+    version: str | None = None
+    status: str
+
+
+class SfdrPreContractualDetail(SfdrPreContractualSummary):
+    created_at: str | None = None
+
+
+class SfdrPreContractualListResponse(BaseModel):
+    items: list[SfdrPreContractualSummary] = Field(default_factory=list)
+    total: int
+
+
+class SfdrAnnualReportSummary(BaseModel):
+    id: int
+    entity_id: int
+    reporting_year: int
+    paci_results: dict | str | None = None
+    engagement_activities: dict | str | None = None
+    good_practice_examples: str | None = None
+    url: str | None = None
+    published_date: str | None = None
+    status: str
+
+
+class SfdrAnnualReportDetail(SfdrAnnualReportSummary):
+    created_at: str | None = None
+
+
+class SfdrAnnualReportListResponse(BaseModel):
+    items: list[SfdrAnnualReportSummary] = Field(default_factory=list)
+    total: int
+
+
+class TransparencyIssuerSummary(BaseModel):
+    id: int
+    issuer_id: int
+    ticker: str
+    listing_market: str
+    status: str
+
+
+class TransparencyIssuerDetail(TransparencyIssuerSummary):
+    reporting_frequency: str | None = None
+    home_member_state: str | None = None
+    created_at: str | None = None
+
+
+class TransparencyIssuerListResponse(BaseModel):
+    items: list[TransparencyIssuerSummary] = Field(default_factory=list)
+    total: int
+
+
+class TransparencyRegulatedInfoSummary(BaseModel):
+    id: int
+    issuer_id: int
+    info_type: str
+    publication_date: str | None = None
+    filing_reference: str | None = None
+    status: str
+
+
+class TransparencyRegulatedInfoDetail(TransparencyRegulatedInfoSummary):
+    content_url: str | None = None
+    created_at: str | None = None
+
+
+class TransparencyRegulatedInfoListResponse(BaseModel):
+    items: list[TransparencyRegulatedInfoSummary] = Field(default_factory=list)
+    total: int
+
+
+class TransparencyVotingRightsSummary(BaseModel):
+    id: int
+    issuer_id: int
+    shareholder_id: int
+    voting_rights_pct: float | None = None
+    date_acquired: str | None = None
+    status: str
+
+
+class TransparencyVotingRightsDetail(TransparencyVotingRightsSummary):
+    date_reported: str | None = None
+    created_at: str | None = None
+
+
+class TransparencyVotingRightsListResponse(BaseModel):
+    items: list[TransparencyVotingRightsSummary] = Field(default_factory=list)
+    total: int
+
+
+class TransparencyInternalRuleSummary(BaseModel):
+    id: int
+    entity_id: int
+    designated_persons: list | str | None = None
+    internal_procedure: str | None = None
+    retention_period: str | None = None
+    status: str
+
+
+class TransparencyInternalRuleDetail(TransparencyInternalRuleSummary):
+    created_at: str | None = None
+
+
+class TransparencyInternalRuleListResponse(BaseModel):
+    items: list[TransparencyInternalRuleSummary] = Field(default_factory=list)
+    total: int
+
+
+class MicroObligacionSummary(BaseModel):
+    codigo: str
+    nombre: str
+    descripcion: str | None = None
+    regulacion_relacionada: str
+    ambito: str | None = None
+    trigger_evento: str | None = None
+    frecuencia: str | None = None
+    owner_rol: str | None = None
+    severidad: str | None = None
+    activo: bool
+
+
+class MicroObligacionRelacion(BaseModel):
+    obligacion_id: int
+
+
+class MicroObligacionDetail(MicroObligacionSummary):
+    id: int
+    obligaciones_relacionadas: list[MicroObligacionRelacion] = Field(default_factory=list)
+
+
+class MicroObligacionListResponse(BaseModel):
+    micro_obligaciones: list[MicroObligacionSummary] = Field(default_factory=list)
+    total: int
+
+
+class ObligacionRegulatoriaSummary(BaseModel):
+    id: int
+    codigo: str
+    nombre: str
+    fuente: str | None = None
+    organismo_emisor: str | None = None
+    tipo_obligacion: str | None = None
+    sujeto_obligado: str | None = None
+    periodicidad: str | None = None
+    reporte_modelo: str | None = None
+    ambito: str | None = None
+    estado_vigencia: str | None = None
+    plazo_dias: int | None = None
+    frecuencia_presentacion: str | None = None
+    ventana_presentacion: str | None = None
+    trigger_presentacion: str | None = None
+    sancion_min: float | None = None
+    sancion_max: float | None = None
+    prescripcion_anos: int | None = None
+
+
+class MicroObligacionByObligacionResponse(BaseModel):
+    obligacion: ObligacionRegulatoriaSummary
+    micro_obligaciones: list[MicroObligacionSummary] = Field(default_factory=list)
+
+
+class ObligacionesListResponse(BaseModel):
+    obligaciones: list[ObligacionRegulatoriaSummary] = Field(default_factory=list)
+
+
+class ObligacionDetail(ObligacionRegulatoriaSummary):
+    documento_origen_tipo: str | None = None
+    documento_origen_ref: str | None = None
+    seccion_origen: str | None = None
+    anexo_origen: str | None = None
+    nota: str | None = None
+    canal_presentacion: str | None = None
+    obligados_resumen: str | None = None
+    recargo_voluntario: float | None = None
+    recargo_involuntario: float | None = None
+    interes_demora: float | None = None
+    deposito_previo: bool | None = None
+    fuentes_operativas: list | dict | str | None = None
+    ultima_actualizacion: str | None = None
+    origen_metadato: str | None = None
+    estado_metadato: str | None = None
+    documentos: list[dict] = Field(default_factory=list)
+
+
+class ObligacionesAplicablesResponse(BaseModel):
+    perfil: dict
+    obligaciones: list[ObligacionRegulatoriaSummary] = Field(default_factory=list)
+
+
+class EmpresaSummary(BaseModel):
+    id: int
+    nombre: str
+    nif: str | None = None
+    domicilio: str | None = None
+    fuente_inicial: str | None = None
+    documentos_count: int = 0
+
+
+class EmpresaDetail(BaseModel):
+    id: int
+    nombre: str
+    nif: str | None = None
+    domicilio: str | None = None
+    fuente_inicial: str | None = None
+    documentos: list[dict] = Field(default_factory=list)
+
+
+class EmpresasListResponse(BaseModel):
+    empresas: list[EmpresaSummary] = Field(default_factory=list)
+
+
+class ScreeningList(BaseModel):
+    id: int
+    codigo: str
+    nombre: str
+    tipo: str
+    organismo: str
+    pais: str | None = None
+    url_fuente: str | None = None
+    descripcion: str | None = None
+    actualizada: str | None = None
+    activo: bool
+
+
+class ScreeningEntry(BaseModel):
+    id: int
+    entidad_id: str
+    nombre: str
+    tipo_entidad: str
+    pais: str | None = None
+    nif: str | None = None
+    fecha_nacimiento: str | None = None
+    aliases: list[str] = Field(default_factory=list)
+    categorias: list[str] = Field(default_factory=list)
+    descripcion: str | None = None
+    fecha_sancion: str | None = None
+    fecha_baja: str | None = None
+    activo: bool = True
+    lista: ScreeningList
+
+
+class ScreeningMatch(BaseModel):
+    id: int | None = None
+    empresa_id: int | None = None
+    entry: ScreeningEntry
+    confianza: float
+    motivo: str
+    match_campo: str
+    match_texto: str | None = None
+    revisado: bool = False
+    revisor: str | None = None
+    revisado_at: str | None = None
+    notas: str | None = None
+
+
+class ScreeningCheckRequest(BaseModel):
+    empresa_id: int | None = None
+    nombre: str | None = None
+    nif: str | None = None
+    tipo_entidad: str | None = None
+    listas: list[str] | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def validate_nombre(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("nombre must not be empty")
+        return value
+
+
+class ScreeningCheckResponse(BaseModel):
+    empresa_id: int | None = None
+    nombre_evaluado: str
+    nif_evaluado: str | None = None
+    matches: list[ScreeningMatch] = Field(default_factory=list)
+    sin_coincidencias: bool
+
+
+class ScreeningEntriesResponse(BaseModel):
+    total: int
+    limit: int
+    entries: list[ScreeningEntry] = Field(default_factory=list)
+
+
+class ScreeningMatchesResponse(BaseModel):
+    empresa_id: int
+    nombre: str
+    matches: list[ScreeningMatch] = Field(default_factory=list)
+
+
+class OwnershipShare(BaseModel):
+    id: int
+    empresa_id: int
+    titular_id: int | None = None
+    titular_tipo: str | None = None
+    titular_nombre: str | None = None
+    porcentaje: float | None = None
+    tipo_participacion: str | None = None
+    vigencia_desde: str | None = None
+    vigencia_hasta: str | None = None
+    fuente: str | None = None
+    fuente_ref: str | None = None
+    documento_referencia: str | None = None
+
+
+class OwnershipShareList(BaseModel):
+    empresa_id: int
+    nombre: str
+    participaciones: list[OwnershipShare] = Field(default_factory=list)
+
+
+class OwnershipRelation(BaseModel):
+    id: int
+    empresa_origen_id: int
+    empresa_destino_id: int
+    tipo_relacion: str
+    porcentaje: float | None = None
+    vigencia_desde: str | None = None
+    vigencia_hasta: str | None = None
+    fuente: str | None = None
+    fuente_ref: str | None = None
+    documento_referencia: str | None = None
+    nota: str | None = None
+
+
+class OwnershipRelationList(BaseModel):
+    empresa_id: int
+    nombre: str
+    relaciones: list[OwnershipRelation] = Field(default_factory=list)
+
+
+class UboRecord(BaseModel):
+    id: int
+    empresa_id: int
+    nombre_persona: str
+    nacionalidad: str | None = None
+    fecha_nacimiento: str | None = None
+    pais_residencia: str | None = None
+    tipo_ubo: str | None = None
+    porcentaje_control: float | None = None
+    umbral_superado: bool | None = None
+    vigencia_desde: str | None = None
+    vigencia_hasta: str | None = None
+    fuente: str | None = None
+    fuente_ref: str | None = None
+    documento_referencia: str | None = None
+    nota: str | None = None
+
+
+class UboRecordList(BaseModel):
+    empresa_id: int
+    nombre: str
+    beneficiarios: list[UboRecord] = Field(default_factory=list)
+
+
+class OwnershipGrafoNodo(BaseModel):
+    id: int
+    nombre: str
+    nif: str | None = None
+    tipo: str | None = None
+
+
+class OwnershipGrafoArista(BaseModel):
+    origen_id: int
+    destino_id: int
+    tipo: str
+    porcentaje: float | None = None
+
+
+class OwnershipGrafoResponse(BaseModel):
+    empresa_id: int
+    nombre: str
+    profundidad: int
+    nodos: list[OwnershipGrafoNodo] = Field(default_factory=list)
+    aristas: list[OwnershipGrafoArista] = Field(default_factory=list)
+
+
+class OwnershipSearchResult(BaseModel):
+    id: int
+    nombre: str
+    nif: str | None = None
+    tiene_participaciones: bool
+    tiene_ubos: bool
+    tiene_relaciones: bool = False
+    participaciones_count: int = 0
+    ubos_count: int = 0
+
+
+class OwnershipSearchResponse(BaseModel):
+    q: str
+    resultados: list[OwnershipSearchResult] = Field(default_factory=list)
+
+
 class ConsultaFiscalResponse(BaseModel):
     consulta: str = Field(description="Pregunta fiscal recibida")
     modelos: list[dict] = Field(default_factory=list, description="Modelos AEAT identificados")
@@ -1130,6 +3267,186 @@ class ConsultaFiscalResponse(BaseModel):
     confianza: dict | None = Field(default=None, description="Información de confianza (faithfulness, grounding)")
     cited_chunks: list[ChunkCitation] = Field(default_factory=list, description="Chunks citados con evidencia")
     claim_citations: list[ClaimCitation] = Field(default_factory=list, description="Citas por afirmación factual")
+
+
+# --- PGC / XBRL ------------------------------------------------------------
+
+class PgcMarco(BaseModel):
+    codigo: str
+    titulo: str
+    tipo: str
+    anio: int | None = None
+    texto: str | None = None
+    url_boe: str | None = None
+    vigente: bool | None = None
+
+
+class PgcCuentaItem(BaseModel):
+    codigo: str
+    descripcion: str
+    nivel: int
+    padre_codigo: str | None = None
+    grupo: str | None = None
+    clase: str | None = None
+    saldo_normal: str | None = None
+    tipo_cuenta: str | None = None
+    vigente: bool | None = None
+    nota: str | None = None
+
+
+class PgcNormaValoracionItem(BaseModel):
+    norma_ref: str
+    articulo: str | None = None
+    descripcion: str | None = None
+    cuenta_codigo: str | None = None
+    cuenta_descripcion: str | None = None
+
+
+class PgcEstadoFinancieroItem(BaseModel):
+    id: str
+    estado: str
+    tipo_presentacion: str | None = None
+    orden: int
+    periodo: str
+    importe_base: float | None = None
+    importe_anterior: float | None = None
+    nota_pieds: str | None = None
+    cuenta_codigo: str | None = None
+    cuenta_descripcion: str | None = None
+
+
+class PgcReferenciaFiscalItem(BaseModel):
+    modelo: str
+    casilla: str | None = None
+    ejercicio: str | None = None
+    nota: str | None = None
+    cuenta_codigo: str | None = None
+    cuenta_descripcion: str | None = None
+
+
+class PgcAeatReferenceItem(BaseModel):
+    modelo_id: int
+    campana: str | None = None
+    nota: str | None = None
+    cuenta_codigo: str | None = None
+    cuenta_descripcion: str | None = None
+
+
+class PgcCuentasResponse(BaseModel):
+    marco: PgcMarco | None = None
+    cuentas: list[PgcCuentaItem] = Field(default_factory=list)
+
+
+class PgcBuscarResponse(BaseModel):
+    marco: PgcMarco | None = None
+    resultados: list[PgcCuentaItem] = Field(default_factory=list)
+
+
+class PgcNormasValoracionResponse(BaseModel):
+    marco: PgcMarco | None = None
+    normas: list[PgcNormaValoracionItem] = Field(default_factory=list)
+
+
+class PgcEstadosFinancierosResponse(BaseModel):
+    marco: PgcMarco | None = None
+    estados: list[PgcEstadoFinancieroItem] = Field(default_factory=list)
+
+
+class PgcReferenciasFiscalesResponse(BaseModel):
+    marco: PgcMarco | None = None
+    referencias: list[PgcReferenciaFiscalItem] = Field(default_factory=list)
+
+
+class PgcAeatReferencesResponse(BaseModel):
+    marco: PgcMarco | None = None
+    referencias: list[PgcAeatReferenceItem] = Field(default_factory=list)
+
+
+class XbrlFact(BaseModel):
+    filing_id: int
+    concept: str
+    value_raw: str
+    value_numeric: float | None = None
+    unit: str | None = None
+    context_ref: str | None = None
+    period_start: str | None = None
+    period_end: str | None = None
+    entity_identifier: str | None = None
+    decimals: str | None = None
+
+
+class XbrlFiling(BaseModel):
+    id: int
+    source_name: str
+    source_path: str
+    entity_identifier: str | None = None
+    period_start: str | None = None
+    period_end: str | None = None
+    filing_type: str
+    created_at: str | None = None
+
+
+class XbrlFactsResponse(BaseModel):
+    entity_id: str | None = None
+    concept: str | None = None
+    facts: list[XbrlFact] = Field(default_factory=list)
+
+
+class XbrlFilingDetailResponse(BaseModel):
+    filing: XbrlFiling
+    facts: list[XbrlFact] = Field(default_factory=list)
+
+
+class PgcXbrlMappingItem(BaseModel):
+    xbrl_concept_qname: str
+    pgc_account_codigo: str
+    pgc_account_descripcion: str | None = None
+    confidence: str | None = None
+    mapping_type: str
+    note: str | None = None
+
+
+class PgcXbrlMappingsResponse(BaseModel):
+    xbrl_concept: str | None = None
+    pgc_account: str | None = None
+    confidence: str | None = None
+    mappings: list[PgcXbrlMappingItem] = Field(default_factory=list)
+
+
+class XbrlTaxonomyEntry(BaseModel):
+    concept_qname: str
+    namespace: str | None = None
+    label: str
+    label_language: str
+    label_role: str
+    standard: str
+    data_type: str | None = None
+    period_type: str | None = None
+    is_monetary: bool
+    is_negative_allowed: bool
+
+
+class XbrlTaxonomyResponse(BaseModel):
+    standard: str | None = None
+    language: str | None = None
+    concept: str | None = None
+    entries: list[XbrlTaxonomyEntry] = Field(default_factory=list)
+
+
+class XbrlFactWithPgc(XbrlFact):
+    pgc_account_codigo: str | None = None
+    pgc_account_descripcion: str | None = None
+    mapping_confidence: str | None = None
+    mapping_type: str | None = None
+    mapping_note: str | None = None
+
+
+class XbrlFactsWithPgcResponse(BaseModel):
+    entity_id: str | None = None
+    concept: str | None = None
+    pgc_account: str | None = None
+    confidence: str | None = None
+    facts: list[XbrlFactWithPgc] = Field(default_factory=list)
 
 
 # --- EUR-Lex ---------------------------------------------------------------

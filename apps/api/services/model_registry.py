@@ -10,13 +10,15 @@ from typing import Any
 
 from db import engine
 from pydantic import BaseModel, Field
+from sqlalchemy import text
+
+from services.cache_invalidation import invalidate_by_type, register_invalidation_callback
 from services.persistence import (
     dumps_json,
     ensure_governance_tables,
     loads_json,
     rows_to_dicts,
 )
-from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +124,12 @@ class ModelRegistry:
         with engine.begin() as conn:
             rows = rows_to_dicts(conn.execute(text(sql), params or {}))
         return [self._map_config(row) for row in rows]
+
+    def _invalidate_model_cache(self) -> None:
+        self._model_cache.clear()
+
+    def _invalidate_config_cache(self) -> None:
+        self._config_cache.clear()
 
     def _ensure_initial_config(self) -> None:
         with engine.begin() as conn:
@@ -232,6 +240,7 @@ class ModelRegistry:
             cached.activo = False
         entry.activo = True
         self._model_cache[model_id] = entry
+        invalidate_by_type("models", "model_activation")
         logger.info("Activated model: %s", model_id)
         return entry
 
@@ -294,6 +303,7 @@ class ModelRegistry:
                 },
             )
         self._config_cache[config.version_id] = config
+        invalidate_by_type("config", "config_change")
         logger.info("Created config version: %s", config.version_id)
         return config
 
@@ -315,7 +325,7 @@ class ModelRegistry:
         completa["limit_default"] = limit_default
         completa["modo_review"] = modo_review
 
-        return self._create_config_version(
+        result = self._create_config_version(
             hybrid_weight=hybrid_weight,
             rrf_k=rrf_k,
             limit_default=limit_default,
@@ -323,6 +333,7 @@ class ModelRegistry:
             cambiado_por=cambiado_por,
             configuracion_completa=completa,
         )
+        return result
 
     def get_config(self, version_id: str) -> AIConfigVersion | None:
         if version_id in self._config_cache:
@@ -366,10 +377,18 @@ class ModelRegistry:
             return int(conn.execute(text("SELECT COUNT(*) FROM ai_config_version")).scalar_one())
 
 
-_registry = ModelRegistry()
+_registry: ModelRegistry | None = None
+
+
+def register_registry_callbacks(registry: ModelRegistry) -> None:
+    register_invalidation_callback("model_cache", registry._invalidate_model_cache)
+    register_invalidation_callback("config_cache", registry._invalidate_config_cache)
 
 
 def get_model_registry() -> ModelRegistry:
+    global _registry
+    if _registry is None:
+        _registry = ModelRegistry()
     return _registry
 
 

@@ -155,7 +155,7 @@ async def _seed_socimi():
 
     with engine.begin() as conn:
         conn.execute(text(
-            "DELETE FROM micro_obligacion WHERE regulacion_relacionada = 'socimi' AND codigo LIKE 'SOCIMI_%'"
+            "DELETE FROM micro_obligacion WHERE codigo IN ('SOCIMI_DISTRIBUTION', 'SOCIMI_TAX_UNDISTRIBUTED', 'SOCIMI_TAX_REGIME', 'SOCIMI_80_20_RULE')"
         ))
         conn.execute(text(
             "DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'SOCIMI_TEST'))"

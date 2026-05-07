@@ -539,7 +539,7 @@ def test_discover_cnmv_circulares_from_main_page(monkeypatch):
         return httpx.Response(200, content=b"<html></html>")
 
     # Use fixture directly
-    main_html = fixture_path.read_text()
+    main_html = fixture_path.read_text(encoding="utf-8")
     from bs4 import BeautifulSoup
     import re
     soup = BeautifulSoup(main_html, "html.parser")

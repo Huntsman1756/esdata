@@ -88,7 +88,7 @@ async def iso20022_parse(xml_file: UploadFile = File(..., description="XML file 
         )
 
     filename = xml_file.filename or "upload.xml"
-    validation = _file_validator.validate(content, filename)
+    validation = _file_validator.validate(filename, content)
     if validation.status == FileStatus.REJECTED:
         raise HTTPException(
             status_code=400,
@@ -129,7 +129,7 @@ async def n43_parse(n43_file: UploadFile = File(..., description="N43 bank state
         )
 
     filename = n43_file.filename or "upload.n43"
-    validation = _file_validator.validate(content, filename)
+    validation = _file_validator.validate(filename, content)
     if validation.status == FileStatus.REJECTED:
         raise HTTPException(
             status_code=400,
@@ -141,7 +141,7 @@ async def n43_parse(n43_file: UploadFile = File(..., description="N43 bank state
             detail={"error": "File quarantined", "reason": validation.rejection_reason},
         )
 
-    text = content.decode("utf-8", errors="replace")
+    text = content.decode("latin-1", errors="replace")
     if not text.strip():
         raise HTTPException(
             status_code=400,
@@ -284,8 +284,9 @@ async def sepa_group_transactions(req: SepaGroupTransactionsRequest):
 
     Stateless — no DB access.  Returns grouped batches with metadata.
     """
+    raw_transactions = [tx.model_dump() for tx in req.transactions]
     batches = group_transactions(
-        transactions=req.transactions,
+        transactions=raw_transactions,
         max_batch_size=req.max_batch_size,
         group_by=req.group_by,
     )
@@ -307,7 +308,7 @@ async def sepa_group_transactions(req: SepaGroupTransactionsRequest):
         )
 
     return SepaGroupTransactionsResponse(
-        total_transactions=len(req.transactions),
+        total_transactions=len(raw_transactions),
         total_batches=len(batch_items),
         batches=batch_items,
     )

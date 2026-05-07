@@ -16,7 +16,7 @@ from main import app
 @pytest.fixture
 def integration_db():
     """Reuse the shared sqlite test DB prepared by conftest."""
-    from conftest import engine
+    from .conftest import engine
 
     return engine
 
@@ -91,7 +91,8 @@ async def test_legislacion_list_returns_normas(seeded_db):
     assert "normas" in data
     codigos = [n["codigo"] for n in data["normas"]]
     assert "LIVA" in codigos
-    assert "LIRPF" in codigos
+    assert "ITPAJD" in codigos
+    assert "RIRNR" in codigos
 
 
 @pytest.mark.integration
