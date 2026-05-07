@@ -61,6 +61,7 @@ def _log_mcp_call(
     user_id: str,
     response_payload: dict[str, Any],
     response_time_ms: float,
+    status_code: int | None = None,
 ) -> None:
     """Log MCP stdio tool call to query audit log for E2E traceability."""
 
@@ -69,7 +70,8 @@ def _log_mcp_call(
     correlated_entry = _get_correlated_http_entry(request_id)
     response_summary = _response_summary_from_payload(response_payload)
     if not response_summary:
-        response_summary = f"tool={tool_name} duration={response_time_ms:.0f}ms"
+        status = status_code or 200
+        response_summary = f"status={status} tool={tool_name} duration={response_time_ms:.0f}ms"
 
     retrieved_chunks: list[dict[str, Any]] = []
     sources: list[dict[str, Any]] = []
@@ -250,6 +252,7 @@ class MCPStdioServer:
             try:
                 self._dispatch_tool(tool_name, arguments, msg_id)
             except Exception as e:
+                self._current_tool_status = 500
                 buffered_messages.append({
                     "jsonrpc": "2.0",
                     "id": msg_id,
@@ -257,6 +260,7 @@ class MCPStdioServer:
                 })
 
             if not buffered_messages:
+                self._current_tool_status = 500
                 buffered_messages.append({
                     "jsonrpc": "2.0",
                     "id": msg_id,
@@ -272,6 +276,7 @@ class MCPStdioServer:
                     user_id=user_id,
                     response_payload=buffered_messages[-1],
                     response_time_ms=_elapsed,
+                    status_code=self._current_tool_status,
                 )
             except Exception as e:
                 original_send({
