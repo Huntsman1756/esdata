@@ -26,6 +26,12 @@ HTTP_MCP_OPERATIONS = [
     "get_modelo_campana_operativa",
     "get_modelo_resumen_operativo",
     "get_modelo_fuentes_oficiales",
+    # Consulta
+    "consulta_fiscal",
+    # Calendario fiscal
+    "list_calendario_fiscal",
+    "get_proximo_vencimiento",
+    "get_calendario_modelo",
 ]
 
 

@@ -1,6 +1,7 @@
 """Tests for the agent layer: MCP catalog tools, stdio handlers, and agent monitor."""
 
 import os
+import io
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -297,6 +298,62 @@ class TestStdioHandlers:
         assert len(sent) == 1
         assert "error" in sent[0]
         assert sent[0]["error"]["code"] == -32601
+
+    def test_stdio_content_length_parser_consumes_header_separator(self, monkeypatch):
+        from mcp_stdio import MCPStdioServer
+
+        server = MCPStdioServer()
+        sent = []
+        server._send = lambda data: sent.append(data)
+
+        payload = '{"jsonrpc":"2.0","id":1,"method":"ping"}'
+        monkeypatch.setattr(sys, "stdin", io.StringIO(f"Content-Length: {len(payload)}\r\n\r\n{payload}"))
+
+        server.run()
+
+        assert sent == [{"jsonrpc": "2.0", "id": 1, "result": None}]
+
+    def test_stdio_internal_requests_use_mcp_context(self, monkeypatch):
+        from mcp_request_context import is_mcp_internal_request
+        from mcp_stdio import MCPStdioServer
+
+        class FakeResponse:
+            status_code = 200
+
+            def json(self):
+                return {"consulta": "q", "total_resultados": 0, "modelos": [], "resultados": []}
+
+        observed = []
+
+        def fake_get(*args, **kwargs):
+            observed.append(is_mcp_internal_request())
+            return FakeResponse()
+
+        server = MCPStdioServer()
+        server._send = lambda data: None
+        monkeypatch.setattr("mcp_stdio.client.get", fake_get)
+
+        server._handle_tools_call(
+            {"params": {"name": "consulta_fiscal", "arguments": {"q": "iva"}}},
+            1,
+        )
+
+        assert observed == [True]
+
+    def test_stdio_audit_uses_error_status_for_unknown_tool(self, monkeypatch):
+        from mcp_stdio import MCPStdioServer
+
+        audited = []
+        server = MCPStdioServer()
+        server._send = lambda data: None
+        monkeypatch.setattr("mcp_stdio._log_mcp_call", lambda tool, args, status, elapsed: audited.append(status))
+
+        server._handle_tools_call(
+            {"params": {"name": "unknown_tool", "arguments": {}}},
+            1,
+        )
+
+        assert audited == [500]
 
     def test_entidad_to_sujeto_mapping(self):
         from mcp_stdio import MCPStdioServer

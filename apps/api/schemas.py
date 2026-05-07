@@ -562,16 +562,21 @@ class AEATModeloDetail(BaseModel):
 
 class ChunkCitation(BaseModel):
     chunk_id: str = Field(description="ID del chunk recuperado")
-    content_preview: str = Field(description="Vista previa del contenido del chunk")
-    relevance_score: float = Field(description="Puntuación de relevancia")
+    content_preview: str | None = Field(default=None, description="Vista previa del contenido del chunk")
+    relevance_score: float | None = Field(default=None, description="Puntuacion de relevancia")
+    source_document: str | None = Field(default=None, description="Documento fuente")
+    article_number: str | None = Field(default=None, description="Articulo citado")
+    rerank_score: float | None = Field(default=None, description="Puntuacion del reranker")
+    excerpt: str | None = Field(default=None, description="Extracto exacto citado")
 
 
 class ClaimCitation(BaseModel):
-    claim: str = Field(description="Afirmación factual")
-    source_chunk_id: str = Field(description="Chunk que respalda la afirmación")
+    claim: str | dict = Field(description="Afirmacion factual")
+    source_chunk_id: str | None = Field(default=None, description="Chunk que respalda la afirmacion")
     source_url: str | None = Field(default=None, description="URL de la fuente original")
-    grounded: bool = Field(description="Si la afirmación está respaldada por evidencia")
-    confidence: float = Field(description="Confianza del grounding (0-1)")
+    grounded: bool = Field(default=False, description="Si la afirmacion esta respaldada por evidencia")
+    confidence: float | None = Field(default=None, description="Confianza del grounding (0-1)")
+    citations: list[dict] = Field(default_factory=list, description="Citas candidatas para la afirmacion")
 
 
 class MCPConfidenceInfo(BaseModel):

@@ -3,6 +3,19 @@
 from unittest.mock import MagicMock, patch
 
 from services import calendario_fiscal as cf
+from main import app
+
+
+def test_calendario_router_is_registered():
+    operation_ids = {
+        route.operation_id
+        for route in app.routes
+        if getattr(route, "operation_id", None)
+    }
+
+    assert "list_calendario_fiscal" in operation_ids
+    assert "get_proximo_vencimiento" in operation_ids
+    assert "get_calendario_modelo" in operation_ids
 
 
 class TestListCalendario:

@@ -5,14 +5,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-from services.query_audit import QueryAuditService, reset_query_audit_service
 from _mcp_http_transport_harness import run_http_mcp_tool_call
+from services.query_audit import QueryAuditService, reset_query_audit_service
 
 
 def setup_function():

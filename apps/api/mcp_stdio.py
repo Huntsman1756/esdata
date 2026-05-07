@@ -116,11 +116,17 @@ def _log_mcp_call(
     )
 
 
+def _internal_get(*args, **kwargs):
+    with mcp_internal_request():
+        return client.get(*args, **kwargs)
+
+
 class MCPStdioServer:
     """Minimal MCP stdio server using Streamable HTTP transport concept."""
 
     def __init__(self):
         self._message_id = 0
+        self._current_tool_status = 200
 
     def _next_id(self) -> int:
         self._message_id += 1
@@ -138,9 +144,14 @@ class MCPStdioServer:
             if not line:
                 break
 
-            # Parse content-length header
-            if "Content-Length:" in line:
-                content_length = int(line.split(":")[1].strip())
+            # Parse content-length framing. MCP clients send a blank line
+            # between headers and the JSON-RPC payload.
+            if line.lower().startswith("content-length:"):
+                content_length = int(line.split(":", 1)[1].strip())
+                while True:
+                    separator = sys.stdin.readline()
+                    if separator in ("", "\n", "\r\n"):
+                        break
                 raw = sys.stdin.read(content_length)
                 message = json.loads(raw)
             else:
@@ -177,6 +188,7 @@ class MCPStdioServer:
             })
 
     def _send_error(self, request_id: Any, code: int, message: str):
+        self._current_tool_status = 500
         self._send_jsonrpc(request_id, None, {"code": code, "message": message})
 
     def _handle_initialize(self, message: dict):
@@ -208,6 +220,7 @@ class MCPStdioServer:
 
         import time as _time
         _start = _time.time()
+        self._current_tool_status = 200
         buffered_messages: list[dict[str, Any]] = []
         original_send = self._send
         original_request = client.request
@@ -277,7 +290,7 @@ class MCPStdioServer:
                 tipo_operacion = arguments.get("tipo_operacion", "")
 
                 # Call the actual endpoint
-                response = client.get(
+                response = _internal_get(
                     "/v1/consulta",
                     params={"q": q, "sujeto": sujeto, "pais": pais, "tipo_operacion": tipo_operacion},
                 )
@@ -301,7 +314,7 @@ class MCPStdioServer:
                 con_sancion = arguments.get("con_sancion", True)
                 limite = arguments.get("limite", 50)
 
-                response = client.get(
+                response = _internal_get(
                     "/v1/obligaciones/operativas",
                     params={"ambito": ambito, "frecuencia": frecuencia, "con_sancion": con_sancion, "limite": limite},
                 )
@@ -322,7 +335,7 @@ class MCPStdioServer:
                 dias_proximo = arguments.get("dias_proximo", 30)
                 frecuencia = arguments.get("frecuencia")
 
-                response = client.get(
+                response = _internal_get(
                     "/v1/obligaciones/deadlines",
                     params={"dias_proximo": dias_proximo, "frecuencia": frecuencia},
                 )
@@ -341,7 +354,7 @@ class MCPStdioServer:
 
         elif tool_name == "listar_obligaciones_aplicables":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/obligaciones/aplicables",
                     params={
                         "tipo_entidad": arguments.get("tipo_entidad", "sociedad_valores"),
@@ -363,7 +376,7 @@ class MCPStdioServer:
             try:
                 codigo = arguments.get("codigo", "")
 
-                response = client.get(f"/v1/obligaciones/{codigo}")
+                response = _internal_get(f"/v1/obligaciones/{codigo}")
 
                 if response.status_code == 200:
                     data = response.json()
@@ -384,7 +397,7 @@ class MCPStdioServer:
 
                 sujeto = sujeto_arg or self._entidad_to_sujeto(tipo_entidad)
 
-                response = client.get(
+                response = _internal_get(
                     "/v1/consulta",
                     params={"q": q, "sujeto": sujeto},
                 )
@@ -421,7 +434,7 @@ class MCPStdioServer:
                     params["estado"] = estado
                 params["limite"] = limite
 
-                response = client.get(
+                response = _internal_get(
                     "/v1/compliance/workflow",
                     params=params,
                 )
@@ -439,7 +452,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing agente_compliance_resumen: {e!s}")
         elif tool_name == "list_sfdr_products":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/sfdr/products",
                     params={
                         "product_type": arguments.get("product_type"),
@@ -461,7 +474,7 @@ class MCPStdioServer:
         elif tool_name == "get_sfdr_product":
             try:
                 item_id = arguments.get("item_id")
-                response = client.get(f"/v1/sfdr/products/{item_id}")
+                response = _internal_get(f"/v1/sfdr/products/{item_id}")
                 if response.status_code == 200:
                     data = response.json()
                     output = self._format_sfdr_product_detail(data)
@@ -475,7 +488,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_product: {e!s}")
         elif tool_name == "list_sfdr_pacai_indicators":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/sfdr/pacai-indicators",
                     params={
                         "product_id": arguments.get("product_id"),
@@ -496,7 +509,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_pacai_indicators: {e!s}")
         elif tool_name == "get_sfdr_pacai_indicator":
             try:
-                response = client.get(f"/v1/sfdr/pacai-indicators/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/sfdr/pacai-indicators/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -509,7 +522,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_pacai_indicator: {e!s}")
         elif tool_name == "list_sfdr_entity_paci":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/sfdr/entity-paci",
                     params={
                         "entity_id": arguments.get("entity_id"),
@@ -530,7 +543,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_entity_paci: {e!s}")
         elif tool_name == "get_sfdr_entity_paci":
             try:
-                response = client.get(f"/v1/sfdr/entity-paci/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/sfdr/entity-paci/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -543,7 +556,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_entity_paci: {e!s}")
         elif tool_name == "list_sfdr_pre_contractual":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/sfdr/pre-contractual",
                     params={
                         "product_id": arguments.get("product_id"),
@@ -564,7 +577,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_pre_contractual: {e!s}")
         elif tool_name == "get_sfdr_pre_contractual":
             try:
-                response = client.get(f"/v1/sfdr/pre-contractual/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/sfdr/pre-contractual/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -577,7 +590,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_pre_contractual: {e!s}")
         elif tool_name == "list_sfdr_annual_reports":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/sfdr/annual-reports",
                     params={
                         "entity_id": arguments.get("entity_id"),
@@ -598,7 +611,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_annual_reports: {e!s}")
         elif tool_name == "get_sfdr_annual_report":
             try:
-                response = client.get(f"/v1/sfdr/annual-reports/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/sfdr/annual-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -611,7 +624,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_annual_report: {e!s}")
         elif tool_name == "list_csrd_entity_reports":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/csrd/entity-reports",
                     params={
                         "entity_id": arguments.get("entity_id"),
@@ -633,7 +646,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_entity_reports: {e!s}")
         elif tool_name == "get_csrd_entity_report":
             try:
-                response = client.get(f"/v1/csrd/entity-reports/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/csrd/entity-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -646,7 +659,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_entity_report: {e!s}")
         elif tool_name == "list_csrd_esg_data_points":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/csrd/esg-data-points",
                     params={
                         "report_id": arguments.get("report_id"),
@@ -667,7 +680,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_esg_data_points: {e!s}")
         elif tool_name == "get_csrd_esg_data_point":
             try:
-                response = client.get(f"/v1/csrd/esg-data-points/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/csrd/esg-data-points/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -680,7 +693,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_esg_data_point: {e!s}")
         elif tool_name == "list_csrd_ess":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/csrd/ess",
                     params={
                         "topic": arguments.get("topic"),
@@ -701,7 +714,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_ess: {e!s}")
         elif tool_name == "get_csrd_ess":
             try:
-                response = client.get(f"/v1/csrd/ess/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/csrd/ess/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -714,7 +727,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_ess: {e!s}")
         elif tool_name == "list_csrd_double_materiality":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/csrd/double-materiality",
                     params={"entity_id": arguments.get("entity_id")},
                 )
@@ -731,7 +744,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_double_materiality: {e!s}")
         elif tool_name == "get_csrd_double_materiality":
             try:
-                response = client.get(f"/v1/csrd/double-materiality/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/csrd/double-materiality/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -744,7 +757,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_double_materiality: {e!s}")
         elif tool_name == "list_aifmd_funds":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/aifmd/funds",
                     params={
                         "fund_type": arguments.get("fund_type"),
@@ -765,7 +778,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_aifmd_funds: {e!s}")
         elif tool_name == "get_aifmd_fund":
             try:
-                response = client.get(f"/v1/aifmd/funds/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/aifmd/funds/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -778,7 +791,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_aifmd_fund: {e!s}")
         elif tool_name == "list_aifmd_regulatory_reports":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/aifmd/regulatory-reports",
                     params={
                         "fund_id": arguments.get("fund_id"),
@@ -798,7 +811,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_aifmd_regulatory_reports: {e!s}")
         elif tool_name == "get_aifmd_regulatory_report":
             try:
-                response = client.get(f"/v1/aifmd/regulatory-reports/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/aifmd/regulatory-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -811,7 +824,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_aifmd_regulatory_report: {e!s}")
         elif tool_name == "list_aifmd_liquidity_management":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/aifmd/liquidity-management",
                     params={
                         "fund_id": arguments.get("fund_id"),
@@ -831,7 +844,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_aifmd_liquidity_management: {e!s}")
         elif tool_name == "get_aifmd_liquidity_management":
             try:
-                response = client.get(f"/v1/aifmd/liquidity-management/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/aifmd/liquidity-management/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -844,7 +857,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_aifmd_liquidity_management: {e!s}")
         elif tool_name == "list_ucits_funds":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/ucits/funds",
                     params={
                         "management_company": arguments.get("management_company"),
@@ -865,7 +878,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_ucits_funds: {e!s}")
         elif tool_name == "get_ucits_fund":
             try:
-                response = client.get(f"/v1/ucits/funds/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/ucits/funds/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -878,7 +891,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_ucits_fund: {e!s}")
         elif tool_name == "list_ucits_regulatory_reports":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/ucits/regulatory-reports",
                     params={
                         "fund_id": arguments.get("fund_id"),
@@ -898,7 +911,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_ucits_regulatory_reports: {e!s}")
         elif tool_name == "get_ucits_regulatory_report":
             try:
-                response = client.get(f"/v1/ucits/regulatory-reports/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/ucits/regulatory-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -911,7 +924,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_ucits_regulatory_report: {e!s}")
         elif tool_name == "list_crd_capital_positions":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/crd/capital-positions",
                     params={
                         "entity_id": arguments.get("entity_id"),
@@ -932,7 +945,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_crd_capital_positions: {e!s}")
         elif tool_name == "get_crd_capital_position":
             try:
-                response = client.get(f"/v1/crd/capital-positions/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/crd/capital-positions/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -945,7 +958,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_crd_capital_position: {e!s}")
         elif tool_name == "list_crd_stress_tests":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/crd/stress-tests",
                     params={
                         "entity_id": arguments.get("entity_id"),
@@ -966,7 +979,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_crd_stress_tests: {e!s}")
         elif tool_name == "get_crd_stress_test":
             try:
-                response = client.get(f"/v1/crd/stress-tests/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/crd/stress-tests/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -979,7 +992,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_crd_stress_test: {e!s}")
         elif tool_name == "list_brrd_bail_in":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/crd/bail-in",
                     params={"entity_id": arguments.get("entity_id")},
                 )
@@ -996,7 +1009,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_brrd_bail_in: {e!s}")
         elif tool_name == "get_brrd_bail_in":
             try:
-                response = client.get(f"/v1/crd/bail-in/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/crd/bail-in/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -1009,7 +1022,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_brrd_bail_in: {e!s}")
         elif tool_name == "list_emir_trade_reports":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/emir/trade-reports",
                     params={
                         "asset_class": arguments.get("asset_class"),
@@ -1030,7 +1043,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_emir_trade_reports: {e!s}")
         elif tool_name == "get_emir_trade_report":
             try:
-                response = client.get(f"/v1/emir/trade-reports/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/emir/trade-reports/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {
@@ -1043,7 +1056,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_emir_trade_report: {e!s}")
         elif tool_name == "list_emir_clearing_members":
             try:
-                response = client.get(
+                response = _internal_get(
                     "/v1/emir/clearing-members",
                     params={
                         "clearing_type": arguments.get("clearing_type"),
@@ -1063,7 +1076,7 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing list_emir_clearing_members: {e!s}")
         elif tool_name == "get_emir_clearing_member":
             try:
-                response = client.get(f"/v1/emir/clearing-members/{arguments.get('item_id')}")
+                response = _internal_get(f"/v1/emir/clearing-members/{arguments.get('item_id')}")
                 if response.status_code == 200:
                     data = response.json()
                     self._send_jsonrpc(msg_id, {

@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import text
 
 from db import db_session
-from services.search import _build_common_filters, _build_fragment, _build_tsquery_sql, _chunk_rank_boost, _is_postgres
+from services.search import _build_fragment, _build_tsquery_sql, _is_postgres
 
 logger = logging.getLogger(__name__)
 
@@ -102,11 +102,11 @@ def _fulltext_rank_pg(
 ) -> list[dict[str, Any]]:
     """Run fulltext search reusing _search_legislacion_pg from search.py."""
     from services.search import _search_legislacion_pg
-    
+
     # _search_legislacion_pg returns {"q": ..., "resultados": [...]}
     resp = _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en)
     results = resp.get("resultados", []) if isinstance(resp, dict) else resp
-    
+
     # Transform results to hybrid format: add source and doc_id
     for r in results:
         r["source"] = "fulltext"
@@ -115,8 +115,22 @@ def _fulltext_rank_pg(
         # Ensure chunk_texto exists
         if "chunk_texto" not in r:
             r["chunk_texto"] = r.get("texto", "")
-    
+
     return results[:limit]
+
+
+def _hybrid_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en, limit) -> dict[str, Any]:
+    """SQLite fallback: fulltext only (no vector support)."""
+    from services.search import _search_legislacion_sqlite
+
+    result = _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en)
+    return {
+        "q": q,
+        "resultados": result.get("resultados", [])[:limit],
+        "search_mode": "fulltext",
+        "weights": {"fulltext": 1.0, "vector": 0.0},
+        "note": "SQLite does not support vector search",
+    }
 
 
 def _vector_rank_pg(
@@ -132,7 +146,7 @@ def _vector_rank_pg(
 
     query_vec_str = ",".join(f"{v:.6f}" for v in query_vec[0])
 
-    params: dict = {"query_vec": f"[{query_vec_str}]", "limit": limit}
+    params: dict = {"query_vec": f"[{query_vec_str}]", "limit": limit, "vigente_en": vigente_en}
 
     if norma is not None:
         params["norma"] = norma
@@ -183,6 +197,10 @@ def _vector_rank_pg(
               FROM version_articulo v2
               JOIN articulo a2 ON a2.id = v2.articulo_id
               WHERE a2.id = cf.documento_origen_id
+                AND (:vigente_en IS NULL OR (
+                    v2.vigente_desde <= :vigente_en
+                    AND (v2.vigente_hasta IS NULL OR v2.vigente_hasta >= :vigente_en)
+                ))
           )
         ORDER BY cf.documento_origen_id, similarity DESC
         LIMIT :limit
@@ -344,7 +362,8 @@ def _doctrina_fulltext_pg(
     params: dict = {}
 
     if q and q.strip():
-        tsquery = _build_tsquery_sql(q)
+        tsquery, tsquery_params = _build_tsquery_sql(q)
+        params.update(tsquery_params)
         if tsquery:
             search_filter = "d.search_vector @@ " + tsquery
             rank_expr = "ts_rank(d.search_vector, " + tsquery + ")"

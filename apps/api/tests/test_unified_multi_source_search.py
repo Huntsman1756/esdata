@@ -498,6 +498,22 @@ class Test31xSearchHandlers:
         results = _31x_fulltext(mock_db, "", "mica", 10)
         assert results == []
 
+    def test_31x_fulltext_filters_requested_source_and_uses_valid_alias(self):
+        mock_db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.mappings().fetchall.return_value = []
+        mock_db.execute.return_value = mock_cursor
+
+        _31x_fulltext(mock_db, "casp crypto", "mica", 10)
+
+        sql = str(mock_db.execute.call_args.args[0])
+        params = mock_db.execute.call_args.args[1]
+        assert "LOWER(df.texto)" in sql
+        assert "LOWER(t.texto)" not in sql
+        assert ":_31x_ts_query" in sql
+        assert params["source_type"] == "mica"
+        assert params["_31x_ts_query"] == "casp crypto"
+
     def test_31x_vector_no_embed_fn(self):
         mock_db = MagicMock()
         results = _31x_vector(mock_db, "test", "mica", None, 10)
@@ -507,6 +523,19 @@ class Test31xSearchHandlers:
         mock_db = MagicMock()
         results = _31x_vector(mock_db, "test", "mica", lambda q: None, 10)
         assert results == []
+
+    def test_31x_vector_filters_requested_source(self):
+        mock_db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.mappings().fetchall.return_value = []
+        mock_db.execute.return_value = mock_cursor
+
+        _31x_vector(mock_db, "test", "dac", lambda q: [0.1, 0.2], 10)
+
+        sql = str(mock_db.execute.call_args.args[0])
+        params = mock_db.execute.call_args.args[1]
+        assert ":source_type" in sql
+        assert params["source_type"] == "dac"
 
     def test_31x_source_type_dispatch(self):
         """Verify all 9 31.x source types are in the dispatch map."""

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from _mcp_http_transport_harness import run_http_mcp_tool_call
 
 

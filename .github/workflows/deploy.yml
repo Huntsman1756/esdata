@@ -8,9 +8,7 @@
 # DEPRECATED — ver docs/archive/workflows/deploy-railway.md
 name: Deploy [DEPRECATED]
 
-on:
-  push:
-    branches: [main]
+on: {}
 
 env:
   RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

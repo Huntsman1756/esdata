@@ -263,6 +263,72 @@ async def test_buscar_runtime_persists_query_audit_entry():
 
 
 @pytest.mark.asyncio
+async def test_buscar_legislacion_alias_persists_query_audit_entry():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-leg-audit-001", "x-user-id": "internal-leg-user"},
+    ) as client:
+        response = await client.get("/v1/legislacion/buscar?q=tipo+reducido+iva")
+
+    assert response.status_code == 200
+
+    entries = QueryAuditService().get_by_request_id("req-buscar-leg-audit-001")
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.path == "/v1/legislacion/buscar"
+    assert entry.user_id == "internal-leg-user"
+    assert "tipo reducido iva" in entry.query_text.lower()
+    assert entry.response_summary
+
+
+@pytest.mark.asyncio
+async def test_buscar_legislacion_hybrid_persists_query_audit_entry(monkeypatch):
+    from routers import buscar as buscar_router
+
+    monkeypatch.setattr(
+        buscar_router,
+        "hybrid_search_legislacion",
+        lambda *args, **kwargs: {"q": args[0], "resultados": []},
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-hybrid-audit-001", "x-user-id": "internal-hybrid-user"},
+    ) as client:
+        response = await client.get("/v1/legislacion/buscar/hybrid?q=tipo+reducido+iva")
+
+    assert response.status_code == 200
+
+    entries = QueryAuditService().get_by_request_id("req-buscar-hybrid-audit-001")
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.path == "/v1/legislacion/buscar/hybrid"
+    assert entry.user_id == "internal-hybrid-user"
+    assert "tipo reducido iva" in entry.query_text.lower()
+    assert "resultados=0" in entry.response_summary
+
+
+@pytest.mark.asyncio
+async def test_buscar_legislacion_hybrid_sqlite_fallback_persists_query_audit_entry():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": "req-buscar-hybrid-sqlite-001", "x-user-id": "internal-hybrid-user"},
+    ) as client:
+        response = await client.get("/v1/legislacion/buscar/hybrid?q=tipo+reducido+iva")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["search_mode"] == "fulltext"
+
+    entries = QueryAuditService().get_by_request_id("req-buscar-hybrid-sqlite-001")
+    assert len(entries) == 1
+    assert entries[0].path == "/v1/legislacion/buscar/hybrid"
+
+
+@pytest.mark.asyncio
 async def test_doctrina_buscar_runtime_persists_query_audit_entry():
     async with AsyncClient(
         transport=ASGITransport(app=app),
