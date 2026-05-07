@@ -112,7 +112,7 @@ def upgrade() -> None:
 
             IF FOUND THEN
                 RAISE EXCEPTION 'Forbidden public/anon/authenticated policy %.%: % roles=%',
-                    p.tablename, p.policyname, p.roles;
+                    p.schemaname, p.tablename, p.policyname, p.roles;
             END IF;
         END $$
         """

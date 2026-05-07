@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -9,6 +10,30 @@ if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
 MISSING_TABLES_MESSAGE = "run Alembic migrations instead of creating API runtime tables"
+
+
+def _count_plpgsql_raise_placeholders(format_string):
+    placeholders = 0
+    index = 0
+    while index < len(format_string):
+        if format_string[index] != "%":
+            index += 1
+            continue
+        if index + 1 < len(format_string) and format_string[index + 1] == "%":
+            index += 2
+            continue
+        placeholders += 1
+        index += 1
+    return placeholders
+
+
+def _count_plpgsql_raise_arguments(arguments):
+    normalized = arguments.strip()
+    if not normalized:
+        return 0
+    if normalized.startswith(","):
+        normalized = normalized[1:]
+    return len([argument for argument in normalized.split(",") if argument.strip()])
 
 
 def _assert_no_runtime_ddl(statements):
@@ -176,3 +201,21 @@ def test_latest_p0_rls_migration_absorbs_drift_and_applies_rls_policies():
     assert "service_role_all" in text
     assert "esdata_all" in text
     assert "roles && ARRAY['public', 'anon', 'authenticated']::name[]" in text
+
+
+def test_latest_p0_rls_migration_raise_exception_placeholders_match_arguments():
+    migration = ROOT / "alembic/versions/20260506_0001_p0_rls_current_tables.py"
+    text = migration.read_text(encoding="utf-8")
+    mismatches = []
+
+    for match in re.finditer(
+        r"RAISE\s+EXCEPTION\s+'(?P<message>(?:''|[^'])*)'(?P<arguments>.*?);",
+        text,
+        re.DOTALL | re.IGNORECASE,
+    ):
+        expected = _count_plpgsql_raise_placeholders(match.group("message"))
+        actual = _count_plpgsql_raise_arguments(match.group("arguments"))
+        if expected != actual:
+            mismatches.append(f"{match.group('message')}: expected {expected}, got {actual}")
+
+    assert mismatches == []
