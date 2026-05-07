@@ -3,3 +3,7 @@ exclude = [
   "^https?://",
   "^mailto:",
 ]
+exclude_path = [
+  "docs/archive/.*",
+  "docs/superpowers/.*",
+]

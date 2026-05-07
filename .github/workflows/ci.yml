@@ -106,7 +106,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
         env:
           POSTGRES_USER: esdata
           POSTGRES_PASSWORD: esdata_test
@@ -184,7 +184,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
         env:
           POSTGRES_USER: esdata
           POSTGRES_PASSWORD: esdata_test
@@ -230,7 +230,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
         env:
           POSTGRES_USER: esdata
           POSTGRES_PASSWORD: esdata_test
@@ -301,7 +301,7 @@ jobs:
         run: python scripts/maintenance/secrets_audit.py
 
       - name: Fail on forbidden env files and env docs drift
-        run: python scripts/maintenance/verify-doc-artifacts.py
+        run: python scripts/maintenance/verify-doc-artifacts.py --security-only
 
   docs-artifacts:
     runs-on: ubuntu-latest
