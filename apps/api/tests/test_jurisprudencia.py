@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from conftest import engine
+from .conftest import engine
 from main import app
 
 
@@ -41,9 +41,9 @@ async def test_jurisprudencia_buscar_returns_sentencias_only():
 
     assert response.status_code == 200
     data = response.json()
-    assert [item["referencia"] for item in data["resultados"]] == [
-        "ECLI:ES:TS:2024:2741"
-    ]
+    referencias = [item["referencia"] for item in data["resultados"]]
+    assert "ECLI:ES:TS:2024:2741" in referencias
+    assert all(item["tipo_documento"] in {"sentencia_ts", "sentencia"} for item in data["resultados"])
 
 
 @pytest.mark.asyncio

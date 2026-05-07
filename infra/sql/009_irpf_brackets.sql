@@ -10,6 +10,9 @@ CREATE TABLE irpf_brackets (
     to_amount       NUMERIC(12,2),                    -- NULL = no upper limit
     rate            NUMERIC(5,2) NOT NULL,            -- percentage
     source          TEXT,
+    source_url      TEXT,
+    ingestion_timestamp TIMESTAMPTZ DEFAULT now(),
+    superseded      INTEGER NOT NULL DEFAULT 0,
     creado_at       TIMESTAMPTZ DEFAULT now(),
     UNIQUE(year, bracket_type, territory, from_amount, to_amount)
 );
@@ -21,6 +24,9 @@ CREATE TABLE irpf_personal_minimums (
     subcategory     TEXT NOT NULL,                    -- 'general', 'age_65_plus', 'first', '33_to_65_percent', etc.
     amount          NUMERIC(12,2) NOT NULL,
     source          TEXT,
+    source_url      TEXT,
+    ingestion_timestamp TIMESTAMPTZ DEFAULT now(),
+    superseded      INTEGER NOT NULL DEFAULT 0,
     creado_at       TIMESTAMPTZ DEFAULT now(),
     UNIQUE(year, category, subcategory)
 );
@@ -37,6 +43,9 @@ CREATE TABLE irpf_work_income_reduction (
     phase_out_limit NUMERIC(12,2),
     phase_out_formula TEXT,
     source          TEXT,
+    source_url      TEXT,
+    ingestion_timestamp TIMESTAMPTZ DEFAULT now(),
+    superseded      INTEGER NOT NULL DEFAULT 0,
     creado_at       TIMESTAMPTZ DEFAULT now(),
     UNIQUE(year, rule_type)
 );

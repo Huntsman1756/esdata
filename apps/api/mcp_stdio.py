@@ -5,14 +5,13 @@ import sys
 import uuid
 from typing import Any
 
-from fastapi.testclient import TestClient
+import anyio
+import httpx
 
 # FastAPI app must be imported before any DB access
 from main import app
 from mcp_catalog import get_stdio_tool_definitions
 from mcp_request_context import mcp_internal_request
-
-client = TestClient(app)
 
 
 def _next_stdio_request_id() -> str:
@@ -121,46 +120,68 @@ class MCPStdioServer:
 
     def __init__(self):
         self._message_id = 0
+        self._http_client: httpx.AsyncClient | None = None
 
     def _next_id(self) -> int:
         self._message_id += 1
         return self._message_id
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._http_client is None:
+            self._http_client = httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+                timeout=30.0,
+            )
+        return self._http_client
+
+    async def _call_endpoint(self, method: str, path: str, params: dict | None = None) -> dict:
+        client = await self._get_client()
+        async with client.request(method.upper(), path, params=params) as response:
+            return {
+                "status_code": response.status_code,
+                "data": response.json() if response.status_code == 200 else None,
+            }
 
     def _send(self, data: dict[str, Any]):
         payload = json.dumps(data, ensure_ascii=False)
         sys.stdout.write(f"Content-Length: {len(payload.encode('utf-8'))}\r\n\r\n{payload}")
         sys.stdout.flush()
 
-    def run(self):
-        # MCP stdio uses JSON-RPC over stdin/stdout with content-length headers
-        while True:
-            line = sys.stdin.readline()
-            if not line:
-                break
+    async def run(self):
+        try:
+            stdin_raw = anyio.wrap_socket(sys.stdin.detach())
+            while True:
+                raw_line = await stdin_raw.receive_line()
+                line = raw_line.decode("utf-8")
+                if not line:
+                    break
 
-            # Parse content-length header
-            if "Content-Length:" in line:
-                content_length = int(line.split(":")[1].strip())
-                raw = sys.stdin.read(content_length)
-                message = json.loads(raw)
-            else:
-                message = json.loads(line.strip())
+                # Parse content-length header
+                if "Content-Length:" in line:
+                    content_length = int(line.split(":")[1].strip())
+                    raw = await stdin_raw.receive_some(content_length)
+                    message = json.loads(raw.decode("utf-8"))
+                else:
+                    message = json.loads(line.strip())
 
-            msg_type = message.get("method", "")
-            msg_id = message.get("id")
+                msg_type = message.get("method", "")
+                msg_id = message.get("id")
 
-            if msg_type == "initialize":
-                self._handle_initialize(message)
-            elif msg_type == "notifications/initialized":
-                pass  # ignore
-            elif msg_type == "tools/list":
-                self._handle_tools_list(msg_id)
-            elif msg_type == "tools/call":
-                self._handle_tools_call(message, msg_id)
-            elif msg_type == "ping":
-                self._send_jsonrpc(msg_id, None)
-            else:
-                self._send_error(msg_id, -32601, f"Unknown method: {msg_type}")
+                if msg_type == "initialize":
+                    self._handle_initialize(message)
+                elif msg_type == "notifications/initialized":
+                    pass  # ignore
+                elif msg_type == "tools/list":
+                    self._handle_tools_list(msg_id)
+                elif msg_type == "tools/call":
+                    await self._handle_tools_call(message, msg_id)
+                elif msg_type == "ping":
+                    self._send_jsonrpc(msg_id, None)
+                else:
+                    self._send_error(msg_id, -32601, f"Unknown method: {msg_type}")
+        finally:
+            if self._http_client:
+                await self._http_client.aclose()
 
     def _send_jsonrpc(self, request_id: Any, result: Any | None, error: dict | None = None):
         if error:
@@ -199,7 +220,7 @@ class MCPStdioServer:
         tools = get_stdio_tool_definitions()
         self._send_jsonrpc(msg_id, {"tools": tools})
 
-    def _handle_tools_call(self, message: dict, msg_id: Any):
+    async def _handle_tools_call(self, message: dict, msg_id: Any):
         params = message.get("params", {})
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
@@ -266,7 +287,7 @@ class MCPStdioServer:
         for payload in buffered_messages:
             original_send(payload)
 
-    def _dispatch_tool(self, tool_name: str, arguments: dict, msg_id: Any):
+    async def _dispatch_tool(self, tool_name: str, arguments: dict, msg_id: Any):
 
         if tool_name == "consulta_fiscal":
             try:
@@ -277,13 +298,14 @@ class MCPStdioServer:
                 tipo_operacion = arguments.get("tipo_operacion", "")
 
                 # Call the actual endpoint
-                response = client.get(
-                    "/v1/consulta",
+                result = await self._call_endpoint(
+                    "GET", "/v1/consulta",
                     params={"q": q, "sujeto": sujeto, "pais": pais, "tipo_operacion": tipo_operacion},
                 )
+                status_code = result["status_code"]
+                data = result["data"] or {}
 
-                if response.status_code == 200:
-                    data = response.json()
+                if status_code == 200:
                     # Format as readable text for the LLM
                     output = self._format_response(data)
                     self._send_jsonrpc(msg_id, {
@@ -291,7 +313,7 @@ class MCPStdioServer:
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing consulta: {e!s}")
         elif tool_name == "listar_obligaciones_operativas":
@@ -301,20 +323,21 @@ class MCPStdioServer:
                 con_sancion = arguments.get("con_sancion", True)
                 limite = arguments.get("limite", 50)
 
-                response = client.get(
-                    "/v1/obligaciones/operativas",
+                result = await self._call_endpoint(
+                    "GET", "/v1/obligaciones/operativas",
                     params={"ambito": ambito, "frecuencia": frecuencia, "con_sancion": con_sancion, "limite": limite},
                 )
+                status_code = result["status_code"]
+                data = result["data"] or {}
 
-                if response.status_code == 200:
-                    data = response.json()
+                if status_code == 200:
                     output = self._format_obligaciones_operativas(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing listar_obligaciones_operativas: {e!s}")
         elif tool_name == "listar_deadlines":
@@ -322,27 +345,28 @@ class MCPStdioServer:
                 dias_proximo = arguments.get("dias_proximo", 30)
                 frecuencia = arguments.get("frecuencia")
 
-                response = client.get(
-                    "/v1/obligaciones/deadlines",
+                result = await self._call_endpoint(
+                    "GET", "/v1/obligaciones/deadlines",
                     params={"dias_proximo": dias_proximo, "frecuencia": frecuencia},
                 )
+                status_code = result["status_code"]
+                data = result["data"] or {}
 
-                if response.status_code == 200:
-                    data = response.json()
+                if status_code == 200:
                     output = self._format_deadlines(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing listar_deadlines: {e!s}")
 
         elif tool_name == "listar_obligaciones_aplicables":
             try:
-                response = client.get(
-                    "/v1/obligaciones/aplicables",
+                result = await self._call_endpoint(
+                    "GET", "/v1/obligaciones/aplicables",
                     params={
                         "tipo_entidad": arguments.get("tipo_entidad", "sociedad_valores"),
                         "reporting_reservado": arguments.get("reporting_reservado", True),
@@ -350,8 +374,8 @@ class MCPStdioServer:
                         "cross_border_ue": arguments.get("cross_border_ue", False),
                     },
                 )
-                response.raise_for_status()
-                data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
                 output = self._format_obligaciones_aplicables(data)
                 self._send_jsonrpc(msg_id, {
                     "content": [{"type": "text", "text": output}],
@@ -363,17 +387,18 @@ class MCPStdioServer:
             try:
                 codigo = arguments.get("codigo", "")
 
-                response = client.get(f"/v1/obligaciones/{codigo}")
+                result = await self._call_endpoint("GET", f"/v1/obligaciones/{codigo}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
 
-                if response.status_code == 200:
-                    data = response.json()
+                if status_code == 200:
                     output = self._format_obligacion_completa(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_obligacion_completa: {e!s}")
         elif tool_name == "agente_consulta":
@@ -384,20 +409,21 @@ class MCPStdioServer:
 
                 sujeto = sujeto_arg or self._entidad_to_sujeto(tipo_entidad)
 
-                response = client.get(
-                    "/v1/consulta",
+                result = await self._call_endpoint(
+                    "GET", "/v1/consulta",
                     params={"q": q, "sujeto": sujeto},
                 )
+                status_code = result["status_code"]
+                data = result["data"] or {}
 
-                if response.status_code == 200:
-                    data = response.json()
+                if status_code == 200:
                     output = self._format_response(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing agente_consulta: {e!s}")
         elif tool_name == "agente_monitoreo_status":
@@ -421,198 +447,209 @@ class MCPStdioServer:
                     params["estado"] = estado
                 params["limite"] = limite
 
-                response = client.get(
-                    "/v1/compliance/workflow",
+                result = await self._call_endpoint(
+                    "GET", "/v1/compliance/workflow",
                     params=params,
                 )
+                status_code = result["status_code"]
+                data = result["data"] or {}
 
-                if response.status_code == 200:
-                    data = response.json()
+                if status_code == 200:
                     output = self._format_compliance_resumen(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing agente_compliance_resumen: {e!s}")
         elif tool_name == "list_sfdr_products":
             try:
-                response = client.get(
-                    "/v1/sfdr/products",
+                result = await self._call_endpoint(
+                    "GET", "/v1/sfdr/products",
                     params={
                         "product_type": arguments.get("product_type"),
                         "status": arguments.get("status"),
                         "search": arguments.get("search"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_sfdr_products(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_products: {e!s}")
         elif tool_name == "get_sfdr_product":
             try:
                 item_id = arguments.get("item_id")
-                response = client.get(f"/v1/sfdr/products/{item_id}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/sfdr/products/{item_id}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_sfdr_product_detail(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_product: {e!s}")
         elif tool_name == "list_sfdr_pacai_indicators":
             try:
-                response = client.get(
-                    "/v1/sfdr/pacai-indicators",
+                result = await self._call_endpoint(
+                    "GET", "/v1/sfdr/pacai-indicators",
                     params={
                         "product_id": arguments.get("product_id"),
                         "indicator_code": arguments.get("indicator_code"),
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_sfdr_pacai(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_pacai_indicators: {e!s}")
         elif tool_name == "get_sfdr_pacai_indicator":
             try:
-                response = client.get(f"/v1/sfdr/pacai-indicators/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/sfdr/pacai-indicators/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_pacai_indicator: {e!s}")
         elif tool_name == "list_sfdr_entity_paci":
             try:
-                response = client.get(
-                    "/v1/sfdr/entity-paci",
+                result = await self._call_endpoint(
+                    "GET", "/v1/sfdr/entity-paci",
                     params={
                         "entity_id": arguments.get("entity_id"),
                         "reporting_year": arguments.get("reporting_year"),
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_sfdr_entity_paci(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_entity_paci: {e!s}")
         elif tool_name == "get_sfdr_entity_paci":
             try:
-                response = client.get(f"/v1/sfdr/entity-paci/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/sfdr/entity-paci/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_entity_paci: {e!s}")
         elif tool_name == "list_sfdr_pre_contractual":
             try:
-                response = client.get(
-                    "/v1/sfdr/pre-contractual",
+                result = await self._call_endpoint(
+                    "GET", "/v1/sfdr/pre-contractual",
                     params={
                         "product_id": arguments.get("product_id"),
                         "document_type": arguments.get("document_type"),
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_sfdr_pre_contractual(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_pre_contractual: {e!s}")
         elif tool_name == "get_sfdr_pre_contractual":
             try:
-                response = client.get(f"/v1/sfdr/pre-contractual/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/sfdr/pre-contractual/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_pre_contractual: {e!s}")
         elif tool_name == "list_sfdr_annual_reports":
             try:
-                response = client.get(
-                    "/v1/sfdr/annual-reports",
+                result = await self._call_endpoint(
+                    "GET", "/v1/sfdr/annual-reports",
                     params={
                         "entity_id": arguments.get("entity_id"),
                         "reporting_year": arguments.get("reporting_year"),
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_sfdr_annual_reports(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_sfdr_annual_reports: {e!s}")
         elif tool_name == "get_sfdr_annual_report":
             try:
-                response = client.get(f"/v1/sfdr/annual-reports/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/sfdr/annual-reports/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_sfdr_annual_report: {e!s}")
         elif tool_name == "list_csrd_entity_reports":
             try:
-                response = client.get(
-                    "/v1/csrd/entity-reports",
+                result = await self._call_endpoint(
+                    "GET", "/v1/csrd/entity-reports",
                     params={
                         "entity_id": arguments.get("entity_id"),
                         "reporting_year": arguments.get("reporting_year"),
@@ -620,458 +657,486 @@ class MCPStdioServer:
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_csrd_entity_reports(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_entity_reports: {e!s}")
         elif tool_name == "get_csrd_entity_report":
             try:
-                response = client.get(f"/v1/csrd/entity-reports/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/csrd/entity-reports/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_entity_report: {e!s}")
         elif tool_name == "list_csrd_esg_data_points":
             try:
-                response = client.get(
-                    "/v1/csrd/esg-data-points",
+                result = await self._call_endpoint(
+                    "GET", "/v1/csrd/esg-data-points",
                     params={
                         "report_id": arguments.get("report_id"),
                         "topic": arguments.get("topic"),
                         "indicator_code": arguments.get("indicator_code"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_csrd_esg_data(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_esg_data_points: {e!s}")
         elif tool_name == "get_csrd_esg_data_point":
             try:
-                response = client.get(f"/v1/csrd/esg-data-points/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/csrd/esg-data-points/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_esg_data_point: {e!s}")
         elif tool_name == "list_csrd_ess":
             try:
-                response = client.get(
-                    "/v1/csrd/ess",
+                result = await self._call_endpoint(
+                    "GET", "/v1/csrd/ess",
                     params={
                         "topic": arguments.get("topic"),
                         "applicable_from_year": arguments.get("applicable_from_year"),
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_csrd_ess(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_ess: {e!s}")
         elif tool_name == "get_csrd_ess":
             try:
-                response = client.get(f"/v1/csrd/ess/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/csrd/ess/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_ess: {e!s}")
         elif tool_name == "list_csrd_double_materiality":
             try:
-                response = client.get(
-                    "/v1/csrd/double-materiality",
+                result = await self._call_endpoint(
+                    "GET", "/v1/csrd/double-materiality",
                     params={"entity_id": arguments.get("entity_id")},
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_csrd_double_materiality(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_csrd_double_materiality: {e!s}")
         elif tool_name == "get_csrd_double_materiality":
             try:
-                response = client.get(f"/v1/csrd/double-materiality/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/csrd/double-materiality/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_csrd_double_materiality: {e!s}")
         elif tool_name == "list_aifmd_funds":
             try:
-                response = client.get(
-                    "/v1/aifmd/funds",
+                result = await self._call_endpoint(
+                    "GET", "/v1/aifmd/funds",
                     params={
                         "fund_type": arguments.get("fund_type"),
                         "status": arguments.get("status"),
                         "home_member_state": arguments.get("home_member_state"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_aifmd_funds(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_aifmd_funds: {e!s}")
         elif tool_name == "get_aifmd_fund":
             try:
-                response = client.get(f"/v1/aifmd/funds/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/aifmd/funds/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_aifmd_fund: {e!s}")
         elif tool_name == "list_aifmd_regulatory_reports":
             try:
-                response = client.get(
-                    "/v1/aifmd/regulatory-reports",
+                result = await self._call_endpoint(
+                    "GET", "/v1/aifmd/regulatory-reports",
                     params={
                         "fund_id": arguments.get("fund_id"),
                         "report_type": arguments.get("report_type"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_aifmd_reports(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_aifmd_regulatory_reports: {e!s}")
         elif tool_name == "get_aifmd_regulatory_report":
             try:
-                response = client.get(f"/v1/aifmd/regulatory-reports/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/aifmd/regulatory-reports/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_aifmd_regulatory_report: {e!s}")
         elif tool_name == "list_aifmd_liquidity_management":
             try:
-                response = client.get(
-                    "/v1/aifmd/liquidity-management",
+                result = await self._call_endpoint(
+                    "GET", "/v1/aifmd/liquidity-management",
                     params={
                         "fund_id": arguments.get("fund_id"),
                         "redemption_suspended": arguments.get("redemption_suspended"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_aifmd_liquidity(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_aifmd_liquidity_management: {e!s}")
         elif tool_name == "get_aifmd_liquidity_management":
             try:
-                response = client.get(f"/v1/aifmd/liquidity-management/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/aifmd/liquidity-management/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_aifmd_liquidity_management: {e!s}")
         elif tool_name == "list_ucits_funds":
             try:
-                response = client.get(
-                    "/v1/ucits/funds",
+                result = await self._call_endpoint(
+                    "GET", "/v1/ucits/funds",
                     params={
                         "management_company": arguments.get("management_company"),
                         "status": arguments.get("status"),
                         "home_member_state": arguments.get("home_member_state"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_ucits_funds(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_ucits_funds: {e!s}")
         elif tool_name == "get_ucits_fund":
             try:
-                response = client.get(f"/v1/ucits/funds/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/ucits/funds/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_ucits_fund: {e!s}")
         elif tool_name == "list_ucits_regulatory_reports":
             try:
-                response = client.get(
-                    "/v1/ucits/regulatory-reports",
+                result = await self._call_endpoint(
+                    "GET", "/v1/ucits/regulatory-reports",
                     params={
                         "fund_id": arguments.get("fund_id"),
                         "report_type": arguments.get("report_type"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_ucits_reports(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_ucits_regulatory_reports: {e!s}")
         elif tool_name == "get_ucits_regulatory_report":
             try:
-                response = client.get(f"/v1/ucits/regulatory-reports/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/ucits/regulatory-reports/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_ucits_regulatory_report: {e!s}")
         elif tool_name == "list_crd_capital_positions":
             try:
-                response = client.get(
-                    "/v1/crd/capital-positions",
+                result = await self._call_endpoint(
+                    "GET", "/v1/crd/capital-positions",
                     params={
                         "entity_id": arguments.get("entity_id"),
                         "reporting_date": arguments.get("reporting_date"),
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_crd_capital(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_crd_capital_positions: {e!s}")
         elif tool_name == "get_crd_capital_position":
             try:
-                response = client.get(f"/v1/crd/capital-positions/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/crd/capital-positions/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_crd_capital_position: {e!s}")
         elif tool_name == "list_crd_stress_tests":
             try:
-                response = client.get(
-                    "/v1/crd/stress-tests",
+                result = await self._call_endpoint(
+                    "GET", "/v1/crd/stress-tests",
                     params={
                         "entity_id": arguments.get("entity_id"),
                         "test_date": arguments.get("test_date"),
                         "scenario_name": arguments.get("scenario_name"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_crd_stress_tests(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_crd_stress_tests: {e!s}")
         elif tool_name == "get_crd_stress_test":
             try:
-                response = client.get(f"/v1/crd/stress-tests/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/crd/stress-tests/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_crd_stress_test: {e!s}")
         elif tool_name == "list_brrd_bail_in":
             try:
-                response = client.get(
-                    "/v1/crd/bail-in",
+                result = await self._call_endpoint(
+                    "GET", "/v1/crd/bail-in",
                     params={"entity_id": arguments.get("entity_id")},
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_brrd_bail_in(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_brrd_bail_in: {e!s}")
         elif tool_name == "get_brrd_bail_in":
             try:
-                response = client.get(f"/v1/crd/bail-in/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/crd/bail-in/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_brrd_bail_in: {e!s}")
         elif tool_name == "list_emir_trade_reports":
             try:
-                response = client.get(
-                    "/v1/emir/trade-reports",
+                result = await self._call_endpoint(
+                    "GET", "/v1/emir/trade-reports",
                     params={
                         "asset_class": arguments.get("asset_class"),
                         "instrument_class": arguments.get("instrument_class"),
                         "clearing_obligation_applied": arguments.get("clearing_obligation_applied"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_emir_trades(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_emir_trade_reports: {e!s}")
         elif tool_name == "get_emir_trade_report":
             try:
-                response = client.get(f"/v1/emir/trade-reports/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/emir/trade-reports/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_emir_trade_report: {e!s}")
         elif tool_name == "list_emir_clearing_members":
             try:
-                response = client.get(
-                    "/v1/emir/clearing-members",
+                result = await self._call_endpoint(
+                    "GET", "/v1/emir/clearing-members",
                     params={
                         "clearing_type": arguments.get("clearing_type"),
                         "status": arguments.get("status"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     output = self._format_emir_clearing(data)
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": output}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_emir_clearing_members: {e!s}")
         elif tool_name == "get_emir_clearing_member":
             try:
-                response = client.get(f"/v1/emir/clearing-members/{arguments.get('item_id')}")
-                if response.status_code == 200:
-                    data = response.json()
+                result = await self._call_endpoint("GET", f"/v1/emir/clearing-members/{arguments.get('item_id')}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
                     self._send_jsonrpc(msg_id, {
                         "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False, indent=2)}],
                         "structuredContent": data,
                     })
                 else:
-                    self._send_error(msg_id, -32603, f"API error: {response.status_code}")
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_emir_clearing_member: {e!s}")
         else:
@@ -1516,4 +1581,4 @@ class MCPStdioServer:
 
 if __name__ == "__main__":
     server = MCPStdioServer()
-    server.run()
+    anyio.run(server.run)

@@ -1,5 +1,6 @@
 """Consulta fiscal inteligente — responde preguntas naturales devolviendo modelos, obligaciones y normativa."""
 
+import logging
 import re
 
 from db import db_session
@@ -12,12 +13,15 @@ from middleware.metrics import (
 from schemas import ConsultaFiscalResponse
 from services.ai_disclaimer import get_ai_version
 from services.faithfulness import compute_faithfulness
-from services.grounding import apply_claim_level_abstention, validate_claim_grounding
+from services.grounding import validate_claim_grounding
+from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
 from services.unified_multi_source_search import unified_multi_source_search
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 # ── Sinonimos juridicos para expansion semantica ──────────────────────────
 SINONIMOS_JURIDICOS = {
@@ -33,7 +37,7 @@ SINONIMOS_JURIDICOS = {
     "hacendario": ["aeat", "agencia tributaria", "hacienda"],
 }
 
-# ── Mapeo termino → tipo resultado preferido ──────────────────────────────
+#  Mapeo termino → tipo resultado preferido
 TERMINO_TIPO = {
     "modelo": ["modelo", "formulario", "aeat"],
     "normativa": ["articulo", "ley", "real decreto", "disposicion", "vigente"],
@@ -41,7 +45,7 @@ TERMINO_TIPO = {
     "obligacion": ["obligacion", "deber", "comunicar", "presentar", "reportar"],
 }
 
-# ── Boost por tipo de resultado ───────────────────────────────────────────
+#  Boost por tipo de resultado
 RESULTADO_BOOST = {
     "modelo": 2.0,
     "normativa": 1.5,
@@ -50,16 +54,18 @@ RESULTADO_BOOST = {
 }
 
 FAITHFULNESS_REVIEW_THRESHOLD = 0.5
+FAITHFULNESS_AUTO_APPROVE_THRESHOLD = 0.95
 QUERY_AUDIT_CONFIG_VERSION = "consulta-faithfulness-v1"
 RERANK_TOP_K = 5
 GROUNDING_THRESHOLD = 0.4
-FAIL_CLOSED_AVISO = (
-    "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
-)
 
 router = APIRouter(prefix="", tags=["consulta"])
 
-# ── Keyword → modelo mapping ──────────────────────────────────────────
+
+def _ci_like(column: str, param_name: str) -> str:
+    return f"LOWER({column}) LIKE LOWER(:{param_name})"
+
+#  Keyword → modelo mapping
 KEYWORD_MODELOS = {
     # FactA / intracomunitario
     "facta": ["216", "349", "124"],
@@ -161,7 +167,7 @@ KEYWORD_MODELOS = {
     "modelo DAC6": ["DAC6"],
 }
 
-# ── Sujeto → modelo mapping ──────────────────────────────────────────
+#  Sujeto → modelo mapping
 SUJETO_MODELOS = {
     "no_residente": ["124", "216", "123", "296"],
     "retenedor": ["124", "123"],
@@ -204,6 +210,7 @@ def _resolve_modelos(keywords: list[str]) -> list[str]:
 
     # Track how many models each keyword contributes
     keyword_models = {}
+    seen = set()
 
     for kw in sorted_keywords:
         if kw.startswith("_subject_"):
@@ -321,6 +328,7 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
 
     Returns a dict compatible with ConsultaConfianza schema.
     """
+    q_lower = q.lower()
     fuentes = []
     tipos_conteo = {}
 
@@ -383,8 +391,11 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         faithfulness_score = compute_faithfulness(answer_proxy, chunks_para_faithfulness)
 
     faithfulness_label = "alta" if faithfulness_score >= 0.75 else ("media" if faithfulness_score >= FAITHFULNESS_REVIEW_THRESHOLD else "baja")
-
-    review_required = bool(aviso and "NO VERIFICADO" in aviso)
+    review_check = check_review_required(
+        faithfulness_score,
+        confidence_threshold=FAITHFULNESS_REVIEW_THRESHOLD,
+        auto_threshold=FAITHFULNESS_AUTO_APPROVE_THRESHOLD,
+    )
 
     return {
         "nivel": nivel,
@@ -395,7 +406,7 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         "resultados_clasificados": tipos_conteo,
         "faithfulness_score": faithfulness_score,
         "faithfulness_label": faithfulness_label,
-        "review_required": review_required,
+        "review_required": review_check["requires_review"],
     }
 
 
@@ -544,22 +555,17 @@ def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
 
 
 def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: str) -> list[dict]:
-    source_url_map: dict[str, str] = {}
     all_chunks = []
     seen_ids = set()
     for resultado in resultados:
         chunk_id = _result_citation_id(resultado)
         text = _result_text(resultado)
         source_document = _result_source_document(resultado)
-        evidencia = resultado.get("evidencia") or {}
         if not chunk_id or not text or not source_document:
             continue
         if chunk_id in seen_ids:
             continue
         seen_ids.add(chunk_id)
-        source_url = evidencia.get("source_url") or resultado.get("source_url")
-        if source_url:
-            source_url_map[str(chunk_id)] = str(source_url)
         all_chunks.append({
             "chunk_id": chunk_id,
             "text": text,
@@ -598,7 +604,6 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
             "source_document": ch.source_document,
             "article_number": ch.article_number,
             "rerank_score": float(ch.rerank_score),
-            "source_url": source_url_map.get(ch.chunk_id),
             "excerpt": ch.text[:200],
         } for ch in ranked]
         claim_citations.append({
@@ -611,49 +616,6 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
             "citations": citations,
         })
     return claim_citations
-
-
-def _serialize_cited_chunks_for_response(cited_chunks: list[dict]) -> list[dict]:
-    serialized: list[dict] = []
-    for chunk in cited_chunks:
-        score = float(chunk.get("relevance_score", chunk.get("rerank_score", 0.0)) or 0.0)
-        serialized.append(
-            {
-                "chunk_id": str(chunk.get("chunk_id", "")),
-                "content_preview": chunk.get("excerpt") or chunk.get("content_preview") or "",
-                "relevance_score": normalize_rerank_score(score),
-            }
-        )
-    return serialized
-
-
-def _serialize_claim_citations_for_response(claim_citations: list[dict]) -> list[dict]:
-    serialized: list[dict] = []
-    for item in claim_citations:
-        claim = item.get("claim") or {}
-        citations = item.get("citations") or []
-        top_citation = citations[0] if citations else {}
-        score = float(top_citation.get("confidence", top_citation.get("rerank_score", 0.0)) or 0.0)
-        claim_label = " ".join(
-            str(part)
-            for part in (
-                claim.get("tipo"),
-                claim.get("codigo"),
-                claim.get("articulo"),
-                claim.get("nombre"),
-            )
-            if part not in (None, "")
-        )
-        serialized.append(
-            {
-                "claim": claim_label,
-                "source_chunk_id": str(top_citation.get("chunk_id", "")),
-                "source_url": top_citation.get("source_url"),
-                "grounded": bool(item.get("grounded", False)),
-                "confidence": normalize_rerank_score(score),
-            }
-        )
-    return serialized
 
 
 def _collect_uncovered_query_terms(query: str, resultados: list[dict]) -> set[str]:
@@ -708,12 +670,12 @@ def _apply_grounding_abstention_if_needed(
     uncovered_terms = _collect_uncovered_query_terms(query, resultados)
     if uncovered_terms:
         confianza = dict(confianza)
-        confianza["aviso"] = FAIL_CLOSED_AVISO
+        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
         return [], confianza, []
 
     if not cited_chunks:
         confianza = dict(confianza)
-        confianza["aviso"] = FAIL_CLOSED_AVISO
+        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
         return [], confianza, []
 
     has_full_article_evidence = any(
@@ -729,7 +691,7 @@ def _apply_grounding_abstention_if_needed(
         )
         for resultado in resultados
     )
-    if has_full_article_evidence:
+    if has_full_article_evidence and confianza.get("faithfulness_score", 0.0) >= FAITHFULNESS_REVIEW_THRESHOLD:
         return resultados, confianza, cited_chunks
 
     best_score = normalize_rerank_score(cited_chunks[0]["rerank_score"])
@@ -737,52 +699,48 @@ def _apply_grounding_abstention_if_needed(
         return resultados, confianza, cited_chunks
 
     confianza = dict(confianza)
-    confianza["aviso"] = FAIL_CLOSED_AVISO
+    confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
     return [], confianza, []
 
 
 def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tuple[list[dict], dict]:
-    aviso_actual = (confianza.get("aviso") or "").strip().lower()
-    if not aviso_actual or aviso_actual == "consulta vacia" or "no verificado" not in aviso_actual:
+    if confianza.get("faithfulness_score", 0.0) >= FAITHFULNESS_REVIEW_THRESHOLD:
         return resultados, confianza
 
     confianza = dict(confianza)
-    confianza["aviso"] = FAIL_CLOSED_AVISO
+    aviso_actual = (confianza.get("aviso") or "").strip().lower()
+    if aviso_actual == "consulta vacia":
+        return [], confianza
+    confianza["aviso"] = (
+        "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+    )
     return [], confianza
-
-
-def _fail_closed_confianza(confianza: dict, reason: str) -> dict:
-    failed = dict(confianza)
-    failed["nivel"] = 0
-    failed["nivel_texto"] = "baja"
-    failed["aviso"] = FAIL_CLOSED_AVISO
-    failed["review_required"] = True
-    failed["faithfulness_score"] = 0.0
-    failed["faithfulness_label"] = "baja"
-    failed["retrieval_error"] = reason
-    return failed
-
-
-def _sync_review_required(confianza: dict) -> dict:
-    updated = dict(confianza)
-    aviso = str(updated.get("aviso") or "")
-    updated["review_required"] = bool(updated.get("retrieval_error") or "NO VERIFICADO" in aviso)
-    return updated
 
 
 def _apply_claim_level_abstention(
     resultados: list[dict],
     claim_citations: list[dict],
-    grounding_summary: dict,
-    confianza: dict,
 ) -> tuple[list[dict], dict]:
-    """Delegate claim-level abstention to the shared grounding service."""
-    return apply_claim_level_abstention(
-        resultados,
-        grounding_summary,
-        confianza,
-        enriched_items=claim_citations,
-    )
+    """Remove ungrounded claims from results when grounding is insufficient."""
+    grounded_keys: set[str] = set()
+    for item in claim_citations:
+        if item.get("grounded"):
+            claim = item.get("claim", {})
+            key = f"{claim.get('tipo')}:{claim.get('codigo')}:{claim.get('articulo')}"
+            grounded_keys.add(key)
+
+    if not grounded_keys:
+        return [], {}
+
+    filtered = []
+    for r in resultados:
+        articulo_val = r.get("articulo", "") or ""
+        codigo_val = r.get("codigo", r.get("referencia", r.get("norma", "")) or "")
+        key = f"{r['tipo']}:{codigo_val}:{articulo_val}"
+        if key in grounded_keys:
+            filtered.append(r)
+
+    return filtered, {}
 
 
 @router.get(
@@ -819,14 +777,13 @@ async def consulta_fiscal(
 ):
     results = []
     modelos_codigo = []
-    retrieval_failures: list[str] = []
 
     # Resolve keywords to model codes
     keywords = _extract_keywords(q, sujeto)
     resolved_modelos = _resolve_modelos(keywords)
 
     with db_session() as db:
-        # ── 1. Buscar modelos por resolución de keywords ──────────────────
+        #  1. Buscar modelos por resolución de keywords
         if resolved_modelos:
             try:
                 placeholders = ",".join([f":m{i}" for i in range(len(resolved_modelos))])
@@ -851,18 +808,17 @@ async def consulta_fiscal(
                     })
             except Exception:
                 db.rollback()
-
-        # ── 1b. Fallback: buscar por nombre/instrucciones si no hay matches ─
+                logger.warning("Modelo resolution failed for resolved_modelos=%s", resolved_modelos)
         if not resolved_modelos and q:
             try:
                 model_rows = db.execute(
                     text("""
                         SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info
                         FROM aeat_modelo am
-                        WHERE am.nombre ILIKE :q
+                        WHERE {name_filter}
                            OR am.codigo = :q
                         ORDER BY am.codigo
-                    """),
+                    """.format(name_filter=_ci_like("am.nombre", "q"))),
                     {"q": f"%{q}%"},
                 ).mappings()
 
@@ -877,19 +833,25 @@ async def consulta_fiscal(
                     })
             except Exception:
                 db.rollback()
-
-        # ── 2. Buscar obligaciones regulatorias ─────────────────────────────
+                logger.warning("Modelo fallback search failed for query='%s'", q)
         try:
             oblig_filters = ["1=1"]
             oblig_params: dict = {}
             if q:
-                oblig_filters.append("(o.nombre ILIKE :q OR o.tipo_obligacion ILIKE :q OR o.fuente ILIKE :q OR o.nota ILIKE :q)")
+                oblig_filters.append(
+                    "(" + " OR ".join([
+                        _ci_like("o.nombre", "q"),
+                        _ci_like("o.tipo_obligacion", "q"),
+                        _ci_like("o.fuente", "q"),
+                        _ci_like("o.nota", "q"),
+                    ]) + ")"
+                )
                 oblig_params["q"] = f"%{q}%"
             if sujeto:
-                oblig_filters.append("o.sujeto_obligado ILIKE :suj")
+                oblig_filters.append(_ci_like("o.sujeto_obligado", "suj"))
                 oblig_params["suj"] = f"%{sujeto}%"
             if pais:
-                oblig_filters.append("o.ambito ILIKE :pai")
+                oblig_filters.append(_ci_like("o.ambito", "pai"))
                 oblig_params["pai"] = f"%{pais}%"
 
             oblig_rows = db.execute(
@@ -919,8 +881,7 @@ async def consulta_fiscal(
                 })
         except Exception:
             db.rollback()
-
-        # ── 3. Buscar legislación relevante (via search_legislacion service) ─
+            logger.warning("Obligations search failed for q='%s' sujeto='%s'", q, sujeto)
         if q:
             try:
                 search_result = search_legislacion(
@@ -952,11 +913,9 @@ async def consulta_fiscal(
                         "motivo_ranking": row.get("motivo_ranking"),
                         "evidencia": evidencia,
                     })
-            except Exception as exc:
+            except Exception:
                 db.rollback()
-                retrieval_failures.append(f"legislacion:{type(exc).__name__}")
-
-        # ── 4. Buscar doctrina DGT/TEAC ─────────────────────────────────────
+                logger.warning("Legislacion search failed for q='%s'", q)
         try:
             if q:
                 doc_filters = [
@@ -997,59 +956,60 @@ async def consulta_fiscal(
                     })
         except Exception:
             db.rollback()
+            logger.warning("Doctrina search failed for q='%s'", q)
 
-    # ── 5. Obtener detalle completo de modelos ──────────────────────────
-    modelos_codigo = list(dict.fromkeys(modelos_codigo))
-    modelos_detalle = []
-    if modelos_codigo:
-        try:
-            with db_session() as db:
-                for codigo in modelos_codigo:
-                    rows = db.execute(
-                        text("""
-                            SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info,
-                                   mc.campana, mc.version_form, mc.url_normativa, mc.url_formato,
-                                   mi.seccion, mi.titulo, mi.contenido, mi.orden,
-                                   mco.categoria_obligado, mco.frecuencia_presentacion,
-                                   mco.ventana_presentacion, mco.canal_presentacion,
-                                   mco.obligados_resumen, mco.plazo_resumen, mco.norma_base
-                            FROM aeat_modelo am
-                            LEFT JOIN modelo_campana mc ON mc.modelo_id = am.id AND mc.activo = true
-                            LEFT JOIN modelo_campana_operativa mco ON mco.campana_id = mc.id
-                            LEFT JOIN modelo_instruccion mi ON mi.campana_id = mc.id
-                            WHERE am.codigo = :codigo
-                            ORDER BY mi.orden
-                        """),
-                        {"codigo": codigo},
-                    ).mappings()
+    #  5. Obtener detalle completo de modelos
+    try:
+        modelos_codigo = list(dict.fromkeys(modelos_codigo))
+        modelos_detalle = []
 
-                    rows_list = list(rows)
-                    if rows_list:
-                        first = rows_list[0]
-                        instrucciones = [
-                            {"seccion": r["seccion"], "titulo": r["titulo"], "contenido": r["contenido"], "orden": r["orden"]}
-                            for r in rows_list if r["seccion"]
-                        ]
-                        modelos_detalle.append({
-                            "codigo": first["codigo"],
-                            "nombre": first["nombre"],
-                            "periodo": first["periodo"],
-                            "impuesto": first["impuesto"],
-                            "url_info": first["url_info"],
-                            "campana": first["campana"],
-                            "categoria_obligado": first["categoria_obligado"],
-                            "frecuencia": first["frecuencia_presentacion"],
-                            "ventana": first["ventana_presentacion"],
-                            "canal": first["canal_presentacion"],
-                            "obligados_resumen": first["obligados_resumen"],
-                            "plazo_resumen": first["plazo_resumen"],
-                            "norma_base": first["norma_base"],
-                            "instrucciones": instrucciones,
-                        })
-        except Exception:
-            modelos_detalle = []
+        for codigo in modelos_codigo:
+            rows = db.execute(
+                text("""
+                    SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info,
+                           mc.campana, mc.version_form, mc.url_normativa, mc.url_formato,
+                           mi.seccion, mi.titulo, mi.contenido, mi.orden,
+                           mco.categoria_obligado, mco.frecuencia_presentacion,
+                           mco.ventana_presentacion, mco.canal_presentacion,
+                           mco.obligados_resumen, mco.plazo_resumen, mco.norma_base
+                    FROM aeat_modelo am
+                    LEFT JOIN modelo_campana mc ON mc.modelo_id = am.id AND mc.activo = true
+                    LEFT JOIN modelo_campana_operativa mco ON mco.campana_id = mc.id
+                    LEFT JOIN modelo_instruccion mi ON mi.campana_id = mc.id
+                    WHERE am.codigo = :codigo
+                    ORDER BY mi.orden
+                """),
+                {"codigo": codigo},
+            ).mappings()
 
-    # ── 6. Integrated unified multi-source search (if sources filter specified) ─
+            rows_list = list(rows)
+            if rows_list:
+                first = rows_list[0]
+                instrucciones = [
+                    {"seccion": r["seccion"], "titulo": r["titulo"], "contenido": r["contenido"], "orden": r["orden"]}
+                    for r in rows_list if r["seccion"]
+                ]
+                modelos_detalle.append({
+                    "codigo": first["codigo"],
+                    "nombre": first["nombre"],
+                    "periodo": first["periodo"],
+                    "impuesto": first["impuesto"],
+                    "url_info": first["url_info"],
+                    "campana": first["campana"],
+                    "categoria_obligado": first["categoria_obligado"],
+                    "frecuencia": first["frecuencia_presentacion"],
+                    "ventana": first["ventana_presentacion"],
+                    "canal": first["canal_presentacion"],
+                    "obligados_resumen": first["obligados_resumen"],
+                    "plazo_resumen": first["plazo_resumen"],
+                    "norma_base": first["norma_base"],
+                    "instrucciones": instrucciones,
+                })
+    except Exception:
+        db.rollback()
+        logger.warning("Modelo detail lookup failed for codigos=%s", modelos_codigo)
+
+    #  6. Integrated unified multi-source search (if sources filter specified)
     if sources and q:
         try:
             source_list = [s.strip() for s in sources.split(",") if s.strip()]
@@ -1059,14 +1019,10 @@ async def consulta_fiscal(
                 hybrid_weight=hybrid_weight,
                 limit=20,
             )
-            retrieval_failures.extend(
-                f"{error['source']}:{error['error']}"
-                for error in unified.get("source_errors", [])
-            )
             for item in unified.get("resultados", []):
                 results.append(item)
-        except Exception as exc:
-            retrieval_failures.append(f"unified:{type(exc).__name__}")
+        except Exception:
+            db.rollback()
 
     seen = set()
     unique_results = []
@@ -1092,7 +1048,7 @@ async def consulta_fiscal(
     cited_chunks = _build_cited_chunks(ranked_chunks)
     claim_citations = _build_claim_citations(scored_results, ranked_chunks, q)
 
-    # ── Grounding hard — per-claim validation ──────────────────────────
+    #  Grounding hard — per-claim validation
     grounding_summary = {
         "total_claims": 0,
         "grounded_claims": 0,
@@ -1119,42 +1075,27 @@ async def consulta_fiscal(
 
     # Apply claim-level abstention when grounding is insufficient
     if claim_citations and grounding_summary.get("grounding_status") in ("partial", "none"):
-        final_results, confianza = _apply_claim_level_abstention(
-            final_results,
-            claim_citations,
-            grounding_summary,
-            confianza,
+        final_results, _ = _apply_claim_level_abstention(
+            final_results, claim_citations
         )
     elif not claim_citations and not resolved_modelos and q:
         # No claim citations and no resolved modelos — check if grounding is empty
-        if not cited_chunks:
+        if not cited_chunks and confianza.get("faithfulness_score", 0.0) < FAITHFULNESS_REVIEW_THRESHOLD:
             final_results = []
             confianza = dict(confianza)
-            confianza["aviso"] = FAIL_CLOSED_AVISO
-
-    if not final_results and resolved_modelos:
-        confianza = dict(confianza)
-        confianza["aviso"] = FAIL_CLOSED_AVISO
+            confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
 
     final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
-    if retrieval_failures:
-        final_results = []
-        claim_citations = []
-        cited_chunks = []
-        confianza = _fail_closed_confianza(
-            confianza,
-            reason=",".join(dict.fromkeys(retrieval_failures)),
-        )
     if not final_results:
         cited_chunks = []
 
-    confianza = _sync_review_required(confianza)
-
     # Build top-level relevancia
+    total_scored = len(scored_results)
     if final_results:
         avg_score = sum(r["_relevancia"]["score"] for r in final_results) / len(final_results)
         alta_count = sum(1 for r in final_results if r["_relevancia"]["nivel"] == "alta")
         relevancia_nivel = "alta" if avg_score >= 0.6 else ("media" if avg_score >= 0.3 else "baja")
+        relevancia_coins = []
         todos_terminos = set()
         encontrados = set()
         for r in final_results:
@@ -1184,11 +1125,27 @@ async def consulta_fiscal(
     user_id = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
     retrieved_chunks = _build_query_audit_chunks(scored_results)
     response_summary = f"resultados={len(final_results)} faithfulness={confianza.get('faithfulness_score', 0.0):.4f} review_required={confianza.get('review_required', False)} grounding={grounding_summary.get('grounding_status', 'unknown')}/{grounding_summary.get('total_claims', 0)} claims"
+    get_query_audit_service().record_query(
+        request_id=request_id,
+        user_id=user_id,
+        path="/v1/consulta",
+        query_text=q or sujeto or tipo_operacion or pais,
+        retrieved_chunks=retrieved_chunks,
+        response_summary=response_summary,
+        model_version=get_ai_version(),
+        config_version=QUERY_AUDIT_CONFIG_VERSION,
+        grounding_status=grounding_summary.get("grounding_status"),
+        prompt_injection_detected=not grounding_summary.get("all_chunks_clean", True),
+        grounding_summary=grounding_summary,
+    )
 
-    # ── Observability metrics ──────────────────────────────────────────
+    #  Observability metrics
     try:
+        import logging
+
         import psutil
 
+        logger = logging.getLogger(__name__)
         process = psutil.Process()
         mem_info = process.memory_info()
         record_query_memory("api", mem_info.rss)
@@ -1202,7 +1159,8 @@ async def consulta_fiscal(
 
     record_consulta_metrics("/v1/consulta", confianza)
 
-    # ── Build unified search metadata ──────────────────────────────────
+    #  Build unified search metadata
+    unified_meta = {}
     if sources and q:
         try:
             source_list = [s.strip() for s in sources.split(",") if s.strip()]
@@ -1212,6 +1170,13 @@ async def consulta_fiscal(
                 hybrid_weight=hybrid_weight,
                 limit=20,
             )
+            unified_meta = {
+                "sources_requested": source_list,
+                "sources_with_results": unified.get("sources_with_results", []),
+                "source_breakdown": unified.get("source_breakdown", {}),
+                "search_mode": unified.get("search_mode", "fulltext"),
+                "weights": unified.get("weights", {}),
+            }
             for item in unified.get("resultados", []):
                 results.append(item)
         except Exception:
@@ -1226,30 +1191,13 @@ async def consulta_fiscal(
             seen.add(key)
             deduped.append(r)
 
-    response_payload = ConsultaFiscalResponse(
+    return ConsultaFiscalResponse(
         consulta=q or "",
         modelos=modelos_detalle if modelos_detalle else [],
         resultados=deduped,
         total_resultados=len(deduped),
         relevancia=relevancia,
         confianza=confianza if isinstance(confianza, dict) else None,
-        cited_chunks=_serialize_cited_chunks_for_response(cited_chunks),
-        claim_citations=_serialize_claim_citations_for_response(claim_citations),
+        cited_chunks=cited_chunks if cited_chunks else [],
+        claim_citations=claim_citations if claim_citations else [],
     )
-
-    get_query_audit_service().record_query(
-        request_id=request_id,
-        user_id=user_id,
-        path="/v1/consulta",
-        query_text=q or sujeto or tipo_operacion or pais,
-        retrieved_chunks=retrieved_chunks,
-        response_summary=response_summary,
-        response_payload=response_payload.model_dump(mode="json"),
-        model_version=get_ai_version(),
-        config_version=QUERY_AUDIT_CONFIG_VERSION,
-        grounding_status=grounding_summary.get("grounding_status"),
-        prompt_injection_detected=not grounding_summary.get("all_chunks_clean", True),
-        grounding_summary=grounding_summary,
-    )
-
-    return response_payload

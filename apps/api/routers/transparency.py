@@ -32,6 +32,15 @@ from sqlalchemy import text
 router = APIRouter(prefix="/v1/transparency", tags=["transparency"])
 
 
+def _as_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _parse_internal_rule_row(row):
     """Parse JSON columns in internal rule rows."""
     import contextlib
@@ -68,11 +77,15 @@ async def list_transparency_issuers(
         filters.append("ti.listing_market = :listing_market")
         params["listing_market"] = listing_market
     if search:
-        filters.append(
-            "(LOWER(ti.ticker) LIKE LOWER(:search) OR ti.issuer_id = CAST(:search2 AS INTEGER))"
-        )
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append(
+                "(LOWER(ti.ticker) LIKE LOWER(:search) OR ti.issuer_id = :search2)"
+            )
+            params["search2"] = search_int
+        else:
+            filters.append("LOWER(ti.ticker) LIKE LOWER(:search)")
         params["search"] = f"%{search}%"
-        params["search2"] = search
 
     with db_session() as db:
         rows = db.execute(
@@ -148,8 +161,12 @@ async def list_transparency_regulated_info(
         filters.append("tr.info_type = :info_type")
         params["info_type"] = info_type
     if search:
-        filters.append("tr.issuer_id = :search::integer")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("tr.issuer_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(
@@ -221,11 +238,13 @@ async def list_transparency_voting_rights(
         filters.append("tv.status = :status")
         params["status"] = status
     if search:
-        filters.append(
-            "(tv.issuer_id = :search::integer OR tv.shareholder_id = :search2::integer)"
-        )
-        params["search"] = search
-        params["search2"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("(tv.issuer_id = :search OR tv.shareholder_id = :search2)")
+            params["search"] = search_int
+            params["search2"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(
@@ -297,8 +316,12 @@ async def list_transparency_internal_rules(
         filters.append("tr.status = :status")
         params["status"] = status
     if search:
-        filters.append("tr.entity_id = CAST(:search AS INTEGER)")
-        params["search"] = search
+        search_int = _as_int(search)
+        if search_int is not None:
+            filters.append("tr.entity_id = :search")
+            params["search"] = search_int
+        else:
+            return {"items": [], "total": 0}
 
     with db_session() as db:
         rows = db.execute(

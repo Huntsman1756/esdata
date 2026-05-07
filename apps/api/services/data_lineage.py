@@ -160,10 +160,13 @@ class DataLineageService:
             return int(conn.execute(text("SELECT COUNT(DISTINCT tabla) FROM data_lineage")).scalar_one())
 
 
-_service = DataLineageService()
+_service: DataLineageService | None = None
 
 
 def get_data_lineage_service() -> DataLineageService:
+    global _service
+    if _service is None:
+        _service = DataLineageService()
     return _service
 
 

@@ -104,23 +104,17 @@ DDL_TEMPLATE = [
         id {id_column},
         entry_id TEXT NOT NULL UNIQUE,
         request_id TEXT NOT NULL,
-        tool_name TEXT NOT NULL DEFAULT '',
         user_id TEXT,
         path TEXT NOT NULL,
         query_text TEXT NOT NULL,
-        retrieved_chunks TEXT NOT NULL DEFAULT '[]',
-        sources TEXT NOT NULL DEFAULT '[]',
+        retrieved_chunks TEXT NOT NULL DEFAULT '[]'::jsonb,
         response_summary TEXT NOT NULL DEFAULT '',
-        confidence TEXT NOT NULL DEFAULT '{{}}',
-        completeness TEXT NOT NULL DEFAULT 'parcial',
-        verified INTEGER NOT NULL DEFAULT 0,
         model_version TEXT,
         config_version TEXT,
         created_at TEXT NOT NULL,
         grounding_status TEXT DEFAULT '',
         prompt_injection_detected INTEGER NOT NULL DEFAULT 0,
-        grounding_summary TEXT NOT NULL DEFAULT '{{}}',
-        response_payload TEXT NOT NULL DEFAULT '{{}}'
+        grounding_summary TEXT NOT NULL DEFAULT '{{}}'
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_query_audit_request ON query_audit_log(request_id)",
@@ -144,6 +138,22 @@ DDL_TEMPLATE = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_source_snapshot_source ON source_freshness_snapshot(source_id, snapshot_at)",
     "CREATE INDEX IF NOT EXISTS idx_source_snapshot_version ON source_freshness_snapshot(snapshot_version)",
+    """
+    CREATE TABLE IF NOT EXISTS data_freshness_alerts (
+        id {id_column},
+        alert_id TEXT NOT NULL UNIQUE,
+        source_id TEXT NOT NULL,
+        alert_level TEXT NOT NULL,
+        stale_since TEXT,
+        expected_interval TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
+        acknowledged INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        resolved_at TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_freshness_alerts_source ON data_freshness_alerts(source_id, stale_since DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_freshness_alerts_level ON data_freshness_alerts(alert_level, acknowledged)",
 ]
 
 
@@ -170,24 +180,12 @@ def _ensure_query_audit_log_columns(conn) -> None:
         existing = {row[0] for row in rows}
 
     missing = []
-    if "tool_name" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN tool_name TEXT NOT NULL DEFAULT ''")
     if "grounding_status" not in existing:
         missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_status TEXT DEFAULT ''")
     if "prompt_injection_detected" not in existing:
         missing.append("ALTER TABLE query_audit_log ADD COLUMN prompt_injection_detected INTEGER NOT NULL DEFAULT 0")
     if "grounding_summary" not in existing:
         missing.append("ALTER TABLE query_audit_log ADD COLUMN grounding_summary TEXT NOT NULL DEFAULT '{}' ")
-    if "response_payload" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN response_payload TEXT NOT NULL DEFAULT '{}'")
-    if "sources" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'")
-    if "confidence" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN confidence TEXT NOT NULL DEFAULT '{}'")
-    if "completeness" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN completeness TEXT NOT NULL DEFAULT 'parcial'")
-    if "verified" not in existing:
-        missing.append("ALTER TABLE query_audit_log ADD COLUMN verified INTEGER NOT NULL DEFAULT 0")
 
     for statement in missing:
         conn.execute(text(statement))

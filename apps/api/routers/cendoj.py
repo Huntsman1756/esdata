@@ -6,6 +6,12 @@ from sqlalchemy import text
 router = APIRouter(prefix="/v1/cendoj", tags=["cendoj"])
 
 
+def _normalize_tipo_documento(value: str | None) -> str | None:
+    if value == "sentencia_ts":
+        return "sentencia"
+    return value
+
+
 @router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_cendoj")
 async def listar_cendoj(
     q: str | None = Query(None, description="Filtrar por texto o título"),
@@ -29,7 +35,10 @@ async def listar_cendoj(
         params["court_term"] = f"%{tribunal.replace('_', ' ')}%"
 
     if tipo:
-        filters.append("d.tipo_documento = :tipo")
+        if tipo == "sentencia":
+            filters.append("d.tipo_documento IN ('sentencia', 'sentencia_ts')")
+        else:
+            filters.append("d.tipo_documento = :tipo")
         params["tipo"] = tipo
 
     if organismo:
@@ -56,7 +65,7 @@ async def listar_cendoj(
                     "referencia": row["referencia"],
                     "fecha": str(row["fecha"]) if row["fecha"] else None,
                     "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
+                    "tipo_documento": _normalize_tipo_documento(row["tipo_documento"]),
                     "ambito": row["ambito"],
                     "fragmento": row["texto"][:220]
                     + ("..." if len(row["texto"]) > 220 else ""),
@@ -95,7 +104,7 @@ async def get_cendoj(referencia: str):
             "referencia": row["referencia"],
             "fecha": str(row["fecha"]) if row["fecha"] else None,
             "titulo": row["titulo"],
-            "tipo_documento": row["tipo_documento"],
+            "tipo_documento": _normalize_tipo_documento(row["tipo_documento"]),
             "ambito": row["ambito"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],

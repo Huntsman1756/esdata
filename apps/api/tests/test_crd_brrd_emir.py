@@ -22,7 +22,7 @@ import os
 os.environ["APP_ENV"] = "test"
 os.environ["ESDATA_API_KEY"] = "test-secret-key"
 os.environ["MCP_API_KEY"] = "test-mcp-key"
-os.environ["DATABASE_URL"] = "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata"
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
 os.environ["ESDATA_ALLOW_INSECURE_TEST_AUTH"] = "true"
 
 import pytest

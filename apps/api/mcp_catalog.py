@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from typing import Any
+
+
 HTTP_MCP_OPERATIONS = [
     # Legislacion
     "list_legislacion",
@@ -29,30 +34,7 @@ HTTP_MCP_OPERATIONS = [
 ]
 
 
-QUERY_AUDIT_TOOL_BY_PATH = {
-    "/v1/buscar": "buscar",
-    "/v1/legislacion/buscar": "buscar_legislacion",
-    "/v1/doctrina/buscar": "buscar_doctrina",
-    "/v1/consulta": "consulta_fiscal",
-}
-
-
-def infer_query_audit_tool_name(path: str) -> str:
-    """Return a stable audit tool name for HTTP and stdio surfaces."""
-
-    if path.startswith("/mcp/tools/"):
-        return path.rsplit("/", 1)[-1]
-    return QUERY_AUDIT_TOOL_BY_PATH.get(path, path.rsplit("/", 1)[-1] or path)
-
-
-def get_stdio_tool_definitions() -> list[dict]:
-    """Tools exposed by the local stdio MCP server.
-
-    These are not the same surface as the HTTP `/mcp` transport. The stdio server
-    wraps higher-level agent tools around selected REST endpoints and formats
-    responses for LLM clients.
-    """
-
+def get_stdio_tool_definitions() -> list[dict[str, Any]]:
     return [
         {
             "name": "consulta_fiscal",

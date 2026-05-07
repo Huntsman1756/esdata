@@ -311,6 +311,7 @@ def group_transactions(
     Returns:
         List of grouped transaction lists.
     """
+    max_batch_size = max_batch_size or 999
     groups: dict[str, list[dict]] = {}
     ordered_keys: list[str] = []
 

@@ -53,6 +53,7 @@ from schemas import (
     WalletCustodianDetail as WalletCustodianDetailSchema,
 )
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 router = APIRouter(prefix="/v1/mica", tags=["mica"])
 
@@ -73,6 +74,17 @@ def _parse_services(val) -> list[str]:
         except (json.JSONDecodeError, TypeError):
             return []
     return []
+
+
+def _missing_table_error(exc: OperationalError) -> bool:
+    message = str(exc).lower()
+    return "no such table" in message or "does not exist" in message or "undefined table" in message
+
+
+def _empty_list_on_missing_table(exc: OperationalError):
+    if _missing_table_error(exc):
+        return {"items": [], "total": 0}
+    raise exc
 
 
 # ===================================================================
@@ -108,28 +120,31 @@ async def list_casp(
 
     with db_session() as db:
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
-        rows = db.execute(
-            text(
-                f"""
-                SELECT id, name, registration_number, home_member_state,
-                       passport_active, services_offered, status
-                FROM casp
-                {where}
-                ORDER BY name
-                LIMIT :limit OFFSET :offset
-                """
-            ),
-            {**params, "limit": limit, "offset": offset},
-        ).mappings()
+        try:
+            rows = db.execute(
+                text(
+                    f"""
+                    SELECT id, name, registration_number, home_member_state,
+                           passport_active, services_offered, status
+                    FROM casp
+                    {where}
+                    ORDER BY name
+                    LIMIT :limit OFFSET :offset
+                    """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            ).mappings()
 
-        items = [dict(r) for r in rows]
-        for item in items:
-            item["services_offered"] = _parse_services(item["services_offered"])
+            items = [dict(r) for r in rows]
+            for item in items:
+                item["services_offered"] = _parse_services(item["services_offered"])
 
-        total = db.execute(
-            text(f"SELECT COUNT(*) FROM casp {where}"),
-            params,
-        ).scalar_one()
+            total = db.execute(
+                text(f"SELECT COUNT(*) FROM casp {where}"),
+                params,
+            ).scalar_one()
+        except OperationalError as exc:
+            return _empty_list_on_missing_table(exc)
 
         return {"items": items, "total": total}
 
@@ -319,26 +334,29 @@ async def list_crypto_assets(
 
     with db_session() as db:
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
-        rows = db.execute(
-            text(
-                f"""
-                SELECT id, asset_type, reference_uid, issuer_jurisdiction,
-                       is_sha, market_value_eur, holders_count, status
-                FROM crypto_asset
-                {where}
-                ORDER BY id
-                LIMIT :limit OFFSET :offset
-                """
-            ),
-            {**params, "limit": limit, "offset": offset},
-        ).mappings()
+        try:
+            rows = db.execute(
+                text(
+                    f"""
+                    SELECT id, asset_type, reference_uid, issuer_jurisdiction,
+                           is_sha, market_value_eur, holders_count, status
+                    FROM crypto_asset
+                    {where}
+                    ORDER BY id
+                    LIMIT :limit OFFSET :offset
+                    """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            ).mappings()
 
-        items = [dict(r) for r in rows]
+            items = [dict(r) for r in rows]
 
-        total = db.execute(
-            text(f"SELECT COUNT(*) FROM crypto_asset {where}"),
-            params,
-        ).scalar_one()
+            total = db.execute(
+                text(f"SELECT COUNT(*) FROM crypto_asset {where}"),
+                params,
+            ).scalar_one()
+        except OperationalError as exc:
+            return _empty_list_on_missing_table(exc)
 
         return {"items": items, "total": total}
 
@@ -448,26 +466,29 @@ async def list_tokenized_assets(
         where = "WHERE " + " AND ".join(conditions)
 
     with db_session() as db:
-        rows = db.execute(
-            text(
-                f"""
-                SELECT id, underlying_type, issuer_id, face_value, total_amount,
-                       listing_date, regulated_market, status
-                FROM tokenized_asset
-                {where}
-                ORDER BY id
-                LIMIT :limit OFFSET :offset
-                """
-            ),
-            {**params, "limit": limit, "offset": offset},
-        ).mappings()
+        try:
+            rows = db.execute(
+                text(
+                    f"""
+                    SELECT id, underlying_type, issuer_id, face_value, total_amount,
+                           listing_date, regulated_market, status
+                    FROM tokenized_asset
+                    {where}
+                    ORDER BY id
+                    LIMIT :limit OFFSET :offset
+                    """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            ).mappings()
 
-        items = [dict(r) for r in rows]
+            items = [dict(r) for r in rows]
 
-        total = db.execute(
-            text(f"SELECT COUNT(*) FROM tokenized_asset {where}"),
-            params,
-        ).scalar_one()
+            total = db.execute(
+                text(f"SELECT COUNT(*) FROM tokenized_asset {where}"),
+                params,
+            ).scalar_one()
+        except OperationalError as exc:
+            return _empty_list_on_missing_table(exc)
 
         return {"items": items, "total": total}
 
@@ -531,26 +552,29 @@ async def list_wallet_custodians(
         where = "WHERE " + " AND ".join(conditions)
 
     with db_session() as db:
-        rows = db.execute(
-            text(
-                f"""
-                SELECT id, entity_id, wallet_type, custody_mechanism,
-                       insurance_coverage, audit_frequency, status
-                FROM wallet_custodian
-                {where}
-                ORDER BY id
-                LIMIT :limit OFFSET :offset
-                """
-            ),
-            {**params, "limit": limit, "offset": offset},
-        ).mappings()
+        try:
+            rows = db.execute(
+                text(
+                    f"""
+                    SELECT id, entity_id, wallet_type, custody_mechanism,
+                           insurance_coverage, audit_frequency, status
+                    FROM wallet_custodian
+                    {where}
+                    ORDER BY id
+                    LIMIT :limit OFFSET :offset
+                    """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            ).mappings()
 
-        items = [dict(r) for r in rows]
+            items = [dict(r) for r in rows]
 
-        total = db.execute(
-            text(f"SELECT COUNT(*) FROM wallet_custodian {where}"),
-            params,
-        ).scalar_one()
+            total = db.execute(
+                text(f"SELECT COUNT(*) FROM wallet_custodian {where}"),
+                params,
+            ).scalar_one()
+        except OperationalError as exc:
+            return _empty_list_on_missing_table(exc)
 
         return {"items": items, "total": total}
 
@@ -616,28 +640,31 @@ async def list_crypto_transactions(
 
     with db_session() as db:
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
-        rows = db.execute(
-            text(
-                f"""
-                SELECT id, sender_wallet, receiver_wallet,
-                       sender_jurisdiction, receiver_jurisdiction,
-                       asset_type, amount, value_eur, timestamp,
-                       reporting_period, status
-                FROM crypto_transaction
-                {where}
-                ORDER BY id
-                LIMIT :limit OFFSET :offset
-                """
-            ),
-            {**params, "limit": limit, "offset": offset},
-        ).mappings()
+        try:
+            rows = db.execute(
+                text(
+                    f"""
+                    SELECT id, sender_wallet, receiver_wallet,
+                           sender_jurisdiction, receiver_jurisdiction,
+                           asset_type, amount, value_eur, timestamp,
+                           reporting_period, status
+                    FROM crypto_transaction
+                    {where}
+                    ORDER BY id
+                    LIMIT :limit OFFSET :offset
+                    """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            ).mappings()
 
-        items = [dict(r) for r in rows]
+            items = [dict(r) for r in rows]
 
-        total = db.execute(
-            text(f"SELECT COUNT(*) FROM crypto_transaction {where}"),
-            params,
-        ).scalar_one()
+            total = db.execute(
+                text(f"SELECT COUNT(*) FROM crypto_transaction {where}"),
+                params,
+            ).scalar_one()
+        except OperationalError as exc:
+            return _empty_list_on_missing_table(exc)
 
         return {"items": items, "total": total}
 

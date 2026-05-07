@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata CENDOJ weekly sync
+
+[Timer]
+OnCalendar=Tue *-*-* 14:00:00
+Persistent=true
+Unit=esdata-job@cron-cendoj-weekly.service
+
+[Install]
+WantedBy=timers.target

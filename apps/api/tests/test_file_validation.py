@@ -1,6 +1,7 @@
 """Tests for file validation service."""
 
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -69,14 +70,15 @@ class TestFileValidation:
         result = self.validator.validate("doc.pdf", content, allowed_types=["pdf"])
         assert result.status == FileStatus.ALLOWED
 
-    def test_quarantine_dir_created(self, tmp_path):
-        quarantine = tmp_path / "quarantine"
-        validator = FileValidator(max_size=1024 * 1024, quarantine_dir=str(quarantine))
-        content = b'{"key": "value"}'
-        result = validator.validate("fake.xml", content, allowed_types=["xml"])
-        assert result.status == FileStatus.QUARANTINE
-        assert (quarantine / "fake.xml").exists()
-        assert (quarantine / "fake.xml").read_bytes() == content
+    def test_quarantine_dir_created(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            quarantine = Path(temp_dir) / "quarantine"
+            validator = FileValidator(max_size=1024 * 1024, quarantine_dir=str(quarantine))
+            content = b'{"key": "value"}'
+            result = validator.validate("fake.xml", content, allowed_types=["xml"])
+            assert result.status == FileStatus.QUARANTINE
+            assert (quarantine / "fake.xml").exists()
+            assert (quarantine / "fake.xml").read_bytes() == content
 
     def test_default_max_size(self):
         validator = FileValidator()

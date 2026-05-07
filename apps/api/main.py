@@ -7,14 +7,19 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from mcp_security import guard_mcp_http
 from mcp_server import mount_mcp
+from middleware.ai_audit import ai_audit_middleware
 from middleware.api_key_auth import ApiKeyAuthMiddleware
 from middleware.metrics import create_metrics_endpoint, create_metrics_middleware
 from middleware.rate_limit import rate_limit_middleware
 from middleware.request_logging import RequestLoggingMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
+from services.model_registry import get_model_registry, register_registry_callbacks
+from services.reranker import register_reranker_callbacks
 from routers import (
     aepd,
+    aifmd_ucits,
     ai_audit_log,
+    banking,
     bde,
     buscar,
     cambios,
@@ -22,27 +27,66 @@ from routers import (
     cnmv,
     compliance,
     consulta,
+    corporate_sustainability,
+    criterio,
+    criterio_curacion,
     crd_brrd_emir,
+    csdr,
     data_lineage,
+    dac8,
+    dac_directives,
     dgt_doctrina,
     doctrina,
+    dora,
+    dta_convenios,
     editorial,
     editorial_posiciones,
-    empresas,
+    entidades,
     eurlex,
+    fraud,
     human_review,
     jurisprudencia,
+    ley112009_socimi,
+    ley112021,
+    ley13_2023,
+    ley222010,
+    ley222014_lecr,
+    ley272014,
+    ley62018,
     legislacion,
+    mar,
     materias,
+    mercantil,
     mica,
+    mifid,
+    micro_obligaciones,
     model_registry,
     modelos,
-    obligaciones,
+    nrv9,
     observability,
+    ownership,
+    pgc,
+    pbc,
+    playbooks,
+    priips,
+    prospectos,
+    psd2,
     query_audit,
+    rd2172008,
+    risk_control_matrix,
+    screening,
     source_manifest,
     status,
+    sustainable_finance,
+    transparency,
+    trlmv,
     webhooks,
+    xbrl,
+    empresas,
+    irs_fiscal,
+    irs_w8,
+    internacional,
+    obligaciones,
 )
 from sqlalchemy import text
 from starlette.middleware.cors import CORSMiddleware
@@ -71,11 +115,22 @@ def _cors_origins() -> list[str]:
     return origins
 
 
+_validate_auth_config()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _validate_auth_config()
     _verify_database_connectivity()
+    registry = get_model_registry()
+    register_registry_callbacks(registry)
+    register_reranker_callbacks()
+    mcp_transport = getattr(app.state, "_mcp_http_transport", None)
+    if mcp_transport is not None:
+        await mcp_transport._ensure_session_manager_started()
     yield
+    if mcp_transport is not None:
+        await mcp_transport.shutdown()
 
 
 app = FastAPI(
@@ -108,24 +163,48 @@ app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(ApiKeyAuthMiddleware)
 app.middleware("http")(rate_limit_middleware)
 app.middleware("http")(guard_mcp_http)
+app.middleware("http")(ai_audit_middleware)
 
 for router in (
     status.router,
     buscar.router,
+    ley112009_socimi.router,
+    ley112021.router,
+    ley13_2023.router,
+    ley222010.router,
+    ley222014_lecr.router,
+    ley272014.router,
+    ley62018.router,
     legislacion.router,
     materias.router,
+    mercantil.router,
+    micro_obligaciones.router,
+    criterio.router,
+    criterio_curacion.router,
     dgt_doctrina.router,
     doctrina.router,
     jurisprudencia.router,
     modelos.router,
-    obligaciones.router,
-    empresas.router,
+    nrv9.router,
+    ownership.router,
+    pgc.router,
+    prospectos.router,
     consulta.router,
     cambios.router,
     compliance.router,
+    playbooks.router,
     mica.router,
+    priips.router,
+    psd2.router,
+    psd2.consumer_credit_router,
+    psd2.insurance_router,
+    screening.router,
+    mifid.router,
+    aifmd_ucits.router,
+    aifmd_ucits.ucits_router,
     crd_brrd_emir.router,
     crd_brrd_emir.ucits_router,
+    risk_control_matrix.router,
     ai_audit_log.router,
     human_review.router,
     data_lineage.router,
@@ -135,13 +214,34 @@ for router in (
     source_manifest.router,
     observability.router,
     webhooks.webhook_router,
+    rd2172008.router,
+    banking.router,
+    pbc.router,
+    internacional.router,
+    dta_convenios.router,
+    irs_fiscal.router,
+    irs_w8.router,
+    corporate_sustainability.router,
+    csdr.router,
+    dac8.router,
+    dac_directives.router,
+    dora.router,
     editorial.router,
     editorial_posiciones.router,
+    empresas.router,
+    entidades.router,
     eurlex.router,
+    fraud.router,
+    mar.router,
+    obligaciones.router,
+    sustainable_finance.router,
+    transparency.router,
     cnmv.router,
     bde.router,
     aepd.router,
     cendoj.router,
+    trlmv.router,
+    xbrl.router,
 ):
     app.include_router(router)
 

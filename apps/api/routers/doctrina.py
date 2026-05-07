@@ -20,11 +20,27 @@ def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
     ley_match = __import__("re").search(r"\b(\d{1,4})\s*/\s*(\d{4})\b", q)
     numero = ley_match.group(1) if ley_match else None
     anio = ley_match.group(2) if ley_match else None
-    params["numero"] = numero
-    params["anio"] = anio
+    search_clauses = [
+        "LOWER(n.titulo) LIKE LOWER(:term_like)",
+        "LOWER(n.codigo) LIKE LOWER(:term_like)",
+        "LOWER(n.boe_id) LIKE LOWER(:term_like)",
+        "LOWER(COALESCE(va.texto, '')) LIKE LOWER(:term_like)",
+    ]
+
+    if numero and anio:
+        params["numero"] = numero
+        params["anio"] = anio
+        search_clauses.extend(
+            [
+                "LOWER(n.titulo) LIKE LOWER('% ' || :numero || '/' || :anio || '%')",
+                "LOWER(COALESCE(n.eli_uri, '')) LIKE LOWER('%/' || :anio || '/%/' || :numero)",
+            ]
+        )
+
+    search_sql = " OR ".join(search_clauses)
 
     query = text(
-        """
+        f"""
         SELECT
             n.boe_id AS referencia,
             n.tipo_documento,
@@ -42,12 +58,7 @@ def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
          AND va.vigente_hasta IS NULL
         WHERE n.tipo_fuente = 'boe'
           AND (
-            LOWER(n.titulo) LIKE LOWER(:term_like)
-            OR LOWER(n.codigo) LIKE LOWER(:term_like)
-            OR LOWER(n.boe_id) LIKE LOWER(:term_like)
-            OR (:numero IS NOT NULL AND :anio IS NOT NULL AND LOWER(n.titulo) LIKE LOWER('% ' || :numero || '/' || :anio || '%'))
-            OR (:numero IS NOT NULL AND :anio IS NOT NULL AND LOWER(COALESCE(n.eli_uri, '')) LIKE LOWER('%/' || :anio || '/%/' || :numero))
-            OR LOWER(COALESCE(va.texto, '')) LIKE LOWER(:term_like)
+            {search_sql}
           )
         ORDER BY n.vigente_desde DESC, a.numero ASC
         LIMIT :limit
@@ -145,7 +156,7 @@ async def buscar_doctrina(
         else:
             result = _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor)
 
-        if include_boe and (organismo_emisor is None or organismo_emisor.upper() == "BOE"):
+        if include_boe and tipo is None and (organismo_emisor is None or organismo_emisor.upper() == "BOE"):
             result["resultados"].extend(_buscar_normas_boe(db, q))
 
         get_query_audit_service().record_query(

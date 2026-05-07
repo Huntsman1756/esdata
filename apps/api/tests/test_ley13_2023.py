@@ -15,18 +15,19 @@ if API_DIR not in sys.path:
     sys.path.insert(0, API_DIR)
 
 # 2) Importar conftest primero (configura DATABASE_URL, crea engine SQLite, patchea db)
-import conftest as _conftest  # noqa: E402
+from . import conftest as _conftest  # noqa: E402
 
 # 3) Ahora si importar main y el resto
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
+from db import db_session  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from main import app  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 # 4) Patch router modules that did 'from db import db_session' (after main imports them)
 import routers.ley13_2023 as _ley13_mod  # noqa: E402
-_ley13_mod.db_session = _conftest._db_module.db_session
+_ley13_mod.db_session = db_session
 
 
 @pytest_asyncio.fixture
@@ -35,8 +36,70 @@ async def client(_seed_ley13_2023):
         yield ac
 
 
-@pytest.fixture(scope="session")
-def ley13_articulo_id():
+@pytest.fixture
+def _seed_ley13_2023():
+    with _conftest.engine.begin() as conn:
+        conn.execute(
+            text(
+                "DELETE FROM version_articulo WHERE articulo_id IN (SELECT id FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LEY13_2023'))"
+            )
+        )
+        conn.execute(
+            text(
+                "DELETE FROM articulo WHERE norma_id IN (SELECT id FROM norma WHERE codigo = 'LEY13_2023')"
+            )
+        )
+        conn.execute(text("DELETE FROM norma WHERE codigo = 'LEY13_2023'"))
+        conn.execute(
+            text(
+                """
+                INSERT INTO norma (
+                    codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+                    tipo_documento, ambito, estado_cobertura, vigente_desde
+                ) VALUES (
+                    'LEY13_2023',
+                    'Ley 13/2023 de regulacion de la inteligencia artificial',
+                    'BOE-A-2023-23080',
+                    'https://www.boe.es/eli/es/l/2023/10/24/13',
+                    'es',
+                    'boe',
+                    'ley',
+                    'ia',
+                    'activo',
+                    '2023-10-25'
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '5', 'Obligaciones de transparencia', 'articulo'
+                FROM norma
+                WHERE codigo = 'LEY13_2023'
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+                SELECT a.id,
+                       'Articulo 5. Obligaciones de transparencia para sistemas de inteligencia artificial.',
+                       '2023-10-25',
+                       NULL,
+                       'boe-ley13-2023-a5-v1'
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = 'LEY13_2023' AND a.numero = '5'
+                """
+            )
+        )
+
+
+@pytest.fixture
+def ley13_articulo_id(_seed_ley13_2023):
     """Returns the articulo_id for articulo 5 of LEY13_2023."""
     with _conftest.engine.connect() as conn:
         row = conn.execute(text(

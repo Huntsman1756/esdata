@@ -140,7 +140,11 @@ async def rate_limit_middleware(request: Request, call_next):
     Usage: Add to main.py with:
         app.add_middleware(rate_limit_middleware)
     """
-    rate_enabled = os.environ.get("ESDATA_RATE_LIMIT_ENABLED", "true").lower() != "false"
+    rate_enabled_env = os.environ.get("ESDATA_RATE_LIMIT_ENABLED")
+    if rate_enabled_env is None and os.environ.get("APP_ENV", "").lower() == "test":
+        rate_enabled = False
+    else:
+        rate_enabled = (rate_enabled_env or "true").lower() != "false"
 
     if rate_enabled:
         check = await _rate_limiter.check_rate_limit(request)

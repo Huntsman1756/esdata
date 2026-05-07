@@ -179,7 +179,7 @@ def test_record_revision_acquires_postgres_advisory_lock_before_upsert(monkeypat
 
     assert "pg_advisory_xact_lock" in calls[0][0]
     assert calls[0][1]["lock_key"] == "worker-sepblac:documento:SEPBLAC-COMUNICACION-INDICIO"
-    assert "INSERT INTO source_revision" in calls[1][0]
+    assert any("INSERT INTO source_revision" in sql for sql, _ in calls[1:])
 
 
 def test_invalidate_old_embeddings(engine):

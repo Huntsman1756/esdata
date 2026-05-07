@@ -140,10 +140,13 @@ class AIAuditLogStore:
             return int(conn.execute(text("SELECT COUNT(*) FROM ai_audit_log")).scalar_one())
 
 
-_audit_store = AIAuditLogStore()
+_audit_store: AIAuditLogStore | None = None
 
 
 def get_audit_store() -> AIAuditLogStore:
+    global _audit_store
+    if _audit_store is None:
+        _audit_store = AIAuditLogStore()
     return _audit_store
 
 

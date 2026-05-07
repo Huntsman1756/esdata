@@ -1,11 +1,16 @@
 """Tests for IBAN validation (Fase 17.1)."""
 
+import sys
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
-from banking.iban import validate_iban
-from banking.iso20022 import parse_iso20022
-from banking.n43 import parse_n43
+from apps.api.banking.iban import validate_iban
+from apps.api.banking.iso20022 import parse_iso20022
+from apps.api.banking.n43 import parse_n43
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from main import app
 
 
@@ -981,7 +986,7 @@ class TestValidateBic:
     """Pure Python BIC validation tests."""
 
     def test_valid_8_char_bic(self):
-        from banking.sepa import validate_bic
+        from apps.api.banking.sepa import validate_bic
         result = validate_bic("BSCHESMM")
         assert result["valid"] is True
         assert result["bic"] == "BSCHESMM"
@@ -990,37 +995,37 @@ class TestValidateBic:
         assert result["branch_code"] is None
 
     def test_valid_11_char_bic(self):
-        from banking.sepa import validate_bic
+        from apps.api.banking.sepa import validate_bic
         result = validate_bic("DEUTDEFF500")
         assert result["valid"] is True
         assert result["bic"] == "DEUTDEFF500"
         assert result["branch_code"] == "500"
 
     def test_invalid_bic_short(self):
-        from banking.sepa import validate_bic
+        from apps.api.banking.sepa import validate_bic
         result = validate_bic("ABC")
         assert result["valid"] is False
         assert len(result["errors"]) > 0
 
     def test_invalid_bic_long(self):
-        from banking.sepa import validate_bic
+        from apps.api.banking.sepa import validate_bic
         result = validate_bic("BSCHESMMMMMMM")
         assert result["valid"] is False
 
     def test_empty_bic(self):
-        from banking.sepa import validate_bic
+        from apps.api.banking.sepa import validate_bic
         result = validate_bic("")
         assert result["valid"] is False
         assert result["bic"] == ""
 
     def test_bic_lowercase(self):
-        from banking.sepa import validate_bic
+        from apps.api.banking.sepa import validate_bic
         result = validate_bic("bschesmm")
         assert result["valid"] is True
         assert result["bic"] == "BSCHESMM"
 
     def test_bic_with_spaces(self):
-        from banking.sepa import validate_bic
+        from apps.api.banking.sepa import validate_bic
         result = validate_bic("BSCH ES MM")
         assert result["valid"] is False  # spaces not allowed in cleaned
 
@@ -1029,7 +1034,7 @@ class TestGeneratePain001:
     """pain.001 XML generation tests."""
 
     def test_generate_single_transaction(self):
-        from banking.sepa import generate_pain001
+        from apps.api.banking.sepa import generate_pain001
         xml_bytes = generate_pain001(
             debtor_name="Test S.L.",
             debtor_iban="ES9121000418450200051332",
@@ -1051,7 +1056,7 @@ class TestGeneratePain001:
         assert b"ES9121000418450200051332" in xml_bytes
 
     def test_generate_multiple_transactions(self):
-        from banking.sepa import generate_pain001
+        from apps.api.banking.sepa import generate_pain001
         xml_bytes = generate_pain001(
             debtor_name="Test S.L.",
             debtor_iban="ES9121000418450200051332",
@@ -1073,7 +1078,7 @@ class TestGeneratePain001:
         assert b"Creditor B" in xml_bytes
 
     def test_generate_no_bic(self):
-        from banking.sepa import generate_pain001
+        from apps.api.banking.sepa import generate_pain001
         xml_bytes = generate_pain001(
             debtor_name="Test S.L.",
             debtor_iban="ES9121000418450200051332",
@@ -1087,7 +1092,7 @@ class TestGeneratePain001:
         assert b"Document" in xml_bytes
 
     def test_generate_default_date(self):
-        from banking.sepa import generate_pain001
+        from apps.api.banking.sepa import generate_pain001
         xml_bytes = generate_pain001(
             debtor_name="Test S.L.",
             debtor_iban="ES9121000418450200051332",
@@ -1105,7 +1110,7 @@ class TestGroupTransactions:
     """Transaction grouping tests."""
 
     def test_group_by_creditor_iban(self):
-        from banking.sepa import group_transactions
+        from apps.api.banking.sepa import group_transactions
         txs = [
             {"creditor_iban": "ES111", "amount": 100.0},
             {"creditor_iban": "ES222", "amount": 200.0},
@@ -1118,7 +1123,7 @@ class TestGroupTransactions:
         assert batches[1][0]["creditor_iban"] == "ES222"
 
     def test_group_max_batch_size(self):
-        from banking.sepa import group_transactions
+        from apps.api.banking.sepa import group_transactions
         txs = [
             {"creditor_iban": "ES111", "amount": float(i)}
             for i in range(10)
@@ -1129,7 +1134,7 @@ class TestGroupTransactions:
         assert batches[3][0]["creditor_iban"] == "ES111"
 
     def test_group_empty(self):
-        from banking.sepa import group_transactions
+        from apps.api.banking.sepa import group_transactions
         batches = group_transactions([], group_by="creditor_iban")
         assert batches == []
 

@@ -264,13 +264,14 @@ async def calcular_retencion(req: IrsFiscalCheckRequest):
                     SELECT id, codigo, pais_origen, pais_destino, titulo,
                            fecha_vigencia
                     FROM irs_dta_convention
-                    WHERE (pais_origen = :pais OR pais_destino = :pais)
+                    WHERE ((pais_origen = :pais AND pais_destino = :pais_fuente)
+                       OR (pais_origen = :pais_fuente AND pais_destino = :pais))
                       AND estado = 'vigente'
-                    ORDER BY fecha_vigencia DESC
+                    ORDER BY codigo DESC, fecha_vigencia DESC
                     LIMIT 1
                     """
                 ),
-                {"pais": req.pais_residencia},
+                {"pais": req.pais_residencia, "pais_fuente": "ES"},
             ).mappings().first()
 
             if convenio_row:

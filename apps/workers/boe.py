@@ -13,13 +13,10 @@ Limitaciones conocidas:
   en upstream pueden generar `[PARTIAL]` rows.
 - Consolidacion (texto vigente) parcial: solo se almacena ultima version
   conocida; histogramas de versiones no se reconstruyen retroactivamente.
-
-Schema-runtime: `_ensure_sync_log_table` es no-op en Postgres (owned por
-Alembic `20260501_0053_absorb_runtime_table_drift`); en SQLite mantiene
-CREATE para tests.
 """
 
 import argparse
+from contextlib import contextmanager
 import logging
 import os
 import re
@@ -58,6 +55,7 @@ DEFAULT_NORMAS = {
 }
 
 KNOWN_BOE_CODES = set(DEFAULT_NORMAS.keys())
+BOE_SYNC_LOCK_KEY = 88420032
 
 NORMA_CLASSIFICATIONS = {
     "LIVA": {"tipo_documento": "ley", "ambito": "tributario"},
@@ -78,144 +76,14 @@ LAW_TO_NORMA = {
 }
 
 
-SCHEMA_STATEMENTS = []
-
-
-def _schema_statements(dialect: str) -> list[str]:
-    id_type = "SERIAL PRIMARY KEY" if dialect == "postgresql" else "INTEGER PRIMARY KEY"
-    timestamp_default = "now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"
-
-    return [
-        f"""
-        CREATE TABLE IF NOT EXISTS norma (
-            id {id_type},
-            codigo TEXT UNIQUE NOT NULL,
-            titulo TEXT NOT NULL,
-            boe_id TEXT UNIQUE NOT NULL,
-            eli_uri TEXT UNIQUE,
-            jurisdiccion TEXT NOT NULL,
-            tipo_fuente TEXT NOT NULL,
-            tipo_documento TEXT NOT NULL,
-            ambito TEXT NOT NULL,
-            estado_cobertura TEXT NOT NULL,
-            vigente_desde DATE NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT {timestamp_default}
-        )
-        """,
-        f"""
-        CREATE TABLE IF NOT EXISTS articulo (
-            id {id_type},
-            norma_id INTEGER NOT NULL REFERENCES norma(id),
-            numero TEXT NOT NULL,
-            titulo TEXT,
-            tipo TEXT NOT NULL,
-            UNIQUE (norma_id, numero)
-        )
-        """,
-        f"""
-        CREATE TABLE IF NOT EXISTS version_articulo (
-            id {id_type},
-            articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-            texto TEXT NOT NULL,
-            vigente_desde DATE NOT NULL,
-            vigente_hasta DATE,
-            boe_bloque_id TEXT
-        )
-        """,
-        f"""
-        CREATE TABLE IF NOT EXISTS documento_interpretativo (
-            id {id_type},
-            tipo_documento TEXT NOT NULL,
-            organismo_emisor TEXT NOT NULL,
-            jurisdiccion TEXT NOT NULL,
-            tipo_fuente TEXT NOT NULL,
-            ambito TEXT NOT NULL,
-            referencia TEXT UNIQUE NOT NULL,
-            fecha DATE NOT NULL,
-            titulo TEXT,
-            texto TEXT NOT NULL,
-            url_fuente TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS documento_articulo (
-            documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
-            articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-            metodo_enlace TEXT NOT NULL,
-            confianza_enlace NUMERIC(3,2) NOT NULL,
-            nota TEXT,
-            PRIMARY KEY (documento_id, articulo_id)
-        )
-        """,
-        f"""
-        CREATE TABLE IF NOT EXISTS materia (
-            id {id_type},
-            slug TEXT UNIQUE NOT NULL,
-            etiqueta TEXT NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS articulo_materia (
-            articulo_id INTEGER NOT NULL REFERENCES articulo(id),
-            materia_id INTEGER NOT NULL REFERENCES materia(id),
-            relevancia SMALLINT NOT NULL DEFAULT 1,
-            PRIMARY KEY (articulo_id, materia_id)
-        )
-        """,
-        f"""
-        CREATE TABLE IF NOT EXISTS sync_log (
-            id {id_type},
-            worker TEXT NOT NULL,
-            started_at TIMESTAMPTZ NOT NULL,
-            finished_at TIMESTAMPTZ,
-            status TEXT NOT NULL,
-            bloques_processed INTEGER,
-            articulos_upserted INTEGER,
-            documentos_processed INTEGER,
-            documentos_upserted INTEGER,
-            doctrina_links_created INTEGER,
-            error_msg TEXT
-        )
-        """,
-    ]
-
-
-def _create_base_schema(conn) -> None:
-    for statement in _schema_statements(conn.engine.dialect.name):
-        conn.execute(text(statement))
-
-    conn.execute(
-        text(
-            """
-            INSERT INTO materia (slug, etiqueta)
-            VALUES ('tipo-reducido-iva', 'Tipo reducido IVA')
-            ON CONFLICT (slug) DO NOTHING
-            """
-        )
-    )
-
-
 _SYNC_LOG_BOOTSTRAP_LOGGED: set[str] = set()
 
 
 def _ensure_sync_log_table(conn) -> None:
-    """Garantiza tabla `sync_log` (no-op defensivo en Postgres).
-
-    [DEPRECATED en runtime Postgres] El schema lo gestiona Alembic
-    (`20260501_0053_absorb_runtime_table_drift`). En SQLite mantiene la
-    creacion para tests y dev sin migraciones.
-    """
+    """Garantiza tabla `sync_log` (no-op en todos los dialects; schema owned por Alembic)."""
     dialect = conn.engine.dialect.name
-    if dialect != "sqlite":
-        if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
-            import logging
-
-            logging.getLogger(__name__).debug(
-                "_ensure_sync_log_table: no-op en %s; schema owned por Alembic", dialect
-            )
-            _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
-        return
-    conn.execute(text(_schema_statements(dialect)[-1]))
+    if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
+        _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
 
 
 @dataclass
@@ -586,9 +454,9 @@ def auto_link_materias(conn) -> int:
     text of all articles and create articulo_materia links with relevance=2
     (principal) when found.
     """
-    materias = conn.execute(
-        text("SELECT slug, etiqueta FROM materia ORDER BY slug")
-    ).mappings()
+    materias = list(
+        conn.execute(text("SELECT slug, etiqueta FROM materia ORDER BY slug")).mappings()
+    )
 
     # Curated keyword sets per materia slug
     keyword_map = {
@@ -648,9 +516,9 @@ def auto_link_doctrina(conn) -> int:
 
     Looks for patterns like "LIVA 91", "art. 91", "artículo 91", etc.
     """
-    docs = conn.execute(
-        text("SELECT id, referencia, texto FROM documento_interpretativo")
-    ).mappings()
+    docs = list(
+        conn.execute(text("SELECT id, referencia, texto FROM documento_interpretativo")).mappings()
+    )
 
     links_created = 0
     for doc in docs:
@@ -876,122 +744,16 @@ def log_sync(
 
 
 def _ensure_schema(conn) -> None:
-    """Ensure worker-owned schema objects exist before syncing."""
+    """Ensure worker-owned schema objects exist before syncing.
+
+    Tables are created by Alembic only. This function ensures
+    extensions and indexes that the worker needs exist.
+    """
     dialect = conn.engine.dialect.name
-
-    if dialect == "sqlite":
-        norma_columns = conn.execute(text("PRAGMA table_info(norma)")).fetchall()
-        norma_column_names = {column[1] for column in norma_columns}
-    else:
-        norma_column_names = {
-            row[0]
-            for row in conn.execute(
-                text(
-                    """
-                    SELECT column_name
-                    FROM information_schema.columns
-                    WHERE table_name = 'norma'
-                    """
-                )
-            ).fetchall()
-        }
-
-    added_norma_columns = set()
-
-    if norma_column_names and "tipo_documento" not in norma_column_names:
-        conn.execute(text("ALTER TABLE norma ADD COLUMN tipo_documento TEXT"))
-        added_norma_columns.add("tipo_documento")
-    if norma_column_names and "estado_cobertura" not in norma_column_names:
-        conn.execute(text("ALTER TABLE norma ADD COLUMN estado_cobertura TEXT"))
-        added_norma_columns.add("estado_cobertura")
-    if added_norma_columns:
-        conn.execute(
-            text(
-                """
-                UPDATE norma
-                SET tipo_documento = 'ley'
-                WHERE tipo_documento IS NULL
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                UPDATE norma
-                SET ambito = 'tributario'
-                WHERE ambito = 'fiscal'
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                UPDATE norma
-                SET estado_cobertura = 'ingestada'
-                WHERE estado_cobertura IS NULL
-                """
-            )
-        )
 
     if dialect == "postgresql":
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
 
-    _create_base_schema(conn)
-
-    if dialect == "sqlite":
-        columns = conn.execute(text("PRAGMA table_info(sync_log)")).fetchall()
-        column_names = {column[1] for column in columns}
-    else:
-        column_names = {
-            row[0]
-            for row in conn.execute(
-                text(
-                    """
-                    SELECT column_name
-                    FROM information_schema.columns
-                    WHERE table_name = 'sync_log'
-                    """
-                )
-            ).fetchall()
-        }
-
-    if "bloques_processed" not in column_names:
-        conn.execute(
-            text(
-                """
-            ALTER TABLE sync_log
-            ADD COLUMN bloques_processed INTEGER,
-            ADD COLUMN articulos_upserted INTEGER
-            """
-            )
-        )
-        conn.execute(
-            text(
-                """
-            UPDATE sync_log
-            SET bloques_processed = items_processed,
-                articulos_upserted = items_processed
-            WHERE bloques_processed IS NULL AND items_processed IS NOT NULL
-            """
-            )
-        )
-        column_names |= {"bloques_processed", "articulos_upserted"}
-
-    missing_metric_columns = [
-        column
-        for column in (
-            "documentos_processed",
-            "documentos_upserted",
-            "doctrina_links_created",
-        )
-        if column not in column_names
-    ]
-
-    for column in missing_metric_columns:
-        conn.execute(text(f"ALTER TABLE sync_log ADD COLUMN {column} INTEGER"))
-
-    # Create trigram index for full-text search if it doesn't exist
-    if dialect == "postgresql":
         idx_exists = conn.execute(
             text(
                 """
@@ -1002,15 +764,68 @@ def _ensure_schema(conn) -> None:
             """
             )
         ).scalar()
-    else:
-        idx_exists = True
 
-    if not idx_exists:
-        conn.execute(
-            text(
-                "CREATE INDEX idx_version_articulo_texto_trgm ON version_articulo USING gin (texto gin_trgm_ops)"
+        if not idx_exists:
+            conn.execute(
+                text(
+                    "CREATE INDEX idx_version_articulo_texto_trgm ON version_articulo USING gin (texto gin_trgm_ops)"
+                )
             )
+
+
+def _report_idle_in_transaction_connections(engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    with engine.connect() as check_conn:
+        idle = check_conn.execute(
+            text(
+                "SELECT count(*) FROM pg_stat_activity "
+                "WHERE state = 'idle in transaction' "
+                "AND pid != pg_backend_pid()"
+            )
+        ).scalar()
+        if idle > 0:
+            print(f"  DEADLOCK_RISK: {idle} conexiones idle in transaction tras run_sync")
+
+
+def _try_acquire_sync_lock(conn) -> bool:
+    dialect = getattr(getattr(conn, "engine", None), "dialect", None)
+    if getattr(dialect, "name", None) != "postgresql":
+        return True
+
+    row = conn.execute(
+        text("SELECT pg_try_advisory_xact_lock(:lock_key)"),
+        {"lock_key": BOE_SYNC_LOCK_KEY},
+    ).fetchone()
+    return bool(row[0]) if row else False
+
+
+@contextmanager
+def _hold_sync_lock(engine):
+    if engine.dialect.name != "postgresql":
+        yield True
+        return
+
+    lock_conn = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+    acquired = False
+    try:
+        acquired = bool(
+            lock_conn.execute(
+                text("SELECT pg_try_advisory_lock(:lock_key)"),
+                {"lock_key": BOE_SYNC_LOCK_KEY},
+            ).scalar()
         )
+        yield acquired
+    finally:
+        try:
+            if acquired:
+                lock_conn.execute(
+                    text("SELECT pg_advisory_unlock(:lock_key)"),
+                    {"lock_key": BOE_SYNC_LOCK_KEY},
+                )
+        finally:
+            lock_conn.close()
 
 
 def run_sync(
@@ -1039,83 +854,89 @@ def run_sync(
     ensure_database_connection(engine, logger=logging.getLogger(__name__))
     total_bloques = 0
     total_articulos = 0
+    run_start = datetime.now(timezone.utc).isoformat()
 
     with httpx.Client(timeout=30.0) as client:
-        with engine.begin() as conn:
-            _ensure_schema(conn)
+        with _hold_sync_lock(engine) as lock_acquired:
+            with engine.begin() as conn:
+                _ensure_schema(conn)
 
-        for codigo in target_codes:
-            boe_id = DEFAULT_NORMAS[codigo]
-            try:
-                metadata = fetch_metadata(client, codigo, boe_id)
-            except ValueError:
-                print(f"  SKIP {codigo} ({boe_id}): not in BOE API")
-                continue
-
-            bloques_fetched = 0
-            articulos_upserted = 0
-            ley_start = datetime.now(timezone.utc).isoformat()
-            try:
+            if not lock_acquired:
                 with engine.begin() as conn:
-                    upsert_norma(conn, metadata)
-                    for item in fetch_index(client, boe_id):
-                        touch_heartbeat()
+                    log_sync(
+                        conn,
+                        worker_name,
+                        "partial",
+                        bloques=0,
+                        articulos=0,
+                        error_msg="BOE sync already in progress",
+                        started_at=run_start,
+                    )
+                print("  SKIP BOE: BOE sync already in progress")
+                _report_idle_in_transaction_connections(engine)
+                return {"bloques": 0, "articulos": 0}
+
+            for codigo in target_codes:
+                boe_id = DEFAULT_NORMAS[codigo]
+                try:
+                    metadata = fetch_metadata(client, codigo, boe_id)
+                except ValueError:
+                    print(f"  SKIP {codigo} ({boe_id}): not in BOE API")
+                    continue
+
+                bloques_fetched = 0
+                articulos_upserted = 0
+                ley_start = datetime.now(timezone.utc).isoformat()
+                try:
+                    with engine.begin() as conn:
+                        upsert_norma(conn, metadata)
+                    index = fetch_index(client, boe_id)
+                    for item in index:
                         if not _is_supported_block(item.titulo):
                             continue
                         if only_block_ids and item.id not in only_block_ids:
                             continue
+                        touch_heartbeat()
                         bloque = fetch_block(client, boe_id, item.id)
-                        upsert_articulo(conn, codigo, bloque)
+                        with engine.begin() as conn:
+                            upsert_articulo(conn, codigo, bloque)
                         bloques_fetched += 1
                         articulos_upserted += 1
                         time.sleep(float(os.environ.get("WORKER_REQUEST_DELAY", "1.0")))
-                    auto_link_materias(conn)
-                    auto_link_doctrina(conn)
-                    log_sync(
-                        conn,
-                        worker_name,
-                        "ok",
-                        bloques=bloques_fetched,
-                        articulos=articulos_upserted,
-                        started_at=ley_start,
-                    )
-                total_bloques += bloques_fetched
-                total_articulos += articulos_upserted
-                print(f"  DONE {codigo}: {bloques_fetched} blocks, {articulos_upserted} articulos")
-            except Exception as exc:
-                print(
-                    f"  ERROR {codigo}: {exc} at {datetime.now(timezone.utc).isoformat()}"
-                )
-                try:
+
                     with engine.begin() as conn:
+                        auto_link_materias(conn)
+                        auto_link_doctrina(conn)
                         log_sync(
                             conn,
                             worker_name,
-                            "error",
+                            "ok",
                             bloques=bloques_fetched,
                             articulos=articulos_upserted,
-                            error_msg=str(exc),
                             started_at=ley_start,
                         )
-                except Exception:
-                    pass
+                    total_bloques += bloques_fetched
+                    total_articulos += articulos_upserted
+                    print(f"  DONE {codigo}: {bloques_fetched} blocks, {articulos_upserted} articulos")
+                except Exception as exc:
+                    print(
+                        f"  ERROR {codigo}: {exc} at {datetime.now(timezone.utc).isoformat()}"
+                    )
+                    try:
+                        with engine.begin() as conn:
+                            log_sync(
+                                conn,
+                                worker_name,
+                                "error",
+                                bloques=bloques_fetched,
+                                articulos=articulos_upserted,
+                                error_msg=str(exc),
+                                started_at=ley_start,
+                            )
+                    except Exception:
+                        pass
 
-    if engine.dialect.name == "postgresql":
-        from sqlalchemy import text
-
-        with engine.connect() as check_conn:
-            result = check_conn.execute(
-                text(
-                    "SELECT count(*) FROM pg_stat_activity "
-                    "WHERE state = 'idle in transaction' "
-                    "AND pid != pg_backend_pid()"
-                )
-            )
-            idle = result.scalar()
-            if idle > 0:
-                print(
-                    f"  DEADLOCK_RISK: {idle} conexiones idle in transaction tras run_sync"
-                )
+    _report_idle_in_transaction_connections(engine)
 
     return {"bloques": total_bloques, "articulos": total_articulos}
 

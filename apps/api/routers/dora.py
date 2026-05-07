@@ -63,7 +63,7 @@ async def list_dora_tic_incidents(
         filters.append("md.classification = :classification")
         params["classification"] = classification
     if search:
-        filters.append("md.entity_id = :search::integer")
+        filters.append("CAST(md.entity_id AS TEXT) = :search")
         params["search"] = search
 
     with db_session() as db:
@@ -228,7 +228,7 @@ async def list_dora_ict_risk_registers(
         params["impact"] = impact
     if search:
         filters.append(
-            "(mr.entity_id = :search::integer OR LOWER(mr.owner) LIKE LOWER(:search_like))"
+            "(CAST(mr.entity_id AS TEXT) = :search OR LOWER(mr.owner) LIKE LOWER(:search_like))"
         )
         params["search"] = search
         params["search_like"] = f"%{search}%"
@@ -308,7 +308,7 @@ async def list_dora_penetration_tests(
         params["test_type"] = test_type
     if search:
         filters.append(
-            "(mp.entity_id = :search::integer OR LOWER(mp.tester) LIKE LOWER(:search_like))"
+            "(CAST(mp.entity_id AS TEXT) = :search OR LOWER(mp.tester) LIKE LOWER(:search_like))"
         )
         params["search"] = search
         params["search_like"] = f"%{search}%"

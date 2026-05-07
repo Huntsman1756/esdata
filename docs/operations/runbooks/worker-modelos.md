@@ -9,7 +9,7 @@ Sincroniza campanas, instrucciones, casillas y claves desde sede AEAT.
 - `DATABASE_URL`
 - `AEAT_MODELS_SYNC_INTERVAL`
 - `MODELOS_SYNC_INTERVAL` como alias usado por Compose
-- `WORKER_NAME` para distinguir `worker-modelos` de `cron-modelos-daily`
+- `WORKER_NAME` para distinguir `worker-modelos` y `cron-modelos-daily`
 
 ## Síntomas típicos
 
@@ -31,5 +31,4 @@ Sincroniza campanas, instrucciones, casillas y claves desde sede AEAT.
 1. verificar que el modelo existe en `aeat_modelo`
 2. revisar si ha cambiado el HTML de sede AEAT
 3. si falla un recurso oficial AEAT, el sync debe quedar `partial` con mensaje `Skipped N AEAT official resources after fetch failures`, no `error` fatal
-4. recordar que `/status` y Prometheus deben tratar `modelos` y `worker-aeat-modelos` como aliases historicos de `worker-modelos`
-5. relanzar el worker tras ajustar variables o parsing
+4. relanzar el worker tras ajustar variables o parsing

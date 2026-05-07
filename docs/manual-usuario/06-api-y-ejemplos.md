@@ -157,6 +157,40 @@ Vista operativa multi-modelo:
 curl -G -s http://127.0.0.1:8000/v1/modelos/campanas-operativas --data-urlencode "codigos=124,216,296" --data-urlencode "campana=2025"
 ```
 
+## Convenios DTA y retenciones internacionales
+
+Listar convenios DTA:
+
+```bash
+curl -G -s http://127.0.0.1:8000/v1/internacional/convenios --data-urlencode "pais_a=US" --data-urlencode "pais_b=ES"
+```
+
+Detalle de un convenio:
+
+```bash
+curl -s http://127.0.0.1:8000/v1/internacional/convenios/ES_US_DTA
+```
+
+Listar reglas de retencion:
+
+```bash
+curl -G -s http://127.0.0.1:8000/v1/internacional/convenios/retenciones --data-urlencode "tipo_renta=dividends"
+```
+
+Calcular retencion aplicable:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/v1/internacional/convenios/retencion \
+  -H "Content-Type: application/json" \
+  -d '{"pais_residencia":"US","tipo_renta":"dividends"}'
+```
+
+Reglas practicas:
+
+- estos endpoints exponen convenios DTA y reglas de retencion ya cargados en la instancia; no implican cobertura exhaustiva de todos los paises
+- el calculo de `retencion` cruza la regla de withholding por tipo de renta con un convenio DTA vigente si existe para la pareja de paises consultada
+- en fixtures y compatibilidad legacy pueden coexistir codigos como `DTA_US_ES` y `ES_US_DTA`; usa en ejemplos solo los codigos verificados por tests o por la instancia objetivo
+
 ## Obligaciones regulatorias
 
 Listar obligaciones:

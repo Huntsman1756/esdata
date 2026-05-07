@@ -7,7 +7,7 @@ from httpx import ASGITransport, AsyncClient
 import pytest
 from sqlalchemy import text
 
-from conftest import engine
+from .conftest import engine
 
 API_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[3]

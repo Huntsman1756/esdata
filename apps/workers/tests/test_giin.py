@@ -8,6 +8,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -126,9 +128,33 @@ class TestGIINWorker:
     def test_run_once_with_mock_db(self):
         """Test run_once with mocked database."""
         from giin import run_sync
-        
-        result = run_sync(worker_name="test-giin")
-        
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            future=True,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE giin_registry (
+                    giin TEXT PRIMARY KEY,
+                    entidad_nombre TEXT NOT NULL,
+                    entidad_pais TEXT NOT NULL,
+                    tipo_entidad TEXT NOT NULL,
+                    estado_fatca TEXT NOT NULL,
+                    fecha_registro TEXT,
+                    fecha_expiracion TEXT,
+                    es_exempt_beneficial_owner BOOLEAN NOT NULL,
+                    es_sponsored_ffo BOOLEAN NOT NULL,
+                    nota TEXT,
+                    actualizado_en TEXT
+                )
+            """))
+
+        with patch("giin.create_engine", return_value=engine), patch("giin.fetch_giin_csv", return_value=None):
+            result = run_sync(worker_name="test-giin")
+
         assert result["processed"] == 15
         assert result["source"] == "seed"
         assert result["worker"] == "test-giin"

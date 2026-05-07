@@ -33,194 +33,12 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
-### 2026-05-05 - Cron one-shot en Compose: `run --rm` sin `--no-deps` puede romper el stack vivo
+### 2026-05-06 - Cron semanales en produccion: `--no-deps` en systemd rompe jobs y `WorkerSilent` no puede usar 48h fijo
 
-- Scope: `infra/deploy/systemd/esdata-job@.service`, `infra/deploy/docker-compose.prod.yml`, Alertmanager `WorkerSilent`
-- Hallazgo: lanzar `cron-*` one-shot con `docker compose run --rm` desde `systemd` puede intentar gestionar dependencias/profile del proyecto y acabar parando `postgres` o tocando `deploy_esdata-internal`, dejando fallos reales en `cron-boe-daily` y `cron-modelos-daily` aunque el stack continuo siga vivo. El fix minimo es doble: (1) `run --rm --no-deps` para no tocar dependencias del stack; y (2) declarar `networks: [esdata-internal]` en cada `cron-*` DB-backed para que el contenedor one-shot siga resolviendo `postgres` por DNS aun con `--no-deps`. Al mismo tiempo, `WorkerSilent` con un umbral fijo de `48h` produce falsos positivos en jobs `weekly` aunque `/status` y `worker_stale_status` ya usan thresholds por worker de hasta `8 dias`.
-- Impacto: Telegram mezcla ruido de `weekly` sanos con incidentes reales de `daily`, y el scheduler host puede romper jobs one-shot al interferir con la red Compose compartida.
-- Regla practica: para `cron-*` en produccion, usar `docker compose run --rm --no-deps <cron-service>`, verificar que el servicio declara `networks: [esdata-internal]` cuando necesita `postgres` por nombre, y alinear Alertmanager con `worker_stale_status` en vez de recalcular un `lag_seconds` global fijo.
-
-### 2026-05-05 - Deploy canonico: el worker set debe derivarse del Compose activo, no de una lista historica
-
-- Scope: `infra/deploy/docker-compose.prod.yml`, `scripts/ops/deploy-hetzner.sh`, runbooks de deploy, `infra/deploy/systemd/esdata-job@.service`
-- Hallazgo: cuando el Compose activo gana workers continuos nuevos, el deploy canonico y los runbooks pueden quedarse congelados en una lista historica parcial y dejar parte del corpus fuera del runtime real aunque los servicios existan en el repo.
-- Impacto: el equipo cree que produccion ejecuta todo el scope continuo, pero algunos workers nunca se levantan tras deploy; ademas, los chequeos manuales y el scheduler pueden romperse si cada artefacto usa un root distinto del repo.
-- Regla practica: tratar `infra/deploy/docker-compose.prod.yml` como fuente de verdad del worker set continuo (`worker-*` sin `profiles`) y fijar regresiones que comparen contra el comando canonico de deploy. Mantener tambien una sola raiz operativa del repo en docs activas y `systemd` (`/srv/esdata` en este slice).
-
-### 2026-05-05 - Variables de entorno: separar runtime deploy de code-only y legacy
-
-- Scope: `infra/deploy/docker-compose.prod.yml`, `infra/deploy/compose.env.example`, `.env.example`, `docs/environment-variables.md`, deploy docs activas
-- Hallazgo: mezclar en un mismo inventario variables del deploy activo, variables solo de codigo/tests y restos historicos crea falsas suposiciones operativas y puede dejar controles de seguridad "documentados" que el runtime no aplica de verdad.
-- Impacto: un operador puede creer que una variable no cableada forma parte del deploy Compose activo, o confiar en una env var inexistente para proteger una superficie real como `/metrics`.
-- Regla practica: tratar `infra/deploy/docker-compose.prod.yml` como fuente unica del `runtime deploy`; `infra/deploy/compose.env.example` como plantilla exacta de ese boundary; y cualquier inventario amplio (`.env.example`, docs de variables, runbooks) debe explicitar si una variable es `code-only` o `legacy/no cableada` antes de sugerirla como control operativo.
-
-### 2026-05-05 - Secretos de deploy: el fichero runtime vive fuera del checkout
-
-- Scope: `scripts/ops/deploy-hetzner.sh`, `scripts/ops/backup-postgres.sh`, `infra/deploy/docker-compose.prod.yml`, `infra/deploy/systemd/esdata-job@.service`, runbooks activos de deploy/ops
-- Hallazgo: aunque Git ignore `.env.*`, seguir usando `infra/deploy/.env.prod` como path operativo deja los secretos reales dentro de `/srv/esdata` y reabre el riesgo de tratarlos como parte normal del repo o de copiar plantillas/renderizados sensibles por error durante handoffs y tareas manuales.
-- Impacto: el equipo puede creer que "fuera de Git" equivale a "fuera del repo", cuando el runtime secreto sigue residiendo dentro del checkout productivo y varios artefactos operativos lo refuerzan como convencion canonica.
-- Regla practica: para el deploy Compose activo, versionar solo `infra/deploy/compose.env.example` y cargar siempre el runtime real desde `/etc/esdata/esdata.env`. Si un script, unit file o runbook sigue apuntando a `infra/deploy/.env.prod`, tratarlo como drift operativo y corregirlo en el mismo slice.
-
-### 2026-05-05 - verify_schema debe seguir dependencias reales de runtime, no solo columnas nuevas visibles
-
-- Scope: `scripts/maintenance/verify_schema.py`, deploy Compose con contenedor `ops`
-- Hallazgo: un gate de esquema basado solo en columnas "obvias" puede seguir dando verde aunque falten claves estructurales que el runtime usa implicitamente, como identificadores auditables, timestamps de ordenacion o unicidad necesaria para `ON CONFLICT`.
-- Impacto: el deploy puede parecer sano mientras rompe inserciones de auditoria o colas persistentes una vez que el runtime escribe datos reales.
-- Regla practica: cuando un flujo runtime depende de `INSERT`/`SELECT` sobre columnas concretas o de una unicidad contractual (`ON CONFLICT`, ordering persistente, IDs estables), el gate de deploy debe modelar tambien esas dependencias, aunque la fase siga evitando una auditoria estructural completa.
-
-### 2026-05-05 - Deploy canonico: migrar y verificar antes de levantar servicios
-
-- Scope: `scripts/ops/deploy-hetzner.sh`, `.github/workflows/deploy-hetzner.yml`, runbooks de deploy Compose
-- Hallazgo: si el deploy valida esquema pero no ejecuta `alembic upgrade head`, el stack puede arrancar con codigo nuevo sobre esquema viejo y fallar de forma parcial o enganosa.
-- Impacto: API, workers y checks posteriores pueden parecer sanos aunque falten tablas/columnas requeridas por la revision desplegada.
-- Regla practica: en despliegue Docker Compose, tratar `bash scripts/ops/deploy-hetzner.sh` como ruta canonica y exigir siempre este orden: `config`, `build ops`, `up postgres`, `alembic upgrade head`, `verify_schema.py`, y solo despues levantar servicios de aplicacion.
-
-### 2026-05-04 - Fase 4.5 vocabulary validation: validar en el write boundary, no solo en el parser
-
-- Scope: `apps/workers/vocabulary_validation.py`, `upsert_documento_interpretativo(...)` en workers, `apps/workers/vocabulary.py`
-- Hallazgo: un vocabulario controlado no esta realmente activo mientras los workers puedan saltarselo con literales en SQL o payloads sin sanear.
-- Impacto: comprobar solo `build_document_payload(...)` o helpers de deteccion no garantiza que la DB reciba valores permitidos; la validacion real tiene que vivir justo antes del `INSERT ... ON CONFLICT`.
-- Regla practica: dejar que el parser/build use taxonomias locales si ayuda a la extraccion, pero normalizar siempre el `record` final en el boundary de escritura hacia valores ya permitidos por `VOCABULARY`.
-
-### 2026-05-04 - Fase 4.4 link semantics: exacto no significa solo "alta confianza"
-
-- Scope: `documento_articulo.metodo_enlace`, `apps/api/routers/doctrina.py`, `apps/api/routers/dgt_doctrina.py`, `apps/api/services/graph_connectivity.py`, `documento_empresa`
-- Hallazgo: un `confianza_enlace` alto no convierte una inferencia contextual en enlace exacto. En este repo, exacto significa referencia canonica explicita suficiente para resolver norma/articulo sin inferencia adicional, y hoy eso solo ocurre con `manual`, `manual_official` o `auto_link_exact`. `documento_empresa` en BORME sigue siendo extraccion heuristica, no anclaje canonico.
-- Impacto: si los readers/promociones usan umbral de confianza en vez de `metodo_enlace`, `doctrina` y `dgt_doctrina` pueden marcar `verified/completa` de forma enganosa y la conectividad puede propagar semantica falsa. Si se trata `documento_empresa` como exacto, se sobrevende una relacion societaria extraida por heuristica.
-- Regla practica: decidir strong anchors, `verified` y `completeness` solo por presencia de metodos exactos; propagar `da.metodo_enlace` y `da.confianza_enlace` sin cambiar el shape publico; y mantener `documento_empresa` como heuristico hasta que exista un contrato exacto explicito para esa tabla.
-
-### 2026-05-04 - Fase 4.3 row-quality: completeness/provenance vive en la tabla duena de la fila
-
-- Scope: `modelo_recurso`, `documento_interpretativo`, `source_revision`, `sync_log`, `source_manifest`
-- Hallazgo: status de sync, revision por hash y row-quality son contratos distintos. Si se mezclan, ops/API/retrieval pueden sobreinterpretar la calidad real de una fila o de un run.
-- Impacto: meter completeness/provenance en `source_revision` o inferirla solo desde `sync_log` hace que una revision tecnica o un resultado de run parezcan garantia de calidad por fila cuando no lo son.
-- Regla practica: guardar `row_completeness` / `row_provenance` en la tabla que posee la fila persistida; reservar `source_revision` para cambios tecnicos y `sync_log` para outcomes del run. `source_manifest` debe seguir source-level hasta que exista un slice explicito de agregacion row-level.
-
-### 2026-05-04 - Fase 4.2 workers: `partial` solo cuando el run termina con huecos concluidos
-
-- Scope: `apps/workers/runtime.py`, `apps/workers/aeat_models.py`, `apps/workers/cnmv.py`, `apps/workers/dgt.py`
-- Hallazgo: mezclar faltantes reales, documentos fuera de target y errores transitorios/reintentables en un mismo contador rompe la semantica de `sync_log.status`. `partial` debe significar "run terminado con huecos reales", no "hubo cualquier skip o retry".
-- Impacto: si cualquier excepcion o documento descartado cuenta como faltante, ops/API/MCP pueden interpretar cobertura parcial donde en realidad la cola quedo pendiente o el documento era irrelevante para la fuente.
-- Regla practica: usar `finalize_partial_sync_status(...)` solo al cierre del run y pasarle un contador de faltantes concluidos. AEAT/CNMV: contar solo fetch/download failures reales de recursos oficiales/documentos. DGT: contar `search` sin resultados como faltante, no contar documentos fuera de target y no degradar a `partial` por errores transitorios que dejan `dgt_queue` pendiente para retry.
-
-### 2026-05-04 - Fase 4.1 DGT: `source_revision` no debe cargar estado de cola
-
-- Scope: `apps/workers/dgt.py`, `apps/workers/change_detection.py`, `alembic/versions/20260504_0057_dgt_queue_split.py`
-- Hallazgo: cuando DGT usa `source_revision.content_hash_sha256` para guardar `pending` o `empty`, rompe el contrato compartido de change detection porque esa columna deja de significar hash real.
-- Impacto: `check_content_changed()` puede leer una fila de cola como si fuera revision valida y el corpus aparenta tener una semantica de revision que ya no es cierta.
-- Regla practica: cualquier cola persistente nueva o legacy debe vivir fuera de `source_revision`; esa tabla solo admite revisiones reales. Para DGT, usar `dgt_queue` para `pending/processed/empty` y reservar `source_revision` para hashes SHA-256 reales.
-
-### 2026-05-04 - Fase 3.4 modelos: separar chequeos estaticos de drift persistido
-
-- Scope: `scripts/maintenance/check_model_data_quality.py`, `.github/workflows/ci.yml`, tablas `aeat_modelo` / `modelo_*`
-- Hallazgo: los problemas peligrosos de `modelos` viven tanto en archivos fuente/seed como en filas ya persistidas en DB.
-- Impacto: comprobar solo una de las dos superficies deja fuera la mitad del problema.
-- Regla practica: para quality gates de `modelos`, ejecutar siempre chequeos estaticos de seeds/scripts y chequeos DB-backed del contrato persistido actual.
-
-### 2026-05-03 - MCP trust: el riesgo principal no es una sola respuesta mala, sino huecos entre datos, contrato MCP y audit trail
-
-- Scope: `apps/api/*`, `apps/workers/*`, `docs/manual-usuario/*`, `docs/reference/mcp-remediation-plan.md`
-- Hallazgo: el repo tiene buena base de grounding, workers y auditoria, pero una respuesta MCP puede seguir siendo peligrosamente segura si se juntan tres cosas: metadata/modelos parciales, surfaces MCP HTTP vs stdio no alineadas, y endpoints/tool calls sin audit E2E completo. El fallo real es de cadena de confianza, no de una sola capa.
-- Impacto: un modelo o agente externo puede convertir datos parciales o curados en una conclusion operativa aparentemente verificada. Eso afecta especialmente a `modelos AEAT`, `consulta_fiscal/agente_consulta`, y a cualquier tool que no persista `request_id + fuentes + grounding_status + completitud`.
-- Regla practica: antes de corregir prompts o tocar docs, comprobar siempre estas cuatro preguntas: (1) la tool existe en la superficie MCP que usa el cliente real? (2) deja audit trail E2E? (3) la respuesta distingue oficial/curado/heuristico/no verificado? (4) el corpus o modelo tiene bandera de completitud suficiente para una conclusion operativa?
-
-### 2026-05-03 - Fase 1.1 HTTP MCP: no depender de inferencia por path cuando el endpoint ya conoce su operation_id
-
-- Scope: `apps/api/routers/buscar.py`, `apps/api/routers/legislacion.py`, `apps/api/routers/doctrina.py`, `apps/api/routers/modelos.py`, `services/query_audit.py`
-- Hallazgo: para la superficie HTTP MCP prioritaria, confiar solo en `infer_query_audit_tool_name(path)` es fragil porque varios endpoints reales incluyen parametros dinamicos en la ruta y otros comparten prefijo pero no operation_id. El hook mas robusto es pasar `tool_name` explicito desde cada handler cuando ese endpoint forma parte del catalogo MCP.
-- Impacto: sin `tool_name` explicito, una entrada puede persistirse con nombre derivado del ultimo segmento de la URL o no persistirse en absoluto si el handler nunca llama a `record_query()`, rompiendo la reconstruccion E2E por tool.
-- Regla practica: en rutas HTTP que representen operation_ids MCP reales, llamar siempre a `get_query_audit_service().record_query(...)` desde el handler y pasar `tool_name` explicito junto con `path`, `query_text`, `sources/confidence`, `completeness` y `verified`.
-
-### 2026-05-03 - `doctrina/buscar` con `include_boe=true` puede romper filtros semanticos heredados
-
-- Scope: `apps/api/routers/doctrina.py`, `apps/api/tests/test_smoke.py::test_doctrina_buscar_filtra_por_tipo`
-- Hallazgo: el buscador de doctrina puede extender resultados con `_buscar_normas_boe(db, q)` cuando `include_boe=true` y no se restringe `organismo_emisor`. Eso hace que una query filtrada por `tipo` doctrinal siga incluyendo normas BOE relacionadas y rompa asserts heredados que esperan homogeneidad total por `tipo_documento`.
-- Impacto: algunas smokes antiguas sobre filtrado por `tipo` fallan aunque el nuevo audit trail y el endpoint principal sigan funcionando; no debe confundirse con una regresion del slice de auditoria MCP.
-- Regla practica: si aparece un rojo en `test_doctrina_buscar_filtra_por_tipo`, revisar primero la mezcla `doctrina + BOE` del endpoint antes de tocar el audit trail. Es deuda funcional separada de la Fase 1.1.
-
-### 2026-05-03 - Fase 1.2 stdio MCP: la fila auditable debe nacer en `tools/call`, no como post-log sintetico aislado
-
-- Scope: `apps/api/mcp_stdio.py`, `apps/api/tests/test_mcp_stdio_audit.py`
-- Hallazgo: el patron anterior de `stdio` registraba una segunda fila con `request_id` aleatorio, `retrieved_chunks=[]` fijo y `except Exception: pass`. Eso rompia la correlacion E2E con el endpoint REST real y permitia responder con exito aunque la auditoria stdio no hubiera quedado persistida.
-- Impacto: un cliente local podia ver una respuesta correcta en texto pero sin rastro reconstruible por `request_id`, o peor, con una huella negativa artificial que ocultaba el grounding y las fuentes reales del runtime.
-- Regla practica: en `stdio`, generar el `request_id` al entrar en `tools/call`, inyectarlo en todos los subrequests internos (`x-request-id`, `x-user-id`) y persistir la fila `/mcp/tools/<tool_name>` reutilizando la entrada HTTP correlada cuando exista. Si esa persistencia falla, devolver `-32603` y no emitir la respuesta bufferizada como si todo hubiera salido bien.
-
-### 2026-05-03 - Fase 1.3 query-audit: verificar contra runtime real, no solo contra fixtures manuales
-
-- Scope: `apps/api/routers/query_audit.py`, `apps/api/tests/test_query_audit_http.py`
-- Hallazgo: el contrato de `/v1/ai/query-audit` ya exponia `grounding_status`, `prompt_injection_detected`, `grounding_summary`, `completeness` y `verified`, pero la cobertura HTTP solo demostraba esos campos con entradas manuales creadas via `record_query()`. Faltaba fijar que tambien salen bien cuando la fila nace del runtime real de `/v1/consulta`.
-- Impacto: sin esa cobertura, una futura regresion en serializacion o mapping del router podia pasar desapercibida aunque el schema siguiera aceptando los campos y los tests unitarios del servicio siguieran verdes.
-- Regla practica: cuando el roadmap pida "exponer" un campo ya presente en router/schema, no asumir que no hay trabajo. Añadir al menos un test HTTP o E2E que pruebe el dato sobre una fila producida por runtime real, no solo por fixtures o inserts manuales.
-
-### 2026-05-03 - Fase 1.4 query-audit: persistir el payload exacto del cliente, no una variante paralela
-
-- Scope: `apps/api/services/query_audit.py`, `apps/api/routers/consulta.py`, `apps/api/mcp_stdio.py`, `alembic/versions/20260503_0055_query_audit_response_payload.py`
-- Hallazgo: para reconstruir de verdad lo que vio el usuario, `query_audit` no debe guardar solo un resumen ni un payload reinterpretado. En `/v1/consulta` el dato correcto es el `ConsultaFiscalResponse` final serializado tal como sale al cliente; en `stdio` el dato correcto es el payload JSON-RPC final bufferizado (`result` o `error`) que se emite por `tools/call`.
-- Impacto: si se persiste una variante ad hoc, la auditoria puede seguir siendo incompleta aunque exista una columna nueva, porque la reconstruccion no coincide exactamente con la respuesta entregada.
-- Regla practica: cuando un slice pida persistir la respuesta final, reutilizar el response model o payload ya construido para la salida real y persistir ese mismo objeto serializado. Si la suite API en Windows usa `apps/api/tests/conftest.py`, verificar siempre en secuencial para evitar `WinError 32` del SQLite compartido.
-
-### 2026-05-03 - Fase 2.1 DB lifecycle: `next(get_db())` fuera de DI oculta sesiones cerradas hasta que el cierre se vuelve terminal
-
-- Scope: `apps/api/db.py`, `apps/api/routers/consulta.py`, `apps/api/routers/legislacion.py`, `apps/api/routers/jurisprudencia.py`, `apps/api/tests/test_db.py`, `apps/api/tests/test_reranker.py`
-- Hallazgo: con la configuracion por defecto de SQLAlchemy, `Session.close()` puede reabrirse silenciosamente y esconder reusos invalidos de sesiones fuera de contexto. Al fijar `SessionLocal(... close_resets_only=False)`, la sesion cerrada pasa a ser terminal y aflora el patron roto: abrir DB con `db = next(get_db())` fuera del ciclo de dependencias de FastAPI o seguir usando `db` tras salir de `with db_session() as db:`.
-- Impacto: rutas o bloques tardios pueden parecer sanos en tests o runtime aunque esten usando una sesion ya cerrada; cuando el cierre se endurece, el fallo real emerge como `InvalidRequestError: This Session has been permanently closed and is unable to handle any more transaction requests.`
-- Regla practica: fuera de `Depends(get_db)`, no usar `next(get_db())`. Abrir una sesion nueva con `with db_session() as db:` por cada bloque vivo que realmente consulte la DB. Si una ruta necesita una consulta tardia adicional, reabrir otra sesion para ese bloque en vez de reciclar la anterior.
-
-### 2026-05-03 - MCP audit/modelos: un `200` vacio tambien debe dejar rastro E2E si la request fue valida
-
-- Scope: `apps/api/routers/modelos.py`, `apps/api/tests/test_http_mcp_audit_phase_1_1.py`
-- Hallazgo: en `get_modelo_casillas`, `get_modelo_claves` y `get_modelo_instrucciones`, una campaña inexistente de un modelo valido devolvia `200` con lista vacia pero sin pasar por `_record_modelo_query_audit(...)`.
-- Impacto: la auditoria HTTP MCP quedaba rota precisamente en un caso valido y frecuente de cobertura parcial (`campana` no publicada o no disponible), aunque la respuesta al cliente fuese correcta.
-- Regla practica: si un endpoint MCP devuelve `200`, debe registrar `query_audit` tambien cuando el payload sea vacio. El unico caso que no debe registrar como exito es el `404`/error de request invalida.
-
-### 2026-05-03 - Query audit MCP: no dejar que el contrato nuevo dependa solo de `ALTER TABLE` runtime
-
-- Scope: `alembic/versions/20260503_0055_query_audit_response_payload.py`, `apps/api/services/query_audit.py`, `apps/api/tests/test_alembic_integrity.py`
-- Hallazgo: el contrato MCP anadido en Fase 0.2 (`tool_name`, `sources`, `confidence`, `completeness`, `verified`) habia quedado soportado en SQLite/runtime por reparacion dinamica, pero no por la nueva migracion Alembic 0055. Ademas, el singleton eager `_service = QueryAuditService()` disparaba `ensure_governance_tables()` en import.
-- Impacto: un deploy guiado solo por migraciones podia quedar con drift de esquema respecto al runtime real, y un entorno con permisos restringidos podia fallar antes de arrancar al intentar hacer DDL durante import.
-- Regla practica: si un cambio amplia el contrato persistido de `query_audit_log`, respaldarlo en Alembic y no solo en `ensure_governance_tables()`. Para el servicio, preferir singleton lazy (`get_query_audit_service()`) en vez de instanciar con DDL al importar el modulo.
-
-### 2026-05-03 - Reranker: no exponer scores brutos del cross-encoder como si ya estuvieran normalizados
-
-- Scope: `apps/api/routers/consulta.py`, `apps/api/services/reranker.py`, `apps/api/tests/test_reranker.py`
-- Hallazgo: `rerank_score` puede venir fuera de `0..1` (incluyendo negativos y valores > 1). Si se serializa directo como `relevance_score` o `claim confidence`, el contrato externo queda semanticamente enganoso aunque el campo exista. Tambien es facil perder `source_url` al construir `claim_citations` si no se arrastra desde la evidencia del resultado original.
-- Impacto: el cliente puede ver puntuaciones imposibles o interpretar una confianza cruda como probabilidad normalizada; ademas, `ClaimCitation.source_url` puede salir `null` aunque la fuente exista en el resultado base.
-- Regla practica: reutilizar `normalize_rerank_score()` al serializar campos publicos derivados del cross-encoder y propagar `source_url` desde la evidencia original cuando se construyan citas por claim.
-
-### 2026-05-04 - Fase 2.2 retrieval fail-closed: si una fuente critica falla, `consulta` debe abstenerse y no seguir mezclando resultados parciales
-
-- Scope: `apps/api/routers/consulta.py`, `apps/api/services/unified_multi_source_search.py`, `apps/api/tests/test_consulta_fail_closed.py`
-- Hallazgo: el patron `except Exception: pass` en `consulta` y en el search unificado permitia responder con resultados aparentemente validos aunque hubiera fallado parte del retrieval critico pedido por el usuario. El caso mas peligroso era `sources=...`: una fuente podia romperse y aun asi sobrevivir un modelo o resultado lateral no pedido, dando falsa sensacion de cobertura suficiente.
-- Impacto: el cliente podia recibir una respuesta operativa incompleta sin ninguna senal fuerte de degradacion, justo en el slice donde el usuario habia pedido retrieval dirigido.
-- Regla practica: si falla `search_legislacion` o una fuente del retrieval unificado solicitada por `sources`, `/v1/consulta` debe cerrar en abstencion conservadora (`200` + `NO VERIFICADO`, `review_required=true`, `faithfulness_score=0.0`, listas vacias). El servicio unificado no debe tragarse esas excepciones: debe exponer al menos `source_errors` estructurado para que el router decida el fail-closed.
-
-### 2026-05-04 - Fase 2.3 unified retrieval: el handler 31.x debe respetar la fuente pedida y no esconder fallos de embedding
-
-- Scope: `apps/api/services/unified_multi_source_search.py`, `apps/api/tests/test_unified_multi_source_search.py`
-- Hallazgo: tras 2.2 el agregador ya exponia `source_errors`, pero el handler compartido de dominios 31.x seguia buscando contra todos los `documento_origen_tipo` a la vez (`IN (...)`) aunque el usuario pidiera solo `mica`, `dac` o cualquier otro dominio. Ademas, `_31x_fulltext()` llevaba un alias roto (`LOWER(t.texto)`) y un parametro distinto al que realmente se cargaba (`:ts_query` vs `:_31x_ts_query`). Por ultimo, varios helpers vectoriales seguian atrapando `Exception` dentro del propio helper, con lo que un fallo real del embedding backend se convertia en `[]` y nunca llegaba al `source_errors` del agregador.
-- Impacto: una consulta dirigida a un dominio 31.x podia contaminarse con chunks de otros dominios; el SQL fulltext 31.x podia fallar en runtime por alias/parametro inconsistentes; y un fallo de embedding por fuente podia aparentar simplemente "sin resultados" en vez de degradacion explicita.
-- Regla practica: cuando varios source types comparten handler, el dispatcher debe pasar el `source` pedido y el handler debe filtrar por esa fuente exacta. Los helpers internos no deben tragarse excepciones que forman parte del contrato de degradacion por fuente; si el embedding falla, dejar que el agregador convierta ese fallo en `source_errors` y no en lista vacia silenciosa.
-
-### 2026-05-04 - Fase 2.4 abstention: no mantener una implementacion runtime en `consulta` y otra distinta en `services.grounding`
-
-- Scope: `apps/api/services/grounding.py`, `apps/api/routers/consulta.py`, `apps/api/tests/test_grounding_e2e.py`, `apps/api/tests/test_reranker.py`
-- Hallazgo: `services.grounding.apply_claim_level_abstention()` solo funcionaba de verdad cuando los tests le inyectaban `_enriched_items` a mano dentro de `grounding_summary`. En runtime real, `validate_claim_grounding()` no devolvia ese contexto y `consulta.py` se veia obligada a mantener `_apply_claim_level_abstention()` propia para no perder el filtrado por claims.
-- Impacto: habia dos implementaciones de la misma regla de abstencion claim-level, con riesgo claro de drift: los tests del servicio probaban una forma y el router ejecutaba otra.
-- Regla practica: si una fase pide "una sola implementacion en runtime real", el servicio compartido debe exponer todo el contexto que necesita su helper downstream y el router debe delegar ahi, no reimplementar el filtrado. En este repo, `validate_claim_grounding()` debe poder alimentar directamente `apply_claim_level_abstention()` sin estructuras sintéticas solo de test.
-
-### 2026-05-04 - Fase 2.5 faithfulness: no usar `faithfulness_score` como si fuera una señal de control fiable cuando aún no evalúa la respuesta final real
-
-- Scope: `apps/api/services/faithfulness.py`, `apps/api/routers/consulta.py`, `apps/api/tests/test_faithfulness.py`
-- Hallazgo: `compute_faithfulness()` sigue operando sobre un `answer_proxy` construido desde los primeros resultados, no sobre el payload final real que ve el usuario. Aun así, `consulta.py` lo usaba para disparar `review_required`, hacer bypass de grounding y vaciar resultados por debajo de umbral.
-- Impacto: una señal heurística útil para observabilidad podía provocar abstención o revisión obligatoria incluso cuando las señales duras de evidencia iban por otro camino. Eso mezclaba dos niveles distintos: scoring auxiliar vs. control real de la respuesta.
-- Regla practica: mientras `faithfulness_score` no se calcule sobre la respuesta final real, tratarlo como advisory. Mantenerlo visible para auditoría/observabilidad está bien; usarlo para gates duros de runtime no. Las decisiones de control deben depender de señales más fiables: fail-closed explícito, grounding/citas reales y ausencia material de evidencia.
-
-### 2026-05-04 - Fase 3.1 AEAT seeds: `seed-modelos-v2.py` no es bootstrap standalone
-
-- Scope: `scripts/seed-modelos.py`, `scripts/seed-modelos-v2.py`, `scripts/data/seed_all.py`, seeds AEAT legacy
-- Hallazgo: en esta rama MCP, `scripts/seed-modelos-v2.py` solo enriquece campañas y recursos asociados; no crea `aeat_modelo`. Si se ejecuta sin haber corrido antes `scripts/seed-modelos.py`, los inserts por campaña degradan a `SKIP` y el seed no queda completo aunque el script termine.
-- Impacto: es fácil interpretar `seed-modelos-v2.py` como vía canónica suficiente porque contiene casillas, claves, instrucciones y normativa, pero usarlo solo deja el bootstrap AEAT incompleto. También `scripts/data/seed_all.py` puede dar una falsa sensación de flujo productivo único porque sigue listando seeds AEAT legacy dentro del runner bulk.
-- Regla practica: para AEAT en el plan MCP usar siempre esta secuencia: (1) `python scripts/seed-modelos.py --db-url <DATABASE_URL>` y luego (2) `python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>`. Tratar `scripts/data/seed_modelos.py`, `scripts/data/seed_aeat_models.py`, `scripts/data/seed_modelo_articulo.py` y `scripts/seed-fiscal-modelos.sql` como rutas `LEGACY / NO AUTORITATIVO`, no como equivalentes productivos.
+- Scope: `infra/deploy/systemd/esdata-job@.service`, `infra/observability/alerts.yml`, VPS Compose/productivo
+- Hallazgo: si el unit instalado de `esdata-job@.service` deriva y ejecuta `docker compose ... run --rm --no-deps %i`, varios `cron-*` semanales pueden fallar antes de arrancar el worker real con el error `container ... is not connected to the network deploy_esdata-internal`; en ese estado no hay fila nueva en `sync_log` porque el fallo sucede antes del codigo Python.
+- Impacto: los cron one-shot quedan rotos aunque los timers `systemd` sigan disparando, y la monitorizacion se vuelve enganosa si `WorkerSilent` se basa en `worker_lag_seconds > 172800` en lugar de usar el contrato real de stale ya calculado por la API.
+- Regla practica: el unit instalado debe mantenerse alineado con el repo y ejecutar `docker compose ... run --rm %i` sin `--no-deps`; `WorkerSilent` debe evaluar `worker_stale_status == 1`; y tras cambiar reglas de Prometheus hay que refrescar `/status` antes de validar alertas.
 
 ### 2026-05-03 - EUR-Lex: validar seeds contra `resource/celex` RDF antes de asumir que el numero es correcto
 
@@ -269,7 +87,7 @@ Usar notas cortas con este esquema:
 
 ### 2026-05-01 - Despliegue Compose en VPS: traps reales de runtime y Caddy
 
-- Scope: `apps/api/main.py`, `apps/api/Dockerfile`, `infra/deploy/Caddyfile`, `infra/deploy/compose.env.example`, despliegue Compose en VPS
+- Scope: `apps/api/main.py`, `apps/api/Dockerfile`, `infra/deploy/Caddyfile`, `infra/deploy/.env.prod`, despliegue Compose en VPS
 - Hallazgo: el despliegue Compose puede parecer correcto (`postgres`, `web`, workers) y aun asi fallar por tres traps no obvios: (1) `apps/api/main.py` asumía `Path(__file__).resolve().parents[2]` y rompia en contenedor (`/app/main.py`) con `IndexError`; (2) la imagen API no incluia `docs/openapi-gpt.json`; (3) `Caddyfile` tenia sintaxis invalida para Caddy v2 (`/api/* { ... }`) y ademas falla en seco si `CADDY_EMAIL` queda vacio.
 - Impacto: la API queda `unhealthy`, `caddy` entra en restart loop, HTTPS no responde y el bloqueo parece de DNS/red cuando en realidad es un bug del runtime/proxy.
 - Regla practica: al retomar un VPS Compose de este repo, validar en este orden: `docker compose ps`, `docker compose logs api`, `docker compose logs caddy`, `curl http://127.0.0.1:8000/health`, `curl http://127.0.0.1:3000/`. Si `caddy` no levanta, mirar primero `CADDY_EMAIL` y luego validar `Caddyfile` con `docker run --rm -v /srv/esdata/infra/deploy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile`.
@@ -301,34 +119,6 @@ Usar notas cortas con este esquema:
 - Hallazgo: la suite de integration debe reutilizar la SQLite compartida que `conftest.py` inicializa al importarse. Recrear `STATEMENTS` o `PGC_SCHEMA_STATEMENTS` encima del mismo `engine` provoca errores tipo `table norma already exists`.
 - Impacto: el archivo puede fallar entero en setup aunque el runtime este bien.
 - Regla practica: en tests de integration de `apps/api/tests`, preferir reutilizar `engine` y fixtures compartidas de `conftest.py` antes de bootstrappear esquema propio.
-
-### 2026-05-03 - SQLite compartida en Windows: no correr `pytest` del API en paralelo
-
-- Scope: `apps/api/tests/conftest.py`, worktrees Windows, suites `pytest` del API
-- Hallazgo: `conftest.py` intenta borrar y recrear `test_esdata.sqlite3` al importarse. En Windows, si se lanzan dos procesos `pytest` a la vez contra `apps/api/tests`, el segundo puede fallar en el `unlink()` con `PermissionError: [WinError 32]` porque el primer proceso mantiene el archivo abierto.
-- Impacto: se obtienen fallos falsos de infraestructura de test al verificar slices en paralelo, incluso cuando el runtime y los tests individuales estan bien.
-- Regla practica: en este repo, las suites `pytest` que importan `apps/api/tests/conftest.py` deben ejecutarse en secuencial dentro del mismo worktree Windows. Si hace falta paralelizar, usar otro worktree o aislar un DB path distinto por proceso.
-
-### 2026-05-04 - SQLite + audit E2E: no dejar `MappingResult` vivo antes de escribir `query_audit`
-
-- Scope: `apps/api/services/modelos.py`, `apps/api/services/query_audit.py`, endpoints `modelos` con auditoria E2E
-- Hallazgo: en SQLite, dejar un `MappingResult` perezoso sin consumir y luego abrir otra conexion para persistir `query_audit` puede bloquear el commit con `sqlite3.OperationalError: database is locked`. Ademas, usar `bool(result)` sobre resultados SQLAlchemy no expresa si hay filas y deja el reader abierto mas tiempo del necesario.
-- Impacto: endpoints GET aparentemente inocuos pueden fallar solo al registrar la auditoria, aunque el payload ya este construido y la consulta principal haya devuelto datos.
-- Regla practica: cuando solo haga falta existencia, consumir el resultado inmediatamente con `.first() is not None`; cuando haga falta el contenido completo, materializarlo a `list[dict]` antes de cualquier write posterior o auditoria en otra conexion. No usar truthiness sobre resultados lazy de SQLAlchemy como señal de completitud.
-
-### 2026-05-04 - DGT tests: `run_sync(seed_urls=[])` sigue cayendo en `SEED_URLS`
-
-- Scope: `apps/workers/dgt.py`, `apps/workers/tests/test_dgt.py`
-- Hallazgo: `run_sync(seed_urls=[])` usa `seed_urls or SEED_URLS`, asi que una lista vacia no desactiva los seeds por defecto del modulo.
-- Impacto: un test que pretende correr sin seeds reales puede procesar URLs por defecto, cambiar el conteo del batch y dar falsos `partial` o resultados inesperados.
-- Regla practica: en tests que necesiten cero seeds reales, pasar `seed_urls=[]` y ademas hacer `monkeypatch.setattr("dgt.SEED_URLS", [])`.
-
-### 2026-05-04 - CNMV fixtures HTML en Windows: leer con `encoding="utf-8"`
-
-- Scope: `apps/workers/tests/test_cnmv.py`
-- Hallazgo: `Path.read_text()` sin encoding explicito puede intentar decodificar fixtures HTML con la code page local de Windows y fallar aunque el fixture este bien.
-- Impacto: aparecen `UnicodeDecodeError` falsos en tests de discovery/parseo CNMV sin que el worker ni el fixture esten realmente rotos.
-- Regla practica: en fixtures HTML/PDF/texto del worker CNMV, usar siempre `read_text(encoding="utf-8")` si el archivo esta versionado en UTF-8.
 
 ### 2026-04-26 - Chunks en SQLite de tests
 
@@ -380,6 +170,7 @@ Usar notas cortas con este esquema:
 - Regla practica: workers de crawling/discovery deben usar tabla como cola persistente, nunca listas en memoria. Pattern: `INSERT ... ON CONFLICT DO NOTHING` para discovery, `SELECT ... WHERE status='pending' LIMIT N` para processing, `UPDATE SET status='done'` tras cada commit.
 - Invariantes: nunca `log_sync(None, ...)` sin guard — en `boe.py:log_sync` añadir `if conn is None: return`. `_mark_done` nunca usar `now()` PostgreSQL-only en queries que corren en tests SQLite — siempre parametrizar con `datetime.now(UTC).isoformat()`.
 - Estado: worker desplegado, discovery corriendo 2026→2017, 11 documentos DGT ya procesados, 10 URLs en cola procesadas sin crash.
+- Proximo paso: ampliar `_extract_target_normas` (dgt.py:147) de solo LIVA/LIS a LIRPF, LGT, LIRNR, LITPAJD, LISD, LIAE. Actualmente filtra ~70% del corpus DGT.
 
 ### 2026-04-27 - Carga minima de `LIS` para `IS`
 
@@ -457,10 +248,3 @@ Usar notas cortas con este esquema:
 - Hallazgo: 4 routers verticales existian como ficheros con SQL real contra `documento_interpretativo`, el manual los listaba como endpoints disponibles, y la doc de arquitectura los mencionaba — pero `main.py` no los importaba porque hacian `from .schemas import DocInterpretativoListResponse` y ese symbol no existia en `apps/api/schemas.py`. Resultado: arranque del API ok, contrato documental falso, violacion silenciosa de S-TIER #16 (vender target-state como implementado). Detectado por inspeccion estatica, no por test, porque no hay test que cargue `main.py` y verifique que los prefijos prometidos en docs estan montados.
 - Impacto: cualquier cliente que siguiese el manual recibia 404 en `/v1/{cnmv,bde,aepd,cendoj}/*`. La trampa es invisible si solo se mira `main.py` (los imports comentados/ausentes parecen intencionales) o solo el router (compila aislado pero falla al importarse).
 - Regla practica: cuando el manual de usuario o `repository-structure.md` listen un prefijo `/v1/<dominio>`, validar en una sola pasada: (1) `grep -n "router" apps/api/main.py` confirma `include_router` para ese prefijo; (2) `python -c "from apps.api.main import app; print([r.path for r in app.router.routes])"` lista todas las rutas reales; (3) si falla import, leer el traceback completo — suele ser un schema faltante en `apps/api/schemas.py`, no un bug del router. Antes de cerrar cualquier sprint que toque routers, ejecutar el paso (2) y diff contra el listado del manual; cualquier divergencia = router fantasma o doc desactualizada.
-
-### 2026-05-02 - Alertmanager en VPS usa config renderizada, no la plantilla del repo
-
-- Scope: `infra/observability/alertmanager.yml`, `docs/operations/runbooks/deploy-compose.md`, despliegue Compose en VPS
-- Hallazgo: el repo guarda una plantilla con `${TELEGRAM_BOT_TOKEN}` y `${TELEGRAM_CHAT_ID}`, pero el contenedor `deploy-alertmanager-1` necesita una version ya renderizada en el VPS. Si se copia la plantilla sin renderizar y se reinicia el contenedor, Alertmanager entra en restart loop porque `chat_id` deja de ser un entero valido.
-- Impacto: se cae la notificacion operativa aunque Prometheus y la API sigan sanos; el error visible en logs es `cannot unmarshal !!str ${TELEG...} into int64`.
-- Regla practica: antes de reiniciar Alertmanager en produccion, verificar que `/srv/esdata/infra/observability/alertmanager.yml` contiene `bot_token` y `chat_id` reales. No desplegar la plantilla del repo directamente sobre el VPS sin un paso explicito de render.

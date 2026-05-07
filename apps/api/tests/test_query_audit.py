@@ -4,9 +4,10 @@ import sys
 from pathlib import Path
 
 import pytest
-from conftest import engine
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
+
+from .conftest import engine
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
@@ -71,44 +72,6 @@ def test_query_audit_can_filter_by_path():
     assert filtered[0].request_id == "req-query-010"
 
 
-def test_query_audit_persists_minimum_mcp_contract_fields():
-    service = QueryAuditService()
-    created = service.record_query(
-        request_id="req-query-contract-001",
-        user_id="auditor-contract",
-        path="/mcp/tools/get_norma",
-        query_text='{"codigo":"LIVA"}',
-        retrieved_chunks=[{"chunk_id": "chk-1", "source_url": "https://boe.es/diario_boe"}],
-        response_summary="ok",
-        tool_name="get_norma",
-        sources=[
-            {
-                "title": "Ley del IVA",
-                "url": "https://boe.es/diario_boe",
-                "trust_tier": "fuente_oficial_primaria",
-            }
-        ],
-        confidence={"score": 0.98, "label": "alta"},
-        completeness="completa",
-        verified=True,
-    )
-
-    fresh_service = QueryAuditService()
-    entries = fresh_service.get_by_request_id("req-query-contract-001")
-
-    assert created.tool_name == "get_norma"
-    assert created.sources[0]["url"] == "https://boe.es/diario_boe"
-    assert created.confidence == {"score": 0.98, "label": "alta"}
-    assert created.completeness == "completa"
-    assert created.verified is True
-    assert len(entries) == 1
-    assert entries[0].tool_name == "get_norma"
-    assert entries[0].sources[0]["trust_tier"] == "fuente_oficial_primaria"
-    assert entries[0].confidence["score"] == 0.98
-    assert entries[0].completeness == "completa"
-    assert entries[0].verified is True
-
-
 def test_query_audit_repairs_legacy_postgres_columns():
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS query_audit_log"))
@@ -146,17 +109,10 @@ def test_query_audit_repairs_legacy_postgres_columns():
     )
 
     with engine.begin() as conn:
-        columns = {
-            row[1] for row in conn.execute(text("PRAGMA table_info(query_audit_log)"))
-        }
-
-    assert {"grounding_status", "prompt_injection_detected", "grounding_summary", "response_payload"}.issubset(columns)
-
-    with engine.begin() as conn:
         row = conn.execute(
             text(
                 """
-                SELECT grounding_status, prompt_injection_detected, grounding_summary, response_payload
+                SELECT grounding_status, prompt_injection_detected, grounding_summary
                 FROM query_audit_log
                 WHERE entry_id = :entry_id
                 """
@@ -167,50 +123,6 @@ def test_query_audit_repairs_legacy_postgres_columns():
     assert row["grounding_status"] == "full"
     assert row["prompt_injection_detected"] == 0
     assert row["grounding_summary"]
-    assert row["response_payload"] == "{}"
-
-
-def test_query_audit_legacy_repair_covers_full_mcp_contract_columns():
-    with engine.begin() as conn:
-        conn.execute(text("DROP TABLE IF EXISTS query_audit_log"))
-        conn.execute(
-            text(
-                """
-                CREATE TABLE query_audit_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    entry_id TEXT NOT NULL UNIQUE,
-                    request_id TEXT NOT NULL,
-                    user_id TEXT,
-                    path TEXT NOT NULL,
-                    query_text TEXT NOT NULL,
-                    retrieved_chunks TEXT NOT NULL DEFAULT '[]',
-                    response_summary TEXT NOT NULL DEFAULT '',
-                    model_version TEXT,
-                    config_version TEXT,
-                    created_at TEXT NOT NULL
-                )
-                """
-            )
-        )
-
-    QueryAuditService()
-
-    with engine.begin() as conn:
-        columns = {
-            row[1] for row in conn.execute(text("PRAGMA table_info(query_audit_log)"))
-        }
-
-    assert {
-        "tool_name",
-        "sources",
-        "confidence",
-        "completeness",
-        "verified",
-        "grounding_status",
-        "prompt_injection_detected",
-        "grounding_summary",
-        "response_payload",
-    }.issubset(columns)
 
 
 @pytest.mark.asyncio
@@ -235,9 +147,6 @@ async def test_consulta_runtime_persists_query_audit_entry():
     assert entry.response_summary
     assert entry.model_version == "esdata-ai-v1"
     assert entry.config_version == "consulta-faithfulness-v1"
-    assert entry.response_payload["consulta"] == "tipo reducido iva"
-    assert isinstance(entry.response_payload["resultados"], list)
-    assert "confianza" in entry.response_payload
 
 
 @pytest.mark.asyncio

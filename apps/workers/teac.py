@@ -411,8 +411,11 @@ if __name__ == "__main__":
         print(f"Starting TEAC worker in continuous mode (interval={interval}s)")
         while True:
             touch_heartbeat()
-            result = run_sync()
-            print(
-                f"Synced resoluciones={result['processed']}, almacenadas={result['stored']} at {datetime.now().isoformat()}"
-            )
+            try:
+                result = run_sync()
+                print(
+                    f"Synced resoluciones={result['processed']}, almacenadas={result['stored']} at {datetime.now().isoformat()}"
+                )
+            except Exception as exc:
+                print(f"[ERROR] TEAC sync failed: {exc} at {datetime.now().isoformat()}")
             sleep_with_heartbeat(interval)

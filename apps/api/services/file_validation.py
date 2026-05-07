@@ -53,7 +53,7 @@ DEFAULT_MAX_SIZE: Final = 50 * 1024 * 1024
 # Allowlist MIME por familia
 ALLOWED_MIME_FAMILIES: Final = {
     "xml": {"application/xml", "text/xml"},
-    "csv": {"text/csv", "text/plain", "application/csv"},
+    "csv": {"text/csv", "text/plain", "application/csv", "application/vnd.ms-excel"},
     "json": {"application/json"},
     "pdf": {"application/pdf"},
     "txt": {"text/plain"},
@@ -69,7 +69,7 @@ ALLOWED_EXTENSIONS: Final = {
     "csv": {".csv"},
     "json": {".json"},
     "pdf": {".pdf"},
-    "txt": {".txt"},
+    "txt": {".txt", ".n43"},
     "xlsx": {".xlsx", ".xls"},
 }
 
