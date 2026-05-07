@@ -7,8 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
@@ -346,7 +344,12 @@ class TestStdioHandlers:
         audited = []
         server = MCPStdioServer()
         server._send = lambda data: None
-        monkeypatch.setattr("mcp_stdio._log_mcp_call", lambda tool, args, status, elapsed: audited.append(status))
+
+        def fake_log_mcp_call(**kwargs):
+            audited.append(kwargs.get("status_code"))
+            assert kwargs["response_payload"]["error"]["code"] == -32601
+
+        monkeypatch.setattr("mcp_stdio._log_mcp_call", fake_log_mcp_call)
 
         server._handle_tools_call(
             {"params": {"name": "unknown_tool", "arguments": {}}},
