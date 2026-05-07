@@ -4,14 +4,16 @@ import logging
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Any
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
 
-def create_engine_instance(database_url: str | None = None) -> "engine":
+def create_engine_instance(database_url: str | None = None) -> Engine:
     """Crear engine SQLAlchemy con configuracion por defecto.
 
     Los valores de pool se leen de variables de entorno para permitir
@@ -28,6 +30,7 @@ def create_engine_instance(database_url: str | None = None) -> "engine":
     """
     if database_url is None:
         from .config import get_database_url
+
         database_url = get_database_url()
 
     pool_size = int(os.environ.get("DB_POOL_SIZE", "5"))
@@ -41,7 +44,7 @@ def create_engine_instance(database_url: str | None = None) -> "engine":
         pool_recycle,
     )
 
-    engine_kwargs = {
+    engine_kwargs: dict[str, Any] = {
         "future": True,
         "pool_size": pool_size,
         "max_overflow": max_overflow,

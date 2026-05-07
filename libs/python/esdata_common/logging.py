@@ -10,6 +10,7 @@ import logging
 import sys
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 
 def _iso_now() -> str:
@@ -68,7 +69,7 @@ class JsonFormatter(logging.Formatter):
     """Formatter que produce logs en JSON estructurado."""
 
     def format(self, record: logging.LogRecord) -> str:
-        log_data = {
+        log_data: dict[str, Any] = {
             "timestamp": _iso_now(),
             "level": record.levelname,
             "logger": record.name,
@@ -114,7 +115,7 @@ def log_duration(logger: logging.Logger, label: str):
         def __init__(self, logger, label):
             self.logger = logger
             self.label = label
-            self.start = 0
+            self.start = 0.0
 
         def __enter__(self):
             self.start = time.monotonic()

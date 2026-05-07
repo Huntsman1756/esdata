@@ -540,10 +540,23 @@ def run() -> list[str]:
     return errors
 
 
-def main() -> int:
+def run_security_only() -> list[str]:
+    errors = verify_env_documentation(ENV_EXAMPLE, ENV_DOC)
+    for forbidden in find_forbidden_env_files(ROOT):
+        errors.append(f"forbidden env file: {forbidden}")
+    return errors
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify docs artifacts referenced by the repo")
-    parser.parse_args()
-    errors = run()
+    parser.add_argument(
+        "--security-only",
+        action="store_true",
+        help="Verify only env documentation drift and forbidden env files",
+    )
+    args = parser.parse_args(argv)
+
+    errors = run_security_only() if args.security_only else run()
     if errors:
         for error in errors:
             print(error)
