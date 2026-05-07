@@ -15,7 +15,6 @@ from boe import (
     _hold_sync_lock,
     _ensure_sync_log_table,
     _ensure_schema,
-    _schema_statements,
     auto_link_doctrina,
     auto_link_materias,
     parse_block_xml,
@@ -1529,25 +1528,6 @@ def test_ensure_schema_skips_norma_backfill_after_initial_upgrade():
 
     normalized = [statement.lower().strip() for statement in statements]
     assert not any(statement.startswith("update norma") for statement in normalized)
-
-
-def test_schema_statements_use_serial_ids_on_postgres():
-    statements = _schema_statements("postgresql")
-    assert "id SERIAL PRIMARY KEY" in statements[0]
-    assert "id SERIAL PRIMARY KEY" in statements[-1]
-
-
-def test_schema_statements_use_integer_ids_on_sqlite():
-    statements = _schema_statements("sqlite")
-    assert "id INTEGER PRIMARY KEY" in statements[0]
-    assert "id INTEGER PRIMARY KEY" in statements[-1]
-
-
-def test_schema_statements_include_norma_classification_columns():
-    norma_stmt = _schema_statements("sqlite")[0]
-
-    assert "tipo_documento TEXT NOT NULL" in norma_stmt
-    assert "estado_cobertura TEXT NOT NULL" in norma_stmt
 
 
 def test_ensure_sync_log_table_creates_log_table_independently():

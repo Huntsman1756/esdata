@@ -329,8 +329,8 @@ def main():
         base_url = args.base_url
     else:
         # Intentar obtener de entorno
-        from esdata_common.config import get_str_env
-        base_url = get_str_env("ESDATA_API_URL", "http://localhost:8000")
+        import os
+        base_url = os.getenv("ESDATA_API_URL", "http://localhost:8000")
 
     print(f"\n  Smoke tests contra: {base_url}")
     print(f"  Fecha: {_iso_now()}")

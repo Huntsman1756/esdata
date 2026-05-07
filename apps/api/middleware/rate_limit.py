@@ -1,19 +1,10 @@
 """Rate limiting middleware for esdata API.
 
-WARNING: This rate limiter is 100% in-memory. All rate limit buckets are stored
-in the process memory of a single container. This means:
+Uses a token bucket algorithm. By default persists buckets in-memory.
+When REDIS_URL is set, switches to a Redis-backed token bucket for
+cross-instance shared state and persistence across restarts.
 
-- Container restarts reset all rate limit counters to full capacity.
-- In a multi-container deployment, each container has its own independent rate
-  limiter (no shared state between containers).
-- Memory usage grows with the number of unique client keys (one bucket per
-  client+endpoint combination).
-
-For production use with persistence across restarts and shared state across
-containers, consider a Redis-backed rate limiter instead.
-
-Uses an in-memory token bucket algorithm. Configurable per-endpoint via
-ESDATA_RATE_LIMIT_* environment variables.
+Configurable per-endpoint via ESDATA_RATE_LIMIT_* environment variables.
 
 Default limits (when no env var override):
 - /health: 100 req/min (public, no auth)
@@ -25,15 +16,17 @@ Default limits (when no env var override):
 import logging
 import os
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# In-memory token bucket (original implementation, unchanged logic)
+# ---------------------------------------------------------------------------
 
 @dataclass
 class TokenBucket:
@@ -61,37 +54,149 @@ class TokenBucket:
         return False
 
 
+# ---------------------------------------------------------------------------
+# Redis-backed token bucket
+# ---------------------------------------------------------------------------
+
+class RedisTokenBucket:
+    """Token bucket backed by Redis using Lua scripting for atomicity.
+
+    Uses a Lua script to atomically check and consume tokens in Redis,
+    avoiding race conditions in distributed deployments.
+
+    Redis keys:
+        rl:{client_key}:{endpoint}  -> hash with 'tokens' and 'last_refill'
+    """
+
+    # Lua script for atomic token bucket operation.
+    # Returns: [allowed (0/1), remaining_tokens, retry_after_seconds]
+    LUA_SCRIPT = """
+    local key = KEYS[1]
+    local capacity = tonumber(ARGV[1])
+    local refill_rate = tonumber(ARGV[2])
+    local now = tonumber(ARGV[3])
+    local requested = tonumber(ARGV[4])
+
+    local data = redis.call('HMGET', key, 'tokens', 'last_refill')
+    local tokens = tonumber(data[1])
+    local last_refill = tonumber(data[2])
+
+    if tokens == nil then
+        tokens = capacity
+        last_refill = now
+    end
+
+    -- Refill tokens based on elapsed time
+    local elapsed = now - last_refill
+    if elapsed > 0 then
+        tokens = math.min(capacity, tokens + elapsed * refill_rate)
+        last_refill = now
+    end
+
+    local allowed = 0
+    local retry_after = 0
+
+    if tokens >= requested then
+        tokens = tokens - requested
+        allowed = 1
+    else
+        -- Calculate how long until one token is available
+        local deficit = requested - tokens
+        retry_after = math.ceil(deficit / refill_rate)
+    end
+
+    -- Persist state
+    redis.call('HMSET', key, 'tokens', tokens, 'last_refill', last_refill)
+    -- Set expiry to auto-clean stale buckets (2x window + buffer)
+    redis.call('EXPIRE', key, math.ceil(capacity / refill_rate) * 2 + 60)
+
+    return {allowed, math.floor(tokens), retry_after}
+    """
+
+    def __init__(self, capacity: int, refill_rate: float, redis_client, key_prefix: str = "rl"):
+        self.capacity = capacity
+        self.refill_rate = refill_rate
+        self._redis = redis_client
+        self._key_prefix = key_prefix
+        self._script = redis_client.register_script(self.LUA_SCRIPT)
+
+    def _make_key(self, client_key: str, endpoint: str) -> str:
+        return f"{self._key_prefix}:{client_key}:{endpoint}"
+
+    def consume(self, client_key: str, endpoint: str, tokens: int = 1) -> tuple[bool, int, int]:
+        """Try to consume tokens. Returns (allowed, remaining, retry_after_seconds)."""
+        key = self._make_key(client_key, endpoint)
+        now = time.time()
+        result = self._script(
+            keys=[key],
+            args=[self.capacity, self.refill_rate, now, tokens],
+        )
+        allowed = bool(result[0])
+        remaining = int(result[1])
+        retry_after = int(result[2])
+        return allowed, remaining, retry_after
+
+
+# ---------------------------------------------------------------------------
+# Redis connection helper
+# ---------------------------------------------------------------------------
+
+def _connect_redis(url: str):
+    """Connect to Redis, returning None on failure with a warning."""
+    try:
+        import redis as redis_lib
+        client = redis_lib.from_url(url, decode_responses=False, socket_connect_timeout=5, socket_timeout=5)
+        client.ping()
+        logger.info("Rate limiter connected to Redis at %s", url)
+        return client
+    except Exception as exc:
+        logger.warning(
+            "Redis connection failed (%s). Falling back to in-memory rate limiter.",
+            exc,
+        )
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Unified rate limiter
+# ---------------------------------------------------------------------------
+
 class RateLimiter:
-    """In-memory rate limiter with per-client tracking."""
+    """Rate limiter that uses Redis when available, falling back to in-memory."""
 
     def __init__(self) -> None:
-        self._buckets: Dict[str, TokenBucket] = {}
-        self._endpoint_limits: Dict[str, Dict[str, tuple[int, int]]] = {
+        self._buckets: dict[str, TokenBucket] = {}
+        self._endpoint_limits: dict[str, dict[str, tuple[int, int]]] = {
             "/health": {"default": (100, 60)},
             "/v1": {"default": (60, 60)},
             "/mcp": {"default": (30, 60)},
         }
-        self._default_limit: tuple[int, int] = (30, 60)  # (tokens, window_seconds)
-        self._warning_emitted: bool = False
+        self._default_limit: tuple[int, int] = (30, 60)
+        self._redis_client = None
+        self._using_redis = False
 
-        if not self._warning_emitted:
-            self._warning_emitted = True
+        self._setup_backend()
+
+    def _setup_backend(self) -> None:
+        """Choose Redis or in-memory backend based on REDIS_URL."""
+        redis_url = os.environ.get("REDIS_URL")
+        if redis_url and self._connect_redis(redis_url) is not None:
+            self._redis_client = _connect_redis(redis_url)
+            self._using_redis = True
+        else:
             logger.warning(
                 "Rate limiter is in-memory only. Container restart resets all limits. "
-                "Consider Redis-backed rate limiting for production."
+                "Set REDIS_URL for Redis-backed rate limiting."
             )
 
     def _get_client_key(self, request: Request) -> str:
         """Extract client identifier from request."""
-        # Check X-Forwarded-For header first (behind reverse proxy)
         forwarded_for = request.headers.get("x-forwarded-for")
         if forwarded_for:
             return forwarded_for.split(",")[0].strip()
-        # Check X-Real-IP header
         real_ip = request.headers.get("x-real-ip")
         if real_ip:
             return real_ip
-        # Fall back to client host
         if request.client:
             return request.client.host
         return "unknown"
@@ -107,7 +212,7 @@ class RateLimiter:
         return "default"
 
     def _get_bucket(self, client_key: str, endpoint: str) -> TokenBucket:
-        """Get or create a token bucket for the client+endpoint combo."""
+        """Get or create an in-memory token bucket (fallback)."""
         bucket_key = f"{client_key}:{endpoint}"
 
         if bucket_key not in self._buckets:
@@ -129,6 +234,36 @@ class RateLimiter:
         """
         client_key = self._get_client_key(request)
         endpoint_prefix = self._get_endpoint_prefix(request.url.path)
+
+        if self._using_redis and self._redis_client is not None:
+            limits = self._endpoint_limits.get(endpoint_prefix, {})
+            config = limits.get("default", self._default_limit)
+            capacity, _ = config
+
+            allowed, _unused, retry_after = RedisTokenBucket(
+                capacity=capacity,
+                refill_rate=capacity / 60,
+                redis_client=self._redis_client,
+            ).consume(client_key, endpoint_prefix)
+
+            if not allowed:
+                logger.warning(
+                    "Rate limit exceeded (Redis): client=%s endpoint=%s path=%s",
+                    client_key,
+                    endpoint_prefix,
+                    request.url.path,
+                )
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": "Rate limit exceeded. Please slow down your requests.",
+                        "retry_after": retry_after,
+                    },
+                    headers={"Retry-After": str(retry_after)},
+                )
+            return None
+
+        # In-memory fallback
         bucket = self._get_bucket(client_key, endpoint_prefix)
 
         if not bucket.consume():
@@ -176,9 +311,21 @@ async def rate_limit_middleware(request: Request, call_next):
     # Add rate limit headers to successful responses
     client_key = _rate_limiter._get_client_key(request)
     endpoint_prefix = _rate_limiter._get_endpoint_prefix(request.url.path)
-    bucket = _rate_limiter._get_bucket(client_key, endpoint_prefix)
 
-    response.headers["X-RateLimit-Limit"] = str(bucket.capacity)
-    response.headers["X-RateLimit-Remaining"] = str(int(bucket.tokens))
+    if _rate_limiter._using_redis and _rate_limiter._redis_client is not None:
+        limits = _rate_limiter._endpoint_limits.get(endpoint_prefix, {})
+        config = limits.get("default", _rate_limiter._default_limit)
+        capacity, _ = config
+        _, remaining, _ = RedisTokenBucket(
+            capacity=capacity,
+            refill_rate=capacity / 60,
+            redis_client=_rate_limiter._redis_client,
+        ).consume(client_key, endpoint_prefix)
+        response.headers["X-RateLimit-Limit"] = str(capacity)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+    else:
+        bucket = _rate_limiter._get_bucket(client_key, endpoint_prefix)
+        response.headers["X-RateLimit-Limit"] = str(bucket.capacity)
+        response.headers["X-RateLimit-Remaining"] = str(int(bucket.tokens))
 
     return response

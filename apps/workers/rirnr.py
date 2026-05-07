@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 
 import httpx
 from boe import (
-    _create_base_schema,
+    _ensure_schema,
     _ensure_sync_log_table,
     fetch_block,
     fetch_index,
@@ -65,7 +65,7 @@ def run_sync(
 
     try:
         with httpx.Client(timeout=60.0, verify=ssl_verify) as client, engine.begin() as conn:
-            _create_base_schema(conn)
+            _ensure_schema(conn)
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
 

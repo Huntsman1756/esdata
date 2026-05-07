@@ -8,10 +8,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, text
 
-TESTS_ROOT = Path(__file__).resolve().parents[3]
-APPS_ROOT = TESTS_ROOT / "apps"
-if str(APPS_ROOT) not in sys.path:
-    sys.path.insert(0, str(APPS_ROOT))
+TESTS_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = TESTS_ROOT.parents[3]
+
+# Add repo root to sys.path so `from apps.xxx` imports work when pytest is invoked
+# without pyproject.toml pythonpath (e.g. IDE runners, older pytest without importlib)
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from apps.workers import screening as screening_worker
 from apps.workers.pgc_dataset import (
