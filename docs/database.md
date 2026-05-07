@@ -67,6 +67,7 @@ PostgreSQL 16
 | `articulo_materia` | Enlaces articulo<->materia | ~200 |
 | `eval_history` | Resultados de evaluacion | ~10 |
 | `eval_query` | Resultados por query | ~100 |
+| `sync_dead_letter` | Entidades con fallos persistentes (DLQ) | ~0-50 |
 
 ## Estrategia de migraciones
 
@@ -109,7 +110,7 @@ YYYYMMDD_NNNN_descripcion_corta.py
 
 1. **Cada cambio de schema va en una migracion**
 2. **Las migraciones son irreversibles cuando alteran datos** (baseline)
-3. **Usar `IF NOT EXISTS` / `IF EXISTS`** para idempotencia
+3. **Prohibido `CREATE TABLE IF NOT EXISTS` en runtime como sustituto de Alembic** (AGENTS.md regla 18)
 4. **No borrar migraciones viejas** — solo agregar nuevas
 5. **Probar en local antes de aplicar en produccion**
 
@@ -125,22 +126,27 @@ YYYYMMDD_NNNN_descripcion_corta.py
 | `20260425_0006` | `eval_history.py` | Tablas evaluacion | Parcial |
 | `20260425_0007` | `critical_indexes.py` | Indexes criticos | Parcial |
 | `20260425_0008` | `obligaciones_operativas.py` | Campos operativos obligaciones | Parcial |
+| `...` | `...` | 18+ migraciones hasta head | Var |
+
+Nota: la tabla se actualiza automaticamente con `alembic history --verbose`. Ver `alembic/versions/` para listado completo.
 
 ### SQL historico (REFERENCIA)
 
-Los archivos en `infra/sql/` son referencias historicas. **NO se ejecutan en despliegue**.
+Los archivos en `infra/sql/` son referencias historicas. **NO se ejecutan en despliegue** (el deploy usa `init.sql` como unico archivo montado en `/docker-entrypoint-initdb.d/010_init.sql`).
 
 | Archivo | Descripcion | Estado |
 |---------|-------------|--------| |
-| `init.sql` | Schema base + seeds minimos | Migrado a Alembic |
-| `002_fulltext_search.sql` | Search vectors + triggers | Migrado a Alembic |
-| `003_modelos_aeat.sql` | Tablas modelos AEAT | Migrado a Alembic |
-| `004_modelos_v2.sql` | Refactorizacion modelos | Migrado a Alembic |
-| `004_norma_classification.sql` | Clasificacion normas | Migrado a Alembic |
-| `005_indexes.sql` | Indexes criticos | Migrado a Alembic |
-| `006_pgvector.sql` | Extension vector + embeddings | **NO migrado** (nueva feature) |
+| `init.sql` | Schema base + seeds minimos (13 scripts numerados 002-013) | Mount point unico |
+| `002_fulltext_search.sql` | Search vectors + triggers | Incluido en init.sql |
+| `003_modelos_aeat.sql` | Tablas modelos AEAT | Incluido en init.sql |
+| `004_modelos_v2.sql` | Refactorizacion modelos | Incluido en init.sql |
+| `004_norma_classification.sql` | Clasificacion normas | Incluido en init.sql |
+| `005_indexes.sql` | Indexes criticos | Incluido en init.sql |
+| `006_pgvector.sql` | Extension vector + embeddings | Incluido en init.sql |
+| `012_dead_letter_queue.sql` | Tabla `sync_dead_letter` para entidades con fallos persistentes | Incluido en init.sql |
+| `013_regulatory_changes.sql` | Tabla de cambios regulatorios | Incluido en init.sql |
 
-Nota: `006_pgvector.sql` necesita ejecucion manual en produccion antes de los workers de embeddings.
+Nota: `init.sql` se monta como `/docker-entrypoint-initdb.d/010_init.sql` e incluye los 13 scripts en orden numerico.
 
 ## Bootstrap de base de datos
 

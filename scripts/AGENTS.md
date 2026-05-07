@@ -16,6 +16,14 @@ Estas reglas aplican a `scripts/`.
 - `eval/` — benchmark, evaluacion y quality gates
 - `maintenance/` — verificaciones, diagnostico y saneamiento
 
+## Scripts activos
+
+- `scripts/hermes_monitor.py` — Monitor real-time: polling `/status` cada 5min, auto-restart Docker de workers unhealthy, reporte DLQ
+- `scripts/ops/worker_scheduler_guard.py` — Guard del scheduler de workers
+- `scripts/maintenance/validate-cron-run.py` — Validacion de ejecuciones cron
+- `scripts/maintenance/verify_schema.py` — Verificacion de schema despues de migraciones
+- `scripts/maintenance/validate-cron-run.py` — Verifica que los cron jobs se ejecutaron correctamente
+
 ## Reglas duras
 
 - No crear scripts nuevos dentro de `apps/api` o `apps/workers` si no son runtime real.
