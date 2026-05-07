@@ -8,12 +8,15 @@ Tambien registra DAC1-DAC5 como normas breves sin articulos.
 """
 
 import argparse
+import logging
 import os
 import time
 from datetime import UTC, datetime
 
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 EURLEX_API_BASE = os.getenv(
     "EURLEX_API_BASE",
@@ -395,6 +398,10 @@ def run_sync(
             )
         return {"normas": len(DAC_NORMAS) + len(DAC_BREVES), "articulos": articulos_upserted}
     except Exception as exc:
+        entity_id = "dac_directives"
+        if not handle_worker_failure(engine, "dac_directives", entity_id, "sync_entity", exc):
+            logger.warning("Entity dac_directives moved to dead-letter")
+            return {"normas": 0, "articulos": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

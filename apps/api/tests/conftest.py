@@ -100,7 +100,7 @@ engine = create_engine(
 
 STATEMENTS = [
     """
-    CREATE TABLE norma (
+    CREATE TABLE IF NOT EXISTS norma (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT UNIQUE NOT NULL,
         titulo TEXT NOT NULL,
@@ -117,7 +117,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE articulo (
+    CREATE TABLE IF NOT EXISTS articulo (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         norma_id INTEGER NOT NULL REFERENCES norma(id),
         numero TEXT NOT NULL,
@@ -127,7 +127,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE version_articulo (
+    CREATE TABLE IF NOT EXISTS version_articulo (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         articulo_id INTEGER NOT NULL REFERENCES articulo(id),
         texto TEXT NOT NULL,
@@ -137,7 +137,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE documento_interpretativo (
+    CREATE TABLE IF NOT EXISTS documento_interpretativo (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tipo_documento TEXT NOT NULL,
         organismo_emisor TEXT NOT NULL,
@@ -156,7 +156,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE empresa (
+    CREATE TABLE IF NOT EXISTS empresa (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
         nif TEXT,
@@ -166,7 +166,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE obligacion_regulatoria (
+    CREATE TABLE IF NOT EXISTS obligacion_regulatoria (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT UNIQUE NOT NULL,
         nombre TEXT NOT NULL,
@@ -203,7 +203,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE obligacion_documento (
+    CREATE TABLE IF NOT EXISTS obligacion_documento (
         obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id),
         documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
         tipo_relacion TEXT NOT NULL,
@@ -211,7 +211,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE documento_empresa (
+    CREATE TABLE IF NOT EXISTS documento_empresa (
         documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
         empresa_id INTEGER NOT NULL REFERENCES empresa(id),
         rol TEXT NOT NULL,
@@ -221,7 +221,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE documento_version (
+    CREATE TABLE IF NOT EXISTS documento_version (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         documento_referencia TEXT NOT NULL,
         version_num INTEGER NOT NULL,
@@ -234,7 +234,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE cnmv_regulation_link (
+    CREATE TABLE IF NOT EXISTS cnmv_regulation_link (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         documento_referencia TEXT NOT NULL,
         regulacion_id TEXT NOT NULL,
@@ -244,7 +244,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE cnmv_obligation_link (
+    CREATE TABLE IF NOT EXISTS cnmv_obligation_link (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         documento_referencia TEXT NOT NULL,
         tipo_obligacion TEXT NOT NULL,
@@ -253,7 +253,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE documento_articulo (
+    CREATE TABLE IF NOT EXISTS documento_articulo (
         documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
         articulo_id INTEGER NOT NULL REFERENCES articulo(id),
         metodo_enlace TEXT NOT NULL,
@@ -263,14 +263,14 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE materia (
+    CREATE TABLE IF NOT EXISTS materia (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         slug TEXT UNIQUE NOT NULL,
         etiqueta TEXT NOT NULL
     )
     """,
     """
-    CREATE TABLE articulo_materia (
+    CREATE TABLE IF NOT EXISTS articulo_materia (
         articulo_id INTEGER NOT NULL REFERENCES articulo(id),
         materia_id INTEGER NOT NULL REFERENCES materia(id),
         relevancia INTEGER NOT NULL DEFAULT 1,
@@ -278,7 +278,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE sync_log (
+    CREATE TABLE IF NOT EXISTS sync_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         worker TEXT NOT NULL,
         started_at TEXT NOT NULL,
@@ -296,7 +296,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE micro_obligacion (
+    CREATE TABLE IF NOT EXISTS micro_obligacion (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
@@ -328,7 +328,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE obligacion_regulatoria (
+    CREATE TABLE IF NOT EXISTS obligacion_regulatoria (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
@@ -350,7 +350,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE obligacion_internacional (
+    CREATE TABLE IF NOT EXISTS obligacion_internacional (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         titulo TEXT NOT NULL,
@@ -366,7 +366,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE obligacion_micro_obligacion (
+    CREATE TABLE IF NOT EXISTS obligacion_micro_obligacion (
         obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id) ON DELETE CASCADE,
         micro_obligacion_id INTEGER NOT NULL REFERENCES micro_obligacion(id) ON DELETE CASCADE,
         orden INTEGER NOT NULL DEFAULT 0,
@@ -471,7 +471,7 @@ STATEMENTS = [
     WHERE o.codigo = 'SEPBLAC-INDICIO-M19' AND m.codigo = 'SEPBLAC_KYC'
     """,
     """
-    CREATE TABLE csrd_entity_report (
+    CREATE TABLE IF NOT EXISTS csrd_entity_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         reporting_year INTEGER NOT NULL,
@@ -483,7 +483,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE csrd_esg_data_point (
+    CREATE TABLE IF NOT EXISTS csrd_esg_data_point (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         report_id INTEGER NOT NULL REFERENCES csrd_entity_report(id) ON DELETE CASCADE,
         topic TEXT NOT NULL,
@@ -496,7 +496,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE csrd_ess (
+    CREATE TABLE IF NOT EXISTS csrd_ess (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         standard_code TEXT NOT NULL,
         topic TEXT NOT NULL,
@@ -507,7 +507,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE csrd_double_materiality (
+    CREATE TABLE IF NOT EXISTS csrd_double_materiality (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         impact_materiality TEXT,
@@ -520,7 +520,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dac_reporting_entity (
+    CREATE TABLE IF NOT EXISTS dac_reporting_entity (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tin TEXT NOT NULL,
         entity_type TEXT NOT NULL,
@@ -532,7 +532,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dac_crypto_report (
+    CREATE TABLE IF NOT EXISTS dac_crypto_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL REFERENCES dac_reporting_entity(id) ON DELETE CASCADE,
         reporting_period TEXT NOT NULL,
@@ -544,7 +544,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dac_wallet_holder (
+    CREATE TABLE IF NOT EXISTS dac_wallet_holder (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         report_id INTEGER NOT NULL REFERENCES dac_crypto_report(id) ON DELETE CASCADE,
         wallet_address TEXT NOT NULL,
@@ -557,7 +557,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dora_tic_incident (
+    CREATE TABLE IF NOT EXISTS dora_tic_incident (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         incident_severity TEXT NOT NULL,
@@ -572,7 +572,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dora_third_party_provider (
+    CREATE TABLE IF NOT EXISTS dora_third_party_provider (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         provider_name TEXT NOT NULL,
         provider_type TEXT NOT NULL,
@@ -586,7 +586,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dora_ict_risk_register (
+    CREATE TABLE IF NOT EXISTS dora_ict_risk_register (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         risk_description TEXT NOT NULL,
@@ -600,7 +600,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dora_penetration_test (
+    CREATE TABLE IF NOT EXISTS dora_penetration_test (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         test_type TEXT NOT NULL,
@@ -614,7 +614,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE dora_incident_classification_framework (
+    CREATE TABLE IF NOT EXISTS dora_incident_classification_framework (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         framework_version TEXT NOT NULL,
         severity_thresholds TEXT,
@@ -625,7 +625,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE empresa (
+    CREATE TABLE IF NOT EXISTS empresa (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
         nif TEXT,
@@ -634,7 +634,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE entity_identifiers (
+    CREATE TABLE IF NOT EXISTS entity_identifiers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_id INTEGER REFERENCES empresa(id),
         lei TEXT NOT NULL UNIQUE,
@@ -649,7 +649,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE entity_aliases (
+    CREATE TABLE IF NOT EXISTS entity_aliases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_id INTEGER NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
         alias TEXT NOT NULL,
@@ -660,7 +660,7 @@ STATEMENTS = [
     """,
     # --- Fraud / MAR ---
     """
-    CREATE TABLE fraud_prevention_program (
+    CREATE TABLE IF NOT EXISTS fraud_prevention_program (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         code_of_conduct BOOLEAN NOT NULL DEFAULT 0,
@@ -673,7 +673,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE fraud_risk_assessment (
+    CREATE TABLE IF NOT EXISTS fraud_risk_assessment (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         assessment_date TEXT NOT NULL,
@@ -684,7 +684,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE fraud_incident (
+    CREATE TABLE IF NOT EXISTS fraud_incident (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         incident_date TEXT NOT NULL,
@@ -697,7 +697,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mar_insider_transaction (
+    CREATE TABLE IF NOT EXISTS mar_insider_transaction (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ppi_name TEXT NOT NULL,
         ppi_role TEXT,
@@ -713,7 +713,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mar_suspicious_transaction_report (
+    CREATE TABLE IF NOT EXISTS mar_suspicious_transaction_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         instrument TEXT NOT NULL,
@@ -727,7 +727,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mar_market_manipulation_indicator (
+    CREATE TABLE IF NOT EXISTS mar_market_manipulation_indicator (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         pattern_type TEXT NOT NULL,
         instrument TEXT NOT NULL,
@@ -740,7 +740,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mar_insider_communication (
+    CREATE TABLE IF NOT EXISTS mar_insider_communication (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender_id INTEGER NOT NULL,
         receiver_id INTEGER NOT NULL,
@@ -753,7 +753,7 @@ STATEMENTS = [
     """,
     # --- MiFID / PBC ---
     """
-    CREATE TABLE mifid_client_category (
+    CREATE TABLE IF NOT EXISTS mifid_client_category (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         category TEXT NOT NULL,
@@ -765,7 +765,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mifid_suitability_report (
+    CREATE TABLE IF NOT EXISTS mifid_suitability_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         client_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
@@ -778,7 +778,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mifid_best_execution_record (
+    CREATE TABLE IF NOT EXISTS mifid_best_execution_record (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
         venue TEXT NOT NULL,
@@ -792,7 +792,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mifid_conflict_of_interest_registry (
+    CREATE TABLE IF NOT EXISTS mifid_conflict_of_interest_registry (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         department TEXT NOT NULL,
         conflict_type TEXT NOT NULL,
@@ -805,7 +805,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mifid_product_governance (
+    CREATE TABLE IF NOT EXISTS mifid_product_governance (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
         target_market TEXT NOT NULL,
@@ -818,7 +818,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mifid_order_record (
+    CREATE TABLE IF NOT EXISTS mifid_order_record (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         client_id INTEGER NOT NULL,
         instrument TEXT NOT NULL,
@@ -833,7 +833,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mifid_insider_list (
+    CREATE TABLE IF NOT EXISTS mifid_insider_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         insider_name TEXT NOT NULL,
         insider_tin TEXT,
@@ -846,7 +846,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE mifid_compensation_policy (
+    CREATE TABLE IF NOT EXISTS mifid_compensation_policy (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         policy_version TEXT NOT NULL,
@@ -859,7 +859,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE pbc_obligated_subject (
+    CREATE TABLE IF NOT EXISTS pbc_obligated_subject (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         subject_type TEXT NOT NULL,
         tin TEXT NOT NULL,
@@ -871,7 +871,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE pbc_internal_control (
+    CREATE TABLE IF NOT EXISTS pbc_internal_control (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         obligated_subject_id INTEGER NOT NULL REFERENCES pbc_obligated_subject(id) ON DELETE CASCADE,
         risk_assessment_date TEXT,
@@ -883,7 +883,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE suspicious_activity_report (
+    CREATE TABLE IF NOT EXISTS suspicious_activity_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         obligated_subject_id INTEGER NOT NULL REFERENCES pbc_obligated_subject(id) ON DELETE CASCADE,
         submission_date TEXT,
@@ -895,7 +895,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE beneficial_owner_record (
+    CREATE TABLE IF NOT EXISTS beneficial_owner_record (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL REFERENCES empresa(id),
         owner_name TEXT NOT NULL,
@@ -908,7 +908,7 @@ STATEMENTS = [
     """,
     # --- IRS / DTA ---
     """
-    CREATE TABLE irs_fiscal_norma (
+    CREATE TABLE IF NOT EXISTS irs_fiscal_norma (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         titulo TEXT NOT NULL,
@@ -922,7 +922,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE irs_dta_convention (
+    CREATE TABLE IF NOT EXISTS irs_dta_convention (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         pais_origen TEXT NOT NULL,
@@ -940,7 +940,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE irs_withholding_rule (
+    CREATE TABLE IF NOT EXISTS irs_withholding_rule (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         tipo_renta TEXT NOT NULL,
@@ -957,7 +957,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE irs_w8_form (
+    CREATE TABLE IF NOT EXISTS irs_w8_form (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
@@ -974,7 +974,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE irs_tin_reference (
+    CREATE TABLE IF NOT EXISTS irs_tin_reference (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo_pais TEXT NOT NULL UNIQUE,
         pais_nombre TEXT NOT NULL,
@@ -988,7 +988,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE giin_registry (
+    CREATE TABLE IF NOT EXISTS giin_registry (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         giin TEXT NOT NULL UNIQUE,
         entidad_nombre TEXT NOT NULL,
@@ -1057,7 +1057,7 @@ STATEMENTS = [
     """,
     # --- PRIIPS / LIVMC ---
     """
-    CREATE TABLE priips_kid (
+    CREATE TABLE IF NOT EXISTS priips_kid (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
         product_type TEXT NOT NULL,
@@ -1072,7 +1072,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE priips_product (
+    CREATE TABLE IF NOT EXISTS priips_product (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         issuer_id INTEGER NOT NULL,
         product_name TEXT NOT NULL,
@@ -1086,7 +1086,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE livmc_client_protection (
+    CREATE TABLE IF NOT EXISTS livmc_client_protection (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         client_id INTEGER NOT NULL,
         protection_type TEXT NOT NULL,
@@ -1097,7 +1097,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE livmc_voice_procedure (
+    CREATE TABLE IF NOT EXISTS livmc_voice_procedure (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         procedure_type TEXT NOT NULL,
@@ -1110,7 +1110,7 @@ STATEMENTS = [
     """,
     # --- PSD2 / Consumer Credit / Insurance ---
     """
-    CREATE TABLE psd2_aspsp (
+    CREATE TABLE IF NOT EXISTS psd2_aspsp (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         bic TEXT,
@@ -1123,7 +1123,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE psd2_aisp (
+    CREATE TABLE IF NOT EXISTS psd2_aisp (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         registration_number TEXT,
@@ -1136,7 +1136,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE psd2_pisp (
+    CREATE TABLE IF NOT EXISTS psd2_pisp (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         registration_number TEXT,
@@ -1147,7 +1147,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE psd2_consent (
+    CREATE TABLE IF NOT EXISTS psd2_consent (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         client_id INTEGER NOT NULL,
         aspsp_id INTEGER NOT NULL,
@@ -1162,7 +1162,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE psd2_incident_report (
+    CREATE TABLE IF NOT EXISTS psd2_incident_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         aspsp_id INTEGER NOT NULL,
         incident_type TEXT,
@@ -1174,7 +1174,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE sepa_payment_rule (
+    CREATE TABLE IF NOT EXISTS sepa_payment_rule (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         scheme_version TEXT,
         payment_type TEXT,
@@ -1187,7 +1187,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE consumer_credit_contract (
+    CREATE TABLE IF NOT EXISTS consumer_credit_contract (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         lender_id INTEGER NOT NULL,
         borrower_id INTEGER NOT NULL,
@@ -1203,7 +1203,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE consumer_credit_disclosure (
+    CREATE TABLE IF NOT EXISTS consumer_credit_disclosure (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         contract_id INTEGER NOT NULL,
         fap REAL,
@@ -1217,7 +1217,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE consumer_credit_overindebtedness (
+    CREATE TABLE IF NOT EXISTS consumer_credit_overindebtedness (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         borrower_id INTEGER NOT NULL,
         declared_date TEXT,
@@ -1230,7 +1230,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE idd_distributor (
+    CREATE TABLE IF NOT EXISTS idd_distributor (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         registration_number TEXT,
@@ -1243,7 +1243,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE idd_product_uci (
+    CREATE TABLE IF NOT EXISTS idd_product_uci (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
         product_type TEXT,
@@ -1257,7 +1257,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE solvency_ii_entity (
+    CREATE TABLE IF NOT EXISTS solvency_ii_entity (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         entity_type TEXT,
@@ -1270,7 +1270,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE solvency_ii_sfp (
+    CREATE TABLE IF NOT EXISTS solvency_ii_sfp (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         reporting_period TEXT,
@@ -1283,7 +1283,7 @@ STATEMENTS = [
     """,
     # --- SFDR ---
     """
-    CREATE TABLE sfdr_product (
+    CREATE TABLE IF NOT EXISTS sfdr_product (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_name TEXT NOT NULL,
         product_type TEXT NOT NULL,
@@ -1297,7 +1297,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE sfdr_paci_indicator (
+    CREATE TABLE IF NOT EXISTS sfdr_paci_indicator (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
         indicator_code TEXT NOT NULL,
@@ -1311,7 +1311,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE sfdr_entity_paci (
+    CREATE TABLE IF NOT EXISTS sfdr_entity_paci (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         reporting_year INTEGER NOT NULL,
@@ -1322,7 +1322,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE sfdr_pre_contractual (
+    CREATE TABLE IF NOT EXISTS sfdr_pre_contractual (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
         document_type TEXT NOT NULL,
@@ -1334,7 +1334,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE sfdr_annual_report (
+    CREATE TABLE IF NOT EXISTS sfdr_annual_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         reporting_year INTEGER NOT NULL,
@@ -1349,7 +1349,7 @@ STATEMENTS = [
     """,
     # --- Transparency ---
     """
-    CREATE TABLE transparency_issuer (
+    CREATE TABLE IF NOT EXISTS transparency_issuer (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         issuer_id INTEGER NOT NULL,
         listing_market TEXT,
@@ -1361,7 +1361,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE transparency_regulated_information (
+    CREATE TABLE IF NOT EXISTS transparency_regulated_information (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         issuer_id INTEGER NOT NULL,
         info_type TEXT,
@@ -1373,7 +1373,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE transparency_voting_rights (
+    CREATE TABLE IF NOT EXISTS transparency_voting_rights (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         issuer_id INTEGER NOT NULL,
         shareholder_id INTEGER NOT NULL,
@@ -1385,7 +1385,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE transparency_internal_rule (
+    CREATE TABLE IF NOT EXISTS transparency_internal_rule (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         designated_persons TEXT,
@@ -1397,7 +1397,7 @@ STATEMENTS = [
     """,
     # --- AIFMD / UCITS ---
     """
-    CREATE TABLE aifmd_fund (
+    CREATE TABLE IF NOT EXISTS aifmd_fund (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fund_name TEXT NOT NULL,
         aifm_id INTEGER,
@@ -1416,7 +1416,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE aifmd_regulatory_report (
+    CREATE TABLE IF NOT EXISTS aifmd_regulatory_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fund_id INTEGER NOT NULL REFERENCES aifmd_fund(id) ON DELETE CASCADE,
         report_type TEXT NOT NULL,
@@ -1428,7 +1428,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE aifmd_liquidity_management (
+    CREATE TABLE IF NOT EXISTS aifmd_liquidity_management (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fund_id INTEGER NOT NULL REFERENCES aifmd_fund(id) ON DELETE CASCADE,
         redemption_suspended BOOLEAN NOT NULL DEFAULT 0,
@@ -1442,7 +1442,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE ucits_fund (
+    CREATE TABLE IF NOT EXISTS ucits_fund (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fund_name TEXT NOT NULL,
         management_company TEXT,
@@ -1459,7 +1459,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE ucits_regulatory_report (
+    CREATE TABLE IF NOT EXISTS ucits_regulatory_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fund_id INTEGER NOT NULL REFERENCES ucits_fund(id) ON DELETE CASCADE,
         report_type TEXT NOT NULL,
@@ -1472,7 +1472,7 @@ STATEMENTS = [
     """,
     # --- CRD / BRRD / EMIR ---
     """
-    CREATE TABLE crd_capital_position (
+    CREATE TABLE IF NOT EXISTS crd_capital_position (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         reporting_date TEXT NOT NULL,
@@ -1489,7 +1489,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE crd_stress_test (
+    CREATE TABLE IF NOT EXISTS crd_stress_test (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         test_date TEXT NOT NULL,
@@ -1503,7 +1503,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE brrd_bail_in (
+    CREATE TABLE IF NOT EXISTS brrd_bail_in (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         total_eligible_liabilities REAL,
@@ -1516,7 +1516,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE emir_trade_report (
+    CREATE TABLE IF NOT EXISTS emir_trade_report (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         trade_id TEXT NOT NULL,
         asset_class TEXT NOT NULL,
@@ -1529,7 +1529,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE emir_clearing_member (
+    CREATE TABLE IF NOT EXISTS emir_clearing_member (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id INTEGER NOT NULL,
         emir_registration TEXT NOT NULL,
@@ -1540,7 +1540,7 @@ STATEMENTS = [
     """,
     # --- Lineas de criterio ---
     """
-    CREATE TABLE linea_criterio (
+    CREATE TABLE IF NOT EXISTS linea_criterio (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         titulo TEXT NOT NULL,
         cuestion_practica TEXT NOT NULL,
@@ -1559,7 +1559,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE linea_criterio_referencia (
+    CREATE TABLE IF NOT EXISTS linea_criterio_referencia (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         linea_id INTEGER NOT NULL REFERENCES linea_criterio(id) ON DELETE CASCADE,
         documento_referencia TEXT NOT NULL,
@@ -1597,7 +1597,7 @@ STATEMENTS = [
     """,
     # --- Playbooks y evidencias ---
     """
-    CREATE TABLE playbook_operativo (
+    CREATE TABLE IF NOT EXISTS playbook_operativo (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
@@ -1616,7 +1616,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE playbook_step (
+    CREATE TABLE IF NOT EXISTS playbook_step (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         playbook_id INTEGER NOT NULL REFERENCES playbook_operativo(id) ON DELETE CASCADE,
         orden INTEGER NOT NULL,
@@ -1634,7 +1634,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE evidencia_control (
+    CREATE TABLE IF NOT EXISTS evidencia_control (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         playbook_id INTEGER NOT NULL REFERENCES playbook_operativo(id) ON DELETE CASCADE,
@@ -1684,7 +1684,7 @@ STATEMENTS = [
     """,
     # --- Riesgos, controles y pruebas ---
     """
-    CREATE TABLE riesgo_regulatorio (
+    CREATE TABLE IF NOT EXISTS riesgo_regulatorio (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
@@ -1702,7 +1702,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE control_interno (
+    CREATE TABLE IF NOT EXISTS control_interno (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
@@ -1717,7 +1717,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE riesgo_control_link (
+    CREATE TABLE IF NOT EXISTS riesgo_control_link (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         riesgo_id INTEGER NOT NULL REFERENCES riesgo_regulatorio(id) ON DELETE CASCADE,
         control_id INTEGER NOT NULL REFERENCES control_interno(id) ON DELETE CASCADE,
@@ -1733,7 +1733,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE prueba_control (
+    CREATE TABLE IF NOT EXISTS prueba_control (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         link_id INTEGER NOT NULL REFERENCES riesgo_control_link(id) ON DELETE CASCADE,
         fecha_prueba TEXT NOT NULL,
@@ -1789,7 +1789,7 @@ STATEMENTS = [
     """,
     # --- Tablas editoriales (corpus autoritativo) ---
     """
-    CREATE TABLE nota_editorial_interna (
+    CREATE TABLE IF NOT EXISTS nota_editorial_interna (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         titulo TEXT NOT NULL,
         resumen_ejecutivo TEXT,
@@ -1810,7 +1810,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE posicion_interpretativa (
+    CREATE TABLE IF NOT EXISTS posicion_interpretativa (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         titulo TEXT NOT NULL,
         descripcion TEXT,
@@ -1911,7 +1911,7 @@ STATEMENTS = [
         (4, 'SERVICIOS CORPORATIVOS BETA, S.L.', 'B44332211', 'Gran Via 20, Madrid', 'seed')
     """,
     """
-    CREATE TABLE ownership_share (
+    CREATE TABLE IF NOT EXISTS ownership_share (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_id INTEGER NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
         titular_id INTEGER,
@@ -1927,7 +1927,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE ownership_relation (
+    CREATE TABLE IF NOT EXISTS ownership_relation (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_origen_id INTEGER NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
         empresa_destino_id INTEGER NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
@@ -1942,7 +1942,7 @@ STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE ubo_record (
+    CREATE TABLE IF NOT EXISTS ubo_record (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_id INTEGER NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
         nombre_persona TEXT NOT NULL,
@@ -2253,7 +2253,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """,
     # --- Modelos AEAT ---
     """
-    CREATE TABLE aeat_modelo (
+    CREATE TABLE IF NOT EXISTS aeat_modelo (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT UNIQUE NOT NULL,
         nombre TEXT NOT NULL,
@@ -2266,7 +2266,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE modelo_articulo (
+    CREATE TABLE IF NOT EXISTS modelo_articulo (
         modelo_id INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
         articulo_id INTEGER NOT NULL REFERENCES articulo(id) ON DELETE CASCADE,
         norma TEXT NOT NULL,
@@ -2331,7 +2331,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """,
     # --- Modelos v2 schema: campañas, casillas, claves, instrucciones, normativa ---
     """
-    CREATE TABLE modelo_campana (
+    CREATE TABLE IF NOT EXISTS modelo_campana (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
         campana         TEXT NOT NULL,
@@ -2349,7 +2349,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE modelo_recurso (
+    CREATE TABLE IF NOT EXISTS modelo_recurso (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         campana_id INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
         tipo_recurso TEXT NOT NULL,
@@ -2368,7 +2368,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE modelo_casilla (
+    CREATE TABLE IF NOT EXISTS modelo_casilla (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
         codigo          TEXT NOT NULL,
@@ -2383,7 +2383,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE modelo_clave (
+    CREATE TABLE IF NOT EXISTS modelo_clave (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
         codigo          TEXT NOT NULL,
@@ -2396,7 +2396,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE modelo_instruccion (
+    CREATE TABLE IF NOT EXISTS modelo_instruccion (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
         seccion         TEXT NOT NULL,
@@ -2407,7 +2407,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE modelo_normativa (
+    CREATE TABLE IF NOT EXISTS modelo_normativa (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
         boe_id          TEXT,
@@ -2480,7 +2480,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """,
     # --- Screening / company links ---
     """
-    CREATE TABLE screening_lists (
+    CREATE TABLE IF NOT EXISTS screening_lists (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL,
@@ -2495,7 +2495,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE screening_entries (
+    CREATE TABLE IF NOT EXISTS screening_entries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         list_id INTEGER NOT NULL REFERENCES screening_lists(id),
         entidad_id TEXT NOT NULL,
@@ -2518,7 +2518,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE screening_matches (
+    CREATE TABLE IF NOT EXISTS screening_matches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         empresa_id INTEGER NOT NULL REFERENCES empresa(id),
         entry_id INTEGER NOT NULL REFERENCES screening_entries(id),
@@ -2536,7 +2536,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE documento_empresa (
+    CREATE TABLE IF NOT EXISTS documento_empresa (
         empresa_id INTEGER NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
         documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id) ON DELETE CASCADE,
         rol TEXT,
@@ -2545,7 +2545,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE obligacion_documento (
+    CREATE TABLE IF NOT EXISTS obligacion_documento (
         obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id) ON DELETE CASCADE,
         documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id) ON DELETE CASCADE,
         tipo_relacion TEXT,
@@ -2589,7 +2589,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     WHERE n.codigo = 'EUR-Lex-32020R548' AND a.numero = '1'
     """,
     """
-    CREATE TABLE xbrl_filing (
+    CREATE TABLE IF NOT EXISTS xbrl_filing (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source_name TEXT NOT NULL,
         source_path TEXT NOT NULL UNIQUE,
@@ -2601,7 +2601,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE xbrl_fact (
+    CREATE TABLE IF NOT EXISTS xbrl_fact (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         filing_id INTEGER NOT NULL REFERENCES xbrl_filing(id) ON DELETE CASCADE,
         concept TEXT NOT NULL,
@@ -2616,7 +2616,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE xbrl_taxonomy (
+    CREATE TABLE IF NOT EXISTS xbrl_taxonomy (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         concept_qname TEXT NOT NULL,
         namespace TEXT,
@@ -2632,7 +2632,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE pgc_marco (
+    CREATE TABLE IF NOT EXISTS pgc_marco (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT UNIQUE NOT NULL,
         titulo TEXT NOT NULL,
@@ -2644,7 +2644,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE pgc_cuenta (
+    CREATE TABLE IF NOT EXISTS pgc_cuenta (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codigo TEXT UNIQUE NOT NULL,
         descripcion TEXT NOT NULL,
@@ -2659,7 +2659,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE pgc_norma_valoracion (
+    CREATE TABLE IF NOT EXISTS pgc_norma_valoracion (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         marco_id INTEGER REFERENCES pgc_marco(id),
         cuenta_id INTEGER REFERENCES pgc_cuenta(id),
@@ -2671,7 +2671,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE pgc_estado_financiero (
+    CREATE TABLE IF NOT EXISTS pgc_estado_financiero (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cuenta_id INTEGER REFERENCES pgc_cuenta(id),
         estado TEXT NOT NULL,
@@ -2684,7 +2684,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE pgc_cuenta_fiscal_ref (
+    CREATE TABLE IF NOT EXISTS pgc_cuenta_fiscal_ref (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cuenta_id INTEGER REFERENCES pgc_cuenta(id),
         modelo TEXT NOT NULL,
@@ -2695,7 +2695,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE pgc_cuenta_modelo_aeat_ref (
+    CREATE TABLE IF NOT EXISTS pgc_cuenta_modelo_aeat_ref (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cuenta_id INTEGER REFERENCES pgc_cuenta(id),
         modelo_id INTEGER NOT NULL,
@@ -2705,7 +2705,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE pgc_xbrl_mapping (
+    CREATE TABLE IF NOT EXISTS pgc_xbrl_mapping (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         xbrl_concept_qname TEXT NOT NULL,
         pgc_account_codigo TEXT NOT NULL,
@@ -2717,7 +2717,7 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     )
     """,
     """
-    CREATE TABLE workflow_cases (
+    CREATE TABLE IF NOT EXISTS workflow_cases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         workflow_id TEXT NOT NULL UNIQUE,
         cambio_codigo TEXT NOT NULL,

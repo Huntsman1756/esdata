@@ -32,6 +32,7 @@ from runtime import (
     finalize_partial_sync_status,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
@@ -1061,6 +1062,10 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
             )
 
         except Exception as exc:
+            entity_id = "aeat_models"
+            if not handle_worker_failure(engine, "aeat_models", entity_id, "sync_entity", exc):
+                logger.warning("Entity aeat_models moved to dead-letter")
+                return
             logger.error("Sync failed: %s", exc, exc_info=True)
             try:
                 with engine.begin() as conn:

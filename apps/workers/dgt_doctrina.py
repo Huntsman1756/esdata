@@ -29,7 +29,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import ensure_database_connection, get_bool_env, get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_bool_env, get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine
 
 SEED_URLS = [
@@ -204,6 +204,10 @@ def run_sync(
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:
+        entity_id = "dgt_doctrina"
+        if not handle_worker_failure(engine, "dgt_doctrina", entity_id, "sync_entity", exc):
+            logger.warning("Entity dgt_doctrina moved to dead-letter")
+            return {"processed": 0, "stored": 0}
         with engine.begin() as conn:
             _ensure_sync_log_table(conn)
             log_sync(

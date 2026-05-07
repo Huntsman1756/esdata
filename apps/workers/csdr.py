@@ -6,6 +6,7 @@ regulacion_relacionada='csdr'.
 """
 
 import argparse
+import logging
 import os
 import sys
 import time
@@ -25,7 +26,9 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+
+logger = logging.getLogger(__name__)
 
 EURLEX_BASE = os.getenv(
     "EURLEX_BASE",
@@ -425,6 +428,10 @@ def run_sync(
             )
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
+        entity_id = "csdr"
+        if not handle_worker_failure(engine, "csdr", entity_id, "sync_entity", exc):
+            logger.warning("Entity csdr moved to dead-letter")
+            return {"bloques": 0, "articulos": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

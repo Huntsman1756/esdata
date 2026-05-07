@@ -38,7 +38,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import ensure_database_connection, get_bool_env, get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_bool_env, get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 # RIRNR = Real Decreto 435/1995, de 27 de marzo
@@ -143,6 +143,10 @@ def run_sync(
 
         return {"processed": processed, "articulos_upserted": articulos_upserted}
     except Exception as exc:
+        entity_id = "rirnr"
+        if not handle_worker_failure(engine, "rirnr", entity_id, "sync_entity", exc):
+            logger.warning("Entity rirnr moved to dead-letter")
+            return {"processed": 0, "articulos_upserted": 0}
         with engine.begin() as conn:
             _ensure_sync_log_table(conn)
             log_sync(

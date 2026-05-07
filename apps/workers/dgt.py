@@ -43,6 +43,7 @@ from runtime import (
     get_bool_env,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
@@ -701,7 +702,9 @@ def run_sync(  # noqa: C901
                 doctrina_links_created=links_created,
                 error_msg=str(exc),
             )
-        raise
+        if not handle_worker_failure(engine, 'worker-dgt', str(entity_id), "sync_entity", exc):
+            logger.warning("Entity %s moved to dead-letter", entity_id)
+            return
 
 
 if __name__ == "__main__":

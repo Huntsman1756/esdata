@@ -20,6 +20,7 @@ from runtime import (
     ensure_database_connection,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )

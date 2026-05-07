@@ -21,6 +21,7 @@ from runtime import (
     ensure_database_connection,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
@@ -257,6 +258,10 @@ def run_sync(
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:
+        entity_id = "sepblac"
+        if not handle_worker_failure(engine, "sepblac", entity_id, "sync_entity", exc):
+            logger.warning("Entity sepblac moved to dead-letter")
+            return {"processed": 0, "stored": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

@@ -27,7 +27,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import ensure_database_connection, get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 EURLEX_BASE = os.getenv(
@@ -507,6 +507,10 @@ def run_sync(
             )
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
+        entity_id = "prospectos"
+        if not handle_worker_failure(engine, "prospectos", entity_id, "sync_entity", exc):
+            logger.warning("Entity prospectos moved to dead-letter")
+            return {"bloques": 0, "articulos": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

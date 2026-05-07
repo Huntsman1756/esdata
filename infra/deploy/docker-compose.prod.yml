@@ -50,8 +50,7 @@ services:
   # Userlist real (con hash SCRAM) se monta desde infra/deploy/pgbouncer/userlist.txt
   # (gitignored). Generar segun instrucciones en userlist.txt.example.
   pgbouncer:
-    # TODO[pin-pgbouncer-digest]: pin to verified sha256 digest before production deploy
-    image: edoburu/pgbouncer:1.23.1@sha256:PLACEHOLDER
+    image: edoburu/pgbouncer:v1.23.1-p3@sha256:377dec3c0e4a66a1077ec043e16a26ed5702a6d954011a7983a1457c2e070b1d
     profiles: ["pgbouncer"]
     restart: unless-stopped
     volumes:
@@ -669,6 +668,24 @@ services:
       SPARQL_BASE: ${SPARQL_BASE:-https://data.europa.eu/sparql}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_EURLEX_WEEKLY:-}
       WORKER_CMD: python eurlex.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
+  cron-regulatory-daily:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SPARQL_BASE: ${SPARQL_BASE:-https://data.europa.eu/sparql}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_REGULATORY_DAILY:-}
+      WORKER_CMD: python regulatory_watch.py --run-once
     depends_on:
       postgres:
         condition: service_healthy

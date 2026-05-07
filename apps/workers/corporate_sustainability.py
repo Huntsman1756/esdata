@@ -15,7 +15,7 @@ import logging
 import time
 
 from boe import log_sync
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -355,6 +355,10 @@ def run_sync(worker_name: str = "cron-csrd-weekly"):
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:
+        entity_id = "corporate_sustainability"
+        if not handle_worker_failure(engine, "corporate_sustainability", entity_id, "sync_entity", exc):
+            logger.warning("Entity corporate_sustainability moved to dead-letter")
+            return {"processed": 0, "stored": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

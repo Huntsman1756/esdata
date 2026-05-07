@@ -6,6 +6,7 @@ regulacion_relacionada='lecr'.
 """
 
 import argparse
+import logging
 import os
 import sys
 import time
@@ -18,7 +19,9 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+
+logger = logging.getLogger(__name__)
 
 BOE_API_BASE = os.getenv(
     "BOE_API_BASE",
@@ -381,6 +384,10 @@ def run_sync(
                 )
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
+        entity_id = "ley222014_lecr"
+        if not handle_worker_failure(engine, "ley222014_lecr", entity_id, "sync_entity", exc):
+            logger.warning("Entity ley222014_lecr moved to dead-letter")
+            return {"bloques": 0, "articulos": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

@@ -9,12 +9,15 @@ Ingesta datos de:
 """
 
 import argparse
+import logging
 import time
 from datetime import UTC, datetime
 
 from boe import _ensure_sync_log_table, log_sync
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -242,6 +245,10 @@ def run_sync(worker_name: str = "cron-ley112021-weekly") -> dict:
         }
 
     except Exception as exc:
+        entity_id = "fraud"
+        if not handle_worker_failure(engine, "fraud", entity_id, "sync_entity", exc):
+            logger.warning("Entity fraud moved to dead-letter")
+            return {"programs": 0, "assessments": 0, "incidents": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

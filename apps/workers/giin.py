@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from runtime import ensure_database_connection, get_database_url, get_interval_seconds
+from runtime import ensure_database_connection, get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -148,6 +148,9 @@ def run_sync(worker_name: str = "cron-giin-monthly") -> dict:
                 "started_at": sync_start,
             }
     except Exception as exc:
+        entity_id = "giin"
+        if not handle_worker_failure(engine, "giin", entity_id, "sync_entity", exc):
+            logger.warning("Entity giin moved to dead-letter")
         return {
             "processed": total,
             "source": source,

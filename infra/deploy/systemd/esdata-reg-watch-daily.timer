@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata regulatory watch daily
+
+[Timer]
+OnCalendar=*-*-* 07:00:00
+Persistent=true
+Unit=esdata-job@cron-regulatory-daily.service
+
+[Install]
+WantedBy=timers.target

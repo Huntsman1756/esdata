@@ -26,7 +26,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -274,6 +274,9 @@ def run_sync(worker_name: str = "cron-solvency-weekly") -> dict:
                 "started_at": sync_start,
             }
     except Exception as exc:
+        entity_id = "solvency"
+        if not handle_worker_failure(engine, "solvency", entity_id, "sync_entity", exc):
+            logger.warning("Entity solvency moved to dead-letter")
         return {
             "processed": total,
             "source": source,

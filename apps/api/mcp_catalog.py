@@ -34,6 +34,25 @@ HTTP_MCP_OPERATIONS = [
 ]
 
 
+def infer_query_audit_tool_name(path: str) -> str:
+    """Map a router path to a tool name for audit logging."""
+    if path.startswith("/mcp/tools/"):
+        return path.split("/mcp/tools/")[-1] or "unknown"
+    if path.startswith("/v1/consulta"):
+        return "consulta_fiscal"
+    if path.startswith("/v1/obligaciones/"):
+        return "listar_obligaciones_operativas"
+    if path.startswith("/v1/legislacion/buscar"):
+        return "buscar"
+    if path.startswith("/v1/legislacion/"):
+        return "list_legislacion"
+    if path.startswith("/v1/modelos/"):
+        return "list_modelos"
+    if path.startswith("/v1/doctrina/"):
+        return "buscar_doctrina"
+    return "http_request"
+
+
 def get_stdio_tool_definitions() -> list[dict[str, Any]]:
     return [
         {

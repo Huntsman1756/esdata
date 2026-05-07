@@ -19,7 +19,7 @@ from sqlalchemy import create_engine, inspect, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from runtime import configure_logging, ensure_database_connection, get_database_url, get_interval_seconds
+from runtime import configure_logging, ensure_database_connection, get_database_url, get_interval_seconds, handle_worker_failure
 
 logger = configure_logging("workers.mica")
 

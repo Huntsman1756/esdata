@@ -12,6 +12,7 @@ Limitaciones conocidas:
 """
 
 import argparse
+import logging
 import os
 import re
 import time
@@ -33,10 +34,13 @@ from runtime import (
     ensure_database_connection,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 EVENT_PATTERNS = [
     ("nombramiento", r"\bNombramientos?\b"),
@@ -417,6 +421,10 @@ def run_sync(
 
         return {"processed": processed, "stored": stored}
     except Exception as exc:
+        entity_id = "borme"
+        if not handle_worker_failure(engine, "borme", entity_id, "sync_entity", exc):
+            logger.warning("Entity borme moved to dead-letter")
+            return {"processed": 0, "stored": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

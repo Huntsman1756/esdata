@@ -19,7 +19,7 @@ from change_detection import (
     ensure_source_revision_table,
     invalidate_old_embeddings,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -111,6 +111,9 @@ def run_sync(worker_name: str = "cron-pbc-monthly") -> dict:
                 invalidate_old_embeddings(conn, "pbc")
             return {"processed": total, "source": source, "eurlex_processed": eurlex_processed, "entities": entities_stored, "worker": worker_name, "started_at": sync_start}
     except Exception as exc:
+        entity_id = "pbc"
+        if not handle_worker_failure(engine, "pbc", entity_id, "sync_entity", exc):
+            logger.warning("Entity pbc moved to dead-letter")
         return {"processed": total, "source": source, "eurlex_processed": eurlex_processed, "entities": entities_stored, "worker": worker_name, "error": str(exc), "started_at": sync_start}
 
 

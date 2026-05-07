@@ -36,6 +36,7 @@ from runtime import (
     ensure_database_connection,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
@@ -1183,6 +1184,10 @@ def run_sync(  # noqa: C901
             "fetch_errors": fetch_errors,
         }
     except Exception as exc:
+        entity_id = "eurlex"
+        if not handle_worker_failure(engine, "eurlex", entity_id, "sync_entity", exc):
+            logger.warning("Entity eurlex moved to dead-letter")
+            return {"bloques": 0, "articulos": 0, "normas": 0, "nuevos_sparql": 0, "skipped_no_index": 0, "skipped_unchanged": 0, "fetch_errors": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

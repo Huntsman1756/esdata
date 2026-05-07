@@ -107,7 +107,7 @@ DDL_TEMPLATE = [
         user_id TEXT,
         path TEXT NOT NULL,
         query_text TEXT NOT NULL,
-        retrieved_chunks TEXT NOT NULL DEFAULT '[]'::jsonb,
+        retrieved_chunks TEXT NOT NULL DEFAULT '[]',
         response_summary TEXT NOT NULL DEFAULT '',
         model_version TEXT,
         config_version TEXT,

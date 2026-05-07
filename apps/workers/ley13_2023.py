@@ -9,6 +9,7 @@ diciembre de 2023.
 """
 
 import argparse
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -22,8 +23,10 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 BOE_BASE = os.getenv(
     "BOE_BASE",
@@ -633,6 +636,10 @@ def run_sync(
             )
         return {"bloques": bloques_fetched, "articulos": articulos_upserted}
     except Exception as exc:
+        entity_id = "ley13_2023"
+        if not handle_worker_failure(engine, "ley13_2023", entity_id, "sync_entity", exc):
+            logger.warning("Entity ley13_2023 moved to dead-letter")
+            return {"bloques": 0, "articulos": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

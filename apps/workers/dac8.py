@@ -15,7 +15,7 @@ import time
 from datetime import UTC, datetime
 
 from boe import _ensure_sync_log_table, log_sync
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 # ---------------------------------------------------------------------------
@@ -285,6 +285,10 @@ def run_sync(worker_name: str = "cron-dac8-dac9-weekly") -> dict:
             "wallet_holders": holders_stored,
         }
     except Exception as exc:
+        entity_id = "dac8"
+        if not handle_worker_failure(engine, "dac8", entity_id, "sync_entity", exc):
+            logger.warning("Entity dac8 moved to dead-letter")
+            return {"reporting_entities": 0, "crypto_reports": 0, "wallet_holders": 0}
         with engine.begin() as conn:
             log_sync(
                 conn,

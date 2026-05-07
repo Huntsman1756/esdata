@@ -26,6 +26,7 @@ import httpx
 from sqlalchemy import create_engine, text
 
 from boe import _ensure_sync_log_table, log_sync
+from runtime import handle_worker_failure
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -563,6 +564,10 @@ def run_sync(worker_name: str = "worker-jurisprudencia") -> dict[str, int]:
                 error_msg="; ".join(error_messages) if error_messages else None,
             )
     except Exception as exc:
+        entity_id = "jurisprudencia"
+        if not handle_worker_failure(engine, "jurisprudencia", entity_id, "sync_entity", exc):
+            logger.warning("Entity jurisprudencia moved to dead-letter")
+            return
         error_messages.append(str(exc))
         with engine.begin() as conn:
             _log_sync_result(
