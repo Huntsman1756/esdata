@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import httpx
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -272,12 +273,52 @@ class TestPlaywrightClient:
         assert payload == b"pdf-bytes"
 
 
+class TestHttpxClient:
+    def test_fetch_resource_retries_timeout_then_returns_none(self, monkeypatch):
+        client = HttpxClient()
+        attempts = []
+
+        class FakeClient:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                attempts.append(url)
+                raise httpx.ConnectTimeout("timed out")
+
+        monkeypatch.setattr(client, "_build_client", lambda: FakeClient())
+
+        payload = client.fetch_resource("https://www1.agenciatributaria.gob.es/recurso.pdf")
+
+        assert payload is None
+        assert len(attempts) == 3
+
+
 # ---------------------------------------------------------------------------
 # Database operations
 # ---------------------------------------------------------------------------
 
 
 class TestFetchModelMetadata:
+    def test_normalizes_provided_url_before_fetching_detail(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = "<html><body><h1>230 - Modelo 230</h1></body></html>"
+
+        result = aeat_models._fetch_model_metadata(
+            "230",
+            url_info="ttps://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul",
+            portal_client=portal_client,
+        )
+
+        portal_client.fetch_detail.assert_called_once_with(
+            "https://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul"
+        )
+        assert result is not None
+        assert result["url_info"] == "https://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul"
+
     def test_uses_provided_url_without_listing_lookup(self):
         portal_client = MagicMock()
         portal_client.fetch_detail.return_value = """
@@ -332,6 +373,26 @@ class TestClassifyResource:
             "formulario_pdf",
             "pdf",
         )
+
+class TestExtractModelResources:
+    def test_skips_external_resources_from_detail_page(self):
+        html = """
+        <html><body>
+            <a href="/docs/modelo303.pdf">Modelo PDF</a>
+            <a href="https://www.oecd.org/example.html">Guia OECD</a>
+            <a href="https://www.boe.es/diario_boe/txt.php?id=BOE-A-2024-1">Orden BOE</a>
+        </body></html>
+        """
+
+        resources = aeat_models._extract_model_resources(
+            html,
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G401.shtml",
+        )
+
+        resource_urls = {resource["url_recurso"] for resource in resources}
+        assert "https://www.oecd.org/example.html" not in resource_urls
+        assert "https://sede.agenciatributaria.gob.es/docs/modelo303.pdf" in resource_urls
+        assert "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2024-1" in resource_urls
 
 
 class TestNormalizeAeatUrl:
@@ -633,6 +694,8 @@ class TestModeloRecursoVersioning:
                         formato TEXT NOT NULL,
                         url_recurso TEXT NOT NULL,
                         sha256_contenido TEXT NOT NULL,
+                        row_completeness TEXT NOT NULL,
+                        row_provenance TEXT NOT NULL,
                         etag TEXT,
                         last_modified TEXT,
                         content_length INTEGER,
@@ -664,6 +727,25 @@ class TestModeloRecursoVersioning:
 
         assert total == 1
         assert active == 1
+
+    def test_inserted_resource_sets_row_quality_contract(self):
+        engine = self._setup_db()
+        with engine.begin() as conn:
+            assert _store_modelo_recurso_version(
+                conn,
+                1,
+                "instrucciones",
+                "pdf",
+                "https://example.com/a.pdf",
+                b"same",
+            ) == "inserted"
+            row = conn.execute(
+                text(
+                    "SELECT row_completeness, row_provenance FROM modelo_recurso WHERE campana_id = 1 AND tipo_recurso = 'instrucciones'"
+                )
+            ).fetchone()
+
+        assert row == ("complete", "official_exact")
 
     def test_hash_cambia_rota_version(self):
         engine = self._setup_db()
@@ -849,6 +931,55 @@ def test_run_sync_uses_heartbeat_sleep(monkeypatch):
     assert sleep_calls == [aeat_models.SYNC_INTERVAL_SECONDS]
 
 
+def test_run_sync_refreshes_heartbeat_while_processing_models(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    heartbeat_calls = []
+    sleep_calls = []
+
+    class LoopStopped(BaseException):
+        pass
+
+    discovered = [{"codigo": "303", "nombre": "Modelo 303", "url_info": "https://example.com/303"}]
+
+    monkeypatch.setattr("aeat_models.get_portal_client", lambda force_playwright=False: object())
+    monkeypatch.setattr("aeat_models._try_acquire_sync_lock", lambda conn: True)
+    monkeypatch.setattr("aeat_models._discover_aeat_models", lambda portal_client=None: discovered)
+    monkeypatch.setattr("aeat_models._upsert_aeat_model", lambda *args, **kwargs: True)
+    monkeypatch.setattr("aeat_models._get_modelo_id", lambda *args, **kwargs: 1)
+    monkeypatch.setattr("aeat_models._upsert_modelo_campana", lambda *args, **kwargs: (1, True))
+    monkeypatch.setattr("aeat_models._store_modelo_recurso_version", lambda *args, **kwargs: "unchanged")
+    monkeypatch.setattr("aeat_models._mark_deprecated_models", lambda *args, **kwargs: 0)
+    monkeypatch.setattr("aeat_models._record_sync_log", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "aeat_models._fetch_model_metadata",
+        lambda codigo, url_info=None, portal_client=None: {
+            "codigo": codigo,
+            "nombre": "Modelo 303",
+            "url_info": url_info,
+            "campana": "2025",
+            "periodo": "trimestral",
+            "impuesto": "IVA",
+            "recursos": [],
+        },
+    )
+    monkeypatch.setattr("aeat_models.touch_heartbeat", lambda: heartbeat_calls.append("touch"), raising=False)
+
+    def fake_sleep_with_heartbeat(seconds):
+        sleep_calls.append(seconds)
+        raise LoopStopped
+
+    monkeypatch.setattr("aeat_models.sleep_with_heartbeat", fake_sleep_with_heartbeat, raising=False)
+
+    try:
+        aeat_models.run_sync(engine, run_once=False)
+        assert False, "Expected LoopStopped"
+    except LoopStopped:
+        pass
+
+    assert heartbeat_calls == ["touch", "touch"]
+    assert sleep_calls == [aeat_models.SYNC_INTERVAL_SECONDS]
+
+
 def test_run_sync_falls_back_to_seeded_models_when_discovery_is_empty(monkeypatch):
     engine = create_engine("sqlite:///:memory:")
 
@@ -997,15 +1128,15 @@ def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatc
     monkeypatch.setattr("aeat_models._try_acquire_sync_lock", lambda conn: True)
     monkeypatch.setattr(
         "aeat_models._discover_aeat_models",
-        lambda portal_client=None: [{"codigo": "231", "nombre": "Modelo 231", "url_info": "https://example.com/231"}],
+        lambda portal_client=None: [{"codigo": "303", "nombre": "Modelo 303", "url_info": "https://example.com/303"}],
     )
     monkeypatch.setattr(
         "aeat_models._fetch_model_metadata",
         lambda *args, **kwargs: {
-            "codigo": "231",
-            "nombre": "Modelo 231",
-            "url_info": "https://example.com/231",
-            "campana": "2025",
+            "codigo": "303",
+            "nombre": "Modelo 303",
+            "url_info": "https://example.com/303",
+            "campana": "2026",
             "recursos": [
                 {
                     "tipo_recurso": "normativa",
@@ -1018,11 +1149,11 @@ def test_run_sync_skips_failed_official_resource_and_finishes_partial(monkeypatc
     monkeypatch.setattr("aeat_models._upsert_aeat_model", lambda *args, **kwargs: True)
     monkeypatch.setattr("aeat_models._get_modelo_id", lambda *args, **kwargs: 1)
     monkeypatch.setattr("aeat_models._upsert_modelo_campana", lambda *args, **kwargs: (10, True))
+    monkeypatch.setattr("aeat_models._mark_deprecated_models", lambda *args, **kwargs: 0)
     monkeypatch.setattr(
         "aeat_models._store_modelo_recurso_version",
         lambda *args, **kwargs: stored_payloads.append(args[5]) or "inserted",
     )
-    monkeypatch.setattr("aeat_models._mark_deprecated_models", lambda *args, **kwargs: 0)
 
     aeat_models.run_sync(engine, run_once=True)
 

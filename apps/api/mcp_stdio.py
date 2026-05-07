@@ -11,27 +11,108 @@ import httpx
 # FastAPI app must be imported before any DB access
 from main import app
 from mcp_catalog import get_stdio_tool_definitions
+from mcp_request_context import mcp_internal_request
 
 
-def _log_mcp_call(tool_name: str, arguments: dict, status_code: int, response_time_ms: float) -> None:
-    """Log MCP tool call to query audit log for E2E traceability."""
-    try:
-        from services.query_audit import get_query_audit_service
-        get_query_audit_service().record_query(
-            request_id=f"mcp-{uuid.uuid4().hex[:12]}",
-            user_id="mcp-client",
-            path=f"/mcp/tools/{tool_name}",
-            query_text=json.dumps(arguments, ensure_ascii=False)[:2000],
-            retrieved_chunks=[],
-            response_summary=f"status={status_code} duration={response_time_ms:.0f}ms",
-            model_version="mcp-stdio",
-            config_version=None,
-            grounding_status="n/a",
-            prompt_injection_detected=False,
-            grounding_summary={},
-        )
-    except Exception:
-        pass  # audit failure must not break MCP operation
+def _next_stdio_request_id() -> str:
+    return f"mcp-{uuid.uuid4().hex[:12]}"
+
+
+def _response_summary_from_payload(payload: dict[str, Any]) -> str:
+    error = payload.get("error")
+    if isinstance(error, dict):
+        return str(error.get("message") or json.dumps(error, ensure_ascii=False))[:4000]
+
+    result = payload.get("result")
+    if not isinstance(result, dict):
+        return ""
+
+    content = result.get("content")
+    if isinstance(content, list):
+        text_blocks = [
+            item.get("text", "")
+            for item in content
+            if isinstance(item, dict) and item.get("type") == "text" and item.get("text")
+        ]
+        if text_blocks:
+            return "\n".join(text_blocks)[:4000]
+
+    structured_content = result.get("structuredContent")
+    if structured_content is not None:
+        return json.dumps(structured_content, ensure_ascii=False)[:4000]
+
+    return ""
+
+
+def _get_correlated_http_entry(request_id: str):
+    from services.query_audit import get_query_audit_service
+
+    entries = get_query_audit_service().get_by_request_id(request_id)
+    for entry in reversed(entries):
+        if not entry.path.startswith("/mcp/tools/"):
+            return entry
+    return None
+
+
+def _log_mcp_call(
+    tool_name: str,
+    arguments: dict,
+    request_id: str,
+    user_id: str,
+    response_payload: dict[str, Any],
+    response_time_ms: float,
+) -> None:
+    """Log MCP stdio tool call to query audit log for E2E traceability."""
+
+    from services.query_audit import get_query_audit_service
+
+    correlated_entry = _get_correlated_http_entry(request_id)
+    response_summary = _response_summary_from_payload(response_payload)
+    if not response_summary:
+        response_summary = f"tool={tool_name} duration={response_time_ms:.0f}ms"
+
+    retrieved_chunks: list[dict[str, Any]] = []
+    sources: list[dict[str, Any]] = []
+    confidence: dict[str, Any] = {"score": 0.0, "label": "no_verificado"}
+    completeness = "parcial"
+    verified = False
+    model_version = "mcp-stdio"
+    config_version = None
+    grounding_status = "n/a"
+    prompt_injection_detected = False
+    grounding_summary: dict[str, Any] = {}
+
+    if correlated_entry is not None:
+        retrieved_chunks = correlated_entry.retrieved_chunks
+        sources = correlated_entry.sources
+        confidence = correlated_entry.confidence
+        completeness = correlated_entry.completeness
+        verified = correlated_entry.verified
+        model_version = correlated_entry.model_version or model_version
+        config_version = correlated_entry.config_version
+        grounding_status = correlated_entry.grounding_status or grounding_status
+        prompt_injection_detected = correlated_entry.prompt_injection_detected
+        grounding_summary = correlated_entry.grounding_summary
+
+    get_query_audit_service().record_query(
+        request_id=request_id,
+        user_id=user_id,
+        path=f"/mcp/tools/{tool_name}",
+        query_text=json.dumps(arguments, ensure_ascii=False)[:2000],
+        retrieved_chunks=retrieved_chunks,
+        response_summary=response_summary,
+        response_payload=response_payload,
+        tool_name=tool_name,
+        sources=sources,
+        confidence=confidence,
+        completeness=completeness,
+        verified=verified,
+        model_version=model_version,
+        config_version=config_version,
+        grounding_status=grounding_status,
+        prompt_injection_detected=prompt_injection_detected,
+        grounding_summary=grounding_summary,
+    )
 
 
 class MCPStdioServer:
@@ -143,15 +224,68 @@ class MCPStdioServer:
         params = message.get("params", {})
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
+        request_id = _next_stdio_request_id()
+        user_id = "mcp-client"
 
         import time as _time
         _start = _time.time()
+        buffered_messages: list[dict[str, Any]] = []
+        original_send = self._send
+        original_request = client.request
+
+        def _buffer_message(data: dict[str, Any]) -> None:
+            buffered_messages.append(data)
+
+        def _request_with_stdio_context(method: str, url: str, *args, **kwargs):
+            headers = dict(kwargs.pop("headers", {}) or {})
+            headers.setdefault("x-request-id", request_id)
+            headers.setdefault("x-user-id", user_id)
+            with mcp_internal_request():
+                return original_request(method, url, *args, headers=headers, **kwargs)
+
+        self._send = _buffer_message
+        client.request = _request_with_stdio_context
 
         try:
-            self._dispatch_tool(tool_name, arguments, msg_id)
-        finally:
+            try:
+                self._dispatch_tool(tool_name, arguments, msg_id)
+            except Exception as e:
+                buffered_messages.append({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {"code": -32603, "message": f"Error executing {tool_name}: {e!s}"},
+                })
+
+            if not buffered_messages:
+                buffered_messages.append({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {"code": -32603, "message": f"Tool {tool_name} produced no response."},
+                })
+
             _elapsed = (_time.time() - _start) * 1000
-            _log_mcp_call(tool_name, arguments, 200, _elapsed)
+            try:
+                _log_mcp_call(
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    request_id=request_id,
+                    user_id=user_id,
+                    response_payload=buffered_messages[-1],
+                    response_time_ms=_elapsed,
+                )
+            except Exception as e:
+                original_send({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {"code": -32603, "message": f"Audit persistence error: {e!s}"},
+                })
+                return
+        finally:
+            self._send = original_send
+            client.request = original_request
+
+        for payload in buffered_messages:
+            original_send(payload)
 
     async def _dispatch_tool(self, tool_name: str, arguments: dict, msg_id: Any):
 

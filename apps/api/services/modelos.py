@@ -57,6 +57,50 @@ def _infer_categoria_obligado(codigo: str, impuesto: str | None, obligados: str 
     return None
 
 
+def _build_truth_contract(*, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None) -> tuple[str, bool]:
+    if not has_instructions or not has_casillas:
+        return "parcial", False
+    if metadata_state in {None, "inferido"}:
+        return "parcial", False
+    return "completa", True
+
+
+def build_modelo_truth_contract(
+    *, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None
+) -> tuple[str, bool]:
+    return _build_truth_contract(
+        has_instructions=has_instructions,
+        has_casillas=has_casillas,
+        metadata_state=metadata_state,
+    )
+
+
+def get_modelo_runtime_truth_contract(
+    db, codigo: str, campana: str | None = None
+) -> tuple[str, bool]:
+    camp_row = get_active_campaign(db, codigo, campana)
+    campana_id = camp_row["id"] if camp_row else None
+    # Consume existence checks immediately so SQLite does not keep read locks
+    # around when the audit service opens its write transaction.
+    has_instructions = (
+        list_campaign_instructions(db, campana_id).first() is not None if campana_id else False
+    )
+    has_casillas = (
+        list_campaign_casillas(db, campana_id).first() is not None if campana_id else False
+    )
+    operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
+    metadata_state = (
+        operativa_row["estado_metadato"]
+        if operativa_row and operativa_row.get("estado_metadato")
+        else None
+    )
+    return build_modelo_truth_contract(
+        has_instructions=has_instructions,
+        has_casillas=has_casillas,
+        metadata_state=metadata_state,
+    )
+
+
 def get_modelo_campana_operativa_row(db, campana_id: int):
     try:
         return db.execute(
@@ -121,7 +165,7 @@ def get_model_row(db, codigo: str):
     ).mappings().first()
 
 
-def get_active_campaign(db, codigo: str, campana: str = None):
+def get_active_campaign(db, codigo: str, campana: str | None = None):
     if campana:
         return db.execute(
             text(
@@ -168,10 +212,17 @@ def list_modelos_summary(db):
                 m.nombre,
                 m.periodo,
                 m.impuesto,
-                COUNT(DISTINCT ma.articulo_id) AS articulos_count,
+                COUNT(DISTINCT CASE WHEN n.id IS NOT NULL THEN ma.articulo_id END) AS articulos_count,
                 COUNT(DISTINCT mc.id) AS casillas_count
             FROM aeat_modelo m
             LEFT JOIN modelo_articulo ma ON ma.modelo_id = m.id
+                AND ma.metodo_enlace = 'manual_official'
+                AND ma.confianza_enlace = 1.0
+                AND ma.url_fuente IS NOT NULL
+            LEFT JOIN articulo a ON a.id = ma.articulo_id
+            LEFT JOIN norma n ON n.id = a.norma_id
+                AND ma.norma = n.codigo
+                AND ma.numero = a.numero
             LEFT JOIN modelo_campana mcam ON mcam.modelo_id = m.id AND mcam.activo = true
             LEFT JOIN modelo_casilla mc ON mc.campana_id = mcam.id AND mc.activa = true
             GROUP BY m.id, m.codigo, m.nombre, m.periodo, m.impuesto
@@ -197,6 +248,11 @@ def list_modelo_articulos(db, codigo: str):
             JOIN articulo a ON a.id = ma.articulo_id
             JOIN norma n ON n.id = a.norma_id
             WHERE ma.modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
+              AND ma.metodo_enlace = 'manual_official'
+              AND ma.confianza_enlace = 1.0
+              AND ma.url_fuente IS NOT NULL
+              AND ma.norma = n.codigo
+              AND ma.numero = a.numero
             ORDER BY n.codigo, a.numero
             """
         ),
@@ -324,7 +380,7 @@ def list_related_doctrina(db, articulos: list[dict]):
     return list(doctrina_map.values())
 
 
-def list_modelo_fuentes_oficiales(db, codigo: str, campana: str = None):
+def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
     model_row = get_model_row(db, codigo)
     if not model_row:
         return None
@@ -442,7 +498,7 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str = None):
     }
 
 
-def list_modelo_artefactos(db, codigo: str, campana: str = None):
+def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
     model_row = get_model_row(db, codigo)
     if not model_row:
         return None
@@ -539,7 +595,7 @@ def list_modelo_artefactos(db, codigo: str, campana: str = None):
     }
 
 
-def get_modelo_resumen_operativo(db, codigo: str, campana: str = None):
+def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
     model_row = get_model_row(db, codigo)
     if not model_row:
         return None
@@ -584,7 +640,7 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str = None):
     }
 
 
-def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
+def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
     model_row = get_model_row(db, codigo)
     if not model_row:
         return None
@@ -592,7 +648,8 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
     camp_row = get_active_campaign(db, codigo, campana)
     campana_activa = camp_row["campana"] if camp_row else None
     campana_id = camp_row["id"] if camp_row else None
-    instrucciones = list_campaign_instructions(db, campana_id) if campana_id else []
+    instrucciones = [dict(row) for row in list_campaign_instructions(db, campana_id)] if campana_id else []
+    casillas = [dict(row) for row in list_campaign_casillas(db, campana_id)] if campana_id else []
     operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
 
     obligados = None
@@ -671,6 +728,11 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
         if operativa_row and operativa_row.get("estado_metadato")
         else None
     )
+    completeness, verified = build_modelo_truth_contract(
+        has_instructions=bool(instrucciones),
+        has_casillas=bool(casillas),
+        metadata_state=estado_metadato,
+    )
 
     return {
         "codigo": model_row["codigo"],
@@ -688,11 +750,13 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str = None):
         "presentacion_resumen": presentacion_payload,
         "origen_metadato": origen_metadato,
         "estado_metadato": estado_metadato,
+        "completeness": completeness,
+        "verified": verified,
         "fuentes_recomendadas": (fuentes or {}).get("fuentes_oficiales", []),
     }
 
 
-def list_modelos_campanas_operativas(db, codigos: list[str], campana: str = None):
+def list_modelos_campanas_operativas(db, codigos: list[str], campana: str | None = None):
     resultados = []
     vistos = set()
     for codigo in codigos:

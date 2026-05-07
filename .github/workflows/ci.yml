@@ -106,6 +106,36 @@ jobs:
         env:
           PGPASSWORD: esdata_test
 
+      - name: Run model data quality gate
+        run: python scripts/maintenance/check_model_data_quality.py
+
+      - name: Run model data quality regression test
+        run: pytest scripts/tests/test_check_model_data_quality.py -q
+
+      - name: Run MCP doc contracts gate
+        run: python scripts/maintenance/verify-doc-contracts.py
+
+      - name: Run MCP private regression tests
+        run: python -m pytest apps/api/tests/test_mcp_private.py -q
+
+      - name: Run MCP contract regression tests
+        run: python -m pytest apps/api/tests/test_mcp_contract.py -q
+
+      - name: Run MCP transport regression tests
+        run: python -m pytest apps/api/tests/test_mcp_transport.py -q
+
+      - name: Run MCP audit regression tests
+        run: python -m pytest apps/api/tests/test_mcp_audit.py -q
+
+      - name: Run prioritized HTTP MCP audit tests
+        run: python -m pytest apps/api/tests/test_http_mcp_audit_phase_1_1.py -q
+
+      - name: Run MCP factual regression tests
+        run: python -m pytest apps/api/tests/test_mcp_truth_regressions.py -q
+
+      - name: Run stdio MCP audit regression tests
+        run: python -m pytest apps/api/tests/test_mcp_stdio_audit.py -q
+
       - name: Run Python tests
         run: pytest apps/api/tests/ apps/workers/tests/ -v --tb=short
 

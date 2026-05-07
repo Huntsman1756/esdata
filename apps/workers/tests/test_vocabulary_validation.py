@@ -3,12 +3,15 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from vocabulary_validation import safe_payload_value, sanitize_payload, WORKER_FALLBACKS
-from vocabulary import VOCABULARY
+from vocabulary_validation import (
+    DOCUMENTO_VOCAB_FIELDS,
+    WORKER_FALLBACKS,
+    safe_payload_value,
+    sanitize_documento_payload,
+    sanitize_payload,
+)
 
 
 class TestSafePayloadValue:
@@ -42,6 +45,35 @@ class TestSafePayloadValue:
     def test_unknown_field_returns_false(self):
         result = safe_payload_value("nonexistent_field", "anything")
         assert result == "anything"
+
+    def test_safe_payload_value_uses_explicit_fallback_when_mapping_missing(self):
+        result = safe_payload_value(
+            "ambito",
+            "ambito_invalido",
+            fallback="mercados",
+        )
+
+        assert result == "mercados"
+
+    def test_safe_payload_value_ignores_invalid_worker_mapping_and_uses_explicit_fallback(
+        self,
+    ):
+        original = WORKER_FALLBACKS.setdefault("ambito", {}).get("ambito_invalido")
+        WORKER_FALLBACKS["ambito"]["ambito_invalido"] = "valor_no_permitido"
+
+        try:
+            result = safe_payload_value(
+                "ambito",
+                "ambito_invalido",
+                fallback="mercados",
+            )
+        finally:
+            if original is None:
+                del WORKER_FALLBACKS["ambito"]["ambito_invalido"]
+            else:
+                WORKER_FALLBACKS["ambito"]["ambito_invalido"] = original
+
+        assert result == "mercados"
 
 
 class TestSanitizePayload:
@@ -78,6 +110,16 @@ class TestSanitizePayload:
         assert result["tipo_documento"] == "fake_type"  # kept (no fallback)
         assert result["custom_field"] == "custom_value"  # untouched
 
+    def test_explicit_empty_vocabulary_fields_sanitizes_nothing(self):
+        payload = {
+            "organismo_emisor": "TSJ",
+            "ambito": "general_cnmv",
+        }
+
+        result = sanitize_payload(payload, frozenset())
+
+        assert result == payload
+
     def test_partial_invalid_payload(self):
         payload = {
             "tipo_fuente": "fake_source",
@@ -113,6 +155,44 @@ class TestSanitizePayload:
         }
         result = sanitize_payload(payload)
         assert result["organismo_emisor"] == "Tribunal Supremo"
+
+    def test_sanitize_payload_prefers_worker_mapping_over_explicit_field_fallback(self):
+        payload = {"organismo_emisor": "TSJ"}
+
+        result = sanitize_payload(
+            payload,
+            frozenset({"organismo_emisor"}),
+            field_fallbacks={"organismo_emisor": "CENDOJ"},
+        )
+
+        assert result["organismo_emisor"] == "Tribunal Supremo"
+
+    def test_sanitize_documento_payload_applies_known_worker_mappings(self):
+        payload = {
+            "tipo_documento": "resolucion_cnmv",
+            "organismo_emisor": "Banco de España",
+            "jurisdiccion": "es",
+            "tipo_fuente": "cnmv",
+            "ambito": "general_cnmv",
+            "estado_vigencia": "vigente",
+        }
+
+        result = sanitize_documento_payload(payload)
+
+        assert DOCUMENTO_VOCAB_FIELDS == frozenset(
+            {
+                "tipo_documento",
+                "organismo_emisor",
+                "jurisdiccion",
+                "tipo_fuente",
+                "ambito",
+                "estado_vigencia",
+            }
+        )
+        assert result["tipo_documento"] == "documento_cnmv"
+        assert result["organismo_emisor"] == "Banco de Espana"
+        assert result["ambito"] == "mercados"
+        assert result["estado_vigencia"] == "vigente"
 
     def test_empty_payload(self):
         assert sanitize_payload({}) == {}

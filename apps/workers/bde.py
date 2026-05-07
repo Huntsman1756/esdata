@@ -37,6 +37,7 @@ from runtime import (
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
+from vocabulary_validation import sanitize_documento_payload
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:
@@ -142,6 +143,20 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
 
 
 def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
+    record = sanitize_documento_payload(
+        {
+            "tipo_documento": payload["tipo_documento"],
+            "organismo_emisor": payload.get("organismo_emisor", "Banco de España"),
+            "jurisdiccion": payload.get("jurisdiccion", "es"),
+            "tipo_fuente": payload.get("tipo_fuente", "bde"),
+            "ambito": payload["ambito"],
+            "referencia": payload["referencia"],
+            "fecha": payload["fecha"],
+            "titulo": payload["titulo"],
+            "texto": payload["texto"],
+            "url_fuente": payload["url_fuente"],
+        }
+    )
     conn.execute(
         text(
             """
@@ -159,9 +174,9 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
             )
             VALUES (
                 :tipo_documento,
-                'Banco de España',
-                'es',
-                'bde',
+                :organismo_emisor,
+                :jurisdiccion,
+                :tipo_fuente,
                 :ambito,
                 :referencia,
                 :fecha,
@@ -171,6 +186,7 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
             )
             ON CONFLICT (referencia) DO UPDATE SET
                 tipo_documento = excluded.tipo_documento,
+                organismo_emisor = excluded.organismo_emisor,
                 ambito = excluded.ambito,
                 fecha = excluded.fecha,
                 titulo = excluded.titulo,
@@ -178,7 +194,7 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
                 url_fuente = excluded.url_fuente
             """
         ),
-        payload,
+        record,
     )
 
 

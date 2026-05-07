@@ -37,6 +37,7 @@ from runtime import (
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
+from vocabulary_validation import sanitize_documento_payload
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:
@@ -145,6 +146,7 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
 
 
 def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
+    record = sanitize_documento_payload(dict(payload))
     conn.execute(
         text(
             """
@@ -182,7 +184,7 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
                 url_fuente = excluded.url_fuente
             """
         ),
-        payload,
+        record,
     )
 
 

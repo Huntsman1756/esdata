@@ -86,7 +86,7 @@ Modelos explicitamente contemplados por arquitectura y tablas:
 
 ## Roadmap minimo de cierre para handoff legal-tecnico
 
-1. Cargar `infra/deploy/.env.prod` real fuera del repo.
+1. Cargar `/etc/esdata/esdata.env` real fuera del repo y fuera del checkout.
 2. Ejecutar `alembic upgrade head` y `verify_schema.py`.
 3. Ejecutar seeds y/o workers necesarios para poblar corpus minimo operativo.
 4. Verificar `/v1/legislacion/cobertura`, `/v1/modelos`, `/health`, `/status`, `/mcp`.

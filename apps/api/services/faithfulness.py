@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-
 STOPWORDS = {
     "a", "al", "ante", "antes", "bajo", "con", "contra", "de", "del", "desde", "durante", "el", "en",
     "entre", "es", "esta", "este", "hay", "la", "las", "lo", "los", "mes", "meses", "para", "pero",

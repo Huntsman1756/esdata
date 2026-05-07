@@ -34,12 +34,14 @@ from change_detection import (
 from pypdf import PdfReader
 from runtime import (
     ensure_database_connection,
+    finalize_partial_sync_status,
     get_database_url,
     get_interval_seconds,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
+from vocabulary_validation import sanitize_documento_payload
 
 logger = logging.getLogger(__name__)
 
@@ -967,6 +969,8 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     payload.setdefault("organismo_emisor", "CNMV")
     payload.setdefault("jurisdiccion", "es")
     payload.setdefault("tipo_fuente", "cnmv")
+    payload.setdefault("row_completeness", "complete")
+    payload.setdefault("row_provenance", "official_exact")
 
     existing = None
     referencia = payload.get("referencia")
@@ -987,13 +991,22 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
     payload.setdefault("url_fuente", "")
     payload.setdefault("estado_vigencia", "vigente")
 
+    payload = sanitize_documento_payload(payload)
+
     # Build column list dynamically based on payload keys
     columns = [
         "tipo_documento", "organismo_emisor", "jurisdiccion", "tipo_fuente",
         "ambito", "referencia", "fecha", "titulo", "texto", "url_fuente",
     ]
     # Add optional enriched columns
-    for col in ("numero_circular", "fecha_publicacion", "referencia_boe", "estado_vigencia"):
+    for col in (
+        "numero_circular",
+        "fecha_publicacion",
+        "referencia_boe",
+        "estado_vigencia",
+        "row_completeness",
+        "row_provenance",
+    ):
         if col in payload:
             columns.append(col)
 
@@ -1188,6 +1201,7 @@ def run_sync(
     processed = 0
     stored = 0
     discovered = len(urls)
+    missing_document_failures = 0
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine, logger=logger)
 
@@ -1197,17 +1211,21 @@ def run_sync(
             ensure_source_revision_table(conn)
             for url in urls:
                 try:
-                    response = client.get(url)
-                    response.raise_for_status()
-                    resolved_url = _resolve_boe_document_url(
-                        str(response.url),
-                        response.content,
-                        response.headers.get("content-type", ""),
-                    )
-                    if resolved_url != str(response.url):
-                        response = client.get(resolved_url)
+                    try:
+                        response = client.get(url)
                         response.raise_for_status()
-                        url = resolved_url
+                        resolved_url = _resolve_boe_document_url(
+                            str(response.url),
+                            response.content,
+                            response.headers.get("content-type", ""),
+                        )
+                        if resolved_url != str(response.url):
+                            response = client.get(resolved_url)
+                            response.raise_for_status()
+                            url = resolved_url
+                    except httpx.HTTPError:
+                        missing_document_failures += 1
+                        continue
 
                     payload = build_document_payload(
                         url,
@@ -1255,12 +1273,19 @@ def run_sync(
                     # Log individual URL failure but continue
                     continue
 
+            final_status, final_error_msg = finalize_partial_sync_status(
+                base_status="ok",
+                missing_count=missing_document_failures,
+                source_label="CNMV documents",
+            )
+
             log_sync(
                 conn,
                 worker_name,
-                "ok",
+                final_status,
                 documentos_processed=processed,
                 documentos_upserted=stored,
+                error_msg=final_error_msg,
             )
 
         return {"processed": processed, "stored": stored, "discovered": discovered}

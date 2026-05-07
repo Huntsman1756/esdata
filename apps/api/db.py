@@ -26,7 +26,13 @@ else:
     engine_kwargs["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "20"))
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    future=True,
+    close_resets_only=False,
+)
 
 
 def get_db() -> Generator[Session, None, None]:

@@ -1,3 +1,9 @@
+-- LEGACY / NO AUTORITATIVO
+--
+-- Snapshot SQL historico. No usar como flujo canonico productivo AEAT.
+-- La via canonica del repo MCP es:
+-- 1. python scripts/seed-modelos.py --db-url <DATABASE_URL>
+-- 2. python scripts/seed-modelos-v2.py --db-url <DATABASE_URL> --campana <YEAR>
 -- ============================================================
 -- Fase 39: Seed datos fiscales
 -- Campana: 2025

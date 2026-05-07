@@ -18,7 +18,7 @@ Buscar:
 Comando:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f api
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs -f api
 ```
 
 ### Workers
@@ -33,7 +33,7 @@ Buscar:
 Comando:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f worker-boe worker-dgt worker-teac worker-modelos
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs -f worker-boe worker-dgt worker-teac worker-modelos
 ```
 
 ### Postgres
@@ -47,7 +47,7 @@ Buscar:
 Comando:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs -f postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs -f postgres
 ```
 
 ## Frecuencia minima

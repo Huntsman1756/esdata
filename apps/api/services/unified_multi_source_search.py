@@ -88,6 +88,7 @@ def unified_multi_source_search(
         vec_weight = hybrid_weight
 
         all_source_results: dict[str, list[dict]] = {}
+        source_errors: list[dict[str, str]] = []
         source_ranked: list[dict[str, Any]] = []
 
         # Dispatch to each source
@@ -122,14 +123,22 @@ def unified_multi_source_search(
                 continue
 
             try:
-                results = handler(
-                    db, q, is_pg, embed_fn, hybrid_weight, limit
-                )
+                handler_args: tuple[Any, ...] = (db, q, is_pg, embed_fn, hybrid_weight, limit)
+                if handler is _search_31x_source:
+                    handler_args = (db, q, source, is_pg, embed_fn, hybrid_weight, limit)
+
+                results = handler(*handler_args)
                 if results:
                     all_source_results[source] = results
                     source_ranked.extend(results)
-            except Exception:
+            except Exception as exc:
                 logger.exception("Error searching source: %s", source)
+                source_errors.append(
+                    {
+                        "source": source,
+                        "error": type(exc).__name__,
+                    }
+                )
 
         # RRF fuse across all sources
         fused = _rrf_fuse_multi(all_source_results, ft_weight, vec_weight, limit)
@@ -142,6 +151,7 @@ def unified_multi_source_search(
             "source_breakdown": {
                 src: len(res) for src, res in all_source_results.items()
             },
+            "source_errors": source_errors,
             "search_mode": "hybrid" if hybrid_weight > 0 and hybrid_weight < 1.0 else (
                 "vector" if hybrid_weight >= 1.0 else "fulltext"
             ),
@@ -374,11 +384,9 @@ def _pgc_fulltext(db, q: str, limit: int) -> list[dict]:
 
 def _pgc_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
     """PGC vector search on codigo + descripcion + grupo."""
-    try:
-        query_vec = embed_fn(q)
-    except Exception:
+    if not embed_fn:
         return []
-
+    query_vec = embed_fn(q)
     if not query_vec:
         return []
 
@@ -487,11 +495,9 @@ def _modelos_fulltext(db, q: str, limit: int) -> list[dict]:
 
 def _modelos_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
     """Modelos AEAT vector search."""
-    try:
-        query_vec = embed_fn(q)
-    except Exception:
+    if not embed_fn:
         return []
-
+    query_vec = embed_fn(q)
     if not query_vec:
         return []
 
@@ -622,11 +628,9 @@ def _screening_fulltext(db, q: str, limit: int) -> list[dict]:
 
 def _screening_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
     """Screening entries vector search."""
-    try:
-        query_vec = embed_fn(q)
-    except Exception:
+    if not embed_fn:
         return []
-
+    query_vec = embed_fn(q)
     if not query_vec:
         return []
 
@@ -738,11 +742,9 @@ def _entities_fulltext(db, q: str, limit: int) -> list[dict]:
 
 def _entities_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
     """Empresa vector search."""
-    try:
-        query_vec = embed_fn(q)
-    except Exception:
+    if not embed_fn:
         return []
-
+    query_vec = embed_fn(q)
     if not query_vec:
         return []
 
@@ -853,11 +855,9 @@ def _norms_fulltext(db, q: str, limit: int) -> list[dict]:
 
 def _norms_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
     """Norma vector search."""
-    try:
-        query_vec = embed_fn(q)
-    except Exception:
+    if not embed_fn:
         return []
-
+    query_vec = embed_fn(q)
     if not query_vec:
         return []
 
@@ -964,11 +964,9 @@ def _articles_fulltext(db, q: str, limit: int) -> list[dict]:
 
 def _articles_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
     """Articulo vector search."""
-    try:
-        query_vec = embed_fn(q)
-    except Exception:
+    if not embed_fn:
         return []
-
+    query_vec = embed_fn(q)
     if not query_vec:
         return []
 
@@ -1105,7 +1103,7 @@ _31x_SOURCE_TABLES: dict[str, list[str]] = {
 
 
 def _search_31x_source(
-    db, q: str, is_pg: bool, embed_fn, hybrid_weight: float, limit: int,
+    db, q: str, source_type: str, is_pg: bool, embed_fn, hybrid_weight: float, limit: int,
 ) -> list[dict]:
     """Search Fase 31.x regulatory domains via documento_fragmento.
 
@@ -1116,14 +1114,14 @@ def _search_31x_source(
     results: list[dict] = []
     # Fulltext search on chunks via documento_fragmento filtered by domain_origen_tipo
     if hybrid_weight < 1.0:
-        ft_results = _31x_fulltext(db, q, limit)
+        ft_results = _31x_fulltext(db, q, source_type, limit)
         for rank, item in enumerate(ft_results, 1):
             item["rrf_ft_rank"] = rank
         results.extend(ft_results)
 
     # Vector search on chunks
     if hybrid_weight > 0 and embed_fn:
-        vec_results = _31x_vector(db, q, embed_fn, limit)
+        vec_results = _31x_vector(db, q, source_type, embed_fn, limit)
         for rank, item in enumerate(vec_results, 1):
             item["rrf_vec_rank"] = rank
         results.extend(vec_results)
@@ -1131,7 +1129,7 @@ def _search_31x_source(
     return results
 
 
-def _31x_fulltext(db, q: str, limit: int) -> list[dict]:
+def _31x_fulltext(db, q: str, source_type: str, limit: int) -> list[dict]:
     """Fulltext search over documento_fragmento for 31.x domains."""
     q_lower = q.lower().strip()
     words = q_lower.split()
@@ -1140,7 +1138,7 @@ def _31x_fulltext(db, q: str, limit: int) -> list[dict]:
     params: dict = {}
 
     for i, word in enumerate(words):
-        conditions.append(f"LOWER(t.texto) LIKE :_31x_q{i}")
+        conditions.append(f"LOWER(df.texto) LIKE :_31x_q{i}")
         params[f"_31x_q{i}"] = f"%{word}%"
 
     if not conditions:
@@ -1152,12 +1150,13 @@ def _31x_fulltext(db, q: str, limit: int) -> list[dict]:
                df.chunk_index, df.chunk_type, df.titulo, df.texto,
                df.token_count, df.documento_origen_tipo AS source_type
         FROM documento_fragmento df
-        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency', 'sfdr', 'csrd', 'aifmd_ucits', 'crd_brrd_emir')
+        WHERE df.documento_origen_tipo = :source_type
           AND {' OR '.join(conditions)}
-        ORDER BY ts_rank(df.search_vector, plainto_tsquery('spanish', :ts_query)) DESC
+        ORDER BY ts_rank(df.search_vector, plainto_tsquery('spanish', :_31x_ts_query)) DESC
         LIMIT :limit
         """
     )
+    params["source_type"] = source_type
     params["_31x_ts_query"] = q_lower
     params["limit"] = limit
 
@@ -1180,13 +1179,11 @@ def _31x_fulltext(db, q: str, limit: int) -> list[dict]:
     return results
 
 
-def _31x_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
+def _31x_vector(db, q: str, source_type: str, embed_fn, limit: int) -> list[dict]:
     """Vector search over documento_fragmento for 31.x domains."""
-    try:
-        query_vec = embed_fn(q)
-    except Exception:
+    if not embed_fn:
         return []
-
+    query_vec = embed_fn(q)
     if not query_vec:
         return []
 
@@ -1198,14 +1195,14 @@ def _31x_vector(db, q: str, embed_fn, limit: int) -> list[dict]:
                df.token_count,
                1.0 - (df.embedding <=> '[{query_vec_str}]') AS similarity
         FROM documento_fragmento df
-        WHERE df.documento_origen_tipo IN ('mica', 'dac', 'pbc', 'fraud', 'mifid', 'mar', 'dora', 'priips', 'transparency', 'sfdr', 'csrd', 'aifmd_ucits', 'crd_brrd_emir')
+        WHERE df.documento_origen_tipo = :source_type
           AND df.embedding IS NOT NULL
         ORDER BY similarity DESC
         LIMIT :limit
         """
     )
 
-    rows = db.execute(sql, {"limit": limit}).mappings().fetchall()
+    rows = db.execute(sql, {"source_type": source_type, "limit": limit}).mappings().fetchall()
     results = []
     for row in rows:
         r = dict(row)

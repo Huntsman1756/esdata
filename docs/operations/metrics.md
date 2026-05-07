@@ -218,7 +218,7 @@ Generar un resumen diario con:
 
 ```bash
 #!/bin/bash
-# /opt/esdata/scripts/daily_summary.sh
+# /srv/esdata/scripts/daily_summary.sh
 
 echo "=== RESUMEN DIARIO esdata ==="
 echo "Fecha: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

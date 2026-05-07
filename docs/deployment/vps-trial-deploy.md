@@ -50,11 +50,18 @@ Variables minimas para este corte:
 - `DATABASE_URL`
 - `POSTGRES_PASSWORD`
 - `ESDATA_API_BASE_URL`
+- `ESDATA_API_KEY`
 - `API_DOMAIN`
 - `WEB_DOMAIN`
 - `TEAC_SEED_URLS`
+- `CENDOJ_SEED_URLS`
+- `BDE_SEED_URLS`
+- `AEPD_SEED_URLS`
+- `BDNS_SEED_URLS`
+- `BORME_SEED_URLS`
+- `CNMV_SEED_URLS`
+- `SEPBLAC_SEED_URLS`
 - `MCP_API_KEY`
-- `MCP_RATE_LIMIT_PER_MINUTE`
 
 Variables utiles adicionales:
 
@@ -93,7 +100,7 @@ Si vas a desplegar desde otra rama o desde `main`, sustituir la referencia.
 
 ### 3. Preparar el fichero de entorno
 
-Crear `infra/deploy/.env.prod` a partir de `infra/deploy/compose.env.example`.
+Crear `/etc/esdata/esdata.env` a partir de `infra/deploy/compose.env.example` y mantenerlo fuera del checkout.
 
 Variables a revisar como minimo en ese fichero:
 
@@ -113,7 +120,6 @@ CADDY_EMAIL=ops@example.com
 TEAC_SEED_URLS=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=...
 
 MCP_API_KEY=<cambiar>
-MCP_RATE_LIMIT_PER_MINUTE=60
 ```
 
 ## Importante sobre MCP
@@ -127,37 +133,38 @@ Para esta fase de prueba:
 ### 4. Validar el compose
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml config
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml config
 ```
 
 Debe resolver sin errores.
 
-### 5. Levantar servicios base
+Ruta canonica recomendada para el deploy completo: ver el paso siguiente.
+
+### 5. Despliegue canonico recomendado
+
+Usar siempre la ruta canonica para respetar este orden: `build ops -> up postgres -> alembic upgrade head -> verify_schema.py -> up servicios`.
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres api web caddy
+bash scripts/ops/deploy-hetzner.sh
 ```
 
-Si quieres validar solo API + MCP primero:
+Si necesitas inspeccionar el flujo manualmente, no levantes `api`, `web`, `caddy` ni workers antes de completar migraciones y verificacion de esquema:
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres api
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
 ```
 
-### 6. Levantar workers necesarios
+### 6. Verificar salud
+
+Antes de usar `curl` con claves del entorno en la shell actual, exporta los valores desde `/etc/esdata/esdata.env` o sustituyelos manualmente en cada comando.
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d worker-boe worker-dgt worker-teac worker-modelos
-```
-
-No hace falta levantar todos los workers documentales el primer dia si quieres una prueba mas controlada.
-
-### 7. Verificar salud
-
-```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
 curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/status
+curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/status
 ```
 
 Esperado:
@@ -166,7 +173,9 @@ Esperado:
 - Postgres sano
 - web respondiendo si fue levantada
 
-### 8. Verificar MCP privado
+### 7. Verificar MCP privado
+
+Los comandos siguientes tambien asumen `MCP_API_KEY` exportada en la shell o reemplazada inline.
 
 Handshake:
 

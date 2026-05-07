@@ -80,6 +80,7 @@ def validate_claim_grounding(
             "ungrounded_claims": 0,
             "grounding_status": "empty",
             "all_claims_have_evidence": True,
+            "_enriched_items": [],
         }
         return [], summary
 
@@ -142,6 +143,7 @@ def validate_claim_grounding(
         "all_chunks_clean": all_clean,
         "injection_flags": injection_flags,
         "query": query,
+        "_enriched_items": enriched,
     }
 
     return enriched, grounding_summary
@@ -151,6 +153,7 @@ def apply_claim_level_abstention(
     resultados: list[dict],
     grounding_summary: dict,
     confianza: dict,
+    enriched_items: list[dict] | None = None,
 ) -> tuple[list[dict], dict]:
     """Remove ungrounded claims from results when grounding is insufficient.
 
@@ -170,7 +173,8 @@ def apply_claim_level_abstention(
 
     # Filter out results whose claims are not grounded
     grounded_result_ids: set[str] = set()
-    for item in grounding_summary.get("_enriched_items", []):
+    effective_items = enriched_items if enriched_items is not None else grounding_summary.get("_enriched_items", [])
+    for item in effective_items:
         if item.get("grounded"):
             claim = item.get("claim", {})
             key = f"{claim.get('tipo')}:{claim.get('codigo')}:{claim.get('articulo')}"
@@ -180,7 +184,7 @@ def apply_claim_level_abstention(
         # No claims are grounded — abstain entirely
         confianza = dict(confianza)
         aviso = grounding_summary.get("aviso") or (
-            "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+            "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
         )
         confianza["aviso"] = aviso
         return [], confianza

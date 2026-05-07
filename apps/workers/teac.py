@@ -24,6 +24,7 @@ from runtime import (
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
+from vocabulary_validation import sanitize_documento_payload
 
 logger = logging.getLogger(__name__)
 DYCTEA_ROOT_URL = "https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/"
@@ -229,6 +230,20 @@ def fetch_resolution_html(url: str) -> str:
 
 
 def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
+    record = sanitize_documento_payload(
+        {
+            "tipo_documento": payload.get("tipo_documento", "resolucion_teac"),
+            "organismo_emisor": payload.get("organismo_emisor", "TEAC"),
+            "jurisdiccion": payload.get("jurisdiccion", "es"),
+            "tipo_fuente": payload.get("tipo_fuente", "teac"),
+            "ambito": payload.get("ambito", "fiscal"),
+            "referencia": payload["referencia"],
+            "fecha": payload["fecha"],
+            "titulo": payload["titulo"],
+            "texto": payload["texto"],
+            "url_fuente": payload["url_fuente"],
+        }
+    )
     conn.execute(
         text(
             """
@@ -245,11 +260,11 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
                 url_fuente
             )
             VALUES (
-                'resolucion_teac',
-                'TEAC',
-                'es',
-                'teac',
-                'fiscal',
+                :tipo_documento,
+                :organismo_emisor,
+                :jurisdiccion,
+                :tipo_fuente,
+                :ambito,
                 :referencia,
                 :fecha,
                 :titulo,
@@ -263,7 +278,7 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
                 url_fuente = excluded.url_fuente
             """
         ),
-        payload,
+        record,
     )
 
 

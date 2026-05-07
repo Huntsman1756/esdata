@@ -1,15 +1,18 @@
+from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from schemas import DoctrinaDetail as DoctrinaDetailSchema
+from schemas import DoctrinaSearchResponse
+from services.query_audit import get_query_audit_service
+from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
+from services.semantic_search import hybrid_search_doctrina
 from sqlalchemy import text
 
-from db import db_session
-from schemas import (
-    DoctrinaDetail as DoctrinaDetailSchema,
-    DoctrinaSearchResponse,
-)
-from services.search import _build_tsquery_sql, _chunk_rank_boost, _build_fragment
-from services.query_audit import get_query_audit_service
-from services.semantic_search import hybrid_search_doctrina
+EXACT_LINK_METHODS = {"manual", "manual_official", "auto_link_exact"}
+
+
+def _has_exact_anchor(linked_articles: list[dict]) -> bool:
+    return any(item["metodo_enlace"] in EXACT_LINK_METHODS for item in linked_articles)
 
 
 def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
@@ -80,19 +83,45 @@ def _buscar_normas_boe(db, q: str, limit: int = 5) -> list[dict]:
     ]
 
 def _build_doctrina_audit_chunks(result: dict) -> list[dict]:
-    chunks: list[dict] = []
-    for item in result.get("resultados", []):
-        chunks.append(
-            {
-                "referencia": item.get("referencia"),
-                "tipo_documento": item.get("tipo_documento"),
-                "organismo_emisor": item.get("organismo_emisor"),
-                "source_url": item.get("source_url"),
-                "norma": item.get("norma"),
-                "numero": item.get("numero"),
-            }
-        )
-    return chunks
+    return [
+        {
+            "referencia": item.get("referencia"),
+            "tipo_documento": item.get("tipo_documento"),
+            "organismo_emisor": item.get("organismo_emisor"),
+            "source_url": item.get("source_url"),
+            "norma": item.get("norma"),
+            "numero": item.get("numero"),
+        }
+        for item in result.get("resultados", [])
+    ]
+
+
+def _record_doctrina_query_audit(
+    request: Request,
+    *,
+    path: str,
+    query_text: str,
+    tool_name: str,
+    retrieved_chunks: list[dict],
+    response_summary: str,
+    confidence: dict,
+    completeness: str = "completa",
+    verified: bool = True,
+):
+    get_query_audit_service().record_query(
+        request_id=request.headers.get("x-request-id")
+        or request.headers.get("X-Request-ID")
+        or "unknown",
+        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        path=path,
+        query_text=query_text,
+        retrieved_chunks=retrieved_chunks,
+        response_summary=response_summary,
+        tool_name=tool_name,
+        confidence=confidence,
+        completeness=completeness,
+        verified=verified,
+    )
 
 
 router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
@@ -403,7 +432,7 @@ def _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor):
     operation_id="get_doctrina",
     response_model=DoctrinaDetailSchema,
 )
-async def get_doctrina(referencia: str):
+async def get_doctrina(request: Request, referencia: str):
     with db_session() as db:
         row = (
             db.execute(
@@ -450,13 +479,10 @@ async def get_doctrina(referencia: str):
             ).mappings()
         )
 
-        max_confidence = max(
-            (float(item["confianza_enlace"]) for item in linked_articles), default=0.0
-        )
-        has_strong_anchor = max_confidence >= 0.85
         has_any_anchor = bool(linked_articles)
+        has_exact_anchor = _has_exact_anchor(linked_articles)
 
-        return {
+        payload = {
             "referencia": row["referencia"],
             "tipo_documento": row["tipo_documento"],
             "organismo_emisor": row["organismo_emisor"],
@@ -471,13 +497,37 @@ async def get_doctrina(referencia: str):
                 for item in linked_articles
             ],
             "confianza": {
-                "nivel": 2 if has_strong_anchor else (1 if has_any_anchor else 0),
+                "nivel": 2 if has_exact_anchor else (1 if has_any_anchor else 0),
                 "fuentes": [row["referencia"]],
                 "aviso": None
                 if has_any_anchor
                 else "Criterio sin anclaje normativo suficiente",
             },
         }
+        _record_doctrina_query_audit(
+            request,
+            path=f"/v1/doctrina/{referencia}",
+            query_text=referencia,
+            tool_name="get_doctrina",
+            retrieved_chunks=[
+                {
+                    "referencia": row["referencia"],
+                    "tipo_documento": row["tipo_documento"],
+                    "organismo_emisor": row["organismo_emisor"],
+                    "norma": item["norma"],
+                    "numero": item["numero"],
+                }
+                for item in linked_articles
+            ],
+            response_summary=f"articulos_relacionados={len(linked_articles)}",
+            confidence={
+                "score": 0.9 if has_exact_anchor else (0.5 if has_any_anchor else 0.0),
+                "label": "alta" if has_exact_anchor else ("media" if has_any_anchor else "baja"),
+            },
+            completeness="completa" if has_exact_anchor else "parcial",
+            verified=has_exact_anchor,
+        )
+        return payload
 
 
 @router.get("/buscar/hybrid", operation_id="buscar_doctrina_hybrid")

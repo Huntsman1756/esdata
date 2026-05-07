@@ -1,3 +1,4 @@
+import re
 import ssl
 import subprocess
 import sys
@@ -10,8 +11,13 @@ from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from change_detection import ensure_source_revision_table
+from dgt import FNMT_INTERMEDIATE_CHAIN
 from dgt import (
+    _ensure_dgt_queue,
+    _get_pending_urls,
     build_search_payload,
+    ensure_dgt_queue_table,
     fetch_document_html,
     fetch_search_html,
     parse_document_html,
@@ -22,6 +28,34 @@ from dgt import (
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def test_queue_seed_entries_live_in_dgt_queue_not_source_revision():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    with engine.begin() as conn:
+        ensure_source_revision_table(conn)
+        ensure_dgt_queue_table(conn)
+
+        url = "https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0001-26"
+        _ensure_dgt_queue(conn, "worker-dgt", [url])
+
+        pending = _get_pending_urls(conn, "worker-dgt")
+        queue_rows = conn.execute(
+            text("SELECT source_entity_id, dgt_url, status FROM dgt_queue")
+        ).fetchall()
+        source_rows = conn.execute(
+            text("SELECT source_entity_id, content_hash_sha256 FROM source_revision")
+        ).fetchall()
+
+    assert pending == [(url, "V0001-26")]
+    assert queue_rows == [("V0001-26", url, "pending")]
+    assert source_rows == []
 
 
 def test_parse_search_results_extracts_doc_id_and_summary():
@@ -102,6 +136,56 @@ def test_upsert_documento_interpretativo_is_idempotent_and_stores_dgt_fields():
         ).fetchone()
 
     assert row == ("V2274-22", "consulta_vinculante", "DGT", "dgt", 1)
+
+
+def test_upsert_documento_interpretativo_sets_row_quality_contract():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT,
+                    row_completeness TEXT NOT NULL,
+                    row_provenance TEXT NOT NULL
+                )
+                """
+            )
+        )
+
+        payload = {
+            "referencia": "V2274-22",
+            "fecha": "2022-10-27",
+            "titulo": "Consulta DGT sobre NFTs e IVA",
+            "texto": "Documento relacionado con la Ley del IVA.",
+            "url_fuente": "https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V2274-22",
+        }
+
+        upsert_documento_interpretativo(conn, payload)
+
+        row = conn.execute(
+            text(
+                "SELECT row_completeness, row_provenance FROM documento_interpretativo WHERE referencia = 'V2274-22'"
+            )
+        ).fetchone()
+
+    assert row == ("complete", "official_exact")
 
 
 def test_parse_document_html_can_be_filtered_to_liva_and_lis_only():
@@ -354,9 +438,110 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
                 "SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo"
             )
         ).fetchone()
+        queue_row = conn.execute(
+            text(
+                "SELECT status, dgt_url FROM dgt_queue WHERE worker_name = 'worker-dgt' AND source_entity_id = 'V2274-22'"
+            )
+        ).fetchone()
+        revision_row = conn.execute(
+            text(
+                "SELECT content_hash_sha256 FROM source_revision WHERE worker_name = 'worker-dgt' AND source_entity_tipo = 'consulta' AND source_entity_id = 'V2274-22'"
+            )
+        ).fetchone()
 
     assert result == {"processed": 1, "stored": 1, "discovered": 0}
     assert row == ("V2274-22", "dgt", "DGT")
+    assert queue_row == (
+        "processed",
+        "https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V2274-22",
+    )
+    assert revision_row is not None
+    assert re.fullmatch(r"[0-9a-f]{64}", revision_row[0])
+
+
+def test_run_sync_marks_partial_when_dgt_search_returns_no_results(monkeypatch):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    original_client = httpx.Client
+
+    with engine.begin() as conn:
+        ensure_source_revision_table(conn)
+        ensure_dgt_queue_table(conn)
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+        _ensure_dgt_queue(
+            conn,
+            "worker-dgt",
+            ["https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0001-26"],
+        )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/consultas/":
+            return httpx.Response(
+                200,
+                text="<html></html>",
+                headers={"set-cookie": "JSESSIONID=abc123; Path=/consultas; HttpOnly"},
+            )
+        if request.url.path == "/consultas/do/search":
+            return httpx.Response(
+                200,
+                text='<div class="extra_padding"><div class="message">La consulta realizada no devuelve resultados.</div></div>',
+            )
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    monkeypatch.setattr("dgt.DGT_DISCOVERY", False)
+    monkeypatch.setattr("dgt.SEED_URLS", [])
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "dgt.httpx.Client",
+        lambda *args, **kwargs: original_client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://petete.tributos.hacienda.gob.es",
+        ),
+    )
+    monkeypatch.setattr("dgt.auto_link_doctrina", lambda conn: 0)
+
+    result = run_sync(seed_urls=[])
+
+    with engine.begin() as conn:
+        sync_row = conn.execute(
+            text(
+                "SELECT worker, status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+            )
+        ).fetchone()
+
+    assert result == {"processed": 0, "stored": 0, "discovered": 0}
+    assert sync_row == (
+        "worker-dgt",
+        "partial",
+        0,
+        0,
+        "Skipped 1 DGT documents after fetch failures",
+    )
 
 
 def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
@@ -500,7 +685,6 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
             base_url="https://petete.tributos.hacienda.gob.es",
         ),
     )
-    monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
 
     result = run_sync()
 
@@ -511,10 +695,31 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
         link_count = conn.execute(
             text("SELECT COUNT(*) FROM documento_articulo")
         ).scalar_one()
+        queue_row = conn.execute(
+            text(
+                "SELECT status, dgt_url FROM dgt_queue WHERE worker_name = 'worker-dgt' AND source_entity_id = 'V0001-26'"
+            )
+        ).fetchone()
+        source_revision_count = conn.execute(
+            text(
+                "SELECT COUNT(*) FROM source_revision WHERE worker_name = 'worker-dgt' AND source_entity_tipo = 'consulta' AND source_entity_id = 'V0001-26'"
+            )
+        ).scalar_one()
+        sync_row = conn.execute(
+            text(
+                "SELECT worker, status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+            )
+        ).fetchone()
 
     assert result == {"processed": 1, "stored": 0, "discovered": 0}
     assert count == 0
     assert link_count == 0
+    assert queue_row == (
+        "empty",
+        "https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0001-26",
+    )
+    assert source_revision_count == 0
+    assert sync_row == ("worker-dgt", "ok", 1, 0, None)
 
 
 def test_dgt_run_once_flag_accepts_argparse():
@@ -555,6 +760,7 @@ def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
 
     monkeypatch.setattr("dgt.httpx.Client", fake_client)
     monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt.ensure_database_connection", lambda *args, **kwargs: None)
     monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
     monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
     monkeypatch.setattr("dgt.DGT_SSL_VERIFY", False)
@@ -569,6 +775,9 @@ def test_run_sync_uses_ssl_context_with_extra_fnmt_chain_when_verification_enabl
     monkeypatch,
 ):
     captured = {}
+
+    assert FNMT_INTERMEDIATE_CHAIN.exists()
+    assert "BEGIN CERTIFICATE" in FNMT_INTERMEDIATE_CHAIN.read_text(encoding="utf-8")
 
     def fake_client(*args, **kwargs):
         captured["verify"] = kwargs.get("verify")
@@ -591,6 +800,7 @@ def test_run_sync_uses_ssl_context_with_extra_fnmt_chain_when_verification_enabl
 
     monkeypatch.setattr("dgt.httpx.Client", fake_client)
     monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt.ensure_database_connection", lambda *args, **kwargs: None)
     monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
     monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
     monkeypatch.setattr("dgt.DGT_SSL_VERIFY", True)
@@ -742,6 +952,7 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
         raise AssertionError(f"Unexpected request: {request.method} {request.url}")
 
     monkeypatch.setattr("dgt.DGT_DISCOVERY", True)
+    monkeypatch.setattr("dgt.SEED_URLS", [])
     monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: engine)
     monkeypatch.setattr(
         "dgt.httpx.Client",
@@ -813,10 +1024,12 @@ def test_run_sync_touches_heartbeat_during_long_processing(monkeypatch):
 
     monkeypatch.setattr("dgt.DGT_DISCOVERY", False)
     monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt.ensure_database_connection", lambda *args, **kwargs: None)
     monkeypatch.setattr("dgt.httpx.Client", lambda *args, **kwargs: FakeClient())
     monkeypatch.setattr("dgt.start_session", lambda client: None)
     monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
     monkeypatch.setattr("dgt.ensure_source_revision_table", lambda conn: None)
+    monkeypatch.setattr("dgt.ensure_dgt_queue_table", lambda conn: None)
     monkeypatch.setattr("dgt._ensure_dgt_queue", lambda conn, worker_name, seed_list: None)
     monkeypatch.setattr("dgt._get_pending_urls", lambda conn, worker_name, limit=100: pending_batches.pop(0))
     monkeypatch.setattr("dgt._extract_num_consulta", lambda url: "V0001-26")
@@ -847,3 +1060,73 @@ def test_run_sync_touches_heartbeat_during_long_processing(monkeypatch):
     run_sync(seed_urls=[])
 
     assert heartbeat_calls == ["touch"]
+
+
+def test_run_sync_does_not_mark_partial_for_transient_pending_fetch_error(monkeypatch):
+    pending_batches = [
+        [("https://example.invalid/?num_consulta=V0001-26", "V0001-26")],
+        [],
+    ]
+    marked_done = []
+    sync_calls = []
+
+    class FakeConnection:
+        def execute(self, *args, **kwargs):
+            return None
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        def begin(self):
+            return FakeBegin()
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_log_sync(conn, worker_name, status, **kwargs):
+        sync_calls.append((worker_name, status, kwargs.get("error_msg")))
+
+    monkeypatch.setattr("dgt.DGT_DISCOVERY", False)
+    monkeypatch.setattr("dgt.SEED_URLS", [])
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt.ensure_database_connection", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dgt.httpx.Client", lambda *args, **kwargs: FakeClient())
+    monkeypatch.setattr("dgt.start_session", lambda client: None)
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.ensure_source_revision_table", lambda conn: None)
+    monkeypatch.setattr("dgt.ensure_dgt_queue_table", lambda conn: None)
+    monkeypatch.setattr("dgt._ensure_dgt_queue", lambda conn, worker_name, seed_list: None)
+    monkeypatch.setattr(
+        "dgt._get_pending_urls",
+        lambda conn, worker_name, limit=100: pending_batches.pop(0),
+    )
+    monkeypatch.setattr(
+        "dgt.fetch_search_html",
+        lambda client, num_consulta: (_ for _ in ()).throw(
+            httpx.ConnectError("boom", request=httpx.Request("POST", f"https://example.invalid/{num_consulta}"))
+        ),
+    )
+    monkeypatch.setattr(
+        "dgt._mark_done",
+        lambda conn, worker_name, entity_id, status: marked_done.append(
+            (worker_name, entity_id, status)
+        ),
+    )
+    monkeypatch.setattr("dgt.auto_link_doctrina", lambda conn: 0)
+    monkeypatch.setattr("dgt.log_sync", fake_log_sync)
+    monkeypatch.setattr("dgt.time.sleep", lambda seconds: None)
+
+    result = run_sync(seed_urls=[])
+
+    assert result == {"processed": 0, "stored": 0, "discovered": 0}
+    assert marked_done == []
+    assert sync_calls == [("worker-dgt", "ok", None)]

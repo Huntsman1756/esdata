@@ -3,31 +3,31 @@
 ## Antes del deploy
 
 - [ ] `git pull origin main` en el VPS
-- [ ] `cp infra/deploy/compose.env.example .env` y verificar variables
+- [ ] `sudo mkdir -p /etc/esdata && sudo cp infra/deploy/compose.env.example /etc/esdata/esdata.env && sudo chmod 600 /etc/esdata/esdata.env`
 - [ ] Variables críticas que no pueden estar vacías:
   - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-  - `SECRET_KEY`, `ESDATA_API_KEY`, `MCP_API_KEY`
+  - `ESDATA_API_KEY`, `MCP_API_KEY`
   - `TEAC_SEED_URLS`, `BDE_SEED_URLS`, `CENDOJ_SEED_URLS`, `AEPD_SEED_URLS`
   - `WORKER_REQUEST_DELAY`
-- [ ] `docker compose -f infra/deploy/docker-compose.prod.yml config`
+- [ ] `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml config`
   (valida el compose sin arrancar)
 
 ## Deploy
 
-- [ ] `docker compose --env-file infra/deploy/.env.prod --profile prod -f infra/deploy/docker-compose.prod.yml up -d --build`
-- [ ] Verificar que api arranca con migraciones:
-  `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs api | grep MIGRATION`
+- [ ] `bash scripts/ops/deploy-hetzner.sh`
+- [ ] Verificar que `ops` aplico migraciones y gate de esquema:
+  `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current`
 - [ ] Verificar healthcheck postgres:
-  `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps postgres`
+  `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps postgres`
 
 ## Post-deploy smoke test
 
 - [ ] `curl -s https://tudominio.com/health` → `{"status":"ok"}`
 - [ ] `curl -s https://tudominio.com/metrics` → 200 con métricas Prometheus
-- [ ] `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs backup`
+- [ ] `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs backup`
   → confirmar primer backup programado
 
 ## Rollback
 
 - [ ] `git revert HEAD && git push`
-- [ ] `docker compose --env-file infra/deploy/.env.prod --profile prod -f infra/deploy/docker-compose.prod.yml up -d --build`
+- [ ] `bash scripts/ops/deploy-hetzner.sh`

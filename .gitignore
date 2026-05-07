@@ -69,4 +69,6 @@ infra/deploy/backups/
 
 # Local worker certificates and scratch helpers
 apps/workers/certs/
+!apps/workers/certs/
+!apps/workers/certs/fnmt-ac-componentes-informaticos.pem
 /tmp_*.sh

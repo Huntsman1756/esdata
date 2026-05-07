@@ -8,7 +8,6 @@ import sys
 
 from sqlalchemy import create_engine, inspect
 
-
 REQUIRED_SCHEMA = {
     "modelo_campana_operativa": {
         "campana_id",
@@ -24,7 +23,37 @@ REQUIRED_SCHEMA = {
         "actualizado_at",
         "origen_metadato",
         "estado_metadato",
-    }
+    },
+    "query_audit_log": {
+        "entry_id",
+        "request_id",
+        "path",
+        "query_text",
+        "retrieved_chunks",
+        "response_summary",
+        "tool_name",
+        "sources",
+        "confidence",
+        "completeness",
+        "verified",
+        "grounding_status",
+        "prompt_injection_detected",
+        "grounding_summary",
+        "response_payload",
+        "created_at",
+    },
+    "dgt_queue": {
+        "worker_name",
+        "source_entity_id",
+        "dgt_url",
+        "status",
+        "queued_at",
+        "processed_at",
+    },
+    "documento_interpretativo": {
+        "row_completeness",
+        "row_provenance",
+    },
 }
 
 
@@ -55,6 +84,25 @@ def find_schema_issues(db_inspector) -> list[str]:
     return issues
 
 
+def find_dgt_queue_uniqueness_issues(db_inspector) -> list[str]:
+    tables = set(db_inspector.get_table_names())
+    if "dgt_queue" not in tables:
+        return []
+
+    expected = {"worker_name", "source_entity_id"}
+    for index in db_inspector.get_indexes("dgt_queue"):
+        if index.get("unique") and set(index.get("column_names") or []) == expected:
+            return []
+
+    get_unique_constraints = getattr(db_inspector, "get_unique_constraints", None)
+    if callable(get_unique_constraints):
+        for constraint in get_unique_constraints("dgt_queue"):
+            if set(constraint.get("column_names") or []) == expected:
+                return []
+
+    return ["missing unique key: dgt_queue(worker_name, source_entity_id)"]
+
+
 def main() -> int:
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
@@ -63,7 +111,9 @@ def main() -> int:
 
     engine = create_engine(normalize_db_url(database_url), future=True)
     try:
-        issues = find_schema_issues(inspect(engine))
+        db_inspector = inspect(engine)
+        issues = find_schema_issues(db_inspector)
+        issues.extend(find_dgt_queue_uniqueness_issues(db_inspector))
     finally:
         engine.dispose()
 
@@ -73,7 +123,11 @@ def main() -> int:
             print(f"- {issue}", file=sys.stderr)
         return 1
 
-    print("Schema OK: modelo_campana_operativa with provenance columns present")
+    print(
+        "Schema OK: modelo_campana_operativa, query_audit_log, dgt_queue, "
+        "documento_interpretativo runtime columns present and dgt_queue "
+        "uniqueness enforced"
+    )
     return 0
 
 

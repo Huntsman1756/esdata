@@ -67,7 +67,8 @@ Recorrido recomendado:
 
 1. revisar `07-mcp-y-clientes.md`
 2. decidir entre MCP HTTP o `stdio`
-3. usar herramientas como `consulta_fiscal` o `listar_obligaciones_aplicables`
+3. si el cliente usa `stdio`, usar herramientas como `consulta_fiscal` o `listar_obligaciones_aplicables`
+4. si el cliente usa `HTTP MCP`, usar las operaciones estructuradas expuestas en `/mcp`
 
 Superficie recomendada:
 

@@ -29,6 +29,7 @@ from bs4 import BeautifulSoup
 from runtime import (
     configure_logging,
     ensure_database_connection,
+    finalize_partial_sync_status,
     get_database_url,
     get_interval_seconds,
     sleep_with_heartbeat,
@@ -196,6 +197,8 @@ def _extract_model_resources(detail_html: str, detail_url: str) -> list[dict]:
             continue
 
         url_recurso = _normalize_aeat_url(href if href.startswith("http") else urljoin(detail_url, href))
+        if not _is_official_model_resource(url_recurso):
+            continue
         anchor_text = a_tag.get_text(" ", strip=True)
         tipo_recurso, formato = _classify_resource(anchor_text, url_recurso)
         key = (tipo_recurso, url_recurso)
@@ -280,7 +283,11 @@ class HttpxClient:
                 if attempt < AEAT_RESOURCE_FETCH_RETRIES:
                     time.sleep(2 ** (attempt - 1))
 
-        logger.error("AEAT resource fetch exhausted retries for %s: %s", url, last_exc)
+        logger.error(
+            "AEAT resource fetch exhausted retries for %s: %s",
+            url,
+            last_exc,
+        )
         return None
 
 
@@ -435,6 +442,8 @@ def _fetch_model_metadata(
     if not url_info:
         logger.warning("Modelo %s not found on portal page", codigo)
         return None
+
+    url_info = _normalize_aeat_url(url_info)
 
     try:
         model_html = client.fetch_detail(url_info)
@@ -748,6 +757,8 @@ def _store_modelo_recurso_version(
                 formato,
                 url_recurso,
                 sha256_contenido,
+                row_completeness,
+                row_provenance,
                 etag,
                 last_modified,
                 content_length,
@@ -762,6 +773,8 @@ def _store_modelo_recurso_version(
                 :formato,
                 :url_recurso,
                 :sha256,
+                :row_completeness,
+                :row_provenance,
                 :etag,
                 :last_modified,
                 :content_length,
@@ -778,6 +791,8 @@ def _store_modelo_recurso_version(
             "formato": formato,
             "url_recurso": url_recurso,
             "sha256": sha256,
+            "row_completeness": "complete",
+            "row_provenance": "official_exact",
             "etag": metadata.get("etag") if metadata else None,
             "last_modified": metadata.get("last_modified") if metadata else None,
             "content_length": metadata.get("content_length") if metadata else None,
@@ -881,6 +896,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
             "sin_cambios": 0,
             "errores": 0,
         }
+        skipped_resource_failures = 0
         try:
             with engine.begin() as conn:
                 if not _try_acquire_sync_lock(conn):
@@ -933,6 +949,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                 _get_existing_codes(conn)
 
                 for model in discovered:
+                    touch_heartbeat()
                     try:
                         codigo = model["codigo"]
                         nombre = model["nombre"]
@@ -1021,17 +1038,19 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                 if deprecated_count:
                     logger.info("Marked %d models as deprecated", deprecated_count)
 
+                final_status, final_error_msg = finalize_partial_sync_status(
+                    base_status="ok" if stats["errores"] == 0 else "partial",
+                    missing_count=skipped_resource_failures,
+                    source_label="AEAT official resources",
+                )
+
                 _record_sync_log(
                     conn,
                     started_at,
                     datetime.now(UTC),
-                    "ok" if stats["errores"] == 0 and skipped_resource_failures == 0 else "partial",
+                    final_status,
                     stats,
-                    (
-                        f"Skipped {skipped_resource_failures} AEAT official resources after fetch failures"
-                        if skipped_resource_failures
-                        else None
-                    ),
+                    final_error_msg,
                 )
 
             logger.info(

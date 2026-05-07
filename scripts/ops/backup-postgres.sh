@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-$ROOT_DIR/infra/deploy/docker-compose.prod.yml}"
-ENV_FILE="${ENV_FILE:-$ROOT_DIR/infra/deploy/.env.prod}"
+ENV_FILE="${ENV_FILE:-/etc/esdata/esdata.env}"
 BACKUP_DIR="${BACKUP_DIR:-/srv/backups/esdata}"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
 

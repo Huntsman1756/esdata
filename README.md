@@ -21,34 +21,40 @@ Plataforma de datos y consulta fiscal-regulatoria con API FastAPI, frontend Next
 
 ## Arranque rapido
 
-1. Copiar `infra/deploy/compose.env.example` fuera del repo o a `infra/deploy/.env.prod` para un entorno controlado.
+1. Copiar `infra/deploy/compose.env.example` a `/etc/esdata/esdata.env` fuera del repo para un entorno controlado.
 2. Ajustar secretos, dominios y seeds.
 3. Validar Compose:
 
 ```bash
-docker compose --env-file infra/deploy/compose.env.example -f infra/deploy/docker-compose.prod.yml config
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml config
+```
+
+O usar directamente la ruta canonica:
+
+```bash
+bash scripts/ops/deploy-hetzner.sh
 ```
 
 4. Levantar Postgres y aplicar migraciones:
 
 ```bash
-docker compose --env-file infra/deploy/compose.env.example -f infra/deploy/docker-compose.prod.yml up -d postgres
-docker compose --env-file infra/deploy/compose.env.example -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
-docker compose --env-file infra/deploy/compose.env.example -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
 ```
 
 5. Levantar runtime:
 
 ```bash
-docker compose --env-file infra/deploy/compose.env.example -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
 ```
 
 ## Comandos utiles
 
 ```bash
-docker compose --env-file infra/deploy/compose.env.example -f infra/deploy/docker-compose.prod.yml ps
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps
 curl -s http://127.0.0.1:8000/health
-curl -s http://127.0.0.1:8000/status
+curl -s -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/status
 ```
 
 ## Documentacion clave

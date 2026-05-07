@@ -1,189 +1,169 @@
 # Variables de entorno
 
-## Resumen
+## Fuente activa
 
-esdata usa variables de entorno para configurar todas las dependencias externas y el comportamiento de los servicios. Las variables se cargan via `.env` (local) o desde el orchestrator Docker.
+- `infra/deploy/docker-compose.prod.yml` define el boundary del runtime Compose activo.
+- `infra/deploy/compose.env.example` es la plantilla base para `/etc/esdata/esdata.env` en el despliegue activo.
+- `.env.example` mantiene un inventario mas amplio de variables de runtime, codigo y tooling local; no redefine por si solo el deploy activo.
+- `apps/web/.env.example` cubre solo el entorno aislado del frontend.
 
-## Archivo de referencia
+## Estados usados en este documento
 
-`.env.example` contiene el unico template permitido dentro del repo.
-Los secretos reales no deben vivir en el workspace del repo ni en `.env` anidados.
+- `runtime deploy`: variable cableada hoy por `${...}` en `infra/deploy/docker-compose.prod.yml`.
+- `code-only`: variable usada por codigo, tests o tooling local, pero no inyectada por el deploy Compose activo.
+- `legacy/no cableada`: variable historica, documental o de tooling externo que no forma parte del deploy activo ni la carga hoy el codigo principal.
 
-## Clasificacion
+## Plantillas versionadas permitidas
 
-### Runtime compartido
+- Solo se versionan plantillas de ejemplo (`.env.example`, `apps/web/.env.example`, `infra/deploy/compose.env.example`) sin secretos reales.
+- `infra/deploy/compose.env.example` es la unica plantilla autoritativa del deploy Compose activo.
+- `.env.example` sigue permitido por politica del repo solo como inventario amplio de runtime, codigo y tooling local; no sustituye ni redefine la plantilla operativa del deploy.
+- `/etc/esdata/esdata.env` es el fichero runtime del deploy activo y debe permanecer fuera de Git y fuera del checkout.
+- No usar `NEXT_PUBLIC_*` para valores operativos o secretos.
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `DATABASE_URL` | Si | `postgresql+psycopg://user:password@host:5432/dbname` | URL de conexion a PostgreSQL | API + Workers |
-| `DATABASE_PUBLIC_URL` | No | | URL publica de la DB (para scripts auxiliares) | Scripts |
+## Variables `runtime deploy`
 
-### Frontend web
+### Base deploy y routing
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `ESDATA_API_BASE_URL` | No | `http://localhost:8000` | URL base de la API para fetch server-side en Next.js | Web SSR |
-| `ESDATA_API_KEY` | Si en despliegues donde `web` consuma rutas protegidas | | API key server-side usada por Next.js para llamar al backend protegido | Web SSR |
+| Variable | Requerida | Default | Estado | Uso |
+|----------|-----------|---------|--------|-----|
+| `POSTGRES_USER` | No | `esdata` | `runtime deploy` | Postgres + backup |
+| `POSTGRES_PASSWORD` | Si | | `runtime deploy` | Postgres + backup |
+| `POSTGRES_DB` | No | `esdata` | `runtime deploy` | Postgres + backup |
+| `POSTGRES_PORT` | No | `5432` | `runtime deploy` | Publicacion de Postgres |
+| `POSTGRES_BIND_ADDRESS` | No | `127.0.0.1` | `runtime deploy` | Bind publicado de Postgres |
+| `DATABASE_URL` | Si | | `runtime deploy` | API + workers + crons + ops |
+| `APP_ENV` | No | `production` | `runtime deploy` | API |
+| `API_BIND_ADDRESS` | No | `127.0.0.1` | `runtime deploy` | Bind publicado de API |
+| `API_PORT` | No | `8000` | `runtime deploy` | Puerto publicado de API |
+| `WEB_BIND_ADDRESS` | No | `127.0.0.1` | `runtime deploy` | Bind publicado de Web |
+| `WEB_PORT` | No | `3000` | `runtime deploy` | Puerto publicado de Web |
+| `API_DOMAIN` | Si | | `runtime deploy` | Caddy / TLS API |
+| `WEB_DOMAIN` | Si | | `runtime deploy` | Caddy / TLS Web |
+| `CADDY_EMAIL` | No | vacio | `runtime deploy` | Email ACME de Caddy |
+| `ESDATA_API_BASE_URL` | Si | | `runtime deploy` | Web SSR -> API |
+| `ESDATA_API_KEY` | Si | | `runtime deploy` | API + Web SSR |
+| `MCP_API_KEY` | Si | | `runtime deploy` | MCP HTTP privado |
 
-### API / Operacion general
+### Workers y fuentes
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `APP_ENV` | No | `development` | Entorno de la aplicacion | API |
-| `API_DOMAIN` | No | | Dominio publico de la API servido por Caddy | Infra |
-| `WEB_DOMAIN` | No | | Dominio publico del frontend servido por Caddy | Infra |
-| `CADDY_EMAIL` | No | | Email usado por Caddy para certificados | Infra |
-| `ESDATA_CORS_ORIGINS` | No | `http://localhost:3000,http://localhost:8000` | Origenes permitidos por CORS | API |
-| `ESDATA_API_KEY` | Si fuera de `APP_ENV=test` | | API key obligatoria para todas las rutas protegidas de la API | API |
-| `ESDATA_RATE_LIMIT_ENABLED` | No | `true` | Activa o desactiva rate limiting general | API |
-| `ESDATA_HSTS_ENABLED` | No | `false` | Activa cabecera HSTS | API |
-| `ESDATA_SENTRY_DSN` | No | | DSN de Sentry para errores | API |
-| `POSTGRES_BIND_ADDRESS` | No | `127.0.0.1` | Bind local del servicio PostgreSQL | Infra |
-| `POSTGRES_USER` | No | `esdata` | Usuario del contenedor PostgreSQL | Infra |
-| `POSTGRES_PASSWORD` | Si | | Password del contenedor PostgreSQL | Infra |
-| `POSTGRES_DB` | No | `esdata` | Base de datos principal del contenedor PostgreSQL | Infra |
-| `POSTGRES_PORT` | No | `5432` | Puerto publicado por PostgreSQL | Infra |
-| `API_BIND_ADDRESS` | No | `127.0.0.1` | Bind local del servicio API | Infra |
-| `API_PORT` | No | `8000` | Puerto publicado por la API | Infra |
-| `WEB_BIND_ADDRESS` | No | `127.0.0.1` | Bind local del frontend web | Infra |
-| `WEB_PORT` | No | `3000` | Puerto publicado por el frontend web | Infra |
+| Variable | Requerida | Default | Estado | Uso |
+|----------|-----------|---------|--------|-----|
+| `BOE_API_BASE` | No | `https://www.boe.es/datosabiertos/api/legislacion-consolidada` | `runtime deploy` | Worker BOE + cron |
+| `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | `runtime deploy` | Worker BOE + cron |
+| `BOE_SYNC_INTERVAL_SECONDS` | No | `3600` | `runtime deploy` | Worker BOE |
+| `BDNS_SEED_URLS` | Si | | `runtime deploy` | Worker BDNS + cron |
+| `BDNS_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BDNS |
+| `BORME_SEED_URLS` | Si | | `runtime deploy` | Worker BORME + cron |
+| `BORME_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BORME |
+| `CNMV_SEED_URLS` | Si | | `runtime deploy` | Worker CNMV + cron |
+| `CNMV_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker CNMV |
+| `SEPBLAC_SEED_URLS` | Si | | `runtime deploy` | Worker SEPBLAC + cron |
+| `SEPBLAC_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker SEPBLAC |
+| `CENDOJ_SEED_URLS` | Si | | `runtime deploy` | Worker CENDOJ |
+| `CENDOJ_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker CENDOJ |
+| `EURLEX_SEED_URLS` | No | vacio | `runtime deploy` | Worker EUR-Lex |
+| `EURLEX_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker EUR-Lex |
+| `SPARQL_BASE` | No | `https://data.europa.eu/sparql` | `runtime deploy` | Worker EUR-Lex |
+| `BDE_SEED_URLS` | Si | | `runtime deploy` | Worker BDE + cron |
+| `BDE_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BDE |
+| `AEPD_SEED_URLS` | Si | | `runtime deploy` | Worker AEPD |
+| `AEPD_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker AEPD |
+| `DGT_SSL_VERIFY` | No | `false` en `compose.env.example` | `runtime deploy` | Worker DGT + cron |
+| `DGT_DISCOVERY` | No | `true` | `runtime deploy` | Worker DGT |
+| `DGT_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker DGT |
+| `TEAC_SEED_URLS` | Si | | `runtime deploy` | Worker TEAC + cron |
+| `TEAC_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker TEAC |
+| `MODELOS_SYNC_INTERVAL` | No | `86400` | `runtime deploy` | Worker Modelos |
+| `WORKER_REQUEST_DELAY` | No | `1.0` | `runtime deploy` | Workers BOE/DGT/TEAC/BDNS/BORME/CNMV/SEPBLAC/CENDOJ/EUR-Lex/BDE/AEPD/AEAT |
 
-### BOE / Legislacion
+### Cron y observabilidad
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `BOE_API_BASE` | No | `https://www.boe.es/datosabiertos/api/legislacion-consolidada` | URL base de la API del BOE | Worker BOE |
-| `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | Lista de normas a sincronizar | Worker BOE |
-| `SYNC_INTERVAL_SECONDS` | No | `3600` | Intervalo de sincronizacion en segundos | Worker BOE |
-| `BOE_SYNC_INTERVAL_SECONDS` | No | `3600` | Intervalo de sincronizacion dedicado para BOE | Worker BOE |
-| `BOE_ONLY_BLOCK_IDS` | No | | IDs de bloques BOE a procesar (filtro opcional) | Worker BOE |
+| Variable | Requerida | Default | Estado | Uso |
+|----------|-----------|---------|--------|-----|
+| `HC_PING_URL_CRON_BOE_DAILY` | No | vacio | `runtime deploy` | `cron-boe-daily` |
+| `HC_PING_URL_CRON_DGT_WEEKLY` | No | vacio | `runtime deploy` | `cron-dgt-weekly` |
+| `HC_PING_URL_CRON_TEAC_WEEKLY` | No | vacio | `runtime deploy` | `cron-teac-weekly` |
+| `HC_PING_URL_CRON_MODELOS_DAILY` | No | vacio | `runtime deploy` | `cron-modelos-daily` |
+| `HC_PING_URL_CRON_BDNS_WEEKLY` | No | vacio | `runtime deploy` | `cron-bdns-weekly` |
+| `HC_PING_URL_CRON_BORME_WEEKLY` | No | vacio | `runtime deploy` | `cron-borme-weekly` |
+| `HC_PING_URL_CRON_CNMV_WEEKLY` | No | vacio | `runtime deploy` | `cron-cnmv-weekly` |
+| `HC_PING_URL_CRON_SEPBLAC_WEEKLY` | No | vacio | `runtime deploy` | `cron-sepblac-weekly` |
+| `HC_PING_URL_CRON_BDE_WEEKLY` | No | vacio | `runtime deploy` | `cron-bde-weekly` |
+| `GRAFANA_ADMIN_PASSWORD` | No | vacio | `runtime deploy` | Perfil `prod` de Grafana |
+| `GRAFANA_ROOT_URL` | No | `https://tudominio.com/grafana/` | `runtime deploy` | Perfil `prod` de Grafana |
 
-### Fuentes de ingestion
+Notas operativas de `runtime deploy`:
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `BDNS_SEED_URLS` | No | | URLs de semilla para BDNS (subvenciones), separadas por coma | Worker BDNS |
-| `BDNS_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para BDNS | Worker BDNS |
-| `BORME_SEED_URLS` | No | | URLs de semilla para BORME, separadas por coma | Worker BORME |
-| `BORME_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para BORME | Worker BORME |
-| `CNMV_SEED_URLS` | No | `https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133` | URLs de semilla para CNMV, separadas por coma | Worker CNMV |
-| `CNMV_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para CNMV | Worker CNMV |
-| `SEPBLAC_SEED_URLS` | No | `https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/` | URLs de semilla para SEPBLAC, separadas por coma | Worker SEPBLAC |
-| `SEPBLAC_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para SEPBLAC | Worker SEPBLAC |
-| `CENDOJ_SEED_URLS` | No | | URLs de semilla para CENDOJ, separadas por coma | Worker CENDOJ |
-| `CENDOJ_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para CENDOJ | Worker CENDOJ |
-| `EURLEX_SEED_URLS` | No | | URLs de semilla para EURLEX (ya no se usan, CELEXs hardcodeados). Dejando por compatibilidad | Worker EURLEX |
-| `EURLEX_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para EURLEX | Worker EURLEX |
-| `SPARQL_BASE` | No | `http://publications.europa.eu/webapi/rdf/sparql` | Endpoint SPARQL para discovery de CELEXs nuevos | Worker EURLEX |
-| `BDE_SEED_URLS` | No | `https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/` | URLs de semilla para BDE, separadas por coma | Worker BDE |
-| `BDE_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para BDE | Worker BDE |
-| `AEPD_SEED_URLS` | No | | URLs de semilla para AEPD, separadas por coma | Worker AEPD |
-| `AEPD_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para AEPD | Worker AEPD |
+- En `5.3`, `cron`, `backup`, `ops` y observabilidad siguen contando como parte del boundary `runtime deploy`, aunque algunos servicios se levanten por profile o scheduler externo.
+- `DGT_SSL_VERIFY` tiene fallback distinto en `worker-dgt` (`true`) y `cron-dgt-weekly` (`false`) dentro de Compose; el template activo fija un valor explicito para evitar ambiguedad operativa.
 
-### DGT / Doctrina
+## Variables `code-only`
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `DGT_SSL_VERIFY` | No | `true` | Si verificar SSL contra sede DGT (`true|1|yes`) | Worker DGT |
-| `DGT_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para DGT | Worker DGT |
+| Variable | Default | Estado | Uso | Referencia principal |
+|----------|---------|--------|-----|----------------------|
+| `DATABASE_PUBLIC_URL` | vacio | `code-only` | Scripts manuales que aceptan URL publica como alternativa a `DATABASE_URL` | `scripts/seed-modelos.py`, `scripts/seed-modelos-v2.py`, `scripts/maintenance/validate-cron-run.py` |
+| `ESDATA_CORS_ORIGINS` | `http://localhost:3000,http://localhost:8000` | `code-only` | CORS del API | `apps/api/main.py` |
+| `ESDATA_RATE_LIMIT_ENABLED` | `true` | `code-only` | Rate limiting general del API | `apps/api/middleware/rate_limit.py` |
+| `ESDATA_HSTS_ENABLED` | `false` | `code-only` | Cabecera HSTS | `apps/api/middleware/security_headers.py` |
+| `ESDATA_SENTRY_DSN` | vacio | `code-only` | Sentry opcional en workers | `apps/workers/runtime.py` |
+| `MCP_RATE_LIMIT_PER_MINUTE` | `60` | `code-only` | Rate limiting especifico del endpoint MCP | `apps/api/mcp_security.py` |
+| `AGENT_MONITOR_ENABLED` | `false` | `code-only` | Activacion opt-in del monitor de agentes | `apps/api/agent_monitor.py` |
+| `AGENT_MONITOR_INTERVAL` | `300` | `code-only` | Intervalo del monitor de agentes | `apps/api/agent_monitor.py` |
+| `AGENT_MONITOR_ENTIDAD` | `sociedad_valores` | `code-only` | Entidad base del monitor | `apps/api/agent_monitor.py` |
+| `AGENT_MONITOR_PRIORIDAD` | `media` | `code-only` | Prioridad base del monitor | `apps/api/agent_monitor.py` |
+| `LOG_LEVEL` | `INFO` | `code-only` | Logging compartido | `libs/python/esdata_common/logging.py` |
+| `LOG_FORMAT` | `text` | `code-only` | Logging compartido | `libs/python/esdata_common/logging.py` |
+| `SYNC_INTERVAL_SECONDS` | depende del worker | `code-only` | Override generico usado por workers en CLI/manual; el deploy activo lo deriva desde `*_SYNC_INTERVAL_SECONDS` | `apps/workers/*.py` |
+| `BOE_ONLY_BLOCK_IDS` | vacio | `code-only` | Filtro manual/debug para BOE | `apps/workers/boe.py` |
+| `DB_POOL_SIZE` | `10` en `apps/api/db.py`, `5` en `esdata_common.db` | `code-only` | Tamano de pool SQLAlchemy | `apps/api/db.py`, `libs/python/esdata_common/db.py` |
+| `DB_MAX_OVERFLOW` | `20` | `code-only` | Overflow del pool usado por `apps/api/db.py` | `apps/api/db.py` |
+| `DB_POOL_MAX_OVERFLOW` | `10` | `code-only` | Overflow del pool usado por `libs/python/esdata_common/db.py` | `libs/python/esdata_common/db.py` |
+| `DB_POOL_RECYCLE` | `1800` | `code-only` | Reciclado del pool compartido | `libs/python/esdata_common/db.py` |
 
-### TEAC
+## Variables `legacy/no cableada`
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `TEAC_SEED_URLS` | No | `https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/` | URLs de semilla para TEAC. Admite landing DYCTEA o URLs `criterio.aspx?id=...` directas | Worker TEAC |
-| `TEAC_SYNC_INTERVAL_SECONDS` | No | `604800` | Intervalo de sincronizacion semanal para TEAC | Worker TEAC |
+| Variable | Estado | Nota |
+|----------|--------|------|
+| `NEXT_PUBLIC_API_BASE_URL` | `legacy/no cableada` | Retirada del runtime activo; no debe aparecer en `infra/deploy/compose.env.example` |
+| `MCP_SECRET_ACTIVE` | `legacy/no cableada` | Sigue apareciendo en docs antiguos/perimetrales, pero el deploy Compose activo no la cablea |
+| `MCP_SECRET_PREVIOUS` | `legacy/no cableada` | Igual que `MCP_SECRET_ACTIVE`; fuera del boundary activo de Compose |
+| `CLOUDFLARE_ZONE_ID` | `legacy/no cableada` | Variable historica de workflows/docs de perimetro; no forma parte del deploy Compose activo |
+| `CLOUDFLARE_API_TOKEN` | `legacy/no cableada` | Igual que `CLOUDFLARE_ZONE_ID`; no cableada hoy al runtime activo |
+| `PGHOST` | `legacy/no cableada` | Documentada historicamente como alternativa a `DATABASE_URL`, pero la configuracion actual no la resuelve |
+| `PGPORT` | `legacy/no cableada` | Igual que `PGHOST`; solo queda como convencion externa de tooling |
+| `PGUSER` | `legacy/no cableada` | Igual que `PGHOST`; no la carga la app actual |
+| `PGPASSWORD` | `legacy/no cableada` | Igual que `PGHOST`; puede usarse en tooling externo, pero no en el runtime del repo |
+| `PGDATABASE` | `legacy/no cableada` | Igual que `PGHOST`; no la resuelve la app actual |
+| `REDIS_URL` | `legacy/no cableada` | Sin referencias activas en el codigo actual |
+| `SECRET_KEY` | `legacy/no cableada` | Sin referencias activas en el codigo actual |
+| `SLACK_WEBHOOK_URL` | `legacy/no cableada` | Sin referencias activas en el codigo actual |
 
-### Modelos AEAT
+## Verificacion minima del deploy activo
 
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `MODELOS_SYNC_INTERVAL` | No | `86400` | Intervalo de sincronizacion de modelos en segundos (24h) | Worker Modelos |
+Usar siempre el template activo del deploy para validar el boundary:
 
-### Cloudflare / MCP perimetral
-
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `MCP_API_KEY` | Si fuera de `APP_ENV=test` | | API key obligatoria para proteger `/mcp` por HTTP | MCP Server |
-| `MCP_RATE_LIMIT_PER_MINUTE` | No | `60` | Limite de peticiones por minuto en `/mcp` | MCP Server |
-| `MCP_SECRET_ACTIVE` | No | | MCP secret actualmente activo | MCP Server |
-| `MCP_SECRET_PREVIOUS` | No | | MCP secret anterior (para rotacion) | MCP Server |
-| `CLOUDFLARE_ZONE_ID` | No | | ID del zone en Cloudflare | Cloudflare Workers |
-| `CLOUDFLARE_API_TOKEN` | No | | Token de API de Cloudflare | Cloudflare Workers |
-
-### Agent monitor
-
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `AGENT_MONITOR_ENABLED` | No | `false` | Activa el monitor interno de agentes | API |
-| `AGENT_MONITOR_INTERVAL` | No | `300` | Intervalo de escaneo en segundos | API |
-| `AGENT_MONITOR_ENTIDAD` | No | `sociedad_valores` | Entidad base del monitor | API |
-| `AGENT_MONITOR_PRIORIDAD` | No | `media` | Prioridad base del monitor | API |
-
-### Postgres (variables alternativas a DATABASE_URL)
-
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `PGHOST` | No | | Host de PostgreSQL | SQLAlchemy |
-| `PGPORT` | No | `5432` | Puerto de PostgreSQL | SQLAlchemy |
-| `PGUSER` | No | | Usuario de PostgreSQL | SQLAlchemy |
-| `PGPASSWORD` | No | | Password de PostgreSQL | SQLAlchemy |
-| `PGDATABASE` | No | | Nombre de la base de datos | SQLAlchemy |
-
-### Observabilidad / Otros
-
-| Variable | Requerida | Default | Descripcion | Uso |
-|----------|-----------|---------|-------------|-----|
-| `REDIS_URL` | No | | URL de Redis (para cache, colas) | API |
-| `SECRET_KEY` | No | | Clave secreta para JWT/sesion | API |
-| `LOG_LEVEL` | No | `INFO` | Nivel de log (DEBUG, INFO, WARNING, ERROR) | Todos los servicios |
-| `LOG_FORMAT` | No | `text` | Formato de logs (`text` o `json`) | Todos los servicios |
-| `SLACK_WEBHOOK_URL` | No | | Webhook de Slack para alertas | Scripts/Workers |
-| `HC_PING_URL_CRON_BOE_DAILY` | No | | URL base de Healthchecks para `cron-boe-daily` (`/start`, `/fail` y success se derivan automaticamente) | Infra cron |
-| `HC_PING_URL_CRON_DGT_WEEKLY` | No | | URL base de Healthchecks para `cron-dgt-weekly` | Infra cron |
-| `HC_PING_URL_CRON_TEAC_WEEKLY` | No | | URL base de Healthchecks para `cron-teac-weekly` | Infra cron |
-| `HC_PING_URL_CRON_MODELOS_DAILY` | No | | URL base de Healthchecks para `cron-modelos-daily` | Infra cron |
-| `HC_PING_URL_CRON_BDNS_WEEKLY` | No | | URL base de Healthchecks para `cron-bdns-weekly` | Infra cron |
-| `HC_PING_URL_CRON_BORME_WEEKLY` | No | | URL base de Healthchecks para `cron-borme-weekly` | Infra cron |
-| `HC_PING_URL_CRON_CNMV_WEEKLY` | No | | URL base de Healthchecks para `cron-cnmv-weekly` | Infra cron |
-| `HC_PING_URL_CRON_SEPBLAC_WEEKLY` | No | | URL base de Healthchecks para `cron-sepblac-weekly` | Infra cron |
-| `HC_PING_URL_CRON_BDE_WEEKLY` | No | | URL base de Healthchecks para `cron-bde-weekly` | Infra cron |
-
-## Uso en Docker Compose
-
-Las variables se pasan a los contenedores via entorno del host o archivo externo fuera del repo.
-No se acepta como estado normal de trabajo mantener `.env` runtime dentro del repo.
-
-```yaml
-services:
-  api:
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-  worker-boe:
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
+```bash
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml config
 ```
 
-O directamente en el docker-compose.yml con `environment:`.
+Para preparar `/etc/esdata/esdata.env`, partir de:
 
-## Notas operativas de seguridad
-
-- La API ya no debe arrancar en modo `fail-open` por omision. Fuera de `APP_ENV=test`, `ESDATA_API_KEY` es obligatoria.
-- La superficie `/mcp` tampoco debe arrancar sin `MCP_API_KEY` fuera de `APP_ENV=test`.
-- `ESDATA_AUTH_ENABLED` deja de ser un control operativo valido para abrir o cerrar auth; el comportamiento seguro es auth obligatoria en runtime normal.
-- `/metrics` no debe considerarse una ruta publica por defecto.
-
-## Seguridad
-
-- Nunca hardcodear secretos en codigo ni en el repo.
-- Nunca exponer secretos ni base URLs operativas en frontend via `NEXT_PUBLIC_*`.
-- Nunca crear ni conservar `.env` anidados dentro del repo.
-- `.env.example` solo contiene valores de ejemplo sin credenciales reales.
-- Si aparece un `.env` runtime en el repo, el estado correcto es `BLOQUEADO` hasta eliminarlo o recibir instruccion explicita del usuario.
+```bash
+sudo mkdir -p /etc/esdata
+sudo cp infra/deploy/compose.env.example /etc/esdata/esdata.env
+sudo chmod 600 /etc/esdata/esdata.env
+```
 
 ## Referencias
 
-- `.env.example` — listado canonical de todas las variables
-- `apps/api/db.py` — carga de `DATABASE_URL`
-- `apps/workers/boe.py` — carga de `BOE_API_BASE`, `SYNC_INTERVAL_SECONDS`
-- `apps/workers/runtime.py` — utilidad `get_database_url()`
+- `infra/deploy/docker-compose.prod.yml` - boundary del runtime Compose activo
+- `infra/deploy/compose.env.example` - plantilla del deploy activo
+- `.env.example` - inventario amplio para runtime, tooling local y codigo no cableado al deploy activo
+- `apps/web/.env.example` - ejemplo minimo del frontend aislado
+- `apps/api/db.py` - `DATABASE_URL`, `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`
+- `libs/python/esdata_common/db.py` - `DB_POOL_SIZE`, `DB_POOL_MAX_OVERFLOW`, `DB_POOL_RECYCLE`
+- `libs/python/esdata_common/config.py` - resolucion base de env vars
+- `apps/api/mcp_security.py` - `MCP_RATE_LIMIT_PER_MINUTE`
+- `apps/api/agent_monitor.py` - `AGENT_MONITOR_*`
+- `apps/workers/boe.py` - `BOE_ONLY_BLOCK_IDS`

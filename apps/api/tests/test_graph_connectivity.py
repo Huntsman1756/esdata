@@ -32,6 +32,18 @@ class TestNodeSchema:
                 assert required.issubset(set(edge_schema.keys())), \
                     f"{node_type}.{edge_type} missing fields"
 
+    def test_documento_edge_properties_keep_metodo_enlace_and_confianza_enlace(self):
+        doctrina_props = _NODE_SCHEMA["documento"]["edges"]["articulos"]["properties"]
+
+        assert "da.metodo_enlace" in doctrina_props
+        assert "da.confianza_enlace" in doctrina_props
+
+    def test_articulo_edge_properties_keep_doctrina_link_semantics(self):
+        doctrina_props = _NODE_SCHEMA["articulo"]["edges"]["doctrina"]["properties"]
+
+        assert "da.metodo_enlace" in doctrina_props
+        assert "da.confianza_enlace" in doctrina_props
+
 
 class TestRootWhere:
     """Test root WHERE clause generation."""

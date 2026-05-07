@@ -3,12 +3,11 @@ import re
 from db import db_session
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-
+from schemas import LegislacionSearchResponse
+from services.query_audit import get_query_audit_service
 from services.search import search_legislacion
 from services.semantic_search import hybrid_search_legislacion
-from services.query_audit import get_query_audit_service
-from schemas import LegislacionSearchResponse
+from sqlalchemy import text
 
 
 def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
@@ -87,6 +86,32 @@ def _build_legislacion_audit_chunks(result: dict) -> list[dict]:
     return chunks
 
 
+def _record_search_query_audit(
+    request: Request,
+    *,
+    path: str,
+    query_text: str,
+    tool_name: str,
+    result: dict,
+):
+    resultados = result.get("resultados", [])
+    has_results = bool(resultados)
+    get_query_audit_service().record_query(
+        request_id=request.headers.get("x-request-id")
+        or request.headers.get("X-Request-ID")
+        or "unknown",
+        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        path=path,
+        query_text=query_text,
+        retrieved_chunks=_build_legislacion_audit_chunks(result),
+        response_summary=f"resultados={len(resultados)}",
+        tool_name=tool_name,
+        confidence={"score": 0.9 if has_results else 0.0, "label": "alta" if has_results else "baja"},
+        completeness="completa" if has_results else "parcial",
+        verified=has_results,
+    )
+
+
 router = APIRouter(tags=["buscar"])
 
 
@@ -104,13 +129,12 @@ async def buscar(
     result = _buscar_comparacion_modelos_aeat(q)
     if result is None:
         result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
-    get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
-        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+    _record_search_query_audit(
+        request,
         path="/v1/buscar",
         query_text=q,
-        retrieved_chunks=_build_legislacion_audit_chunks(result),
-        response_summary=f"resultados={len(result.get('resultados', []))}",
+        tool_name="buscar",
+        result=result,
     )
     return result
 
@@ -118,6 +142,7 @@ async def buscar(
 @router.get("/v1/legislacion/buscar", operation_id="buscar_legislacion",
             summary="Buscar en legislacion consolidada (alias)")
 async def buscar_legislacion(
+    request: Request,
     q: str = Query(..., min_length=1, description="Termino de busqueda"),
     norma: str | None = Query(None, description="Filtrar por codigo de norma"),
     fuente: str | None = Query(None, description="Filtrar por fuente"),
@@ -126,6 +151,13 @@ async def buscar_legislacion(
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
 ):
     result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
+    _record_search_query_audit(
+        request,
+        path="/v1/legislacion/buscar",
+        query_text=q,
+        tool_name="buscar_legislacion",
+        result=result,
+    )
     return JSONResponse(content=result)
 
 

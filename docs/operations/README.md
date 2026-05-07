@@ -8,13 +8,13 @@ Centralizar la operacion recurrente de `esdata` sobre Docker Compose para que ot
 
 ### Compose
 
-- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml ps`
-- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml logs --tail 100 api`
+- `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml ps`
+- `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml logs --tail 100 api`
 
 ### API
 
 - `curl http://127.0.0.1:8000/health`
-- `curl http://127.0.0.1:8000/status`
+- `curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/status`
 - `curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/v1/modelos`
 
 ### Web
@@ -24,8 +24,8 @@ Centralizar la operacion recurrente de `esdata` sobre Docker Compose para que ot
 
 ### Migraciones
 
-- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current`
-- `docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py`
+- `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current`
+- `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py`
 
 ## Scheduling
 
@@ -34,7 +34,7 @@ Los servicios `cron-*` definidos en Compose son jobs one-shot. No planifican su 
 La estrategia activa de scheduling debe ser externa:
 
 - `systemd` via `infra/deploy/systemd/*`, o
-- cron del host llamando `docker compose run --rm cron-*`
+- cron del host llamando `docker compose run --rm --no-deps cron-*`
 
 No usar `docker compose --profile cron up -d` como sustituto de un scheduler.
 
@@ -43,12 +43,14 @@ No usar `docker compose --profile cron up -d` como sustituto de un scheduler.
 - `docs/operations/OPERATIONS.md`
 - `docs/operations/runbooks/deploy-compose.md`
 - `docs/operations/runbooks/backup-restore.md`
+- `docs/operations/runbooks/mcp-release-gate.md`
 - `docs/operations/runbooks/worker-boe.md`
 - `docs/operations/runbooks/worker-dgt-teac.md`
 - `docs/operations/runbooks/worker-modelos.md`
 - `docs/operations/runbooks/worker-aeat.md`
 - `docs/operations/metrics.md`
 - `docs/operations/worker-failures.md`
+- `docs/reference/mcp-remediation-plan.md`
 
 ## Regla de uso
 

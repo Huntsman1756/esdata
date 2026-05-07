@@ -156,6 +156,71 @@ STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE empresa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        nif TEXT,
+        domicilio TEXT,
+        fuente_inicial TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE obligacion_regulatoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL,
+        fuente TEXT NOT NULL,
+        organismo_emisor TEXT NOT NULL,
+        tipo_obligacion TEXT NOT NULL,
+        sujeto_obligado TEXT NOT NULL,
+        periodicidad TEXT,
+        reporte_modelo TEXT,
+        ambito TEXT NOT NULL,
+        estado_vigencia TEXT NOT NULL,
+        documento_origen_tipo TEXT,
+        documento_origen_ref TEXT,
+        seccion_origen TEXT,
+        anexo_origen TEXT,
+        nota TEXT,
+        plazo_dias INTEGER,
+        frecuencia_presentacion TEXT,
+        ventana_presentacion TEXT,
+        trigger_presentacion TEXT,
+        canal_presentacion TEXT,
+        obligados_resumen TEXT,
+        sancion_min TEXT,
+        sancion_max TEXT,
+        recargo_voluntario TEXT,
+        recargo_involuntario TEXT,
+        interes_demora TEXT,
+        prescripcion_anos INTEGER,
+        deposito_previo TEXT,
+        fuentes_operativas TEXT,
+        ultima_actualizacion TEXT,
+        origen_metadato TEXT,
+        estado_metadato TEXT
+    )
+    """,
+    """
+    CREATE TABLE obligacion_documento (
+        obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id),
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        tipo_relacion TEXT NOT NULL,
+        PRIMARY KEY (obligacion_id, documento_id)
+    )
+    """,
+    """
+    CREATE TABLE documento_empresa (
+        documento_id INTEGER NOT NULL REFERENCES documento_interpretativo(id),
+        empresa_id INTEGER NOT NULL REFERENCES empresa(id),
+        rol TEXT NOT NULL,
+        confianza_extraccion REAL NOT NULL,
+        nota TEXT,
+        PRIMARY KEY (documento_id, empresa_id)
+    )
+    """,
+    """
     CREATE TABLE documento_version (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         documento_referencia TEXT NOT NULL,
@@ -2204,14 +2269,19 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     CREATE TABLE modelo_articulo (
         modelo_id INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
         articulo_id INTEGER NOT NULL REFERENCES articulo(id) ON DELETE CASCADE,
+        norma TEXT NOT NULL,
+        numero TEXT NOT NULL,
+        metodo_enlace TEXT NOT NULL,
+        confianza_enlace REAL NOT NULL,
         casilla TEXT,
         nota TEXT,
         fuente TEXT NOT NULL,
         url_fuente TEXT,
-        PRIMARY KEY (modelo_id, articulo_id)
+        PRIMARY KEY (modelo_id, articulo_id),
+        UNIQUE(modelo_id, norma, numero)
     )
     """,
-    # --- Seed: Modelo 100 linked to LIVA 91 (for testing doctrina derivada) ---
+    # --- Seed: Modelo 100 linked strongly to LIVA 91 ---
     """
     INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info)
     VALUES ('100', 'IRPF Declaración anual', 'anual', 'IRPF', 'https://sede.agenciatributaria.gob.es/modelo-100'),
@@ -2219,11 +2289,45 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
            ('303', 'IVA Autoliquidación', 'trimestral', 'IVA', 'https://sede.agenciatributaria.gob.es/modelo-303')
     """,
     """
-    INSERT INTO modelo_articulo (modelo_id, articulo_id, casilla, nota, fuente, url_fuente)
-    SELECT m.id, a.id, '0002', 'Rendimientos trabajo', 'Instrucciones Modelo 100 2025', 'https://sede.agenciatributaria.gob.es'
+    INSERT INTO modelo_articulo (
+        modelo_id, articulo_id, norma, numero, metodo_enlace, confianza_enlace,
+        casilla, nota, fuente, url_fuente
+    )
+    SELECT
+        m.id,
+        a.id,
+        'LIVA',
+        '91',
+        'manual_official',
+        1.0,
+        '0002',
+        'Rendimientos trabajo',
+        'Instrucciones Modelo 100 2025',
+        'https://sede.agenciatributaria.gob.es'
     FROM aeat_modelo m, articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE m.codigo = '100' AND n.codigo = 'LIVA' AND a.numero = '91'
+    """,
+    # --- Seed: legacy hidden row still present in runtime for modelo 303 ---
+    """
+    INSERT INTO modelo_articulo (
+        modelo_id, articulo_id, norma, numero, metodo_enlace, confianza_enlace,
+        casilla, nota, fuente, url_fuente
+    )
+    SELECT
+        m.id,
+        a.id,
+        'LIVA',
+        '91',
+        'legacy_numero_only',
+        0.0,
+        NULL,
+        'Legacy enlace heredado por numero',
+        'Import legacy modelos seed',
+        'https://sede.agenciatributaria.gob.es'
+    FROM aeat_modelo m, articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE m.codigo = '303' AND n.codigo = 'LIVA' AND a.numero = '91'
     """,
     # --- Modelos v2 schema: campañas, casillas, claves, instrucciones, normativa ---
     """

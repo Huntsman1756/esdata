@@ -24,6 +24,7 @@ from runtime import (
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
+from vocabulary_validation import sanitize_documento_payload
 
 
 def _parse_seed_urls(value: str | None) -> list[str]:
@@ -98,6 +99,20 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
 
 
 def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
+    record = sanitize_documento_payload(
+        {
+            "tipo_documento": payload.get("tipo_documento", "convocatoria_subvencion"),
+            "organismo_emisor": payload.get("organismo_emisor", "BDNS"),
+            "jurisdiccion": payload.get("jurisdiccion", "es"),
+            "tipo_fuente": payload.get("tipo_fuente", "bdns"),
+            "ambito": payload.get("ambito", "subvenciones"),
+            "referencia": payload["referencia"],
+            "fecha": payload["fecha"],
+            "titulo": payload["titulo"],
+            "texto": payload["texto"],
+            "url_fuente": payload["url_fuente"],
+        }
+    )
     conn.execute(
         text(
             """
@@ -114,11 +129,11 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
                 url_fuente
             )
             VALUES (
-                'convocatoria_subvencion',
-                'BDNS',
-                'es',
-                'bdns',
-                'subvenciones',
+                :tipo_documento,
+                :organismo_emisor,
+                :jurisdiccion,
+                :tipo_fuente,
+                :ambito,
                 :referencia,
                 :fecha,
                 :titulo,
@@ -132,7 +147,7 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
                 url_fuente = excluded.url_fuente
             """
         ),
-        payload,
+        record,
     )
 
 

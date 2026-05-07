@@ -8,17 +8,20 @@ El router reutiliza los schemas existentes de `doctrina` y la base
 de datos compartida en `documento_interpretativo`.
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse
+from db import db_session
+from fastapi import APIRouter, HTTPException, Query, Request
+from routers.doctrina import _record_doctrina_query_audit
+from schemas import DoctrinaDetail as DoctrinaDetailSchema
+from schemas import DoctrinaSearchResponse
+from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
 from sqlalchemy import text
 
-from db import db_session
-from schemas import (
-    DoctrinaDetail as DoctrinaDetailSchema,
-    DoctrinaSearchResponse,
-)
-from services.search import _build_tsquery_sql, _chunk_rank_boost, _build_fragment
-from services.semantic_search import hybrid_search_doctrina
+EXACT_LINK_METHODS = {"manual", "manual_official", "auto_link_exact"}
+
+
+def _has_exact_anchor(linked_articles: list[dict]) -> bool:
+    return any(item["metodo_enlace"] in EXACT_LINK_METHODS for item in linked_articles)
+
 
 router = APIRouter(prefix="/v1/doctrina/dgt", tags=["dgt-rendimientos"])
 
@@ -65,7 +68,7 @@ async def buscar_dgt_rendimientos(
     response_model=DoctrinaDetailSchema,
     summary="Consulta de consulta vinculante DGT",
 )
-async def get_dgt_doctrina(referencia: str):
+async def get_dgt_doctrina(request: Request, referencia: str):
     """Obtiene una consulta vinculante DGT por referencia (ej: V0091-18).
 
     Este endpoint debe registrarse ANTES del catch-all /{referencia:path}
@@ -120,13 +123,10 @@ async def get_dgt_doctrina(referencia: str):
             ).mappings()
         )
 
-        max_confidence = max(
-            (float(item["confianza_enlace"]) for item in linked_articles), default=0.0
-        )
-        has_strong_anchor = max_confidence >= 0.85
         has_any_anchor = bool(linked_articles)
+        has_exact_anchor = _has_exact_anchor(linked_articles)
 
-        return {
+        payload = {
             "referencia": row["referencia"],
             "tipo_documento": row["tipo_documento"],
             "organismo_emisor": row["organismo_emisor"],
@@ -141,13 +141,37 @@ async def get_dgt_doctrina(referencia: str):
                 for item in linked_articles
             ],
             "confianza": {
-                "nivel": 2 if has_strong_anchor else (1 if has_any_anchor else 0),
+                "nivel": 2 if has_exact_anchor else (1 if has_any_anchor else 0),
                 "fuentes": [row["referencia"]],
                 "aviso": None
                 if has_any_anchor
                 else "Criterio sin anclaje normativo suficiente",
             },
         }
+        _record_doctrina_query_audit(
+            request,
+            path=f"/v1/doctrina/dgt/{referencia}",
+            query_text=referencia,
+            tool_name="get_dgt_doctrina",
+            retrieved_chunks=[
+                {
+                    "referencia": row["referencia"],
+                    "tipo_documento": row["tipo_documento"],
+                    "organismo_emisor": row["organismo_emisor"],
+                    "norma": item["norma"],
+                    "numero": item["numero"],
+                }
+                for item in linked_articles
+            ],
+            response_summary=f"articulos_relacionados={len(linked_articles)}",
+            confidence={
+                "score": 0.9 if has_exact_anchor else (0.5 if has_any_anchor else 0.0),
+                "label": "alta" if has_exact_anchor else ("media" if has_any_anchor else "baja"),
+            },
+            completeness="completa" if has_exact_anchor else "parcial",
+            verified=has_exact_anchor,
+        )
+        return payload
 
 
 def _buscar_dgt_rendimientos_pg(db, q, tipo, desde, organismo_emisor):

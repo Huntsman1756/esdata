@@ -117,6 +117,19 @@ def sleep_with_heartbeat(
     return False
 
 
+def finalize_partial_sync_status(
+    *,
+    base_status: str,
+    missing_count: int,
+    source_label: str,
+) -> tuple[str, str | None]:
+    if missing_count <= 0:
+        return base_status, None
+
+    final_status = "partial" if base_status == "ok" else base_status
+    return final_status, f"Skipped {missing_count} {source_label} after fetch failures"
+
+
 def init_sentry(worker_name: str) -> None:
     """Initialize Sentry error monitoring for workers (optional)."""
     dsn = os.environ.get("ESDATA_SENTRY_DSN")

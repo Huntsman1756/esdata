@@ -1,41 +1,74 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from db import db_session
+from fastapi import APIRouter, HTTPException, Query, Request
 from schemas import (
     AEATModeloDetail,
     AEATModeloListResponse,
-    ModeloCampanaOperativaResponse,
     ModeloArtefactosResponse,
-    ModeloDetail as ModeloDetailSchema,
+    ModeloCampanaOperativaResponse,
     ModeloFuentesOficialesResponse,
     ModeloResumenOperativoResponse,
     ModelosCampanasOperativasResponse,
     ModelosListResponse,
 )
+from schemas import (
+    ModeloDetail as ModeloDetailSchema,
+)
 from services.modelos import (
+    build_modelo_truth_contract,
     get_active_campaign,
-    get_modelo_campana_operativa,
     get_model_row,
+    get_modelo_campana_operativa,
+    get_modelo_campana_operativa_row,
     get_modelo_resumen_operativo,
+    get_modelo_runtime_truth_contract,
     list_campaign_casillas,
     list_campaign_claves,
     list_campaign_instructions,
     list_modelo_artefactos,
     list_modelo_articulos,
     list_modelo_campanas,
-    list_modelos_campanas_operativas,
     list_modelo_fuentes_oficiales,
     list_modelo_normativa,
+    list_modelos_campanas_operativas,
     list_modelos_summary,
     list_related_doctrina,
 )
+from services.query_audit import get_query_audit_service
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
 
 
 def _date_to_str(value):
     return str(value) if value is not None else None
+
+
+def _record_modelo_query_audit(
+    request: Request,
+    *,
+    path: str,
+    query_text: str,
+    tool_name: str,
+    retrieved_chunks: list[dict],
+    response_summary: str,
+    confidence: dict,
+    completeness: str,
+    verified: bool,
+):
+    get_query_audit_service().record_query(
+        request_id=request.headers.get("x-request-id")
+        or request.headers.get("X-Request-ID")
+        or "unknown",
+        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        path=path,
+        query_text=query_text,
+        retrieved_chunks=retrieved_chunks,
+        response_summary=response_summary,
+        tool_name=tool_name,
+        confidence=confidence,
+        completeness=completeness,
+        verified=verified,
+    )
 
 
 def _list_aeat_modelos(db, codigo=None, campana=None, impuesto=None, tipo_recurso=None, activo=None):
@@ -160,10 +193,12 @@ async def get_campanas_operativas_modelos(
     codigos: str = Query(..., description="Codigos separados por comas, ej: 124,216,296"),
     campana: str = Query(None, description="Campana especifica"),
 ):
-    lista_codigos = [item.strip() for item in codigos.split(",")]
+    lista_codigos = [item.strip() for item in codigos.split(",") if item.strip()]
     with db_session() as db:
         return {
-            "modelos": list_modelos_campanas_operativas(db, lista_codigos, campana)
+            "codigos": lista_codigos,
+            "campana": campana,
+            "resultados": list_modelos_campanas_operativas(db, lista_codigos, campana),
         }
 
 
@@ -273,6 +308,7 @@ async def get_modelo_aeat(
     summary="Detalle de un modelo AEAT",
 )
 async def get_modelo(
+    request: Request,
     codigo: str,
     campana: str = Query(
         None,
@@ -329,6 +365,13 @@ async def get_modelo(
             instr_rows = list_campaign_instructions(db, campana_id)
             instrucciones = [dict(r) for r in instr_rows]
 
+        operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
+        estado_metadato = (
+            operativa_row["estado_metadato"]
+            if operativa_row and operativa_row.get("estado_metadato")
+            else None
+        )
+
         norm_rows = list_modelo_normativa(db, codigo)
         normativa = [
             {
@@ -341,8 +384,13 @@ async def get_modelo(
         camp_rows = list_modelo_campanas(db, codigo)
         campanas = [dict(r) for r in camp_rows]
         doctrina_relacionada = list_related_doctrina(db, articulos)
+        completeness, verified = build_modelo_truth_contract(
+            has_instructions=bool(instrucciones),
+            has_casillas=bool(casillas),
+            metadata_state=estado_metadato,
+        )
 
-        return {
+        payload = {
             "codigo": model_row["codigo"],
             "nombre": model_row["nombre"],
             "periodo": model_row["periodo"],
@@ -356,7 +404,46 @@ async def get_modelo(
             "instrucciones": instrucciones,
             "normativa": normativa,
             "doctrina_relacionada": doctrina_relacionada,
+            "completeness": completeness,
+            "verified": verified,
         }
+        _record_modelo_query_audit(
+            request,
+            path=f"/v1/modelos/{codigo}",
+            query_text=codigo,
+            tool_name="get_modelo",
+            retrieved_chunks=[
+                {
+                    "title": payload["nombre"],
+                    "source_url": payload.get("url_info"),
+                },
+                *[
+                    {
+                        "norma": item["norma"],
+                        "numero": item["numero"],
+                        "source_url": item.get("url_fuente"),
+                        "title": item.get("titulo"),
+                    }
+                    for item in articulos
+                ],
+                *[
+                    {
+                        "referencia": item.get("boe_id"),
+                        "source_url": item.get("url_boe"),
+                        "title": item.get("titulo"),
+                    }
+                    for item in normativa
+                ],
+            ],
+            response_summary=(
+                f"campanas={len(campanas)};articulos={len(articulos)};casillas={len(casillas)};"
+                f"instrucciones={len(instrucciones)}"
+            ),
+            confidence={"score": 0.9 if verified else 0.5, "label": "alta" if verified else "media"},
+            completeness=payload["completeness"],
+            verified=payload["verified"],
+        )
+        return payload
 
 
 @router.get("/{codigo}/articulos", operation_id="get_modelo_articulos")
@@ -396,44 +483,128 @@ async def get_modelo_articulos(codigo: str):
     summary="Casillas de un modelo",
 )
 async def get_modelo_casillas(
+    request: Request,
     codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     """Lista todas las casillas de un modelo para una campaña."""
     with db_session() as db:
+        model_row = get_model_row(db, codigo)
+        if not model_row:
+            raise HTTPException(
+                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
+            )
+
         camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
-            return {"codigo": codigo, "casillas": []}
+            payload = {"codigo": codigo, "casillas": []}
+            completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+            _record_modelo_query_audit(
+                request,
+                path=f"/v1/modelos/{codigo}/casillas",
+                query_text=codigo,
+                tool_name="get_modelo_casillas",
+                retrieved_chunks=[],
+                response_summary="casillas=0",
+                confidence={"score": 0.0, "label": "baja"},
+                completeness=completeness,
+                verified=verified,
+            )
+            return payload
 
         campana_id = camp_row["id"]
         rows = list_campaign_casillas(db, campana_id)
 
-        return {
+        payload = {
             "codigo": codigo,
             "casillas": [dict(r) for r in rows],
         }
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+        _record_modelo_query_audit(
+            request,
+            path=f"/v1/modelos/{codigo}/casillas",
+            query_text=codigo,
+            tool_name="get_modelo_casillas",
+            retrieved_chunks=[
+                {
+                    "title": item["etiqueta"],
+                    "numero": item["codigo"],
+                }
+                for item in payload["casillas"]
+            ],
+            response_summary=f"casillas={len(payload['casillas'])}",
+            confidence={
+                "score": 0.9 if verified else 0.5 if payload["casillas"] else 0.0,
+                "label": "alta" if verified else "media" if payload["casillas"] else "baja",
+            },
+            completeness=completeness,
+            verified=verified,
+        )
+        return payload
 
 
 @router.get(
     "/{codigo}/claves", operation_id="get_modelo_claves", summary="Claves de un modelo"
 )
 async def get_modelo_claves(
+    request: Request,
     codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     """Lista todas las claves de un modelo para una campaña."""
     with db_session() as db:
+        model_row = get_model_row(db, codigo)
+        if not model_row:
+            raise HTTPException(
+                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
+            )
+
         camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
-            return {"codigo": codigo, "claves": []}
+            payload = {"codigo": codigo, "claves": []}
+            completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+            _record_modelo_query_audit(
+                request,
+                path=f"/v1/modelos/{codigo}/claves",
+                query_text=codigo,
+                tool_name="get_modelo_claves",
+                retrieved_chunks=[],
+                response_summary="claves=0",
+                confidence={"score": 0.0, "label": "baja"},
+                completeness=completeness,
+                verified=verified,
+            )
+            return payload
 
         campana_id = camp_row["id"]
         rows = list_campaign_claves(db, campana_id)
 
-        return {
+        payload = {
             "codigo": codigo,
             "claves": [dict(r) for r in rows],
         }
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+        _record_modelo_query_audit(
+            request,
+            path=f"/v1/modelos/{codigo}/claves",
+            query_text=codigo,
+            tool_name="get_modelo_claves",
+            retrieved_chunks=[
+                {
+                    "title": item["etiqueta"],
+                    "numero": item["codigo"],
+                }
+                for item in payload["claves"]
+            ],
+            response_summary=f"claves={len(payload['claves'])}",
+            confidence={
+                "score": 0.9 if verified else 0.5 if payload["claves"] else 0.0,
+                "label": "alta" if verified else "media" if payload["claves"] else "baja",
+            },
+            completeness=completeness,
+            verified=verified,
+        )
+        return payload
 
 
 @router.get(
@@ -442,22 +613,64 @@ async def get_modelo_claves(
     summary="Instrucciones de un modelo",
 )
 async def get_modelo_instrucciones(
+    request: Request,
     codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     """Lista las instrucciones de un modelo para una campaña."""
     with db_session() as db:
+        model_row = get_model_row(db, codigo)
+        if not model_row:
+            raise HTTPException(
+                status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
+            )
+
         camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
-            return {"codigo": codigo, "instrucciones": []}
+            payload = {"codigo": codigo, "instrucciones": []}
+            completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+            _record_modelo_query_audit(
+                request,
+                path=f"/v1/modelos/{codigo}/instrucciones",
+                query_text=codigo,
+                tool_name="get_modelo_instrucciones",
+                retrieved_chunks=[],
+                response_summary="instrucciones=0",
+                confidence={"score": 0.0, "label": "baja"},
+                completeness=completeness,
+                verified=verified,
+            )
+            return payload
 
         campana_id = camp_row["id"]
         rows = list_campaign_instructions(db, campana_id)
 
-        return {
+        payload = {
             "codigo": codigo,
             "instrucciones": [dict(r) for r in rows],
         }
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+        _record_modelo_query_audit(
+            request,
+            path=f"/v1/modelos/{codigo}/instrucciones",
+            query_text=codigo,
+            tool_name="get_modelo_instrucciones",
+            retrieved_chunks=[
+                {
+                    "title": item["titulo"],
+                    "content_preview": item["contenido"][:220],
+                }
+                for item in payload["instrucciones"]
+            ],
+            response_summary=f"instrucciones={len(payload['instrucciones'])}",
+            confidence={
+                "score": 0.9 if verified else 0.5 if payload["instrucciones"] else 0.0,
+                "label": "alta" if verified else "media" if payload["instrucciones"] else "baja",
+            },
+            completeness=completeness,
+            verified=verified,
+        )
+        return payload
 
 
 @router.get("/{codigo}/normativa", operation_id="get_modelo_normativa")
@@ -537,6 +750,7 @@ async def get_campana_operativa_modelo(
     openapi_extra={"x-beta": True},
 )
 async def get_modelo_fuentes_oficiales(
+    request: Request,
     codigo: str, campana: str = Query(None, description="Campana especifica")
 ):
     with db_session() as db:
@@ -545,4 +759,23 @@ async def get_modelo_fuentes_oficiales(
             raise HTTPException(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+        _record_modelo_query_audit(
+            request,
+            path=f"/v1/modelos/{codigo}/fuentes-oficiales",
+            query_text=codigo,
+            tool_name="get_modelo_fuentes_oficiales",
+            retrieved_chunks=[
+                {
+                    "title": item["titulo"],
+                    "source_url": item["url"],
+                    "referencia": item.get("boe_id"),
+                }
+                for item in payload.get("fuentes_oficiales", [])
+            ],
+            response_summary=f"fuentes_oficiales={len(payload.get('fuentes_oficiales', []))}",
+            confidence={"score": 0.9 if verified else 0.5, "label": "alta" if verified else "media"},
+            completeness=completeness,
+            verified=verified,
+        )
         return payload
