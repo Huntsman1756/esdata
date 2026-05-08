@@ -151,6 +151,30 @@ services:
     tmpfs:
       - /tmp
 
+  worker-boe-modelos:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BOE_MODELOS_SYNC_INTERVAL: ${BOE_MODELOS_SYNC_INTERVAL:-86400}
+      WORKER_CMD: python boe_modelos_worker.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
   worker-dgt:
     build:
       context: ../..
@@ -547,6 +571,24 @@ services:
       WORKER_NAME: cron-modelos-daily
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_MODELOS_DAILY:-}
       WORKER_CMD: python aeat_models.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
+  cron-boe-modelos-daily:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BOE_MODELOS_SYNC_INTERVAL: ${BOE_MODELOS_SYNC_INTERVAL:-86400}
+      WORKER_CMD: python boe_modelos_worker.py --run-once
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
