@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 import sys
 import urllib.error
@@ -26,6 +27,10 @@ def _build_ping_url(status: str) -> str | None:
     return f"{base_url}/{status}"
 
 
+def _parse_worker_cmd(worker_cmd: str) -> list[str]:
+    return shlex.split(worker_cmd)
+
+
 def main() -> int:
     worker_cmd = os.getenv("WORKER_CMD", "").strip()
     if not worker_cmd:
@@ -33,7 +38,7 @@ def main() -> int:
         return 2
 
     _ping_healthchecks(_build_ping_url("start"))
-    completed = subprocess.run(worker_cmd, shell=True)
+    completed = subprocess.run(_parse_worker_cmd(worker_cmd), shell=False)
 
     if completed.returncode == 0:
         _ping_healthchecks(_build_ping_url("success"))

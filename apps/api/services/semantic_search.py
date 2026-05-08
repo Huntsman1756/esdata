@@ -10,10 +10,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from db import db_session
 from sqlalchemy import text
 
-from db import db_session
-from services.search import _build_common_filters, _build_fragment, _build_tsquery_sql, _chunk_rank_boost, _is_postgres
+from services.search import _build_fragment, _build_tsquery_sql, _is_postgres
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ def _get_embedding_model():
     """Lazy-load embedding model from workers package."""
     try:
         from apps.workers.embeddings import embed_single
+
         return embed_single
     except ImportError:
         logger.warning("Embeddings not available — hybrid search falls back to fulltext")
@@ -72,17 +73,13 @@ def _hybrid_pg(
     vec_weight = hybrid_weight
 
     # Step 1: Fulltext search
-    ft_results = _fulltext_rank_pg(
-        db, q, norma, fuente, ambito, tipo, vigente_en, limit * 2
-    )
+    ft_results = _fulltext_rank_pg(db, q, norma, fuente, ambito, tipo, vigente_en, limit * 2)
 
     # Step 2: Vector search (if available)
     vec_results: list[dict[str, Any]] = []
     embed_fn = embed_single
     if embed_fn and hybrid_weight > 0:
-        vec_results = _vector_rank_pg(
-            db, q, norma, fuente, ambito, tipo, vigente_en, limit * 2
-        )
+        vec_results = _vector_rank_pg(db, q, norma, fuente, ambito, tipo, vigente_en, limit * 2)
 
     # Step 3: RRF fusion
     fused = _rrf_fuse(ft_results, vec_results, ft_weight, vec_weight, limit)
@@ -90,23 +87,21 @@ def _hybrid_pg(
     return {
         "q": q,
         "resultados": fused,
-        "search_mode": "hybrid" if hybrid_weight > 0 and hybrid_weight < 1.0 else (
-            "vector" if hybrid_weight >= 1.0 else "fulltext"
-        ),
+        "search_mode": "hybrid"
+        if hybrid_weight > 0 and hybrid_weight < 1.0
+        else ("vector" if hybrid_weight >= 1.0 else "fulltext"),
         "weights": {"fulltext": round(ft_weight, 2), "vector": round(vec_weight, 2)},
     }
 
 
-def _fulltext_rank_pg(
-    db, q: str, norma, fuente, ambito, tipo, vigente_en, limit: int
-) -> list[dict[str, Any]]:
+def _fulltext_rank_pg(db, q: str, norma, fuente, ambito, tipo, vigente_en, limit: int) -> list[dict[str, Any]]:
     """Run fulltext search reusing _search_legislacion_pg from search.py."""
     from services.search import _search_legislacion_pg
-    
+
     # _search_legislacion_pg returns {"q": ..., "resultados": [...]}
     resp = _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en)
     results = resp.get("resultados", []) if isinstance(resp, dict) else resp
-    
+
     # Transform results to hybrid format: add source and doc_id
     for r in results:
         r["source"] = "fulltext"
@@ -115,13 +110,25 @@ def _fulltext_rank_pg(
         # Ensure chunk_texto exists
         if "chunk_texto" not in r:
             r["chunk_texto"] = r.get("texto", "")
-    
+
     return results[:limit]
 
 
-def _vector_rank_pg(
-    db, q: str, norma, fuente, ambito, tipo, vigente_en, limit: int
-) -> list[dict[str, Any]]:
+def _hybrid_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en, limit) -> dict[str, Any]:
+    """SQLite fallback: fulltext only (no vector support)."""
+    from services.search import _search_legislacion_sqlite
+
+    result = _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en)
+    return {
+        "q": q,
+        "resultados": result.get("resultados", [])[:limit],
+        "search_mode": "fulltext",
+        "weights": {"fulltext": 1.0, "vector": 0.0},
+        "note": "SQLite does not support vector search",
+    }
+
+
+def _vector_rank_pg(db, q: str, norma, fuente, ambito, tipo, vigente_en, limit: int) -> list[dict[str, Any]]:
     """Run vector similarity search and return ranked results."""
     from apps.workers.embeddings import embed_texts
 
@@ -132,7 +139,7 @@ def _vector_rank_pg(
 
     query_vec_str = ",".join(f"{v:.6f}" for v in query_vec[0])
 
-    params: dict = {"query_vec": f"[{query_vec_str}]", "limit": limit}
+    params: dict = {"query_vec": f"[{query_vec_str}]", "limit": limit, "vigente_en": vigente_en}
 
     if norma is not None:
         params["norma"] = norma
@@ -183,6 +190,10 @@ def _vector_rank_pg(
               FROM version_articulo v2
               JOIN articulo a2 ON a2.id = v2.articulo_id
               WHERE a2.id = cf.documento_origen_id
+                AND (:vigente_en IS NULL OR (
+                    v2.vigente_desde <= :vigente_en
+                    AND (v2.vigente_hasta IS NULL OR v2.vigente_hasta >= :vigente_en)
+                ))
           )
         ORDER BY cf.documento_origen_id, similarity DESC
         LIMIT :limit
@@ -199,26 +210,28 @@ def _vector_rank_pg(
         chunk_texto = row.get("chunk_texto")
         fragmento = _build_fragment(chunk_texto, q) if chunk_texto else None
 
-        results.append({
-            "doc_id": row["doc_id"],
-            "tipo": row["tipo"],
-            "norma": row["codigo"],
-            "numero": row["numero"],
-            "texto": row["texto"],
-            "fragmento": fragmento or _build_fragment(row["texto"], q),
-            "vigente_desde": str(row["vigente_desde"]),
-            "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
-            "rank": round(sim, 4) if sim is not None else None,
-            "chunk_texto": chunk_texto,
-            "chunk_id": row.get("chunk_id"),
-            "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
-            "source_url": (
-                f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
-                if row.get("boe_id")
-                else row.get("eli_uri")
-            ),
-            "source": "vector",
-        })
+        results.append(
+            {
+                "doc_id": row["doc_id"],
+                "tipo": row["tipo"],
+                "norma": row["codigo"],
+                "numero": row["numero"],
+                "texto": row["texto"],
+                "fragmento": fragmento or _build_fragment(row["texto"], q),
+                "vigente_desde": str(row["vigente_desde"]),
+                "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+                "rank": round(sim, 4) if sim is not None else None,
+                "chunk_texto": chunk_texto,
+                "chunk_id": row.get("chunk_id"),
+                "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
+                "source_url": (
+                    f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
+                    if row.get("boe_id")
+                    else row.get("eli_uri")
+                ),
+                "source": "vector",
+            }
+        )
 
     return results
 
@@ -330,21 +343,20 @@ def _hybrid_doctrina_pg(
     return {
         "q": q,
         "resultados": fused,
-        "search_mode": "hybrid" if hybrid_weight > 0 and hybrid_weight < 1.0 else (
-            "vector" if hybrid_weight >= 1.0 else "fulltext"
-        ),
+        "search_mode": "hybrid"
+        if hybrid_weight > 0 and hybrid_weight < 1.0
+        else ("vector" if hybrid_weight >= 1.0 else "fulltext"),
         "weights": {"fulltext": round(ft_weight, 2), "vector": round(vec_weight, 2)},
     }
 
 
-def _doctrina_fulltext_pg(
-    db, q: str, tipo, desde, organismo_emisor, limit: int
-) -> list[dict[str, Any]]:
+def _doctrina_fulltext_pg(db, q: str, tipo, desde, organismo_emisor, limit: int) -> list[dict[str, Any]]:
     """Fulltext search over documento_interpretativo with ts_rank."""
     params: dict = {}
 
     if q and q.strip():
-        tsquery = _build_tsquery_sql(q)
+        tsquery, tsquery_params = _build_tsquery_sql(q)
+        params.update(tsquery_params)
         if tsquery:
             search_filter = "d.search_vector @@ " + tsquery
             rank_expr = "ts_rank(d.search_vector, " + tsquery + ")"
@@ -404,32 +416,32 @@ def _doctrina_fulltext_pg(
             chunk_rank = float(chunk_rank)
 
         texto = row["texto"] or ""
-        fragmento = _build_fragment(texto, q) if texto and chunk_rank else (
-            texto[:220] + ("..." if len(texto) > 220 else "")
+        fragmento = (
+            _build_fragment(texto, q) if texto and chunk_rank else (texto[:220] + ("..." if len(texto) > 220 else ""))
         )
 
-        results.append({
-            "doc_id": row["id"],
-            "referencia": row["referencia"],
-            "tipo_documento": row["tipo_documento"],
-            "organismo_emisor": row["organismo_emisor"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "fragmento": fragmento or "",
-            "nivel_enlace": float(row["nivel_enlace"] or 0),
-            "norma": row["norma"],
-            "numero": row["numero"],
-            "rank": round(chunk_rank, 4) if chunk_rank else None,
-            "source_url": row.get("url_fuente"),
-            "source": "fulltext",
-        })
+        results.append(
+            {
+                "doc_id": row["id"],
+                "referencia": row["referencia"],
+                "tipo_documento": row["tipo_documento"],
+                "organismo_emisor": row["organismo_emisor"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "fragmento": fragmento or "",
+                "nivel_enlace": float(row["nivel_enlace"] or 0),
+                "norma": row["norma"],
+                "numero": row["numero"],
+                "rank": round(chunk_rank, 4) if chunk_rank else None,
+                "source_url": row.get("url_fuente"),
+                "source": "fulltext",
+            }
+        )
 
     return results
 
 
-def _doctrina_vector_pg(
-    db, q: str, tipo, desde, organismo_emisor, limit: int
-) -> list[dict[str, Any]]:
+def _doctrina_vector_pg(db, q: str, tipo, desde, organismo_emisor, limit: int) -> list[dict[str, Any]]:
     """Vector similarity search over documento_interpretativo."""
     from apps.workers.embeddings import embed_texts
 
@@ -488,25 +500,25 @@ def _doctrina_vector_pg(
             sim = float(sim)
 
         texto = row["texto"] or ""
-        fragmento = _build_fragment(texto, q) if sim and texto else (
-            texto[:220] + ("..." if len(texto) > 220 else "")
-        )
+        fragmento = _build_fragment(texto, q) if sim and texto else (texto[:220] + ("..." if len(texto) > 220 else ""))
 
-        results.append({
-            "doc_id": row["id"],
-            "referencia": row["referencia"],
-            "tipo_documento": row["tipo_documento"],
-            "organismo_emisor": row["organismo_emisor"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "fragmento": fragmento or "",
-            "nivel_enlace": float(row["nivel_enlace"] or 0),
-            "norma": row["norma"],
-            "numero": row["numero"],
-            "rank": round(sim, 4) if sim is not None else None,
-            "source_url": row.get("url_fuente"),
-            "source": "vector",
-        })
+        results.append(
+            {
+                "doc_id": row["id"],
+                "referencia": row["referencia"],
+                "tipo_documento": row["tipo_documento"],
+                "organismo_emisor": row["organismo_emisor"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "fragmento": fragmento or "",
+                "nivel_enlace": float(row["nivel_enlace"] or 0),
+                "norma": row["norma"],
+                "numero": row["numero"],
+                "rank": round(sim, 4) if sim is not None else None,
+                "source_url": row.get("url_fuente"),
+                "source": "vector",
+            }
+        )
 
     return results
 
@@ -570,11 +582,10 @@ def _rrf_fuse_doctrina(
     return results
 
 
-def _hybrid_doctrina_sqlite(
-    db, q, tipo, desde, organismo_emisor, limit
-) -> dict[str, Any]:
+def _hybrid_doctrina_sqlite(db, q, tipo, desde, organismo_emisor, limit) -> dict[str, Any]:
     """SQLite fallback: fulltext only (no vector support)."""
     from routers.doctrina import _buscar_doctrina_sqlite
+
     result = _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor)
     return {
         "q": q,

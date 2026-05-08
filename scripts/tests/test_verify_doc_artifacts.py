@@ -5,7 +5,6 @@ import shutil
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parents[1] / "maintenance" / "verify-doc-artifacts.py"
 SPEC = importlib.util.spec_from_file_location("verify_doc_artifacts", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -15,6 +14,11 @@ SPEC.loader.exec_module(MODULE)
 
 
 TEST_TMP_ROOT = Path(__file__).resolve().parent / ".tmp_verify_doc_artifacts"
+
+
+def teardown_module():
+    if TEST_TMP_ROOT.exists():
+        shutil.rmtree(TEST_TMP_ROOT)
 
 
 def _reset_tmp_dir() -> Path:
@@ -203,3 +207,56 @@ def test_find_forbidden_env_files_flags_nested_and_root_runtime_env_files():
         ".env",
         "apps/api/.env",
     ]
+
+
+def test_run_security_only_skips_artifact_and_reference_checks():
+    tmp_dir = _reset_tmp_dir()
+    env_file = tmp_dir / ".env.example"
+    env_file.write_text("ESDATA_API_KEY=test\n", encoding="utf-8")
+    docs_file = tmp_dir / "environment-variables.md"
+    docs_file.write_text("| Variable |\n|---|\n| `ESDATA_API_KEY` |\n", encoding="utf-8")
+
+    def fail_full_docs_check(*_args, **_kwargs):
+        raise AssertionError("security-only mode must not run full docs artifact checks")
+
+    original_root = MODULE.ROOT
+    original_env_example = MODULE.ENV_EXAMPLE
+    original_env_doc = MODULE.ENV_DOC
+    original_verify_artifact = MODULE.verify_artifact
+    original_verify_reference = MODULE.verify_reference
+    try:
+        MODULE.ROOT = tmp_dir
+        MODULE.ENV_EXAMPLE = env_file
+        MODULE.ENV_DOC = docs_file
+        MODULE.verify_artifact = fail_full_docs_check
+        MODULE.verify_reference = fail_full_docs_check
+
+        assert MODULE.run_security_only() == []
+    finally:
+        MODULE.ROOT = original_root
+        MODULE.ENV_EXAMPLE = original_env_example
+        MODULE.ENV_DOC = original_env_doc
+        MODULE.verify_artifact = original_verify_artifact
+        MODULE.verify_reference = original_verify_reference
+
+
+def test_main_security_only_uses_lightweight_checks(capsys):
+    original_run = MODULE.run
+    original_run_security_only = getattr(MODULE, "run_security_only", None)
+
+    def fail_full_run():
+        raise AssertionError("security-only mode must not call full run")
+
+    try:
+        MODULE.run = fail_full_run
+        MODULE.run_security_only = lambda: []
+
+        assert MODULE.main(["--security-only"]) == 0
+    finally:
+        MODULE.run = original_run
+        if original_run_security_only is None:
+            delattr(MODULE, "run_security_only")
+        else:
+            MODULE.run_security_only = original_run_security_only
+
+    assert "docs artifacts verified" in capsys.readouterr().out

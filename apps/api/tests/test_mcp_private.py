@@ -8,14 +8,13 @@ from pathlib import Path
 
 import pytest
 import requests
-from httpx import ASGITransport, AsyncClient
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from main import app
 from mcp_security import reset_mcp_rate_limit_state
-
 
 API_DIR = Path(__file__).resolve().parents[1]
 
@@ -105,6 +104,9 @@ async def test_mcp_catalog_exposes_expected_core_http_operations():
     assert "buscar_doctrina" in operation_names
     assert "list_modelos" in operation_names
     assert "get_modelo_fuentes_oficiales" in operation_names
+    assert "list_calendario_fiscal" in operation_names
+    assert "get_proximo_vencimiento" in operation_names
+    assert "get_calendario_modelo" in operation_names
 
 
 @pytest.mark.asyncio

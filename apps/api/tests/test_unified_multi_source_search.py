@@ -33,6 +33,7 @@ from services.unified_multi_source_search import (
 # Text builder tests
 # ---------------------------------------------------------------------------
 
+
 class TestTextBuilders:
     """Test that search text builders correctly assemble fields."""
 
@@ -126,6 +127,7 @@ class TestTextBuilders:
 # RRF fusion tests
 # ---------------------------------------------------------------------------
 
+
 class TestRRFFusion:
     """Test RRF fusion across multiple sources."""
 
@@ -163,10 +165,7 @@ class TestRRFFusion:
 
     def test_rrf_fuse_limit(self):
         source_results = {
-            "pgc": [
-                {"source_id": i, "rrf_ft_rank": i, "source_type": "pgc"}
-                for i in range(1, 11)
-            ],
+            "pgc": [{"source_id": i, "rrf_ft_rank": i, "source_type": "pgc"} for i in range(1, 11)],
         }
         fused = _rrf_fuse_multi(source_results, ft_weight=1.0, vec_weight=0.0, limit=5)
         assert len(fused) == 5
@@ -193,6 +192,7 @@ class TestRRFFusion:
 # Unified multi-source search tests
 # ---------------------------------------------------------------------------
 
+
 class TestUnifiedMultiSourceSearch:
     """Integration-style tests for unified_multi_source_search."""
 
@@ -206,9 +206,7 @@ class TestUnifiedMultiSourceSearch:
 
     def test_unified_search_all_sources(self):
         """Test search with all sources (default)."""
-        with patch(
-            "services.unified_multi_source_search.unified_multi_source_search"
-        ):
+        with patch("services.unified_multi_source_search.unified_multi_source_search"):
             # This tests the function exists and is callable
             # Full integration requires DB which is complex to mock
             pass
@@ -243,6 +241,7 @@ class TestUnifiedMultiSourceSearch:
         assert unified_multi_source_search.__doc__ is not None
         # Verify the function signature
         import inspect
+
         sig = inspect.signature(unified_multi_source_search)
         params = list(sig.parameters.keys())
         assert "q" in params
@@ -263,6 +262,7 @@ class TestUnifiedMultiSourceSearch:
             _search_pgc_source,
             _search_screening_source,
         )
+
         assert callable(_search_legislacion_source)
         assert callable(_search_doctrina_source)
         assert callable(_search_pgc_source)
@@ -338,6 +338,7 @@ class TestUnifiedMultiSourceSearch:
 # PGC fulltext tests
 # ---------------------------------------------------------------------------
 
+
 class TestPGCFulltext:
     """Tests for PGC fulltext search logic."""
 
@@ -368,6 +369,7 @@ class TestPGCFulltext:
 # ---------------------------------------------------------------------------
 # Screening text builder with JSON parsing
 # ---------------------------------------------------------------------------
+
 
 class TestScreeningTextBuilder:
     """Tests for screening entry text builder with JSON fields."""
@@ -426,6 +428,7 @@ class TestScreeningTextBuilder:
 # ---------------------------------------------------------------------------
 # Fase 31.x regulatory domain search tests
 # ---------------------------------------------------------------------------
+
 
 class Test31xSearchHandlers:
     """Tests for the 4 Fase 31.x source handlers (mica, dac, pbc, fraud)."""
@@ -498,6 +501,22 @@ class Test31xSearchHandlers:
         results = _31x_fulltext(mock_db, "", "mica", 10)
         assert results == []
 
+    def test_31x_fulltext_filters_requested_source_and_uses_valid_alias(self):
+        mock_db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.mappings().fetchall.return_value = []
+        mock_db.execute.return_value = mock_cursor
+
+        _31x_fulltext(mock_db, "casp crypto", "mica", 10)
+
+        sql = str(mock_db.execute.call_args.args[0])
+        params = mock_db.execute.call_args.args[1]
+        assert "LOWER(df.texto)" in sql
+        assert "LOWER(t.texto)" not in sql
+        assert ":_31x_ts_query" in sql
+        assert params["source_type"] == "mica"
+        assert params["_31x_ts_query"] == "casp crypto"
+
     def test_31x_vector_no_embed_fn(self):
         mock_db = MagicMock()
         results = _31x_vector(mock_db, "test", "mica", None, 10)
@@ -508,11 +527,25 @@ class Test31xSearchHandlers:
         results = _31x_vector(mock_db, "test", "mica", lambda q: None, 10)
         assert results == []
 
+    def test_31x_vector_filters_requested_source(self):
+        mock_db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.mappings().fetchall.return_value = []
+        mock_db.execute.return_value = mock_cursor
+
+        _31x_vector(mock_db, "test", "dac", lambda q: [0.1, 0.2], 10)
+
+        sql = str(mock_db.execute.call_args.args[0])
+        params = mock_db.execute.call_args.args[1]
+        assert ":source_type" in sql
+        assert params["source_type"] == "dac"
+
     def test_31x_source_type_dispatch(self):
         """Verify all 9 31.x source types are in the dispatch map."""
         from services.unified_multi_source_search import (
             _search_31x_source,
         )
+
         assert callable(_search_31x_source)
 
     def test_31x_source_in_default_sources(self):
@@ -520,10 +553,12 @@ class Test31xSearchHandlers:
         from services.unified_multi_source_search import (
             _search_31x_source,
         )
+
         # The dispatch map is built inside the function, verify the handler exists
         assert callable(_search_31x_source)
         # Verify it handles all 9 domains by checking the source table map
         from services.unified_multi_source_search import _31x_SOURCE_TABLES
+
         for domain in ("mica", "dac", "pbc", "fraud", "mifid", "mar", "dora", "priips", "transparency"):
             assert domain in _31x_SOURCE_TABLES
 

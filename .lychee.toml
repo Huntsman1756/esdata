@@ -1,0 +1,9 @@
+accept = [200, 206, 429]
+exclude = [
+  "^https?://",
+  "^mailto:",
+]
+exclude_path = [
+  "docs/archive/.*",
+  "docs/superpowers/.*",
+]

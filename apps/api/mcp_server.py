@@ -1,9 +1,7 @@
 import httpx
 from fastapi_mcp import FastApiMCP
-
-from mcp_request_context import get_mcp_request_id, get_mcp_user_id, mcp_internal_request
-
 from mcp_catalog import HTTP_MCP_OPERATIONS
+from mcp_request_context import get_mcp_request_id, get_mcp_user_id, mcp_internal_request
 
 
 def mount_mcp(app) -> None:
@@ -26,8 +24,8 @@ def mount_mcp(app) -> None:
             base_url="http://apiserver",
             timeout=10.0,
         ),
-        include_operations=HTTP_MCP_OPERATIONS,
         headers=["authorization", "x-request-id", "x-user-id"],
+        include_operations=HTTP_MCP_OPERATIONS,
     )
     mcp.mount_http(mount_path="/mcp")
     app.state._mcp = mcp

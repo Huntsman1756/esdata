@@ -118,6 +118,17 @@ docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U esd
   "SELECT worker, started_at, finished_at, documentos_processed, documentos_upserted, rows_processed, errors, left(coalesce(error_msg,''), 220) AS error_excerpt FROM sync_log WHERE worker='modelos' ORDER BY started_at DESC LIMIT 5;"
 ```
 
+## Workers de datos reales añadidos
+
+Estos workers complementan seeds y workers base con ingestion desde fuentes oficiales
+cuando existe una fuente estable y verificable:
+
+| Worker | Fuente primaria | Uso operativo |
+|--------|-----------------|---------------|
+| `consumer_credit_real` | EUR-Lex | Directivas y reglamentos de credito al consumo |
+| `dac8_real` | EUR-Lex | DAC8/DAC9 y asistencia administrativa fiscal |
+| `pgc_real` | BOE | Plan General Contable desde reales decretos BOE |
+
 ## Workers de parsing PDF (BORME, CNMV, AEPD, BDE)
 
 ### Fallos comunes

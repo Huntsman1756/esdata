@@ -233,6 +233,18 @@
               "title": "Organismo Emisor"
             },
             "description": "Filtrar por organismo (DGT, TEAC, etc.)"
+          },
+          {
+            "name": "include_boe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluir normas BOE relacionadas cuando apliquen",
+              "default": true,
+              "title": "Include Boe"
+            },
+            "description": "Incluir normas BOE relacionadas cuando apliquen"
           }
         ],
         "responses": {
@@ -630,37 +642,37 @@
           "norma": {
             "type": "string",
             "title": "Norma",
-            "description": "Código de la norma"
+            "description": "Código de la norma verificada para el enlace visible"
           },
           "numero": {
             "type": "string",
             "title": "Numero",
-            "description": "Número del artículo"
+            "description": "Número del artículo verificado para el enlace visible"
           },
           "titulo": {
             "type": "string",
             "title": "Titulo",
-            "description": "Título del artículo"
+            "description": "Título del artículo visible enlazado de forma verificada"
           },
           "casilla": {
             "type": "string",
             "title": "Casilla",
-            "description": "Casilla asociada"
+            "description": "Casilla asociada al enlace verificado visible"
           },
           "nota": {
             "type": "string",
             "title": "Nota",
-            "description": "Nota explicativa"
+            "description": "Nota explicativa del enlace verificado visible"
           },
           "fuente": {
             "type": "string",
             "title": "Fuente",
-            "description": "Fuente del enlace"
+            "description": "Fuente oficial usada para verificar el enlace visible"
           },
           "url_fuente": {
             "type": "string",
             "title": "Url Fuente",
-            "description": "URL de la fuente"
+            "description": "URL oficial que respalda el enlace visible"
           }
         },
         "type": "object",
@@ -848,13 +860,25 @@
             "type": "array",
             "title": "Doctrina Relacionada",
             "description": "Doctrina relacionada vía artículos"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "Estado de completitud: completa o parcial"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Si la respuesta queda verificada con base suficiente"
           }
         },
         "type": "object",
         "required": [
           "codigo",
           "nombre",
-          "impuesto"
+          "impuesto",
+          "completeness",
+          "verified"
         ],
         "title": "ModeloDetail"
       },

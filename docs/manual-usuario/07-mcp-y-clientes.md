@@ -95,7 +95,7 @@ La API normal encaja mejor cuando:
 
 No tratar `MCP` como una superficie publica abierta por defecto.
 
-No tratar tampoco la respuesta del MCP como verdad autosuficiente; verifica siempre contra la fuente oficial citada.
+No tratar tampoco la respuesta del MCP como verdad autosuficiente; verifica siempre
+contra la fuente oficial citada.
 
 En despliegues protegidos, `HTTP MCP` puede requerir API key y controles perimetrales adicionales.
-

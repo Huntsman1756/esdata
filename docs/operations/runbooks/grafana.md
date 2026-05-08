@@ -58,7 +58,7 @@ grafana-cli admin reset-admin-password nueva_password
 docker compose --env-file infra/deploy/compose.env.example \
   -f infra/deploy/docker-compose.prod.yml exec grafana \
   sh -c "sqlite3 /var/lib/grafana/grafana.db \
-    \"UPDATE user SET password = '$2a$10$...', salt = '' WHERE login = 'admin';\""
+    \"UPDATE user SET password = :bcrypt_hash, salt = '' WHERE login = 'admin';\""
 ```
 
 La contraseña se puede cambiar desde la UI en **Administration → Users → Admin** si se tiene acceso.

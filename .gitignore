@@ -59,6 +59,7 @@ scripts/baseline.json
 scripts/golden_analysis_results.json
 scripts/eval_results/
 scripts/telemetry/
+scripts/tests/.tmp_*/
 
 # Local test databases
 *.db
