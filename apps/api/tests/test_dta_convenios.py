@@ -1,16 +1,16 @@
 """Tests for DTA Conventions & Withholding Rules router (Fase 25.8)."""
 
+import importlib
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-from main import app
+app = importlib.import_module("main").app
 
 client = TestClient(app)
 

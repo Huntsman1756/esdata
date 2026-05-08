@@ -312,7 +312,7 @@ async def calcular_retencion(req: IrsFiscalCheckRequest):
         # 3. Determinar formulario W-8 recomendado
         requiere_w8 = True
         if req.entidad_giin:
-            giin_row = db.execute(
+            db.execute(
                 text(
                     """
                     SELECT id, giin, tipo_entidad
@@ -323,14 +323,7 @@ async def calcular_retencion(req: IrsFiscalCheckRequest):
                 ),
                 {"giin": req.entidad_giin},
             ).mappings().first()
-
-            if giin_row:
-                if giin_row["tipo_entidad"] == "NFFE":
-                    formulario_recomendado = "W-8BEN-E"
-                else:
-                    formulario_recomendado = "W-8BEN-E"
-            else:
-                formulario_recomendado = "W-8BEN-E"
+            formulario_recomendado = "W-8BEN-E"
         else:
             formulario_recomendado = "W-8BEN"
 
