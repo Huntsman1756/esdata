@@ -987,6 +987,134 @@ class MCPStdioServer:
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_crd_capital_positions: {e!s}")
         elif tool_name == "get_crd_capital_position":
+        # ── DTA / Convenios Doble Imposición ──
+        elif tool_name == "listar_convenios_dta_internacional":
+            try:
+                pais_a = arguments.get("pais_a")
+                pais_b = arguments.get("pais_b")
+                estado = arguments.get("estado", "vigente")
+                tipo_acuerdo = arguments.get("tipo_acuerdo")
+                result = await self._call_endpoint(
+                    "GET", "/v1/internacional/convenios",
+                    params={
+                        "pais_a": pais_a,
+                        "pais_b": pais_b,
+                        "estado": estado,
+                        "tipo_acuerdo": tipo_acuerdo,
+                    },
+                )
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
+                    convenios = data.get("convenios", [])
+                    lines = [f"Convenios DTA: {len(convenios)} resultados (total: {data.get('total', len(convenios))})"]
+                    for c in convenios[:50]:
+                        firma = c.get("fecha_firma", "")
+                        vigencia = c.get("fecha_vigencia", "")
+                        lines.append(f"  [{c.get('codigo', '')}] {c.get('pais_origen', '')} — {c.get('fecha_vigencia', '').strftime('%Y') if hasattr(c.get('fecha_vigencia', ''), 'strftime') else c.get('fecha_vigencia', '')} | estado: {c.get('estado', '')}")
+                    lines.append(f"\n... (mostrando {min(50, len(convenios))} de {len(convenios)})")
+                    lines.append(f"\nPara detalle de un convenio: usar detalle_convenio_dta_internacional con codigo='{convenios[0].get('codigo', '') if convenios else 'N/A'}'")
+                    output = "\n".join(lines)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing listar_convenios_dta_internacional: {e!s}")
+        elif tool_name == "detalle_convenio_dta_internacional":
+            try:
+                codigo = arguments.get("codigo", "")
+                result = await self._call_endpoint("GET", f"/v1/internacional/convenios/{codigo}")
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
+                    lines = [
+                        f"Convenio DTA: {data.get('pais_origen', '')} — España",
+                        f"  Codigo: {data.get('codigo', '')}",
+                        f"  Fecha firma: {data.get('fecha_firma', '')}",
+                        f"  Fecha vigencia: {data.get('fecha_vigencia', '')}",
+                        f"  Estado: {data.get('estado', '')}",
+                        f"  Tipo: {data.get('tipo_acuerdo', '')}",
+                        f"  BOE ref: {data.get('boe_referencia', 'N/A')}",
+                        f"  Articulos: {json.dumps(data.get('articulos', {}), ensure_ascii=False)[:500]}",
+                        f"  Texto completo: {data.get('texto_completo', 'N/A')[:1000]}",
+                    ]
+                    output = "\n".join(lines)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing detalle_convenio_dta_internacional: {e!s}")
+        elif tool_name == "listar_reglas_retencion_internacional":
+            try:
+                tipo_renta = arguments.get("tipo_renta")
+                pais = arguments.get("pais")
+                estado = arguments.get("estado", "activo")
+                result = await self._call_endpoint(
+                    "GET", "/v1/internacional/convenios/retenciones",
+                    params={
+                        "tipo_renta": tipo_renta,
+                        "pais": pais,
+                        "estado": estado,
+                    },
+                )
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
+                    reglas = data.get("reglas", [])
+                    lines = [f"Reglas retencion internacional: {len(reglas)} resultados"]
+                    for r in reglas[:30]:
+                        lines.append(f"  [{r.get('codigo', '')}] {r.get('tipo_renta_espanol', r.get('tipo_renta', ''))} — Pais {r.get('pais_aplicable', 'N/A')} | Default: {r.get('tipo_retencion_default','')}% | DTA: {r.get('tipo_retencion_dta','')}%")
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": "\n".join(lines)}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing listar_reglas_retencion_internacional: {e!s}")
+        elif tool_name == "calcular_retencion":
+            try:
+                tipo_renta = arguments.get("tipo_renta", "")
+                pais_residencia = arguments.get("pais_residencia", "")
+                entidad_giin = arguments.get("entidad_giin")
+                result = await self._call_endpoint(
+                    "POST", "/v1/internacional/convenios/retencion",
+                    json={
+                        "tipo_renta": tipo_renta,
+                        "pais_residencia": pais_residencia,
+                        "entidad_giin": entidad_giin,
+                    },
+                )
+                status_code = result["status_code"]
+                data = result["data"] or {}
+                if status_code == 200:
+                    lines = [
+                        f"Calculo retencion aplicada:",
+                        f"  Pais residencia: {data.get('pais_residencia', 'N/A')}",
+                        f"  Tipo renta: {data.get('tipo_renta', 'N/A')}",
+                        f"  Retencion aplicable: {data.get('tipo_retencion_aplicable', 'N/A')}%",
+                        f"  Tiene convenio DTA: {data.get('tiene_convenio_dta', False)}",
+                        f"  Convenio: {data.get('codigo_convenio', 'N/A')}",
+                        f"  Requiere W-8: {data.get('requiere_w8', True)}",
+                        f"  Formulario: {data.get('formulario_recomendado', 'N/A')}",
+                        f"  Notas: {data.get('notas', 'N/A')}",
+                    ]
+                    output = "\n".join(lines)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing calcular_retencion: {e!s}")
+        elif tool_name == "list_crd_capital_position":
             try:
                 result = await self._call_endpoint("GET", f"/v1/crd/capital-positions/{arguments.get('item_id')}")
                 status_code = result["status_code"]
