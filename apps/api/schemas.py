@@ -1368,3 +1368,22 @@ class CNMVObligationLinkResponse(BaseModel):
     referencia: str
     obligaciones: list[CNMVObligationLinkItem]
     total: int
+
+
+# ---------------------------------------------------------------------------
+# Ley 13/2023 — Articulo history
+# ---------------------------------------------------------------------------
+
+
+class ArticuloHistoryItem(BaseModel):
+    numero: str = Field(description="Número del artículo")
+    titulo: str | None = Field(default=None, description="Título del artículo")
+    tipo: str = Field(description="Tipo")
+    texto: str = Field(description="Texto de la versión")
+    vigente_desde: str = Field(description="Fecha inicio vigencia")
+    vigente_hasta: str | None = Field(default=None, description="Fecha fin vigencia")
+
+
+class ArticulosHistoryResponse(BaseModel):
+    norma: str = Field(description="Código de la norma")
+    articulos: list[ArticuloHistoryItem]

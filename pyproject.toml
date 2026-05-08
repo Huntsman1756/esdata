@@ -46,6 +46,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+pythonpath = ["apps/api", "apps/workers"]
 markers = [
     "integration: tests that require a real database",
     "smoke: quick health check tests",

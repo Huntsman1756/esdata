@@ -10,10 +10,13 @@ if "DATABASE_URL" not in os.environ:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-DATABASE_URL = os.getenv(
+db_url = os.getenv(
     "DATABASE_URL",
     "sqlite:///./esdata-dev.db",
 )
+if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1).replace("postgres://", "postgresql+psycopg://", 1)
+DATABASE_URL = db_url
 
 engine_kwargs = {"future": True, "pool_pre_ping": True}
 if DATABASE_URL.startswith("sqlite"):
