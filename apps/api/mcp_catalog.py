@@ -31,6 +31,11 @@ HTTP_MCP_OPERATIONS = [
     "get_modelo_campana_operativa",
     "get_modelo_resumen_operativo",
     "get_modelo_fuentes_oficiales",
+    # DTA / Convenios Doble Imposicion
+    "listar_convenios_dta_internacional",
+    "detalle_convenio_dta_internacional",
+    "listar_reglas_retencion_internacional",
+    "calcular_retencion",
 ]
 
 
