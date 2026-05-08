@@ -694,6 +694,32 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  hermes:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ESDATA_API_KEY: ${ESDATA_API_KEY:?ESDATA_API_KEY is required}
+      ESDATA_API_URL: ${ESDATA_API_URL:-http://api:8000}
+      MONITOR_INTERVAL: ${HERMES_MONITOR_INTERVAL:-300}
+      AUTO_RESTART_ENABLED: ${HERMES_AUTO_RESTART_ENABLED:-true}
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    command: python hermes_monitor.py --daemon
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
   backup:
     image: postgres:16-alpine@sha256:1e3604a950df9588c86b955a1e4be0887900210b5c49985ee275c4c2c689cf73
     profiles: ["prod"]
@@ -723,10 +749,10 @@ services:
       - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "test $(ls -1 /backups/*.sql.gz 2>/dev/null | wc -l) -gt 0"]
-      interval: 86400
+      interval: "24h"
       timeout: 10s
       retries: 3
-      start_period: 300s
+      start_period: 5m
 
   ops:
     build:
