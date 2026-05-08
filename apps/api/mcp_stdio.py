@@ -994,14 +994,21 @@ class MCPStdioServer:
                 pais_b = arguments.get("pais_b")
                 estado = arguments.get("estado", "vigente")
                 tipo_acuerdo = arguments.get("tipo_acuerdo")
+                
+                # Build params — only pass non-empty filters
+                params = {}
+                if pais_a:
+                    params["pais_a"] = pais_a
+                if pais_b:
+                    params["pais_b"] = pais_b
+                if estado:
+                    params["estado"] = estado
+                if tipo_acuerdo:
+                    params["tipo_acuerdo"] = tipo_acuerdo
+                
                 result = await self._call_endpoint(
                     "GET", "/v1/internacional/convenios",
-                    params={
-                        "pais_a": pais_a,
-                        "pais_b": pais_b,
-                        "estado": estado,
-                        "tipo_acuerdo": tipo_acuerdo,
-                    },
+                    params=params,
                 )
                 status_code = result["status_code"]
                 data = result["data"] or {}
