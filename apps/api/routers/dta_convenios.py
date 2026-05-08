@@ -111,7 +111,11 @@ async def detalle_regla_retencion(codigo: str):
                 status_code=404, detail=f"Regla de retencion no encontrada: {codigo}"
             )
 
-        return dict(row)
+        d = dict(row)
+        for k in ("fecha_firma", "fecha_vigencia"):
+            if d.get(k) is not None:
+                d[k] = d[k].isoformat()
+        return d
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +168,13 @@ async def listar_convenios_dta(
             params,
         ).mappings()
 
-        convenios = [dict(row) for row in rows]
+        convenios = []
+        for row in rows:
+            d = dict(row)
+            for k in ("fecha_firma", "fecha_vigencia"):
+                if d.get(k) is not None:
+                    d[k] = d[k].isoformat()
+            convenios.append(d)
 
         total = db.execute(
             text(
