@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 
 AEAT_SEDE = "https://sede.agenciatributaria.gob.es"
+AEAT_NORMAS_IMPOSITIVAS = "https://sede.agenciatributaria.gob.es/Sede/normativa-criterios-interpretativos/impuestos-otros-tributos.html"
 
 
 @dataclass
