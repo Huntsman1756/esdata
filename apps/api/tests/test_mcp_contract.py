@@ -3,7 +3,6 @@
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 API_DIR = Path(__file__).resolve().parents[1]
@@ -33,7 +32,7 @@ def test_mcp_transport_preserves_request_id_header():
     with TestClient(app) as client:
         response = client.get(
             "/mcp",
-            headers={"x-api-key": "test-mcp-key", "x-request-id": "req-mcp-contract-001"},
+            headers={"x-api-key": "test-key", "x-request-id": "req-mcp-contract-001"},
         )
 
     assert response.status_code in {401, 406}
@@ -46,7 +45,7 @@ def test_mcp_transport_get_without_explicit_lifespan_does_not_500():
     with TestClient(app) as client:
         response = client.get(
             "/mcp",
-            headers={"x-api-key": "test-mcp-key", "x-request-id": "req-mcp-contract-002"},
+            headers={"x-api-key": "test-key", "x-request-id": "req-mcp-contract-002"},
         )
 
     assert response.status_code in {401, 406}

@@ -86,11 +86,7 @@ def _extract_target_normas_rendimiento(texto: str | None, normativa: str | None)
     ):
         normas.append("IRNR")
     # LIS (sociedades)
-    if (
-        "LEY 27/2014" in source
-        or re.search(r"\bLIS\b", source)
-        or "SOCIEDADES" in source
-    ):
+    if "LEY 27/2014" in source or re.search(r"\bLIS\b", source) or "SOCIEDADES" in source:
         normas.append("LIS")
     # IVA
     if "LEY 37/1992" in source or "LIVA" in source or "IVA" in source:
@@ -152,9 +148,7 @@ def run_sync(
                 if not normas_objetivo:
                     continue
 
-                change = check_content_changed(
-                    conn, worker_name, "documento", document["referencia"], document_html
-                )
+                change = check_content_changed(conn, worker_name, "documento", document["referencia"], document_html)
 
                 if not change.changed and destination_row_exists(
                     conn,
@@ -167,9 +161,7 @@ def run_sync(
 
                 invalidated = invalidate_old_embeddings(conn, document["referencia"])
                 if invalidated:
-                    print(
-                        f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}"
-                    )
+                    print(f"  [INVALIDATE] {invalidated} old embeddings for {document['referencia']}")
 
                 upsert_documento_interpretativo(
                     conn,
@@ -223,12 +215,8 @@ def run_sync(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="DGT Rendimiento worker: sync doctrine on rental income/dividends"
-    )
-    parser.add_argument(
-        "--run-once", action="store_true", help="Run a single sync cycle and exit"
-    )
+    parser = argparse.ArgumentParser(description="DGT Rendimiento worker: sync doctrine on rental income/dividends")
+    parser.add_argument("--run-once", action="store_true", help="Run a single sync cycle and exit")
     parser.add_argument(
         "--interval",
         type=int,
@@ -238,20 +226,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     from runtime import init_sentry
+
     init_sentry("dgt-rendimiento")
 
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 
     if args.run_once:
         result = run_sync(worker_name="cron-dgt-rendimiento-weekly")
-        print(
-            f"[run-once] Documentos procesados: {result['processed']}, almacenados: {result['stored']}"
-        )
+        print(f"[run-once] Documentos procesados: {result['processed']}, almacenados: {result['stored']}")
     else:
         print(f"Starting DGT Rendimiento worker (interval={interval}s)")
         while True:
             result = run_sync()
             print(
-                f"Synced documentos={result['processed']}, almacenados={result['stored']} at {datetime.now().isoformat()}"
+                "Synced "
+                f"documentos={result['processed']}, "
+                f"almacenados={result['stored']} "
+                f"at {datetime.now().isoformat()}"
             )
             time.sleep(interval)

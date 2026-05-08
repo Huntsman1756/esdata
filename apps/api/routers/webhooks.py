@@ -61,6 +61,7 @@ def verify_webhook_endpoint(
             payload = await request.body()
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         async def wrapper(request: Request, *args: Any, **kwargs: Any) -> Any:
             body = await request.body()
@@ -68,7 +69,9 @@ def verify_webhook_endpoint(
             kwargs["request"] = request
             kwargs["_raw_body"] = body
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -76,10 +79,7 @@ def verify_webhook_endpoint(
     "/generic",
     status_code=status.HTTP_200_OK,
     summary="Webhook generico con verificacion + idempotencia",
-    description=(
-        "Endpoint generico que verifica firma HMAC-SHA256 y rechaza eventos duplicados "
-        "por event_id."
-    ),
+    description=("Endpoint generico que verifica firma HMAC-SHA256 y rechaza eventos duplicados por event_id."),
 )
 async def handle_generic_webhook(
     request: Request,
@@ -96,7 +96,7 @@ async def handle_generic_webhook(
     verify_webhook_signature(request, body)
 
     # 2. Verificar idempotencia
-    is_duplicate = await check_idempotency(db, payload.event_id)
+    is_duplicate = check_idempotency(db, payload.event_id)
     if is_duplicate:
         logger.info("Duplicate webhook event: event_id=%s", payload.event_id)
         return JSONResponse(
@@ -110,7 +110,7 @@ async def handle_generic_webhook(
         event_type=payload.event_type,
         payload=payload.payload,
     )
-    await record_webhook_event(db, webhook_event)
+    record_webhook_event(db, webhook_event)
 
     # 4. Procesar evento (aqui va la logica de negocio del webhook)
     logger.info(

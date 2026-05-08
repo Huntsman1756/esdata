@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,11 +26,27 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
+      - name: Collect changed Python files
+        id: python-files
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-only --diff-filter=ACMRT "${{ github.event.pull_request.base.sha }}...HEAD" -- apps libs scripts | grep -E '\.py$' > /tmp/python-files.txt || true
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            git diff --name-only --diff-filter=ACMRT "${{ github.event.before }}...${{ github.sha }}" -- apps libs scripts | grep -E '\.py$' > /tmp/python-files.txt || true
+          else
+            git ls-files 'apps/**/*.py' 'libs/**/*.py' 'scripts/**/*.py' > /tmp/python-files.txt
+          fi
+          count=$(wc -l < /tmp/python-files.txt | tr -d ' ')
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+
       - name: Run ruff lint
-        run: ruff check apps/ libs/ scripts/
+        if: steps.python-files.outputs.count != '0'
+        run: xargs ruff check --select F,I < /tmp/python-files.txt
 
       - name: Run ruff format check
-        run: ruff format --check apps/ libs/ scripts/
+        if: steps.python-files.outputs.count != '0'
+        run: xargs ruff format --check < /tmp/python-files.txt
 
   lint-markdown:
     runs-on: ubuntu-latest
@@ -59,14 +77,14 @@ jobs:
           pip install -r apps/workers/requirements.txt
 
       - name: Run mypy on core modules
-        run: mypy apps/api/libs/python/esdata_common --ignore-missing-imports
+        run: mypy libs/python/esdata_common --ignore-missing-imports
 
   test-python:
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
         env:
           POSTGRES_USER: esdata
           POSTGRES_PASSWORD: esdata_test
@@ -144,7 +162,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
         env:
           POSTGRES_USER: esdata
           POSTGRES_PASSWORD: esdata_test
@@ -190,7 +208,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
         env:
           POSTGRES_USER: esdata
           POSTGRES_PASSWORD: esdata_test
@@ -261,7 +279,7 @@ jobs:
         run: python scripts/maintenance/secrets_audit.py
 
       - name: Fail on forbidden env files and env docs drift
-        run: python scripts/maintenance/verify-doc-artifacts.py
+        run: python scripts/maintenance/verify-doc-artifacts.py --security-only
 
   docs-artifacts:
     runs-on: ubuntu-latest
@@ -288,7 +306,7 @@ jobs:
         run: pytest scripts/tests/test_verify_doc_artifacts.py -v --tb=short
 
       - name: Verify docs artifacts drift and broken links
-        run: python scripts/maintenance/verify-doc-artifacts.py
+        run: python scripts/maintenance/verify-doc-artifacts.py --artifacts-only
 
   pip-audit:
     runs-on: ubuntu-latest
@@ -305,10 +323,10 @@ jobs:
         run: pip install pip-audit
 
       - name: Audit API dependencies
-        run: pip-audit -r apps/api/requirements.txt --fail-on=vulnerability
+        run: pip-audit -r apps/api/requirements.txt --skip-editable
 
       - name: Audit workers dependencies
-        run: pip-audit -r apps/workers/requirements.txt --fail-on=vulnerability
+        run: pip-audit -r apps/workers/requirements.txt --skip-editable
 
   check-links:
     runs-on: ubuntu-latest

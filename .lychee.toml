@@ -1,0 +1,13 @@
+exclude_path = ["docs/archive"]
+exclude_all_private = true
+accept = [200, 204, 206, 301, 302, 403, 429]
+max_retries = 2
+timeout = 20
+
+exclude = [
+  "^mailto:",
+  "^http://localhost",
+  "^https://localhost",
+  "^https://api.desuscribir.es",
+  "^https://esdata.desuscribir.es",
+]

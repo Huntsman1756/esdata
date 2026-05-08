@@ -19,9 +19,7 @@ def _record_legislacion_query_audit(
     verified: bool = True,
 ):
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
+        request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
         user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
         path=path,
         query_text=query_text,
@@ -77,9 +75,7 @@ async def get_cobertura():
                 "titulo": row["titulo"],
                 "articulos": row["articulos"],
                 "versiones": row["versiones"],
-                "ultima_version": str(row["ultima_version"])
-                if row["ultima_version"]
-                else None,
+                "ultima_version": str(row["ultima_version"]) if row["ultima_version"] else None,
             }
             for row in rows
         ]
@@ -93,7 +89,8 @@ async def get_norma(request: Request, codigo: str):
             db.execute(
                 text(
                     """
-                SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura
+                SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+                       tipo_documento, ambito, estado_cobertura
                 FROM norma
                 WHERE codigo = :codigo
                 """
@@ -155,9 +152,7 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
                 {"codigo": codigo},
             ).first()
             if not existe_norma:
-                raise HTTPException(
-                    status_code=404, detail={"error": "Norma no encontrada"}
-                )
+                raise HTTPException(status_code=404, detail={"error": "Norma no encontrada"})
     payload = {"norma": codigo, "articulos": rows}
     _record_legislacion_query_audit(
         request,
@@ -177,6 +172,17 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
         verified=bool(rows),
     )
     return payload
+
+
+def _known_accuracy_warning(codigo: str, numero: str, texto_value: str, vigente_en: str | None) -> str | None:
+    if codigo.upper() == "LIVA" and numero == "91" and vigente_en:
+        lowered = texto_value.lower()
+        if "6 por 100" in lowered or "3 por 100" in lowered:
+            return (
+                "Texto potencialmente obsoleto para LIVA art. 91 en la fecha "
+                "solicitada; no usar como fuente vigente sin revalidación BOE."
+            )
+    return None
 
 
 @router.get("/{codigo}/articulos/{numero}", operation_id="get_articulo")
@@ -223,7 +229,7 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
         "confianza": {
             "nivel": 1,
             "fuentes": [f"{row['codigo']} art. {row['numero']}"],
-            "aviso": None,
+            "aviso": _known_accuracy_warning(row["codigo"], row["numero"], row["texto"] or "", vigente_en),
         },
     }
     _record_legislacion_query_audit(
@@ -245,9 +251,7 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
     return payload
 
 
-@router.get(
-    "/{codigo}/articulos/{numero}/historial", operation_id="get_articulo_historial"
-)
+@router.get("/{codigo}/articulos/{numero}/historial", operation_id="get_articulo_historial")
 async def get_articulo_historial(request: Request, codigo: str, numero: str):
     with db_session() as db:
         rows = db.execute(
@@ -267,9 +271,7 @@ async def get_articulo_historial(request: Request, codigo: str, numero: str):
             {
                 "texto": row["texto"],
                 "vigente_desde": str(row["vigente_desde"]),
-                "vigente_hasta": str(row["vigente_hasta"])
-                if row["vigente_hasta"]
-                else None,
+                "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
             }
             for row in rows
         ]

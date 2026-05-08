@@ -9,6 +9,9 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -142,6 +145,60 @@ class TestIdempotency:
             assert is_dup is False
         finally:
             db.close()
+
+
+class TestGenericWebhookRoute:
+    @pytest.mark.asyncio
+    async def test_generic_webhook_processes_and_rejects_duplicate(self):
+        from routers.webhooks import webhook_router
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            future=True,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE webhook_events (
+                        event_id TEXT PRIMARY KEY,
+                        event_type TEXT NOT NULL,
+                        processed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+            )
+
+        app = FastAPI()
+
+        def override_db():
+            db = session_local()
+            try:
+                yield db
+            finally:
+                db.close()
+
+        import routers.webhooks as webhooks_router_module
+
+        app.dependency_overrides[webhooks_router_module.get_db] = override_db
+        app.include_router(webhook_router)
+
+        payload = b'{"event_id":"evt-route-1","event_type":"test.event","payload":{"key":"value"}}'
+        signature = compute_signature(payload, "test-secret-for-tests")
+        headers = {"content-type": "application/json", "x-webhook-signature": signature}
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            first = await client.post("/webhooks/generic", content=payload, headers=headers)
+            second = await client.post("/webhooks/generic", content=payload, headers=headers)
+
+        assert first.status_code == 200
+        assert first.json() == {"status": "processed", "event_id": "evt-route-1"}
+        assert second.status_code == 200
+        assert second.json() == {"status": "duplicate", "event_id": "evt-route-1"}
 
     def test_duplicate_event_rejected(self):
         from db import SessionLocal

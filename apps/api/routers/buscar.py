@@ -3,6 +3,7 @@ import re
 from db import db_session
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
+from mcp_request_context import is_mcp_internal_request
 from schemas import LegislacionSearchResponse
 from services.query_audit import get_query_audit_service
 from services.search import search_legislacion
@@ -27,17 +28,23 @@ def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
     params = {f"codigo_{index}": codigo for index, codigo in enumerate(codigos)}
 
     with db_session() as db:
-        rows = db.execute(
-            text(
-                """
+        rows = (
+            db.execute(
+                text(
+                    """
                 SELECT codigo, nombre, url_info
                 FROM aeat_modelo
-                WHERE codigo IN (""" + placeholders + """)
+                WHERE codigo IN ("""
+                    + placeholders
+                    + """)
                 ORDER BY codigo
                 """
-            ),
-            params,
-        ).mappings().all()
+                ),
+                params,
+            )
+            .mappings()
+            .all()
+        )
 
     if len(rows) < 2:
         return None
@@ -63,6 +70,7 @@ def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
             for row in rows
         ],
     }
+
 
 def _build_legislacion_audit_chunks(result: dict) -> list[dict]:
     chunks: list[dict] = []
@@ -97,9 +105,7 @@ def _record_search_query_audit(
     resultados = result.get("resultados", [])
     has_results = bool(resultados)
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
+        request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
         user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
         path=path,
         query_text=query_text,
@@ -115,8 +121,12 @@ def _record_search_query_audit(
 router = APIRouter(tags=["buscar"])
 
 
-@router.get("/v1/buscar", operation_id="buscar", response_model=LegislacionSearchResponse,
-            summary="Buscar en legislacion consolidada")
+@router.get(
+    "/v1/buscar",
+    operation_id="buscar",
+    response_model=LegislacionSearchResponse,
+    summary="Buscar en legislacion consolidada",
+)
 async def buscar(
     request: Request,
     q: str = Query(..., min_length=1, description="Termino de busqueda"),
@@ -129,18 +139,20 @@ async def buscar(
     result = _buscar_comparacion_modelos_aeat(q)
     if result is None:
         result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
-    _record_search_query_audit(
-        request,
-        path="/v1/buscar",
-        query_text=q,
-        tool_name="buscar",
-        result=result,
-    )
+    if not is_mcp_internal_request():
+        _record_search_query_audit(
+            request,
+            path="/v1/buscar",
+            query_text=q,
+            tool_name="buscar",
+            result=result,
+        )
     return result
 
 
-@router.get("/v1/legislacion/buscar", operation_id="buscar_legislacion",
-            summary="Buscar en legislacion consolidada (alias)")
+@router.get(
+    "/v1/legislacion/buscar", operation_id="buscar_legislacion", summary="Buscar en legislacion consolidada (alias)"
+)
 async def buscar_legislacion(
     request: Request,
     q: str = Query(..., min_length=1, description="Termino de busqueda"),
@@ -151,13 +163,14 @@ async def buscar_legislacion(
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
 ):
     result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
-    _record_search_query_audit(
-        request,
-        path="/v1/legislacion/buscar",
-        query_text=q,
-        tool_name="buscar_legislacion",
-        result=result,
-    )
+    if not is_mcp_internal_request():
+        _record_search_query_audit(
+            request,
+            path="/v1/legislacion/buscar",
+            query_text=q,
+            tool_name="buscar_legislacion",
+            result=result,
+        )
     return JSONResponse(content=result)
 
 
@@ -169,10 +182,13 @@ async def buscar_legislacion_hybrid(
     ambito: str | None = Query(None, description="Filtrar por ambito"),
     tipo: str | None = Query(None, description="Filtrar por tipo de articulo"),
     vigente_en: str | None = Query(None, description="Fecha de vigencia (YYYY-MM-DD)"),
-    hybrid_weight: float = Query(0.3, ge=0.0, le=1.0, description="Peso de busqueda vectorial (0.0=fulltext, 0.3=optimo, 1.0=vectorial)"),
+    hybrid_weight: float = Query(
+        0.3, ge=0.0, le=1.0, description="Peso de busqueda vectorial (0.0=fulltext, 0.3=optimo, 1.0=vectorial)"
+    ),
     limit: int = Query(10, ge=1, le=50, description="Numero maximo de resultados"),
 ):
-    result = hybrid_search_legislacion(
-        q, norma, fuente, ambito, tipo, vigente_en, hybrid_weight, limit
-    )
+    result = hybrid_search_legislacion(q, norma, fuente, ambito, tipo, vigente_en, hybrid_weight, limit)
     return JSONResponse(content=result)
+
+
+# ruff: noqa: E501

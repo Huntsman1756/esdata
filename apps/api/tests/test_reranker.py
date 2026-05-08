@@ -106,9 +106,7 @@ def test_serialized_citations_normalize_scores_and_keep_source_url():
         normalize_rerank_score(-3.5246732234954834), rel=1e-4
     )
     assert 0.0 <= serialized_claims[0]["confidence"] <= 1.0
-    assert serialized_claims[0]["confidence"] == pytest.approx(
-        normalize_rerank_score(10.8), rel=1e-4
-    )
+    assert serialized_claims[0]["confidence"] == pytest.approx(normalize_rerank_score(10.8), rel=1e-4)
     assert serialized_claims[0]["source_url"] == "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2014-12328"
 
 
@@ -266,6 +264,68 @@ def test_consulta_delegates_claim_level_abstention_to_grounding_service(monkeypa
     assert delegated["called"] is True
     assert filtered == [resultados[0]]
     assert updated_confianza["aviso"] == "delegated"
+
+
+def test_claim_citation_response_uses_first_grounded_real_citation():
+    from routers.consulta import _normalize_claim_citations_for_response
+
+    normalized = _normalize_claim_citations_for_response(
+        [
+            {
+                "claim": {"tipo": "normativa", "codigo": "LIVA", "articulo": "91"},
+                "grounded": True,
+                "citations": [
+                    {"chunk_id": "dirty", "rerank_score": 0.99, "grounded": False},
+                    {"chunk_id": "clean", "rerank_score": 0.8, "grounded": True},
+                ],
+            }
+        ]
+    )
+
+    assert len(normalized) == 1
+    assert normalized[0]["source_chunk_id"] == "clean"
+    assert normalized[0]["grounded"] is True
+
+
+def test_claim_citation_response_omits_claim_without_real_grounded_citation():
+    from routers.consulta import _normalize_claim_citations_for_response
+
+    normalized = _normalize_claim_citations_for_response(
+        [
+            {
+                "claim": {"tipo": "normativa", "codigo": "LIVA", "articulo": "91"},
+                "grounded": False,
+                "citations": [
+                    {"chunk_id": "dirty", "rerank_score": 0.99, "grounded": False},
+                ],
+            }
+        ]
+    )
+
+    assert normalized == []
+
+
+def test_claim_citations_filter_to_retained_grounded_results():
+    from routers.consulta import _filter_claim_citations_to_results
+
+    retained_results = [{"tipo": "normativa", "norma": "LIVA", "articulo": "91"}]
+    claim_citations = [
+        {
+            "claim": {"tipo": "normativa", "codigo": "LIVA", "articulo": "91"},
+            "grounded": True,
+            "citations": [{"chunk_id": "liva-91", "grounded": True, "rerank_score": 0.9}],
+        },
+        {
+            "claim": {"tipo": "normativa", "codigo": "LIS", "articulo": "10"},
+            "grounded": False,
+            "citations": [{"chunk_id": "lis-10", "grounded": False, "rerank_score": 0.1}],
+        },
+    ]
+
+    filtered = _filter_claim_citations_to_results(claim_citations, retained_results)
+
+    assert len(filtered) == 1
+    assert filtered[0]["claim"]["codigo"] == "LIVA"
 
 
 @pytest.mark.asyncio

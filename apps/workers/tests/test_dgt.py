@@ -12,8 +12,9 @@ from sqlalchemy.pool import StaticPool
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from change_detection import ensure_source_revision_table
-from dgt import FNMT_INTERMEDIATE_CHAIN
 from dgt import (
+    FNMT_INTERMEDIATE_CHAIN,
+    _engine_supports_postgres_advisory_locks,
     _ensure_dgt_queue,
     _get_pending_urls,
     build_search_payload,
@@ -46,12 +47,8 @@ def test_queue_seed_entries_live_in_dgt_queue_not_source_revision():
         _ensure_dgt_queue(conn, "worker-dgt", [url])
 
         pending = _get_pending_urls(conn, "worker-dgt")
-        queue_rows = conn.execute(
-            text("SELECT source_entity_id, dgt_url, status FROM dgt_queue")
-        ).fetchall()
-        source_rows = conn.execute(
-            text("SELECT source_entity_id, content_hash_sha256 FROM source_revision")
-        ).fetchall()
+        queue_rows = conn.execute(text("SELECT source_entity_id, dgt_url, status FROM dgt_queue")).fetchall()
+        source_rows = conn.execute(text("SELECT source_entity_id, content_hash_sha256 FROM source_revision")).fetchall()
 
     assert pending == [(url, "V0001-26")]
     assert queue_rows == [("V0001-26", url, "pending")]
@@ -91,7 +88,12 @@ def test_parse_document_html_detects_target_normas():
 
 
 def test_upsert_documento_interpretativo_is_idempotent_and_stores_dgt_fields():
-    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
     with engine.begin() as conn:
         conn.execute(
@@ -180,9 +182,7 @@ def test_upsert_documento_interpretativo_sets_row_quality_contract():
         upsert_documento_interpretativo(conn, payload)
 
         row = conn.execute(
-            text(
-                "SELECT row_completeness, row_provenance FROM documento_interpretativo WHERE referencia = 'V2274-22'"
-            )
+            text("SELECT row_completeness, row_provenance FROM documento_interpretativo WHERE referencia = 'V2274-22'")
         ).fetchone()
 
     assert row == ("complete", "official_exact")
@@ -230,10 +230,7 @@ def test_start_session_sets_cookie_and_ajax_headers():
 
     assert client.cookies.get("JSESSIONID") == "abc123"
     assert client.headers["X-Requested-With"] == "XMLHttpRequest"
-    assert (
-        client.headers["Referer"]
-        == "https://petete.tributos.hacienda.gob.es/consultas/"
-    )
+    assert client.headers["Referer"] == "https://petete.tributos.hacienda.gob.es/consultas/"
 
 
 def test_fetch_search_and_document_html_use_ajax_flow():
@@ -267,9 +264,7 @@ def test_fetch_search_and_document_html_use_ajax_flow():
 
     start_session(client)
     search_html = fetch_search_html(client, "V2274-22")
-    document_html = fetch_document_html(
-        client, ".EN NUM-CONSULTA (V2274-22)", "NUM-CONSULTA|0", "46632"
-    )
+    document_html = fetch_document_html(client, ".EN NUM-CONSULTA (V2274-22)", "NUM-CONSULTA|0", "46632")
 
     assert "V2274-22" in search_html
     assert "Contestación completa" in document_html
@@ -278,7 +273,12 @@ def test_fetch_search_and_document_html_use_ajax_flow():
 
 
 def test_run_sync_persists_target_dgt_document(monkeypatch):
-    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     original_client = httpx.Client
 
     with engine.begin() as conn:
@@ -434,18 +434,27 @@ def test_run_sync_persists_target_dgt_document(monkeypatch):
 
     with engine.begin() as conn:
         row = conn.execute(
-            text(
-                "SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo"
-            )
+            text("SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo")
         ).fetchone()
         queue_row = conn.execute(
             text(
-                "SELECT status, dgt_url FROM dgt_queue WHERE worker_name = 'worker-dgt' AND source_entity_id = 'V2274-22'"
+                """
+                SELECT status, dgt_url
+                FROM dgt_queue
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_id = 'V2274-22'
+                """
             )
         ).fetchone()
         revision_row = conn.execute(
             text(
-                "SELECT content_hash_sha256 FROM source_revision WHERE worker_name = 'worker-dgt' AND source_entity_tipo = 'consulta' AND source_entity_id = 'V2274-22'"
+                """
+                SELECT content_hash_sha256
+                FROM source_revision
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_tipo = 'consulta'
+                  AND source_entity_id = 'V2274-22'
+                """
             )
         ).fetchone()
 
@@ -509,7 +518,11 @@ def test_run_sync_marks_partial_when_dgt_search_returns_no_results(monkeypatch):
         if request.url.path == "/consultas/do/search":
             return httpx.Response(
                 200,
-                text='<div class="extra_padding"><div class="message">La consulta realizada no devuelve resultados.</div></div>',
+                text=(
+                    '<div class="extra_padding"><div class="message">'
+                    "La consulta realizada no devuelve resultados."
+                    "</div></div>"
+                ),
             )
         raise AssertionError(f"Unexpected request: {request.method} {request.url}")
 
@@ -530,7 +543,12 @@ def test_run_sync_marks_partial_when_dgt_search_returns_no_results(monkeypatch):
     with engine.begin() as conn:
         sync_row = conn.execute(
             text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+                """
+                SELECT worker, status, documentos_processed, documentos_upserted, error_msg
+                FROM sync_log
+                ORDER BY id DESC
+                LIMIT 1
+                """
             )
         ).fetchone()
 
@@ -545,7 +563,12 @@ def test_run_sync_marks_partial_when_dgt_search_returns_no_results(monkeypatch):
 
 
 def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
-    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     original_client = httpx.Client
 
     with engine.begin() as conn:
@@ -689,25 +712,37 @@ def test_run_sync_skips_documents_outside_liva_and_lis(monkeypatch):
     result = run_sync()
 
     with engine.begin() as conn:
-        count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_interpretativo")
-        ).scalar_one()
-        link_count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_articulo")
-        ).scalar_one()
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
+        link_count = conn.execute(text("SELECT COUNT(*) FROM documento_articulo")).scalar_one()
         queue_row = conn.execute(
             text(
-                "SELECT status, dgt_url FROM dgt_queue WHERE worker_name = 'worker-dgt' AND source_entity_id = 'V0001-26'"
+                """
+                SELECT status, dgt_url
+                FROM dgt_queue
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_id = 'V0001-26'
+                """
             )
         ).fetchone()
         source_revision_count = conn.execute(
             text(
-                "SELECT COUNT(*) FROM source_revision WHERE worker_name = 'worker-dgt' AND source_entity_tipo = 'consulta' AND source_entity_id = 'V0001-26'"
+                """
+                SELECT COUNT(*)
+                FROM source_revision
+                WHERE worker_name = 'worker-dgt'
+                  AND source_entity_tipo = 'consulta'
+                  AND source_entity_id = 'V0001-26'
+                """
             )
         ).scalar_one()
         sync_row = conn.execute(
             text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+                """
+                SELECT worker, status, documentos_processed, documentos_upserted, error_msg
+                FROM sync_log
+                ORDER BY id DESC
+                LIMIT 1
+                """
             )
         ).fetchone()
 
@@ -771,6 +806,126 @@ def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
     assert captured["verify"] is False
 
 
+def test_fake_engine_without_url_is_not_treated_as_postgresql():
+    class FakeEngine:
+        pass
+
+    assert _engine_supports_postgres_advisory_locks(FakeEngine()) is False
+
+
+def test_run_sync_skips_when_advisory_lock_is_unavailable(monkeypatch):
+    mutated = []
+    sync_logs = []
+
+    class FakeConnection:
+        pass
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        dialect = type("Dialect", (), {"name": "postgresql"})()
+
+        def connect(self):
+            return FakeConnection()
+
+        def begin(self):
+            return FakeBegin()
+
+    def fail_mutation(*args, **kwargs):
+        mutated.append((args, kwargs))
+        raise AssertionError("sync should not mutate rows without lock")
+
+    def record_sync_log(
+        conn,
+        worker,
+        status,
+        *,
+        documentos_processed,
+        documentos_upserted,
+        doctrina_links_created,
+        error_msg=None,
+    ):
+        sync_logs.append(
+            {
+                "worker": worker,
+                "status": status,
+                "documentos_processed": documentos_processed,
+                "documentos_upserted": documentos_upserted,
+                "doctrina_links_created": doctrina_links_created,
+                "error_msg": error_msg,
+            }
+        )
+
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt._try_acquire_sync_lock", lambda conn: False)
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.log_sync", record_sync_log)
+    monkeypatch.setattr("dgt.ensure_source_revision_table", fail_mutation)
+    monkeypatch.setattr("dgt._ensure_dgt_queue", fail_mutation)
+    monkeypatch.setattr(
+        "dgt.httpx.Client",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("HTTP client should not start without lock")),
+    )
+
+    result = run_sync(seed_urls=[])
+
+    assert result == {"processed": 0, "stored": 0, "discovered": 0}
+    assert mutated == []
+    assert sync_logs == [
+        {
+            "worker": "worker-dgt",
+            "status": "partial",
+            "documentos_processed": 0,
+            "documentos_upserted": 0,
+            "doctrina_links_created": 0,
+            "error_msg": "DGT sync already in progress",
+        }
+    ]
+
+
+def test_run_sync_releases_advisory_lock_in_finally(monkeypatch):
+    calls = []
+
+    class FakeConnection:
+        pass
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        dialect = type("Dialect", (), {"name": "postgresql"})()
+
+        def connect(self):
+            return FakeConnection()
+
+        def begin(self):
+            return FakeBegin()
+
+    def fake_client(*args, **kwargs):
+        raise RuntimeError("stop after lock")
+
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt._try_acquire_sync_lock", lambda conn: calls.append("acquire") or True)
+    monkeypatch.setattr("dgt._release_sync_lock", lambda conn: calls.append("release"))
+    monkeypatch.setattr("dgt.httpx.Client", fake_client)
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.log_sync", lambda *args, **kwargs: None)
+
+    with pytest.raises(RuntimeError, match="stop after lock"):
+        run_sync(seed_urls=[])
+
+    assert calls == ["acquire", "release"]
+
+
 def test_run_sync_uses_ssl_context_with_extra_fnmt_chain_when_verification_enabled(
     monkeypatch,
 ):
@@ -812,7 +967,12 @@ def test_run_sync_uses_ssl_context_with_extra_fnmt_chain_when_verification_enabl
 
 
 def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
-    engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     original_client = httpx.Client
 
     with engine.begin() as conn:
@@ -931,7 +1091,9 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
     </table>
     """
 
-    no_results_html = '<div class="extra_padding"><div class="message">La consulta realizada no devuelve resultados.</div></div>'
+    no_results_html = (
+        '<div class="extra_padding"><div class="message">La consulta realizada no devuelve resultados.</div></div>'
+    )
 
     document_html = (FIXTURES / "V2274-22-document.html").read_text(encoding="utf-8")
 
@@ -968,12 +1130,11 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
     result = run_sync(seed_urls=[])
 
     with engine.begin() as conn:
-        count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_interpretativo")
-        ).scalar_one()
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
         sync_row = conn.execute(
             text(
-                "SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log ORDER BY id DESC LIMIT 1"
+                "SELECT worker, status, documentos_processed, documentos_upserted "
+                "FROM sync_log ORDER BY id DESC LIMIT 1"
             )
         ).fetchone()
 
@@ -985,6 +1146,7 @@ def test_run_sync_uses_discovery_when_dgt_discovery_env_is_true(monkeypatch):
 def test_fetch_search_html_for_discovery_returns_none(monkeypatch):
     """fetch_search_html_for_discovery is deprecated — always returns None."""
     from dgt import fetch_search_html_for_discovery
+
     assert fetch_search_html_for_discovery("V2274-22") is None
 
 
@@ -1001,7 +1163,11 @@ def test_run_sync_touches_heartbeat_during_long_processing(monkeypatch):
             if "SELECT source_entity_id" in query:
                 return type("Result", (), {"fetchall": lambda self: []})()
             if "FROM source_revision" in query and "content_hash_sha256 = 'pending'" in query:
-                return type("Result", (), {"fetchall": lambda self: [("https://example.invalid/?num_consulta=V0001-26", "V0001-26")]})()
+                return type(
+                    "Result",
+                    (),
+                    {"fetchall": lambda self: [("https://example.invalid/?num_consulta=V0001-26", "V0001-26")]},
+                )()
             return type("Result", (), {"fetchall": lambda self: [], "fetchone": lambda self: None})()
 
     class FakeBegin:
@@ -1117,9 +1283,7 @@ def test_run_sync_does_not_mark_partial_for_transient_pending_fetch_error(monkey
     )
     monkeypatch.setattr(
         "dgt._mark_done",
-        lambda conn, worker_name, entity_id, status: marked_done.append(
-            (worker_name, entity_id, status)
-        ),
+        lambda conn, worker_name, entity_id, status: marked_done.append((worker_name, entity_id, status)),
     )
     monkeypatch.setattr("dgt.auto_link_doctrina", lambda conn: 0)
     monkeypatch.setattr("dgt.log_sync", fake_log_sync)

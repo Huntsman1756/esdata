@@ -5,7 +5,6 @@ import shutil
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parents[1] / "maintenance" / "verify-doc-artifacts.py"
 SPEC = importlib.util.spec_from_file_location("verify_doc_artifacts", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -143,6 +142,70 @@ def test_main_returns_non_zero_when_drift_detected():
     assert "artifact drift" in errors[0]
 
 
+def test_security_checks_do_not_require_openapi_artifact_generation():
+    tmp_dir = _reset_tmp_dir()
+
+    env_file = tmp_dir / ".env.example"
+    env_file.write_text("ESDATA_API_KEY=test\n", encoding="utf-8")
+    docs_file = tmp_dir / "environment-variables.md"
+    docs_file.write_text("| Variable |\n|---|\n| `ESDATA_API_KEY` |\n", encoding="utf-8")
+
+    original_env_example = MODULE.ENV_EXAMPLE
+    original_env_doc = MODULE.ENV_DOC
+    original_find_forbidden = MODULE.find_forbidden_env_files
+    original_expected = MODULE.expected_payload_for_artifact
+    try:
+        MODULE.ENV_EXAMPLE = env_file
+        MODULE.ENV_DOC = docs_file
+        MODULE.find_forbidden_env_files = lambda _root: []
+        MODULE.expected_payload_for_artifact = lambda _path: (_ for _ in ()).throw(
+            AssertionError("security-only checks must not import API OpenAPI artifacts")
+        )
+
+        assert MODULE.run_security_checks() == []
+    finally:
+        MODULE.ENV_EXAMPLE = original_env_example
+        MODULE.ENV_DOC = original_env_doc
+        MODULE.find_forbidden_env_files = original_find_forbidden
+        MODULE.expected_payload_for_artifact = original_expected
+
+
+def test_artifact_checks_do_not_run_broad_docs_coverage_checks():
+    original_artifacts = MODULE.ARTIFACTS
+    original_docs_refs = MODULE.DOCS_REFERENCES
+    original_expected = MODULE.expected_payload_for_artifact
+    original_verify_docs_vs_roadmap = MODULE.verify_docs_vs_roadmap
+    original_verify_workers_documented = MODULE.verify_workers_documented
+    original_verify_endpoints_documented = MODULE.verify_endpoints_documented
+    original_verify_markdown_lint = MODULE.verify_markdown_lint
+    try:
+        MODULE.ARTIFACTS = []
+        MODULE.DOCS_REFERENCES = []
+        MODULE.expected_payload_for_artifact = lambda _path: None
+        MODULE.verify_docs_vs_roadmap = lambda: (_ for _ in ()).throw(
+            AssertionError("artifact-only checks must not run roadmap drift checks")
+        )
+        MODULE.verify_workers_documented = lambda: (_ for _ in ()).throw(
+            AssertionError("artifact-only checks must not run worker coverage checks")
+        )
+        MODULE.verify_endpoints_documented = lambda: (_ for _ in ()).throw(
+            AssertionError("artifact-only checks must not run endpoint coverage checks")
+        )
+        MODULE.verify_markdown_lint = lambda: (_ for _ in ()).throw(
+            AssertionError("artifact-only checks must not run broad markdown lint")
+        )
+
+        assert MODULE.run_artifact_checks() == []
+    finally:
+        MODULE.ARTIFACTS = original_artifacts
+        MODULE.DOCS_REFERENCES = original_docs_refs
+        MODULE.expected_payload_for_artifact = original_expected
+        MODULE.verify_docs_vs_roadmap = original_verify_docs_vs_roadmap
+        MODULE.verify_workers_documented = original_verify_workers_documented
+        MODULE.verify_endpoints_documented = original_verify_endpoints_documented
+        MODULE.verify_markdown_lint = original_verify_markdown_lint
+
+
 def test_extract_env_example_variables_reads_assignments():
     tmp_dir = _reset_tmp_dir()
     env_file = tmp_dir / ".env.example"
@@ -184,6 +247,22 @@ def test_verify_env_documentation_reports_missing_and_extra_variables():
     assert len(errors) == 2
     assert "missing in docs/environment-variables.md: ONLY_IN_ENV" in errors[0]
     assert "missing in .env.example: ONLY_IN_DOCS" in errors[1]
+
+
+def test_verify_env_documentation_allows_legacy_variables_absent_from_env_example():
+    tmp_dir = _reset_tmp_dir()
+    env_file = tmp_dir / ".env.example"
+    env_file.write_text("ESDATA_API_KEY=test\n", encoding="utf-8")
+    docs_file = tmp_dir / "environment-variables.md"
+    docs_file.write_text(
+        "## Variables `runtime deploy`\n"
+        "| Variable |\n|---|\n| `ESDATA_API_KEY` |\n"
+        "\n## Variables `legacy/no cableada`\n"
+        "| Variable |\n|---|\n| `NEXT_PUBLIC_API_BASE_URL` |\n",
+        encoding="utf-8",
+    )
+
+    assert MODULE.verify_env_documentation(env_file, docs_file) == []
 
 
 def test_find_forbidden_env_files_flags_nested_and_root_runtime_env_files():

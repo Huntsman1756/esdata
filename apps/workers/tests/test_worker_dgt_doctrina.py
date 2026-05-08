@@ -1,7 +1,7 @@
 """Tests unitarios para el worker dgt_doctrina de rendimientos mobiliarios."""
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 import httpx
@@ -17,12 +17,6 @@ from dgt_doctrina import (
 
 
 def test_extract_target_normas_rendimiento_detects_lirpf():
-    html = """
-    <table>
-      <tr class="NORMATIVA"><td class="value">Ley 35/2006 del IRPF</td></tr>
-      <tr class="CONTESTACION-COMPL"><td class="value">Los dividendos constituyen rendimientos del capital mobiliario segun art. 30 LIRPF.</td></tr>
-    </table>
-    """
     normas = _extract_target_normas_rendimiento(
         "Los dividendos constituyen rendimientos del capital mobiliario segun art. 30 LIRPF.",
         "Ley 35/2006 del IRPF",
@@ -202,7 +196,9 @@ def test_run_sync_persists_dgt_rendimiento_document(monkeypatch):
       <tr class="FECHA-SALIDA"><td class="value">10/05/2017</td></tr>
       <tr class="NORMATIVA"><td class="value">Ley 35/2006 art. 30 LIRPF</td></tr>
       <tr class="CUESTION-PLANTEADA"><td class="value">Retenciones en dividendos.</td></tr>
-      <tr class="CONTESTACION-COMPL"><td class="value">Los dividendos constituyen rendimientos del capital mobiliario sujetos a retencion del 19%.</td></tr>
+      <tr class="CONTESTACION-COMPL"><td class="value">
+        Los dividendos constituyen rendimientos del capital mobiliario sujetos a retencion del 19%.
+      </td></tr>
     </table>
     """
 
@@ -236,14 +232,11 @@ def test_run_sync_persists_dgt_rendimiento_document(monkeypatch):
 
     with engine.begin() as conn:
         row = conn.execute(
-            text(
-                "SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo"
-            )
+            text("SELECT referencia, tipo_fuente, organismo_emisor FROM documento_interpretativo")
         ).fetchone()
         sync_row = conn.execute(
             text(
-                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created "
-                "FROM sync_log"
+                "SELECT worker, status, documentos_processed, documentos_upserted, doctrina_links_created FROM sync_log"
             )
         ).fetchone()
 
@@ -316,7 +309,9 @@ def test_run_sync_skips_non_rendimiento_documents(monkeypatch):
       <tr class="FECHA-SALIDA"><td class="value">15/01/2026</td></tr>
       <tr class="NORMATIVA"><td class="value">Ley 35/2006 art. 25 LIRPF</td></tr>
       <tr class="CUESTION-PLANTEADA"><td class="value">Rendimientos del trabajo.</td></tr>
-      <tr class="CONTESTACION-COMPL"><td class="value">La consulta trata sobre rendimientos del trabajo, no mobiliarios.</td></tr>
+      <tr class="CONTESTACION-COMPL"><td class="value">
+        La consulta trata sobre rendimientos del trabajo, no mobiliarios.
+      </td></tr>
     </table>
     """
 
@@ -349,14 +344,9 @@ def test_run_sync_skips_non_rendimiento_documents(monkeypatch):
     result = run_sync(worker_name="test-dgt-rendimiento")
 
     with engine.begin() as conn:
-        count = conn.execute(
-            text("SELECT COUNT(*) FROM documento_interpretativo")
-        ).scalar_one()
+        count = conn.execute(text("SELECT COUNT(*) FROM documento_interpretativo")).scalar_one()
         sync_row = conn.execute(
-            text(
-                "SELECT worker, status, documentos_processed, documentos_upserted "
-                "FROM sync_log"
-            )
+            text("SELECT worker, status, documentos_processed, documentos_upserted FROM sync_log")
         ).fetchone()
 
     assert result == {"processed": 1, "stored": 0}
@@ -380,6 +370,8 @@ def test_dgt_doctrina_run_once_flag_accepts_argparse():
 
 def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
     captured = {}
+    monkeypatch.setenv("DGT_SSL_VERIFY", "false")
+
     monkeypatch.setenv("DGT_SSL_VERIFY", "false")
 
     def fake_client(*args, **kwargs):

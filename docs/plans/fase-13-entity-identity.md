@@ -120,7 +120,7 @@
 - Archivo: `apps/workers/entity_identity.py` (nuevo)
 - Función: `lookup_lei(empresa_id, empresa_nombre)` que llama GLEIF API
 - Patrón: argparse CLI, httpx.Client, sqlalchemy engine, log_sync()
-- Endpoint GLEIF: `https://api.gleif.io/api/v1/leis?filter[lei]=...` o search por nombre
+- Endpoint GLEIF: `https://api.gleif.org/api/v1/lei-records?filter[lei]=...` o search por nombre
 - Normalización: convertir response GLEIF -> entity_identifiers row
 - vLEI: dejar campos placeholder sin lógica de validación
 

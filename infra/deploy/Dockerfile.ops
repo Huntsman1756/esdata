@@ -6,6 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /workspace
 
+RUN addgroup --system app && adduser --system --ingroup app app
+
 RUN pip install --no-cache-dir \
     alembic==1.16.4 \
     sqlalchemy==2.0.43 \
@@ -14,5 +16,7 @@ RUN pip install --no-cache-dir \
 COPY alembic.ini /workspace/alembic.ini
 COPY alembic /workspace/alembic
 COPY scripts /workspace/scripts
+
+USER app
 
 CMD ["python", "--version"]

@@ -34,6 +34,32 @@ def _load_export_module():
     return module
 
 
+def _bootstrap_sqlite_governance_tables() -> None:
+    database_url = os.environ.get("DATABASE_URL", "")
+    if not database_url.startswith("sqlite"):
+        return
+
+    from sqlalchemy import create_engine, text
+
+    tests_path = ROOT / "apps" / "api" / "tests"
+    tests_path_text = str(tests_path)
+    if tests_path_text not in sys.path:
+        sys.path.insert(0, tests_path_text)
+
+    from governance_bootstrap import bootstrap_governance_tables
+
+    engine = create_engine(database_url, future=True, connect_args={"check_same_thread": False})
+    try:
+        with engine.connect() as conn:
+            existing = conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_audit_log'")
+            ).fetchone()
+        if existing is None:
+            bootstrap_governance_tables(engine)
+    finally:
+        engine.dispose()
+
+
 ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = ROOT / "docs"
 ARTIFACTS = [
@@ -56,6 +82,10 @@ DOCS_REFERENCES = [
 RELATIVE_LINK_RE = re.compile(r"`?(\.\.?/[^`\s)]+)`?")
 ENV_ASSIGNMENT_RE = re.compile(r"^([A-Z][A-Z0-9_]*)=", re.MULTILINE)
 DOC_VARIABLE_LINE_RE = re.compile(r"^\|\s*`([A-Z][A-Z0-9_]*)`\s*\|", re.MULTILINE)
+LEGACY_ENV_SECTION_RE = re.compile(
+    r"^## Variables `legacy/no cableada`\n(?P<section>.*?)(?=^## |\Z)",
+    re.MULTILINE | re.DOTALL,
+)
 
 # Markdown lint rules (Python-native, no external tools)
 _INTERNAL_LINK_RE: Final[re.Pattern] = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
@@ -76,6 +106,7 @@ def expected_payload_for_artifact(path: Path) -> dict | None:
         os.close(fd)
         os.environ["DATABASE_URL"] = f"sqlite:///{tmp_db_path}"
 
+    _bootstrap_sqlite_governance_tables()
     export_module = _load_export_module()
     if path.name == "openapi-gpt.json":
         with contextlib.redirect_stdout(io.StringIO()):
@@ -107,9 +138,7 @@ def verify_reference(path: Path) -> list[str]:
     content = path.read_text(encoding="utf-8")
     for artifact in ARTIFACTS:
         if artifact.name in content and not artifact.exists():
-            errors.append(
-                f"doc references missing artifact: {path.relative_to(ROOT)} -> {artifact.relative_to(ROOT)}"
-            )
+            errors.append(f"doc references missing artifact: {path.relative_to(ROOT)} -> {artifact.relative_to(ROOT)}")
     for match in RELATIVE_LINK_RE.findall(content):
         target = (path.parent / match).resolve()
         if not target.exists():
@@ -129,13 +158,24 @@ def extract_documented_variables(path: Path) -> set[str]:
     return {match.group(1) for match in DOC_VARIABLE_LINE_RE.finditer(path.read_text(encoding="utf-8"))}
 
 
+def extract_legacy_documented_variables(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    content = path.read_text(encoding="utf-8")
+    match = LEGACY_ENV_SECTION_RE.search(content)
+    if match is None:
+        return set()
+    return {match.group(1) for match in DOC_VARIABLE_LINE_RE.finditer(match.group("section"))}
+
+
 def verify_env_documentation(env_example: Path, env_doc: Path) -> list[str]:
     errors: list[str] = []
     env_variables = extract_env_example_variables(env_example)
     documented_variables = extract_documented_variables(env_doc)
+    legacy_documented_variables = extract_legacy_documented_variables(env_doc)
 
     missing_in_docs = sorted(env_variables - documented_variables)
-    missing_in_example = sorted(documented_variables - env_variables)
+    missing_in_example = sorted((documented_variables - legacy_documented_variables) - env_variables)
 
     for variable in missing_in_docs:
         errors.append(f"env drift: missing in docs/environment-variables.md: {variable}")
@@ -237,9 +277,7 @@ def verify_workers_documented() -> list[str]:
 
     undocumented = sorted(worker_modules - {w for w in worker_modules if w in docs_content})
     if undocumented:
-        errors.append(
-            f"undocumented workers ({len(undocumented)}): {', '.join(undocumented[:10])}"
-        )
+        errors.append(f"undocumented workers ({len(undocumented)}): {', '.join(undocumented[:10])}")
 
     return errors
 
@@ -378,20 +416,14 @@ def lint_markdown_file(path: Path) -> list[str]:
         if heading_match:
             depth = len(heading_match.group(1))
             if depth > 6:
-                errors.append(
-                    f"{path.name}:{i}: heading-depth: heading level {depth} exceeds max 6"
-                )
+                errors.append(f"{path.name}:{i}: heading-depth: heading level {depth} exceeds max 6")
             # Check for ATX-style with no space after #
             if re.match(r"^#{1,6}[^#\s]", line):
-                errors.append(
-                    f"{path.name}:{i}: heading-space: missing space after # in heading"
-                )
+                errors.append(f"{path.name}:{i}: heading-space: missing space after # in heading")
             # Track duplicate headings
             text = heading_match.group(2).strip()
             if text in seen_headings:
-                errors.append(
-                    f"{path.name}:{i}: duplicate-heading: '{text}' first seen at line {seen_headings[text]}"
-                )
+                errors.append(f"{path.name}:{i}: duplicate-heading: '{text}' first seen at line {seen_headings[text]}")
             else:
                 seen_headings[text] = i
             prev_was_heading = True
@@ -405,16 +437,12 @@ def lint_markdown_file(path: Path) -> list[str]:
 
         # Line length check
         if len(line) > line_limit:
-            errors.append(
-                f"{path.name}:{i}: line-length: {len(line)} chars exceeds limit {line_limit}"
-            )
+            errors.append(f"{path.name}:{i}: line-length: {len(line)} chars exceeds limit {line_limit}")
 
         # Image without alt text check
         img_match = re.search(r"!\[\]\(([^)]+)\)", line)
         if img_match:
-            errors.append(
-                f"{path.name}:{i}: image-alt: image without alt text: {img_match.group(1)[:60]}"
-            )
+            errors.append(f"{path.name}:{i}: image-alt: image without alt text: {img_match.group(1)[:60]}")
 
     # Check for unclosed code blocks
     if in_code_block:
@@ -465,12 +493,7 @@ def verify_internal_links(path: Path) -> list[str]:
                 target_content = target.read_text(encoding="utf-8")
                 # Normalize anchor: lowercase, replace spaces with hyphens, remove special chars
                 normalized_anchor = (
-                    anchor.lower()
-                    .replace(" ", "-")
-                    .replace("'", "")
-                    .replace('"', "")
-                    .replace("(", "")
-                    .replace(")", "")
+                    anchor.lower().replace(" ", "-").replace("'", "").replace('"', "").replace("(", "").replace(")", "")
                 )
                 # Check common anchor formats
                 for heading_match in _HEADING_RE.finditer(target_content):
@@ -517,13 +540,8 @@ def verify_markdown_lint() -> list[str]:
 
 def run() -> list[str]:
     errors: list[str] = []
-    for artifact in ARTIFACTS:
-        errors.extend(verify_artifact(artifact, expected_payload=expected_payload_for_artifact(artifact)))
-    for doc in DOCS_REFERENCES:
-        errors.extend(verify_reference(doc))
-    errors.extend(verify_env_documentation(ENV_EXAMPLE, ENV_DOC))
-    for forbidden in find_forbidden_env_files(ROOT):
-        errors.append(f"forbidden env file: {forbidden}")
+    errors.extend(run_artifact_checks())
+    errors.extend(run_security_checks())
     errors.extend(verify_docs_vs_roadmap())
     errors.extend(verify_workers_documented())
     errors.extend(verify_endpoints_documented())
@@ -531,10 +549,44 @@ def run() -> list[str]:
     return errors
 
 
+def run_artifact_checks() -> list[str]:
+    errors: list[str] = []
+    for artifact in ARTIFACTS:
+        errors.extend(verify_artifact(artifact, expected_payload=expected_payload_for_artifact(artifact)))
+    for doc in DOCS_REFERENCES:
+        errors.extend(verify_reference(doc))
+    return errors
+
+
+def run_security_checks() -> list[str]:
+    errors: list[str] = []
+    errors.extend(verify_env_documentation(ENV_EXAMPLE, ENV_DOC))
+    for forbidden in find_forbidden_env_files(ROOT):
+        errors.append(f"forbidden env file: {forbidden}")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify docs artifacts referenced by the repo")
-    parser.parse_args()
-    errors = run()
+    parser.add_argument(
+        "--security-only",
+        action="store_true",
+        help="Run env-file and env-documentation checks without importing API OpenAPI artifacts.",
+    )
+    parser.add_argument(
+        "--artifacts-only",
+        action="store_true",
+        help="Run OpenAPI artifact and docs-reference checks without broad docs coverage checks.",
+    )
+    args = parser.parse_args()
+    if args.security_only and args.artifacts_only:
+        parser.error("--security-only and --artifacts-only are mutually exclusive")
+    if args.security_only:
+        errors = run_security_checks()
+    elif args.artifacts_only:
+        errors = run_artifact_checks()
+    else:
+        errors = run()
     if errors:
         for error in errors:
             print(error)
