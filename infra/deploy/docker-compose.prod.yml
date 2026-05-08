@@ -407,6 +407,30 @@ services:
     tmpfs:
       - /tmp
 
+  worker-cdi:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      CDI_SYNC_INTERVAL_SECONDS: ${CDI_SYNC_INTERVAL_SECONDS:-604800}
+      WORKER_CMD: python cdi.py
+      WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/worker_heartbeat))) -lt 300"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
   worker-aepd:
     build:
       context: ../..

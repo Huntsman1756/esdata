@@ -1,0 +1,12 @@
+[Unit]
+Description=esdata CDI sync weekly cron
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
