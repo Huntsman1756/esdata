@@ -8,3 +8,19 @@ Learnings:
 - Stories range from worker testing, DB seeding, integrity checks to API verification
 - All stories start with passes: false
 Next: S-01
+
+=== Iteration 1 — 2026-05-09 ===
+Story: S-01 Confirm worker-boe idempotency and no double-ingestion with cron-boe-daily
+Verification run: docker compose exec postgres psql -U esdata -d esdata -tAc 'SELECT COUNT(*) FROM articulo'; docker compose run --rm worker-boe python boe.py --run-once; docker compose exec postgres psql -U esdata -d esdata -tAc 'SELECT COUNT(*) FROM articulo'
+Result: PASS
+Fix applied: Updated prd.json verificationCommand to use 'postgres' instead of 'db' service name and 'esdata/esdata' instead of $PGUSER/$PGDATABASE env vars (not set on Windows/PowerShell)
+Learnings:
+- worker-boe uses ON CONFLICT (norma_id, numero) for upsert — no duplicates possible
+- Advisory lock BOE_SYNC_LOCK_KEY = 88420032 prevents concurrent runs via pg_try_advisory_xact_lock
+- worker-boe continuous + cron-boe-daily run same logic but different worker_name; both protected by advisory lock
+- auto_link_materias/doctrina use ON CONFLICT DO NOTHING — safe to re-run
+- articulo=969, version_articulo=1009 stable across multiple runs
+- DB service is 'postgres' not 'db' in docker-compose.yml
+- $PGUSER and $PGDATABASE are not set in Windows/PowerShell — use hardcoded 'esdata/esdata'
+- Verification commands in prd.json need correction for Windows/PowerShell env
+Next: S-02
