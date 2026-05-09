@@ -352,3 +352,20 @@ Learnings:
 Next: potencial C-04 (scraper ESMA CASP con misma estrategia) o otro P2 del backlog original.
 <promise>COMPLETE</promise>
 ---
+
+=== Iteration D-01..D-04 — 2026-05-10 00:10 ===
+Story: Ciclo Ralph fix/provenance-listados. 4 stories para añadir provenance por item en listados MCP.
+Branch: fix/provenance-listados
+Verification run: 4/4 endpoints devuelven campos de provenance esperados.
+Result: PASS all 4
+Fix applied:
+- apps/api/routers/legislacion.py list_legislacion: SELECT añade boe_id + eli_uri, post-processing renombra boe_id→boe_reference por consistencia MCP.
+- apps/api/routers/legislacion.py list_articulos: SELECT añade n.boe_id + n.eli_uri (JOIN norma), y construye source_url con pattern https://www.boe.es/buscar/act.php?id={boe_id}#a{numero_sanitized}. Cada artículo ahora citable sin round-trip al detalle.
+- apps/api/services/modelos.py list_modelos_summary: SELECT añade m.url_info + m.url_listado; apps/api/routers/modelos.py list_modelos los propaga en payload.
+- apps/api/schemas.py: DoctrinaSearchResult + JurisprudenciaSearchResult + ModeloSummary ampliados con campos source_url/url_info. Sin esto, el response_model Pydantic estaba strippeando los campos añadidos en los handlers.
+Learnings:
+- **Gotcha crítico:** Cuando un endpoint usa response_model=X y añades un campo al dict de respuesta, Pydantic lo filtra silenciosamente si X no lo declara. Buscar response_model SIEMPRE antes de añadir campos.
+- **Pattern:** source_url para artículos BOE sigue formato boe.es/buscar/act.php?id={id}#a{anchor} donde anchor = only alphanumeric chars of numero lowered. Consistente entre get_articulo (detalle) y list_articulos (listado).
+- **Cobertura cerrada:** 6/8 listados ahora con provenance por item. Restantes: /v1/materias (tags, no critical) y /v1/legislacion/buscar (ya tenía desde ciclo previo) + /v1/modelos/303/articulos (ya tenía url_fuente).
+<promise>COMPLETE</promise>
+---
