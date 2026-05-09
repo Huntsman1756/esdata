@@ -21,7 +21,7 @@
       "id": "A-02",
       "title": "Fix json.loads bug in /v1/ai/query-audit endpoint (P0 bloqueante)",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "GET /v1/ai/query-audit returns HTTP 200 (currently 500)",
         "Response is a JSON list or paginated envelope",

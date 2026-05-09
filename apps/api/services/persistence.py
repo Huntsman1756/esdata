@@ -207,16 +207,31 @@ def ensure_governance_tables() -> None:
 
 
 def dumps_json(value) -> str:
-    return json.dumps(value or {}, ensure_ascii=True, sort_keys=True)
+    return json.dumps(value or {}, ensure_ascii=True, sort_keys=True, default=_json_default)
 
 
 def dumps_json_list(value) -> str:
-    return json.dumps(value or [], ensure_ascii=True, sort_keys=True)
+    return json.dumps(value or [], ensure_ascii=True, sort_keys=True, default=_json_default)
 
 
-def loads_json(value: str | None, default):
-    if not value:
+def _json_default(obj):
+    from decimal import Decimal
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable')
+
+
+def loads_json(value, default):
+    """Parse JSON string, or pass through if already parsed.
+
+    Postgres `json`/`jsonb` columns are returned by psycopg as native Python
+    lists/dicts; Postgres `text` columns come as strings. This helper handles
+    both uniformly so callers can mix storage types without TypeError.
+    """
+    if value is None or value == "":
         return default
+    if isinstance(value, (list, dict)):
+        return value
     return json.loads(value)
 
 

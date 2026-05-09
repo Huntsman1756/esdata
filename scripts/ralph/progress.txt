@@ -138,3 +138,18 @@ Learnings:
 - **Test:** /v1/consulta was a separate bug in the same audit finding; "Decimal serialization" was only half the story — the traceback mentioned line 161 of buscar.py; but /v1/consulta threw UnboundLocalError. Both now fixed.
 Next: A-02 (Fix json.loads bug in /v1/ai/query-audit)
 ---
+
+
+=== Iteration A-02 — 2026-05-09 22:50 ===
+Story: A-02 Fix json.loads bug in /v1/ai/query-audit endpoint (P0 bloqueante)
+Branch: fix/audit-critical
+Verification run: curl /v1/ai/query-audit?limit=5 → HTTP 200 with total=61, entries[] populated with real audit rows
+Result: PASS
+Fix applied:
+- apps/api/services/persistence.py: loads_json() now accepts already-parsed list/dict (isinstance check before json.loads). Postgres `json`/`jsonb` columns are returned natively by psycopg; stringly-typed `text` columns still work.
+Learnings:
+- **Pattern:** When helper utils parse JSON, always guard with isinstance(value, (list, dict)) — DB drivers may return parsed or raw depending on column type.
+- **Gotcha:** query_audit_log has mixed storage types: retrieved_chunks is `json` (parsed by psycopg), sources/response_payload are `text` (stringified). Without the guard, any list-valued json column crashes on read.
+- **Downstream benefit:** /v1/ai/query-audit now works → future story A-03 (propagate request_id) is verifiable.
+Next: A-03 (propagate X-Request-ID from middleware to query_audit_log)
+---
