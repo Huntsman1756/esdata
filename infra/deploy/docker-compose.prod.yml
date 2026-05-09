@@ -760,6 +760,23 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  cron-psd2-weekly:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_PSD2_WEEKLY:-}
+      WORKER_CMD: python psd2_eba.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
   hermes:
     build:
       context: ../..

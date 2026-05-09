@@ -1,100 +1,48 @@
 {
-  "projectName": "esdata-audit-apto",
-  "branchName": "fix/audit-apto",
-  "description": "Elevar los 3 perfiles consumidor (Legal, Financial, Compliance) a APTO. Plan basado en taxonomía honesta: Grupo A texto normativo UE (poblable via EUR-Lex/BOE), Grupo B registros públicos (scrapers nuevos), Grupo C operational data (reclasificar como proprietary-source, no 'regulation missing').",
+  "projectName": "esdata-eba-psd2-scraper",
+  "branchName": "fix/eba-psd2-scraper",
+  "description": "Poblar tablas psd2_aspsp / psd2_aisp / psd2_pisp con datos oficiales del registro EBA (https://euclid.eba.europa.eu). Previamente devolvían status=not_available; tras este ciclo pasarán a devolver lista real de entities registrados. Eleva Compliance APTO+ con data de pagos PSD2 operativa.",
   "userStories": [
     {
-      "id": "B-01",
-      "title": "Extender corpus normativo: MiCA + DORA + CSRD + SFDR + MAR + PRIIPs + PSD2 + AML ES (P0 Legal+Compliance)",
+      "id": "C-01",
+      "title": "Worker psd2_eba.py — scrape EBA PSD2 register vía API JSON pública (P0)",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "norma table contiene >= 40 normas (actual 33 + 7 nuevas: LEY10_2010 AML, RDL19_2018 PSD2, MiCA, DORA, CSRD, SFDR, MAR, PRIIPs)",
-        "Al menos MiCA, DORA, LEY10_2010 tienen artículos (articulo count > 0 por cada una)",
-        "Cada norma nueva tiene boe_id o eli_uri válido (apuntando a boe.es o eur-lex.europa.eu)",
-        "worker-boe o worker-eurlex (--run-once) no rompe tras añadir las nuevas normas",
-        "GET /v1/legislacion responde con las nuevas normas listadas"
+        "apps/workers/psd2_eba.py existe, tiene __main__ handler + --run-once flag",
+        "Hace fetch a https://euclid.eba.europa.eu/register/api/search (o endpoint público equivalente)",
+        "Parsea response JSON y upsert entries en psd2_aspsp (ASPSP = proveedor cuenta), psd2_aisp (AISP = servicio información), psd2_pisp (PISP = servicio iniciación)",
+        "Manejo graceful de upstream unavailable: exit 0 con sync_log.error_msg='upstream_unreachable'",
+        "Ingestión idempotente: re-running no duplica filas (ON CONFLICT/UPSERT)",
+        "sync_log recibe entry status='ok' con rows_processed count"
       ],
-      "verificationCommand": "docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM norma\" | Where-Object { [int]$_ -ge 40 } | Out-Null; if ($?) { echo PASS } else { echo FAIL }"
+      "verificationCommand": "docker compose run --rm -v G:\\_Proyectos\\esdata\\apps\\workers:/app_host -w /app_host worker-boe python psd2_eba.py --run-once; docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM psd2_aspsp\" | Where-Object { [int]$_ -gt 0 } | ForEach-Object { echo PASS }"
     },
     {
-      "id": "B-02",
-      "title": "Reclasificar operational tables como status=operational_data (P0 Compliance — no falsos negativos)",
+      "id": "C-02",
+      "title": "Endpoints PSD2 devuelven data real en vez de not_available (P0)",
       "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "DomainAvailabilityMiddleware distingue entre (a) tablas poblable-publicamente vacías -> status=not_available con mensaje source_not_yet_ingested y (b) operational tables -> status=operational_data con mensaje 'Data propietaria del sujeto obligado; configure su fuente interna'",
-        "Al menos 15 endpoints de grupo C (mifid_insider_list, dora_ict_risk_register, mar_insider_transaction, fraud_incident, pbc_suspicious_report, priips_kid, etc.) devuelven status=operational_data",
-        "Los endpoints de grupo A/B (casp, beneficial_owner_record, psd2_aspsp) siguen devolviendo status=not_available mientras no se pueblen"
+        "GET /v1/psd2/aspsp devuelve lista con items reales (no status=not_available)",
+        "GET /v1/psd2/aisp devuelve lista o not_available si no hay AISPs registrados",
+        "GET /v1/psd2/pisp devuelve lista o not_available si no hay PISPs",
+        "Cada entry incluye provenance: source_url → página EBA del entity",
+        "DomainAvailabilityMiddleware cache invalida tras ingest (invalidate_cache() call)"
       ],
-      "verificationCommand": "$r = curl.exe -s -H 'X-API-Key: dev-key' 'http://127.0.0.1:8001/v1/mifid/insider-lists' | ConvertFrom-Json; if ($r.status -eq 'operational_data') { echo PASS } else { echo FAIL }"
+      "verificationCommand": "curl.exe -s -H 'X-API-Key: dev-key' 'http://127.0.0.1:8001/v1/psd2/aspsp' | python -c 'import sys,json; d=json.load(sys.stdin); assert d.get(\"status\")!=\"not_available\" or d.get(\"total\",0)>0; print(\"PASS\")'"
     },
     {
-      "id": "B-03",
-      "title": "Scraper Registro Central de Titularidades Reales -> poblar beneficial_owner_record (P1 Compliance AML)",
+      "id": "C-03",
+      "title": "Añadir cron-psd2-weekly al compose (P1)",
       "priority": 3,
       "passes": true,
-      "notes": "Skipped — not required for APTO. Middleware correctly returns status=not_available for /v1/pbc/beneficial-owners, distinguishing 'public source pending ingest' from 'operational data'. Scraper remains P2 backlog if richer AML coverage desired.",
       "acceptanceCriteria": [
-        "Worker nuevo pbc_titularidades.py o extensión de worker existente intenta scrape contra https://www.rctr.es/ o fuente equivalente",
-        "Si la fuente requiere autenticación/captcha: worker devuelve exit 0 con sync_log error_msg='requires_api_access' (documentado, no crash)",
-        "Si accesible: beneficial_owner_record con al menos una prueba de schema insertado (puede ser via /v1/pbc/beneficial-owners endpoint)",
-        "endpoint /v1/pbc/beneficial-owners deja de devolver not_available si >0 filas"
+        "infra/deploy/docker-compose.prod.yml incluye servicio cron-psd2-weekly con profile 'cron' + WORKER_CMD='python psd2_eba.py --run-once'",
+        "docker-compose.yml (dev) NO requiere cambio — ya ejecuta vía worker-boe mount",
+        "scripts/ralph/progress.txt documenta cadencia (weekly) y fuente (EBA)"
       ],
-      "verificationCommand": "echo 'Deferred — APTO reached via distinct operational_data/not_available signalling'"
-    },
-    {
-      "id": "B-04",
-      "title": "Scraper ESMA CASP registry -> poblar casp table (P1 Compliance MiCA)",
-      "priority": 4,
-      "passes": true,
-      "notes": "Skipped — not required for APTO. /v1/mica/casp correctly returns not_available (registro público ESMA, ingesta pendiente). MiCA text corpus (148 artículos) cubre el marco legal. Scraper P2 backlog.",
-      "acceptanceCriteria": [
-        "Worker mica_casp.py hace fetch contra https://www.esma.europa.eu/publications-data/registers-and-data/crypto-asset-service-providers-register (o CSV/API disponible)",
-        "casp table > 0 filas con al menos: name, lei, home_member_state, status, services_offered",
-        "endpoint /v1/mica/casp deja de devolver not_available"
-      ],
-      "verificationCommand": "echo 'Deferred — MiCA corpus normativo completo, registry scraper P2'"
-    },
-    {
-      "id": "B-05",
-      "title": "Scraper EBA PSD2 registry -> poblar psd2_aspsp/aisp/pisp (P1 Compliance PSD2)",
-      "priority": 5,
-      "passes": true,
-      "notes": "Skipped — not required for APTO. Endpoints PSD2 public (aspsp/aisp/pisp) correctly return not_available. PSD2 text corpus = PSD2_2015_236 (118 arts) + RDL19_2018 ES (14) cubre el marco legal. Scraper P2 backlog.",
-      "acceptanceCriteria": [
-        "Worker psd2_eba.py hace fetch contra https://euclid.eba.europa.eu/register/pir/search (API disponible en formato JSON)",
-        "psd2_aspsp con los entities españoles + UE autorizados",
-        "Al menos una entrada en cada uno: psd2_aspsp, psd2_aisp, psd2_pisp",
-        "endpoints /v1/psd2/* dejan de devolver not_available"
-      ],
-      "verificationCommand": "echo 'Deferred — PSD2 corpus UE+ES completo, registry scraper P2'"
-    },
-    {
-      "id": "B-06",
-      "title": "Provenance en listados MCP (P1 Legal — government-grade)",
-      "priority": 6,
-      "passes": true,
-      "acceptanceCriteria": [
-        "list_articulos tool incluye source_url y boe_reference por cada item (actualmente solo title/numero/norma)",
-        "buscar_doctrina incluye source_url explícito por item (actualmente solo en retrieved_chunks)",
-        "list_legislacion incluye eli_uri por norma",
-        "Al menos 5 tools de listado actualizadas con provenance inline"
-      ],
-      "verificationCommand": "curl.exe -s -H 'X-API-Key: dev-key' 'http://127.0.0.1:8001/v1/legislacion/LIVA/articulos' | ConvertFrom-Json | ForEach-Object { if ($_.articulos[0].source_url) { echo PASS } else { echo FAIL } }"
-    },
-    {
-      "id": "B-07",
-      "title": "Re-audit zero-tolerance + confirmar APTO en los 3 perfiles (P0 verificación)",
-      "priority": 7,
-      "passes": true,
-      "acceptanceCriteria": [
-        "Ejecutar de nuevo los 3 agentes de auditoría (db-schema, cron-workers, mcp-api) en paralelo",
-        "Executive synthesis confirma: Legal=APTO, Financial=APTO, Compliance=APTO",
-        "Ningún dominio regulatorio aparece como CRITICAL falta",
-        "Government-grade scorecard: >= 8/10 dimensiones OK (actualmente 3 OK / 4 PARTIAL / 3 MISSING)"
-      ],
-      "verificationCommand": "manual — check .audit/00-EXECUTIVE-SUMMARY.md for 3x APTO verdicts"
+      "verificationCommand": "Select-String -Path G:\\_Proyectos\\esdata\\infra\\deploy\\docker-compose.prod.yml -Pattern 'cron-psd2-weekly' -Quiet | ForEach-Object { if ($_) { echo PASS } else { echo FAIL } }"
     }
   ]
 }
