@@ -787,7 +787,7 @@ services:
       - /tmp
 
   backup:
-    image: postgres:16-alpine@sha256:1e3604a950df9588c86b955a1e4be0887900210b5c49985ee275c4c2c689cf73
+    image: postgres:16-alpine@sha256:4e6e670bb069649261c9c18031f0aded7bb249a5b6664ddec29c013a89310d50
     profiles: ["prod"]
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
