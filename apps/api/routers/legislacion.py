@@ -39,13 +39,22 @@ async def list_legislacion():
         rows = db.execute(
             text(
                 """
-                SELECT codigo, titulo, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura
+                SELECT codigo, titulo, jurisdiccion, tipo_fuente, tipo_documento, ambito,
+                       estado_cobertura, boe_id, eli_uri
                 FROM norma
                 ORDER BY codigo
                 """
             )
         ).mappings()
-    return {"normas": list(rows)}
+    # Enrich each norma with per-item provenance (boe_reference + eli_uri)
+    # so consumers don't need to round-trip to /{codigo} for citation data.
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["boe_reference"] = item.pop("boe_id", None)
+        # eli_uri stays as-is (already in select)
+        result.append(item)
+    return {"normas": result}
 
 
 @router.get("/cobertura")
@@ -138,7 +147,7 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
             db.execute(
                 text(
                     """
-                    SELECT a.numero, a.titulo, a.tipo
+                    SELECT a.numero, a.titulo, a.tipo, n.boe_id, n.eli_uri, n.codigo AS norma_codigo
                     FROM norma n
                     JOIN articulo a ON a.norma_id = n.id
                     WHERE {where_clause}
@@ -157,7 +166,26 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
                 raise HTTPException(
                     status_code=404, detail={"error": "Norma no encontrada"}
                 )
-    payload = {"norma": codigo, "articulos": rows}
+    # Enrich each article row with provenance fields derived from the parent
+    # norma so consumers can cite articles directly without fetching norma.
+    articulos = []
+    for row in rows:
+        boe_id = row["boe_id"]
+        numero_raw = str(row["numero"])
+        anchor = "".join(ch for ch in numero_raw if ch.isalnum()).lower()
+        source_url = (
+            f"https://www.boe.es/buscar/act.php?id={boe_id}#a{anchor}"
+            if boe_id else None
+        )
+        articulos.append({
+            "numero": row["numero"],
+            "titulo": row["titulo"],
+            "tipo": row["tipo"],
+            "boe_reference": boe_id,
+            "source_url": source_url,
+            "eli_uri": row["eli_uri"],
+        })
+    payload = {"norma": codigo, "articulos": articulos}
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}/articulos",

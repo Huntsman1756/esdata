@@ -212,6 +212,8 @@ def list_modelos_summary(db):
                 m.nombre,
                 m.periodo,
                 m.impuesto,
+                m.url_info,
+                m.url_listado,
                 COUNT(DISTINCT CASE WHEN n.id IS NOT NULL THEN ma.articulo_id END) AS articulos_count,
                 COUNT(DISTINCT mc.id) AS casillas_count
             FROM aeat_modelo m
@@ -225,7 +227,7 @@ def list_modelos_summary(db):
                 AND ma.numero = a.numero
             LEFT JOIN modelo_campana mcam ON mcam.modelo_id = m.id AND mcam.activo = true
             LEFT JOIN modelo_casilla mc ON mc.campana_id = mcam.id AND mc.activa = true
-            GROUP BY m.id, m.codigo, m.nombre, m.periodo, m.impuesto
+            GROUP BY m.id, m.codigo, m.nombre, m.periodo, m.impuesto, m.url_info, m.url_listado
             ORDER BY m.codigo
             """
         )

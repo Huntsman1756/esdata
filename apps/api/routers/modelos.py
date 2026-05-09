@@ -214,6 +214,8 @@ async def list_modelos():
                     "nombre": row["nombre"],
                     "periodo": row["periodo"],
                     "impuesto": row["impuesto"],
+                    "url_info": row["url_info"],
+                    "url_listado": row["url_listado"],
                     "articulos_count": row["articulos_count"],
                     "casillas_count": row["casillas_count"],
                 }

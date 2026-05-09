@@ -1,48 +1,35 @@
 {
-  "projectName": "esdata-eba-psd2-scraper",
-  "branchName": "fix/eba-psd2-scraper",
-  "description": "Poblar tablas psd2_aspsp / psd2_aisp / psd2_pisp con datos oficiales del registro EBA (https://euclid.eba.europa.eu). Previamente devolvían status=not_available; tras este ciclo pasarán a devolver lista real de entities registrados. Eleva Compliance APTO+ con data de pagos PSD2 operativa.",
+  "projectName": "esdata-provenance-listados",
+  "branchName": "fix/provenance-listados",
+  "description": "Añadir provenance por item (source_url, boe_reference, eli_uri) a los 6 listados MCP principales que hoy los omiten.",
   "userStories": [
     {
-      "id": "C-01",
-      "title": "Worker psd2_eba.py — scrape EBA PSD2 register vía API JSON pública (P0)",
+      "id": "D-01",
+      "title": "/v1/legislacion — cada norma incluye boe_reference + eli_uri",
       "priority": 1,
       "passes": true,
-      "acceptanceCriteria": [
-        "apps/workers/psd2_eba.py existe, tiene __main__ handler + --run-once flag",
-        "Hace fetch a https://euclid.eba.europa.eu/register/api/search (o endpoint público equivalente)",
-        "Parsea response JSON y upsert entries en psd2_aspsp (ASPSP = proveedor cuenta), psd2_aisp (AISP = servicio información), psd2_pisp (PISP = servicio iniciación)",
-        "Manejo graceful de upstream unavailable: exit 0 con sync_log.error_msg='upstream_unreachable'",
-        "Ingestión idempotente: re-running no duplica filas (ON CONFLICT/UPSERT)",
-        "sync_log recibe entry status='ok' con rows_processed count"
-      ],
-      "verificationCommand": "docker compose run --rm -v G:\\_Proyectos\\esdata\\apps\\workers:/app_host -w /app_host worker-boe python psd2_eba.py --run-once; docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM psd2_aspsp\" | Where-Object { [int]$_ -gt 0 } | ForEach-Object { echo PASS }"
+      "notes": "Verified: AI_ACT_2024_1689 → boe_reference=EUR-CELEX-32024R1689, eli_uri=https://eur-lex.europa.eu/eli/reg/2024/1689/oj"
     },
     {
-      "id": "C-02",
-      "title": "Endpoints PSD2 devuelven data real en vez de not_available (P0)",
+      "id": "D-02",
+      "title": "/v1/legislacion/{codigo}/articulos — cada artículo incluye source_url + boe_reference",
       "priority": 2,
       "passes": true,
-      "acceptanceCriteria": [
-        "GET /v1/psd2/aspsp devuelve lista con items reales (no status=not_available)",
-        "GET /v1/psd2/aisp devuelve lista o not_available si no hay AISPs registrados",
-        "GET /v1/psd2/pisp devuelve lista o not_available si no hay PISPs",
-        "Cada entry incluye provenance: source_url → página EBA del entity",
-        "DomainAvailabilityMiddleware cache invalida tras ingest (invalidate_cache() call)"
-      ],
-      "verificationCommand": "curl.exe -s -H 'X-API-Key: dev-key' 'http://127.0.0.1:8001/v1/psd2/aspsp' | python -c 'import sys,json; d=json.load(sys.stdin); assert d.get(\"status\")!=\"not_available\" or d.get(\"total\",0)>0; print(\"PASS\")'"
+      "notes": "Verified: LIVA art 1 → source_url=https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a1, boe_reference=BOE-A-1992-28740"
     },
     {
-      "id": "C-03",
-      "title": "Añadir cron-psd2-weekly al compose (P1)",
+      "id": "D-03",
+      "title": "/v1/doctrina/buscar — items incluyen source_url",
       "priority": 3,
       "passes": true,
-      "acceptanceCriteria": [
-        "infra/deploy/docker-compose.prod.yml incluye servicio cron-psd2-weekly con profile 'cron' + WORKER_CMD='python psd2_eba.py --run-once'",
-        "docker-compose.yml (dev) NO requiere cambio — ya ejecuta vía worker-boe mount",
-        "scripts/ralph/progress.txt documenta cadencia (weekly) y fuente (EBA)"
-      ],
-      "verificationCommand": "Select-String -Path G:\\_Proyectos\\esdata\\infra\\deploy\\docker-compose.prod.yml -Pattern 'cron-psd2-weekly' -Quiet | ForEach-Object { if ($_) { echo PASS } else { echo FAIL } }"
+      "notes": "Required both backend fix (SELECT url_fuente + result dict) and Pydantic schema update (DoctrinaSearchResult + JurisprudenciaSearchResult source_url field). Response model was stripping the field. Sample: BOE-A-2018-16036 → source_url=https://www.boe.es/eli/es/rdl/2018/11/23/19"
+    },
+    {
+      "id": "D-04",
+      "title": "/v1/modelos — cada modelo incluye url_info",
+      "priority": 4,
+      "passes": true,
+      "notes": "Backend SQL query + router payload + ModeloSummary schema updated. Sample: modelo 001 → url_info=https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G304.shtml"
     }
   ]
 }

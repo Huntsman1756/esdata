@@ -131,6 +131,10 @@ class DoctrinaSearchResult(BaseModel):
     norma: str | None = Field(default=None, description="Código de norma vinculada")
     numero: str | None = Field(default=None, description="Número de artículo vinculado")
     fragmento: str = Field(description="Fragmento del texto con el término buscado")
+    source_url: str | None = Field(
+        default=None,
+        description="URL oficial del documento (boe.es, portal organismo emisor, etc.) para citación verificable",
+    )
 
 
 class JurisprudenciaSearchResult(BaseModel):
@@ -145,6 +149,10 @@ class JurisprudenciaSearchResult(BaseModel):
     norma: str | None = Field(default=None, description="Código de norma vinculada")
     numero: str | None = Field(default=None, description="Número de artículo vinculado")
     fragmento: str = Field(description="Fragmento del texto con el término buscado")
+    source_url: str | None = Field(
+        default=None,
+        description="URL oficial de la resolución (cendoj.es, poderjudicial.es, etc.)",
+    )
 
 
 class JurisprudenciaSearchResponse(BaseModel):
@@ -194,6 +202,14 @@ class ModeloSummary(BaseModel):
     impuesto: str = Field(description="Impuesto asociado (IRPF, IVA, etc.)")
     articulos_count: int = Field(description="Número de artículos de ley vinculados")
     casillas_count: int = Field(description="Número de casillas en la campaña activa")
+    url_info: str | None = Field(
+        default=None,
+        description="URL oficial del modelo en la sede AEAT (procedimientoini/GNNN.shtml)",
+    )
+    url_listado: str | None = Field(
+        default=None,
+        description="URL del listado canónico AEAT donde este modelo se publica",
+    )
 
 
 class ModeloArticulo(BaseModel):
