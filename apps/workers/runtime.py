@@ -211,7 +211,7 @@ def handle_worker_failure(
     """
     import traceback
 
-    from .dead_letter import add_dead_letter
+    import dead_letter
 
     error_msg = str(exc)[:5000]
     error_tb = traceback.format_exc()[:2000]
