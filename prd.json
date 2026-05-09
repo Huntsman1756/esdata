@@ -34,7 +34,7 @@
       "id": "S-03",
       "title": "Run seed-modelos-v2.py — populate modelo_articulo relationships",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Depends on S-02 passing first",
         "scripts/seed-modelos-v2.py runs without errors",
