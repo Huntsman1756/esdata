@@ -36,6 +36,18 @@ HTTP_MCP_OPERATIONS = [
     "detalle_convenio_dta_internacional",
     "listar_reglas_retencion_internacional",
     "calcular_retencion",
+    # Bridged from stdio — tools that previously only worked via MCP stdio
+    # transport are now callable via HTTP MCP too. Each maps to an existing
+    # REST endpoint that the stdio handler already delegates to.
+    "consulta_fiscal",                 # GET /v1/consulta
+    "listar_obligaciones_operativas",  # GET /v1/obligaciones/operativas
+    "listar_deadlines",                # GET /v1/obligaciones/deadlines
+    "listar_obligaciones_aplicables",  # GET /v1/obligaciones/aplicables
+    "get_obligacion",                  # GET /v1/obligaciones/{codigo}
+    "listar_workflow_compliance",      # GET /v1/compliance/workflow
+    # Note: agente_monitoreo_status remains stdio-only — it reads from
+    # `agent_monitor.get_monitor_status()`, a Python-internal function without
+    # a corresponding REST endpoint. Creating one is tracked in backlog.
 ]
 
 
