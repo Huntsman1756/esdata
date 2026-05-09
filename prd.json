@@ -48,7 +48,7 @@
       "id": "S-04",
       "title": "Resolve aeat_models.py Playwright dependency — enable Hacienda data ingestion",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Determine definitively whether aeat_models.py can run via HTTP fallback or requires Playwright",
         "If Playwright required: confirm Dockerfile.aeat builds successfully and worker-modelos can start",
