@@ -216,3 +216,20 @@ Learnings:
 - **Gotcha:** esdata role is superuser in dev, so it bypasses RLS entirely. To genuinely test RLS, would need a non-superuser role. In dev the RLS is "best-effort" structural correctness.
 Next: A-08 (cleanup HTML artifacts in aeat_modelo.nombre)
 ---
+
+
+=== Iteration A-08 — 2026-05-09 23:10 ===
+Story: A-08 Limpiar HTML artifacts en aeat_modelo.nombre (P1 — 217/219 filas contaminadas)
+Branch: fix/audit-critical
+Verification run: SELECT COUNT(*) FROM aeat_modelo WHERE nombre LIKE contaminated patterns → 0 (was 217). Sample cleaned: "Modelo 303. IVA. Autoliquidación.", "Modelo 390. IVA. Declaración Resumen Anual."
+Result: PASS
+Fix applied:
+- apps/workers/aeat_models.py::_extract_model_name: añadidas 7 regex chrome_patterns para filtrar 'Saltar al contenido principal', 'Logotipo del Gobierno de España', 'Logotipo Organismo', 'Menú móvil', 'Menu' trailing, 'Agencia Tributaria Agencia Tributaria' prefix duplicado, 'Agencia Tributaria' prefix simple. Aplicadas con re.IGNORECASE antes del collapse de whitespace.
+- SQL UPDATE migratorio (one-shot): `UPDATE aeat_modelo SET nombre = TRIM(regexp_replace(regexp_replace(nombre, '(^Agencia Tributaria Agencia Tributaria |^Agencia Tributaria |Saltar al contenido principal.*$|Logotipo del Gobierno.*$|Logotipo Organismo.*$|Men[uú] m[oó]vil.*$)', '', 'gi'), '\\s+', ' ', 'g'))` — 219 filas actualizadas.
+Learnings:
+- **Pattern:** Scrapers de sitios con JS-rendered chrome contaminan siempre el mismo conjunto de strings. Mantén una chrome_patterns list en el worker para filtrarlos UNA vez cerca del punto de extracción, no distribuido.
+- **Pattern:** Para cleanups de datos existentes, preferir UPDATE one-shot vs migración Alembic cuando (a) el fix va también en el worker (b) la operación es idempotente (c) no cambia schema. Evita ruido de migraciones para data fixes.
+- **Gotcha:** UPDATE ... SET col = regex1(col), col = regex2(col) NO funciona en Postgres (multiple assignments to same column). Anidar: SET col = regex2(regex1(col)).
+- **Validation:** Mismos nombres por codigo ahora legibles en UI: '303' → 'Modelo 303. IVA. Autoliquidación.'
+Next: A-07 (install FNMT cert in worker image for DGT)
+---

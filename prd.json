@@ -99,7 +99,7 @@
       "id": "A-08",
       "title": "Limpiar HTML artifacts en aeat_modelo.nombre (P1 — 217/219 filas contaminadas)",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Ninguna fila de aeat_modelo.nombre contiene strings como 'Saltar al contenido principal', 'Logotipo del Gobierno', 'Agencia Tributaria Agencia Tributaria'",
         "Fix aplicado al parser en worker (aeat_models.py) para que futuras ingestas no contaminen",
