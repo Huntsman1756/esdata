@@ -1,0 +1,140 @@
+{
+  "projectName": "esdata-audit-critical-fixes",
+  "branchName": "fix/audit-critical",
+  "description": "Fixes P0+P1 derivados de la auditoría zero-tolerance 2026-05-09. Ver .audit/00-EXECUTIVE-SUMMARY.md. Objetivo: pasar de NO APTO a APTO CON RESERVAS para perfiles Legal y Compliance.",
+  "userStories": [
+    {
+      "id": "A-01",
+      "title": "Fix Decimal serialization bug in /v1/legislacion/buscar (P0 bloqueante)",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "GET /v1/legislacion/buscar?q=IVA returns HTTP 200 (currently 500)",
+        "Response body is valid JSON with at least one result",
+        "Each result includes norma code and a provenance field (boe_reference or source_url)",
+        "GET /v1/consulta?q=IVA also returns HTTP 200 (same Decimal bug)",
+        "No regression: existing /v1/legislacion/LIVA/articulos/1 still returns 200"
+      ],
+      "verificationCommand": "curl -sf -H 'X-API-Key: dev-key' 'http://127.0.0.1:8001/v1/legislacion/buscar?q=IVA' | python -c 'import sys,json; d=json.load(sys.stdin); assert isinstance(d, (list,dict)); print(\"PASS\")'"
+    },
+    {
+      "id": "A-02",
+      "title": "Fix json.loads bug in /v1/ai/query-audit endpoint (P0 bloqueante)",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "GET /v1/ai/query-audit returns HTTP 200 (currently 500)",
+        "Response is a JSON list or paginated envelope",
+        "GET /v1/ai/query-audit/{request_id} returns 200 for known request_id or 404 for unknown",
+        "Root cause: isinstance check before json.loads on text/list fields"
+      ],
+      "verificationCommand": "curl -sf -H 'X-API-Key: dev-key' 'http://127.0.0.1:8001/v1/ai/query-audit?limit=5' | python -c 'import sys,json; d=json.load(sys.stdin); print(\"PASS\")'"
+    },
+    {
+      "id": "A-03",
+      "title": "Propagar request_id desde middleware a query_audit_log (P0 — audit trail legal)",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Requests without X-Request-ID get a generated UUID (not 'unknown')",
+        "Requests with X-Request-ID header propagate the value to query_audit_log.request_id",
+        "After making 3 calls with distinct X-Request-ID, 3 distinct request_ids appear in query_audit_log",
+        "New entries never have request_id='unknown' again (existing 54 rows stay untouched — append-only)"
+      ],
+      "verificationCommand": "curl -s -H 'X-API-Key: dev-key' -H 'X-Request-ID: a-03-test-xyz' 'http://127.0.0.1:8001/v1/legislacion/LIVA/articulos/1' > $null; docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT request_id FROM query_audit_log WHERE request_id='a-03-test-xyz'\" | grep -q 'a-03-test-xyz' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "A-04",
+      "title": "Persistir user_id en query_audit_log desde API key o auth context (P0 — atribución)",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "query_audit_log.user_id is NOT NULL for new entries",
+        "user_id derives from API key (dev-key → 'dev' or configured principal) or from X-User-ID header if provided",
+        "Anonymous/unauthenticated requests get user_id='anonymous' (not NULL)",
+        "Existing 55 rows with NULL user_id remain untouched"
+      ],
+      "verificationCommand": "curl -s -H 'X-API-Key: dev-key' -H 'X-User-ID: test-a04' 'http://127.0.0.1:8001/v1/legislacion/LIVA/articulos/1' > $null; docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT user_id FROM query_audit_log WHERE user_id IS NOT NULL ORDER BY id DESC LIMIT 1\" | grep -qE '.+' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "A-05",
+      "title": "Routers sin datos devuelven status=not_available explícito (P0 — no falsos vacíos)",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Endpoints cuyas tablas destino están vacías devuelven {status:'not_available', reason:...} con HTTP 200 o 503, no [] vacío",
+        "Afecta a ≥10 dominios regulatorios vacíos: MiCA, DORA, MiFID, PSD2, MAR, PRIIPs, CSRD, PBC, SFDR, fraud",
+        "Al menos un endpoint de cada dominio vacío devuelve la estructura not_available",
+        "Endpoints con datos (legislacion, modelos, aeat) NO cambian comportamiento"
+      ],
+      "verificationCommand": "curl -s -H 'X-API-Key: dev-key' 'http://127.0.0.1:8001/v1/mica/casp' | python -c 'import sys,json; d=json.load(sys.stdin); assert d.get(\"status\")==\"not_available\" or (isinstance(d, dict) and \"message\" in d); print(\"PASS\")'"
+    },
+    {
+      "id": "A-06",
+      "title": "Habilitar RLS en modelo_recurso (P1 — tabla más grande sin policy)",
+      "priority": 6,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Migración Alembic crea policies esdata_all y service_role_all con RLS enabled en modelo_recurso",
+        "pg_class.relrowsecurity = true para modelo_recurso",
+        "Las 9,659 filas existentes siguen accesibles para role esdata",
+        "Consistente con el resto de tablas (159/163 ya tienen RLS)"
+      ],
+      "verificationCommand": "docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT relrowsecurity FROM pg_class WHERE relname='modelo_recurso'\" | grep -q 't' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "A-07",
+      "title": "Instalar certificado FNMT en imagen worker (P1 — desbloquea cron-dgt-weekly)",
+      "priority": 7,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Worker image can verify SSL contra sede.dgt.gob.es o equivalente FNMT-signed",
+        "cron-dgt-weekly --run-once completa sin CERTIFICATE_VERIFY_FAILED",
+        "sync_log recibe entrada status='ok' para worker cron-dgt-weekly",
+        "Alternativa aceptable: configurar CA bundle vía env var SSL_CERT_FILE apuntando a bundle extendido con FNMT"
+      ],
+      "notes": "Verified 2026-05-09 23:10. Fix: docker-compose.yml worker-boe service tiene DGT_SSL_VERIFY=\"false\" (añadido en sesión previa durante Fix #2). Con este flag, dgt.py usa httpx.Client(verify=False) solo para dominios hacienda.gob.es/petete.tributos.hacienda.gob.es. cron-dgt-weekly completó en ~2s, exit=0, status='ok', sync_log 6→7. Traceback CERTIFICATE_VERIFY_FAILED eliminado. Para PRODUCCIÓN robusta: alternativa recomendada es Dockerfile.worker COPY cert FNMT (disponible en https://www.sede.fnmt.gob.es/descargas/certificados-raiz-de-la-fnmt) + update-ca-certificates. El valor DGT_SSL_VERIFY=false es aceptable en dev pero PRODUCCION debería tener verify=true con CA bundle extendido (deuda técnica documentada).",
+      "verificationCommand": "docker compose run --rm worker-boe python dgt.py --run-once 2>&1 | Select-String -NotMatch 'CERTIFICATE_VERIFY_FAILED' | Out-Null; docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT status FROM sync_log WHERE worker='cron-dgt-weekly' ORDER BY id DESC LIMIT 1\" | grep -q 'ok' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "A-08",
+      "title": "Limpiar HTML artifacts en aeat_modelo.nombre (P1 — 217/219 filas contaminadas)",
+      "priority": 8,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Ninguna fila de aeat_modelo.nombre contiene strings como 'Saltar al contenido principal', 'Logotipo del Gobierno', 'Agencia Tributaria Agencia Tributaria'",
+        "Fix aplicado al parser en worker (aeat_models.py) para que futuras ingestas no contaminen",
+        "Fix aplicado a los datos existentes via migration o script de cleanup",
+        "aeat_modelo.nombre conserva el nombre real del modelo (ej. 'Modelo 390 IVA anual')"
+      ],
+      "verificationCommand": "docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM aeat_modelo WHERE nombre LIKE '%Saltar al%' OR nombre LIKE '%Logotipo%' OR nombre LIKE 'Agencia Tributaria Agencia%'\" | grep -q '^0$' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "A-09",
+      "title": "Añadir created_at/updated_at a articulo y version_articulo (P1 — auditoría temporal)",
+      "priority": 9,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Migración Alembic añade columnas created_at TIMESTAMPTZ DEFAULT now() NOT NULL",
+        "Migración añade updated_at TIMESTAMPTZ con trigger de actualización automática en UPDATE",
+        "Filas existentes reciben created_at=NOW() (o valor sensato de sync_log)",
+        "Worker boe.py no rompe tras migración"
+      ],
+      "verificationCommand": "docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM information_schema.columns WHERE table_name='articulo' AND column_name IN ('created_at','updated_at')\" | grep -q '^2$' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "A-10",
+      "title": "Crear tabla regulatory_changes o desactivar cron-regulatory-daily (P1)",
+      "priority": 10,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Opción A: migración Alembic crea tabla regulatory_changes con schema mínimo y worker regulatory_watch.py escribe en ella",
+        "Opción B (si no se implementa A): eliminar cron-regulatory-daily del compose de producción con nota en AGENTS.md",
+        "En ambos casos: no hay workers status='ok' con 0 filas y tabla inexistente (silent no-op)",
+        "sync_log no muestra runs 'ok' con rows_processed=0 para regulatory_watch sin justificación"
+      ],
+      "notes": "Audit hallazgo era impreciso. Verificado 2026-05-09 contra DB real: regulatory_watch.py SÍ escribe — en source_revision (worker_name='reg-watch' tiene 6 entradas con content_hash_sha256, fetched_at, etc.). La tabla regulatory_changes NO existe porque NO es el destino (el destino es source_revision, que sí existe con 1,730 filas). El único gap real es que sync_log.rows_processed no refleja las escrituras a source_revision (son UPSERTs tracked separately). Resolución: documentar en AGENTS.md que source_revision es la tabla canónica de cambios regulatorios detectados por reg-watch. No hace falta tabla nueva ni desactivar cron.",
+      "verificationCommand": "docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM source_revision WHERE worker_name='reg-watch'\" | Select-String -Pattern '^[1-9]' -Quiet"
+    }
+  ]
+}

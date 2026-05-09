@@ -145,6 +145,28 @@ async def test_liva_articulo_91():
 
 
 @pytest.mark.asyncio
+async def test_liva_articulo_91_traceability_fields():
+    """S-16 compliance: response must include BOE traceability metadata."""
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/91")
+    assert r.status_code == 200
+    data = r.json()
+    # BOE canonical identifier must be present and well-formed.
+    assert "boe_reference" in data
+    assert data["boe_reference"] is not None
+    assert data["boe_reference"].startswith("BOE-")
+    # Deep-link URL must point to boe.es and include the article anchor.
+    assert "source_url" in data
+    assert data["source_url"] is not None
+    assert data["source_url"].startswith("https://www.boe.es/buscar/act.php?id=")
+    assert "#a91" in data["source_url"]
+    # ELI URI is optional but if present must be a boe.es/eli URL.
+    assert "eli_uri" in data
+    if data["eli_uri"] is not None:
+        assert "boe.es/eli" in data["eli_uri"]
+
+
+@pytest.mark.asyncio
 async def test_liva_articulo_91_vigente_en_fecha():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2020-01-01")

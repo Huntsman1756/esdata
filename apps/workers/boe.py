@@ -59,6 +59,9 @@ DEFAULT_NORMAS = {
     "LIS": "BOE-A-2014-12328",
     "LGT": "BOE-A-2003-23186",
     "ITPAJD": "BOE-A-1993-253",
+    # Added 2026-05-09 per audit: compliance domains gap
+    "LEY10_2010": "BOE-A-2010-6737",       # Ley 10/2010 Prevencion blanqueo capitales (SEPBLAC)
+    "RDL19_2018": "BOE-A-2018-16036",      # RDL 19/2018 Servicios de pago — implementa PSD2 en Espana
 }
 
 KNOWN_BOE_CODES = set(DEFAULT_NORMAS.keys())
@@ -73,6 +76,11 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto_legislativo",
         "ambito": "tributario",
     },
+    "LEY10_2010": {"tipo_documento": "ley", "ambito": "prevencion_blanqueo"},
+    "RDL19_2018": {
+        "tipo_documento": "real_decreto_ley",
+        "ambito": "servicios_pago",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -80,6 +88,8 @@ LAW_TO_NORMA = {
     "27/2014": "LIS",
     "35/2006": "LIRPF",
     "58/2003": "LGT",
+    "10/2010": "LEY10_2010",
+    "19/2018": "RDL19_2018",
 }
 
 

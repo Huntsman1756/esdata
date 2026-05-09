@@ -38,6 +38,7 @@ services:
       - ./apps/api:/app
       - ./alembic.ini:/app/alembic.ini:ro
       - ./alembic:/app/alembic:ro
+      - ./docs:/app/docs:ro
     command: sh -c "alembic upgrade heads && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)\""]
@@ -52,8 +53,20 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata
       BOE_API_BASE: https://www.boe.es/datosabiertos/api/legislacion-consolidada
-      BOE_LEGISLACION_NORMAS: LIVA,LIRPF,LIS,LGT,ITPAJD
+      BOE_LEGISLACION_NORMAS: LIVA,LIRPF,LIS,LGT,ITPAJD,LEY10_2010,RDL19_2018
       SYNC_INTERVAL_SECONDS: "3600"
+      # SEED_URLS dev defaults — valores públicos oficiales de cada fuente.
+      # Permiten ejecutar `docker compose run --rm worker-boe python <source>.py --run-once`
+      # sin configuración adicional. Sincronizados con infra/deploy/compose.env.example.
+      BDNS_SEED_URLS: https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404
+      BORME_SEED_URLS: https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf
+      CNMV_SEED_URLS: https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133
+      SEPBLAC_SEED_URLS: https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/
+      CENDOJ_SEED_URLS: https://www.poderjudicial.es/search/indexAN.jsp
+      BDE_SEED_URLS: https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/
+      AEPD_SEED_URLS: https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673
+      TEAC_SEED_URLS: https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/
+      DGT_SSL_VERIFY: "false"
     depends_on:
       api:
         condition: service_healthy

@@ -10,6 +10,7 @@ Modo hibrido:
 """
 
 import argparse
+import logging
 import os
 import re
 import sys
@@ -25,20 +26,22 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from runtime import (
+    configure_logging,
+    ensure_database_connection,
+    get_database_url,
+    get_interval_seconds,
+    handle_worker_failure,
+    sleep_with_heartbeat,
+    touch_heartbeat,
+    init_sentry,
+)
 from change_detection import (
     check_content_changed,
     destination_row_exists,
     ensure_source_revision_table,
     invalidate_old_embeddings,
     record_revision,
-)
-from runtime import (
-    configure_logging,
-    ensure_database_connection,
-    handle_worker_failure,
-    sleep_with_heartbeat,
-    touch_heartbeat,
-    init_sentry,
 )
 
 EURLEX_BASE = os.getenv(
@@ -174,6 +177,22 @@ EURLEX_NORMAS: list[dict] = [
     {"codigo": "DATA_ACT_2023_2854", "boe_id": "EUR-CELEX-32023R2854", "tipo_documento": "reglamento",
      "titulo": "Reglamento (UE) 2023/2854 sobre la comparticion de datos y la utilizacion de datos (Data Act)",
      "vigente_desde": "2023-12-11", "ambito": "tecnologia"},
+    # --- MiCA (Markets in Crypto-Assets) ---
+    {"codigo": "MICA_2023_1114", "boe_id": "EUR-CELEX-32023R1114", "tipo_documento": "reglamento",
+     "titulo": "Reglamento (UE) 2023/1114 relativo a los mercados de criptoactivos (MiCA)",
+     "vigente_desde": "2023-06-09", "ambito": "criptoactivos"},
+    # --- Taxonomia (base CSRD + SFDR) ---
+    {"codigo": "TAXONOMIA_2020_852", "boe_id": "EUR-CELEX-32020R0852", "tipo_documento": "reglamento",
+     "titulo": "Reglamento (UE) 2020/852 relativo al establecimiento de un marco para facilitar inversiones sostenibles (Taxonomia UE)",
+     "vigente_desde": "2020-07-12", "ambito": "sostenibilidad"},
+    # --- AMLR 2024/1624 (Reglamento AMLR, 6.º paquete) ---
+    {"codigo": "AMLR_2024_1624", "boe_id": "EUR-CELEX-32024R1624", "tipo_documento": "reglamento",
+     "titulo": "Reglamento (UE) 2024/1624 sobre prevencion del blanqueo de capitales (AMLR)",
+     "vigente_desde": "2024-07-09", "ambito": "prevencion_blanqueo"},
+    # --- AMLD6 2024/1640 ---
+    {"codigo": "AMLD6_2024_1640", "boe_id": "EUR-CELEX-32024L1640", "tipo_documento": "directiva",
+     "titulo": "Directiva (UE) 2024/1640 sobre los mecanismos de prevencion del uso de los sistemas financieros para el blanqueo de capitales (AMLD6)",
+     "vigente_desde": "2024-07-09", "ambito": "prevencion_blanqueo"},
 ]
 
 # ============================================================
