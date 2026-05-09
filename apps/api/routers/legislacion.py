@@ -1,5 +1,6 @@
 from db import db_session
 from fastapi import APIRouter, HTTPException, Request
+from request_context import get_request_id, get_user_id
 from services.query_audit import get_query_audit_service
 from sqlalchemy import text
 
@@ -19,10 +20,8 @@ def _record_legislacion_query_audit(
     verified: bool = True,
 ):
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
-        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        request_id=get_request_id(request),
+        user_id=get_user_id(request),
         path=path,
         query_text=query_text,
         retrieved_chunks=retrieved_chunks,
@@ -198,7 +197,8 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
             db.execute(
                 text(
                     """
-                SELECT n.codigo, a.numero, va.texto, va.vigente_desde, va.vigente_hasta
+                SELECT n.codigo, a.numero, va.texto, va.vigente_desde, va.vigente_hasta,
+                       n.boe_id, n.eli_uri
                 FROM norma n
                 JOIN articulo a ON a.norma_id = n.id
                 JOIN version_articulo va ON va.articulo_id = a.id
@@ -214,12 +214,24 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
         )
     if not row:
         raise HTTPException(status_code=404, detail={"error": "Articulo no encontrado"})
+
+    # Build traceability fields to BOE (S-16 compliance).
+    boe_id = row["boe_id"]
+    # Deep-link to the specific article within the consolidated norma on boe.es.
+    # BOE uses `#a<numero>` anchors for each article in the consolidated text.
+    numero_raw = str(row["numero"])
+    anchor_fragment = "".join(ch for ch in numero_raw if ch.isalnum()).lower()
+    source_url = f"https://www.boe.es/buscar/act.php?id={boe_id}#a{anchor_fragment}" if boe_id else None
+
     payload = {
         "norma": row["codigo"],
         "numero": row["numero"],
         "texto": row["texto"],
         "vigente_desde": str(row["vigente_desde"]),
         "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+        "boe_reference": boe_id,
+        "source_url": source_url,
+        "eli_uri": row["eli_uri"],
         "confianza": {
             "nivel": 1,
             "fuentes": [f"{row['codigo']} art. {row['numero']}"],

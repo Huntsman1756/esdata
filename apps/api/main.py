@@ -9,6 +9,7 @@ from mcp_security import guard_mcp_http
 from mcp_server import mount_mcp
 from middleware.ai_audit import ai_audit_middleware
 from middleware.api_key_auth import ApiKeyAuthMiddleware
+from middleware.domain_availability import DomainAvailabilityMiddleware
 from middleware.metrics import create_metrics_endpoint, create_metrics_middleware
 from middleware.rate_limit import rate_limit_middleware
 from middleware.request_logging import RequestLoggingMiddleware
@@ -161,9 +162,16 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(ApiKeyAuthMiddleware)
+app.add_middleware(DomainAvailabilityMiddleware)
 app.middleware("http")(rate_limit_middleware)
 app.middleware("http")(guard_mcp_http)
 app.middleware("http")(ai_audit_middleware)
+
+# Expose SQLAlchemy engine for middleware that needs read-only count queries
+# (e.g. DomainAvailabilityMiddleware). Routers continue to use db_session().
+from db import engine as _db_engine  # noqa: E402
+
+app.state.engine = _db_engine
 
 for router in (
     status.router,

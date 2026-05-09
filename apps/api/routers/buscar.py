@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from schemas import LegislacionSearchResponse
 from services.query_audit import get_query_audit_service
+from request_context import get_request_id, get_user_id
 from services.search import search_legislacion
 from services.semantic_search import hybrid_search_legislacion
 from sqlalchemy import text
@@ -97,10 +98,8 @@ def _record_search_query_audit(
     resultados = result.get("resultados", [])
     has_results = bool(resultados)
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
-        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        request_id=get_request_id(request),
+        user_id=get_user_id(request),
         path=path,
         query_text=query_text,
         retrieved_chunks=_build_legislacion_audit_chunks(result),
@@ -158,7 +157,10 @@ async def buscar_legislacion(
         tool_name="buscar_legislacion",
         result=result,
     )
-    return JSONResponse(content=result)
+    # Return dict directly; FastAPI uses jsonable_encoder which handles Decimal.
+    # Do NOT wrap in JSONResponse — its stdlib json.dumps does not know Decimal
+    # and raises TypeError for any numeric column coming from SQL (e.g. ranking).
+    return result
 
 
 @router.get("/v1/legislacion/buscar/hybrid", operation_id="buscar_legislacion_hybrid")
@@ -175,4 +177,4 @@ async def buscar_legislacion_hybrid(
     result = hybrid_search_legislacion(
         q, norma, fuente, ambito, tipo, vigente_en, hybrid_weight, limit
     )
-    return JSONResponse(content=result)
+    return result

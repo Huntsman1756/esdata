@@ -415,6 +415,22 @@ def _extract_model_name(raw_text: str, codigo: str) -> str:
     if raw_text:
         name = re.sub(r"<[^>]+>", " ", raw_text)
         name = re.sub(r"&nbsp;", " ", name)
+        # Strip AEAT site-chrome that leaks into page titles when scraping
+        # without JavaScript. These strings are always present regardless of
+        # the actual model name and would otherwise contaminate aeat_modelo.nombre
+        # (detected by audit 2026-05-09 in 217/219 rows).
+        chrome_patterns = [
+            r"\bSaltar al contenido principal\b.*$",
+            r"\bLogotipo del Gobierno de España\b.*$",
+            r"\bLogotipo Organismo\b.*$",
+            r"\bMenú móvil\b.*$",
+            r"\bMenu\b\s*$",
+            r"^\s*Agencia Tributaria\s+Agencia Tributaria\s+",
+            r"^\s*Agencia Tributaria\s+",
+        ]
+        for pattern in chrome_patterns:
+            name = re.sub(pattern, " ", name, flags=re.IGNORECASE)
+        name = re.sub(r"\s+", " ", name)
         name = re.sub(r"[;\-–—:]+", " ", name).strip()
         if len(name) > 5:
             return name[:200]

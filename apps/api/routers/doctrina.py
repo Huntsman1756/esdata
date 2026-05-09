@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from schemas import DoctrinaDetail as DoctrinaDetailSchema
 from schemas import DoctrinaSearchResponse
 from services.query_audit import get_query_audit_service
+from request_context import get_request_id, get_user_id
 from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
 from services.semantic_search import hybrid_search_doctrina
 from sqlalchemy import text
@@ -109,10 +110,8 @@ def _record_doctrina_query_audit(
     verified: bool = True,
 ):
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
-        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        request_id=get_request_id(request),
+        user_id=get_user_id(request),
         path=path,
         query_text=query_text,
         retrieved_chunks=retrieved_chunks,
@@ -160,8 +159,8 @@ async def buscar_doctrina(
             result["resultados"].extend(_buscar_normas_boe(db, q))
 
         get_query_audit_service().record_query(
-            request_id=request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown",
-            user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+            request_id=get_request_id(request),
+            user_id=get_user_id(request),
             path="/v1/doctrina/buscar",
             query_text=q,
             retrieved_chunks=_build_doctrina_audit_chunks(result),
