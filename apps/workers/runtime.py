@@ -216,7 +216,7 @@ def handle_worker_failure(
     error_msg = str(exc)[:5000]
     error_tb = traceback.format_exc()[:2000]
 
-    retry_count = add_dead_letter(
+    retry_count = dead_letter.add_dead_letter(
         engine, worker_name, entity_id, entity_type, error_msg, error_tb, max_retries
     )
 
