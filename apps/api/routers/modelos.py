@@ -34,6 +34,7 @@ from services.modelos import (
     list_related_doctrina,
 )
 from services.query_audit import get_query_audit_service
+from request_context import get_request_id, get_user_id
 from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
@@ -56,10 +57,8 @@ def _record_modelo_query_audit(
     verified: bool,
 ):
     get_query_audit_service().record_query(
-        request_id=request.headers.get("x-request-id")
-        or request.headers.get("X-Request-ID")
-        or "unknown",
-        user_id=request.headers.get("x-user-id") or request.headers.get("X-User-ID"),
+        request_id=get_request_id(request),
+        user_id=get_user_id(request),
         path=path,
         query_text=query_text,
         retrieved_chunks=retrieved_chunks,

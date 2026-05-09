@@ -34,7 +34,7 @@
       "id": "A-03",
       "title": "Propagar request_id desde middleware a query_audit_log (P0 — audit trail legal)",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Requests without X-Request-ID get a generated UUID (not 'unknown')",
         "Requests with X-Request-ID header propagate the value to query_audit_log.request_id",
@@ -47,7 +47,7 @@
       "id": "A-04",
       "title": "Persistir user_id en query_audit_log desde API key o auth context (P0 — atribución)",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "query_audit_log.user_id is NOT NULL for new entries",
         "user_id derives from API key (dev-key → 'dev' or configured principal) or from X-User-ID header if provided",

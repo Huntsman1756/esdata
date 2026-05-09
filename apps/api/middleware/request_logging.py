@@ -19,7 +19,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log every HTTP request with timing and client IP."""
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        request_id = request.headers.get("x-request-id", str(uuid.uuid4())[:8])
+        # Prefer upstream-provided X-Request-ID (both casings); otherwise mint a
+        # full UUID4. Store on request.state so downstream routers can propagate
+        # the same id to query_audit_log, ai_audit_log, etc.
+        request_id = (
+            request.headers.get("x-request-id")
+            or request.headers.get("X-Request-ID")
+            or str(uuid.uuid4())
+        )
+        request.state.request_id = request_id
         start = time.perf_counter()
 
         response = await call_next(request)

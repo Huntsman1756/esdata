@@ -16,6 +16,7 @@ from services.faithfulness import compute_faithfulness
 from services.grounding import validate_claim_grounding
 from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
+from request_context import get_request_id, get_user_id
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
 from services.unified_multi_source_search import unified_multi_source_search
@@ -1121,8 +1122,8 @@ async def consulta_fiscal(
             "terminos_faltantes": list(re.findall(r"[a-záéíóúñ]{3,}", q.lower())) if q else [],
         }
 
-    request_id = request.headers.get("x-request-id") or request.headers.get("X-Request-ID") or "unknown"
-    user_id = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
+    request_id = get_request_id(request)
+    user_id = get_user_id(request)
     retrieved_chunks = _build_query_audit_chunks(scored_results)
     response_summary = f"resultados={len(final_results)} faithfulness={confianza.get('faithfulness_score', 0.0):.4f} review_required={confianza.get('review_required', False)} grounding={grounding_summary.get('grounding_status', 'unknown')}/{grounding_summary.get('total_claims', 0)} claims"
     get_query_audit_service().record_query(

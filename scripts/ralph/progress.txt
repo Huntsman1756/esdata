@@ -153,3 +153,25 @@ Learnings:
 - **Downstream benefit:** /v1/ai/query-audit now works → future story A-03 (propagate request_id) is verifiable.
 Next: A-03 (propagate X-Request-ID from middleware to query_audit_log)
 ---
+
+
+=== Iteration A-03+A-04 — 2026-05-09 22:58 ===
+Story: A-03 (propagate request_id) + A-04 (persist user_id). Both resolved by single infrastructure change.
+Branch: fix/audit-critical
+Verification run:
+  - curl with X-Request-ID 'a-03-test-xyz' → audit row has request_id='a-03-test-xyz'
+  - curl without X-Request-ID → audit row has full UUID (not 'unknown')
+  - curl with X-User-ID 'test-a04-user' → audit row has user_id='test-a04-user'
+  - curl without X-User-ID → audit row has user_id='anonymous' (never NULL)
+Result: PASS both
+Fix applied:
+- apps/api/middleware/request_logging.py: RequestLoggingMiddleware now stores the request_id on request.state.request_id (previously only logged it and set response header). Also use full UUID4 instead of 8-char truncated.
+- apps/api/request_context.py NEW: helper module exposing get_request_id(request) and get_user_id(request). Both preferred to reading headers directly because: (a) middleware now owns the id, (b) user_id never returns None (falls back to 'anonymous'), (c) single chokepoint for future auth/principal integration.
+- 5 routers updated to use the helpers: legislacion.py, buscar.py, modelos.py, doctrina.py (2 call sites), consulta.py.
+Learnings:
+- **Pattern:** Middleware owns correlation IDs. Routers should read from request.state, NOT from headers — headers are the ingress interface; state is the propagation interface.
+- **Pattern:** For audit persistence, never allow user_id=None. Use an explicit 'anonymous' sentinel so queries like `SELECT COUNT(*) GROUP BY user_id` don't silently drop rows.
+- **Gotcha:** FastAPI/Starlette `request.headers` is immutable; don't try to mutate to add ids. Use request.state instead.
+- **Trail:** Historic 56 audit rows with request_id='unknown' and user_id=NULL remain untouched (append-only trigger). New rows from 2026-05-09 22:58 onwards are fully traceable.
+Next: A-05 (routers without data return status=not_available)
+---
