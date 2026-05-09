@@ -60,7 +60,7 @@
       "id": "A-05",
       "title": "Routers sin datos devuelven status=not_available explícito (P0 — no falsos vacíos)",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Endpoints cuyas tablas destino están vacías devuelven {status:'not_available', reason:...} con HTTP 200 o 503, no [] vacío",
         "Afecta a ≥10 dominios regulatorios vacíos: MiCA, DORA, MiFID, PSD2, MAR, PRIIPs, CSRD, PBC, SFDR, fraud",

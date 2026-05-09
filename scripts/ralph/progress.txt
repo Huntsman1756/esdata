@@ -175,3 +175,22 @@ Learnings:
 - **Trail:** Historic 56 audit rows with request_id='unknown' and user_id=NULL remain untouched (append-only trigger). New rows from 2026-05-09 22:58 onwards are fully traceable.
 Next: A-05 (routers without data return status=not_available)
 ---
+
+
+=== Iteration A-05 — 2026-05-09 23:10 ===
+Story: A-05 Routers sin datos devuelven status=not_available explícito (P0 — no falsos vacíos)
+Branch: fix/audit-critical
+Verification run: batch curl 10 endpoints (/v1/mica/casp, /v1/dora/ict-risk-registers, /v1/mifid/best-execution-records, /v1/psd2/aisp, /v1/mar/insider-transactions, /v1/priips/kids, /v1/csrd/entity-reports, /v1/sfdr/products, /v1/pbc/obligated-subjects, /v1/fraud/incidents) — 10/10 devuelven {"status":"not_available","domain":...,"message":...} con HTTP 200. Regression check /v1/legislacion/LIVA/articulos/1 sigue devolviendo datos con boe_reference.
+Result: PASS 10/10 dominios cubiertos + 0 regression
+Fix applied:
+- apps/api/middleware/domain_availability.py NEW: DomainAvailabilityMiddleware interceptor con registry DOMAIN_PATH_TABLE_MAP (47 entradas) cubriendo MiCA, DORA, MiFID, PSD2, MAR, PRIIPs, CSRD, SFDR, PBC/AML, fraud. Cache TTL 60s para evitar latencia. Sólo intercepta GETs de paths exactos (startswith). Detail endpoints /{id} no interceptan (deben devolver 404 natural).
+- apps/api/services/domain_availability.py NEW: helper check_domain() disponible para usos inline si futuros endpoints necesitan el check explícito (no usado por el middleware pero útil para casos edge).
+- apps/api/main.py: registro de DomainAvailabilityMiddleware + expose engine en app.state.engine para el middleware.
+Learnings:
+- **Pattern:** Middleware >>> 29 modificaciones de router. Un registry centralizado es mantenible; modificaciones per-endpoint son frágiles y propensas a olvido cuando se añade un nuevo framework regulatorio.
+- **Pattern:** Cache TTL corto (60s) amortiza latencia sin arriesgar datos stale — crons son weekly/daily, no real-time.
+- **Pattern:** JSONResponse con status 200 bypass response_model. Usar 503 sería semánticamente más correcto (service unavailable) pero rompería clientes que interpretan cualquier no-2xx como error. Preferir 200 con status:not_available en body.
+- **Gotcha:** response_model de FastAPI coerce el dict y elimina campos extra — JSONResponse directo lo evita. Middleware evita este problema por naturaleza.
+- **Legal impact:** Fix crítico. Antes, un abogado que buscaba regulación de criptoactivos en MiCA recibía `[]` → "no hay regulación" → asesoramiento incorrecto. Ahora recibe "MiCA: fuente pendiente de ingesta" → derivación a fuente oficial.
+Next: A-06 (Habilitar RLS en modelo_recurso)
+---
