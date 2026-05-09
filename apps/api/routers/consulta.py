@@ -1145,7 +1145,8 @@ async def consulta_fiscal(
 
         import psutil
 
-        logger = logging.getLogger(__name__)
+        # Use module-level logger (line 24); do not reassign here — Python would
+        # treat `logger` as local in the whole function and shadow it upstream.
         process = psutil.Process()
         mem_info = process.memory_info()
         record_query_memory("api", mem_info.rss)

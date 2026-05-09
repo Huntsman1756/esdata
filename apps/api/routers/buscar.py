@@ -158,7 +158,10 @@ async def buscar_legislacion(
         tool_name="buscar_legislacion",
         result=result,
     )
-    return JSONResponse(content=result)
+    # Return dict directly; FastAPI uses jsonable_encoder which handles Decimal.
+    # Do NOT wrap in JSONResponse — its stdlib json.dumps does not know Decimal
+    # and raises TypeError for any numeric column coming from SQL (e.g. ranking).
+    return result
 
 
 @router.get("/v1/legislacion/buscar/hybrid", operation_id="buscar_legislacion_hybrid")
@@ -175,4 +178,4 @@ async def buscar_legislacion_hybrid(
     result = hybrid_search_legislacion(
         q, norma, fuente, ambito, tipo, vigente_en, hybrid_weight, limit
     )
-    return JSONResponse(content=result)
+    return result

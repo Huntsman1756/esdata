@@ -62,3 +62,79 @@ Learnings:
 - Stale advisory locks (pg_try_advisory_lock session-level) can block runs; need pg_terminate_backend or pg_advisory_unlock
 - worker-modelos service in prod compose uses Dockerfile.aeat, not Dockerfile.worker
 Next: S-05
+
+=== Iteration 5 — 2026-05-09 ===
+Story: S-05 Test worker-boe-modelos — populate BOE-sourced modelo data
+Verification run: docker exec esdata-worker-boe-1 python /app/boe_modelos_worker.py --run-once --db-url "postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata"
+Result: PASS
+Fix applied: Fixed boe_modelos.py parser — XML uses <tr> not <row>, <th> not <td>, text in <p> children, and only 2 columns (codigo+descripcion) not 3. Fixed check order: rows must be checked for <tr> before length validation.
+Learnings:
+- BOE XML HAC orders use <table><tr><th> or <table><tr><td> structure, not <row><td>
+- Table cells have text inside <p> child elements — need recursive text extraction
+- HAC orders table has 2 columns (Codigo NC, Designacion) not 3
+- Row check order matters: check for <tr> fallback BEFORE len(rows) < 2 check
+- Worker-boe-modelos runs inside esdata-worker-boe-1 container (not separate container)
+- Must docker cp updated files before running; container has cached old module
+- sync_log columns: rows_processed, errores, documentos_procesados, documentos_insertados
+Next: S-06
+
+=== Iteration 6 — 2026-05-09 ===
+Story: S-06 Test worker-dgt — verify DGT data ingestion
+Verification run: docker exec esdata-worker-boe-1 python dgt.py --run-once
+Result: PASS
+Fix applied: Fixed UnboundLocalError in dgt.py (entity_id undefined in outer except), fixed runtime.py missing logger variable, fixed run_sync() returning None on error
+Learnings:
+- dgt.py requires change_detection.py, dead_letter.py, vocabulary.py, vocabulary_validation.py, embeddings.py to be copied to container
+- DGT upstream has SSL cert issues in container environment — worker correctly fails with ConnectError
+- handle_worker_failure in runtime.py needs logger = logging.getLogger(__name__) at module level
+- run_sync() must always return a dict even on error (CLI code accesses result['processed'])
+- worker-dgt does NOT have a Docker Compose service in base docker-compose.yml — must run via existing container
+Next: S-07
+
+=== Iteration 7 — 2026-05-09 ===
+Story: S-07 Test worker-teac, worker-bdns, worker-borme — batch smoke test
+Verification run: docker exec esdata-worker-boe-1 python teac.py --run-once; docker exec esdata-worker-boe-1 python bdns.py --run-once; docker exec esdata-worker-boe-1 python borme.py --run-once
+Result: PASS (exit code 0 for all, clear SEED_URLS warnings)
+Fix applied: None needed
+Learnings:
+- teac.py, bdns.py, borme.py all exit cleanly with exit code 0 when SEED_URLS is empty
+- All require docker cp before running (not in base container)
+
+=== Iteration 8 — 2026-05-09 ===
+Story: S-08 Test worker-cnmv, worker-sepblac, worker-cendoj — batch smoke test
+Verification run: docker exec esdata-worker-boe-1 python cnmv.py --run-once; docker exec esdata-worker-boe-1 python sepblac.py --run-once; docker exec esdata-worker-boe-1 python cendoj.py --run-once
+Result: PASS (all exit with code 0)
+Fix applied: cnmv.py early return missing 'discovered' key — changed to {"processed":0,"stored":0,"discovered":0}
+Learnings:
+- cnmv.py requires beautifulsoup4 — installed via pip as root in container
+- sepblac.py, cendoj.py exit cleanly with SEED_URLS warning (exit 0)
+Next: S-09
+
+=== Iteration 9 — 2026-05-09 ===
+Story: S-09 Test worker-eurlex, worker-bde, worker-cdi, worker-aepd — batch smoke test
+Verification run: docker exec esdata-worker-boe-1 python eurlex.py --run-once; docker exec esdata-worker-boe-1 python bde.py --run-once; docker exec esdata-worker-boe-1 python cdi.py --run-once; docker exec esdata-worker-boe-1 python aepd.py --run-once
+Result: PASS
+Fix applied: eurlex.py import order — get_database_url used at module level before import; eurlex.py also missing logging import. Added unique constraint on irs_dta_convention(pais_origen) for cdi worker ON CONFLICT.
+Learnings:
+- eurlex.py missing `import logging` and `from runtime import get_database_url, get_interval_seconds`
+- Import order critical: runtime imports must come before module-level get_database_url() call
+- cdi worker uses ON CONFLICT (pais_origen) — table must have unique constraint on pais_origen
+- bde and aepd exit cleanly with SEED_URLS warning (exit 0)
+- eurlex is slow but doesn't crash — uses EUR-Lex SPARQL API
+Next: S-10
+
+
+=== Iteration A-01 — 2026-05-09 22:45 ===
+Story: A-01 Fix Decimal serialization bug in /v1/legislacion/buscar (P0 bloqueante)
+Branch: fix/audit-critical
+Verification run: curl /v1/legislacion/buscar?q=IVA (200 + resultados LIVA), curl /v1/consulta?q=IVA (200), curl /v1/legislacion/LIVA/articulos/1 (200 + boe_reference) = regression check
+Result: PASS
+Fix applied:
+- apps/api/routers/buscar.py: replaced `return JSONResponse(content=result)` with `return result` in both buscar_legislacion and buscar_legislacion_hybrid. FastAPI's default jsonable_encoder handles Decimal; JSONResponse uses stdlib json.dumps which does not.
+- apps/api/routers/consulta.py line 1148: removed redundant `logger = logging.getLogger(__name__)` reassignment. The module-level logger at line 24 was being shadowed because Python treats any name assigned anywhere in a function as local in the entire function → UnboundLocalError when line 1010 used it.
+Learnings:
+- **Pattern:** Never wrap SQLAlchemy result dicts in `JSONResponse(content=...)` when they contain numeric types. Use `return result` and let FastAPI's jsonable_encoder handle Decimal→float.
+- **Gotcha:** Python function scope — reassigning a module-level name inside a function (even inside try/except) makes it local for the whole function. If you need a logger variant, name it differently.
+- **Test:** /v1/consulta was a separate bug in the same audit finding; "Decimal serialization" was only half the story — the traceback mentioned line 161 of buscar.py; but /v1/consulta threw UnboundLocalError. Both now fixed.
+Next: A-02 (Fix json.loads bug in /v1/ai/query-audit)
+---

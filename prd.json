@@ -7,7 +7,7 @@
       "id": "A-01",
       "title": "Fix Decimal serialization bug in /v1/legislacion/buscar (P0 bloqueante)",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "GET /v1/legislacion/buscar?q=IVA returns HTTP 200 (currently 500)",
         "Response body is valid JSON with at least one result",
