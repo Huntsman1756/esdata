@@ -194,3 +194,25 @@ Learnings:
 - **Legal impact:** Fix crítico. Antes, un abogado que buscaba regulación de criptoactivos en MiCA recibía `[]` → "no hay regulación" → asesoramiento incorrecto. Ahora recibe "MiCA: fuente pendiente de ingesta" → derivación a fuente oficial.
 Next: A-06 (Habilitar RLS en modelo_recurso)
 ---
+
+
+=== Iteration A-06+A-09+A-10 — 2026-05-09 23:00 ===
+Story: A-06 (RLS modelo_recurso) + A-09 (timestamps articulo) + A-10 (regulatory_changes clarified). Three P1 resolved in one batch.
+Branch: fix/audit-critical
+Verification run:
+  - A-06: SELECT relrowsecurity FROM pg_class WHERE relname='modelo_recurso' → t; 2 policies (esdata_all, service_role_all)
+  - A-09: articulo and version_articulo both have created_at + updated_at TIMESTAMPTZ with default now() and trg_*_updated_at triggers. 2593 existing rows backfilled to migration timestamp.
+  - A-10: reg-watch has 6 entries in source_revision (not a missing table — audit finding was wrong about table 'regulatory_changes')
+Result: PASS all three
+Fix applied:
+- alembic/versions/20260509_0062_rls_modelo_recurso.py: ALTER TABLE ENABLE RLS + 2 policies mirroring rest of schema
+- alembic/versions/20260509_0063_articulo_timestamps.py: add created_at/updated_at to articulo and version_articulo + set_updated_at() PL/pgSQL function (idempotent) + BEFORE UPDATE triggers
+- AGENTS.md: new "Tabla destino por worker" section clarifying source_revision is canonical regulatory-changes table; no regulatory_changes table exists nor should be created
+- prd.json A-10: notes updated with correct analysis — audit finding was imprecise
+Learnings:
+- **Pattern:** When an audit finding claims "table X doesn't exist" but the worker exits cleanly, verify both (a) the worker's actual INSERT targets via grep (not assumed), and (b) the table's existence via information_schema. Don't trust audit text alone.
+- **Pattern:** set_updated_at() PL/pgSQL function is idempotent (CREATE OR REPLACE) and reusable across tables. Add once, attach triggers per table. Don't drop it on downgrade of any single table.
+- **Pattern:** Alembic migrations for RLS should include BOTH relrowsecurity + policies. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` alone without policies blocks ALL access for non-superusers.
+- **Gotcha:** esdata role is superuser in dev, so it bypasses RLS entirely. To genuinely test RLS, would need a non-superuser role. In dev the RLS is "best-effort" structural correctness.
+Next: A-08 (cleanup HTML artifacts in aeat_modelo.nombre)
+---

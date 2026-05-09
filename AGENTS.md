@@ -2,6 +2,31 @@
 
 **Despliegue activo:** Docker Compose. Referencias antiguas en `docs/archive/` con `[DEPRECATED]`.
 
+## Cron/Scheduled workers
+
+- `docker-compose.prod.yml` defines cron services with `profiles: ["cron"]` and `WORKER_CMD` env var
+- systemd timers live in `infra/deploy/systemd/`
+- Template: `esdata-job@<service>.service` for worker services
+- Dedicated timer/service pairs for specific workers (e.g., `esdata-boe-daily.timer/service`, `esdata-boe-modelos-daily.timer/service`)
+- `esdata-boe-modelos-daily.timer` schedules daily sync at 06:00 Madrid time (86400s interval)
+
+### Continuous worker vs cron split
+
+- Los servicios `worker-<source>` (p.ej. `worker-boe`) ejecutan el mismo binario que su `cron-<source>-*` equivalente pero en modo continuo: `python <source>.py` loop + `SYNC_INTERVAL_SECONDS` sleep.
+- Los `cron-<source>-*` (profile `cron`) invocan el mismo binario con `--run-once` para ejecuciones puntuales disparadas por systemd timer.
+- No hay duplicación de trabajo: todas las escrituras usan `UPSERT` (`ON CONFLICT ... DO UPDATE`). Verificado S-01 con worker-boe: count de `articulo` se mantiene estable tras múltiples `--run-once` (2593 → 2593).
+- Convivencia segura: se puede correr continuo y cron en paralelo sin riesgo de duplicados.
+
+### Tabla destino por worker
+
+- `articulo` y `version_articulo` (con `created_at`/`updated_at` desde A-09): BOE legislación, poblada por `worker-boe` / `cron-boe-daily`.
+- `aeat_modelo` + `modelo_campana`/`modelo_casilla`/...: poblada por `worker-aeat-modelos` / `cron-modelos-daily` (script `aeat_models.py`).
+- `modelo_recurso` (RLS habilitada A-06): URLs AEAT cacheadas por `cron-boe-modelos-daily`.
+- `documento_interpretativo`: DGT, CNMV, SEPBLAC, BDE, CENDOJ, AEPD, BORME, BDNS — doctrina/circulares.
+- `source_revision`: cambios detectados por `reg-watch` (cron-regulatory-daily) + metadata ETag/Last-Modified/SHA256 de todos los workers que soportan change-detection. NO hay tabla separada `regulatory_changes` — `source_revision` es la fuente canónica de revisiones regulatorias.
+- `query_audit_log` (append-only via trigger desde migración 0061): invocaciones REST/MCP con `request_id` propagado, `user_id` (o 'anonymous'), `tool_name`, `path`, `retrieved_chunks`, `response_summary`.
+- `sync_log`: telemetría por ejecución de worker (no es la tabla de datos — los datos van a las tablas anteriores).
+
 ---
 
 ## Seguridad S-TIER (no negociable)

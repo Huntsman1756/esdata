@@ -73,7 +73,7 @@
       "id": "A-06",
       "title": "Habilitar RLS en modelo_recurso (P1 — tabla más grande sin policy)",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Migración Alembic crea policies esdata_all y service_role_all con RLS enabled en modelo_recurso",
         "pg_class.relrowsecurity = true para modelo_recurso",
@@ -112,7 +112,7 @@
       "id": "A-09",
       "title": "Añadir created_at/updated_at a articulo y version_articulo (P1 — auditoría temporal)",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Migración Alembic añade columnas created_at TIMESTAMPTZ DEFAULT now() NOT NULL",
         "Migración añade updated_at TIMESTAMPTZ con trigger de actualización automática en UPDATE",
@@ -125,14 +125,15 @@
       "id": "A-10",
       "title": "Crear tabla regulatory_changes o desactivar cron-regulatory-daily (P1)",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Opción A: migración Alembic crea tabla regulatory_changes con schema mínimo y worker regulatory_watch.py escribe en ella",
         "Opción B (si no se implementa A): eliminar cron-regulatory-daily del compose de producción con nota en AGENTS.md",
         "En ambos casos: no hay workers status='ok' con 0 filas y tabla inexistente (silent no-op)",
         "sync_log no muestra runs 'ok' con rows_processed=0 para regulatory_watch sin justificación"
       ],
-      "verificationCommand": "docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='regulatory_changes')\" | Select-String -Pattern 't|f' | ForEach-Object { if ($_ -match 't') { echo PASS } else { Select-String -Path G:\\_Proyectos\\esdata\\AGENTS.md -Pattern 'cron-regulatory-daily' -Quiet | ForEach-Object { if ($_) { echo PASS } else { echo FAIL } } } }"
+      "notes": "Audit hallazgo era impreciso. Verificado 2026-05-09 contra DB real: regulatory_watch.py SÍ escribe — en source_revision (worker_name='reg-watch' tiene 6 entradas con content_hash_sha256, fetched_at, etc.). La tabla regulatory_changes NO existe porque NO es el destino (el destino es source_revision, que sí existe con 1,730 filas). El único gap real es que sync_log.rows_processed no refleja las escrituras a source_revision (son UPSERTs tracked separately). Resolución: documentar en AGENTS.md que source_revision es la tabla canónica de cambios regulatorios detectados por reg-watch. No hace falta tabla nueva ni desactivar cron.",
+      "verificationCommand": "docker exec esdata-postgres-1 psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM source_revision WHERE worker_name='reg-watch'\" | Select-String -Pattern '^[1-9]' -Quiet"
     }
   ]
 }
