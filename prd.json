@@ -1,35 +1,22 @@
 {
-  "projectName": "esdata-provenance-listados",
-  "branchName": "fix/provenance-listados",
-  "description": "Añadir provenance por item (source_url, boe_reference, eli_uri) a los 6 listados MCP principales que hoy los omiten.",
+  "projectName": "esdata-stdio-http-bridge",
+  "branchName": "fix/stdio-http-bridge",
+  "description": "Exponer vía HTTP MCP las 6 tools stdio que tienen endpoint REST equivalente. Clientes HTTP MCP (Claude Desktop via HTTP transport, Cursor, etc.) ahora pueden consumir consulta_fiscal, listar_obligaciones_operativas, listar_deadlines, listar_obligaciones_aplicables, get_obligacion, listar_workflow_compliance. Stdio-only tools (agente_monitoreo_status que depende de función Python interna) documentadas como limitación conocida.",
   "userStories": [
     {
-      "id": "D-01",
-      "title": "/v1/legislacion — cada norma incluye boe_reference + eli_uri",
+      "id": "E-01",
+      "title": "Añadir 6 operation_id al HTTP_MCP_OPERATIONS para exponer tools stdio vía HTTP (P0)",
       "priority": 1,
       "passes": true,
-      "notes": "Verified: AI_ACT_2024_1689 → boe_reference=EUR-CELEX-32024R1689, eli_uri=https://eur-lex.europa.eu/eli/reg/2024/1689/oj"
-    },
-    {
-      "id": "D-02",
-      "title": "/v1/legislacion/{codigo}/articulos — cada artículo incluye source_url + boe_reference",
-      "priority": 2,
-      "passes": true,
-      "notes": "Verified: LIVA art 1 → source_url=https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a1, boe_reference=BOE-A-1992-28740"
-    },
-    {
-      "id": "D-03",
-      "title": "/v1/doctrina/buscar — items incluyen source_url",
-      "priority": 3,
-      "passes": true,
-      "notes": "Required both backend fix (SELECT url_fuente + result dict) and Pydantic schema update (DoctrinaSearchResult + JurisprudenciaSearchResult source_url field). Response model was stripping the field. Sample: BOE-A-2018-16036 → source_url=https://www.boe.es/eli/es/rdl/2018/11/23/19"
-    },
-    {
-      "id": "D-04",
-      "title": "/v1/modelos — cada modelo incluye url_info",
-      "priority": 4,
-      "passes": true,
-      "notes": "Backend SQL query + router payload + ModeloSummary schema updated. Sample: modelo 001 → url_info=https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G304.shtml"
+      "acceptanceCriteria": [
+        "HTTP MCP tools/list devuelve al menos 33 tools (antes 27 + 6 nuevas)",
+        "tools/call consulta_fiscal via HTTP MCP devuelve resultado con provenance",
+        "tools/call listar_obligaciones_operativas via HTTP MCP devuelve lista",
+        "tools/call listar_deadlines via HTTP MCP devuelve deadlines",
+        "tools/call get_obligacion via HTTP MCP devuelve detalle por código",
+        "tools/call listar_workflow_compliance via HTTP MCP devuelve workflow"
+      ],
+      "verificationCommand": "manual — invoke MCP handshake and verify tools/list count >= 33"
     }
   ]
 }

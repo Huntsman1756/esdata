@@ -369,3 +369,17 @@ Learnings:
 - **Cobertura cerrada:** 6/8 listados ahora con provenance por item. Restantes: /v1/materias (tags, no critical) y /v1/legislacion/buscar (ya tenía desde ciclo previo) + /v1/modelos/303/articulos (ya tenía url_fuente).
 <promise>COMPLETE</promise>
 ---
+
+=== Iteration E-01 — 2026-05-10 00:30 ===
+Story: E-01 Bridge stdio→HTTP MCP tools
+Branch: fix/stdio-http-bridge
+Verification run: Python MCP client handshake + initialize + tools/list → 33 tools (era 27). 6/6 bridged tools presentes. tools/call consulta_fiscal(q='tipo reducido IVA') → isError=false, devuelve Modelo 349 y resultados reales.
+Result: PASS
+Fix applied:
+- apps/api/mcp_catalog.py HTTP_MCP_OPERATIONS extendido con 6 operation_id: consulta_fiscal, listar_obligaciones_operativas, listar_deadlines, listar_obligaciones_aplicables, get_obligacion, listar_workflow_compliance. Cada uno mapea 1:1 con un endpoint REST existente que ya era llamado desde mcp_stdio._dispatch_tool.
+Learnings:
+- **Insight:** El bridge stdio→HTTP era mucho más simple de lo esperado — las tools stdio YA delegan a /v1/... endpoints internamente. Solo había que añadir operation_id a la whitelist. FastApiMCP hace el resto automáticamente.
+- **Gap documentado:** agente_monitoreo_status sigue stdio-only porque depende de `agent_monitor.get_monitor_status()` — función Python sin endpoint REST. Crear endpoint queda como backlog menor.
+- **Impacto consumer:** Claude Desktop (HTTP transport), Cursor MCP, otros clientes HTTP MCP ahora ejecutan las 6 tools core de compliance sin requerir process spawn stdio.
+<promise>COMPLETE</promise>
+---
