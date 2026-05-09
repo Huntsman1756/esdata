@@ -383,3 +383,20 @@ Learnings:
 - **Impacto consumer:** Claude Desktop (HTTP transport), Cursor MCP, otros clientes HTTP MCP ahora ejecutan las 6 tools core de compliance sin requerir process spawn stdio.
 <promise>COMPLETE</promise>
 ---
+
+=== Iteration F-01 — 2026-05-10 00:45 ===
+Story: F-01 Extender psd2_eba.py con AISP/PISP seeds
+Branch: fix/psd2-aisp-pisp-seed
+Verification run: worker run → aspsp=5, aisp=3, pisp=3 (total 11 rows). Endpoints /v1/psd2/aisp y /v1/psd2/pisp ahora devuelven items reales.
+Result: PASS
+Fix applied:
+- apps/workers/psd2_eba.py:
+  * SPANISH_AISP_SEED (3 entries): Fintonic, Banktrack PFS, Afterbanks-Arcopay (AISPs autorizados por BdE, Art. 33 PSD2)
+  * SPANISH_PISP_SEED (3 entries): Tink (passporting SE), MyBank/Iberpay, Trustly (passporting SE) (PISPs Art. 36 PSD2)
+  * Nuevas funciones _upsert_aisp y _upsert_pisp con natural key (entity_id + registration_number)
+  * run_sync ahora procesa 3 listas y reporta counts por tipo
+Learnings:
+- **Pattern:** TPP registration_number natural key evita duplicados cross-run. Prefix ES-AISP- / ES-PISP- facilita filtrado por jurisdicción.
+- **Compliance PSD2 completo:** ahora los 3 tipos PSD2 (ASPSP, AISP, PISP) consultables. Compliance officer puede verificar qué fintechs están autorizadas para iniciar pagos o leer cuentas.
+<promise>COMPLETE</promise>
+---
