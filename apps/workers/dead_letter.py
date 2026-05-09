@@ -31,10 +31,10 @@ def add_dead_letter(
                 """
                 SELECT id, retry_count, first_failed_at, last_failed_at
                 FROM sync_dead_letter
-                WHERE worker_name = :worker AND entity_id = :entity_id AND resolved = 0
+                WHERE worker_name = :worker AND entity_id = :entity_id AND resolved = :resolved
                 """
             ),
-            {"worker": worker_name, "entity_id": entity_id},
+            {"worker": worker_name, "entity_id": entity_id, "resolved": False},
         ).mappings().first()
         
         if row:
