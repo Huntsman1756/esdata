@@ -1,0 +1,792 @@
+{
+  "tools": [
+    {
+      "name": "buscar",
+      "description": "Buscar en legislacion consolidada\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"q\": \"Q\",\n  \"resultados\": [\n    {\n      \"tipo\": \"Tipo\",\n      \"norma\": \"Norma\",\n      \"numero\": \"Numero\",\n      \"texto\": \"Texto\",\n      \"fragmento\": \"Fragmento\",\n      \"confianza\": {\n        \"nivel\": 1,\n        \"fuentes\": [\n          \"string\"\n        ]\n      }\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Termino de busqueda",
+            "title": "q"
+          },
+          "fuente": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por fuente (boe, autonomica, etc.)",
+            "title": "fuente",
+            "type": "string"
+          },
+          "ambito": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por ambito (tributario, etc.)",
+            "title": "ambito",
+            "type": "string"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por tipo de articulo",
+            "title": "tipo",
+            "type": "string"
+          },
+          "norma": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por codigo de norma (LIVA, LIRPF, etc.)",
+            "title": "norma",
+            "type": "string"
+          },
+          "vigente_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha de vigencia (YYYY-MM-DD)",
+            "title": "vigente_en",
+            "type": "string"
+          }
+        },
+        "title": "buscarArguments",
+        "required": [
+          "q"
+        ]
+      }
+    },
+    {
+      "name": "buscar_legislacion",
+      "description": "Buscar en legislacion consolidada (alias)\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Termino de busqueda",
+            "title": "q"
+          },
+          "norma": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por codigo de norma",
+            "title": "norma",
+            "type": "string"
+          },
+          "fuente": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por fuente",
+            "title": "fuente",
+            "type": "string"
+          },
+          "ambito": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por ambito",
+            "title": "ambito",
+            "type": "string"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por tipo de articulo",
+            "title": "tipo",
+            "type": "string"
+          },
+          "vigente_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha de vigencia (YYYY-MM-DD)",
+            "title": "vigente_en",
+            "type": "string"
+          }
+        },
+        "title": "buscar_legislacionArguments",
+        "required": [
+          "q"
+        ]
+      }
+    },
+    {
+      "name": "list_legislacion",
+      "description": "List Legislacion\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "title": "list_legislacionArguments"
+      }
+    },
+    {
+      "name": "get_norma",
+      "description": "Get Norma\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          }
+        },
+        "title": "get_normaArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "list_articulos",
+      "description": "List Articulos\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "tipo",
+            "type": "string"
+          }
+        },
+        "title": "list_articulosArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_articulo",
+      "description": "Get Articulo\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "numero": {
+            "type": "string",
+            "title": "numero"
+          },
+          "vigente_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "vigente_en",
+            "type": "string"
+          }
+        },
+        "title": "get_articuloArguments",
+        "required": [
+          "codigo",
+          "numero"
+        ]
+      }
+    },
+    {
+      "name": "get_articulo_historial",
+      "description": "Get Articulo Historial\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "numero": {
+            "type": "string",
+            "title": "numero"
+          }
+        },
+        "title": "get_articulo_historialArguments",
+        "required": [
+          "codigo",
+          "numero"
+        ]
+      }
+    },
+    {
+      "name": "list_materias",
+      "description": "List Materias\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "title": "list_materiasArguments"
+      }
+    },
+    {
+      "name": "get_materia",
+      "description": "Get Materia\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "slug"
+          }
+        },
+        "title": "get_materiaArguments",
+        "required": [
+          "slug"
+        ]
+      }
+    },
+    {
+      "name": "buscar_doctrina",
+      "description": "Buscar doctrina interpretativa\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"q\": \"Q\",\n  \"resultados\": [\n    {\n      \"referencia\": \"Referencia\",\n      \"tipo_documento\": \"Tipo Documento\",\n      \"organismo_emisor\": \"Organismo Emisor\",\n      \"nivel_enlace\": 1.0,\n      \"fragmento\": \"Fragmento\"\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Termino de busqueda en texto de doctrina",
+            "title": "q"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por tipo (consulta_vinculante, resolucion_teac, etc.)",
+            "title": "tipo",
+            "type": "string"
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha minima (YYYY-MM-DD)",
+            "title": "desde",
+            "type": "string"
+          },
+          "organismo_emisor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filtrar por organismo (DGT, TEAC, etc.)",
+            "title": "organismo_emisor",
+            "type": "string"
+          },
+          "include_boe": {
+            "type": "boolean",
+            "description": "Incluir normas BOE relacionadas cuando apliquen",
+            "default": true,
+            "title": "include_boe"
+          }
+        },
+        "title": "buscar_doctrinaArguments",
+        "required": [
+          "q"
+        ]
+      }
+    },
+    {
+      "name": "get_doctrina",
+      "description": "Get Doctrina\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"referencia\": \"Referencia\",\n  \"tipo_documento\": \"Tipo Documento\",\n  \"organismo_emisor\": \"Organismo Emisor\",\n  \"texto\": \"Texto\",\n  \"articulos_relacionados\": [\n    {\n      \"norma\": \"Norma\",\n      \"numero\": \"Numero\",\n      \"metodo_enlace\": \"Metodo Enlace\",\n      \"confianza_enlace\": 1.0\n    }\n  ],\n  \"confianza\": {\n    \"nivel\": 1,\n    \"fuentes\": [\n      \"string\"\n    ]\n  }\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "referencia"
+          }
+        },
+        "title": "get_doctrinaArguments",
+        "required": [
+          "referencia"
+        ]
+      }
+    },
+    {
+      "name": "list_modelos_campanas_operativas",
+      "description": "Vista operativa agregada de varios modelos\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"codigos\": [\n    \"string\"\n  ],\n  \"resultados\": [\n    {\n      \"codigo\": \"Codigo\",\n      \"nombre\": \"Nombre\",\n      \"impuesto\": \"Impuesto\",\n      \"completeness\": \"Completeness\",\n      \"verified\": true,\n      \"fuentes_recomendadas\": [\n        {\n          \"tipo\": \"Tipo\",\n          \"titulo\": \"Titulo\",\n          \"url\": \"Url\",\n          \"organismo\": \"Organismo\",\n          \"oficial\": true\n        }\n      ]\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigos": {
+            "type": "string",
+            "description": "Codigos separados por comas, ej: 124,216,296",
+            "title": "codigos"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "list_modelos_campanas_operativasArguments",
+        "required": [
+          "codigos"
+        ]
+      }
+    },
+    {
+      "name": "list_modelos",
+      "description": "List Modelos\n\nLista todos los modelos AEAT disponibles.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"modelos\": [\n    {\n      \"codigo\": \"Codigo\",\n      \"nombre\": \"Nombre\",\n      \"impuesto\": \"Impuesto\",\n      \"articulos_count\": 1,\n      \"casillas_count\": 1\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "title": "list_modelosArguments"
+      }
+    },
+    {
+      "name": "get_modelo",
+      "description": "Detalle de un modelo AEAT\n\nDetalle de un modelo con artículos, casillas, claves, instrucciones,\nnormativa y doctrina relacionada.\n\nQuery params:\n- campana: filtra por campaña específica (ej: '2025'). Si no se indica,\n  usa la campaña activa más reciente.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"codigo\": \"Codigo\",\n  \"nombre\": \"Nombre\",\n  \"impuesto\": \"Impuesto\",\n  \"campanas\": [\n    {\n      \"campana\": \"Campana\",\n      \"activo\": true\n    }\n  ],\n  \"articulos\": [\n    {\n      \"norma\": \"Norma\",\n      \"numero\": \"Numero\",\n      \"fuente\": \"Fuente\"\n    }\n  ],\n  \"casillas\": [\n    {\n      \"codigo\": \"Codigo\",\n      \"etiqueta\": \"Etiqueta\"\n    }\n  ],\n  \"claves\": [\n    {\n      \"codigo\": \"Codigo\",\n      \"etiqueta\": \"Etiqueta\"\n    }\n  ],\n  \"instrucciones\": [\n    {\n      \"seccion\": \"Seccion\",\n      \"titulo\": \"Titulo\",\n      \"contenido\": \"Contenido\",\n      \"orden\": 1\n    }\n  ],\n  \"normativa\": [\n    {\n      \"titulo\": \"Titulo\"\n    }\n  ],\n  \"doctrina_relacionada\": [\n    {\n      \"referencia\": \"Referencia\",\n      \"organismo_emisor\": \"Organismo Emisor\",\n      \"via_articulos\": [\n        {\n          \"norma\": \"Norma\",\n          \"numero\": \"Numero\"\n        }\n      ]\n    }\n  ],\n  \"completeness\": \"Completeness\",\n  \"verified\": true\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa.",
+            "title": "campana"
+          }
+        },
+        "title": "get_modeloArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_articulos",
+      "description": "Get Modelo Articulos\n\nSolo artículos enlazados a un modelo (para filtros/paginación futura).\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          }
+        },
+        "title": "get_modelo_articulosArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_casillas",
+      "description": "Casillas de un modelo\n\nLista todas las casillas de un modelo para una campaña.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "get_modelo_casillasArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_claves",
+      "description": "Claves de un modelo\n\nLista todas las claves de un modelo para una campaña.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "get_modelo_clavesArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_instrucciones",
+      "description": "Instrucciones de un modelo\n\nLista las instrucciones de un modelo para una campaña.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "get_modelo_instruccionesArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_normativa",
+      "description": "Get Modelo Normativa\n\nLista la normativa (BOE) de un modelo.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          }
+        },
+        "title": "get_modelo_normativaArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_artefactos",
+      "description": "Artefactos técnicos disponibles para un modelo\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"codigo\": \"Codigo\",\n  \"criterio_validacion\": \"Criterio Validacion\",\n  \"artefactos\": [\n    {\n      \"tipo\": \"Tipo\",\n      \"titulo\": \"Titulo\",\n      \"url\": \"Url\",\n      \"oficial\": true\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "get_modelo_artefactosArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_resumen_operativo",
+      "description": "Resumen operativo para agentes sobre un modelo\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"codigo\": \"Codigo\",\n  \"nombre\": \"Nombre\",\n  \"impuesto\": \"Impuesto\",\n  \"fuentes_recomendadas\": [\n    {\n      \"tipo\": \"Tipo\",\n      \"titulo\": \"Titulo\",\n      \"url\": \"Url\",\n      \"organismo\": \"Organismo\",\n      \"oficial\": true\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "get_modelo_resumen_operativoArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_campana_operativa",
+      "description": "Vista de campaña operativa para agentes\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"codigo\": \"Codigo\",\n  \"nombre\": \"Nombre\",\n  \"impuesto\": \"Impuesto\",\n  \"completeness\": \"Completeness\",\n  \"verified\": true,\n  \"fuentes_recomendadas\": [\n    {\n      \"tipo\": \"Tipo\",\n      \"titulo\": \"Titulo\",\n      \"url\": \"Url\",\n      \"organismo\": \"Organismo\",\n      \"oficial\": true\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "get_modelo_campana_operativaArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "get_modelo_fuentes_oficiales",
+      "description": "Fuentes oficiales recomendadas para trabajar un modelo\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"codigo\": \"Codigo\",\n  \"fuentes_oficiales\": [\n    {\n      \"tipo\": \"Tipo\",\n      \"titulo\": \"Titulo\",\n      \"url\": \"Url\",\n      \"organismo\": \"Organismo\",\n      \"oficial\": true\n    }\n  ]\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          },
+          "campana": {
+            "type": "string",
+            "description": "Campana especifica",
+            "title": "campana"
+          }
+        },
+        "title": "get_modelo_fuentes_oficialesArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "listar_reglas_retencion_internacional",
+      "description": "Listar reglas de retencion\n\nLista reglas de retencion por tipo de renta y pais.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"reglas\": [\n    {\n      \"id\": 1,\n      \"codigo\": \"Codigo\",\n      \"tipo_renta\": \"Tipo Renta\",\n      \"tipo_retencion_default\": 1.0,\n      \"estado\": \"Estado\"\n    }\n  ],\n  \"total\": 1\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tipo_renta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tipo de renta: dividends, interest, royalties, capital_gains, other",
+            "title": "tipo_renta",
+            "type": "string"
+          },
+          "pais": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pais aplicable (codigo ISO)",
+            "title": "pais",
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado: activo, inactivo",
+            "default": "activo",
+            "title": "estado"
+          }
+        },
+        "title": "listar_reglas_retencion_internacionalArguments"
+      }
+    },
+    {
+      "name": "listar_convenios_dta_internacional",
+      "description": "Listar convenios DTA\n\nLista convenios de doble tributacion con filtros por pais y estado.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"convenios\": [\n    {\n      \"id\": 1,\n      \"codigo\": \"Codigo\",\n      \"pais_origen\": \"Pais Origen\",\n      \"pais_destino\": \"Pais Destino\",\n      \"titulo\": \"Titulo\",\n      \"estado\": \"Estado\"\n    }\n  ],\n  \"total\": 1\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pais_a": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pais origen (codigo ISO)",
+            "title": "pais_a",
+            "type": "string"
+          },
+          "pais_b": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pais destino (codigo ISO)",
+            "title": "pais_b",
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "description": "Estado: vigente, expirado, modificado",
+            "default": "vigente",
+            "title": "estado"
+          },
+          "tipo_acuerdo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tipo: bilateral, multilateral",
+            "title": "tipo_acuerdo",
+            "type": "string"
+          }
+        },
+        "title": "listar_convenios_dta_internacionalArguments"
+      }
+    },
+    {
+      "name": "detalle_convenio_dta_internacional",
+      "description": "Detalle convenio DTA\n\nDetalle completo de un convenio de doble tributacion.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"id\": 1,\n  \"codigo\": \"Codigo\",\n  \"pais_origen\": \"Pais Origen\",\n  \"pais_destino\": \"Pais Destino\",\n  \"titulo\": \"Titulo\",\n  \"estado\": \"Estado\"\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "codigo"
+          }
+        },
+        "title": "detalle_convenio_dta_internacionalArguments",
+        "required": [
+          "codigo"
+        ]
+      }
+    },
+    {
+      "name": "calcular_retencion",
+      "description": "Calcular retencion aplicable\n\nCalcula el tipo de retencion aplicable cruzando reglas de retencion con convenios DTA vigentes. Si existe un convenio DTA vigente entre el pais de residencia y el tipo de renta, devuelve la tasa reducida.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json\n\n**Example Response:**\n```json\n{\n  \"tipo_renta\": \"Tipo Renta\",\n  \"tipo_retencion_aplicable\": 1.0,\n  \"tiene_convenio_dta\": true,\n  \"requiere_w8\": true\n}\n```",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pais_residencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "pais_residencia",
+            "type": "string"
+          },
+          "tipo_renta": {
+            "type": "string",
+            "title": "tipo_renta"
+          },
+          "tiene_formulario_w8": {
+            "type": "boolean",
+            "title": "tiene_formulario_w8",
+            "default": false
+          },
+          "entidad_giin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "entidad_giin",
+            "type": "string"
+          }
+        },
+        "title": "calcular_retencionArguments",
+        "required": [
+          "tipo_renta"
+        ]
+      }
+    }
+  ]
+}
