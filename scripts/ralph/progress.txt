@@ -24,3 +24,16 @@ Learnings:
 - $PGUSER and $PGDATABASE are not set in Windows/PowerShell — use hardcoded 'esdata/esdata'
 - Verification commands in prd.json need correction for Windows/PowerShell env
 Next: S-02
+
+=== Iteration 2 — 2026-05-09 ===
+Story: S-02 Run seed-modelos.py — populate aeat_modelo with 25 official AEAT models
+Verification run: docker exec -w /app esdata-api-1 python seed-modelos.py --db-url 'postgresql://esdata:esdata_dev@postgres:5432/esdata'
+Result: PASS
+Fix applied: Updated prd.json verificationCommand to use 'esdata-api-1' container and psycopg3-compatible URL format
+Learnings:
+- No 'app' service in docker-compose.yml — use 'esdata-api-1' container to run Python scripts
+- psycopg3.connect() requires 'postgresql://' not 'postgresql+psycopg://' (the latter is SQLAlchemy-only)
+- 25 models seeded successfully with non-null codigo, nombre, impuesto
+- 51 modelo_articulo relationships inserted; 12 skipped (IRNR articles not yet in norma table)
+- seed-modelos.py must be copied into container via 'docker cp' before running
+Next: S-03
