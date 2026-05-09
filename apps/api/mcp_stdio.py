@@ -121,6 +121,7 @@ class MCPStdioServer:
     def __init__(self):
         self._message_id = 0
         self._http_client: httpx.AsyncClient | None = None
+        self._sync_client: httpx.Client | None = None
 
     def _next_id(self) -> int:
         self._message_id += 1
@@ -228,8 +229,13 @@ class MCPStdioServer:
         user_id = "mcp-client"
 
         import time as _time
+        import httpx
         _start = _time.time()
         buffered_messages: list[dict[str, Any]] = []
+        _sync_client = httpx.Client(transport=httpx.ASGITransport(app=self.app, raise_app_exceptions=False))
+        client = self._sync_client or _sync_client
+        if not self._sync_client:
+            self._sync_client = _sync_client
         original_send = self._send
         original_request = client.request
 
@@ -986,7 +992,6 @@ class MCPStdioServer:
                     self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing list_crd_capital_positions: {e!s}")
-        elif tool_name == "get_crd_capital_position":
         # ── DTA / Convenios Doble Imposición ──
         elif tool_name == "listar_convenios_dta_internacional":
             try:

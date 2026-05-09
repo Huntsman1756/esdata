@@ -180,7 +180,7 @@ class RateLimiter:
     def _setup_backend(self) -> None:
         """Choose Redis or in-memory backend based on REDIS_URL."""
         redis_url = os.environ.get("REDIS_URL")
-        if redis_url and self._connect_redis(redis_url) is not None:
+        if redis_url and _connect_redis(redis_url) is not None:
             self._redis_client = _connect_redis(redis_url)
             self._using_redis = True
         else:

@@ -28,6 +28,7 @@ from runtime import (
     ensure_database_connection,
     get_database_url,
     get_interval_seconds,
+    handle_worker_failure,
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
@@ -582,12 +583,21 @@ def main():
     else:
         interval = args.interval or SYNC_INTERVAL_SECONDS
         logger.info("Starting CDI worker (interval=%ds)", interval)
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
         while True:
+            touch_heartbeat()
             try:
                 stats = discover_and_sync()
                 logger.info("CDI sync complete: %s", json.dumps(stats, indent=2))
             except Exception as exc:
                 logger.error("CDI sync error: %s", exc, exc_info=True)
+                handle_worker_failure(
+                    engine,
+                    "worker-cdi",
+                    "full_sync",
+                    "discovery",
+                    exc,
+                )
             time.sleep(interval)
 
 

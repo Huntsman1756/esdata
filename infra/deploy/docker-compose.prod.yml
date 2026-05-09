@@ -794,17 +794,8 @@ services:
     volumes:
       - esdata-postgres:/var/lib/postgresql/data:ro
       - ./backups:/backups
-    entrypoint: >
-      sh -c "set -euo pipefail; while true; do
-        if pg_dump -h postgres -U ${POSTGRES_USER:-esdata} ${POSTGRES_DB:-esdata}
-        | gzip > /backups/backup_$(date +%Y%m%d_%H%M%S).sql.gz; then
-          echo \"Backup successful at \$(date)\"
-        else
-          echo \"Backup FAILED at \$(date)\" >&2
-        fi
-        find /backups -name '*.sql.gz' -mtime +7 -delete;
-        sleep 86400;
-      done"
+      - ./scripts/backup.sh:/scripts/backup.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/backup.sh"]
     depends_on:
       postgres:
         condition: service_healthy
