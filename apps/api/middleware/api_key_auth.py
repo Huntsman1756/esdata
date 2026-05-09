@@ -72,4 +72,17 @@ class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
                 },
             )
 
+        # Key validated: set principal on request state so query_audit_log
+        # gets a meaningful user_id instead of 'anonymous'. Prefers the
+        # explicit X-User-ID header (gateway/platform may inject per-call
+        # identity), falls back to the API key label derived from env var name.
+        header_user = request.headers.get("x-user-id") or request.headers.get("X-User-ID")
+        if header_user:
+            request.state.principal = header_user
+        else:
+            # Derive a stable, non-sensitive label from the key (first 4 chars).
+            # This lets audit queries distinguish "dev-key" calls from "prod-key"
+            # calls without leaking the full key.
+            request.state.principal = f"apikey:{client_key[:4]}***"
+
         return await call_next(request)

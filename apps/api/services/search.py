@@ -83,6 +83,12 @@ def _strip_norma_codes(value: str) -> tuple[str, set[str]]:
         "ITPAJD", "ITP", "AJD",
         "IIEE",
         "DAC6", "DAC6RD", "DAC6EU",
+        # Added for audit-apto cycle — EU regulations with strong acronyms.
+        "MICA", "DORA", "AMLR", "AMLD", "AMLD5", "AMLD6",
+        "PSD2", "PSD3", "MAR", "MIFID", "MIFID2", "MIFIR",
+        "PRIIPS", "PRIIP", "CSRD", "SFDR", "CSDR", "BRRD",
+        "EMIR", "UCITS", "IDD", "AIFMD", "CRD", "CRR",
+        "PROSPECTUS", "TAXONOMIA", "CSDDD",
     })
 
     words = re.findall(r"[A-Za-z0-9]+", value)
@@ -189,24 +195,24 @@ def _extract_norma_from_query(q: str) -> str | None:
     E.g., "IRNR rentas sin establecimiento permanente" -> "IRNR"
     Returns the DB code (n.codigo value), not the search alias.
     """
-    # Map from query word -> DB norma code
-    query_to_db = {
-        "IRNR": "IRNR", "LIRNR": "IRNR",
-        "IRPF": "LIRPF", "LIRPF": "LIRPF", "RIRPF": "LIRPF",
-        "IVA": "LIVA", "LIVA": "LIVA", "RIVA": "LIVA",
-        "IS": "LIS", "LIS": "LIS", "RIS": "LIS",
-        "LGT": "LGT",
-        "ITPAJD": "ITPAJD", "ITP": "ITPAJD", "AJD": "ITPAJD",
-        "IIEE": "IIEE",
-        "DAC6": "DAC6", "DAC6RD": "DAC6RD", "DAC6EU": "DAC6EU",
-    }
+    detected = _extract_norma_and_word_from_query(q)
+    return detected[0] if detected else None
+
+
+def _extract_norma_and_word_from_query(q: str) -> tuple[str, str] | None:
+    """Like _extract_norma_from_query, but also returns the matching query word.
+
+    Example: 'AMLR' -> ('AMLR_2024_1624', 'AMLR'). Used by the PG search branch
+    to strip the matched query word from the text search (tsquery) since it
+    lives in n.codigo, not in article chunks.
+    """
+    query_to_db = _NORMA_ALIASES
     words = re.findall(r"[A-Za-z0-9]+", q)
-    # Check longer tokens first to avoid partial matches (e.g. DAC6RD before DAC6)
     words_sorted = sorted(words, key=len, reverse=True)
     for w in words_sorted:
         w_upper = w.upper()
         if w_upper in query_to_db:
-            return query_to_db[w_upper]
+            return query_to_db[w_upper], w
     return None
 
 
@@ -230,8 +236,35 @@ _NORMA_ALIASES = {
     "IRPF": "LIRPF", "LIRPF": "LIRPF", "RIRPF": "LIRPF",
     "IVA": "LIVA", "LIVA": "LIVA", "RIVA": "LIVA",
     "IS": "LIS", "LIS": "LIS", "RIS": "LIS",
+    "LGT": "LGT",
+    "ITPAJD": "ITPAJD", "ITP": "ITPAJD", "AJD": "ITPAJD",
     "IIEE": "IIEE",
     "DAC6": "DAC6", "DAC6RD": "DAC6RD", "DAC6EU": "DAC6EU",
+    # Added for audit-apto cycle — map common acronyms to full DB codes.
+    "MICA": "MICA_2023_1114", "MICA2023": "MICA_2023_1114",
+    "DORA": "DORA_2022_2535",
+    "AMLR": "AMLR_2024_1624", "AMLR2024": "AMLR_2024_1624",
+    "AMLD6": "AMLD6_2024_1640",
+    "AMLD5": "AMLD_2018_843", "AMLD": "AMLD_2018_843",
+    "PSD2": "PSD2_2015_236",
+    "PSD3": "PSD3_2024_884",
+    "MAR": "MAR_2014_596",
+    "MIFID2": "MIFID2_2014_65", "MIFID": "MIFID2_2014_65",
+    "MIFIR": "MIFIR_2014_60",
+    "PRIIPS": "PRIIPs_2014_1286", "PRIIP": "PRIIPs_2014_1286",
+    "CSRD": "CSRD_2022_2467",
+    "SFDR": "SFDR_2019_2088",
+    "CSDR": "CSDR_2014_909",
+    "BRRD": "BRRD_2014_59",
+    "EMIR": "EMIR_2012_648",
+    "UCITS": "UCITS_2009_65",
+    "IDD": "IDD_2016_97",
+    "AIFMD": "AIFMD_2011_61",
+    "TAXONOMIA": "TAXONOMIA_2020_852",
+    "CSDDD": "CSDDD_2024_1760",
+    # Spanish laws
+    "LEY10": "LEY10_2010", "LEY102010": "LEY10_2010",
+    "RDL19": "RDL19_2018", "RDL192018": "RDL19_2018",
 }
 
 def _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params):
@@ -261,37 +294,28 @@ def _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params):
 
 def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     """Postgres branch: search over documento_fragmento chunks with ts_rank."""
-    # Auto-detect norma code from query words if not explicitly provided
+    # Auto-detect norma code from query words if not explicitly provided.
+    # Also capture the matched query word so we can strip it from tsquery —
+    # the DB code (e.g. 'MICA_2023_1114') is never in chunks; only the
+    # acronym 'MiCA' is in the query.
+    auto_detected_word: str | None = None
     if norma is None:
-        norma = _extract_norma_from_query(q)
-    
-    # When norma was auto-detected from the query, strip it from the query
-    # before building tsquery. The norma word lives in n.codigo, not in chunk text,
-    # so including it in tsquery causes zero matches (e.g. "IRNR rentas..." fails
-    # because "IRNR" is not in any chunk, only in n.codigo='IRNR').
+        detected = _extract_norma_and_word_from_query(q)
+        if detected is not None:
+            norma, auto_detected_word = detected
+
     search_q = q
-    if norma is not None and norma not in q:
-        # norma was explicitly provided, no stripping needed
-        pass
-    elif norma is not None:
-        # Strip the detected norma word from the query to avoid tsquery mismatch
-        query_to_norma = {
-            "IRNR": "IRNR", "LIRNR": "IRNR",
-            "IRPF": "LIRPF", "LIRPF": "LIRPF", "RIRPF": "LIRPF",
-            "IVA": "LIVA", "LIVA": "LIVA", "RIVA": "LIVA",
-            "IS": "LIS", "LIS": "LIS", "RIS": "LIS",
-            "LGT": "LGT",
-            "ITPAJD": "ITPAJD", "ITP": "ITPAJD", "AJD": "ITPAJD",
-            "IIEE": "IIEE",
-            "DAC6": "DAC6", "DAC6RD": "DAC6RD", "DAC6EU": "DAC6EU",
-        }
-        db_code = norma
-        for query_word, norm_code in query_to_norma.items():
-            if norm_code == db_code:
-                search_q = re.sub(r'\b' + re.escape(query_word) + r'\b', '', search_q, flags=re.IGNORECASE).strip()
+    if auto_detected_word is not None:
+        # Norma came from query detection — strip the acronym from tsquery.
+        search_q = re.sub(
+            r'\b' + re.escape(auto_detected_word) + r'\b',
+            '',
+            search_q,
+            flags=re.IGNORECASE,
+        ).strip()
         if not search_q:
-            # If stripping removed everything (e.g. query was just "IRNR"),
-            # use ILIKE fallback instead of tsquery to avoid zero matches.
+            # If stripping removed everything (e.g. query was just "MiCA"),
+            # use norma-only filter (search_filter=TRUE) to return top articles.
             search_q = None
     
     params: dict = {}
@@ -312,12 +336,72 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     else:
         # No tsquery available (empty query or None after stripping).
         # Use ILIKE with search_q if available, otherwise fall back to
-        # norma-only search (no text filter) to return top articles.
+        # norma-only search over version_articulo directly — the documento_fragmento
+        # JOIN returns 0 rows for normas (MiCA, DORA, AMLR, UCITS, etc.) that
+        # have articles but no chunks yet.
         if search_q is not None and search_q.strip():
             search_filter = "cf.texto ILIKE :term"
             params["term"] = f"%{search_q}%"
         else:
-            # No text filter - return top articles of the detected norma
+            # Norma-only query (e.g. q='MiCA' stripped to empty): bypass the
+            # chunk search and list top articles of the detected norma directly.
+            # Using the version_articulo fallback is not enough — it still
+            # requires text matches and search_vector NOT NULL. For an acronym
+            # query we want to SHOW the law's articles regardless of embeddings.
+            if norma is not None:
+                norma_only_rows = db.execute(
+                    text(
+                        """
+                        SELECT n.codigo, a.numero, a.tipo,
+                               va.texto, va.vigente_desde, va.vigente_hasta,
+                               n.boe_id, n.eli_uri
+                        FROM articulo a
+                        JOIN norma n ON n.id = a.norma_id
+                        JOIN version_articulo va ON va.articulo_id = a.id
+                        WHERE n.codigo = :codigo
+                          AND va.vigente_desde = (
+                              SELECT MAX(v2.vigente_desde)
+                              FROM version_articulo v2
+                              WHERE v2.articulo_id = a.id
+                          )
+                        ORDER BY a.numero
+                        LIMIT 10
+                        """
+                    ),
+                    {"codigo": norma},
+                ).mappings().all()
+                resultados = []
+                for row in norma_only_rows:
+                    codigo = row["codigo"]
+                    boe_id = row["boe_id"]
+                    numero_raw = str(row["numero"])
+                    anchor = "".join(ch for ch in numero_raw if ch.isalnum()).lower()
+                    source_url = (
+                        f"https://www.boe.es/buscar/act.php?id={boe_id}#a{anchor}"
+                        if boe_id else None
+                    )
+                    resultados.append({
+                        "tipo": "articulo",
+                        "norma": codigo,
+                        "numero": row["numero"],
+                        "texto": row["texto"],
+                        "fragmento": (row["texto"] or "")[:220],
+                        "vigente_desde": str(row["vigente_desde"]) if row["vigente_desde"] else None,
+                        "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+                        "rank": 1.0,
+                        "fuente_norma": boe_id,
+                        "source_url": source_url,
+                        "boe_reference": boe_id,
+                        "eli_uri": row["eli_uri"],
+                        "chunk_id": None,
+                        "motivo_ranking": "norma_only_acronym_match",
+                        "confianza": {
+                            "nivel": 1,
+                            "fuentes": [f"{codigo} art. {row['numero']}"],
+                            "aviso": None,
+                        },
+                    })
+                return {"q": q, "resultados": resultados}
             search_filter = "TRUE"
         rank_expr = "0.0"
 

@@ -285,3 +285,27 @@ Learnings:
 - **Cobertura nueva:** AML coverage completo — AMLD (UE 2018/843, 78 arts) + AMLR (UE 2024/1624, 90 arts) + AMLD6 (UE 2024/1640, 80 arts) + Ley 10/2010 ES (74 arts) = 322 artículos. MiCA completo (148 arts). Cubre casos de Compliance AML y Crypto.
 Next: B-03 (scraper beneficial_owner) + B-04 (ESMA CASP) + B-05 (EBA PSD2) opcionales, y B-07 (re-audit)
 ---
+
+
+=== Iteration B-06 — 2026-05-09 23:50 ===
+Story: B-06 close the 3 gaps for APTO sin reservas (acronym search + freshness + user_id)
+Branch: fix/audit-apto
+Verification run: 19/19 acronyms return results (MiCA, DORA, AMLR, AMLD5/6, MAR, PSD2, CSRD, SFDR, EMIR, UCITS, IDD, CSDDD, TAXONOMIA, IVA, LGT, LIRPF, IS, ITPAJD). /v1/sources/freshness total=6. user_id='apikey:dev-***'.
+Result: PASS all 3 gaps
+Fix applied:
+- apps/api/services/search.py:
+  * _NORMA_ALIASES extendido con 30+ acrónimos UE (MiCA, DORA, AMLR, AMLD6, PSD2, MAR, MIFID, PRIIPs, CSRD, SFDR, etc.) y leyes ES (LEY10, RDL19) además de los aliases fiscales originales.
+  * _strip_norma_codes: known_codes ampliado correspondientemente.
+  * _extract_norma_from_query delega a nueva _extract_norma_and_word_from_query que retorna también la palabra original matcheada (la palabra en query, no el DB code).
+  * _search_legislacion_pg: fix bug donde `if norma not in q` fallaba porque comparaba DB code ('MICA_2023_1114') con query ('MiCA'). Ahora usa auto_detected_word para strip correcto.
+  * _search_legislacion_pg: cuando query es solo acrónimo (search_q queda vacío tras strip), bypass del JOIN a documento_fragmento (donde normas UE sin chunks devolvían 0) y lista top artículos de la norma directamente con provenance completa (boe_reference, source_url con #a{anchor}, eli_uri).
+- docker-compose.yml: mount ./docs:/app/docs:ro en api service para que _find_manifest encuentre el source manifest.
+- apps/api/middleware/api_key_auth.py: tras validar API key, setea request.state.principal = 'apikey:XXXX***' (prefix 4 chars) o X-User-ID header si presente. Se integra con get_user_id() en request_context.py para que query_audit_log capture actor real.
+Learnings:
+- **Pattern:** Cuando refactorizas una función de detección, retorna también el input token matcheado — no solo el output. El caller necesita saber EXACTAMENTE qué palabra strippear.
+- **Bug pattern:** `if norma not in q` (string in string) asume que DB code == query acronym. Nunca asumas eso. El mapping es 1-to-many (e.g. 'MICA_2023_1114' ↔ 'MiCA', 'MICA', 'MICA2023').
+- **Pattern:** Búsquedas legales deben degradar con gracia — si no hay chunks (documento_fragmento vacío para la norma), caer a query directa sobre articulo+version_articulo. No asumir embeddings/fragmentación siempre disponibles.
+- **Pattern:** Source manifests y catálogos deben estar en paths mounted en el contenedor. _find_manifest con fallback a None graceful evita crash; pero endpoint vacío = mal UX. Mount ./docs:/app/docs:ro soluciona.
+- **Pattern:** API key → user_id: mejor leak zero (prefix:4 chars + '***') que NULL. Sigue siendo identificable pero no revela la key completa en audit log.
+Next: B-07 re-audit para confirmar APTO x3.
+---

@@ -71,7 +71,7 @@
       "id": "B-06",
       "title": "Provenance en listados MCP (P1 Legal — government-grade)",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "list_articulos tool incluye source_url y boe_reference por cada item (actualmente solo title/numero/norma)",
         "buscar_doctrina incluye source_url explícito por item (actualmente solo en retrieved_chunks)",
