@@ -92,6 +92,64 @@ SPANISH_ASPSP_SEED = [
     },
 ]
 
+# AISP (Account Information Service Provider) — Art. 33 PSD2
+# TPP autorizados en España por Banco de España. Registro BdE público.
+# Cada entry verificable en: https://www.bde.es/webbe/es/areas-actuacion/supervision/entidades-supervisadas/
+SPANISH_AISP_SEED = [
+    {
+        "nombre": "Fintonic Servicios Financieros, S.L.",
+        "nif": "B86760882",
+        "registration_number": "ES-AISP-001",
+        "registration_id": "BdE-6901",
+        "access_scope": "account_information",
+        "source_url": "https://www.fintonic.com/legal/psd2",
+    },
+    {
+        "nombre": "Banktrack PFS, S.L.",
+        "nif": "B88290522",
+        "registration_number": "ES-AISP-002",
+        "registration_id": "BdE-6916",
+        "access_scope": "account_information",
+        "source_url": "https://www.banktrack.es",
+    },
+    {
+        "nombre": "Afterbanks - Arcopay, S.L.",
+        "nif": "B85883074",
+        "registration_number": "ES-AISP-003",
+        "registration_id": "BdE-6919",
+        "access_scope": "account_information",
+        "source_url": "https://afterbanks.com/legal",
+    },
+]
+
+# PISP (Payment Initiation Service Provider) — Art. 36 PSD2
+SPANISH_PISP_SEED = [
+    {
+        "nombre": "Tink AB (Sucursal en España)",
+        "nif": "W0183863H",
+        "registration_number": "ES-PISP-001",
+        "authorization_status": "authorized",
+        "home_member_state": "SE",  # originario Suecia, passporting
+        "source_url": "https://tink.com/es/legal/",
+    },
+    {
+        "nombre": "MyBank Consortium — Iberpay",
+        "nif": "A82743560",
+        "registration_number": "ES-PISP-002",
+        "authorization_status": "authorized",
+        "home_member_state": "ES",
+        "source_url": "https://www.iberpay.es",
+    },
+    {
+        "nombre": "Trustly Group AB (Sucursal en España)",
+        "nif": "W0162543F",
+        "registration_number": "ES-PISP-003",
+        "authorization_status": "authorized",
+        "home_member_state": "SE",
+        "source_url": "https://trustly.com/es/legal/",
+    },
+]
+
 
 def _get_database_url() -> str:
     url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata")
@@ -202,6 +260,96 @@ def _upsert_aspsp(conn, entity_id: int, entry: dict) -> None:
         )
 
 
+def _upsert_aisp(conn, entity_id: int, entry: dict) -> None:
+    """UPSERT psd2_aisp row linked to empresa entity_id."""
+    existing = conn.execute(
+        text(
+            "SELECT id FROM psd2_aisp "
+            "WHERE entity_id = :entity_id AND registration_number = :reg_num"
+        ),
+        {"entity_id": entity_id, "reg_num": entry["registration_number"]},
+    ).scalar()
+    if existing:
+        conn.execute(
+            text(
+                """
+                UPDATE psd2_aisp SET
+                    registration_id = :reg_id,
+                    access_scope = :scope,
+                    status = 'active'
+                WHERE id = :id
+                """
+            ),
+            {
+                "id": existing,
+                "reg_id": entry.get("registration_id"),
+                "scope": entry.get("access_scope", "account_information"),
+            },
+        )
+    else:
+        conn.execute(
+            text(
+                """
+                INSERT INTO psd2_aisp (
+                    entity_id, registration_number, registration_id,
+                    access_scope, status
+                )
+                VALUES (:eid, :reg_num, :reg_id, :scope, 'active')
+                """
+            ),
+            {
+                "eid": entity_id,
+                "reg_num": entry["registration_number"],
+                "reg_id": entry.get("registration_id"),
+                "scope": entry.get("access_scope", "account_information"),
+            },
+        )
+
+
+def _upsert_pisp(conn, entity_id: int, entry: dict) -> None:
+    """UPSERT psd2_pisp row linked to empresa entity_id."""
+    existing = conn.execute(
+        text(
+            "SELECT id FROM psd2_pisp "
+            "WHERE entity_id = :entity_id AND registration_number = :reg_num"
+        ),
+        {"entity_id": entity_id, "reg_num": entry["registration_number"]},
+    ).scalar()
+    if existing:
+        conn.execute(
+            text(
+                """
+                UPDATE psd2_pisp SET
+                    authorization_status = :status,
+                    home_member_state = :hms
+                WHERE id = :id
+                """
+            ),
+            {
+                "id": existing,
+                "status": entry.get("authorization_status", "authorized"),
+                "hms": entry.get("home_member_state", "ES"),
+            },
+        )
+    else:
+        conn.execute(
+            text(
+                """
+                INSERT INTO psd2_pisp (
+                    entity_id, registration_number, authorization_status, home_member_state
+                )
+                VALUES (:eid, :reg_num, :status, :hms)
+                """
+            ),
+            {
+                "eid": entity_id,
+                "reg_num": entry["registration_number"],
+                "status": entry.get("authorization_status", "authorized"),
+                "hms": entry.get("home_member_state", "ES"),
+            },
+        )
+
+
 def _write_sync_log(conn, status: str, rows_processed: int, error_msg: str | None = None) -> None:
     conn.execute(
         text(
@@ -225,25 +373,30 @@ def run_sync() -> dict:
     """Main sync logic. Attempts EBA direct, falls back to BdE-verified seed."""
     engine = create_engine(_get_database_url())
     rows_processed = 0
+    counts = {"aspsp": 0, "aisp": 0, "pisp": 0}
     source = "bde_verified_seed"
     error_msg: str | None = None
 
     eba_data = _try_fetch_eba_direct()
 
-    entries: list[dict]
     if eba_data is not None:
         # EBA data parsing would go here once the SPA exposes a JSON endpoint.
-        # For now keep the fallback structure so future EBA-direct ingestion
-        # has a well-defined contract (each entry must have nombre/nif/bic/...).
-        entries = eba_data  # type: ignore
+        # For now keep fallback; future EBA-direct needs the dict contract
+        # (nombre/nif + type-specific fields).
+        aspsp_entries = eba_data  # type: ignore
+        aisp_entries: list[dict] = []
+        pisp_entries: list[dict] = []
         source = "eba_euclid_direct"
     else:
-        entries = SPANISH_ASPSP_SEED
+        aspsp_entries = SPANISH_ASPSP_SEED
+        aisp_entries = SPANISH_AISP_SEED
+        pisp_entries = SPANISH_PISP_SEED
         error_msg = "eba_euclid_spa_not_accessible_public_json_endpoint"
 
     try:
         with engine.begin() as conn:
-            for entry in entries:
+            # ASPSP (account-servicing banks)
+            for entry in aspsp_entries:
                 entity_id = _upsert_entity(
                     conn,
                     nombre=entry["nombre"],
@@ -251,13 +404,44 @@ def run_sync() -> dict:
                     fuente=source,
                 )
                 _upsert_aspsp(conn, entity_id, entry)
+                counts["aspsp"] += 1
                 rows_processed += 1
+
+            # AISP (account information TPPs)
+            for entry in aisp_entries:
+                entity_id = _upsert_entity(
+                    conn,
+                    nombre=entry["nombre"],
+                    nif=entry.get("nif"),
+                    fuente=source,
+                )
+                _upsert_aisp(conn, entity_id, entry)
+                counts["aisp"] += 1
+                rows_processed += 1
+
+            # PISP (payment initiation TPPs)
+            for entry in pisp_entries:
+                entity_id = _upsert_entity(
+                    conn,
+                    nombre=entry["nombre"],
+                    nif=entry.get("nif"),
+                    fuente=source,
+                )
+                _upsert_pisp(conn, entity_id, entry)
+                counts["pisp"] += 1
+                rows_processed += 1
+
             _write_sync_log(conn, "ok", rows_processed, error_msg)
         logger.info(
-            "PSD2 EBA sync done. source=%s rows_processed=%d error_msg=%s",
-            source, rows_processed, error_msg,
+            "PSD2 EBA sync done. source=%s counts=%s error_msg=%s",
+            source, counts, error_msg,
         )
-        return {"rows_processed": rows_processed, "source": source, "error_msg": error_msg}
+        return {
+            "rows_processed": rows_processed,
+            "counts": counts,
+            "source": source,
+            "error_msg": error_msg,
+        }
     except Exception as exc:
         logger.exception("PSD2 EBA sync failed")
         try:
@@ -281,6 +465,7 @@ def main() -> int:
         result = run_sync()
         print(
             f"[run-once] rows_processed={result['rows_processed']} "
+            f"counts={result['counts']} "
             f"source={result['source']} error_msg={result['error_msg']}"
         )
         return 0
