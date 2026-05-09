@@ -1,0 +1,272 @@
+{
+  "projectName": "esdata-mcp-verification",
+  "branchName": "fix/mcp-full-verification",
+  "userStories": [
+
+    {
+      "id": "S-01",
+      "title": "Confirm worker-boe idempotency and no double-ingestion with cron-boe-daily",
+      "priority": 1,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Running worker-boe --run-once twice does not duplicate articulo rows",
+        "Understand whether worker-boe (continuous) and cron-boe-daily are running the same logic",
+        "If they duplicate work, document the intended split (continuous=stream, cron=backfill?) in AGENTS.md",
+        "Row count in articulo is stable after second run"
+      ],
+      "verificationCommand": "docker compose exec postgres psql -U esdata -d esdata -tAc 'SELECT COUNT(*) FROM articulo'; docker compose run --rm worker-boe python boe.py --run-once; docker compose exec postgres psql -U esdata -d esdata -tAc 'SELECT COUNT(*) FROM articulo'"
+    },
+
+    {
+      "id": "S-02",
+      "title": "Run seed-modelos.py — populate aeat_modelo with 25 official AEAT models",
+      "priority": 2,
+      "passes": false,
+      "acceptanceCriteria": [
+        "scripts/seed-modelos.py runs without errors inside the correct Docker context",
+        "aeat_modelo table contains >= 25 rows after seed",
+        "Rows have non-null codigo, nombre, tipo fields"
+      ],
+      "verificationCommand": "docker compose run --rm app python scripts/seed-modelos.py && docker compose exec db psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM aeat_modelo' | grep -E '^[2-9][0-9]|^[1-9][0-9]{2,}' && echo PASS || echo FAIL"
+    },
+
+    {
+      "id": "S-03",
+      "title": "Run seed-modelos-v2.py — populate modelo_articulo relationships",
+      "priority": 3,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Depends on S-02 passing first",
+        "scripts/seed-modelos-v2.py runs without errors",
+        "modelo_articulo table contains rows after seed",
+        "FK relationships to aeat_modelo are valid (zero orphaned rows)"
+      ],
+      "verificationCommand": "docker compose run --rm app python scripts/seed-modelos-v2.py && docker compose exec db psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM modelo_articulo' | grep -vE '^0$' && echo PASS || echo FAIL"
+    },
+
+    {
+      "id": "S-04",
+      "title": "Resolve aeat_models.py Playwright dependency — enable Hacienda data ingestion",
+      "priority": 4,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Determine definitively whether aeat_models.py can run via HTTP fallback or requires Playwright",
+        "If Playwright required: confirm Dockerfile.aeat builds successfully and worker-modelos can start",
+        "If HTTP fallback viable: test it and document which AEAT endpoints respond without JS",
+        "At minimum: worker-modelos starts without crash and logs a clear status (working or blocked-by-AEAT)",
+        "Decision and findings documented in AGENTS.md"
+      ],
+      "verificationCommand": "docker compose run --rm worker-modelos python aeat_models.py --run-once 2>&1 | tail -20; echo EXIT:$?"
+    },
+
+    {
+      "id": "S-05",
+      "title": "Test worker-boe-modelos — populate BOE-sourced modelo data",
+      "priority": 5,
+      "passes": false,
+      "acceptanceCriteria": [
+        "worker-boe-modelos runs without errors",
+        "At least one of modelo_campana, modelo_casilla, modelo_normativa gets rows after run",
+        "Log output shows records processed > 0"
+      ],
+      "verificationCommand": "docker compose run --rm worker-boe-modelos python boe_modelosWorker.py --run-once 2>&1 | tail -30; docker compose exec db psql -U $PGUSER -d $PGDATABASE -c 'SELECT COUNT(*) FROM modelo_campana; SELECT COUNT(*) FROM modelo_casilla;'"
+    },
+
+    {
+      "id": "S-06",
+      "title": "Test worker-dgt — verify DGT data ingestion",
+      "priority": 6,
+      "passes": false,
+      "acceptanceCriteria": [
+        "docker compose run --rm worker-dgt python dgt.py --run-once exits without unhandled exception",
+        "If it populates tables: row count > 0 in relevant DGT tables",
+        "If upstream is unavailable: worker logs a clear warning and exits cleanly (not crash)"
+      ],
+      "verificationCommand": "docker compose run --rm worker-dgt python dgt.py --run-once 2>&1 | tail -20; echo EXIT:$?"
+    },
+
+    {
+      "id": "S-07",
+      "title": "Test worker-teac, worker-bdns, worker-borme — batch smoke test",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Each worker runs --run-once without unhandled exception",
+        "Each worker exits with code 0 or logs a clear upstream-unavailable message",
+        "No worker silently swallows errors (no bare except: pass)"
+      ],
+      "verificationCommand": "for w in worker-teac worker-bdns worker-borme; do echo \"=== $w ===\"; docker compose run --rm $w --run-once 2>&1 | tail -10; done"
+    },
+
+    {
+      "id": "S-08",
+      "title": "Test worker-cnmv, worker-sepblac, worker-cendoj — batch smoke test",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Same criteria as S-07 for these three workers"
+      ],
+      "verificationCommand": "for w in worker-cnmv worker-sepblac worker-cendoj; do echo \"=== $w ===\"; docker compose run --rm $w --run-once 2>&1 | tail -10; done"
+    },
+
+    {
+      "id": "S-09",
+      "title": "Test worker-eurlex, worker-bde, worker-cdi, worker-aepd — batch smoke test",
+      "priority": 9,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Same criteria as S-07 for these four workers"
+      ],
+      "verificationCommand": "for w in worker-eurlex worker-bde worker-cdi worker-aepd; do echo \"=== $w ===\"; docker compose run --rm $w --run-once 2>&1 | tail -10; done"
+    },
+
+    {
+      "id": "S-10",
+      "title": "Fix cron-boe-modelos-daily missing systemd timer",
+      "priority": 10,
+      "passes": false,
+      "acceptanceCriteria": [
+        "esdata-boe-modelos-daily.timer and esdata-boe-modelos-daily.service created",
+        "Timer schedule matches docker-compose cron-boe-modelos-daily schedule",
+        "Timer files placed in correct systemd directory alongside existing timers",
+        "systemd-analyze verify passes on new timer file",
+        "Document the gap and fix in AGENTS.md"
+      ],
+      "verificationCommand": "systemd-analyze verify /etc/systemd/system/esdata-boe-modelos-daily.timer && echo PASS || echo FAIL"
+    },
+
+    {
+      "id": "S-11",
+      "title": "Audit 51 undocumented workers — classify and document each",
+      "priority": 11,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Every .py worker file classified as one of:",
+        "  TYPE-A: utility/helper — not standalone, no service needed",
+        "  TYPE-B: domain module — imported by others, no service needed",
+        "  TYPE-C: standalone worker that SHOULD have a docker-compose service (missing)",
+        "  TYPE-D: deprecated/dead code",
+        "Classification written to docs/worker-inventory.md",
+        "Any TYPE-C workers added as new stories in prd.json"
+      ],
+      "verificationCommand": "test -f docs/worker-inventory.md && grep -c 'TYPE-' docs/worker-inventory.md | grep -vE '^0$' && echo PASS || echo FAIL"
+    },
+
+    {
+      "id": "S-12",
+      "title": "Test hermes_monitor.py — operational status",
+      "priority": 12,
+      "passes": false,
+      "acceptanceCriteria": [
+        "hermes service starts without crash",
+        "Monitor produces at least one log line within 30 seconds",
+        "If external config required (tokens, endpoints), document in AGENTS.md",
+        "If not production-ready, mark clearly as stub in code comments"
+      ],
+      "verificationCommand": "docker compose run --rm hermes python hermes_monitor.py 2>&1 | head -20; echo EXIT:$?"
+    },
+
+    {
+      "id": "S-13",
+      "title": "Create scripts/integrity-check.sql",
+      "priority": 13,
+      "passes": false,
+      "acceptanceCriteria": [
+        "File exists at scripts/integrity-check.sql",
+        "Script checks: FK violations, NULL scan on critical columns, duplicate key scan",
+        "Script runs cleanly on current DB and returns zero violations"
+      ],
+      "verificationCommand": "test -f scripts/integrity-check.sql && docker compose exec db psql -U $PGUSER -d $PGDATABASE -f scripts/integrity-check.sql && echo PASS || echo FAIL"
+    },
+
+    {
+      "id": "S-14",
+      "title": "Run DB integrity check — FK, NULLs, duplicates on all populated tables",
+      "priority": 14,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Zero FK violations across all tables",
+        "Zero unexpected NULLs in non-nullable compliance columns",
+        "Zero duplicate rows on logical primary keys",
+        "All populated tables have source_url or boe_reference where applicable"
+      ],
+      "verificationCommand": "docker compose exec db psql -U $PGUSER -d $PGDATABASE -f scripts/integrity-check.sql 2>&1 | grep -i 'violation\\|ERROR\\|DUPLICATE' | wc -l | grep '^0$' && echo PASS || echo FAIL-INTEGRITY"
+    },
+
+    {
+      "id": "S-15",
+      "title": "Test all API endpoints — health, legislacion, buscar, mcp",
+      "priority": 15,
+      "passes": false,
+      "acceptanceCriteria": [
+        "/health returns 200 with valid JSON",
+        "/v1/legislacion/LIVA/articulos/1 returns article content (not empty, not 404)",
+        "/v1/buscar with a known term returns >= 1 result",
+        "/v1/mcp responds and lists tools without error",
+        "All responses have Content-Type: application/json"
+      ],
+      "verificationCommand": "docker compose up -d api && sleep 3 && curl -sf http://localhost:${API_PORT:-8000}/health | jq .status && curl -sf 'http://localhost:${API_PORT:-8000}/v1/legislacion/LIVA/articulos/1' | jq '.id // empty' && echo PASS || echo FAIL"
+    },
+
+    {
+      "id": "S-16",
+      "title": "MCP tool accuracy spot-check — compliance and legislative queries",
+      "priority": 16,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Query for LIVA article 1 returns correct BOE-sourced text, not empty",
+        "Query for known BOE identifier returns correct document",
+        "Query for repealed provision does NOT return it as current law",
+        "Query with absent identifier returns explicit not-found, not fabricated data",
+        "All responses include boe_reference or source_url in metadata"
+      ],
+      "verificationCommand": "echo 'Manual spot-check — run test queries via /v1/mcp, compare against boe.es, document in progress.txt. Mark passes:true only when all checks confirmed.'"
+    },
+
+    {
+      "id": "S-17",
+      "title": "Verify query_audit_log captures MCP invocations and is append-only",
+      "priority": 17,
+      "passes": false,
+      "acceptanceCriteria": [
+        "After calling /v1/mcp, a new row appears in query_audit_log",
+        "Row contains: tool_name, input, output_summary, timestamp",
+        "UPDATE on query_audit_log fails (append-only enforcement)",
+        "Existing 4 rows are real invocations, not test seeds"
+      ],
+      "verificationCommand": "BEFORE=$(docker compose exec db psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM query_audit_log'); curl -sf -X POST http://localhost:${API_PORT:-8000}/v1/mcp -H 'Content-Type: application/json' -d '{\"tool\":\"search\",\"query\":\"IVA\"}'; AFTER=$(docker compose exec db psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM query_audit_log'); [ \"$AFTER\" -gt \"$BEFORE\" ] && echo PASS || echo FAIL-NO-AUDIT-ENTRY"
+    },
+
+    {
+      "id": "S-18",
+      "title": "Run all 14 cron jobs once — verify clean execution and sync_log entries",
+      "priority": 18,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Each of the 14 cron jobs runs --run-once without unhandled exception",
+        "sync_log receives new entry after each cron run",
+        "No cron job exits silently — all produce log output",
+        "Document any cron requiring unavailable upstream in progress.txt"
+      ],
+      "verificationCommand": "BEFORE=$(docker compose exec db psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM sync_log'); docker compose --profile cron run --rm cron-boe-daily 2>&1 | tail -5; AFTER=$(docker compose exec db psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM sync_log'); [ \"$AFTER\" -gt \"$BEFORE\" ] && echo PASS || echo FAIL-NO-SYNC-LOG"
+    },
+
+    {
+      "id": "S-19",
+      "title": "Final population check — all critical compliance tables have data",
+      "priority": 19,
+      "passes": false,
+      "acceptanceCriteria": [
+        "aeat_modelo: >= 25 rows",
+        "modelo_articulo: > 0 rows",
+        "articulo: > 950 rows (regression vs baseline 969)",
+        "norma: > 0 rows",
+        "sync_log: updated within last 24h",
+        "query_audit_log: functioning",
+        "Final row counts per table documented in progress.txt"
+      ],
+      "verificationCommand": "docker compose exec db psql -U $PGUSER -d $PGDATABASE -c \"SELECT table_name, n_live_tup AS rows FROM pg_stat_user_tables WHERE n_live_tup > 0 ORDER BY n_live_tup DESC;\""
+    }
+
+  ]
+}
