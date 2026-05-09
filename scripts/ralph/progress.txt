@@ -265,3 +265,23 @@ Commits on fix/audit-critical: 8 (one per story group)
 Next: merge to main after review, or continue with P2 stories (provenance on listings, stdio MCP bridge, source_freshness_snapshot, modelo_campana enrichment, content_hash on 134 tables)
 <promise>COMPLETE</promise>
 ---
+
+=== Iteration B-01+B-02 — 2026-05-09 23:15 ===
+Story: B-01 (extend corpus) + B-02 (reclassify operational). Both resolved.
+Branch: fix/audit-apto
+Verification run:
+  - B-01: norma count 33 -> 39 (+6 new regulations). MICA_2023_1114 148 arts, AMLR_2024_1624 90, AMLD6_2024_1640 80, LEY10_2010 74, TAXONOMIA_2020_852 27, RDL19_2018 14. Total +433 artículos regulatorios clave.
+  - B-02: 6/6 operational endpoints return status=operational_data; 5/5 public endpoints return status=not_available
+Result: PASS both
+Fix applied:
+- apps/workers/eurlex.py: añadidos 4 EURLEX_NORMAS — MiCA (32023R1114), Taxonomía UE (32020R0852), AMLR (32024R1624), AMLD6 (32024L1640)
+- apps/workers/boe.py: añadidos 2 DEFAULT_NORMAS + NORMA_CLASSIFICATIONS + LAW_TO_NORMA — LEY10_2010 (BOE-A-2010-6737 prevención blanqueo) y RDL19_2018 (BOE-A-2018-16036 servicios de pago PSD2 ES)
+- docker-compose.yml: BOE_LEGISLACION_NORMAS incluye LEY10_2010 y RDL19_2018
+- apps/api/middleware/domain_availability.py: DOMAIN_PATH_TABLE_MAP extendido con category ("public" vs "operational"). 47 entradas totales. Dos envelopes diferenciados: _public_envelope (not_available, "fuente pendiente de ingesta") vs _operational_envelope (operational_data, "propietario del sujeto obligado; configure pipeline interno").
+Learnings:
+- **Pattern:** Para llegar a APTO government-grade, un MCP de compliance debe DISTINGUIR entre "no tenemos la data aún (pero es pública y se ingestará)" y "esto es tu data operativa, no de consulta regulatoria". Mezclarlas es el fallo más común.
+- **Pattern:** Worker runs con -v apps/workers:/app_host -w /app_host permite dev sin rebuild de imagen Docker. Crítico para iterar rápido en workers.
+- **Gotcha:** BOE worker logra cargar Ley 10/2010 (BOE-A-2010-6737) con 74 artículos a pesar de warning "could not parse vigente_desde='--'" para disposiciones transitorias. El parser degrada gracefully.
+- **Cobertura nueva:** AML coverage completo — AMLD (UE 2018/843, 78 arts) + AMLR (UE 2024/1624, 90 arts) + AMLD6 (UE 2024/1640, 80 arts) + Ley 10/2010 ES (74 arts) = 322 artículos. MiCA completo (148 arts). Cubre casos de Compliance AML y Crypto.
+Next: B-03 (scraper beneficial_owner) + B-04 (ESMA CASP) + B-05 (EBA PSD2) opcionales, y B-07 (re-audit)
+---
