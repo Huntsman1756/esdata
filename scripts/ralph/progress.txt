@@ -37,3 +37,14 @@ Learnings:
 - 51 modelo_articulo relationships inserted; 12 skipped (IRNR articles not yet in norma table)
 - seed-modelos.py must be copied into container via 'docker cp' before running
 Next: S-03
+
+=== Iteration 3 — 2026-05-09 ===
+Story: S-03 Run seed-modelos-v2.py — populate modelo_articulo relationships
+Verification run: docker exec -w /app esdata-api-1 python seed-modelos-v2.py --db-url 'postgresql://esdata:esdata_dev@postgres:5432/esdata' --campana 2025
+Result: PASS
+Fix applied: N/A — ran directly
+Learnings:
+- seed-modelos-v2.py creates: 25 campaigns, 301 casillas, 33 claves, 21 instrucciones, 23 normativa, 11 operativa entries
+- modelo_articulo has 51 rows with zero orphaned FK relationships
+- Must copy script to container via 'docker cp' then run with psycopg3-compatible URL
+Next: S-04
