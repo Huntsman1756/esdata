@@ -48,3 +48,17 @@ Learnings:
 - modelo_articulo has 51 rows with zero orphaned FK relationships
 - Must copy script to container via 'docker cp' then run with psycopg3-compatible URL
 Next: S-04
+
+=== Iteration 4 — 2026-05-09 ===
+Story: S-04 Resolve aeat_models.py Playwright dependency — enable Hacienda data ingestion
+Verification run: docker run --rm --network esdata_default -e DATABASE_URL="postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata" -e WORKER_CMD="python aeat_models.py --run-once" esdata-worker-modelos
+Result: PASS
+Fix applied: Built Dockerfile.aeat image locally; fixed advisory lock issue from previous run
+Learnings:
+- aeat_models.py uses HTTP client successfully — no Playwright fallback needed for AEAT portal listing
+- 217 models discovered and upserted from AEAT portal in single run
+- Dockerfile.aeat builds successfully with Playwright/Chromium
+- DATABASE_URL must use 'postgresql+psycopg://' (SQLAlchemy psycopg3 dialect) for aeat_models.py
+- Stale advisory locks (pg_try_advisory_lock session-level) can block runs; need pg_terminate_backend or pg_advisory_unlock
+- worker-modelos service in prod compose uses Dockerfile.aeat, not Dockerfile.worker
+Next: S-05
