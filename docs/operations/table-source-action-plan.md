@@ -11,8 +11,13 @@ state, fresh verification, and no success claim without evidence.
 
 Fresh exact row-count scan:
 
-- Local Docker Postgres: `163` tables, `70` populated, `93` empty.
-- VPS `212.227.227.64`: `163` tables, `39` populated, `124` empty.
+- Local Docker Postgres before P0 closure: `163` tables, `70` populated,
+  `93` empty.
+- VPS `212.227.227.64` before P0 closure: `163` tables, `39` populated,
+  `124` empty.
+- VPS `212.227.227.64` after P0 closure: `163` tables, `70` populated,
+  `93` empty.
+- Drift check after P0 closure: `vps_empty_local_populated=0`.
 - Controlling local registry: `scripts/ralph/table-remediation-registry.json`
   now reports `70` populated, `90` workflow-empty, `3` allowed-empty,
   `0` blockers, `0` unclassified.
@@ -20,6 +25,11 @@ Fresh exact row-count scan:
 This means the local product has more enrichment than the VPS. The immediate
 release risk is not the workflow-empty tables; it is the set of tables that are
 populated locally from official or derived pipelines but still empty on the VPS.
+
+Update after P0 closure: that local-to-VPS empty-table drift is closed. Remaining
+empty tables are empty in both environments and are classified as workflow,
+allowed-empty, or future official-source ingestion targets. They must not be
+filled with fake rows.
 
 ## Classification Rules
 
@@ -50,6 +60,54 @@ because the code/data path already exists locally.
 | Regulatory references | `csrd_ess`, `dora_incident_classification_framework`, `obligacion_regulatoria`, `pbc_obligated_subject`, `screening_lists`, `sepa_payment_rule` | official_scraped | Run official reference worker and verify URLs against EUR-Lex/BOE/SEPBLAC/EPC. | VPS row counts non-zero; source URLs only from allowed official domains. |
 | IRS metadata | `irs_fiscal_norma`, `irs_modelo`, `irs_tin_reference`, `irs_w8_form`, `irs_withholding_rule` | official_scraped | Run official IRS metadata worker. | VPS has IRS reference metadata; MCP treats it as reference, not Spanish tax authority. |
 | AI audit | `ai_audit_log` | operational_internal | Generate through real MCP/API calls, not seed rows. | New VPS MCP/API smoke call appends audit row with request id and source summary. |
+
+### P0 Closure Evidence - 2026-05-10
+
+Executed on VPS:
+
+- `cron-aeat-current-daily`
+- `cron-boe-modelos-daily`
+- `official_regulatory_references.py --run-once`
+- canonical `scripts/seed-modelos.py` and `scripts/seed-modelos-v2.py`
+  using official AEAT/BOE source URLs
+- `aeat_irnr.py --run-once`
+- `document_decomposition.py --run-once`
+- `/v1/sources/freshness` API call with `X-API-Key`
+- `pgc_boe.py --run-once`
+- `xbrl_taxonomy.py`
+- `pgc_xbrl_mapping.py`
+- real `/v1/consulta` smoke request to populate `ai_audit_log`
+
+Closed P0 VPS counts:
+
+| Table | VPS rows after closure |
+|---|---:|
+| `modelo_articulo` | 51 |
+| `modelo_campana_operativa` | 11 |
+| `modelo_clave` | 33 |
+| `modelo_formato` | 1 |
+| `modelo_instruccion` | 21 |
+| `modelo_normativa` | 23 |
+| `irnr_instruccion` | 7 |
+| `irnr_withholding_rate` | 15 |
+| `documento_fragmento` | 4739 |
+| `documento_seccion` | 93 |
+| `documento_cnmv_version` | 72 |
+| `data_lineage` | 4904 |
+| `source_freshness_snapshot` | 12 |
+| `pgc_cuenta` | 882 |
+| `pgc_marco` | 6 |
+| `pgc_norma_valoracion` | 23 |
+| `pgc_estado_financiero` | 3 |
+| `pgc_xbrl_mapping` | 42 |
+| `xbrl_taxonomy` | 34 |
+| `ai_audit_log` | 1 |
+
+Worker health after closure:
+
+- All `deploy-*` containers with configured healthchecks are healthy.
+- `worker-dgt` was fixed to touch heartbeat during long discovery loops and
+  redeployed; Docker reports `deploy-worker-dgt-1 Up ... (healthy)`.
 
 ## P1 - Official Sources Exist, Workers Need Implementation Or Configuration
 
@@ -97,6 +155,7 @@ operational surface" unless a real workflow has created rows.
 
 2. `TS-002`: close local-to-VPS drift for P0 official/derived tables.
    - Run the P0 workers on VPS or deploy missing code first.
+   - Status: completed for P0 on 2026-05-10.
    - Acceptance: each P0 VPS table has non-zero rows or a documented official
      upstream blocker; no fake seeds.
 

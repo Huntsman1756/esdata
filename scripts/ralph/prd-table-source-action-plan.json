@@ -12,7 +12,7 @@
       "id": "TS-001",
       "title": "Classify every table by source behavior",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Every public table appears in scripts/ralph/table-remediation-registry.json",
         "Every empty table is classified as workflow-empty, allowed-empty, blocker, or derived-blocker",
@@ -25,7 +25,7 @@
       "id": "TS-002",
       "title": "Close local-to-VPS drift for P0 populated-local tables",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "P0 tables populated locally are populated on the VPS or have a documented upstream blocker",
         "No fixture, sample, community, or LLM-generated data is used to satisfy production counts",
@@ -49,7 +49,7 @@
       "id": "TS-004",
       "title": "Generate freshness and lineage after ingestion",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "source_freshness_snapshot is populated after official-source worker runs",
         "data_lineage links derived rows to source records or sync_log runs",

@@ -28,6 +28,7 @@ import time
 from datetime import UTC, datetime
 from html import unescape
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 from boe import _ensure_sync_log_table, auto_link_doctrina, log_sync
@@ -492,6 +493,7 @@ def run_sync(  # noqa: C901
                     batch_inserts = []
 
                     for num in range(1, 10000):
+                        touch_heartbeat()
                         num_str = f"{num:04d}"
                         num_consulta = f"V{num_str}-{year_str}"
 
@@ -702,9 +704,30 @@ def run_sync(  # noqa: C901
                 doctrina_links_created=links_created,
                 error_msg=str(exc),
             )
-        if not handle_worker_failure(engine, 'worker-dgt', str(entity_id), "sync_entity", exc):
+        if total_discovered > 0:
+            entity_id = "dgt_sync_loop"
+            entity_type = "sync_loop"
+        else:
+            entity_id = "session_init"
+            entity_type = "session_init"
+        try:
+            should_retry = handle_worker_failure(
+                engine,
+                "worker-dgt",
+                str(entity_id),
+                entity_type,
+                exc,
+            )
+        except Exception:
+            logger.exception("Failed to record DGT worker failure")
+            raise exc
+        if not should_retry:
             logger.warning("Entity %s moved to dead-letter", entity_id)
-            return
+        return {
+            "processed": total_processed,
+            "stored": total_stored,
+            "discovered": total_discovered,
+        }
 
 
 if __name__ == "__main__":

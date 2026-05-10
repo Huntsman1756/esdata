@@ -170,6 +170,16 @@ Important limitation:
   empty tables. The active remediation plan is
   `docs/operations/table-source-action-plan.md`.
 
+Update after P0 closure:
+
+- Local/VPS empty-table drift for populated-local tables is closed:
+  local `163` tables / `70` populated / `93` empty; VPS `163` tables /
+  `70` populated / `93` empty; `vps_empty_local_populated=0`.
+- `worker-dgt` health was corrected by touching heartbeat during long discovery
+  loops; all `deploy-*` containers with healthchecks are healthy after recreate.
+- Remaining empty tables are empty in both environments and must stay classified
+  explicitly as workflow-empty, allowed-empty, or future official-source targets.
+
 Operational notes:
 
 - The systemd Hermes host service was disabled because the host Python
