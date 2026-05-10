@@ -1,0 +1,73 @@
+{
+  "branchName": "fix/table-source-action-plan",
+  "goal": "Make ESData classify and operate empty tables deterministically across local, VPS, and GitHub without fake compliance data.",
+  "rules": {
+    "no_fake_seeds": true,
+    "official_sources_required_for_compliance": true,
+    "operational_empty_is_allowed_when_explicit": true,
+    "vps_target": "212.227.227.64"
+  },
+  "userStories": [
+    {
+      "id": "TS-001",
+      "title": "Classify every table by source behavior",
+      "priority": 1,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Every public table appears in scripts/ralph/table-remediation-registry.json",
+        "Every empty table is classified as workflow-empty, allowed-empty, blocker, or derived-blocker",
+        "Unclassified count is zero",
+        "The classification distinguishes official scraped data from operational internal tables"
+      ],
+      "verification": "python scripts/ralph/table_registry.py --gate scripts/ralph/table-remediation-registry.json"
+    },
+    {
+      "id": "TS-002",
+      "title": "Close local-to-VPS drift for P0 populated-local tables",
+      "priority": 1,
+      "passes": false,
+      "acceptanceCriteria": [
+        "P0 tables populated locally are populated on the VPS or have a documented upstream blocker",
+        "No fixture, sample, community, or LLM-generated data is used to satisfy production counts",
+        "VPS evidence includes exact row counts from Postgres"
+      ],
+      "verification": "Run exact count SQL locally and on deploy-postgres-1, then compare P0 tables."
+    },
+    {
+      "id": "TS-003",
+      "title": "Expose table/domain availability to MCP/API",
+      "priority": 2,
+      "passes": false,
+      "acceptanceCriteria": [
+        "MCP/API responses can report populated, operational-empty, or unavailable status by domain",
+        "Unavailable domains produce explicit uncertainty instead of inferred answers",
+        "Tool metadata includes source/freshness warning when relevant"
+      ],
+      "verification": "Focused API/MCP tests for available and unavailable domains."
+    },
+    {
+      "id": "TS-004",
+      "title": "Generate freshness and lineage after ingestion",
+      "priority": 2,
+      "passes": false,
+      "acceptanceCriteria": [
+        "source_freshness_snapshot is populated after official-source worker runs",
+        "data_lineage links derived rows to source records or sync_log runs",
+        "Stale domains surface warnings rather than silent answers"
+      ],
+      "verification": "SQL counts plus source freshness endpoint/MCP metadata tests."
+    },
+    {
+      "id": "TS-005",
+      "title": "Synchronize local, VPS, and GitHub state",
+      "priority": 3,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Plan and registry updates are committed and pushed to GitHub",
+        "VPS checkout has the same revision or documented drift",
+        "docs/master-execution-roadmap.md points to the active table action plan"
+      ],
+      "verification": "git status, git rev-parse HEAD locally and on VPS, and GitHub push result."
+    }
+  ]
+}
