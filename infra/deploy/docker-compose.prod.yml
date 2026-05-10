@@ -813,6 +813,24 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  cron-mica-weekly:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_MICA_WEEKLY:-}
+      WORKER_CMD: python mica.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+    security_opt:
+      - no-new-privileges:true
+
   hermes:
     build:
       context: ../..

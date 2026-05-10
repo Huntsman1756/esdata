@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata ESMA MiCA CASP weekly sync
+
+[Timer]
+OnCalendar=Mon *-*-* 03:35:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-mica-weekly.service
+
+[Install]
+WantedBy=timers.target

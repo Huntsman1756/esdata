@@ -6,7 +6,30 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mica import run_once
+from mica import discover_esma_casp_csv, fetch_esma_casp, normalize_casp, run_once
+
+
+class MockResponse:
+    def __init__(self, text: str | None = None, content: bytes | None = None):
+        self.text = text or ""
+        self.content = content if content is not None else self.text.encode("utf-8")
+
+    def raise_for_status(self):
+        return None
+
+
+class MockClient:
+    def __init__(self, responses):
+        self.responses = list(responses)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def get(self, url):
+        return self.responses.pop(0)
 
 
 def _create_mica_tables(conn) -> None:
@@ -120,6 +143,41 @@ def _create_mica_tables(conn) -> None:
     )
 
 
+def test_discover_esma_casp_csv_from_official_page(monkeypatch):
+    html = '<a href="/sites/default/files/2024-12/CASPS.csv">CASP</a>'
+    monkeypatch.setattr("mica.httpx.Client", lambda **kwargs: MockClient([MockResponse(text=html)]))
+
+    assert discover_esma_casp_csv("https://www.esma.europa.eu/mica") == (
+        "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv"
+    )
+
+
+def test_fetch_esma_casp_parses_current_csv(monkeypatch):
+    csv_content = (
+        "ae_competentAuthority,ae_homeMemberState,ae_lei_name,ae_lei,ae_lei_cou_code,"
+        "ae_commercial_name,ae_address,ae_website,ae_website_platform,"
+        "ac_authorisationNotificationDate,ac_authorisationEndDate,ac_serviceCode,"
+        "ac_serviceCode_cou,ac_comments,ac_lastupdate\n"
+        "Austrian FMA,AT,Bybit EU GmbH,5299005V5GBSN2A4C303,AT,Bybit,"
+        "\"Donau-City-Strasse 7, Vienna\",https://www.bybit.eu,,28/05/2025,,"
+        "\"a. custody | c. exchange\",BE|ES,,28/05/2025\n"
+    )
+    monkeypatch.setattr(
+        "mica.httpx.Client",
+        lambda **kwargs: MockClient([MockResponse(content=csv_content.encode("utf-8-sig"))]),
+    )
+
+    rows, source = fetch_esma_casp("https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv")
+    normalized = normalize_casp(rows[0])
+
+    assert source.endswith("CASPS.csv")
+    assert normalized["name"] == "Bybit"
+    assert normalized["registration_number"] == "5299005V5GBSN2A4C303"
+    assert normalized["home_member_state"] == "AT"
+    assert normalized["passport_active"] is True
+    assert normalized["services_offered"] == ["a. custody", "c. exchange"]
+
+
 def test_run_once_persists_casp_entities(monkeypatch):
     engine = create_engine("sqlite:///:memory:", future=True)
 
@@ -129,16 +187,18 @@ def test_run_once_persists_casp_entities(monkeypatch):
     monkeypatch.setattr("mica.create_engine", lambda *args, **kwargs: engine)
     monkeypatch.setattr(
         "mica.fetch_esma_casp",
-        lambda: [
-            {
-                "name": "Bitso",
-                "registration_number": "ESMA-BITSO-001",
-                "home_member_state": "ES",
-                "passport_active": True,
-                "custody": True,
-                "exchange": True,
-            }
-        ],
+        lambda: (
+            [
+                {
+                    "ae_commercial_name": "Bitso",
+                    "ae_lei": "ESMA-BITSO-001",
+                    "ae_homeMemberState": "ES",
+                    "ac_serviceCode_cou": "ES|FR",
+                    "ac_serviceCode": "custody | exchange",
+                }
+            ],
+            "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv",
+        ),
     )
 
     run_once()
@@ -165,16 +225,18 @@ def test_services_offered_serialized_as_json(monkeypatch):
     monkeypatch.setattr("mica.create_engine", lambda *args, **kwargs: engine)
     monkeypatch.setattr(
         "mica.fetch_esma_casp",
-        lambda: [
-            {
-                "name": "Bitso",
-                "registration_number": "ESMA-BITSO-001",
-                "home_member_state": "ES",
-                "passport_active": True,
-                "custody": True,
-                "exchange": True,
-            }
-        ],
+        lambda: (
+            [
+                {
+                    "ae_commercial_name": "Bitso",
+                    "ae_lei": "ESMA-BITSO-001",
+                    "ae_homeMemberState": "ES",
+                    "ac_serviceCode_cou": "ES|FR",
+                    "ac_serviceCode": "custody | exchange",
+                }
+            ],
+            "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv",
+        ),
     )
 
     run_once()
@@ -202,16 +264,18 @@ def test_upsert_idempotent(monkeypatch):
     monkeypatch.setattr("mica.create_engine", lambda *args, **kwargs: engine)
     monkeypatch.setattr(
         "mica.fetch_esma_casp",
-        lambda: [
-            {
-                "name": "Bitso",
-                "registration_number": "ESMA-BITSO-001",
-                "home_member_state": "ES",
-                "passport_active": True,
-                "custody": True,
-                "exchange": True,
-            }
-        ],
+        lambda: (
+            [
+                {
+                    "ae_commercial_name": "Bitso",
+                    "ae_lei": "ESMA-BITSO-001",
+                    "ae_homeMemberState": "ES",
+                    "ac_serviceCode_cou": "ES|FR",
+                    "ac_serviceCode": "custody | exchange",
+                }
+            ],
+            "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv",
+        ),
     )
 
     run_once()

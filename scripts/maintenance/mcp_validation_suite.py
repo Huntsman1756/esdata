@@ -114,7 +114,7 @@ def _validate_empty_domain_abstention(payload: dict[str, Any]) -> tuple[bool, di
         and confianza.get("review_required") is True
         and "NO VERIFICADO" in (confianza.get("aviso") or "")
         and availability.get("blocked") is True
-        and "casp" in table_names
+        and "wallet_custodian" in table_names
     )
     return ok, details
 
@@ -149,7 +149,7 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
             _check_json_contract(
                 client,
                 "/v1/consulta",
-                {"q": "lista CASP MiCA autorizados en España"},
+                {"q": "wallet custodian MiCA autorizados en España"},
                 _validate_empty_domain_abstention,
                 "consulta_empty_domain_fail_closed",
             )

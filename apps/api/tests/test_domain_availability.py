@@ -121,7 +121,7 @@ async def test_consulta_abstains_when_query_depends_on_empty_domain():
         base_url="http://test",
         headers={"x-api-key": "test-secret-key", "x-request-id": request_id},
     ) as client:
-        response = await client.get("/v1/consulta", params={"q": "lista CASP MiCA autorizados en España"})
+        response = await client.get("/v1/consulta", params={"q": "wallet custodian MiCA autorizados en España"})
 
     assert response.status_code == 200
     payload = response.json()
@@ -133,7 +133,7 @@ async def test_consulta_abstains_when_query_depends_on_empty_domain():
     assert confianza["review_required"] is True
     assert "NO VERIFICADO" in confianza["aviso"]
     assert availability["blocked"] is True
-    assert any(item["table"] == "casp" for item in availability["tables"])
+    assert any(item["table"] == "wallet_custodian" for item in availability["tables"])
     assert all(item["safe_to_answer"] is False for item in availability["tables"])
 
     entries = QueryAuditService().get_by_request_id(request_id)

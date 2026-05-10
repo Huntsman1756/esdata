@@ -35,10 +35,10 @@ The table registry is the controlling artifact:
 
 Current classification:
 
-- populated: 72
+- populated: 73
 - workflow-empty: 53
 - allowed-empty: 3
-- configured-but-unavailable: 35
+- configured-but-unavailable: 34
 - blockers: 0
 - derived blockers: 0
 - unclassified: 0
@@ -68,9 +68,14 @@ the official OFAC SDN XML export, with `18947` distinct entries and no seed
 fallback. EU, SEPBLAC, UN, and PEP filtered screening queries remain explicit
 `configured_but_unavailable` surfaces until their official parsers are added.
 
+MiCA update: `casp` is populated locally and on the VPS from ESMA's official
+Interim MiCA Register `CASPS.csv`, with `192` unique CASP records from `194`
+CSV rows. `crypto_asset`, `tokenized_asset`, and `wallet_custodian` remain
+explicit unavailable domains until their own official sources are populated.
+
 ## Workers And Cron
 
-The local cron/worker run-once artifacts cover 18 services:
+The local cron/worker run-once artifacts cover 19 services:
 
 - BOE daily
 - AEAT modelos daily
@@ -79,6 +84,7 @@ The local cron/worker run-once artifacts cover 18 services:
 - regulatory daily
 - GIIN/FATCA monthly
 - OFAC SDN weekly
+- ESMA MiCA CASP weekly
 - PSD2 weekly
 - AEPD, BDE, BDNS, BORME, CENDOJ, CNMV, DGT, EUR-Lex, SEPBLAC, TEAC weekly
 

@@ -21,10 +21,12 @@ Fresh exact row-count scan:
   `92` empty.
 - Local and VPS after TS-011 OFAC SDN closure: `163` tables, `72`
   populated, `91` empty.
+- Local and VPS after TS-012 MiCA CASP closure: `163` tables, `73`
+  populated, `90` empty.
 - Drift check after P0 closure: `vps_empty_local_populated=0`.
 - Controlling local registry: `scripts/ralph/table-remediation-registry.json`
-  now reports `72` populated, `53` workflow-empty, `3` allowed-empty,
-  `35` configured-but-unavailable, `0` blockers, `0` unclassified.
+  now reports `73` populated, `53` workflow-empty, `3` allowed-empty,
+  `34` configured-but-unavailable, `0` blockers, `0` unclassified.
 
 This means the local product has more enrichment than the VPS. The immediate
 release risk is not the workflow-empty tables; it is the set of tables that are
@@ -54,6 +56,12 @@ SDN XML export at `https://www.treasury.gov/ofac/downloads/sdn.xml`, with
 `18947` distinct entries locally and on the VPS. This is not treated as EU,
 SEPBLAC, UN, or PEP coverage: those filtered sources return
 `configured_but_unavailable` until their official parsers are implemented.
+
+Update after TS-012: `casp` is populated from ESMA's official Interim MiCA
+Register `CASPS.csv`, discovered from the ESMA MiCA page. The CSV has `194`
+rows and the database holds `192` unique CASP records after upsert by
+LEI/home-member-state. Other MiCA tables remain unavailable unless their own
+official register/source is populated.
 
 ## Classification Rules
 
@@ -133,6 +141,7 @@ Closed P0 VPS counts:
 | `ai_audit_log` | 1 |
 | `giin_registry` | 508593 |
 | `screening_entries` | 18947 |
+| `casp` | 192 |
 
 Worker health after closure:
 
@@ -148,7 +157,7 @@ until the worker exists and passes source checks.
 
 | Domain | Tables | Official source family | Plan |
 |---|---|---|---|
-| ESMA/CNMV MiCA | `casp`, `crypto_asset`, `tokenized_asset`, `wallet_custodian` | ESMA/CNMV MiCA registers | Implement CASP/asset registry ingestion, then enable daily/weekly cron. |
+| ESMA/CNMV MiCA | `casp` populated; `crypto_asset`, `tokenized_asset`, `wallet_custodian` still unavailable | ESMA Interim MiCA Register CASPS.csv | COMPLETED TS-012 for authorised CASP only: weekly ESMA CSV worker deployed locally and on VPS; asset/custodian tables still abstain until official sources are populated. |
 | CNMV transparency | `transparency_issuer`, `transparency_regulated_information`, `transparency_voting_rights` | CNMV official registers / hechos relevantes | Build CNMV register worker or extend `worker-cnmv`; keep `transparency_internal_rule` operational only. |
 | Fund/investment products | `aifmd_fund`, `aifmd_regulatory_report`, `ucits_fund`, `ucits_regulatory_report`, `priips_product`, `priips_kid`, `sfdr_*` | CNMV/ESMA/EUR-Lex disclosures | Implement per-register ingestion before claiming coverage. |
 | Banking/payments | `sepa_payment_rule` already local; `psd2_consent`, `psd2_incident_report` remain operational | EPC/EBA/DORA/BdE | Keep consent/incidents workflow-empty; only rulebooks are official corpus. |

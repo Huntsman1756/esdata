@@ -10,13 +10,13 @@
   },
   "summary": {
     "total_tables": 163,
-    "populated": 72,
+    "populated": 73,
     "blocker": 0,
     "derived_blocker": 0,
     "workflow_empty": 53,
     "allowed_empty": 3,
     "unclassified": 0,
-    "configured_but_unavailable": 35
+    "configured_but_unavailable": 34
   },
   "tables": [
     {
@@ -153,12 +153,12 @@
     },
     {
       "table": "casp",
-      "row_count": 0,
-      "classification": "configured_but_unavailable",
+      "row_count": 192,
+      "classification": "populated",
       "domain": "DAC / Crypto / MiCA",
-      "official_source_family": "ESMA/CNMV/EUR-Lex MiCA official source",
+      "official_source_family": "ESMA Interim MiCA Register official CASPS.csv source",
       "target_path": "apps/workers/mica.py",
-      "action": "Entity registry table; keep empty until official MiCA/CASP register ingestion is configured.",
+      "action": "Verify provenance and freshness from official ESMA Interim MiCA Register CASPS.csv; CSV rows are upserted by LEI/home member state.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"casp\";"
     },

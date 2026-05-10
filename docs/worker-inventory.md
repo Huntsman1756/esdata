@@ -49,6 +49,7 @@ Classification of all Python files in `apps/workers/`.
 | `regulatory_watch.py` | `cron-regulatory-daily` | Multi-source regulatory monitoring |
 | `giin.py` | `cron-giin-monthly` | IRS FATCA FFI/GIIN official monthly CSV ZIP |
 | `ofac_sdn.py` | `cron-ofac-sdn-weekly` | OFAC SDN official XML sanctions list |
+| `mica.py` | `cron-mica-weekly` | ESMA Interim MiCA Register CASP official CSV |
 
 ### Missing Docker Service - NEEDS SERVICE (34 files)
 
@@ -72,7 +73,6 @@ Classification of all Python files in `apps/workers/`.
 | `jurisprudencia.py` | Jurisprudence ingestion | Medium |
 | `legalize_es.py` | Legalize ES markdown parser | Low |
 | `mar_mifid.py` | MAR/MiFID data | Medium |
-| `mica.py` | MiCA regulation | High |
 | `micro_obligations.py` | Micro-obligations seed loader | Low |
 | `mifid_mar_dora.py` | MiFID/MAR/DORA combined | Medium |
 | `modelos.py` | AEAT models sync | High |

@@ -70,7 +70,9 @@ router = APIRouter(prefix="", tags=["consulta"])
 
 
 DOMAIN_AVAILABILITY_QUERY_MAP: list[tuple[tuple[str, ...], tuple[str, ...]]] = [
-    (("mica", "casp", "criptoactivo mica", "crypto asset", "wallet custodian"), ("casp", "crypto_asset", "tokenized_asset", "wallet_custodian")),
+    (("casp", "crypto-asset service provider", "proveedor de servicios de criptoactivos"), ("casp",)),
+    (("criptoactivo mica", "crypto asset"), ("crypto_asset", "tokenized_asset")),
+    (("wallet custodian", "custodio wallet", "custodia wallet"), ("wallet_custodian",)),
     (("dora", "ict risk", "riesgo tic", "incidente tic"), ("dora_ict_risk_register", "dora_tic_incident", "dora_third_party_provider")),
     (("sfdr", "pai", "paci", "producto sfdr", "precontractual sfdr"), ("sfdr_product", "sfdr_paci_indicator", "sfdr_pre_contractual", "sfdr_annual_report")),
     (("csrd report", "informe csrd", "esg data point", "dato esg"), ("csrd_entity_report", "csrd_esg_data_point", "csrd_company")),

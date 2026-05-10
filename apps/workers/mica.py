@@ -1,71 +1,104 @@
-"""Worker para MiCA (Reglamento UE 2023/1114) y crypto-asset services.
+"""Ingest the official ESMA interim MiCA CASP CSV register."""
 
-Ingesta el registro de CASP (Crypto-Asset Service Providers) de ESMA,
-parsea y almacena los proveedores de servicios de criptoactivos
-en la tabla casp.
-
-Uso:
-    python -m workers.mica --run-once
-    python -m workers.mica --interval 3600
-"""
+from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
+import re
 import sys
+import time
+from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urljoin
 
 import httpx
 from sqlalchemy import create_engine, inspect, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from runtime import configure_logging, ensure_database_connection, get_database_url, get_interval_seconds, handle_worker_failure
+from boe import _ensure_sync_log_table, log_sync
+from runtime import (
+    configure_logging,
+    ensure_database_connection,
+    get_database_url,
+    get_interval_seconds,
+    handle_worker_failure,
+    init_sentry,
+)
 
 logger = configure_logging("workers.mica")
 
-ESMA_CASP_API = "https://www.esma.europa.eu/sites/default/files/library/2023/12/registries/crypto-assets_registries_data.json"
+ESMA_MICA_PAGE = "https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica"
+ESMA_CASP_CSV_FALLBACK = "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv"
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("MICA_SYNC_INTERVAL_SECONDS", 604800)
 
 
-def fetch_esma_casp() -> list[dict]:
-    """Obtener CASP del registro ESMA."""
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            resp = client.get(ESMA_CASP_API)
-            resp.raise_for_status()
-            data = resp.json()
-    except httpx.HTTPError as e:
-        logger.error("Error fetching ESMA CASP registry: %s", e)
-        return []
+def discover_esma_casp_csv(page_url: str = ESMA_MICA_PAGE) -> str:
+    """Discover the current CASP CSV from ESMA's official MiCA page."""
 
-    # ESMA returns a dict with key 'casp' containing list of CASP entries
-    casps = data.get("casp", [])
-    logger.info("ESMA returned %d CASP entries", len(casps))
-    return casps
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        response = client.get(page_url)
+        response.raise_for_status()
+    match = re.search(r'href="([^"]*CASPS\.csv)"', response.text, re.IGNORECASE)
+    if not match:
+        raise RuntimeError("No CASPS.csv link found on ESMA MiCA page")
+    return urljoin(page_url, match.group(1))
+
+
+def _csv_text_to_rows(content: bytes) -> list[dict]:
+    text = content.decode("utf-8-sig", errors="replace")
+    dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t")
+    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
+    rows = [dict(row) for row in reader]
+    if not rows:
+        raise RuntimeError("ESMA CASP CSV produced zero rows")
+    return rows
+
+
+def fetch_esma_casp(url: str | None = None) -> tuple[list[dict], str]:
+    """Fetch CASP rows from the official ESMA interim MiCA CSV."""
+
+    source_url = url or discover_esma_casp_csv()
+    try:
+        with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+            response = client.get(source_url)
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        if url:
+            raise
+        logger.warning("ESMA CASP discovery URL failed, trying fallback CSV: %s", exc)
+        source_url = ESMA_CASP_CSV_FALLBACK
+        with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+            response = client.get(source_url)
+            response.raise_for_status()
+
+    rows = _csv_text_to_rows(response.content)
+    logger.info("ESMA returned %d CASP rows from %s", len(rows), source_url)
+    return rows, source_url
 
 
 def normalize_casp(raw: dict) -> dict:
-    """Normalizar un CASP crudo de ESMA al esquema de la tabla."""
-    services = []
-    for svc in ["custody", "exchange", "execution", "payment"]:
-        key = svc.lower()
-        val = raw.get(key, raw.get(key.replace("_", ""), raw.get(f"is_{key}")))
-        if val in (True, "true", "yes", 1, "Y"):
-            services.append(svc)
+    """Normalize an ESMA CASP CSV row to the local DB schema."""
 
-    passport_active = False
-    pp = raw.get("passport_active", raw.get("passport", raw.get("has_passport")))
-    if pp in (True, "true", "yes", 1, "Y"):
-        passport_active = True
+    services_text = (raw.get("ac_serviceCode") or raw.get("services") or "").strip()
+    services = [part.strip() for part in services_text.split("|") if part.strip()]
+    commercial_name = (raw.get("ae_commercial_name") or "").strip()
+    lei_name = (raw.get("ae_lei_name") or raw.get("name") or "").strip()
+    lei = (raw.get("ae_lei") or raw.get("registration_number") or "").strip()
+    state = (raw.get("ae_homeMemberState") or raw.get("home_member_state") or "").strip()
+    passport_countries = (raw.get("ac_serviceCode_cou") or "").strip()
+    end_date = (raw.get("ac_authorisationEndDate") or "").strip()
 
     return {
-        "name": raw.get("name", raw.get("provider_name", "")),
-        "registration_number": raw.get("registration_number", raw.get("reg_number", raw.get("id"))),
-        "home_member_state": raw.get("home_member_state", raw.get("country", raw.get("jurisdiction"))),
-        "passport_active": passport_active,
+        "name": commercial_name or lei_name,
+        "registration_number": lei or f"{state}:{commercial_name or lei_name}",
+        "home_member_state": state,
+        "passport_active": bool(passport_countries),
         "services_offered": services,
-        "status": "active",
+        "status": "revoked" if end_date else "active",
     }
 
 
@@ -119,33 +152,51 @@ def upsert_casp(db, casp: dict) -> None:
 
 
 def run_once() -> None:
-    """Ejecutar una ingestion completa desde ESMA."""
+    """Execute one ESMA CASP sync."""
+
     logger.info("Starting MiCA CASP sync from ESMA")
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine, logger=logger)
-
-    casps_raw = fetch_esma_casp()
-    if not casps_raw:
-        logger.warning("No CASP data received from ESMA, skipping")
-        return
-
+    sync_start = datetime.now(UTC).isoformat()
     synced = 0
-    with engine.connect() as conn:
-        trans = conn.begin()
-        try:
+
+    try:
+        casps_raw, source_url = fetch_esma_casp()
+        with engine.begin() as conn:
             for raw in casps_raw:
                 normalized = normalize_casp(raw)
-                if not normalized["name"]:
+                if not normalized["name"] or not normalized["registration_number"]:
                     logger.warning("Skipping CASP entry with empty name: %s", raw)
                     continue
                 upsert_casp(conn, normalized)
                 synced += 1
-            trans.commit()
-        except Exception:
-            trans.rollback()
-            raise
+            _ensure_sync_log_table(conn)
+            log_sync(
+                conn,
+                "cron-mica-weekly",
+                "ok",
+                documentos_processed=len(casps_raw),
+                documentos_upserted=synced,
+                started_at=sync_start,
+            )
+    except Exception as exc:
+        if not handle_worker_failure(engine, "mica", "ESMA_CASP", "sync_registry", exc):
+            logger.warning("MiCA CASP sync moved to dead-letter")
+        try:
+            with engine.begin() as conn:
+                _ensure_sync_log_table(conn)
+                log_sync(
+                    conn,
+                    "cron-mica-weekly",
+                    "error",
+                    error_msg=str(exc)[:500],
+                    started_at=sync_start,
+                )
+        except Exception as log_exc:
+            logger.warning("Failed to write MiCA sync error log: %s", log_exc)
+        raise
 
-    logger.info("MiCA CASP sync complete: %d CASPs synced", synced)
+    logger.info("MiCA CASP sync complete: %d CASPs synced from %s", synced, source_url)
 
 
 def main() -> None:
@@ -154,6 +205,7 @@ def main() -> None:
     parser.add_argument("--interval", type=int, default=None, help="Sync interval in seconds")
     args = parser.parse_args()
 
+    init_sentry("mica")
     interval = args.interval or SYNC_INTERVAL_SECONDS
 
     if args.run_once:
@@ -167,7 +219,6 @@ def main() -> None:
         except Exception:
             logger.exception("Error in MiCA CASP sync cycle")
         logger.info("Next sync in %ds", interval)
-        import time
         time.sleep(interval)
 
 
