@@ -2,10 +2,10 @@
 
 import csv
 import io
-import json
 import sys
+import zipfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from giin import fetch_giin_csv, SEED_GIIN
+from giin import discover_latest_irs_csv_zip, fetch_giin_csv, fetch_giin_zip
 
 
 class MockResponse:
@@ -42,9 +42,39 @@ class TestFetchGIINCSV:
         assert result[0]["giin"] == "AA9079.99999.99.99.999"
         assert result[0]["entidad_nombre"] == "ABN AMRO BANK N.V."
         assert result[0]["entidad_pais"] == "NL"
-        assert result[0]["estado_fatca"] == "active"
+        assert result[0]["estado_fatca"] == "activo"
         assert result[1]["giin"] == "AESA01.9999.99.99.99"
-        assert result[1]["estado_fatca"] == "inactive"
+        assert result[1]["estado_fatca"] == "inactivo"
+
+    def test_fetch_zip_success_parses_current_irs_headers(self):
+        """Test current IRS ZIP CSV headers: GIIN, FINm, CountryNm."""
+        csv_content = "GIIN,FINm,CountryNm\n"
+        csv_content += "88QF1F.99999.SL.136,\"Orchid Asia IV, L.P.\",CAYMAN ISLANDS\n"
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as zipped:
+            zipped.writestr("FATCA Foreign Financial Institution.csv", csv_content)
+
+        with patch("giin.urlopen", return_value=MockResponse(buffer.getvalue())):
+            result, source_url = fetch_giin_zip("https://www.irs.gov/pub/fatca/current.zip")
+
+        assert source_url == "https://www.irs.gov/pub/fatca/current.zip"
+        assert len(result) == 1
+        assert result[0]["giin"] == "88QF1F.99999.SL.136"
+        assert result[0]["entidad_nombre"] == "Orchid Asia IV, L.P."
+        assert result[0]["entidad_pais"] == "CAYMAN ISLANDS"
+        assert result[0]["tipo_entidad"] == "FFI"
+        assert result[0]["estado_fatca"] == "activo"
+
+    def test_discover_latest_csv_zip_from_official_listing(self):
+        html = (
+            '<a href="/pub/fatca/fatca-foreign-financial-institution-ffi-april-2026-csv.zip">'
+            "CSV</a>"
+        )
+
+        with patch("giin.urlopen", return_value=MockResponse(html.encode("utf-8"))):
+            result = discover_latest_irs_csv_zip("https://www.irs.gov/downloads/fatca")
+
+        assert result == "https://www.irs.gov/pub/fatca/fatca-foreign-financial-institution-ffi-april-2026-csv.zip"
 
     def test_fetch_empty_csv_returns_none(self):
         """Test that an empty CSV returns None."""
@@ -95,33 +125,6 @@ class TestFetchGIINCSV:
         assert result[0]["giin"] == "AA9079.99999.99.99.999"
 
 
-class TestSeedGIIN:
-    """Test seed data structure."""
-
-    def test_seed_has_required_fields(self):
-        """Test that all seed entries have required fields."""
-        required = ["giin", "entidad_nombre", "entidad_pais", "tipo_entidad", 
-                    "estado_fatca", "es_exempt_beneficial_owner", "es_sponsored_ffo"]
-        
-        for entry in SEED_GIIN:
-            for field in required:
-                assert field in entry, f"Missing field {field} in entry {entry.get('giin', 'unknown')}"
-
-    def test_seed_giin_values_are_unique(self):
-        """Test that all GIIN values are unique."""
-        giins = [e["giin"] for e in SEED_GIIN]
-        assert len(giins) == len(set(giins)), "Duplicate GIIN values in seed data"
-
-    def test_seed_has_15_entries(self):
-        """Test that seed data has 15 entries."""
-        assert len(SEED_GIIN) == 15
-
-    def test_seed_countries_represented(self):
-        """Test that seed data covers multiple countries."""
-        countries = set(e["entidad_pais"] for e in SEED_GIIN)
-        assert len(countries) > 5, "Seed should cover multiple countries"
-
-
 class TestGIINWorker:
     """Integration tests for GIIN worker."""
 
@@ -152,10 +155,28 @@ class TestGIINWorker:
                 )
             """))
 
-        with patch("giin.create_engine", return_value=engine), patch("giin.fetch_giin_csv", return_value=None):
+        rows = [
+            {
+                "giin": "AA9079.99999.99.99.999",
+                "entidad_nombre": "ABN AMRO BANK N.V.",
+                "entidad_pais": "NL",
+                "tipo_entidad": "FFI",
+                "estado_fatca": "activo",
+                "es_exempt_beneficial_owner": False,
+                "es_sponsored_ffo": False,
+                "fecha_registro": None,
+                "fecha_expiracion": None,
+                "nota": None,
+            }
+        ]
+        with (
+            patch("giin.create_engine", return_value=engine),
+            patch("giin.fetch_giin_zip", return_value=(rows, "https://www.irs.gov/pub/fatca/current.zip")),
+        ):
             result = run_sync(worker_name="test-giin")
 
-        assert result["processed"] == 15
-        assert result["source"] == "seed"
+        assert result["processed"] == 1
+        assert result["source"] == "irs_fatca_ffi_csv_zip"
+        assert result["source_url"] == "https://www.irs.gov/pub/fatca/current.zip"
         assert result["worker"] == "test-giin"
         assert "started_at" in result

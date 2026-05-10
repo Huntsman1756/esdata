@@ -35,9 +35,10 @@ The table registry is the controlling artifact:
 
 Current classification:
 
-- populated: 70
-- workflow-empty: 90
+- populated: 71
+- workflow-empty: 53
 - allowed-empty: 3
+- configured-but-unavailable: 36
 - blockers: 0
 - derived blockers: 0
 - unclassified: 0
@@ -57,15 +58,21 @@ Interpretation:
 
 No table should be filled with fixture/community/LLM data to satisfy row counts.
 
+GIIN/FATCA update: `giin_registry` is populated locally and on the VPS from the
+official IRS FATCA FFI monthly CSV ZIP, with `508593` distinct GIIN rows and no
+seed fallback. The monthly cron service is `cron-giin-monthly`, scheduled by
+`esdata-giin-monthly.timer`.
+
 ## Workers And Cron
 
-The local cron/worker run-once artifacts cover 16 services:
+The local cron/worker run-once artifacts cover 17 services:
 
 - BOE daily
 - AEAT modelos daily
 - AEAT current 1XX/2XX designs and taxpayer calendar daily
 - BOE modelos daily
 - regulatory daily
+- GIIN/FATCA monthly
 - PSD2 weekly
 - AEPD, BDE, BDNS, BORME, CENDOJ, CNMV, DGT, EUR-Lex, SEPBLAC, TEAC weekly
 

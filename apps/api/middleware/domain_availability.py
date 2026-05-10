@@ -47,6 +47,7 @@ DOMAIN_PATH_TABLE_MAP: list[tuple[str, str, str, str]] = [
     ("/v1/psd2/consent", "psd2_consent", "PSD2", "operational"),
     ("/v1/psd2/incidents", "psd2_incident_report", "PSD2", "operational"),
     ("/v1/psd2/sepa-rules", "sepa_payment_rule", "PSD2", "public"),
+    ("/v1/irs-fiscal/giin", "giin_registry", "IRS FATCA/GIIN", "public"),
     ("/v1/mar/insider-communications", "mar_insider_communication", "MAR", "operational"),
     ("/v1/mar/insider-transactions", "mar_insider_transaction", "MAR", "operational"),
     ("/v1/mar/manipulation-indicators", "mar_market_manipulation_indicator", "MAR", "operational"),

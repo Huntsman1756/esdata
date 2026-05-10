@@ -17,10 +17,12 @@ Fresh exact row-count scan:
   `124` empty.
 - VPS `212.227.227.64` after P0 closure: `163` tables, `70` populated,
   `93` empty.
+- Local and VPS after TS-010 GIIN closure: `163` tables, `71` populated,
+  `92` empty.
 - Drift check after P0 closure: `vps_empty_local_populated=0`.
 - Controlling local registry: `scripts/ralph/table-remediation-registry.json`
-  now reports `70` populated, `90` workflow-empty, `3` allowed-empty,
-  `0` blockers, `0` unclassified.
+  now reports `71` populated, `53` workflow-empty, `3` allowed-empty,
+  `36` configured-but-unavailable, `0` blockers, `0` unclassified.
 
 This means the local product has more enrichment than the VPS. The immediate
 release risk is not the workflow-empty tables; it is the set of tables that are
@@ -38,6 +40,12 @@ return `status`/`availability_status` as `workflow_empty`, `allowed_empty`, or
 `configured_but_unavailable` instead of legacy `not_available` or
 `operational_data`. Clients must treat `safe_to_answer=false` as a hard stop
 for factual legal/tax answers.
+
+Update after TS-010: `giin_registry` is no longer an unavailable table.
+`apps/workers/giin.py` ingests the official IRS FATCA FFI monthly CSV ZIP
+discovered from `https://www.irs.gov/downloads/fatca`, rejects seed fallback,
+and upserts by GIIN. Local and VPS both contain `508593` distinct GIIN rows
+from the April 2026 IRS ZIP.
 
 ## Classification Rules
 
@@ -115,6 +123,7 @@ Closed P0 VPS counts:
 | `pgc_xbrl_mapping` | 42 |
 | `xbrl_taxonomy` | 34 |
 | `ai_audit_log` | 1 |
+| `giin_registry` | 508593 |
 
 Worker health after closure:
 
@@ -135,7 +144,7 @@ until the worker exists and passes source checks.
 | Fund/investment products | `aifmd_fund`, `aifmd_regulatory_report`, `ucits_fund`, `ucits_regulatory_report`, `priips_product`, `priips_kid`, `sfdr_*` | CNMV/ESMA/EUR-Lex disclosures | Implement per-register ingestion before claiming coverage. |
 | Banking/payments | `sepa_payment_rule` already local; `psd2_consent`, `psd2_incident_report` remain operational | EPC/EBA/DORA/BdE | Keep consent/incidents workflow-empty; only rulebooks are official corpus. |
 | Sanctions/screening | `screening_entries` | EU/UN/OFAC/SEPBLAC official lists | Implement official-list parser; `screening_matches` remains operational output. |
-| GIIN/FATCA | `giin_registry` | IRS FATCA FFI CSV | Implement monthly CSV downloader/upsert by GIIN. |
+| GIIN/FATCA | `giin_registry` | IRS FATCA FFI monthly CSV ZIP | COMPLETED TS-010: official monthly ZIP discovery/downloader/upsert by GIIN is deployed locally and on VPS. |
 | XBRL filings | `xbrl_company`, `xbrl_filing`, `xbrl_fact` | CNMV/ESEF filings | Configure official filing target; no fixture-first production rows. |
 
 ## P2 - Operational Tables That May Be Empty

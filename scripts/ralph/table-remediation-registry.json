@@ -10,13 +10,13 @@
   },
   "summary": {
     "total_tables": 163,
-    "populated": 70,
+    "populated": 71,
     "blocker": 0,
     "derived_blocker": 0,
     "workflow_empty": 53,
     "allowed_empty": 3,
     "unclassified": 0,
-    "configured_but_unavailable": 37
+    "configured_but_unavailable": 36
   },
   "tables": [
     {
@@ -670,12 +670,12 @@
     },
     {
       "table": "giin_registry",
-      "row_count": 0,
-      "classification": "configured_but_unavailable",
+      "row_count": 508593,
+      "classification": "populated",
       "domain": "International Tax / IRS / DTA",
       "official_source_family": "IRS official GIIN source",
-      "target_path": "apps/workers/fatca.py",
-      "action": "IRS GIIN worker fell back to seed locally; seed rows were deleted. Keep empty until official IRS GIIN CSV fetch succeeds.",
+      "target_path": "apps/workers/giin.py",
+      "action": "Verify provenance and freshness from official IRS FATCA FFI monthly CSV ZIP.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"giin_registry\";"
     },

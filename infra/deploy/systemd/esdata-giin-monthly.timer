@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata IRS GIIN monthly sync
+
+[Timer]
+OnCalendar=*-*-02 02:00:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-giin-monthly.service
+
+[Install]
+WantedBy=timers.target
