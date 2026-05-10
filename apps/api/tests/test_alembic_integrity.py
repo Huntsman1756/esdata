@@ -170,3 +170,58 @@ def test_row_quality_columns_are_migrated_in_revision_0058():
         "DROP COLUMN IF EXISTS row_completeness",
     ):
         assert fragment in contents
+
+
+def test_security_closure_is_migrated_in_revision_0064():
+    revision_path = ALEMBIC_VERSIONS / "20260510_0064_security_closure.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for table_name in (
+        "data_freshness_alerts",
+        "dgt_queue",
+        "source_freshness_snapshot",
+    ):
+        assert table_name in contents
+
+    for fragment in (
+        "ALTER TABLE IF EXISTS {table_name} ENABLE ROW LEVEL SECURITY",
+        "CREATE POLICY esdata_all ON {table_name}",
+        "CREATE POLICY service_role_all ON {table_name}",
+    ):
+        assert fragment in contents
+
+    for function_name in (
+        "query_audit_log_append_only",
+        "set_updated_at",
+    ):
+        assert function_name in contents
+
+    for fragment in (
+        "REVOKE ALL ON FUNCTION {function_name}() FROM PUBLIC",
+        "GRANT EXECUTE ON FUNCTION {function_name}() TO esdata",
+        "GRANT EXECUTE ON FUNCTION {function_name}() TO service_role",
+    ):
+        assert fragment in contents
+
+
+def test_monitoring_rls_closure_is_migrated_in_revision_0067():
+    revision_path = ALEMBIC_VERSIONS / "20260510_0067_monitoring_rls_closure.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    assert 'down_revision = "20260510_0066_cdi_country_unique"' in contents
+
+    for table_name in (
+        "data_freshness_alerts",
+        "source_freshness_snapshot",
+        "sync_dead_letter",
+    ):
+        assert table_name in contents
+
+    for fragment in (
+        "ALTER TABLE IF EXISTS {table_name} ENABLE ROW LEVEL SECURITY",
+        "CREATE POLICY esdata_all ON {table_name}",
+        "CREATE POLICY service_role_all ON {table_name}",
+        "DROP POLICY IF EXISTS esdata_all ON {table_name}",
+        "DROP POLICY IF EXISTS service_role_all ON {table_name}",
+    ):
+        assert fragment in contents
