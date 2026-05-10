@@ -31,6 +31,14 @@ empty tables are empty in both environments and are classified as workflow,
 allowed-empty, or future official-source ingestion targets. They must not be
 filled with fake rows.
 
+Update after TS-003: API and HTTP MCP expose the same classification through
+`GET /v1/domain-availability` and `GET /v1/domain-availability/{table}`.
+List-style empty domain routers covered by `DomainAvailabilityMiddleware` now
+return `status`/`availability_status` as `workflow_empty`, `allowed_empty`, or
+`configured_but_unavailable` instead of legacy `not_available` or
+`operational_data`. Clients must treat `safe_to_answer=false` as a hard stop
+for factual legal/tax answers.
+
 ## Classification Rules
 
 - `official_scraped`: must be populated from official source only. Accepted
@@ -44,6 +52,11 @@ filled with fake rows.
 - `configured_but_unavailable`: official source exists, but ingestion is not
   implemented, not configured, blocked by upstream access, or intentionally
   out of current scope. The MCP must say unavailable, not infer.
+- API/MCP exposure rule: every empty table surfaced to clients must include
+  `availability_status`, `reason`, `row_count`, `registry_classification`,
+  `target_path`, `action`, and `safe_to_answer`; no empty response may be used
+  as evidence that no obligation, registry entry, deadline, rate, or filing
+  exists.
 
 ## P0 - Sync Local-Enriched Tables To VPS
 

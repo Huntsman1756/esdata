@@ -50,6 +50,10 @@ Interpretation:
   filing/register that is not currently available locally.
 - Allowed-empty tables are system/meta tables that may be empty until the
   feature is actively used.
+- Empty-table availability is exposed in API and HTTP MCP through
+  `/v1/domain-availability`. Empty domain responses must use
+  `workflow_empty`, `allowed_empty`, or `configured_but_unavailable` with
+  `safe_to_answer=false` unless the table is populated with live rows.
 
 No table should be filled with fixture/community/LLM data to satisfy row counts.
 

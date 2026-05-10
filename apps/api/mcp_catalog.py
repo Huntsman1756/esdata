@@ -31,6 +31,9 @@ HTTP_MCP_OPERATIONS = [
     "get_modelo_campana_operativa",
     "get_modelo_resumen_operativo",
     "get_modelo_fuentes_oficiales",
+    # Disponibilidad de dominios/tablas
+    "list_domain_availability",
+    "get_domain_availability",
     # DTA / Convenios Doble Imposicion
     "listar_convenios_dta_internacional",
     "detalle_convenio_dta_internacional",
@@ -67,6 +70,8 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "list_modelos"
     if path.startswith("/v1/doctrina/"):
         return "buscar_doctrina"
+    if path.startswith("/v1/domain-availability"):
+        return "list_domain_availability"
     return "http_request"
 
 

@@ -21,6 +21,8 @@ COPY apps/api/ /app
 COPY alembic.ini /app/alembic.ini
 COPY alembic/ /app/alembic/
 COPY docs/openapi-gpt.json /app/docs/openapi-gpt.json
+COPY docs/source-manifests/ /app/docs/source-manifests/
+COPY scripts/ralph/table-remediation-registry.json /app/scripts/ralph/table-remediation-registry.json
 
 USER app
 
