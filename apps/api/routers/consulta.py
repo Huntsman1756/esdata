@@ -2,6 +2,7 @@
 
 import logging
 import re
+import unicodedata
 
 from db import db_session
 from fastapi import APIRouter, Query, Request
@@ -17,6 +18,7 @@ from services.grounding import validate_claim_grounding
 from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
 from request_context import get_request_id, get_user_id
+from services.domain_availability import get_domain_availability
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
 from services.unified_multi_source_search import unified_multi_source_search
@@ -59,12 +61,164 @@ FAITHFULNESS_AUTO_APPROVE_THRESHOLD = 0.95
 QUERY_AUDIT_CONFIG_VERSION = "consulta-faithfulness-v1"
 RERANK_TOP_K = 5
 GROUNDING_THRESHOLD = 0.4
+UNVERIFIED_EVIDENCE_AVISO = (
+    "NO VERIFICADO: evidencia insuficiente para responder con fiabilidad; "
+    "revise la fuente oficial antes de tomar decisiones"
+)
 
 router = APIRouter(prefix="", tags=["consulta"])
 
 
+DOMAIN_AVAILABILITY_QUERY_MAP: list[tuple[tuple[str, ...], tuple[str, ...]]] = [
+    (("mica", "casp", "criptoactivo mica", "crypto asset", "wallet custodian"), ("casp", "crypto_asset", "tokenized_asset", "wallet_custodian")),
+    (("dora", "ict risk", "riesgo tic", "incidente tic"), ("dora_ict_risk_register", "dora_tic_incident", "dora_third_party_provider")),
+    (("sfdr", "pai", "paci", "producto sfdr", "precontractual sfdr"), ("sfdr_product", "sfdr_paci_indicator", "sfdr_pre_contractual", "sfdr_annual_report")),
+    (("csrd report", "informe csrd", "esg data point", "dato esg"), ("csrd_entity_report", "csrd_esg_data_point", "csrd_company")),
+    (("aifmd", "ucits", "priips kid", "kid priips", "solvency ii"), ("aifmd_fund", "ucits_fund", "priips_kid", "solvency_ii_entity")),
+    (("psd2 consent", "consentimiento psd2", "psd2 incident", "incidente psd2"), ("psd2_consent", "psd2_incident_report")),
+    (("ubo", "beneficial owner", "titular real", "titularidad real"), ("beneficial_owner_record", "ubo_record", "ownership_relation", "ownership_share")),
+    (("screening entries", "screening match", "sanciones screening", "lista sanciones"), ("screening_entries", "screening_matches")),
+    (("xbrl filing", "ixbrl", "esef", "xbrl fact", "hecho xbrl"), ("xbrl_filing", "xbrl_fact", "xbrl_company")),
+    (("fatca giin", "giin registry", "registro giin"), ("giin_registry",)),
+]
+
+
 def _ci_like(column: str, param_name: str) -> str:
     return f"LOWER({column}) LIKE LOWER(:{param_name})"
+
+
+def _normalize_query_text(value: str | None) -> str:
+    text_value = value or ""
+    normalized = unicodedata.normalize("NFKD", text_value)
+    ascii_text = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return ascii_text.lower()
+
+
+def _availability_probe_tables(query: str, sources: str | None = None) -> list[str]:
+    haystack = _normalize_query_text(" ".join(filter(None, [query, sources or ""])))
+    tables: list[str] = []
+    for markers, candidate_tables in DOMAIN_AVAILABILITY_QUERY_MAP:
+        if any(marker in haystack for marker in markers):
+            tables.extend(candidate_tables)
+    return list(dict.fromkeys(tables))
+
+
+def _availability_blockers(db, query: str, sources: str | None = None) -> list[dict]:
+    blockers: list[dict] = []
+    for table in _availability_probe_tables(query, sources):
+        record = get_domain_availability(db, table)
+        if record and record.get("safe_to_answer") is False:
+            blockers.append(record)
+    return blockers
+
+
+def _availability_abstention_response(
+    request: Request,
+    query: str,
+    blockers: list[dict],
+) -> ConsultaFiscalResponse:
+    availability_summary = {
+        "blocked": True,
+        "reason": "domain_availability_not_safe_to_answer",
+        "tables": blockers,
+    }
+    aviso = (
+        "NO VERIFICADO: la consulta depende de dominios/tablas sin filas reales "
+        "disponibles. Se devuelve abstencion para evitar una respuesta fiscal/legal inventada."
+    )
+    confianza = {
+        "nivel": 0,
+        "nivel_texto": "baja",
+        "fuentes": [],
+        "aviso": aviso,
+        "modelos_cubiertos": [],
+        "resultados_clasificados": {},
+        "faithfulness_score": 0.0,
+        "faithfulness_label": "baja",
+        "review_required": True,
+        "availability": availability_summary,
+    }
+    request_id = get_request_id(request)
+    user_id = get_user_id(request)
+    get_query_audit_service().record_query(
+        request_id=request_id,
+        user_id=user_id,
+        path="/v1/consulta",
+        query_text=query,
+        retrieved_chunks=[],
+        response_summary=f"availability_blocked tables={','.join(str(item.get('table')) for item in blockers)}",
+        model_version=get_ai_version(),
+        config_version=QUERY_AUDIT_CONFIG_VERSION,
+        grounding_status="availability_blocked",
+        prompt_injection_detected=False,
+        grounding_summary=availability_summary,
+    )
+    return ConsultaFiscalResponse(
+        consulta=query or "",
+        modelos=[],
+        resultados=[],
+        total_resultados=0,
+        relevancia={
+            "nivel": "baja",
+            "score": 0.0,
+            "coincidencia": "bloqueado por disponibilidad de dominio",
+            "terminos_encontrados": [],
+            "terminos_faltantes": list(re.findall(r"[a-zA-Z0-9]{3,}", query.lower())) if query else [],
+        },
+        confianza=confianza,
+        cited_chunks=[],
+        claim_citations=[],
+    )
+
+
+def _unverified_abstention_response(
+    request: Request,
+    query: str,
+    *,
+    aviso: str = UNVERIFIED_EVIDENCE_AVISO,
+    grounding_status: str = "unverified_abstention",
+) -> ConsultaFiscalResponse:
+    request_id = get_request_id(request)
+    user_id = get_user_id(request)
+    get_query_audit_service().record_query(
+        request_id=request_id,
+        user_id=user_id,
+        path="/v1/consulta",
+        query_text=query,
+        retrieved_chunks=[],
+        response_summary=f"{grounding_status} resultados=0",
+        model_version=get_ai_version(),
+        config_version=QUERY_AUDIT_CONFIG_VERSION,
+        grounding_status=grounding_status,
+        prompt_injection_detected=False,
+        grounding_summary={"blocked": True, "reason": grounding_status, "query": query},
+    )
+    return ConsultaFiscalResponse(
+        consulta=query or "",
+        modelos=[],
+        resultados=[],
+        total_resultados=0,
+        relevancia={
+            "nivel": "baja",
+            "score": 0.0,
+            "coincidencia": "sin resultados verificados",
+            "terminos_encontrados": [],
+            "terminos_faltantes": list(re.findall(r"[a-zA-Z0-9]{3,}", query.lower())) if query else [],
+        },
+        confianza={
+            "nivel": 0,
+            "nivel_texto": "baja",
+            "fuentes": [],
+            "aviso": aviso,
+            "modelos_cubiertos": [],
+            "resultados_clasificados": {},
+            "faithfulness_score": 0.0,
+            "faithfulness_label": "baja",
+            "review_required": True,
+        },
+        cited_chunks=[],
+        claim_citations=[],
+    )
 
 #  Keyword → modelo mapping
 KEYWORD_MODELOS = {
@@ -671,12 +825,12 @@ def _apply_grounding_abstention_if_needed(
     uncovered_terms = _collect_uncovered_query_terms(query, resultados)
     if uncovered_terms:
         confianza = dict(confianza)
-        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
         return [], confianza, []
 
     if not cited_chunks:
         confianza = dict(confianza)
-        confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+        confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
         return [], confianza, []
 
     has_full_article_evidence = any(
@@ -700,7 +854,7 @@ def _apply_grounding_abstention_if_needed(
         return resultados, confianza, cited_chunks
 
     confianza = dict(confianza)
-    confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+    confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
     return [], confianza, []
 
 
@@ -712,9 +866,7 @@ def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tupl
     aviso_actual = (confianza.get("aviso") or "").strip().lower()
     if aviso_actual == "consulta vacia":
         return [], confianza
-    confianza["aviso"] = (
-        "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
-    )
+    confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
     return [], confianza
 
 
@@ -785,6 +937,10 @@ async def consulta_fiscal(
 
     with db_session() as db:
         #  1. Buscar modelos por resolución de keywords
+        availability_blockers = _availability_blockers(db, q, sources)
+        if availability_blockers:
+            return _availability_abstention_response(request, q, availability_blockers)
+
         if resolved_modelos:
             try:
                 placeholders = ",".join([f":m{i}" for i in range(len(resolved_modelos))])
@@ -1024,6 +1180,15 @@ async def consulta_fiscal(
                 results.append(item)
         except Exception:
             db.rollback()
+            return _unverified_abstention_response(
+                request,
+                q,
+                aviso=(
+                    "NO VERIFICADO: el retrieval solicitado no esta disponible. "
+                    "No se devuelven resultados parciales para evitar una respuesta fiscal/legal inventada."
+                ),
+                grounding_status="requested_retrieval_failed",
+            )
 
     seen = set()
     unique_results = []
@@ -1084,7 +1249,7 @@ async def consulta_fiscal(
         if not cited_chunks and confianza.get("faithfulness_score", 0.0) < FAITHFULNESS_REVIEW_THRESHOLD:
             final_results = []
             confianza = dict(confianza)
-            confianza["aviso"] = "evidencia insuficiente para responder con fiabilidad; revise la fuente oficial antes de tomar decisiones"
+            confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
 
     final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
     if not final_results:

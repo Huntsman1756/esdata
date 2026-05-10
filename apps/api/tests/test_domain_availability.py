@@ -2,6 +2,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+from httpx import ASGITransport, AsyncClient
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
@@ -104,3 +106,44 @@ def test_empty_domain_router_uses_explicit_availability_status():
         }
         assert payload["status"] == payload["availability_status"]
         assert payload["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_consulta_abstains_when_query_depends_on_empty_domain():
+    from main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": "req-availability-guard-001"},
+    ) as client:
+        response = await client.get("/v1/consulta", params={"q": "lista CASP MiCA autorizados en España"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    confianza = payload["confianza"]
+    availability = confianza["availability"]
+
+    assert payload["resultados"] == []
+    assert payload["cited_chunks"] == []
+    assert confianza["review_required"] is True
+    assert "NO VERIFICADO" in confianza["aviso"]
+    assert availability["blocked"] is True
+    assert any(item["table"] == "casp" for item in availability["tables"])
+    assert all(item["safe_to_answer"] is False for item in availability["tables"])
+
+
+@pytest.mark.asyncio
+async def test_consulta_regular_aeat_query_is_not_blocked_by_availability_guard():
+    from main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/consulta", params={"q": "modelo 100 irpf"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "availability" not in (payload["confianza"] or {})
