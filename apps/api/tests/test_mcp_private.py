@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 import requests
-from httpx import ASGITransport, AsyncClient
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -164,7 +164,12 @@ async def test_mcp_catalog_exposes_expected_core_http_operations():
 
 @pytest.mark.asyncio
 async def test_mcp_http_rejects_missing_api_key_when_enabled():
-    async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
+    async with _uvicorn_server(
+        APP_ENV="production",
+        ESDATA_API_KEY="rest-secret",
+        MCP_API_KEY="secret",
+        MCP_RATE_LIMIT_PER_MINUTE="20",
+    ) as port:
         r = requests.get(
             f"http://127.0.0.1:{port}/mcp",
             headers={"Accept": "text/event-stream"},
@@ -176,7 +181,12 @@ async def test_mcp_http_rejects_missing_api_key_when_enabled():
 
 @pytest.mark.asyncio
 async def test_mcp_http_accepts_valid_api_key_when_enabled():
-    async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
+    async with _uvicorn_server(
+        APP_ENV="production",
+        ESDATA_API_KEY="rest-secret",
+        MCP_API_KEY="secret",
+        MCP_RATE_LIMIT_PER_MINUTE="20",
+    ) as port:
         r = requests.get(
             f"http://127.0.0.1:{port}/mcp",
             headers={"Accept": "text/event-stream", "X-API-Key": "secret"},
@@ -188,7 +198,11 @@ async def test_mcp_http_accepts_valid_api_key_when_enabled():
 
 @pytest.mark.asyncio
 async def test_mcp_http_rate_limits_repeated_requests():
-    async with _client_with_env(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="2") as client:
+    async with _client_with_env(
+        MCP_API_KEY="secret",
+        MCP_RATE_LIMIT_PER_MINUTE="2",
+        ESDATA_RATE_LIMIT_ENABLED="true",
+    ) as client:
         headers = {"X-API-Key": "secret", "Accept": "text/event-stream"}
         first = await client.get("/mcp", headers=headers)
         second = await client.get("/mcp", headers=headers)
@@ -260,7 +274,7 @@ async def test_mcp_consulta_empty_domain_fails_closed_without_invented_answer():
                 "method": "tools/call",
                 "params": {
                     "name": "consulta_fiscal",
-                    "arguments": {"q": "lista CASP MiCA autorizados en España"},
+                    "arguments": {"q": "wallet custodian MiCA autorizados en Espana"},
                 },
             },
             timeout=5,
@@ -277,7 +291,7 @@ async def test_mcp_consulta_empty_domain_fails_closed_without_invented_answer():
     assert structured["cited_chunks"] == []
     assert "NO VERIFICADO" in confianza["aviso"]
     assert availability["blocked"] is True
-    assert "casp" in tables
+    assert "wallet_custodian" in tables
 
 
 @pytest.mark.asyncio

@@ -11,7 +11,12 @@ import httpx
 # FastAPI app must be imported before any DB access
 from main import app
 from mcp_catalog import get_stdio_tool_definitions
-from mcp_request_context import mcp_internal_request
+from mcp_request_context import (
+    get_mcp_request_id,
+    get_mcp_user_id,
+    mcp_internal_request,
+    mcp_request_scope,
+)
 
 
 def _next_stdio_request_id() -> str:
@@ -131,17 +136,26 @@ class MCPStdioServer:
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+                base_url="http://apiserver",
                 timeout=30.0,
             )
         return self._http_client
 
     async def _call_endpoint(self, method: str, path: str, params: dict | None = None) -> dict:
         client = await self._get_client()
-        async with client.request(method.upper(), path, params=params) as response:
-            return {
-                "status_code": response.status_code,
-                "data": response.json() if response.status_code == 200 else None,
-            }
+        headers: dict[str, str] = {}
+        request_id = get_mcp_request_id()
+        user_id = get_mcp_user_id()
+        if request_id:
+            headers["x-request-id"] = request_id
+        if user_id:
+            headers["x-user-id"] = user_id
+        with mcp_internal_request():
+            response = await client.request(method.upper(), path, params=params, headers=headers)
+        return {
+            "status_code": response.status_code,
+            "data": response.json() if response.status_code == 200 else None,
+        }
 
     def _send(self, data: dict[str, Any]):
         payload = json.dumps(data, ensure_ascii=False)
@@ -229,32 +243,19 @@ class MCPStdioServer:
         user_id = "mcp-client"
 
         import time as _time
-        import httpx
         _start = _time.time()
         buffered_messages: list[dict[str, Any]] = []
-        _sync_client = httpx.Client(transport=httpx.ASGITransport(app=self.app, raise_app_exceptions=False))
-        client = self._sync_client or _sync_client
-        if not self._sync_client:
-            self._sync_client = _sync_client
         original_send = self._send
-        original_request = client.request
 
         def _buffer_message(data: dict[str, Any]) -> None:
             buffered_messages.append(data)
 
-        def _request_with_stdio_context(method: str, url: str, *args, **kwargs):
-            headers = dict(kwargs.pop("headers", {}) or {})
-            headers.setdefault("x-request-id", request_id)
-            headers.setdefault("x-user-id", user_id)
-            with mcp_internal_request():
-                return original_request(method, url, *args, headers=headers, **kwargs)
-
         self._send = _buffer_message
-        client.request = _request_with_stdio_context
 
         try:
             try:
-                self._dispatch_tool(tool_name, arguments, msg_id)
+                with mcp_request_scope(request_id=request_id, user_id=user_id):
+                    await self._dispatch_tool(tool_name, arguments, msg_id)
             except Exception as e:
                 buffered_messages.append({
                     "jsonrpc": "2.0",
@@ -288,7 +289,6 @@ class MCPStdioServer:
                 return
         finally:
             self._send = original_send
-            client.request = original_request
 
         for payload in buffered_messages:
             original_send(payload)

@@ -1,12 +1,16 @@
 import os
-from collections import deque
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 
 def reset_mcp_rate_limit_state() -> None:
-    pass
+    try:
+        from middleware.rate_limit import _rate_limiter
+
+        _rate_limiter._buckets.clear()
+    except Exception:
+        pass
 
 
 async def guard_mcp_http(request: Request, call_next):

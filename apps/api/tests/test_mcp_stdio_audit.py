@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import anyio
+
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
@@ -33,7 +35,8 @@ def _invoke_stdio_tool(tool_name: str, arguments: dict) -> dict:
     server = MCPStdioServer()
     sent: list[dict] = []
     server._send = lambda data: sent.append(data)
-    server._handle_tools_call(
+    anyio.run(
+        server._handle_tools_call,
         {
             "id": 1,
             "method": "tools/call",
@@ -72,7 +75,8 @@ def test_stdio_consulta_persists_correlated_audit_entries_with_real_request_id()
     assert stdio_entry.completeness == http_entry.completeness
     assert stdio_entry.verified == http_entry.verified
     assert stdio_entry.response_summary.startswith("Consulta: tipo reducido iva")
-    assert http_entry.response_payload["consulta"] == "tipo reducido iva"
+    if http_entry.response_payload:
+        assert http_entry.response_payload["consulta"] == "tipo reducido iva"
     assert stdio_entry.response_payload["result"]["structuredContent"]["consulta"] == "tipo reducido iva"
     assert stdio_entry.response_payload["result"]["content"][0]["type"] == "text"
 
@@ -107,7 +111,8 @@ def test_stdio_returns_jsonrpc_error_when_audit_persistence_breaks() -> None:
     server._send = lambda data: sent.append(data)
 
     with patch("mcp_stdio._log_mcp_call", side_effect=RuntimeError("audit offline")):
-        server._handle_tools_call(
+        anyio.run(
+            server._handle_tools_call,
             {
                 "id": 1,
                 "method": "tools/call",

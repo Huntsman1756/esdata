@@ -218,6 +218,10 @@ class RateLimiter:
         if bucket_key not in self._buckets:
             limits = self._endpoint_limits.get(endpoint, {})
             config = limits.get("default", self._default_limit)
+            if endpoint == "/mcp":
+                raw_mcp_limit = os.getenv("MCP_RATE_LIMIT_PER_MINUTE")
+                if raw_mcp_limit:
+                    config = (int(raw_mcp_limit), 60)
             capacity, window = config
             rate = capacity / window
             self._buckets[bucket_key] = TokenBucket(

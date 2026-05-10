@@ -5717,3 +5717,23 @@ En orden de impacto real:
 - Hermes read-only contra `127.0.0.1:8000`: API OK, availability OK, 30 workers healthy.
 - DLQ fallback Docker ejecutado correctamente; tras verificar recuperacion de EUR-Lex, se resolvio una entrada operacional antigua `eurlex/sync_entity` causada por `AdminShutdown` durante despliegue.
 - Ejecucion final Hermes: `DLQ: No entries exceeding max retries`.
+
+---
+
+## Reclamo 2026-05-10 - TS-013 MCP test harness y stdio audit reparados
+
+**Estado:** COMPLETADO LOCAL.
+
+**Archivos principales:** `apps/api/mcp_stdio.py`, `apps/api/mcp_security.py`, `apps/api/middleware/rate_limit.py`, `apps/api/tests/test_mcp_private.py`, `apps/api/tests/test_mcp_stdio_integration.py`, `apps/api/tests/test_mcp_stdio_audit.py`.
+
+**Resultado:**
+- `MCPStdioServer` vuelve a ejecutar herramientas async correctamente sobre `httpx.AsyncClient` + `ASGITransport`, con `base_url` valido, propagacion `x-request-id`/`x-user-id` y auditoria correlada.
+- Los tests HTTP MCP in-process arrancan el session manager por event loop y usan session id real antes de `initialize`/`tools/*`.
+- El rate limit MCP respeta `MCP_RATE_LIMIT_PER_MINUTE` y puede resetear buckets en tests.
+- Los tests de disponibilidad vacia usan `wallet_custodian`, porque `casp` ya esta poblada oficialmente desde ESMA.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/api/tests/test_mcp_private.py apps/api/tests/test_mcp_stdio_integration.py apps/api/tests/test_mcp_stdio_audit.py apps/api/tests/test_mcp_transport.py apps/api/tests/test_mcp_audit.py apps/api/tests/test_http_mcp_audit_phase_1_1.py apps/api/tests/test_mcp_contract.py apps/api/tests/test_domain_availability.py apps/api/tests/test_consulta_fail_closed.py -q --basetemp .pytest-tmp`
+- Resultado: `68 passed`, `4 warnings`.
+- `ESDATA_API_KEY=dev-key python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8001`
+- Resultado: `ok=true`, empty-domain summary `90` (`53 workflow_empty`, `3 allowed_empty`, `34 configured_but_unavailable`).
