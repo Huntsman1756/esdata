@@ -6,6 +6,10 @@
 - Proposito: unica fuente activa de roadmap, estado actual y siguiente paso exacto
 - Autoridad: este documento manda sobre cualquier roadmap, handoff o plan historico del repo, salvo conflicto con `AGENTS.md`
 
+## Reclamo activo
+
+- 2026-05-10 22:10 Europe/Madrid — `[COMPLETADO]` cierre de bloqueos post-audit salvo SSH root/password: permisos de despliegue VPS sin world-write efectivo, firewall deny para `8080/8501/8502`, backup real + restore drill, Alertmanager estable con fallback noop si Telegram no esta configurado, Docker log rotation, cron read-only + `flock` + `RuntimeMaxSec`, validacion MCP horaria con runtime cap. Evidencia: VPS `/status` `api|ok database|ok workers|33`; `mcp_validation_suite.py` remoto `ok=true`; restore drill `restore_tables|163`, `restore_aeat_modelo|219`, `restore_modelo_casilla|28875`; tests locales `93 passed, 4 warnings`.
+
 ---
 
 ## Objetivo del producto

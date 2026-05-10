@@ -174,7 +174,7 @@ def test_mcp_validation_suite_requires_fail_closed_empty_domain_response():
                 "availability": {
                     "blocked": True,
                     "tables": [
-                        {"table": "casp", "safe_to_answer": False},
+                        {"table": "wallet_custodian", "safe_to_answer": False},
                     ],
                 },
             },
@@ -183,7 +183,7 @@ def test_mcp_validation_suite_requires_fail_closed_empty_domain_response():
 
     assert ok is True
     assert details["blocked"] is True
-    assert "casp" in details["tables"]
+    assert "wallet_custodian" in details["tables"]
 
 
 def test_alertmanager_telegram_uses_secret_files():
@@ -198,4 +198,6 @@ def test_alertmanager_telegram_uses_secret_files():
     assert "__TELEGRAM_CHAT_ID__" in compose
     assert "./secrets/alertmanager:/etc/alertmanager/secrets:ro" in compose
     assert "TELEGRAM_CHAT_ID:" in compose
+    assert "receiver: default-noop" in compose
+    assert "read_only: true" in compose
     assert "TELEGRAM_CHAT_ID=" in env_example

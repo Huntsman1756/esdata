@@ -5,9 +5,9 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
-# Alertmanager esta declarado pero como [PARTIAL]: el receiver real no
-# esta configurado en infra/observability/alertmanager.yml. Las alertas
-# se enrutan pero no se notifican aun.
+# Alertmanager esta declarado. En produccion notifica por Telegram solo si
+# existe token montado y TELEGRAM_CHAT_ID no esta vacio; si faltan, el
+# contenedor arranca con receiver noop para no entrar en restart loop.
 alerting:
   alertmanagers:
     - static_configs:

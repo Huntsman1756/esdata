@@ -2,86 +2,66 @@
 
 ## Objetivo
 
-Levantar `esdata` en un servidor usando `infra/deploy/docker-compose.prod.yml` y el contenedor `ops` como runner oficial de migraciones/verificaciones.
+Levantar `esdata` con `infra/deploy/docker-compose.prod.yml`, usando `/etc/esdata/esdata.env` como fichero externo de entorno y el contenedor `ops` como runner de migraciones.
 
-## Prerrequisitos
-
-- Docker Engine y Docker Compose v2
-- fichero de entorno externo o `infra/deploy/.env.prod` basado en `infra/deploy/compose.env.example`
-- salida HTTPS a BOE, DGT, TEAC, CNMV, SEPBLAC, BDE y fuentes activadas
-
-## Pasos
-
-1. preparar el fichero de entorno
-2. validar el compose
-3. levantar `postgres`
-4. ejecutar migraciones y `verify_schema`
-5. levantar `api`, `web`, `caddy` y todos los workers continuos requeridos
-6. verificar `/health`, `/status` y rutas web principales
-
-## Comandos
+## Ruta recomendada
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml config
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d postgres
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
+cd /srv/esdata
+bash scripts/ops/deploy-hetzner.sh
+```
+
+El script valida Compose, ejecuta `alembic upgrade head`, ejecuta `python scripts/maintenance/verify_schema.py` y levanta el runtime.
+
+## Comandos manuales equivalentes
+
+```bash
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml config
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-boe-modelos worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-cdi worker-aepd
 curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/status
+curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/status
 ```
 
 ## Cron jobs
 
-Los servicios `cron-*` son jobs one-shot y necesitan scheduler externo.
-
-Ejemplos manuales:
+Los servicios `cron-*` son one-shot. El template activo debe usar `run --rm` para que cada job se conecte a la red Compose existente sin intentar recrear dependencias.
 
 ```bash
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-boe-daily
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-dgt-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-teac-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-modelos-daily
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-bdns-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-borme-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-cnmv-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-sepblac-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-bde-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-cendoj-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-aepd-weekly
-docker compose --env-file infra/deploy/.env.prod -f infra/deploy/docker-compose.prod.yml run --rm cron-eurlex-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-boe-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-dgt-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-teac-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-modelos-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-aeat-current-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-boe-modelos-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-bdns-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-borme-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-cnmv-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-sepblac-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-bde-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-cendoj-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-aepd-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-eurlex-weekly
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-regulatory-daily
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm cron-psd2-weekly
 ```
 
 ## Timers systemd
 
-Los `cron-*` solo quedan programados de verdad cuando se instala `esdata-job@.service` y se habilitan los `.timer` de `infra/deploy/systemd/`.
-
-Validacion operativa minima:
-
-1. el unit instalado debe ejecutar `docker compose --env-file /etc/esdata/esdata.env -f /srv/esdata/infra/deploy/docker-compose.prod.yml run --rm %i` sin `--no-deps`
-2. `WorkerSilent` debe evaluarse sobre `worker_stale_status`, no sobre una ventana fija de `48h`
-3. tras cambiar `infra/observability/alerts.yml`, hay que recrear `prometheus` o recargar explicitamente sus reglas en el host
-4. antes de validar alertas, invocar `/status` una vez para refrescar las metricas `worker_stale_status` derivadas de `sync_log`
-
-Comando recomendado de chequeo:
-
 ```bash
+sudo cp infra/deploy/systemd/*.service /etc/systemd/system/
+sudo cp infra/deploy/systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now esdata-boe-daily.timer esdata-boe-modelos-daily.timer esdata-modelos-daily.timer esdata-aeat-current-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer esdata-cdi-weekly.timer esdata-reg-watch-daily.timer esdata-psd2-weekly.timer esdata-mcp-validation.timer
 python scripts/ops/worker_scheduler_guard.py check --repo-root /srv/esdata --installed-unit /etc/systemd/system/esdata-job@.service
 ```
 
-```bash
-sudo cp infra/deploy/systemd/esdata-job@.service /etc/systemd/system/
-sudo cp infra/deploy/systemd/*.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now esdata-boe-daily.timer esdata-modelos-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer
-systemctl cat esdata-job@.service
-systemctl list-timers --all | grep esdata
-```
+## Agentes de mantenimiento
 
-## Verificaciones post-deploy
+`esdata-hermes-monitor.service` queda read-only por defecto (`AUTO_RESTART_ENABLED=false`). Si se habilita reinicio automatico, debe fijarse `RESTART_ALLOWLIST` con servicios concretos y nunca dar permisos de escritura a datos fiscales o legales.
 
-1. `docker compose ... ps`
-2. `curl /health`
-3. `curl /status`
-4. comprobar `sync_log`
-5. revisar logs de `api` y workers activos
+`esdata-mcp-validation.timer` ejecuta `scripts/maintenance/mcp_validation_suite.py --read-only` cada hora.
+
+Alertmanager usa `/srv/esdata/infra/observability/alertmanager.yml` como ruta operativa y monta secretos desde `/srv/esdata/infra/deploy/secrets/alertmanager`. Para Telegram debe existir `telegram_bot_token` y `TELEGRAM_CHAT_ID` debe estar definido en `/etc/esdata/esdata.env` antes de levantar el perfil `prod`.

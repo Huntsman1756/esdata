@@ -272,20 +272,21 @@ def test_compose_profiled_worker_does_not_depend_on_repo_local_env_file():
     assert "env_file:" not in compose
 
 
-def test_systemd_cron_service_runs_compose_job_without_touching_dependencies():
+def test_systemd_cron_service_runs_compose_job_with_overlap_guard():
     systemd_service = _read("infra/deploy/systemd/esdata-job@.service")
 
-    assert "run --rm --no-deps %i" in systemd_service
+    assert "/usr/bin/flock -n /run/esdata-jobs/%i.lock" in systemd_service
+    assert "run --rm %i" in systemd_service
 
 
-def test_runbook_documents_no_deps_for_cron_services():
+def test_runbook_documents_cron_services_with_dependency_healthchecks():
     runbook = _read("docs/operations/runbooks/deploy-compose.md")
     server_doc = _read("docs/deployment/server-installation.md")
     operations_readme = _read("docs/operations/README.md")
 
-    assert "run --rm --no-deps cron-boe-daily" in runbook
-    assert "run --rm --no-deps cron-cnmv-weekly" in server_doc
-    assert "docker compose run --rm --no-deps cron-*" in operations_readme
+    assert "run --rm cron-boe-daily" in runbook
+    assert "run --rm cron-cnmv-weekly" in server_doc
+    assert "docker compose run --rm cron-*" in operations_readme
 
 
 def test_worker_silent_alert_uses_exported_stale_status_instead_of_global_lag_threshold():
@@ -353,5 +354,37 @@ def test_maintenance_agent_units_are_safe_by_default():
 
     assert "User=deploy" in validation_service
     assert "mcp_validation_suite.py --read-only" in validation_service
+    assert "RuntimeMaxSec=10m" in validation_service
     assert "NoNewPrivileges=true" in validation_service
     assert "Unit=esdata-mcp-validation.service" in validation_timer
+
+
+def test_scheduled_jobs_have_overlap_locks_and_runtime_caps():
+    generic = _read("infra/deploy/systemd/esdata-job@.service")
+    boe_modelos = _read("infra/deploy/systemd/esdata-boe-modelos-daily.service")
+
+    for unit in (generic, boe_modelos):
+        assert "RuntimeDirectory=esdata-jobs" in unit
+        assert "RuntimeMaxSec=6h" in unit
+        assert "TimeoutStartSec=6h" in unit
+        assert "/usr/bin/flock -n /run/esdata-jobs/" in unit
+
+
+def test_cron_compose_services_are_read_only_and_pingable():
+    compose = _read("infra/deploy/docker-compose.prod.yml")
+
+    assert "x-cron-hardening: &cron-hardening" in compose
+    assert "read_only: true" in compose
+    assert "tmpfs:" in compose
+
+    cron_services = [
+        line.strip().removesuffix(":")
+        for line in compose.splitlines()
+        if line.startswith("  cron-")
+    ]
+    assert cron_services
+    for service in cron_services:
+        service_block = compose.split(f"  {service}:", 1)[1].split("\n  cron-", 1)[0]
+        assert "<<: *cron-hardening" in service_block, service
+
+    assert "HC_PING_URL_CRON_BOE_MODELOS_DAILY" in compose

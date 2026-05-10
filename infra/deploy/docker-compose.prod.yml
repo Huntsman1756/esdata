@@ -1,3 +1,10 @@
+x-cron-hardening: &cron-hardening
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    - /tmp
+
 services:
   caddy:
     image: caddy:2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d
@@ -490,8 +497,6 @@ services:
       dockerfile: apps/workers/Dockerfile.aeat
     profiles: ["aeat"]
     restart: "no"
-    env_file:
-      - .env.prod
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       WORKER_CMD: python aeat_models.py --run-once
@@ -507,6 +512,7 @@ services:
     tmpfs:
       - /tmp
   cron-boe-daily:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -522,10 +528,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-dgt-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -540,10 +545,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-teac-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -558,10 +562,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-modelos-daily:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.aeat
@@ -576,10 +579,27 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
+
+  cron-aeat-current-daily:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      WORKER_NAME: cron-aeat-current-daily
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_AEAT_CURRENT_DAILY:-}
+      WORKER_CMD: python aeat_current_designs.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
 
   cron-boe-modelos-daily:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -587,6 +607,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BOE_MODELOS_SYNC_INTERVAL: ${BOE_MODELOS_SYNC_INTERVAL:-86400}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_MODELOS_DAILY:-}
       WORKER_CMD: python boe_modelos_worker.py --run-once
       PYTHONUNBUFFERED: "1"
     depends_on:
@@ -594,10 +615,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-bdns-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -612,10 +632,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-borme-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -630,10 +649,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-cnmv-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -648,10 +666,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-sepblac-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -666,10 +683,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-bde-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -684,10 +700,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-cendoj-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -702,10 +717,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-aepd-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -720,10 +734,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-eurlex-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -739,10 +752,25 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
+
+  cron-cdi-weekly:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_CDI_WEEKLY:-}
+      WORKER_CMD: python cdi.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
 
   cron-regulatory-daily:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -757,10 +785,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-psd2-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -774,10 +801,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-giin-monthly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -792,10 +818,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-ofac-sdn-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -810,10 +835,9 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   cron-mica-weekly:
+    <<: *cron-hardening
     build:
       context: ../..
       dockerfile: apps/workers/Dockerfile.worker
@@ -828,8 +852,6 @@ services:
         condition: service_healthy
     networks:
       - esdata-internal
-    security_opt:
-      - no-new-privileges:true
 
   hermes:
     build:
@@ -841,7 +863,8 @@ services:
       ESDATA_API_KEY: ${ESDATA_API_KEY:?ESDATA_API_KEY is required}
       ESDATA_API_URL: ${ESDATA_API_URL:-http://api:8000}
       MONITOR_INTERVAL: ${HERMES_MONITOR_INTERVAL:-300}
-      AUTO_RESTART_ENABLED: ${HERMES_AUTO_RESTART_ENABLED:-true}
+      AUTO_RESTART_ENABLED: ${HERMES_AUTO_RESTART_ENABLED:-false}
+      RESTART_ALLOWLIST: ${HERMES_RESTART_ALLOWLIST:-}
       PYTHONUNBUFFERED: "1"
     depends_on:
       api:
@@ -862,6 +885,8 @@ services:
     profiles: ["prod"]
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${POSTGRES_USER:-esdata}
+      POSTGRES_DB: ${POSTGRES_DB:-esdata}
     volumes:
       - esdata-postgres:/var/lib/postgresql/data:ro
       - ./backups:/backups
@@ -875,6 +900,9 @@ services:
       - esdata-internal
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     healthcheck:
       test: ["CMD-SHELL", "test $(ls -1 /backups/*.sql.gz 2>/dev/null | wc -l) -gt 0"]
       interval: "24h"
@@ -925,23 +953,38 @@ services:
       - esdata-internal
 
   alertmanager:
-    # [PARTIAL] Plantilla scaffold. Antes de habilitar perfil "prod" en
-    # produccion, configurar receiver real en infra/observability/alertmanager.yml
-    # (ver TODO en ese fichero). Mientras tanto el receiver default apunta a
-    # localhost:9099/noop y solo absorbe alertas sin notificar.
     image: prom/alertmanager:v0.28.1
     profiles: ["prod"]
+    environment:
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     volumes:
       - ../observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./secrets/alertmanager:/etc/alertmanager/secrets:ro
       - alertmanager_data:/alertmanager
+    entrypoint: ["/bin/sh", "-ec"]
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
+      - |
+        if [ -n "${TELEGRAM_CHAT_ID:-}" ] && [ -s /etc/alertmanager/secrets/telegram_bot_token ]; then
+          sed "s|__TELEGRAM_CHAT_ID__|${TELEGRAM_CHAT_ID}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml
+        else
+          cat > /tmp/alertmanager.yml <<'EOF'
+        global:
+          resolve_timeout: 5m
+        route:
+          receiver: default-noop
+        receivers:
+          - name: default-noop
+        EOF
+        fi
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
     restart: unless-stopped
     networks:
       - esdata-internal
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   grafana:
     image: grafana/grafana@sha256:7d5faae481a4c6f436c99e98af11534f7fd5e8d3e35213552dd1dd02bc393d2e

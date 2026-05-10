@@ -8,4 +8,7 @@ Type=oneshot
 Environment=TZ=Europe/Madrid
 User=deploy
 WorkingDirectory=/srv/esdata
-ExecStart=/usr/bin/docker compose --env-file /etc/esdata/esdata.env -f /srv/esdata/infra/deploy/docker-compose.prod.yml run --rm cron-boe-modelos-daily
+RuntimeDirectory=esdata-jobs
+RuntimeMaxSec=6h
+TimeoutStartSec=6h
+ExecStart=/usr/bin/flock -n /run/esdata-jobs/cron-boe-modelos-daily.lock /usr/bin/docker compose --env-file /etc/esdata/esdata.env -f /srv/esdata/infra/deploy/docker-compose.prod.yml run --rm cron-boe-modelos-daily
