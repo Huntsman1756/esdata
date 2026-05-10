@@ -5687,3 +5687,28 @@ En orden de impacto real:
 - `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000`: `ok=true`, 6 checks.
 
 **Pendiente observado:** Hermes en host no puede abrir DLQ por falta del dialecto `postgresql.psycopg` en Python del VPS; de momento es no fatal, pero conviene mover ese check a contenedor con dependencias o instalar runtime host controlado.
+
+---
+
+## Reclamo 2026-05-10 - TS-007 Hermes DLQ read-only operativo en VPS
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `scripts/hermes_monitor.py`, `scripts/tests/test_maintenance_agents.py`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cerrar la degradacion del chequeo DLQ de Hermes cuando se ejecuta en el host del VPS sin el dialecto Python `postgresql.psycopg`.
+
+**Resultado:**
+- Hermes mantiene el camino SQLAlchemy si el driver esta disponible.
+- Si el host no tiene driver DB, Hermes usa fallback read-only via `docker compose exec -T postgres psql` contra el Postgres local del stack.
+- La consulta DLQ usa `resolved IS NOT TRUE`, compatible con boolean PostgreSQL y sin el bug anterior `resolved = 0`.
+- El fallback parsea JSON desde `psql` y no escribe en datos regulatorios.
+
+**Pruebas ejecutadas:**
+- `PYTHONPATH=apps;apps/api python -m pytest scripts/tests/test_maintenance_agents.py -q --basetemp .pytest-tmp`
+- Resultado: `9 passed`.
+
+**Verificacion VPS:**
+- Hermes read-only contra `127.0.0.1:8000`: API OK, availability OK, 30 workers healthy.
+- DLQ fallback Docker ejecutado correctamente; tras verificar recuperacion de EUR-Lex, se resolvio una entrada operacional antigua `eurlex/sync_entity` causada por `AdminShutdown` durante despliegue.
+- Ejecucion final Hermes: `DLQ: No entries exceeding max retries`.

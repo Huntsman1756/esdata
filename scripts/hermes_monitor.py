@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import signal
@@ -39,6 +40,12 @@ RESTART_ALLOWLIST = {
     if item.strip()
 }
 DB_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
+DEPLOY_ROOT = os.getenv("ESDATA_DEPLOY_ROOT", "/srv/esdata")
+COMPOSE_FILE = os.getenv("ESDATA_COMPOSE_FILE", f"{DEPLOY_ROOT}/infra/deploy/docker-compose.prod.yml")
+COMPOSE_ENV_FILE = os.getenv("ESDATA_COMPOSE_ENV_FILE", "/etc/esdata/esdata.env")
+POSTGRES_SERVICE = os.getenv("ESDATA_POSTGRES_SERVICE", "postgres")
+POSTGRES_USER = os.getenv("ESDATA_POSTGRES_USER", "esdata")
+POSTGRES_DB = os.getenv("ESDATA_POSTGRES_DB", "esdata")
 
 # Stale threshold: workers older than this (hours) are considered unhealthy
 STALE_THRESHOLD_HOURS = 2
@@ -261,6 +268,67 @@ def restart_worker_docker(worker_name: str) -> bool:
 
 # ── Dead Letter Queue ───────────────────────────────────────────────────────
 
+_DLQ_SQL = """
+SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+FROM (
+    SELECT id, worker_name, entity_id, entity_type,
+           error_message, retry_count, max_retries,
+           first_failed_at, last_failed_at
+    FROM sync_dead_letter
+    WHERE resolved IS NOT TRUE
+      AND retry_count >= max_retries
+    ORDER BY last_failed_at DESC
+    LIMIT 50
+) AS t
+"""
+
+
+def _dlq_query_via_docker_compose() -> list[dict]:
+    """Read DLQ through the Postgres container when host DB drivers are missing."""
+    command = [
+        "docker",
+        "compose",
+        "--env-file",
+        COMPOSE_ENV_FILE,
+        "-f",
+        COMPOSE_FILE,
+        "exec",
+        "-T",
+        POSTGRES_SERVICE,
+        "psql",
+        "-U",
+        POSTGRES_USER,
+        "-d",
+        POSTGRES_DB,
+        "-At",
+        "-c",
+        _DLQ_SQL,
+    ]
+    result = subprocess.run(
+        command,
+        cwd=DEPLOY_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        logger.warning("DLQ docker fallback failed (rc=%d): %s", result.returncode, result.stderr.strip())
+        return []
+
+    raw = result.stdout.strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.warning("DLQ docker fallback returned invalid JSON: %s", exc)
+        return []
+    if not isinstance(data, list):
+        logger.warning("DLQ docker fallback returned non-list JSON")
+        return []
+    return [item for item in data if isinstance(item, dict)]
+
+
 def check_dead_letter_queue() -> list[dict]:
     """Query the sync_dead_letter table and return entries at max retries."""
     dlq_entries = []
@@ -268,14 +336,14 @@ def check_dead_letter_queue() -> list[dict]:
     try:
         from sqlalchemy import create_engine, text
     except ImportError:
-        logger.warning("sqlalchemy not installed, skipping DLQ check")
-        return dlq_entries
+        logger.info("sqlalchemy not installed, using DLQ docker fallback")
+        return _dlq_query_via_docker_compose()
 
     try:
         engine = create_engine(DB_URL, future=True, pool_pre_ping=True)
     except Exception as exc:
-        logger.warning("DLQ check disabled: database engine unavailable: %s", exc)
-        return dlq_entries
+        logger.info("DLQ database engine unavailable, using docker fallback: %s", exc)
+        return _dlq_query_via_docker_compose()
 
     try:
         with engine.connect() as conn:
@@ -286,7 +354,7 @@ def check_dead_letter_queue() -> list[dict]:
                            error_message, retry_count, max_retries,
                            first_failed_at, last_failed_at
                     FROM sync_dead_letter
-                    WHERE resolved = 0
+                    WHERE resolved IS NOT TRUE
                       AND retry_count >= max_retries
                     ORDER BY last_failed_at DESC
                     LIMIT 50
@@ -297,7 +365,8 @@ def check_dead_letter_queue() -> list[dict]:
                 dlq_entries.append(dict(row))
 
     except Exception as exc:
-        logger.error("Failed to query dead letter queue: %s", exc)
+        logger.error("Failed to query dead letter queue via SQLAlchemy: %s", exc)
+        return _dlq_query_via_docker_compose()
     finally:
         engine.dispose()
 

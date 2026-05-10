@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 
 
@@ -62,8 +63,52 @@ def test_hermes_monitor_restart_requires_explicit_allowlist(monkeypatch):
 def test_hermes_monitor_dlq_driver_failure_is_nonfatal(monkeypatch):
     hermes = _load_hermes(monkeypatch)
     hermes.DB_URL = "postgresql+missingdriver://example"
+    monkeypatch.setattr(hermes, "_dlq_query_via_docker_compose", lambda: [])
 
     assert hermes.check_dead_letter_queue() == []
+
+
+def test_hermes_monitor_dlq_docker_fallback_parses_json(monkeypatch):
+    hermes = _load_hermes(monkeypatch)
+
+    def fake_run(command, **kwargs):
+        assert command[:2] == ["docker", "compose"]
+        assert "exec" in command
+        assert "psql" in command
+        assert kwargs["capture_output"] is True
+        assert kwargs["text"] is True
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='[{"id": 1, "worker_name": "worker-boe", "entity_id": "BOE-A-1", "entity_type": "norma", "retry_count": 3, "max_retries": 3}]\n',
+            stderr="",
+        )
+
+    monkeypatch.setattr(hermes.subprocess, "run", fake_run)
+
+    entries = hermes._dlq_query_via_docker_compose()
+
+    assert entries == [
+        {
+            "id": 1,
+            "worker_name": "worker-boe",
+            "entity_id": "BOE-A-1",
+            "entity_type": "norma",
+            "retry_count": 3,
+            "max_retries": 3,
+        }
+    ]
+
+
+def test_hermes_monitor_dlq_docker_fallback_failure_is_nonfatal(monkeypatch):
+    hermes = _load_hermes(monkeypatch)
+
+    def fake_run(command, **kwargs):
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="compose failed")
+
+    monkeypatch.setattr(hermes.subprocess, "run", fake_run)
+
+    assert hermes._dlq_query_via_docker_compose() == []
 
 
 def test_hermes_monitor_analyzes_domain_availability_contract(monkeypatch):
