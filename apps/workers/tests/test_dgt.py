@@ -1130,3 +1130,49 @@ def test_run_sync_does_not_mark_partial_for_transient_pending_fetch_error(monkey
     assert result == {"processed": 0, "stored": 0, "discovered": 0}
     assert marked_done == []
     assert sync_calls == [("worker-dgt", "ok", None)]
+
+
+def test_log_progress_writes_running_sync_log(monkeypatch):
+    from datetime import UTC, datetime
+
+    from dgt import _log_progress
+
+    sync_calls = []
+
+    class FakeConnection:
+        pass
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        def begin(self):
+            return FakeBegin()
+
+    def fake_log_sync(conn, worker_name, status, **kwargs):
+        sync_calls.append((worker_name, status, kwargs))
+
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.log_sync", fake_log_sync)
+
+    started_at = datetime(2026, 5, 10, 12, 0, tzinfo=UTC)
+    _log_progress(
+        FakeEngine(),
+        "worker-dgt",
+        started_at=started_at,
+        discovered=200,
+        processed=5,
+        stored=3,
+        links_created=1,
+        message="discovery_26",
+    )
+
+    assert sync_calls[0][0] == "worker-dgt"
+    assert sync_calls[0][1] == "running"
+    assert sync_calls[0][2]["documentos_processed"] == 5
+    assert sync_calls[0][2]["documentos_upserted"] == 3
+    assert "discovered=200" in sync_calls[0][2]["error_msg"]

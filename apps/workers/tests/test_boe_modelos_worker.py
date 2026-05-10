@@ -126,3 +126,36 @@ def test_run_sync_once():
     assert result["errors"] == 0
 
     mock_engine.begin.assert_called()
+
+
+def test_run_sync_does_not_mark_successful_empty_order_as_partial():
+    """A BOE order with no parseable casillas is still a successful sync."""
+    from boe_modelos_worker import OrdenSyncResult, run_sync
+
+    mock_engine = MagicMock()
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone = MagicMock(return_value=[True])
+    mock_conn.execute = MagicMock(return_value=mock_cursor)
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=False)
+    mock_engine.begin = MagicMock(return_value=mock_conn)
+    mock_engine.url.render_as_string = MagicMock(return_value="postgresql://test")
+
+    sync_calls = []
+    mock_result = OrdenSyncResult(
+        success=True,
+        boe_id="BOE-A-1993-253",
+        modelo_codigos=[],
+        casillas_parsed=[],
+        pdf_casillas=[],
+        errors=[],
+    )
+
+    with patch("boe_modelos_worker.find_orden_boe_ids", return_value=["BOE-A-1993-253"]), \
+         patch("boe_modelos_worker.sync_orden_hac_to_db", return_value=mock_result), \
+         patch("boe_modelos_worker._log_sync", side_effect=lambda *args, **kwargs: sync_calls.append(args)):
+        result = run_sync(mock_engine, run_once=True)
+
+    assert result == {"synced": 1, "errors": 0}
+    assert sync_calls[-1][2] == "ok"

@@ -401,6 +401,38 @@ def _ensure_dgt_queue(conn, worker_name: str, seed_urls: list[str]) -> None:
         )
 
 
+def _log_progress(
+    engine,
+    worker_name: str,
+    *,
+    started_at: datetime,
+    discovered: int = 0,
+    processed: int = 0,
+    stored: int = 0,
+    links_created: int = 0,
+    message: str = "running",
+) -> None:
+    """Persist operational progress so /status does not report long jobs as never_run."""
+    try:
+        with engine.begin() as conn:
+            _ensure_sync_log_table(conn)
+            log_sync(
+                conn,
+                worker_name,
+                "running",
+                documentos_processed=processed,
+                documentos_upserted=stored,
+                doctrina_links_created=links_created,
+                error_msg=(
+                    f"progress: {message}; discovered={discovered}; "
+                    f"processed={processed}; stored={stored}"
+                ),
+                started_at=started_at.isoformat(),
+            )
+    except Exception:
+        logger.exception("Failed to write DGT progress heartbeat")
+
+
 def _get_pending_urls(conn, worker_name: str, limit: int = 100) -> list[tuple[str, str]]:
     """Get pending URLs from the queue. Returns [(url, entity_id), ...]."""
     result = conn.execute(
@@ -455,6 +487,13 @@ def run_sync(  # noqa: C901
     ensure_database_connection(engine, logger=logger)
 
     try:
+        started_at = datetime.now(UTC)
+        _log_progress(
+            engine,
+            worker_name,
+            started_at=started_at,
+            message="sync_start",
+        )
         with httpx.Client(
             base_url=BASE_URL,
             timeout=60.0,
@@ -472,6 +511,13 @@ def run_sync(  # noqa: C901
             # Phase 2: Discovery — insert new URLs into pending queue
             if DGT_DISCOVERY:
                 logger.info("DGT discovery enabled, starting numeric iteration")
+                _log_progress(
+                    engine,
+                    worker_name,
+                    started_at=started_at,
+                    discovered=total_discovered,
+                    message="discovery_start",
+                )
 
                 # Load existing entity IDs into memory to avoid per-URL DB queries
                 with engine.begin() as conn:
@@ -540,6 +586,14 @@ def run_sync(  # noqa: C901
                             num_consulta,
                             total_discovered,
                         )
+                        if total_discovered % 100 == 0:
+                            _log_progress(
+                                engine,
+                                worker_name,
+                                started_at=started_at,
+                                discovered=total_discovered,
+                                message=f"discovery_{year_str}",
+                            )
 
                     # Batch insert discovered URLs
                     if batch_inserts:
@@ -555,6 +609,13 @@ def run_sync(  # noqa: C901
                             )
 
                     logger.info("DGT discovery: year %s complete, %d URLs found", year_str, year_discovered)
+                    _log_progress(
+                        engine,
+                        worker_name,
+                        started_at=started_at,
+                        discovered=total_discovered,
+                        message=f"year_{year_str}_complete",
+                    )
 
                 logger.info("DGT discovery complete: %d new URLs discovered", total_discovered)
 
@@ -664,6 +725,16 @@ def run_sync(  # noqa: C901
                 total_processed += batch_processed
                 total_stored += batch_stored
                 missing_document_failures += batch_missing_documents
+                _log_progress(
+                    engine,
+                    worker_name,
+                    started_at=started_at,
+                    discovered=total_discovered,
+                    processed=total_processed,
+                    stored=total_stored,
+                    links_created=links_created,
+                    message="batch_complete",
+                )
                 logger.info(
                     "DGT batch: %d processed, %d stored, %d pending remaining",
                     batch_processed, batch_stored,

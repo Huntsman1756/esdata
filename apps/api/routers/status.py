@@ -34,6 +34,7 @@ router = APIRouter()
 WORKER_CANONICAL_NAMES = {
     "modelos": "worker-modelos",
     "worker-aeat-modelos": "worker-modelos",
+    "worker-aeat-current-designs": "cron-aeat-current-daily",
 }
 
 WORKER_THRESHOLDS_HOURS = {
@@ -45,6 +46,8 @@ WORKER_THRESHOLDS_HOURS = {
     "cron-teac-weekly": 24 * 8,
     "worker-modelos": 26,
     "cron-modelos-daily": 26,
+    "cron-aeat-current-daily": 26,
+    "worker-boe-modelos": 26,
     "worker-bdns": 24 * 8,
     "cron-bdns-weekly": 24 * 8,
     "worker-borme": 24 * 8,

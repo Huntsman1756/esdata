@@ -96,6 +96,43 @@ async def test_status_exposes_common_operability_metrics_from_sync_log():
 
 
 @pytest.mark.asyncio
+async def test_status_treats_recent_running_worker_as_active():
+    app, _ = _get_app_and_engine()
+    _seed_sync_log(
+        "worker-dgt",
+        finished_at=datetime.now(UTC) - timedelta(minutes=5),
+        status="running",
+        error_msg="progress: discovery_26; discovered=200; processed=0; stored=0",
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["worker-dgt"]
+    assert worker["status"] == "running"
+    assert worker["stale"] is False
+
+
+@pytest.mark.asyncio
+async def test_status_includes_boe_modelos_worker_threshold():
+    app, _ = _get_app_and_engine()
+    _seed_sync_log(
+        "worker-boe-modelos",
+        finished_at=datetime.now(UTC) - timedelta(hours=1),
+        status="ok",
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["worker-boe-modelos"]
+    assert worker["status"] == "ok"
+    assert worker["stale"] is False
+
+
+@pytest.mark.asyncio
 async def test_status_normalizes_historical_modelos_worker_name():
     app, _ = _get_app_and_engine()
     _seed_sync_log("worker-aeat-modelos", finished_at=datetime.now(UTC) - timedelta(hours=1), status="partial")

@@ -5660,3 +5660,30 @@ En orden de impacto real:
 - `worker-boe-modelos` aparece `partial` con `errors=0`, `rows_processed=1`; revisar criterio de estado para no marcar partial cuando el worker salta modelos sin mapping oficial deliberadamente.
 
 **Nota tecnica:** `apps/api/tests/test_mcp_stdio_integration.py` usa ASGITransport sin lifespan real y falla en `fastapi-mcp` con `Task group is not initialized`; para este cierre se usa el harness Uvicorn real ya existente en `test_mcp_private.py`, que representa el transporte desplegado.
+
+---
+
+## Reclamo 2026-05-10 - TS-006 status workers DGT/BOE-modelos sin falsos positivos
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/dgt.py`, `apps/workers/boe_modelos_worker.py`, `apps/api/routers/status.py`, `apps/workers/tests/test_dgt.py`, `apps/workers/tests/test_boe_modelos_worker.py`, `apps/api/tests/test_status_contract.py`.
+
+**Objetivo:** cerrar las alertas Hermes detectadas tras TS-005 sin ocultar fallos reales: `worker-dgt` aparecia `never_run/stale` durante discovery activo y `worker-boe-modelos` aparecia `partial` aunque no hubiera errores.
+
+**Resultado:**
+- `worker-dgt` escribe progreso operacional `running` en `sync_log` al inicio, durante discovery y por batch. Esto permite que `/status` refleje actividad real durante jobs largos sin esperar al final.
+- `worker-boe-modelos` ya no marca `partial` una orden BOE procesada correctamente solo porque esa orden no exponga casillas parseables; el estado `partial/error` queda reservado para fallos reales.
+- `/status` incluye `worker-boe-modelos` con umbral propio y elimina el duplicado `cron-boe-modelos-daily`, que no emite `sync_log` independiente.
+
+**Pruebas ejecutadas:**
+- `PYTHONPATH=apps;apps/api;apps/workers python -m pytest apps/api/tests/test_status_contract.py apps/workers/tests/test_boe_modelos_worker.py apps/workers/tests/test_dgt.py::test_log_progress_writes_running_sync_log -q --basetemp .pytest-tmp`
+- Resultado: `14 passed, 4 warnings`.
+
+**Verificacion VPS:**
+- API, `worker-dgt` y `worker-boe-modelos` reconstruidos y recreados.
+- `/status`: `worker-dgt status=running stale=false`; `worker-boe-modelos status=ok stale=false`.
+- Hermes read-only: `All workers healthy`; availability sigue `OK empty=93 workflow=53 allowed=3 configured_unavailable=37`.
+- `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000`: `ok=true`, 6 checks.
+
+**Pendiente observado:** Hermes en host no puede abrir DLQ por falta del dialecto `postgresql.psycopg` en Python del VPS; de momento es no fatal, pero conviene mover ese check a contenedor con dependencias o instalar runtime host controlado.
