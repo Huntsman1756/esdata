@@ -549,6 +549,44 @@ class ModelosCampanasOperativasResponse(BaseModel):
     resultados: list[ModeloCampanaOperativaResponse] = Field(default_factory=list, description="Resultados")
 
 
+class ModeloSupuestoEvidencia(BaseModel):
+    source: str = Field(description="Tabla o fuente interna usada como evidencia")
+    source_document: str | None = Field(default=None, description="Identificador documental")
+    source_url: str | None = Field(default=None, description="URL oficial o trazable")
+    excerpt: str = Field(description="Texto exacto o resumen de evidencia")
+    official: bool = Field(description="Si la fuente procede del corpus oficial")
+
+
+class ModeloSupuestoCandidate(BaseModel):
+    codigo: str = Field(description="Codigo AEAT")
+    nombre: str = Field(description="Nombre del modelo en ESData")
+    clasificacion: str = Field(description="confirmado, candidato o requiere_verificacion")
+    condicion_aplicacion: str = Field(description="Condicion explicita para considerar el modelo")
+    motivo: str = Field(description="Razon de la clasificacion")
+    ambito: str = Field(description="Ambito del supuesto fiscal")
+    periodo: str | None = Field(default=None, description="Periodo de presentacion")
+    impuesto: str | None = Field(default=None, description="Impuesto asociado")
+    candidate_score: float = Field(description="Puntuacion conservadora 0-1")
+    matched_factors: list[str] = Field(default_factory=list, description="Factores del supuesto cubiertos")
+    missing_factors: list[str] = Field(default_factory=list, description="Factores aun no acreditados")
+    evidencia: list[ModeloSupuestoEvidencia] = Field(default_factory=list, description="Evidencia trazable")
+
+
+class ModeloSupuestoExcluded(BaseModel):
+    codigo: str = Field(description="Codigo excluido")
+    reason: str = Field(description="Motivo de exclusion")
+
+
+class ModelosPorSupuestoResponse(BaseModel):
+    status: str = Field(description="confirmed, evidence_limited o no_verified")
+    verified: bool = Field(description="Si la aplicabilidad esta verificada con evidencia explicita")
+    scenario_inputs: dict = Field(description="Parametros del supuesto usados")
+    modelos: list[ModeloSupuestoCandidate] = Field(default_factory=list, description="Modelos clasificados")
+    excluded_modelos: list[ModeloSupuestoExcluded] = Field(default_factory=list, description="Modelos descartados")
+    warnings: list[str] = Field(default_factory=list, description="Advertencias de no invencion")
+    confidence: dict = Field(description="Confianza operacional")
+
+
 class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]
 

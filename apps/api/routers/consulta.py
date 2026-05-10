@@ -509,9 +509,19 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
 
     if modelos:
         fuentes.append("aeat_modelos")
+    covered_model_codes = {
+        str(r.get("codigo"))
+        for r in resultados
+        if r.get("tipo") == "modelo" and r.get("codigo")
+    }
+    covered_model_codes.update(
+        str(m.get("codigo"))
+        for m in modelos
+        if isinstance(m, dict) and m.get("codigo")
+    )
     if resolved_modelos:
         for m in resolved_modelos:
-            if m not in fuentes:
+            if m in covered_model_codes and m not in fuentes:
                 fuentes.append(f"modelo_{m}")
 
     nivel = 0
@@ -569,7 +579,7 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
         "nivel_texto": nivel_texto,
         "fuentes": fuentes,
         "aviso": aviso,
-        "modelos_cubiertos": [m for m in resolved_modelos if m],
+        "modelos_cubiertos": [m for m in resolved_modelos if m and m in covered_model_codes],
         "resultados_clasificados": tipos_conteo,
         "faithfulness_score": faithfulness_score,
         "faithfulness_label": faithfulness_label,

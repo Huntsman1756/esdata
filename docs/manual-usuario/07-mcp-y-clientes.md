@@ -52,6 +52,7 @@ Tools destacadas hoy:
 - `listar_obligaciones_aplicables`
 - `listar_deadlines`
 - `get_obligacion_completa`
+- `list_modelos_por_supuesto`
 - `agente_consulta`
 - `agente_monitoreo_status`
 - `agente_compliance_resumen`
@@ -62,6 +63,11 @@ Ejemplos de tareas tipicas en stdio:
 
 - resolver una consulta fiscal en lenguaje natural
 - orientar a un agente local sobre como enfocar una duda tributaria
+
+`list_modelos_por_supuesto`:
+
+- clasificar modelos AEAT candidatos por perfil y supuesto, por ejemplo `sociedad_valores` con clientes residentes/no residentes
+- devolver `candidato` o `requiere_verificacion` cuando no haya evidencia explicita de obligatoriedad; no debe usarse para afirmar obligacion sin revision
 
 `listar_obligaciones_aplicables`:
 

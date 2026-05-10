@@ -6,6 +6,7 @@ from schemas import (
     ModeloArtefactosResponse,
     ModeloCampanaOperativaResponse,
     ModeloFuentesOficialesResponse,
+    ModelosPorSupuestoResponse,
     ModeloResumenOperativoResponse,
     ModelosCampanasOperativasResponse,
     ModelosListResponse,
@@ -30,6 +31,7 @@ from services.modelos import (
     list_modelo_fuentes_oficiales,
     list_modelo_normativa,
     list_modelos_campanas_operativas,
+    list_modelos_por_supuesto,
     list_modelos_summary,
     list_related_doctrina,
 )
@@ -201,6 +203,62 @@ async def get_campanas_operativas_modelos(
         }
 
 
+@router.get(
+    "/por-supuesto",
+    operation_id="list_modelos_por_supuesto",
+    response_model=ModelosPorSupuestoResponse,
+    summary="Clasifica modelos AEAT candidatos por supuesto fiscal",
+    description=(
+        "Devuelve modelos AEAT candidatos para un supuesto concreto con clasificacion conservadora. "
+        "No marca modelos como obligatorios salvo evidencia explicita de aplicabilidad."
+    ),
+)
+async def get_modelos_por_supuesto(
+    request: Request,
+    tipo_entidad: str = Query(..., description="Tipo de entidad, ej: sociedad_valores"),
+    clientes_residentes: bool = Query(False, description="Si el supuesto incluye clientes residentes en Espana"),
+    clientes_no_residentes: bool = Query(False, description="Si el supuesto incluye clientes no residentes"),
+    tipo_renta: str | None = Query(None, description="Tipo de renta u operacion economica, ej: capital_mobiliario"),
+    tipo_operacion: str | None = Query(None, description="Tipo de operacion, ej: retencion, informativa"),
+    incluir_obligacion_sociedad: bool = Query(False, description="Incluir modelos propios de la sociedad no derivados de clientes"),
+):
+    with db_session() as db:
+        payload = list_modelos_por_supuesto(
+            db,
+            tipo_entidad=tipo_entidad,
+            clientes_residentes=clientes_residentes,
+            clientes_no_residentes=clientes_no_residentes,
+            tipo_renta=tipo_renta,
+            tipo_operacion=tipo_operacion,
+            incluir_obligacion_sociedad=incluir_obligacion_sociedad,
+        )
+        retrieved_chunks = [
+            {
+                "codigo": item["codigo"],
+                "source_url": evidencia.get("source_url"),
+                "chunk_id": evidencia.get("source_document"),
+                "title": item["nombre"],
+            }
+            for item in payload.get("modelos", [])
+            for evidencia in item.get("evidencia", [])
+        ]
+        _record_modelo_query_audit(
+            request,
+            path="/v1/modelos/por-supuesto",
+            query_text=str(payload["scenario_inputs"]),
+            tool_name="list_modelos_por_supuesto",
+            retrieved_chunks=retrieved_chunks,
+            response_summary=(
+                f"status={payload['status']} modelos={len(payload['modelos'])} "
+                f"review_required={payload['confidence'].get('review_required', False)}"
+            ),
+            confidence=payload["confidence"],
+            completeness="parcial",
+            verified=False,
+        )
+        return payload
+
+
 @router.get("", operation_id="list_modelos", response_model=ModelosListResponse)
 async def list_modelos():
     """Lista todos los modelos AEAT disponibles."""
@@ -235,7 +293,7 @@ async def list_modelos_aeat(
     campana: str | None = Query(None, description="Filtrar por campana"),
     impuesto: str | None = Query(None, description="Filtrar por impuesto"),
     tipo_recurso: str | None = Query(None, description="Filtrar por tipo de recurso"),
-    activo: bool | None = Query(None, description="Filtrar por estado activo"),
+    activo: bool | None = Query(True, description="Filtrar por estado activo"),
 ):
     with db_session() as db:
         rows = _list_aeat_modelos(db, codigo, campana, impuesto, tipo_recurso, activo)

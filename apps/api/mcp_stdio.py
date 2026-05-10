@@ -407,6 +407,33 @@ class MCPStdioServer:
                     self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_obligacion_completa: {e!s}")
+        elif tool_name == "list_modelos_por_supuesto":
+            try:
+                result = await self._call_endpoint(
+                    "GET",
+                    "/v1/modelos/por-supuesto",
+                    params={
+                        "tipo_entidad": arguments.get("tipo_entidad", "sociedad_valores"),
+                        "clientes_residentes": arguments.get("clientes_residentes", False),
+                        "clientes_no_residentes": arguments.get("clientes_no_residentes", False),
+                        "tipo_renta": arguments.get("tipo_renta"),
+                        "tipo_operacion": arguments.get("tipo_operacion"),
+                        "incluir_obligacion_sociedad": arguments.get("incluir_obligacion_sociedad", False),
+                    },
+                )
+                status_code = result["status_code"]
+                data = result["data"] or {}
+
+                if status_code == 200:
+                    output = self._format_modelos_por_supuesto(data)
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": output}],
+                        "structuredContent": data,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing list_modelos_por_supuesto: {e!s}")
         elif tool_name == "agente_consulta":
             try:
                 q = arguments.get("q", "")
@@ -1281,6 +1308,28 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32603, f"Error executing get_emir_clearing_member: {e!s}")
         else:
             self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
+
+    def _format_modelos_por_supuesto(self, data: dict) -> str:
+        lines = [
+            f"Estado: {data.get('status', 'unknown')}",
+            f"Verificado: {data.get('verified', False)}",
+        ]
+        confidence = data.get("confidence") or {}
+        if confidence.get("aviso"):
+            lines.append(f"Aviso: {confidence['aviso']}")
+        lines.append("")
+        for item in data.get("modelos", []):
+            lines.append(f"Modelo {item.get('codigo')} — {item.get('clasificacion')}")
+            lines.append(f"  Ambito: {item.get('ambito')}")
+            lines.append(f"  Condicion: {item.get('condicion_aplicacion')}")
+            lines.append(f"  Motivo: {item.get('motivo')}")
+        excluded = data.get("excluded_modelos") or []
+        if excluded:
+            lines.append("")
+            lines.append("Modelos excluidos:")
+            for item in excluded:
+                lines.append(f"  {item.get('codigo')}: {item.get('reason')}")
+        return "\n".join(lines)
 
     def _format_response(self, data: dict) -> str:
         """Format API response as readable text for LLM consumption."""

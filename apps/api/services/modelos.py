@@ -158,6 +158,7 @@ def get_model_row(db, codigo: str):
             SELECT codigo, nombre, periodo, impuesto, url_info
             FROM aeat_modelo
             WHERE codigo = :codigo
+              AND COALESCE(activo, true) = true
             LIMIT 1
             """
         ),
@@ -172,7 +173,12 @@ def get_active_campaign(db, codigo: str, campana: str | None = None):
                 """
                 SELECT id, campana, url_instrucciones, url_normativa, url_formato
                 FROM modelo_campana
-                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
+                WHERE modelo_id = (
+                    SELECT id
+                    FROM aeat_modelo
+                    WHERE codigo = :codigo
+                      AND COALESCE(activo, true) = true
+                )
                   AND campana = :campana
                 LIMIT 1
                 """
@@ -183,7 +189,15 @@ def get_active_campaign(db, codigo: str, campana: str | None = None):
     try:
         return db.execute(
             text(
-                "SELECT id, campana, url_instrucciones, url_normativa, url_formato FROM modelo_campana_activa((SELECT id FROM aeat_modelo WHERE codigo = :codigo))"
+                """
+                SELECT id, campana, url_instrucciones, url_normativa, url_formato
+                FROM modelo_campana_activa((
+                    SELECT id
+                    FROM aeat_modelo
+                    WHERE codigo = :codigo
+                      AND COALESCE(activo, true) = true
+                ))
+                """
             ),
             {"codigo": codigo},
         ).mappings().first()
@@ -193,7 +207,12 @@ def get_active_campaign(db, codigo: str, campana: str | None = None):
                 """
                 SELECT id, campana, url_instrucciones, url_normativa, url_formato
                 FROM modelo_campana
-                WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
+                WHERE modelo_id = (
+                    SELECT id
+                    FROM aeat_modelo
+                    WHERE codigo = :codigo
+                      AND COALESCE(activo, true) = true
+                )
                   AND activo = true
                 ORDER BY campana DESC
                 LIMIT 1
@@ -204,16 +223,43 @@ def get_active_campaign(db, codigo: str, campana: str | None = None):
 
 
 def list_modelos_summary(db):
+    url_listado_expr = "m.url_listado"
+    url_listado_group = ", m.url_listado"
+    try:
+        bind = db.get_bind()
+        dialect = bind.dialect.name
+        rows = db.execute(
+            text(
+                """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'aeat_modelo'
+                  AND column_name = 'url_listado'
+                LIMIT 1
+                """
+            )
+        ).first() if dialect != "sqlite" else db.execute(text("PRAGMA table_info(aeat_modelo)")).fetchall()
+        if dialect == "sqlite":
+            has_url_listado = any(row[1] == "url_listado" for row in rows)
+        else:
+            has_url_listado = rows is not None
+        if not has_url_listado:
+            url_listado_expr = "NULL AS url_listado"
+            url_listado_group = ""
+    except Exception:
+        url_listado_expr = "NULL AS url_listado"
+        url_listado_group = ""
+
     return db.execute(
         text(
-            """
+            f"""
             SELECT
                 m.codigo,
                 m.nombre,
                 m.periodo,
                 m.impuesto,
                 m.url_info,
-                m.url_listado,
+                {url_listado_expr},
                 COUNT(DISTINCT CASE WHEN n.id IS NOT NULL THEN ma.articulo_id END) AS articulos_count,
                 COUNT(DISTINCT mc.id) AS casillas_count
             FROM aeat_modelo m
@@ -227,7 +273,8 @@ def list_modelos_summary(db):
                 AND ma.numero = a.numero
             LEFT JOIN modelo_campana mcam ON mcam.modelo_id = m.id AND mcam.activo = true
             LEFT JOIN modelo_casilla mc ON mc.campana_id = mcam.id AND mc.activa = true
-            GROUP BY m.id, m.codigo, m.nombre, m.periodo, m.impuesto, m.url_info, m.url_listado
+            WHERE COALESCE(m.activo, true) = true
+            GROUP BY m.id, m.codigo, m.nombre, m.periodo, m.impuesto, m.url_info{url_listado_group}
             ORDER BY m.codigo
             """
         )
@@ -770,6 +817,188 @@ def list_modelos_campanas_operativas(db, codigos: list[str], campana: str | None
         if payload:
             resultados.append(payload)
     return resultados
+
+
+SOCIEDAD_VALORES_MODEL_RULES = {
+    "123": {
+        "ambito": "retenciones_residentes",
+        "condicion_aplicacion": "Si la sociedad practica retenciones o ingresos a cuenta sobre rendimientos del capital mobiliario de contribuyentes IRPF residentes.",
+        "matched_factors": ["clientes_residentes", "capital_mobiliario", "retenciones"],
+    },
+    "124": {
+        "ambito": "retenciones_residentes",
+        "condicion_aplicacion": "Si existen rentas o rendimientos del capital mobiliario derivados de transmision, amortizacion, reembolso, canje o conversion de activos.",
+        "matched_factors": ["clientes_residentes", "capital_mobiliario", "retenciones"],
+    },
+    "193": {
+        "ambito": "informativa_residentes",
+        "condicion_aplicacion": "Si corresponde declaracion informativa anual de retenciones e ingresos a cuenta sobre determinados rendimientos del capital mobiliario.",
+        "matched_factors": ["clientes_residentes", "capital_mobiliario", "declaracion_informativa"],
+    },
+    "216": {
+        "ambito": "retenciones_no_residentes",
+        "condicion_aplicacion": "Si la sociedad retiene o ingresa a cuenta rentas sujetas al IRNR obtenidas por clientes no residentes sin establecimiento permanente.",
+        "matched_factors": ["clientes_no_residentes", "irnr", "retenciones"],
+    },
+    "296": {
+        "ambito": "informativa_no_residentes",
+        "condicion_aplicacion": "Si corresponde resumen o declaracion informativa de retenciones e ingresos a cuenta del IRNR.",
+        "matched_factors": ["clientes_no_residentes", "irnr", "declaracion_informativa"],
+    },
+    "200": {
+        "ambito": "obligacion_sociedad",
+        "condicion_aplicacion": "Si se consulta la obligacion propia de la sociedad por Impuesto sobre Sociedades; no se deriva por si sola de tener clientes residentes o no residentes.",
+        "matched_factors": ["sociedad"],
+        "clasificacion": "requiere_verificacion",
+    },
+}
+
+
+SOCIEDAD_VALORES_EXCLUDED = {
+    "100": "IRPF anual de personas fisicas; no es un modelo de la sociedad de valores por tener clientes.",
+    "111": "Retenciones sobre rendimientos del trabajo o actividades economicas; no identifica clientes de sociedad de valores.",
+    "115": "Retenciones por arrendamientos; no identifica la operativa de clientes residentes/no residentes.",
+    "190": "Resumen anual de rendimientos del trabajo o actividades economicas; no identifica clientes de sociedad de valores.",
+}
+
+
+def _model_rows_by_code(db, codigos: list[str]) -> dict[str, dict]:
+    if not codigos:
+        return {}
+    placeholders = ",".join([f":c{i}" for i in range(len(codigos))])
+    rows = db.execute(
+        text(
+            f"""
+            SELECT codigo, nombre, periodo, impuesto, url_info
+            FROM aeat_modelo
+            WHERE codigo IN ({placeholders})
+              AND COALESCE(activo, true) = true
+            """
+        ),
+        {f"c{i}": codigo for i, codigo in enumerate(codigos)},
+    ).mappings()
+    return {row["codigo"]: dict(row) for row in rows}
+
+
+def list_modelos_por_supuesto(
+    db,
+    *,
+    tipo_entidad: str,
+    clientes_residentes: bool,
+    clientes_no_residentes: bool,
+    tipo_renta: str | None = None,
+    tipo_operacion: str | None = None,
+    incluir_obligacion_sociedad: bool = False,
+) -> dict:
+    """Return conservative AEAT model candidates for a fiscal scenario.
+
+    This intentionally does not turn generic model existence into an
+    obligation. "confirmado" is reserved for future explicit obligation links.
+    """
+    tipo_entidad_norm = (tipo_entidad or "").strip().lower()
+    tipo_renta_norm = (tipo_renta or "").strip().lower()
+    tipo_operacion_norm = (tipo_operacion or "").strip().lower()
+
+    scenario_inputs = {
+        "tipo_entidad": tipo_entidad_norm,
+        "clientes_residentes": bool(clientes_residentes),
+        "clientes_no_residentes": bool(clientes_no_residentes),
+        "tipo_renta": tipo_renta_norm or None,
+        "tipo_operacion": tipo_operacion_norm or None,
+        "incluir_obligacion_sociedad": bool(incluir_obligacion_sociedad),
+    }
+
+    if tipo_entidad_norm != "sociedad_valores":
+        return {
+            "status": "no_verified",
+            "verified": False,
+            "scenario_inputs": scenario_inputs,
+            "modelos": [],
+            "excluded_modelos": [],
+            "warnings": [
+                "ESData no tiene un clasificador de modelos por supuesto para este tipo_entidad. No se infieren modelos."
+            ],
+            "confidence": {
+                "nivel": 0,
+                "nivel_texto": "baja",
+                "review_required": True,
+                "aviso": "NO VERIFICADO: supuesto no soportado por clasificador de modelos.",
+            },
+        }
+
+    candidate_codes: list[str] = []
+    if clientes_residentes:
+        candidate_codes.extend(["123", "124", "193"])
+    if clientes_no_residentes:
+        candidate_codes.extend(["216", "296"])
+    if incluir_obligacion_sociedad:
+        candidate_codes.append("200")
+
+    ordered_codes = []
+    for codigo in candidate_codes:
+        if codigo not in ordered_codes:
+            ordered_codes.append(codigo)
+
+    rows = _model_rows_by_code(db, ordered_codes + list(SOCIEDAD_VALORES_EXCLUDED))
+    modelos = []
+    for codigo in ordered_codes:
+        row = rows.get(codigo)
+        if not row:
+            continue
+        rule = SOCIEDAD_VALORES_MODEL_RULES[codigo]
+        clasificacion = rule.get("clasificacion", "candidato")
+        missing_factors = ["evidencia_explicita_de_obligatoriedad_para_sociedad_valores"]
+        modelos.append(
+            {
+                "codigo": codigo,
+                "nombre": row["nombre"],
+                "clasificacion": clasificacion,
+                "condicion_aplicacion": rule["condicion_aplicacion"],
+                "motivo": (
+                    "ESData contiene el modelo AEAT y su descripcion encaja con el factor fiscal indicado; "
+                    "no se marca como obligatorio sin un enlace explicito de aplicabilidad."
+                ),
+                "ambito": rule["ambito"],
+                "periodo": row.get("periodo"),
+                "impuesto": row.get("impuesto"),
+                "candidate_score": 0.65 if clasificacion == "candidato" else 0.35,
+                "matched_factors": rule["matched_factors"],
+                "missing_factors": missing_factors,
+                "evidencia": [
+                    {
+                        "source": "aeat_modelo",
+                        "source_document": codigo,
+                        "source_url": row.get("url_info"),
+                        "excerpt": row["nombre"],
+                        "official": True,
+                    }
+                ],
+            }
+        )
+
+    excluded_modelos = [
+        {"codigo": codigo, "reason": reason}
+        for codigo, reason in SOCIEDAD_VALORES_EXCLUDED.items()
+    ]
+
+    return {
+        "status": "evidence_limited" if modelos else "no_verified",
+        "verified": False,
+        "scenario_inputs": scenario_inputs,
+        "modelos": modelos,
+        "excluded_modelos": excluded_modelos,
+        "warnings": [
+            "No afirmar obligatoriedad: la salida clasifica candidatos y condiciones, no asesoramiento fiscal definitivo.",
+            "Confirmar con fuente oficial AEAT/BOE o asesoria fiscal antes de presentar modelos.",
+        ],
+        "confidence": {
+            "nivel": 1 if modelos else 0,
+            "nivel_texto": "media" if modelos else "baja",
+            "review_required": True,
+            "aviso": "EVIDENCIA LIMITADA: modelos candidatos con fuente AEAT en ESData, sin prueba explicita de obligatoriedad para todo el supuesto.",
+            "fuentes": [f"modelo_{item['codigo']}" for item in modelos],
+        },
+    }
 
 
 def get_modelos_status(db):

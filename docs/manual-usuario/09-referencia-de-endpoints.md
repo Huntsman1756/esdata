@@ -65,6 +65,7 @@ Uso recomendado:
 
 - `GET /v1/modelos` — listado resumido
 - `GET /v1/modelos/campanas-operativas` — vista agregada de varios modelos
+- `GET /v1/modelos/por-supuesto` — clasifica modelos AEAT candidatos para un supuesto fiscal; no marca modelos como obligatorios sin evidencia explicita
 - `GET /v1/modelos/{codigo}` — detalle completo del modelo
 - `GET /v1/modelos/{codigo}/articulos`
 - `GET /v1/modelos/{codigo}/casillas`
@@ -79,6 +80,7 @@ Uso recomendado:
 Uso recomendado:
 
 - usa `/{codigo}` cuando quieras una vista completa
+- usa `/por-supuesto` cuando el agente pregunte por modelos aplicables a un perfil, por ejemplo `sociedad_valores` con clientes residentes/no residentes; tratar `candidato` como no obligatorio hasta verificacion humana/oficial
 - usa endpoints especializados cuando necesites payload mas pequeno o UI mas focalizada
 
 ## Convenios DTA y retenciones internacionales

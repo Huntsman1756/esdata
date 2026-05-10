@@ -129,6 +129,31 @@ def _validate_available_domain_not_blocked(payload: dict[str, Any]) -> tuple[boo
     return "availability" not in confianza, details
 
 
+def _validate_modelos_por_supuesto(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    modelos = payload.get("modelos") or []
+    clasificaciones = {item.get("clasificacion") for item in modelos}
+    codigos = {item.get("codigo") for item in modelos}
+    excluded = {item.get("codigo") for item in payload.get("excluded_modelos") or []}
+    confidence = payload.get("confidence") or {}
+    details = {
+        "status": payload.get("status"),
+        "verified": payload.get("verified"),
+        "codigos": sorted(str(codigo) for codigo in codigos),
+        "clasificaciones": sorted(str(value) for value in clasificaciones),
+        "excluded": sorted(str(codigo) for codigo in excluded),
+        "review_required": confidence.get("review_required"),
+    }
+    ok = (
+        payload.get("status") in {"evidence_limited", "no_verified"}
+        and payload.get("verified") is False
+        and confidence.get("review_required") is True
+        and "confirmado" not in clasificaciones
+        and {"100", "111", "115", "190"} <= excluded
+        and {"216", "296"} <= codigos
+    )
+    return ok, details
+
+
 def run_read_only_suite(base_url: str) -> dict[str, Any]:
     base_url = base_url.rstrip("/")
     checks: list[dict[str, Any]] = []
@@ -161,6 +186,20 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"q": "modelo 100 irpf"},
                 _validate_available_domain_not_blocked,
                 "consulta_available_domain_not_blocked",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/por-supuesto",
+                {
+                    "tipo_entidad": "sociedad_valores",
+                    "clientes_residentes": "true",
+                    "clientes_no_residentes": "true",
+                    "tipo_renta": "capital_mobiliario",
+                },
+                _validate_modelos_por_supuesto,
+                "modelos_por_supuesto_sociedad_valores_fail_closed",
             )
         )
 

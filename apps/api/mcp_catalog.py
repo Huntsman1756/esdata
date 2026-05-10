@@ -31,6 +31,7 @@ HTTP_MCP_OPERATIONS = [
     "get_modelo_campana_operativa",
     "get_modelo_resumen_operativo",
     "get_modelo_fuentes_oficiales",
+    "list_modelos_por_supuesto",
     # Disponibilidad de dominios/tablas
     "list_domain_availability",
     "get_domain_availability",
@@ -159,6 +160,25 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
                     },
                 },
                 "required": ["q"],
+            },
+        },
+        {
+            "name": "list_modelos_por_supuesto",
+            "description": (
+                "Clasifica modelos AEAT candidatos por supuesto fiscal. "
+                "No afirma obligatoriedad sin evidencia explicita."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "tipo_entidad": {"type": "string"},
+                    "clientes_residentes": {"type": "boolean"},
+                    "clientes_no_residentes": {"type": "boolean"},
+                    "tipo_renta": {"type": "string"},
+                    "tipo_operacion": {"type": "string"},
+                    "incluir_obligacion_sociedad": {"type": "boolean"},
+                },
+                "required": ["tipo_entidad"],
             },
         },
         {
