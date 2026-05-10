@@ -13,9 +13,10 @@
     "populated": 70,
     "blocker": 0,
     "derived_blocker": 0,
-    "workflow_empty": 90,
+    "workflow_empty": 53,
     "allowed_empty": 3,
-    "unclassified": 0
+    "unclassified": 0,
+    "configured_but_unavailable": 37
   },
   "tables": [
     {
@@ -65,10 +66,10 @@
     {
       "table": "aifmd_fund",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "AIFMD / UCITS / PRIIPs / Solvency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESMA official fund registry source",
+      "target_path": "apps/workers/aifmd.py",
       "action": "Fund registry table; keep empty until official CNMV/ESMA fund ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"aifmd_fund\";"
@@ -87,10 +88,10 @@
     {
       "table": "aifmd_regulatory_report",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "AIFMD / UCITS / PRIIPs / Solvency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESMA official AIFMD reporting source",
+      "target_path": "apps/workers/aifmd.py",
       "action": "Filing table; keep empty until official report ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"aifmd_regulatory_report\";"
@@ -142,10 +143,10 @@
     {
       "table": "brrd_bail_in",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CRD / BRRD / EMIR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "SRB/Banco de Espa?a/BOE official BRRD source",
+      "target_path": "apps/workers/crd_brrd_emir.py",
       "action": "Resolution/bail-in event table; keep empty until official event/source ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"brrd_bail_in\";"
@@ -153,10 +154,10 @@
     {
       "table": "casp",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "DAC / Crypto / MiCA",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "ESMA/CNMV/EUR-Lex MiCA official source",
+      "target_path": "apps/workers/mica.py",
       "action": "Entity registry table; keep empty until official MiCA/CASP register ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"casp\";"
@@ -230,10 +231,10 @@
     {
       "table": "crd_brrd_emir_entity",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CRD / BRRD / EMIR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EBA/Banco de Espa?a/CNMV/ESMA official source",
+      "target_path": "apps/workers/crd_brrd_emir.py",
       "action": "Regulated-entity table; keep empty until BDE/CNMV/EBA/ESMA registry ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"crd_brrd_emir_entity\";"
@@ -241,10 +242,10 @@
     {
       "table": "crd_capital_position",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CRD / BRRD / EMIR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EBA/Banco de Espa?a official CRD source",
+      "target_path": "apps/workers/crd_brrd_emir.py",
       "action": "Disclosure-derived table; keep empty until official disclosures are ingested.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"crd_capital_position\";"
@@ -252,10 +253,10 @@
     {
       "table": "crd_stress_test",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CRD / BRRD / EMIR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EBA official stress test source",
+      "target_path": "apps/workers/crd_brrd_emir.py",
       "action": "Stress-test result table; keep empty until official EBA source ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"crd_stress_test\";"
@@ -307,10 +308,10 @@
     {
       "table": "csrd_entity_report",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/EFRAG/CNMV official CSRD source",
+      "target_path": "apps/workers/csrd.py",
       "action": "Filing-derived table; keep empty until official CSRD report ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"csrd_entity_report\";"
@@ -318,10 +319,10 @@
     {
       "table": "csrd_esg_data_point",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/EFRAG/CNMV official CSRD source",
+      "target_path": "apps/workers/csrd.py",
       "action": "Derived filing table; keep empty until official CSRD reports are ingested with lineage.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"csrd_esg_data_point\";"
@@ -549,10 +550,10 @@
     {
       "table": "emir_clearing_member",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CRD / BRRD / EMIR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "ESMA official EMIR source",
+      "target_path": "apps/workers/crd_brrd_emir.py",
       "action": "Clearing-member registry table; keep empty until official ESMA/CCP source ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"emir_clearing_member\";"
@@ -670,10 +671,10 @@
     {
       "table": "giin_registry",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "International Tax / IRS / DTA",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "IRS official GIIN source",
+      "target_path": "apps/workers/fatca.py",
       "action": "IRS GIIN worker fell back to seed locally; seed rows were deleted. Keep empty until official IRS GIIN CSV fetch succeeds.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"giin_registry\";"
@@ -692,10 +693,10 @@
     {
       "table": "idd_distributor",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "MiFID / MAR / IDD / LIVMC / Transparency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "DGSFP/CNMV official IDD source",
+      "target_path": "apps/workers/idd.py",
       "action": "Distributor registry table; keep empty until official DGSFP/CNMV source ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"idd_distributor\";"
@@ -703,10 +704,10 @@
     {
       "table": "idd_product_uci",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "MiFID / MAR / IDD / LIVMC / Transparency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "DGSFP/CNMV official IDD source",
+      "target_path": "apps/workers/idd.py",
       "action": "Entity/product-specific table unless official registry source is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"idd_product_uci\";"
@@ -868,10 +869,10 @@
     {
       "table": "mar_market_manipulation_indicator",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "MiFID / MAR / IDD / LIVMC / Transparency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/EUR-Lex official MAR source",
+      "target_path": "apps/workers/mar.py",
       "action": "Surveillance configuration/output table; no official instrument-specific indicators are configured locally.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"mar_market_manipulation_indicator\";"
@@ -1143,10 +1144,10 @@
     {
       "table": "obligacion_internacional",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "Obligations / Controls",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "AEAT/OECD/IRS/EUR-Lex official international tax source",
+      "target_path": "apps/workers/obligaciones.py",
       "action": "International obligation table; keep empty until official CRS/FATCA/DAC obligation ingestion is implemented.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"obligacion_internacional\";"
@@ -1176,10 +1177,10 @@
     {
       "table": "ownership_relation",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "Ownership / UBO / PBC / Fraud / Screening",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "BORME/official registry source",
+      "target_path": "apps/workers/ownership.py",
       "action": "Derived ownership table; keep empty until official BORME/registry records support a relation with lineage.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"ownership_relation\";"
@@ -1187,10 +1188,10 @@
     {
       "table": "ownership_share",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "Ownership / UBO / PBC / Fraud / Screening",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "BORME/official registry source",
+      "target_path": "apps/workers/ownership.py",
       "action": "Derived ownership table; keep empty until official BORME/registry records support a share with lineage.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"ownership_share\";"
@@ -1341,10 +1342,10 @@
     {
       "table": "priips_kid",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "AIFMD / UCITS / PRIIPs / Solvency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESMA/EUR-Lex PRIIPs official source",
+      "target_path": "apps/workers/priips.py",
       "action": "KID document table; keep empty until official KID URLs are ingested.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"priips_kid\";"
@@ -1352,10 +1353,10 @@
     {
       "table": "priips_product",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "AIFMD / UCITS / PRIIPs / Solvency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESMA/EUR-Lex PRIIPs official source",
+      "target_path": "apps/workers/priips.py",
       "action": "Product-specific table; keep empty until official PRIIPs/KID source ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"priips_product\";"
@@ -1462,10 +1463,10 @@
     {
       "table": "screening_entries",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "Ownership / UBO / PBC / Fraud / Screening",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EU/SEPBLAC/official sanctions and screening source",
+      "target_path": "apps/workers/screening.py",
       "action": "Official list-entry table; keep empty until a parser for official EU/SEPBLAC/other allowed lists is implemented.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"screening_entries\";"
@@ -1506,10 +1507,10 @@
     {
       "table": "sfdr_annual_report",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/CNMV official SFDR disclosure source",
+      "target_path": "apps/workers/sfdr.py",
       "action": "Official periodic disclosure table; keep empty until source URLs are ingested.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"sfdr_annual_report\";"
@@ -1517,10 +1518,10 @@
     {
       "table": "sfdr_entity_paci",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/CNMV official SFDR disclosure source",
+      "target_path": "apps/workers/sfdr.py",
       "action": "Entity disclosure table; keep empty until official SFDR PAI disclosures are ingested.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"sfdr_entity_paci\";"
@@ -1528,10 +1529,10 @@
     {
       "table": "sfdr_fund",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/CNMV official SFDR disclosure source",
+      "target_path": "apps/workers/sfdr.py",
       "action": "Fund-specific table; keep empty until official fund/product source ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"sfdr_fund\";"
@@ -1539,10 +1540,10 @@
     {
       "table": "sfdr_paci_indicator",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/CNMV official SFDR disclosure source",
+      "target_path": "apps/workers/sfdr.py",
       "action": "Product disclosure-derived table; keep empty until official SFDR disclosures are ingested.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"sfdr_paci_indicator\";"
@@ -1550,10 +1551,10 @@
     {
       "table": "sfdr_pre_contractual",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/CNMV official SFDR disclosure source",
+      "target_path": "apps/workers/sfdr.py",
       "action": "Official disclosure document table; keep empty until source URLs are ingested.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"sfdr_pre_contractual\";"
@@ -1561,10 +1562,10 @@
     {
       "table": "sfdr_product",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "CSRD / Sustainability / SFDR",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "EUR-Lex/CNMV official SFDR disclosure source",
+      "target_path": "apps/workers/sfdr.py",
       "action": "Product/disclosure table; keep empty until official manager/product disclosure ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"sfdr_product\";"
@@ -1583,10 +1584,10 @@
     {
       "table": "solvency_ii_sfp",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "AIFMD / UCITS / PRIIPs / Solvency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "DGSFP/EIOPA official Solvency II source",
+      "target_path": "apps/workers/solvency_ii.py",
       "action": "Public report table; keep empty until official Solvency II report ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"solvency_ii_sfp\";"
@@ -1649,10 +1650,10 @@
     {
       "table": "tokenized_asset",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "DAC / Crypto / MiCA",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "ESMA/CNMV/EUR-Lex MiCA official source",
+      "target_path": "apps/workers/mica.py",
       "action": "Asset-specific table; keep empty until official registry/source ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"tokenized_asset\";"
@@ -1671,10 +1672,10 @@
     {
       "table": "transparency_issuer",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "MiFID / MAR / IDD / LIVMC / Transparency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV official issuer source",
+      "target_path": "apps/workers/transparency.py",
       "action": "Issuer registry table; keep empty until official CNMV issuer ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"transparency_issuer\";"
@@ -1682,10 +1683,10 @@
     {
       "table": "transparency_regulated_information",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "MiFID / MAR / IDD / LIVMC / Transparency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV official regulated information source",
+      "target_path": "apps/workers/transparency.py",
       "action": "Filing table; keep empty until official CNMV regulated-information ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"transparency_regulated_information\";"
@@ -1693,10 +1694,10 @@
     {
       "table": "transparency_voting_rights",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "MiFID / MAR / IDD / LIVMC / Transparency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV official significant holdings source",
+      "target_path": "apps/workers/transparency.py",
       "action": "Significant holding/voting-rights table; keep empty until official CNMV source ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"transparency_voting_rights\";"
@@ -1715,10 +1716,10 @@
     {
       "table": "ucits_fund",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "AIFMD / UCITS / PRIIPs / Solvency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESMA official fund registry source",
+      "target_path": "apps/workers/ucits.py",
       "action": "Fund registry table; keep empty until official CNMV/ESMA UCITS ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"ucits_fund\";"
@@ -1726,10 +1727,10 @@
     {
       "table": "ucits_regulatory_report",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "AIFMD / UCITS / PRIIPs / Solvency",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESMA official UCITS reporting source",
+      "target_path": "apps/workers/ucits.py",
       "action": "Filing table; keep empty until official UCITS report ingestion is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"ucits_regulatory_report\";"
@@ -1748,10 +1749,10 @@
     {
       "table": "wallet_custodian",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "DAC / Crypto / MiCA",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "ESMA/CNMV/EUR-Lex MiCA official source",
+      "target_path": "apps/workers/mica.py",
       "action": "Custodian registry table; keep empty until official CASP/custodian source ingestion exists.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"wallet_custodian\";"
@@ -1770,10 +1771,10 @@
     {
       "table": "xbrl_company",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "PGC / Accounting / XBRL Mapping",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESEF/ESMA official filing source",
+      "target_path": "apps/workers/xbrl.py",
       "action": "Filing-derived issuer table. Keep empty until an official CNMV/ESEF filing ingestion target is configured.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"xbrl_company\";"
@@ -1781,10 +1782,10 @@
     {
       "table": "xbrl_fact",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "PGC / Accounting / XBRL Mapping",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESEF/ESMA official filing source",
+      "target_path": "apps/workers/xbrl.py",
       "action": "Filing-derived fact table. Keep empty until official XBRL/iXBRL filings are configured; fixture-first tests do not count.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"xbrl_fact\";"
@@ -1792,10 +1793,10 @@
     {
       "table": "xbrl_filing",
       "row_count": 0,
-      "classification": "workflow_empty",
+      "classification": "configured_but_unavailable",
       "domain": "PGC / Accounting / XBRL Mapping",
-      "official_source_family": "not_applicable_workflow_or_operational",
-      "target_path": "gate_schema_rls_test",
+      "official_source_family": "CNMV/ESEF/ESMA official filing source",
+      "target_path": "apps/workers/xbrl.py",
       "action": "Filing ingestion table. Keep empty until official CNMV/ESEF filings are configured; fixture-first tests do not count.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"xbrl_filing\";"

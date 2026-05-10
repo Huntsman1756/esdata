@@ -132,6 +132,8 @@ def _availability_status(item: dict[str, Any], row_count: int | None) -> str:
         return "configured_but_unavailable"
     if classification == "allowed_empty":
         return "allowed_empty"
+    if classification == "configured_but_unavailable":
+        return "configured_but_unavailable"
     if classification in {"blocker", "derived_blocker", "unclassified"}:
         return "configured_but_unavailable"
     if classification != "workflow_empty":

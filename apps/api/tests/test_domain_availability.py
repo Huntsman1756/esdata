@@ -35,10 +35,10 @@ def test_domain_availability_classifies_empty_tables_from_ralph_registry(tmp_pat
             },
             {
                 "table": "empty_configured",
-                "classification": "workflow_empty",
+                "classification": "configured_but_unavailable",
                 "domain": "Official registry",
-                "official_source_family": "not_applicable_workflow_or_operational",
-                "target_path": "gate_schema_rls_test",
+                "official_source_family": "CNMV/ESMA official source",
+                "target_path": "apps/workers/aifmd.py",
                 "action": "Fund registry table; keep empty until official CNMV/ESMA fund ingestion is configured.",
             },
             {
