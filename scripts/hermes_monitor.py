@@ -32,7 +32,12 @@ logger = logging.getLogger("hermes-monitor")
 API_URL = os.getenv("ESDATA_API_URL", "http://localhost:8000").rstrip("/")
 API_KEY = os.getenv("ESDATA_API_KEY", "")
 MONITOR_INTERVAL = int(os.getenv("MONITOR_INTERVAL", "300"))
-AUTO_RESTART_ENABLED = os.getenv("AUTO_RESTART_ENABLED", "true").lower() == "true"
+AUTO_RESTART_ENABLED = os.getenv("AUTO_RESTART_ENABLED", "false").lower() == "true"
+RESTART_ALLOWLIST = {
+    item.strip()
+    for item in os.getenv("RESTART_ALLOWLIST", "").split(",")
+    if item.strip()
+}
 DB_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
 
 # Stale threshold: workers older than this (hours) are considered unhealthy
@@ -92,6 +97,51 @@ def check_health() -> dict | None:
 
 # ── Worker health analysis ──────────────────────────────────────────────────
 
+def check_domain_availability() -> dict | None:
+    """Fetch empty-domain availability metadata without mutating data."""
+    headers = {}
+    if API_KEY:
+        headers["X-API-Key"] = API_KEY
+
+    url = f"{API_URL}/v1/domain-availability"
+    try:
+        with httpx.Client(timeout=15) as client:
+            resp = client.get(url, params={"only_empty": "true"}, headers=headers)
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPError as exc:
+        logger.error("Domain availability check failed for %s: %s", url, exc)
+        return None
+    except ValueError as exc:
+        logger.error("Domain availability returned invalid JSON: %s", exc)
+        return None
+
+
+def analyze_domain_availability(payload: dict) -> dict[str, Any]:
+    """Return operational counters for explicit empty-table states."""
+    summary = payload.get("summary") or {}
+    items = payload.get("items") or []
+    statuses = {item.get("availability_status") for item in items}
+    legacy = statuses & {"not_available", "operational_data"}
+    mismatched = [
+        item.get("table")
+        for item in items
+        if item.get("status") != item.get("availability_status")
+    ]
+    unknown = int(summary.get("unknown") or 0)
+
+    return {
+        "ok": unknown == 0 and not legacy and not mismatched,
+        "total_empty_tables": int(payload.get("total") or len(items)),
+        "workflow_empty": int(summary.get("workflow_empty") or 0),
+        "allowed_empty": int(summary.get("allowed_empty") or 0),
+        "configured_but_unavailable": int(summary.get("configured_but_unavailable") or 0),
+        "unknown": unknown,
+        "legacy_statuses": sorted(legacy),
+        "mismatched_status_tables": mismatched[:20],
+    }
+
+
 def analyze_workers(status: dict) -> list[dict]:
     """Analyze workers from status payload and return list of unhealthy entries."""
     unhealthy = []
@@ -148,6 +198,8 @@ def should_restart(worker: dict) -> bool:
     RESTART_GRACE_HOURS.
     """
     if not AUTO_RESTART_ENABLED:
+        return False
+    if worker.get("name") not in RESTART_ALLOWLIST:
         return False
 
     hours = _hours_since(worker.get("finished_at"))
@@ -219,7 +271,11 @@ def check_dead_letter_queue() -> list[dict]:
         logger.warning("sqlalchemy not installed, skipping DLQ check")
         return dlq_entries
 
-    engine = create_engine(DB_URL, future=True, pool_pre_ping=True)
+    try:
+        engine = create_engine(DB_URL, future=True, pool_pre_ping=True)
+    except Exception as exc:
+        logger.warning("DLQ check disabled: database engine unavailable: %s", exc)
+        return dlq_entries
 
     try:
         with engine.connect() as conn:
@@ -282,6 +338,10 @@ def run_single_check() -> dict:
     summary = {
         "timestamp": datetime.now(UTC).isoformat(),
         "api_healthy": False,
+        "availability_ok": False,
+        "availability_empty_tables": 0,
+        "availability_configured_but_unavailable": 0,
+        "availability_unknown": 0,
         "workers_checked": 0,
         "workers_unhealthy": 0,
         "workers_restarted": 0,
@@ -296,7 +356,29 @@ def run_single_check() -> dict:
     else:
         logger.warning("API health check: FAILED")
 
-    # 2. Fetch status
+    # 2. Availability contract for empty domains. Read-only: no regulatory
+    # records are written, repaired, or interpreted by this monitor.
+    availability_payload = check_domain_availability()
+    if availability_payload:
+        availability = analyze_domain_availability(availability_payload)
+        summary["availability_ok"] = availability["ok"]
+        summary["availability_empty_tables"] = availability["total_empty_tables"]
+        summary["availability_configured_but_unavailable"] = availability["configured_but_unavailable"]
+        summary["availability_unknown"] = availability["unknown"]
+        if availability["ok"]:
+            logger.info(
+                "Domain availability: OK empty=%d workflow=%d allowed=%d configured_unavailable=%d",
+                availability["total_empty_tables"],
+                availability["workflow_empty"],
+                availability["allowed_empty"],
+                availability["configured_but_unavailable"],
+            )
+        else:
+            logger.warning("Domain availability contract issue: %s", availability)
+    else:
+        logger.warning("Domain availability check: FAILED")
+
+    # 3. Fetch status
     status = get_status()
     if not status:
         logger.error("Cannot fetch /status endpoint. Skipping worker analysis.")
@@ -305,7 +387,7 @@ def run_single_check() -> dict:
     summary["workers_checked"] = len(status.get("workers", {}))
     logger.info("Fetched status for %d workers", summary["workers_checked"])
 
-    # 3. Analyze workers
+    # 4. Analyze workers
     unhealthy = analyze_workers(status)
     summary["workers_unhealthy"] = len(unhealthy)
 
@@ -381,10 +463,12 @@ def run_daemon() -> None:
             # Log summary line
             logger.info(
                 "Cycle #%d summary: api_healthy=%s workers_checked=%d "
-                "unhealthy=%d restarted=%d dlq=%s",
+                "availability_ok=%s availability_unknown=%d unhealthy=%d restarted=%d dlq=%s",
                 cycle,
                 summary["api_healthy"],
                 summary["workers_checked"],
+                summary["availability_ok"],
+                summary["availability_unknown"],
                 summary["workers_unhealthy"],
                 summary["workers_restarted"],
                 summary["dlq_entries"],
@@ -404,6 +488,9 @@ def setup_logging(logfile: str | None = None) -> None:
     """Configure structured logging to stdout and optionally a file."""
     fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     datefmt = "%Y-%m-%d %H:%M:%S"
+
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
 

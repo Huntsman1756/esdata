@@ -140,6 +140,15 @@ def _availability_abstention_response(
     }
     request_id = get_request_id(request)
     user_id = get_user_id(request)
+    response_payload = {
+        "consulta": query or "",
+        "modelos": [],
+        "resultados": [],
+        "total_resultados": 0,
+        "confianza": confianza,
+        "cited_chunks": [],
+        "claim_citations": [],
+    }
     get_query_audit_service().record_query(
         request_id=request_id,
         user_id=user_id,
@@ -152,6 +161,7 @@ def _availability_abstention_response(
         grounding_status="availability_blocked",
         prompt_injection_detected=False,
         grounding_summary=availability_summary,
+        response_payload=response_payload,
     )
     return ConsultaFiscalResponse(
         consulta=query or "",

@@ -111,11 +111,15 @@ def test_empty_domain_router_uses_explicit_availability_status():
 @pytest.mark.asyncio
 async def test_consulta_abstains_when_query_depends_on_empty_domain():
     from main import app
+    from services.query_audit import QueryAuditService, reset_query_audit_service
+
+    reset_query_audit_service()
+    request_id = "req-availability-guard-001"
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"x-api-key": "test-secret-key", "x-request-id": "req-availability-guard-001"},
+        headers={"x-api-key": "test-secret-key", "x-request-id": request_id},
     ) as client:
         response = await client.get("/v1/consulta", params={"q": "lista CASP MiCA autorizados en España"})
 
@@ -131,6 +135,12 @@ async def test_consulta_abstains_when_query_depends_on_empty_domain():
     assert availability["blocked"] is True
     assert any(item["table"] == "casp" for item in availability["tables"])
     assert all(item["safe_to_answer"] is False for item in availability["tables"])
+
+    entries = QueryAuditService().get_by_request_id(request_id)
+    assert len(entries) == 1
+    assert entries[0].grounding_status == "availability_blocked"
+    assert entries[0].verified is False
+    assert entries[0].response_payload["confianza"]["availability"]["blocked"] is True
 
 
 @pytest.mark.asyncio

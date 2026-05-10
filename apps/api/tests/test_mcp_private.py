@@ -1,4 +1,5 @@
 import os
+import json
 import socket
 import subprocess
 import sys
@@ -32,6 +33,60 @@ def _core_operation_names() -> set[str]:
     from mcp_catalog import HTTP_MCP_OPERATIONS
 
     return set(HTTP_MCP_OPERATIONS)
+
+
+def _mcp_rpc_headers(session_id: str, api_key: str) -> dict[str, str]:
+    return {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+        "X-API-Key": api_key,
+        "MCP-Session-ID": session_id,
+    }
+
+
+def _initialize_mcp_session(port: int, api_key: str = "secret") -> tuple[requests.Session, dict[str, str]]:
+    session = requests.Session()
+    handshake = session.get(
+        f"http://127.0.0.1:{port}/mcp",
+        headers={"Accept": "text/event-stream", "X-API-Key": api_key},
+        timeout=5,
+    )
+    session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get("Mcp-Session-Id")
+    assert session_id
+
+    rpc_headers = _mcp_rpc_headers(session_id, api_key)
+    initialize = session.post(
+        f"http://127.0.0.1:{port}/mcp",
+        headers=rpc_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {},
+                "clientInfo": {"name": "pytest", "version": "1.0"},
+            },
+        },
+        timeout=5,
+    )
+    assert initialize.status_code == 200
+    return session, rpc_headers
+
+
+def _mcp_structured_result(response: requests.Response) -> dict:
+    payload = response.json()
+    result = payload["result"]
+    if "structuredContent" in result:
+        return result["structuredContent"]
+    content = result.get("content") or []
+    text_items = [
+        item.get("text", "")
+        for item in content
+        if isinstance(item, dict) and item.get("type") == "text"
+    ]
+    assert text_items, payload
+    return json.loads(text_items[0])
 
 
 def _free_tcp_port() -> int:
@@ -147,39 +202,7 @@ async def test_mcp_http_rate_limits_repeated_requests():
 @pytest.mark.asyncio
 async def test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key():
     async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
-        session = requests.Session()
-        headers = {"Accept": "text/event-stream", "X-API-Key": "secret"}
-        handshake = session.get(f"http://127.0.0.1:{port}/mcp", headers=headers, timeout=5)
-
-        assert handshake.status_code in {200, 400}
-
-        session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get("Mcp-Session-Id")
-        assert session_id
-
-        rpc_headers = {
-            "Accept": "application/json, text/event-stream",
-            "Content-Type": "application/json",
-            "X-API-Key": "secret",
-            "MCP-Session-ID": session_id,
-        }
-
-        initialize = session.post(
-            f"http://127.0.0.1:{port}/mcp",
-            headers=rpc_headers,
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2025-03-26",
-                    "capabilities": {},
-                    "clientInfo": {"name": "pytest", "version": "1.0"},
-                },
-            },
-            timeout=5,
-        )
-        assert initialize.status_code == 200
-        assert initialize.json()["result"]["protocolVersion"] == "2025-03-26"
+        session, rpc_headers = _initialize_mcp_session(port, "secret")
 
         tools = session.post(
             f"http://127.0.0.1:{port}/mcp",
@@ -192,6 +215,69 @@ async def test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key():
         names = {tool["name"] for tool in tools.json()["result"]["tools"]}
         assert "buscar" in names
         assert "list_modelos" in names
+        assert "list_domain_availability" in names
+        assert "get_domain_availability" in names
+
+
+@pytest.mark.asyncio
+async def test_mcp_tool_call_domain_availability_exposes_explicit_empty_states():
+    async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
+        session, rpc_headers = _initialize_mcp_session(port, "secret")
+
+        tool_call = session.post(
+            f"http://127.0.0.1:{port}/mcp",
+            headers=rpc_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "list_domain_availability", "arguments": {"only_empty": True}},
+            },
+            timeout=5,
+        )
+
+    assert tool_call.status_code == 200
+    structured = _mcp_structured_result(tool_call)
+    statuses = {item["availability_status"] for item in structured["items"]}
+    assert statuses <= {"workflow_empty", "allowed_empty", "configured_but_unavailable"}
+    assert "not_available" not in statuses
+    assert "operational_data" not in statuses
+    assert structured["summary"].get("unknown", 0) == 0
+    assert all(item["status"] == item["availability_status"] for item in structured["items"])
+
+
+@pytest.mark.asyncio
+async def test_mcp_consulta_empty_domain_fails_closed_without_invented_answer():
+    async with _uvicorn_server(MCP_API_KEY="secret", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
+        session, rpc_headers = _initialize_mcp_session(port, "secret")
+
+        tool_call = session.post(
+            f"http://127.0.0.1:{port}/mcp",
+            headers=rpc_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "consulta_fiscal",
+                    "arguments": {"q": "lista CASP MiCA autorizados en España"},
+                },
+            },
+            timeout=5,
+        )
+
+    assert tool_call.status_code == 200
+    structured = _mcp_structured_result(tool_call)
+    confianza = structured["confianza"]
+    availability = confianza["availability"]
+    tables = {item["table"] for item in availability["tables"]}
+
+    assert structured["total_resultados"] == 0
+    assert structured["resultados"] == []
+    assert structured["cited_chunks"] == []
+    assert "NO VERIFICADO" in confianza["aviso"]
+    assert availability["blocked"] is True
+    assert "casp" in tables
 
 
 @pytest.mark.asyncio

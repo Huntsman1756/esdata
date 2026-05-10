@@ -5631,3 +5631,32 @@ En orden de impacto real:
 
 **Verdicto:** `CONDITIONAL PASS - VPS` para superficies AEAT/BOE/CDI verificadas;
 `BLOCKED` para reclamo de "todas las tablas del repositorio pobladas con datos reales".
+
+---
+
+## Reclamo 2026-05-10 - TS-005 validacion MCP/API y Hermes availability guard
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `scripts/maintenance/mcp_validation_suite.py`, `scripts/hermes_monitor.py`, `apps/api/routers/consulta.py`, `apps/api/tests/test_domain_availability.py`, `apps/api/tests/test_mcp_private.py`, `scripts/tests/test_maintenance_agents.py`.
+
+**Objetivo:** probar que las consultas MCP/API sobre dominios vacios se abstienen de forma coherente y que los monitores read-only detectan el contrato `workflow_empty` / `allowed_empty` / `configured_but_unavailable` sin mutar datos regulatorios.
+
+**Resultado local verificado:**
+- `mcp_validation_suite.py --read-only` ahora valida `/v1/domain-availability?only_empty=true`, la abstencion fail-closed de `/v1/consulta?q=lista CASP MiCA autorizados en Espana` y una consulta AEAT disponible (`modelo 100 irpf`) que no debe quedar bloqueada por availability.
+- `hermes_monitor.py` incorpora `check_domain_availability()` y `analyze_domain_availability()` como senal operacional read-only; solo alerta si hay `unknown`, estados legacy o desalineacion `status != availability_status`.
+- `/v1/consulta` persiste en `query_audit_log` el `response_payload` de las abstenciones por disponibilidad, con `grounding_status="availability_blocked"` y `verified=false`.
+- MCP HTTP real via Uvicorn verifica que `tools/list` expone `list_domain_availability` y `get_domain_availability`, que `list_domain_availability` solo devuelve estados explicitos permitidos, y que `consulta_fiscal` no inventa respuesta para CASP/MiCA sin datos.
+
+**Pruebas ejecutadas:**
+- `PYTHONPATH=apps;apps/api python -m pytest apps/api/tests/test_domain_availability.py apps/api/tests/test_consulta_fail_closed.py apps/api/tests/test_mcp_truth_regressions.py apps/api/tests/test_mcp_private.py::test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key apps/api/tests/test_mcp_private.py::test_mcp_tool_call_domain_availability_exposes_explicit_empty_states apps/api/tests/test_mcp_private.py::test_mcp_consulta_empty_domain_fails_closed_without_invented_answer scripts/tests/test_maintenance_agents.py -q --basetemp .pytest-tmp`
+- Resultado: `21 passed, 4 warnings`.
+- VPS: `scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` devuelve `ok=true`; domain availability: 93 tablas vacias explicitas (`53 workflow_empty`, `3 allowed_empty`, `37 configured_but_unavailable`, `0 unknown`); consulta CASP/MiCA: `total_resultados=0`, `blocked=true`; consulta `modelo 100 irpf`: `total_resultados=9`, sin bloqueo availability.
+- VPS: Hermes read-only contra `127.0.0.1:8000` valida availability (`OK empty=93 workflow=53 allowed=3 configured_unavailable=37`) y no ejecuta restart (`--no-restart`, `AUTO_RESTART_ENABLED=false`).
+- VPS: consulta CASP/MiCA con `X-Request-ID=req-vps-availability-audit-*` persiste auditoria con `grounding_status=availability_blocked`, `verified=0`, `response_payload.confianza.availability.blocked=true`.
+
+**Senales operativas pendientes no bloqueantes de este cambio:**
+- `worker-dgt` aparece en `/status` como `never_run/stale`, pero logs del contenedor muestran descubrimiento activo DGT contra `petete.tributos.hacienda.gob.es`; falta heartbeat/sync_log intermedio para jobs largos.
+- `worker-boe-modelos` aparece `partial` con `errors=0`, `rows_processed=1`; revisar criterio de estado para no marcar partial cuando el worker salta modelos sin mapping oficial deliberadamente.
+
+**Nota tecnica:** `apps/api/tests/test_mcp_stdio_integration.py` usa ASGITransport sin lifespan real y falla en `fastapi-mcp` con `Task group is not initialized`; para este cierre se usa el harness Uvicorn real ya existente en `test_mcp_private.py`, que representa el transporte desplegado.
