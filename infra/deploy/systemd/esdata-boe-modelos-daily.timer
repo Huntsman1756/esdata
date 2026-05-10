@@ -1,10 +1,10 @@
 [Unit]
-Description=Run esdata BOE daily sync
+Description=Run esdata BOE models daily sync
 
 [Timer]
 OnCalendar=*-*-* 06:00:00 Europe/Madrid
 Persistent=true
-Unit=esdata-job@cron-boe-daily.service
+Unit=esdata-job@cron-boe-modelos-daily.service
 
 [Install]
 WantedBy=timers.target

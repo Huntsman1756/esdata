@@ -2,7 +2,7 @@
 Description=Run esdata EUR-Lex weekly sync
 
 [Timer]
-OnCalendar=Tue *-*-* 16:00:00
+OnCalendar=Tue *-*-* 16:00:00 Europe/Madrid
 Persistent=true
 Unit=esdata-job@cron-eurlex-weekly.service
 

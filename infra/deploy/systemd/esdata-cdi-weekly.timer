@@ -4,9 +4,10 @@ After=docker.service network-online.target
 Wants=network-online.target
 
 [Timer]
-OnCalendar=weekly
+OnCalendar=weekly Europe/Madrid
 RandomizedDelaySec=3600
 Persistent=true
+Unit=esdata-job@cron-cdi-weekly.service
 
 [Install]
 WantedBy=timers.target

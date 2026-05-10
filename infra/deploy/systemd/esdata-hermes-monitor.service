@@ -1,0 +1,25 @@
+[Unit]
+Description=esdata Hermes read-only monitor
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/srv/esdata
+EnvironmentFile=/etc/esdata/esdata.env
+Environment=AUTO_RESTART_ENABLED=false
+Environment=RESTART_ALLOWLIST=
+Environment=MONITOR_INTERVAL=300
+ExecStart=/usr/bin/python3 /srv/esdata/scripts/hermes_monitor.py --daemon
+Restart=always
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/esdata
+
+[Install]
+WantedBy=multi-user.target

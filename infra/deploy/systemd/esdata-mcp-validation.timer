@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata read-only MCP validation suite hourly
+
+[Timer]
+OnCalendar=hourly Europe/Madrid
+Persistent=true
+Unit=esdata-mcp-validation.service
+
+[Install]
+WantedBy=timers.target

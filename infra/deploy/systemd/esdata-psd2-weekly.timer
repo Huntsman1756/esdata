@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata PSD2/EBA weekly sync
+
+[Timer]
+OnCalendar=Wed *-*-* 11:00:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-psd2-weekly.service
+
+[Install]
+WantedBy=timers.target

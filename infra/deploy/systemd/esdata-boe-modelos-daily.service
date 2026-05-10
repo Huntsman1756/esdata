@@ -1,0 +1,11 @@
+[Unit]
+Description=esdata BOE models daily sync job
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=TZ=Europe/Madrid
+User=deploy
+WorkingDirectory=/srv/esdata
+ExecStart=/usr/bin/docker compose --env-file /etc/esdata/esdata.env -f /srv/esdata/infra/deploy/docker-compose.prod.yml run --rm cron-boe-modelos-daily

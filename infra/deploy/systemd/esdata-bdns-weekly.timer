@@ -2,7 +2,7 @@
 Description=Run esdata BDNS weekly sync
 
 [Timer]
-OnCalendar=Tue *-*-* 09:00:00
+OnCalendar=Tue *-*-* 09:00:00 Europe/Madrid
 Persistent=true
 Unit=esdata-job@cron-bdns-weekly.service
 

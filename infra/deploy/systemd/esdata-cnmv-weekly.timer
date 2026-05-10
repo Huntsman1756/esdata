@@ -2,7 +2,7 @@
 Description=Run esdata CNMV weekly sync
 
 [Timer]
-OnCalendar=Wed *-*-* 09:00:00
+OnCalendar=Wed *-*-* 09:00:00 Europe/Madrid
 Persistent=true
 Unit=esdata-job@cron-cnmv-weekly.service
 

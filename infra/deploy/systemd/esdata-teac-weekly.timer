@@ -2,7 +2,7 @@
 Description=Run esdata TEAC weekly sync
 
 [Timer]
-OnCalendar=Mon *-*-* 08:00:00
+OnCalendar=Mon *-*-* 08:00:00 Europe/Madrid
 Persistent=true
 Unit=esdata-job@cron-teac-weekly.service
 

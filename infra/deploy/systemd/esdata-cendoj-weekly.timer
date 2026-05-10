@@ -2,7 +2,7 @@
 Description=Run esdata CENDOJ weekly sync
 
 [Timer]
-OnCalendar=Tue *-*-* 14:00:00
+OnCalendar=Tue *-*-* 14:00:00 Europe/Madrid
 Persistent=true
 Unit=esdata-job@cron-cendoj-weekly.service
 

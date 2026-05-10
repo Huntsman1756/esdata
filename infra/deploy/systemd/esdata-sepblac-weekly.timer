@@ -2,7 +2,7 @@
 Description=Run esdata SEPBLAC weekly sync
 
 [Timer]
-OnCalendar=Wed *-*-* 10:00:00
+OnCalendar=Wed *-*-* 10:00:00 Europe/Madrid
 Persistent=true
 Unit=esdata-job@cron-sepblac-weekly.service
 

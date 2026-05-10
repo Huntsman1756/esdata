@@ -49,6 +49,44 @@ def _continuous_worker_services() -> list[str]:
     return worker_names
 
 
+def _profiled_cron_services() -> list[str]:
+    cron_names: list[str] = []
+    current_service: str | None = None
+    inside_services = False
+    service_has_cron_profile = False
+
+    for raw_line in COMPOSE_FILE.read_text(encoding="utf-8").splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+
+        if raw_line.startswith("services:"):
+            inside_services = True
+            continue
+
+        if not inside_services:
+            continue
+
+        service_match = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", raw_line)
+        if service_match:
+            if current_service and current_service.startswith("cron-") and service_has_cron_profile:
+                cron_names.append(current_service)
+
+            current_service = service_match.group(1)
+            service_has_cron_profile = False
+            continue
+
+        if re.match(r"^[^\s]", raw_line):
+            break
+
+        if current_service and 'profiles: ["cron"]' in raw_line:
+            service_has_cron_profile = True
+
+    if current_service and current_service.startswith("cron-") and service_has_cron_profile:
+        cron_names.append(current_service)
+
+    return cron_names
+
+
 def _space_delimited_tokens(text: str) -> set[str]:
     return set(re.findall(r"[A-Za-z0-9_-]+", text))
 
@@ -274,3 +312,46 @@ def test_cron_services_use_esdata_internal_network_for_database_resolution():
         block = _service_block(compose, service)
         assert "networks:" in block
         assert "- esdata-internal" in block
+
+
+def test_every_profiled_cron_service_has_systemd_timer():
+    timer_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / "infra" / "deploy" / "systemd").glob("*.timer")
+    )
+
+    missing = [
+        service
+        for service in _profiled_cron_services()
+        if f"Unit=esdata-job@{service}.service" not in timer_text
+    ]
+
+    assert not missing
+
+
+def test_esdata_timers_pin_europe_madrid_timezone():
+    for timer in (ROOT / "infra" / "deploy" / "systemd").glob("esdata-*.timer"):
+        text = timer.read_text(encoding="utf-8")
+        on_calendar_lines = [
+            line for line in text.splitlines() if line.startswith("OnCalendar=")
+        ]
+        assert on_calendar_lines, timer.name
+        for line in on_calendar_lines:
+            assert "Europe/Madrid" in line, f"{timer.name}: {line}"
+
+
+def test_maintenance_agent_units_are_safe_by_default():
+    hermes = _read("infra/deploy/systemd/esdata-hermes-monitor.service")
+    validation_service = _read("infra/deploy/systemd/esdata-mcp-validation.service")
+    validation_timer = _read("infra/deploy/systemd/esdata-mcp-validation.timer")
+
+    assert "User=deploy" in hermes
+    assert "AUTO_RESTART_ENABLED=false" in hermes
+    assert "RESTART_ALLOWLIST=" in hermes
+    assert "NoNewPrivileges=true" in hermes
+    assert "ProtectSystem=strict" in hermes
+
+    assert "User=deploy" in validation_service
+    assert "mcp_validation_suite.py --read-only" in validation_service
+    assert "NoNewPrivileges=true" in validation_service
+    assert "Unit=esdata-mcp-validation.service" in validation_timer
