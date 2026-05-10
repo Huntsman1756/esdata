@@ -290,6 +290,31 @@ async def test_screening_entries_filter_by_codigo(client):
 
 
 @pytest.mark.asyncio
+async def test_screening_entries_unpopulated_source_is_explicit(client):
+    """An empty configured source must not look like a verified no-match result."""
+    from db import db_session
+    from sqlalchemy import text
+
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                DELETE FROM screening_entries
+                WHERE list_id IN (SELECT id FROM screening_lists WHERE codigo = 'EU_SANCTIONS')
+                """
+            )
+        )
+        db.commit()
+
+    r = await client.get("/v1/screening/entries?codigo=EU_SANCTIONS")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["availability_status"] == "configured_but_unavailable"
+    assert data["safe_to_answer"] is False
+    assert data["entries"] == []
+
+
+@pytest.mark.asyncio
 async def test_screening_entries_filter_by_activo(client):
     """GET /v1/screening/entries?activo=false should return 0 entries (all active)."""
     r = await client.get("/v1/screening/entries?activo=false")
