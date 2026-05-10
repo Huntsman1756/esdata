@@ -48,6 +48,7 @@ Classification of all Python files in `apps/workers/`.
 | `aepd.py` | `worker-aepd`, `cron-aepd-weekly` | AEPD registry |
 | `regulatory_watch.py` | `cron-regulatory-daily` | Multi-source regulatory monitoring |
 | `giin.py` | `cron-giin-monthly` | IRS FATCA FFI/GIIN official monthly CSV ZIP |
+| `ofac_sdn.py` | `cron-ofac-sdn-weekly` | OFAC SDN official XML sanctions list |
 
 ### Missing Docker Service - NEEDS SERVICE (34 files)
 

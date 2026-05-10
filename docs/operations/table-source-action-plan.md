@@ -19,10 +19,12 @@ Fresh exact row-count scan:
   `93` empty.
 - Local and VPS after TS-010 GIIN closure: `163` tables, `71` populated,
   `92` empty.
+- Local and VPS after TS-011 OFAC SDN closure: `163` tables, `72`
+  populated, `91` empty.
 - Drift check after P0 closure: `vps_empty_local_populated=0`.
 - Controlling local registry: `scripts/ralph/table-remediation-registry.json`
-  now reports `71` populated, `53` workflow-empty, `3` allowed-empty,
-  `36` configured-but-unavailable, `0` blockers, `0` unclassified.
+  now reports `72` populated, `53` workflow-empty, `3` allowed-empty,
+  `35` configured-but-unavailable, `0` blockers, `0` unclassified.
 
 This means the local product has more enrichment than the VPS. The immediate
 release risk is not the workflow-empty tables; it is the set of tables that are
@@ -46,6 +48,12 @@ Update after TS-010: `giin_registry` is no longer an unavailable table.
 discovered from `https://www.irs.gov/downloads/fatca`, rejects seed fallback,
 and upserts by GIIN. Local and VPS both contain `508593` distinct GIIN rows
 from the April 2026 IRS ZIP.
+
+Update after TS-011: `screening_entries` is populated from the official OFAC
+SDN XML export at `https://www.treasury.gov/ofac/downloads/sdn.xml`, with
+`18947` distinct entries locally and on the VPS. This is not treated as EU,
+SEPBLAC, UN, or PEP coverage: those filtered sources return
+`configured_but_unavailable` until their official parsers are implemented.
 
 ## Classification Rules
 
@@ -124,6 +132,7 @@ Closed P0 VPS counts:
 | `xbrl_taxonomy` | 34 |
 | `ai_audit_log` | 1 |
 | `giin_registry` | 508593 |
+| `screening_entries` | 18947 |
 
 Worker health after closure:
 
@@ -143,7 +152,7 @@ until the worker exists and passes source checks.
 | CNMV transparency | `transparency_issuer`, `transparency_regulated_information`, `transparency_voting_rights` | CNMV official registers / hechos relevantes | Build CNMV register worker or extend `worker-cnmv`; keep `transparency_internal_rule` operational only. |
 | Fund/investment products | `aifmd_fund`, `aifmd_regulatory_report`, `ucits_fund`, `ucits_regulatory_report`, `priips_product`, `priips_kid`, `sfdr_*` | CNMV/ESMA/EUR-Lex disclosures | Implement per-register ingestion before claiming coverage. |
 | Banking/payments | `sepa_payment_rule` already local; `psd2_consent`, `psd2_incident_report` remain operational | EPC/EBA/DORA/BdE | Keep consent/incidents workflow-empty; only rulebooks are official corpus. |
-| Sanctions/screening | `screening_entries` | EU/UN/OFAC/SEPBLAC official lists | Implement official-list parser; `screening_matches` remains operational output. |
+| Sanctions/screening | `screening_entries` | OFAC SDN official XML; EU/UN/SEPBLAC still pending | COMPLETED TS-011 for OFAC only: weekly official XML worker deployed locally and on VPS; filtered EU/UN/SEPBLAC/PEP queries explicitly abstain until populated. |
 | GIIN/FATCA | `giin_registry` | IRS FATCA FFI monthly CSV ZIP | COMPLETED TS-010: official monthly ZIP discovery/downloader/upsert by GIIN is deployed locally and on VPS. |
 | XBRL filings | `xbrl_company`, `xbrl_filing`, `xbrl_fact` | CNMV/ESEF filings | Configure official filing target; no fixture-first production rows. |
 

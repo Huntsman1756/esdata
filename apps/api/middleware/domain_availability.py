@@ -69,6 +69,7 @@ DOMAIN_PATH_TABLE_MAP: list[tuple[str, str, str, str]] = [
     ("/v1/pbc/internal-controls", "pbc_internal_control", "PBC/AML", "operational"),
     ("/v1/pbc/obligated-subjects", "pbc_obligated_subject", "PBC/AML", "operational"),
     ("/v1/pbc/suspicious-reports", "pbc_suspicious_report", "PBC/AML", "operational"),
+    ("/v1/screening/entries", "screening_entries", "Screening/Sanctions", "public"),
     ("/v1/fraud/incidents", "fraud_incident", "Fraud prevention", "operational"),
     ("/v1/fraud/programs", "fraud_prevention_program", "Fraud prevention", "operational"),
     ("/v1/fraud/risk-assessments", "fraud_risk_assessment", "Fraud prevention", "operational"),

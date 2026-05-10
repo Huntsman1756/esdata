@@ -35,10 +35,10 @@ The table registry is the controlling artifact:
 
 Current classification:
 
-- populated: 71
+- populated: 72
 - workflow-empty: 53
 - allowed-empty: 3
-- configured-but-unavailable: 36
+- configured-but-unavailable: 35
 - blockers: 0
 - derived blockers: 0
 - unclassified: 0
@@ -63,9 +63,14 @@ official IRS FATCA FFI monthly CSV ZIP, with `508593` distinct GIIN rows and no
 seed fallback. The monthly cron service is `cron-giin-monthly`, scheduled by
 `esdata-giin-monthly.timer`.
 
+Screening update: `screening_entries` is populated locally and on the VPS from
+the official OFAC SDN XML export, with `18947` distinct entries and no seed
+fallback. EU, SEPBLAC, UN, and PEP filtered screening queries remain explicit
+`configured_but_unavailable` surfaces until their official parsers are added.
+
 ## Workers And Cron
 
-The local cron/worker run-once artifacts cover 17 services:
+The local cron/worker run-once artifacts cover 18 services:
 
 - BOE daily
 - AEAT modelos daily
@@ -73,6 +78,7 @@ The local cron/worker run-once artifacts cover 17 services:
 - BOE modelos daily
 - regulatory daily
 - GIIN/FATCA monthly
+- OFAC SDN weekly
 - PSD2 weekly
 - AEPD, BDE, BDNS, BORME, CENDOJ, CNMV, DGT, EUR-Lex, SEPBLAC, TEAC weekly
 

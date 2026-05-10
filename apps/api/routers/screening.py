@@ -11,6 +11,7 @@ import unicodedata
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from db import db_session
@@ -25,6 +26,18 @@ from schemas import (
 )
 
 router = APIRouter(prefix="/v1/screening", tags=["screening"])
+
+UNAVAILABLE_SCREENING_CODES = {
+    "EU_SANCTIONS": "EU consolidated sanctions parser is not populated yet; do not infer EU sanctions absence from OFAC-only data.",
+    "SEPBLAC": "SEPBLAC list-entry parser is not populated yet; do not infer SEPBLAC absence from OFAC-only data.",
+    "UN_SANCTIONS": "UN consolidated sanctions parser is not populated yet; do not infer UN sanctions absence from OFAC-only data.",
+    "ES_PEPS": "Official Spanish PEP parser is not populated yet; do not infer PEP absence from OFAC-only data.",
+}
+
+UNAVAILABLE_SCREENING_TYPES = {
+    "pep": "PEP screening entries are not populated from an official parser yet.",
+    "watchlist": "Watchlist screening entries are not populated from an official parser yet.",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +409,42 @@ async def screening_entries(
             text(f"SELECT COUNT(*) FROM screening_entries se JOIN screening_lists l ON l.id = se.list_id {where_clause}"),
             params,
         ).scalar()
+
+    requested_code = codigo.upper() if codigo else None
+    if total == 0 and requested_code in UNAVAILABLE_SCREENING_CODES:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "configured_but_unavailable",
+                "availability_status": "configured_but_unavailable",
+                "safe_to_answer": False,
+                "domain": "Screening/Sanctions",
+                "table": "screening_entries",
+                "codigo": requested_code,
+                "reason": UNAVAILABLE_SCREENING_CODES[requested_code],
+                "entries": [],
+                "total": 0,
+                "limit": limit,
+            },
+        )
+
+    requested_type = tipo.lower() if tipo else None
+    if total == 0 and requested_type in UNAVAILABLE_SCREENING_TYPES:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "configured_but_unavailable",
+                "availability_status": "configured_but_unavailable",
+                "safe_to_answer": False,
+                "domain": "Screening/Sanctions",
+                "table": "screening_entries",
+                "tipo": requested_type,
+                "reason": UNAVAILABLE_SCREENING_TYPES[requested_type],
+                "entries": [],
+                "total": 0,
+                "limit": limit,
+            },
+        )
 
     return ScreeningEntriesResponse(
         total=total,

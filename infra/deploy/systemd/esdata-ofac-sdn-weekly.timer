@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata OFAC SDN weekly sync
+
+[Timer]
+OnCalendar=Mon *-*-* 03:15:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-ofac-sdn-weekly.service
+
+[Install]
+WantedBy=timers.target

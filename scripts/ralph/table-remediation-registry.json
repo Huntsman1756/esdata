@@ -10,13 +10,13 @@
   },
   "summary": {
     "total_tables": 163,
-    "populated": 71,
+    "populated": 72,
     "blocker": 0,
     "derived_blocker": 0,
     "workflow_empty": 53,
     "allowed_empty": 3,
     "unclassified": 0,
-    "configured_but_unavailable": 36
+    "configured_but_unavailable": 35
   },
   "tables": [
     {
@@ -1462,12 +1462,12 @@
     },
     {
       "table": "screening_entries",
-      "row_count": 0,
-      "classification": "configured_but_unavailable",
+      "row_count": 18947,
+      "classification": "populated",
       "domain": "Ownership / UBO / PBC / Fraud / Screening",
-      "official_source_family": "EU/SEPBLAC/official sanctions and screening source",
-      "target_path": "apps/workers/screening.py",
-      "action": "Official list-entry table; keep empty until a parser for official EU/SEPBLAC/other allowed lists is implemented.",
+      "official_source_family": "OFAC SDN official XML source; EU/SEPBLAC parsers still pending",
+      "target_path": "apps/workers/ofac_sdn.py",
+      "action": "Verify provenance and freshness from official OFAC SDN XML; do not infer EU/SEPBLAC coverage from OFAC rows.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"screening_entries\";"
     },
