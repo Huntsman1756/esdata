@@ -217,6 +217,15 @@ Se requiere confirmacion explicita del usuario antes de:
 - Estado actual: Fase 34 `COMPLETA` + Fase 35.1-35.9 `COMPLETA`, 35.4 `OUT OF SCOPE`, 35.5 `BLOCKED:EXTERNAL`, 35.6 `COMPLETA`, 35.7 `BLOCKED:EXTERNAL`, 35.8 `COMPLETA`. 264+ documentos en `documento_interpretativo`: BORME 100, CNMV 12, SEPBLAC 13, AEPD 77, DGT 11+, BDE 61. 63/63 MCP tools OK (excluidos 3 placeholder CENDOJ/AEPD/BDNS). **Fase 36 TODOS LOS DOMINIOS COMPLETADA**. DGT: cola persistente con `source_revision` como queue (status='pending' → 'processed'), discovery + processing incremental por batch 100, sin idle-in-transaction timeout ni crash por restart.
 - Estado del agente: cierre transversal de release casi completo. `CNMV` ya corrige la rama `updated` con upsert consistente, el runtime API ya monta middlewares/routers reales y falla en cerrado si faltan `ESDATA_API_KEY`/`MCP_API_KEY`, `ops` queda minimizado para Alembic + verificacion, `web` ya consume `NEXT_PUBLIC_API_BASE_URL` y fija `HOSTNAME=0.0.0.0` para que el healthcheck interno de Compose sea estable, la documentacion activa queda alineada a Compose con `.env.prod`, `npm --prefix apps/web run lint` queda limpio y el smoke Compose en puertos alternativos valida `postgres` saludable, `api /health`, `api /status`, handshake `mcp` con API key y `web` sirviendo `/`, `/admin/cambios` y `/admin/workflow` con estado `healthy`. Verificacion fresca 2026-05-03: `cron-modelos-daily` completo en `SUCCESS`; MCP remoto verificado contra `https://api.desuscribir.es/mcp` con `X-API-Key`, `initialize` `protocolVersion=2025-03-26` y `tools/list` devolviendo 23 tools; los 12 timers `esdata-*` estan instalados y `enabled` en el VPS; `/status` no reproduce ahora mismo el falso `never_run` de `worker-modelos` y `python -m pytest apps/api/tests/test_status_contract.py -q` pasa (`4 passed`); BOE queda revalidado con fix desplegado en `_hold_sync_lock()` usando `AUTOCOMMIT`, `cron-boe-daily` limpia bloques reales y `pg_stat_activity` cierra en `0 rows` para `idle in transaction`; EUR-Lex deja de depender del HTML publico bloqueado por AWS WAF y ya ingiere corpus oficial desde `legal-content/.../TXT/XML` + `publications.europa.eu/resource/consolidation/...`, con evidencia fresca en produccion: `worker-eurlex` `ok` con `78` bloques/articulos, `cron-eurlex-weekly` `ok` con `93` bloques/articulos, `version_articulo` ya poblado al menos para `MIFID2_2014_65` (`93`) y `AMLD_2018_843` (`78`), y `worker-eurlex` queda `healthy` tras recreate. Limitacion residual: bastantes CELEX siguen degradando a `SKIP ... has no index` porque algunas rutas oficiales devuelven cuerpo vacio/no parseable o 404, asi que EUR-Lex queda parcial operativo, no completo. Siguiente paso exacto: **auditar los CELEX que siguen en `SKIP` y decidir si ampliar el parser oficial o recortar la seed a CELEX con manifestacion oficial util**.
 - Reclamo actual: `[EN CURSO]` cierre de auditoria operativa VPS/Compose con BOE verificado en produccion y EUR-Lex ya desbloqueado parcialmente sobre fuente oficial. Archivos reclamados: `docs/master-execution-roadmap.md`, `docs/operations/agent-notes.md`.
+- Reclamo 2026-05-10 13:05+02:00: `[COMPLETADO LOCAL]` fase final Ralph de producto antes de despliegue VPS: se crea `scripts/ralph/final_product_gate.py`, `scripts/ralph/prd-final-product-readiness.json` y `docs/operations/final-product-readiness.md`. Resultado fresco: `python scripts\ralph\final_product_gate.py --base-url http://localhost:8001 --api-key dev-key` => `6/6 PASS`. Cobertura: local full gate `5/5`, Compose prod config OK, Alertmanager/Telegram validado con `prom/alertmanager:v0.28.1 amtool check-config`, maintenance-agent tests `20 passed`, Hermes read-only probe dentro de red Compose, final PRD passing. Alertmanager queda preparado para VPS con `bot_token_file` y `TELEGRAM_CHAT_ID` renderizado al arranque; Hermes mantiene `AUTO_RESTART_ENABLED=false` por defecto. Datos: table registry sigue con `163` tablas, `69` pobladas, `91` workflow-empty, `3` allowed-empty, `0` blockers, `0` unclassified. Nota de alcance: no se marca `PRODUCTION READY` hasta ejecutar smoke tests, timers, MCP/API gate y prueba real Telegram en el VPS `212.227.227.64`.
+- Reclamo 2026-05-10 15:20+02:00: `[EN CURSO]` plan de accion de tablas por fuente siguiendo Ralph. Evidencia fresca: local Docker Postgres `163` tablas, `70` pobladas y `93` vacias; VPS `212.227.227.64` `163` tablas, `39` pobladas y `124` vacias. Se crea `docs/operations/table-source-action-plan.md` y `scripts/ralph/prd-table-source-action-plan.json`. Regla activa: no poblar tablas con fixtures para cerrar conteos; las tablas se clasifican como `official_scraped`, `derived_internal`, `operational_internal` o `configured_but_unavailable`. Siguiente paso exacto: cerrar drift P0 local->VPS para tablas oficiales/derivadas ya pobladas localmente (`modelo_*`, `irnr_*`, `documento_*`, `data_lineage`, `source_freshness_snapshot`, `pgc_*`, `xbrl_taxonomy`, referencias regulatorias e IRS), verificar row counts y exponer disponibilidad explicita en MCP/API.
+- Reclamo 2026-05-10 12:25+02:00: `[COMPLETADO LOCAL]` evaluacion de agentes de mantenimiento tipo Hermes/OpenClaw siguiendo Ralph. Se crea `scripts/ralph/vps-maintenance-agent-assessment.md`. Estado local sigue PASS (`local_full_gate.py` => `5/5`). Hermes existente (`scripts/hermes_monitor.py`) es util como monitor operativo basico: `/health`, `/status`, workers stale/error/partial y DLQ; evidencia local: API OK, `/status` lee `29` workers, reporta `11` stale por diferencia entre stack dev y workers cron, y DLQ falla desde host porque `localhost:5432` es un Postgres externo en Windows, no la DB Docker. Decision: desplegar en VPS solo condicionado, read-only/restart-disabled inicialmente, dentro de red Compose o con `DATABASE_URL` real; no conceder permisos de mutacion sobre datos fiscales/legal. Tester-healer recomendado read-only para `mcp_validation_suite` y `verify_mcp_api_local`; agente de awareness regulatorio recomendado solo como digest oficial BOE/AEAT/EUR-Lex/AEPD/DGT/BDE/CNMV/SEPBLAC, sin aplicar interpretaciones ni cambios silenciosos.
+- Reclamo 2026-05-10 12:15+02:00: `[COMPLETADO LOCAL]` Ralph LOCAL-006 empaqueta puerta unica antes de VPS: `scripts/ralph/local_full_gate.py` escribe `scripts/ralph/local-full-gate-results.json` y valida PRD local, tablas, cron/workers, scripts y exactitud MCP/API. Resultado local: `5/5 PASS`, `0` fallos. Cobertura: table gate `163` tablas con `0` blockers; worker artifacts `15/15` cron run-once PASS; script registry `206` scripts (`64` verificados, `142` bloqueados runtime por politica, `0` fallos); MCP/API accuracy `10/10` live PASS. Nota de alcance: esto no despliega ni valida el VPS `212.227.227.64`; queda pendiente hasta tener acceso/confirmacion de despliegue.
+- Reclamo 2026-05-10 12:10+02:00: `[COMPLETADO LOCAL]` Ralph LOCAL-005 exactitud MCP/API antes de subir al VPS: se detecto y corrigio un bloqueo real de exactitud historica en LIVA art. 90. Antes, `vigente_en=2011-01-01` devolvia 15% hasta 2012-07-15; BOE oficial `BOE-A-1992-28740#a90` muestra modificacion publicada el 24/12/2009 en vigor desde 2010-07-01 y modificacion de 2012 en vigor desde 2012-07-15, por lo que 2011 debe resolver a 18%. Fix: `apps/workers/boe.py` persiste todas las `<version>` oficiales del bloque y recalcula `vigente_hasta`; `parse_block_xml()` sigue devolviendo la ultima version para compatibilidad; test nuevo cubre historial completo. Remediacion local: `docker compose run --rm -e BOE_LEGISLACION_NORMAS=LIVA -e BOE_ONLY_BLOCK_IDS=a90 -e WORKER_REQUEST_DELAY=0 worker-boe python boe.py --run-once`; SQL confirma 5 versiones (`1993-01-01`, `1995-01-20`, `1996-01-01`, `2010-07-01`, `2012-07-15`). Gate nuevo `scripts/ralph/verify_mcp_api_local.py` PASS `10/10`: health/status, LIVA actual 21%, historicos 15/18/21, frescura 6 fuentes no stale, 404 seguro, y `query_audit_log` trazable. Evidencia: `scripts/ralph/mcp-api-local-results.json`; pytest focal `45 passed, 1 warning`.
+- Reclamo 2026-05-10 11:45+02:00: `[COMPLETADO LOCAL]` Ralph LOCAL-004 scripts/tooling antes de subir al VPS: `scripts/ralph/verify_scripts_local.py` genera `scripts/ralph/script-verification-registry.json` con `206` scripts clasificados, `64` verificados, `142` bloqueados en runtime por politica segura, `0` fallos y `0` sin clasificar. Evidencia: `python -m compileall -q scripts` OK; PowerShell parser `1` archivo OK; `bash -n` `5` archivos OK tras normalizar CRLF; gate `python scripts\ralph\verify_scripts_local.py --gate scripts\ralph\script-verification-registry.json` PASS. Fixes asociados: `infra/deploy/compose.env.example` alineado con Compose prod y sin `NEXT_PUBLIC_API_BASE_URL`, `.env.example` anade `DB_MAX_OVERFLOW`, `docs/environment-variables.md` retira la var publica legacy, `docs/worker-inventory.md` documenta workers faltantes, `scripts/maintenance/verify-doc-artifacts.py` soporta markdown UTF-16 BOM, OpenAPI GPT regenerado. Bloqueos fuera de LOCAL-004: full `scripts/tests` sigue no apto como gate local por Postgres externo ocupando host `127.0.0.1:5432`; `verify-doc-artifacts.py` ya no crashea pero detecta deuda documental real.
+- Reclamo 2026-05-10 10:45+02:00: `[COMPLETADO LOCAL]` ejecucion Ralph LOCAL-003 antes de subir al VPS: los 15 servicios cron de `infra/deploy/docker-compose.prod.yml` fueron ejecutados en local via `scripts/ralph/verify_workers_local.py` contra Docker Compose dev y DB local, con `15/15 PASS`, `0` fallos y `0` timeouts finales. Evidencia: `cron-boe-daily` completo `1262.47s`, `[run-once] Bloques: 1127, Articulos: 1127`; `cron-modelos-daily` `581.69s`, `217 upserted`; semanales `AEPD/BDE/BDNS/BORME/CENDOJ/CNMV/DGT/EURLEX/SEPBLAC/TEAC` `10/10 PASS`; `cron-psd2-weekly`, `cron-boe-modelos-daily` y `cron-regulatory-daily` PASS. Fix aplicado: `apps/workers/regulatory_watch.py` deja de escribir en la tabla inexistente `regulatory_changes` y registra cambios en `source_revision`; test nuevo `apps/workers/tests/test_regulatory_watch.py`; pytest focal `16 passed`. Gate de tablas local sigue PASS con `163,69,0,0,91,3,0`. Artefactos: `scripts/ralph/worker-run-once-results-*.json`, `scripts/ralph/progress-local-full-verification.txt`, `scripts/ralph/prd-local-full-verification.json`.
+- Reclamo 2026-05-10 07:10+02:00: `[COMPLETADO]` cierre de bloqueos post-auditoria local y VPS con confirmacion explicita del usuario para tocar seguridad/migraciones: RLS/grants cerrados (`0` tablas publicas sin RLS; `query_audit_log_append_only`/`set_updated_at` sin EXECUTE publico), `/v1/sources/freshness` vuelve a exponer 6 fuentes oficiales no stale, `cron-modelos-daily` y `cron-boe-daily` ejecutados en VPS con `status=ok`, LIVA art. 90 verificado en MCP con 21%, agentes de mantenimiento desplegados como read-only/restart-disabled, y timer horario `esdata-mcp-validation.timer` activo. Nota operativa: el VPS tenia drift historico de Alembic con tablas ya materializadas (`source_revision`, `embedding_version`); se aplico cierre SQL idempotente y `alembic stamp` al head `20260510_0064_security_closure` tras verificar objetos, sin borrar datos. Evidencia local: `78 passed, 4 warnings` en suite focal. Archivos reclamados: `alembic/versions/*`, `apps/api/Dockerfile`, `apps/api/tests/test_alembic_integrity.py`, `apps/api/services/source_manifest.py`, `apps/workers/boe.py`, `apps/workers/tests/test_boe.py`, `infra/deploy/systemd/*`, `scripts/maintenance/*`, `scripts/tests/*`, `docs/master-execution-roadmap.md`, `docs/operations/agent-notes.md`.
+- Reclamo 2026-05-10 00:18+02:00: `[COMPLETADO]` remediacion P0 de exactitud BOE/MCP detectada por auditoria local: `LIVA` art. 90 se servia como 15% actual por parsear solo la primera version BOE; `cron-boe-daily` fallaba con `vigente_desde='--'`. Fix aplicado en `apps/workers/boe.py` y cubierto en `apps/workers/tests/test_boe.py`: `parse_block_xml` selecciona la version BOE vigente mas reciente y rechaza fechas BOE malformadas; `run_sync` salta bloques upstream invalidos con telemetria `partial` sin abortar toda la norma. Evidencia: pytest focal `2 passed`; run-once LIVA/a90 actualizo DB a `vigente_desde=2012-07-15` y texto 21%; MCP autenticado `get_articulo(LIVA,90)` devuelve 21% y no 15%; LEY10_2010 con bloque invalido registra `partial` y continua 2 bloques validos.
 - Reclamo 2026-05-06 05:40Z: `[EN CURSO]` remediacion de `WorkerSilent` y de la ejecucion `cron-*` semanal en produccion. Scope confirmado: alinear `infra/deploy/systemd/esdata-job@.service` con el despliegue Compose soportado, corregir la alerta `infra/observability/alerts.yml` para usar el contrato real de stale, actualizar `docs/deployment/server-installation.md` y `docs/operations/runbooks/deploy-compose.md`, documentar hallazgo reutilizable en `docs/operations/agent-notes.md`, aplicar el fix en el VPS y reejecutar los `cron-*` fallidos con verificacion via `systemctl`, `journalctl`, `sync_log`, `/status` y Prometheus.
 - Nota 2026-05-03 12:12Z: tras curar seeds EUR-Lex (`MiFIR 600/2014`, `CRD V 2019/878`, `CRR II 2019/876`, `PSD2 2015/2366`, `DAC6 2018/822`, `DAC7 2021/514`, `PSD3 2024/886`) y redeploy selectivo de `apps/workers/eurlex.py`, `worker-eurlex` cerro en produccion con `status=ok`, `bloques_processed=277`, `articulos_upserted=277`, `rows_processed=277`; `cron-eurlex-weekly` se mantiene en `ok` con `93`.
 - Nota 2026-05-03 12:58Z: la clasificacion final del slice EUR-Lex confirma que la seed curada queda en `28` CELEX y los `28` existen oficialmente (`resource/celex` RDF `200`). De esos `28`, hoy solo `8` normas tienen `version_articulo` poblado en DB (`MIFID2`, `MAR`, `PRIIPs`, `DORA`, `CSRD`, `SFDR`, `AIFMD`, `AMLD`); las otras `20` son CELEX validos pero sin indice util en vivo porque `rest.tx` y `legal-content/.../TXT/XML` estan devolviendo `202` con cuerpo vacio en el runtime del VPS. Los dos casos retirados de la seed por ser dudosos/no alineados con el dominio fueron `APM_2020_683` y `ESG_RATINGS_2023_2819`.
@@ -5540,3 +5549,82 @@ En orden de impacto real:
 - **2026-04-30**: 7 alerts → 0 alerts (pypdf 6.10.2 cierra 7 CVEs restantes)
 - **2026-04-30**: 0 alerts (postcss 8.5.12 + lychee-action SHA pin)
 - **Estado actual: 0 Dependabot alerts** (GitHub puede tardar en refrescar el contador)
+---
+
+## Reclamo 2026-05-10 - Ralph external project support assessment
+
+**Estado:** COMPLETADO LOCAL.
+
+**Archivo principal:** `scripts/ralph/external-project-support-assessment.md`
+
+**Objetivo:** evaluar los proyectos externos aportados por el usuario como apoyo a la remediacion de tablas vacias y endurecimiento MCP, sin romper la regla de fuente oficial.
+
+**Resultado:**
+- Arelle queda priorizado para ingestion XBRL oficial CNMV/ESEF.
+- ESMA Data Py/direct ESMA queda priorizado para registros oficiales de mercado.
+- PyGLEIF/direct GLEIF queda priorizado para identidad LEI y enriquecimiento de entidades.
+- OpenOwnership BODS queda priorizado para validacion de esquema de titularidad real.
+- OpenSanctions/Yente/Nomenklatura/FollowTheMoney quedan limitados a arquitectura de screening/matching y sujetos a licencia/fuente oficial.
+- AEAT MCP, MCP-BOE, Spanish Law MCP y datos-gob-es-mcp quedan como referencias de benchmark MCP, no como fuentes de datos.
+
+**Regla de cierre:** ningun repositorio comunitario, fixture, dataset de ejemplo o salida LLM puede poblar tablas de cumplimiento como si fuera dato oficial. Toda fila persistida debe conservar fuente oficial, URL/hash, timestamp de ingestion y trazabilidad.
+
+---
+
+## Reclamo 2026-05-10 - AEAT modelos actuales 1XX/2XX y calendario 2026
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS CON LIMITES DOCUMENTADOS.
+
+**Archivos principales:** `apps/workers/aeat_current_designs.py`, `apps/workers/tests/test_aeat_current_designs.py`, `infra/deploy/systemd/esdata-aeat-current-daily.timer`, `infra/deploy/docker-compose.prod.yml`.
+
+**Objetivo:** completar la cobertura operativa actual de modelos AEAT 1XX/2XX con recursos oficiales, campos estructurados cuando AEAT publica XLS/XLSX y calendario del contribuyente 2026.
+
+**Resultado local:**
+- Fuentes oficiales AEAT usadas: paginas vigentes de disenos de registro 100-199 y 200-299, y calendario anual del contribuyente 2026.
+- `cron-aeat-current-daily` queda cableado como job one-shot diario a las 06:30 Europe/Madrid.
+- Ejecucion local verificada: 86 modelos 1XX/2XX activos; 75 con recurso oficial de diseno; 28 con campos estructurados; 2.493 campos oficiales del modelo 100 extraidos desde diccionario `.properties`; 215 plazos 2026 activos en `modelo_fiscal_calendar`.
+- Los endpoints de modelos filtran por defecto `aeat_modelo.activo = true`; no deben presentar modelos obsoletos como vigentes.
+
+**Limite deliberado:** los modelos 1XX/2XX que AEAT solo publica en PDF o sin diseno estructurado actual quedan con recurso oficial trazado, pero sin `modelo_casilla` sintetica. No se inventan casillas desde PDF sin parser determinista validado.
+
+---
+
+## Reclamo 2026-05-10 - Despliegue limpio VPS y verificacion cron/jobs
+
+**Estado:** COMPLETADO PARCIAL / NO PRODUCCION TOTAL.
+
+**VPS:** `212.227.227.64`
+
+**Resultado verificado:**
+- Despliegue Docker Compose limpio realizado sin tocar el proyecto `steamcases`.
+- API, web, Postgres, Caddy, workers, Prometheus, Grafana y Hermes container levantados.
+- Alembic aplicado hasta `20260510_0066_cdi_country_unique`.
+- `cron-boe-daily`, `cron-modelos-daily`, `cron-aeat-current-daily`,
+  `cron-boe-modelos-daily`, `cron-cdi-weekly`, `cron-eurlex-weekly`,
+  `cron-dgt-weekly`, `cron-teac-weekly`, `cron-bdns-weekly`,
+  `cron-borme-weekly`, `cron-cnmv-weekly`, `cron-sepblac-weekly`,
+  `cron-cendoj-weekly`, `cron-bde-weekly`, `cron-aepd-weekly`,
+  `cron-psd2-weekly` y `cron-regulatory-daily` ejecutados por systemd con exit 0.
+- Datos reales principales en VPS: 217 modelos AEAT activos, 28.574 campos
+  oficiales de diseno, 9.623 recursos de modelo, 215 plazos calendario, 86 CDI,
+  5 normas BOE / 902 articulos, 32 normas EUR-Lex metadata.
+
+**Correcciones aplicadas durante VPS:**
+- `irs_dta_convention(pais_origen)` ahora tiene constraint unico para que CDI
+  pueda usar `ON CONFLICT`.
+- `worker-cdi` usa heartbeat durante espera larga.
+- `worker-eurlex` queda en modo metadata oficial por defecto para evitar locks
+  largos; deep article fetch requiere `EURLEX_FETCH_ARTICLES=true`.
+- `cron-cdi-weekly` agregado a Compose y timer systemd corregido.
+- `boe_modelos_worker.py` reconstruido en VPS tras detectar archivo corrupto en
+  imagen anterior.
+
+**Limites bloqueantes para reclamar "todo el proyecto completo":**
+- Auditoria SQL de 163 tablas todavia muestra muchas tablas vacias. No se
+  rellenan con fixtures ni datos comunitarios sin fuente oficial trazable.
+- EUR-Lex no tiene articulos profundos en VPS; solo metadata oficial ELI.
+- Alertmanager/Telegram no queda verificado hasta instalar token/chat id reales
+  y ejecutar prueba manual de entrega.
+
+**Verdicto:** `CONDITIONAL PASS - VPS` para superficies AEAT/BOE/CDI verificadas;
+`BLOCKED` para reclamo de "todas las tablas del repositorio pobladas con datos reales".
