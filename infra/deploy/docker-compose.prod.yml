@@ -964,7 +964,7 @@ services:
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
-        if [ -n "${TELEGRAM_CHAT_ID:-}" ] && [ -s /etc/alertmanager/secrets/telegram_bot_token ]; then
+        if [ -n "${TELEGRAM_CHAT_ID:-}" ] && [ "${TELEGRAM_CHAT_ID:-}" != "0" ] && [ -s /etc/alertmanager/secrets/telegram_bot_token ]; then
           sed "s|__TELEGRAM_CHAT_ID__|${TELEGRAM_CHAT_ID}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml
         else
           cat > /tmp/alertmanager.yml <<'EOF'

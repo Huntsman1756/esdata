@@ -27,7 +27,7 @@ is still needed for current operations.
   - Remaining `find -perm -0002` entries are symlinks only.
 - Closed non-ESData public ports at UFW: `8080/tcp`, `8501/tcp`, `8502/tcp` deny for IPv4/IPv6.
 - Enabled Docker json-file log rotation in `/etc/docker/daemon.json`: `max-size=50m`, `max-file=5`.
-- Started Alertmanager and made its Compose startup fail-open to a local noop receiver if Telegram token/chat id are missing.
+- Started Alertmanager and made its Compose startup fail-open to a local noop receiver if Telegram token/chat id are missing or `TELEGRAM_CHAT_ID=0`.
 - Started backup service and performed a full restore drill into `esdata_restore_check`.
 - Added cron hardening:
   - all `cron-*` services inherit read-only rootfs, `/tmp` tmpfs, no-new-privileges.
@@ -59,7 +59,7 @@ is still needed for current operations.
 ## Remaining blockers before production-ready
 
 - SSH root login and password authentication remain enabled on the VPS.
-- Telegram delivery is not active until `/srv/esdata/infra/deploy/secrets/alertmanager/telegram_bot_token` contains a real token and `TELEGRAM_CHAT_ID` is non-empty in `/etc/esdata/esdata.env`. Alertmanager now stays running with noop config instead of crashing.
+- Telegram delivery is not active until `/srv/esdata/infra/deploy/secrets/alertmanager/telegram_bot_token` contains a real token and `TELEGRAM_CHAT_ID` is a real non-zero chat id in `/etc/esdata/esdata.env`. Alertmanager now stays running with noop config instead of crashing.
 - HTTP MCP works, but the implementation still depends on private `fastapi-mcp`
   internals and stdio tool listing is not yet aligned with stdio dispatch.
 
