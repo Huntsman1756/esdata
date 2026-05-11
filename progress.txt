@@ -74,3 +74,20 @@ Learnings:
 - Coverage checks must filter by actual DB engine creation; otherwise helper modules without DB are false positives.
 - Conditional package/non-package imports need both branches covered.
 Next: A-02
+
+=== Iteration 5 - 2026-05-11T19:53:00+02:00 ===
+Story: A-02 Verify all systemd timers exist and match cron services
+Verification run: local deploy contract test and VPS Compose/systemd inventory.
+Result: PASS
+Root cause: no active failure remained after P-02/P-03, but the local test only counted cron services whose names started with cron-. That missed profiled cron services like official-regulatory-references.
+Fix applied: changed the deploy test helper to require timers for every service with profiles: ["cron"], regardless of service name prefix.
+Production verification:
+- VPS profiled cron services: 22.
+- Missing timers: none.
+- systemd-analyze verify over esdata-job@.service and esdata-*.timer: PASS, no output/errors.
+- systemctl list-timers --all esdata-*.timer listed all scheduled jobs, including official-regulatory-references and cron-pgc-boe-monthly.
+Local verification:
+- python -m pytest scripts/tests/test_deploy_hetzner.py -q --basetemp .pytest-tmp: 23 passed.
+Learnings:
+- Cron classification must come from Compose profile metadata, not service naming convention.
+Next: A-03

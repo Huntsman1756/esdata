@@ -82,7 +82,7 @@ def _profiled_cron_services() -> list[str]:
 
         service_match = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", raw_line)
         if service_match:
-            if current_service and current_service.startswith("cron-") and service_has_cron_profile:
+            if current_service and service_has_cron_profile:
                 cron_names.append(current_service)
 
             current_service = service_match.group(1)
@@ -95,7 +95,7 @@ def _profiled_cron_services() -> list[str]:
         if current_service and 'profiles: ["cron"]' in raw_line:
             service_has_cron_profile = True
 
-    if current_service and current_service.startswith("cron-") and service_has_cron_profile:
+    if current_service and service_has_cron_profile:
         cron_names.append(current_service)
 
     return cron_names
