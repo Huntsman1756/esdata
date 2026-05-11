@@ -125,13 +125,13 @@ Router modules with endpoints that exist in code but are not included in `apps/a
 - `sepblac`: 2 endpoints.
 - `xai`: 3 endpoints.
 
-Documentation drift:
+Documentation state:
 
-- The manual references `/v1/bdns`, `/v1/borme`, `/v1/sepblac`, `/v1/chunks`,
-  `/v1/connectivity`, AI risk, fairness, GDPR and XAI, but those routes are
-  unmounted in the runtime app.
-- The manual references human review as `/v1/human-review/...`; code mounts it
-  under `/v1/ai/human-review/...`.
+- Active manual pages now mark `/v1/bdns`, `/v1/borme`, `/v1/sepblac`,
+  `/v1/chunks`, `/v1/connectivity`, AI risk/fairness, GDPR and XAI as
+  unmounted/backlog rather than available v1.0 runtime endpoints.
+- Human review is documented under the mounted `/v1/ai/human-review/...`
+  prefix.
 
 ### HTTP MCP
 
@@ -149,7 +149,9 @@ HTTP MCP exposes 36 operation IDs from `HTTP_MCP_OPERATIONS`:
 
 Important limitation:
 
-- `scripts/maintenance/mcp_validation_suite.py` validates REST endpoints that back MCP behavior; it does not perform a `/mcp` transport handshake or `tools/list` call. Separate MCP transport tests exist under `apps/api/tests/`, but the hourly production validator is mostly REST validation.
+- `scripts/maintenance/mcp_validation_suite.py` now validates both REST backing
+  contracts and the real `/mcp` transport handshake + `tools/list` for the
+  required v1.0 MCP tools.
 
 ### Stdio MCP
 
@@ -167,12 +169,13 @@ Advertised tools:
 - `agente_monitoreo_status`
 - `agente_compliance_resumen`
 
-Hidden status: `hidden/internal` or `broken/unverified`.
+Hidden status: rejected fail-closed.
 
-`mcp_stdio.py` dispatches 51 branches. 42 callable branches are not advertised by
-`tools/list`, including additional SFDR, CSRD, AIFMD/UCITS, CRD/BRRD/EMIR and
-DTA/retention operations. These must not be promoted as v1.0 public MCP tools
-until catalog, tests, and documentation are aligned.
+`mcp_stdio.py` still contains legacy dispatch branches for additional SFDR,
+CSRD, AIFMD/UCITS, CRD/BRRD/EMIR and DTA/retention operations, but dispatch now
+rejects any tool not present in `get_stdio_tool_definitions()` with JSON-RPC
+`-32601`. Those legacy branches are not public v1.0 MCP tools until catalog,
+tests and documentation are aligned.
 
 ### GPT Actions
 
@@ -261,18 +264,17 @@ source. Backend/API/MCP remain the source of truth.
 | XBRL/ESEF | partial | `xbrl_taxonomy`, `xbrl_company`, `xbrl_filing`, `xbrl_fact`, `pgc_xbrl_mapping`. |
 | AI/evaluation | hidden/internal | `ai_audit_log`, `ai_config_version`, `ai_model_registry`, `eval_run`, `eval_query`, `human_review`, `embedding_version`. |
 
-Schema ownership warning:
+Schema ownership status:
 
 - `source_freshness_snapshot` and `data_freshness_alerts` are referenced by
-  later governance/RLS code but are not fully owned by normal Alembic table
-  creation evidence in the same way as core tables. This should be normalized
-  before v1.0 hardening.
+  later governance/RLS code and are now explicitly owned by Alembic revision
+  `20260511_0068_freshness_tables_schema.py`. Runtime/init compatibility code
+  may still tolerate pre-existing deployments.
 
 Documentation warning:
 
-- `docs/database.md` is stale. It still presents a much smaller DB and references
-  `regulatory_changes`, while active project policy says `source_revision` is
-  the canonical regulatory revision table.
+- `docs/database.md` has been updated with the v1.0 registry summary and the
+  rule that `source_revision` is canonical for regulatory revisions.
 
 ## Deployed Worker And Job Inventory
 
@@ -282,7 +284,7 @@ Documentation warning:
 |---|---|---|---|
 | `worker-boe` / `cron-boe-daily` | continuous + daily | implemented | BOE consolidated legislation into `norma`, `articulo`, `version_articulo`. |
 | `worker-boe-modelos` / `cron-boe-modelos-daily` | continuous + daily | partial | BOE modelos/casillas; some BOE ID mappings missing by artifact. |
-| `worker-dgt` / `cron-dgt-weekly` | continuous + weekly | partial | Petete/DGT is source-fragile; recent VPS logs showed 502 upstream and `status=error` while container remained healthy. |
+| `worker-dgt` / `cron-dgt-weekly` | continuous + weekly | partial | Petete/DGT is source-fragile; transient 502/503/504/session failures now log `partial` instead of poisoning DLQ as unrecoverable errors. |
 | `worker-teac` / `cron-teac-weekly` | continuous + weekly | implemented | TEAC doctrine. |
 | `worker-modelos` / `cron-modelos-daily` | continuous + daily | partial | AEAT models; official fetch failures degrade to partial. |
 | `cron-aeat-current-daily` | daily | implemented | AEAT current designs/calendar; artifact: 74 design links, 2527 fields, 248 calendar entries. |
@@ -369,8 +371,9 @@ Partial/needs cleanup:
   and host/systemd `scripts/hermes_monitor.py`. Their behavior is not identical.
 - Alertmanager config can validate while Telegram delivery still needs an actual
   manual alert proof.
-- `scripts/maintenance/show_dead_letter_queue.py` may use PostgreSQL boolean
-  filters incorrectly (`resolved = 0`) and should be tested against production.
+- `scripts/maintenance/show_dead_letter_queue.py` now uses PostgreSQL boolean
+  filters (`resolved IS FALSE/TRUE`) and has a SQLite regression test. It still
+  needs production execution as part of deploy verification.
 - Public `/metrics` is intended to be blocked externally by Caddy but remains
   an internal API route for Prometheus scraping.
 
@@ -379,19 +382,21 @@ Partial/needs cleanup:
 Critical for honest v1.0 claims:
 
 1. Decide whether unmounted routers are in v1.0. If yes, mount/test/document them.
-   If no, remove them from manuals and mark as backlog.
-2. Align stdio MCP dispatch with advertised tools. Hidden branches must either be
-   advertised/tested or removed/marked internal.
-3. Normalize worker documentation: only deployed Compose/systemd jobs should be
+   If no, keep them marked as backlog/unavailable in manuals.
+2. Normalize worker documentation: only deployed Compose/systemd jobs should be
    claimed as production jobs.
-4. Replace stale `docs/database.md` with the table registry truth and remove
-   `regulatory_changes` references.
-5. Resolve or explicitly document DGT upstream degradation behavior as partial.
-6. Decide whether `source_freshness_snapshot` and `data_freshness_alerts` need
-   normal Alembic ownership before v1.0.
-7. Standardize Hermes implementation for production.
-8. Add a real `/mcp` transport validation to the hourly MCP validation suite, or
-   rename the suite to avoid overclaiming MCP transport coverage.
+3. Standardize Hermes implementation for production.
+
+Resolved in this remediation batch:
+
+1. Stdio MCP dispatch is fail-closed for unadvertised tools.
+2. `docs/database.md` has been aligned to the table registry summary and
+   `source_revision` canonical rule.
+3. DGT transient upstream failures are documented and logged as `partial`.
+4. `source_freshness_snapshot` and `data_freshness_alerts` have Alembic
+   ownership in revision `20260511_0068_freshness_tables_schema.py`.
+5. The hourly MCP validation suite now includes real `/mcp` transport
+   handshake and `tools/list`.
 
 Important but not blocking if documented:
 

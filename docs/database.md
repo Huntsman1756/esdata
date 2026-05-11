@@ -6,6 +6,11 @@
 - **Extensiones**: `pg_trgm`, `vector` (pgvector)
 - **Gestion de schema**: Alembic (migraciones programaticas)
 - **SQL historico**: `infra/sql/` (referencia, no se ejecuta en despliegue)
+- **Inventario v1.0 activo**: 163 tablas en el registry Ralph, con 73
+  pobladas, 53 `workflow_empty`, 3 `allowed_empty` y 34
+  `configured_but_unavailable` segun `scripts/ralph/table-remediation-registry.json`.
+- **Cambios regulatorios**: `source_revision` es la tabla canonica. La tabla
+  historica `regulatory_changes` no forma parte del contrato activo.
 
 ## Arquitectura
 
@@ -13,12 +18,16 @@
 PostgreSQL 16
 ├── pg_trgm (busqueda full-text con trigramas)
 ├── vector (pgvector — busqueda semantica)
-├── 14 tablas principales
-├── 20+ indices
-└── 1 trigger + 2 funciones PL/pgSQL
+├── 163 tablas public clasificadas por registry Ralph
+├── indices por dominio y runtime
+└── triggers de auditoria, timestamps y controles append-only
 ```
 
 ## Tablas principales
+
+Esta seccion es un mapa resumido por dominio, no un conteo completo. Para estado
+de release, usar `docs/reference/v1-feature-inventory.md` y
+`scripts/ralph/table-remediation-registry.json`.
 
 ### legislacion
 
@@ -126,7 +135,8 @@ YYYYMMDD_NNNN_descripcion_corta.py
 | `20260425_0006` | `eval_history.py` | Tablas evaluacion | Parcial |
 | `20260425_0007` | `critical_indexes.py` | Indexes criticos | Parcial |
 | `20260425_0008` | `obligaciones_operativas.py` | Campos operativos obligaciones | Parcial |
-| `...` | `...` | 18+ migraciones hasta head | Var |
+| `...` | `...` | migraciones hasta `alembic heads` | Var |
+| `20260511_0068` | `freshness_tables_schema.py` | Ownership Alembic de `source_freshness_snapshot` y `data_freshness_alerts` | Parcial |
 
 Nota: la tabla se actualiza automaticamente con `alembic history --verbose`. Ver `alembic/versions/` para listado completo.
 
@@ -144,9 +154,12 @@ Los archivos en `infra/sql/` son referencias historicas. **NO se ejecutan en des
 | `005_indexes.sql` | Indexes criticos | Incluido en init.sql |
 | `006_pgvector.sql` | Extension vector + embeddings | Incluido en init.sql |
 | `012_dead_letter_queue.sql` | Tabla `sync_dead_letter` para entidades con fallos persistentes | Incluido en init.sql |
-| `013_regulatory_changes.sql` | Tabla de cambios regulatorios | Incluido en init.sql |
+| `013_regulatory_changes.sql` | Historico/deprecated; no usar como fuente activa | Archivado logico |
 
-Nota: `init.sql` se monta como `/docker-entrypoint-initdb.d/010_init.sql` e incluye los 13 scripts en orden numerico.
+Nota: el despliegue activo debe aplicar Alembic. Si `init.sql` conserva tablas
+historicas por compatibilidad de bootstrap, el contrato vigente sigue estando en
+Alembic y en el registry Ralph; no debe usarse `regulatory_changes` para cambios
+normativos nuevos.
 
 ## Bootstrap de base de datos
 

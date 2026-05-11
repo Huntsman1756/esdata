@@ -18,6 +18,11 @@ def _headers() -> dict[str, str]:
     return {"X-API-Key": api_key} if api_key else {}
 
 
+def _mcp_headers() -> dict[str, str]:
+    api_key = os.getenv("MCP_API_KEY") or os.getenv("ESDATA_API_KEY", "")
+    return {"X-API-Key": api_key} if api_key else {}
+
+
 def _check_get(
     client: httpx.Client,
     path: str,
@@ -63,6 +68,94 @@ def _check_json_contract(
     ok, details = validator(payload)
     check["ok"] = ok
     check["details"] = details
+    return check
+
+
+def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
+    required_tools = {
+        "consulta_fiscal",
+        "list_modelos_por_supuesto",
+        "list_domain_availability",
+    }
+    check: dict[str, Any] = {
+        "name": "mcp_transport_tools_list",
+        "path": "/mcp",
+        "required_tools": sorted(required_tools),
+        "ok": False,
+    }
+    headers = {
+        "Accept": "text/event-stream",
+        **_mcp_headers(),
+    }
+    try:
+        handshake = client.get("/mcp", headers=headers)
+    except httpx.HTTPError as exc:
+        check["error"] = f"handshake_failed: {exc}"
+        return check
+
+    session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get("Mcp-Session-Id")
+    check["handshake_status_code"] = handshake.status_code
+    check["has_session_id"] = bool(session_id)
+    if not session_id:
+        check["error"] = handshake.text[:500] if handshake.status_code != 200 else "missing_mcp_session_id"
+        return check
+    if handshake.status_code not in {200, 400}:
+        check["error"] = handshake.text[:500]
+        return check
+    if handshake.status_code == 400 and "Missing session ID" not in handshake.text:
+        check["error"] = handshake.text[:500]
+        return check
+
+    rpc_headers = {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+        "MCP-Session-ID": session_id,
+        **_mcp_headers(),
+    }
+    initialize = client.post(
+        "/mcp",
+        headers=rpc_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {},
+                "clientInfo": {"name": "esdata-maintenance", "version": "1.0"},
+            },
+        },
+    )
+    check["initialize_status_code"] = initialize.status_code
+    if initialize.status_code != 200:
+        check["error"] = initialize.text[:500]
+        return check
+
+    tools = client.post(
+        "/mcp",
+        headers=rpc_headers,
+        json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+    )
+    check["tools_status_code"] = tools.status_code
+    if tools.status_code != 200:
+        check["error"] = tools.text[:500]
+        return check
+
+    try:
+        payload = tools.json()
+    except ValueError as exc:
+        check["error"] = f"invalid_tools_json: {exc}"
+        return check
+
+    tool_names = {
+        tool.get("name")
+        for tool in ((payload.get("result") or {}).get("tools") or [])
+        if isinstance(tool, dict)
+    }
+    missing = sorted(required_tools - tool_names)
+    check["tool_count"] = len(tool_names)
+    check["missing_tools"] = missing
+    check["ok"] = not missing
     return check
 
 
@@ -160,6 +253,7 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
     with httpx.Client(base_url=base_url, timeout=20) as client:
         checks.append(_check_get(client, "/health"))
         checks.append(_check_get(client, "/status"))
+        checks.append(_check_mcp_transport(client))
         checks.append(_check_get(client, "/v1/legislacion/LIVA/articulos/90", "21 por ciento"))
         checks.append(
             _check_json_contract(

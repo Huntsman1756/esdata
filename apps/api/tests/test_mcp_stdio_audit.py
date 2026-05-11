@@ -126,3 +126,12 @@ def test_stdio_returns_jsonrpc_error_when_audit_persistence_breaks() -> None:
     assert "error" in sent[0]
     assert sent[0]["error"]["code"] == -32603
     assert "audit" in sent[0]["error"]["message"].lower()
+
+
+def test_stdio_rejects_hidden_unadvertised_dispatch_branches() -> None:
+    payload = _invoke_stdio_tool("list_sfdr_products", {})
+
+    assert payload["id"] == 1
+    assert "error" in payload
+    assert payload["error"]["code"] == -32601
+    assert "Unknown tool" in payload["error"]["message"]

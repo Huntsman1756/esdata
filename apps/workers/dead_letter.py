@@ -94,7 +94,7 @@ def get_dead_letters(
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Get dead-letter entries for monitoring."""
-    conditions = ["resolved = 0"] if not resolved else ["resolved = 1"]
+    conditions = ["resolved IS FALSE"] if not resolved else ["resolved IS TRUE"]
     params: dict = {}
     
     if worker_name:
@@ -131,8 +131,8 @@ def resolve_dead_letter(
             text(
                 """
                 UPDATE sync_dead_letter
-                SET resolved = 1, resolved_at = :now, resolved_by = :resolved_by, notes = :notes
-                WHERE id = :id AND resolved = 0
+                SET resolved = TRUE, resolved_at = :now, resolved_by = :resolved_by, notes = :notes
+                WHERE id = :id AND resolved IS FALSE
                 """
             ),
             {"id": dead_letter_id, "now": now, "resolved_by": resolved_by, "notes": notes},

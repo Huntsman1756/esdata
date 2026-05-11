@@ -225,3 +225,22 @@ def test_monitoring_rls_closure_is_migrated_in_revision_0067():
         "DROP POLICY IF EXISTS service_role_all ON {table_name}",
     ):
         assert fragment in contents
+
+
+def test_freshness_tables_are_owned_by_alembic_revision_0068():
+    revision_path = ALEMBIC_VERSIONS / "20260511_0068_freshness_tables_schema.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    assert 'down_revision = "20260510_0067_monitoring_rls_closure"' in contents
+    for table_name in ("source_freshness_snapshot", "data_freshness_alerts"):
+        assert f'"{table_name}"' in contents
+        assert f"ALTER TABLE IF EXISTS {{table_name}} ENABLE ROW LEVEL SECURITY" in contents
+
+    for fragment in (
+        "op.create_table(",
+        "idx_source_snapshot_source",
+        "idx_freshness_alerts_source",
+        "CREATE POLICY esdata_all",
+        "CREATE POLICY service_role_all",
+    ):
+        assert fragment in contents

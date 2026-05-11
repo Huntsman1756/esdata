@@ -11,15 +11,15 @@ Este capitulo no sustituye OpenAPI. Sirve como mapa rapido de que exponer y para
 - `GET /metrics` — metricas, solo si la integracion esta activa
 - `GET /v1/observability/dashboard` — panel JSON minimo con resumen de consulta, workers y fuentes
 - `GET /v1/observability/alerts` — alertas operativas derivadas del estado actual sin depender de revision manual
+- `GET /v1/domain-availability` — disponibilidad explicita de dominios/tablas
+- `GET /v1/domain-availability/{table}` — disponibilidad de una tabla concreta
 - `GET /v1/sources/manifest` — manifiesto vivo de fuentes con owner, trust tier, cadencia y deteccion de cambios
 - `GET /v1/sources/freshness` — ledger de freshness por fuente con `snapshot_at`, `snapshot_version`, `previous_snapshot_at` y senal `changed_since_previous`
+- `GET /v1/sources/freshness-alerts` — alertas de frescura
 
 ## Busqueda y legislacion
 
 - `GET /v1/consulta` — consulta fiscal agregada con resultados, relevancia, confianza y score de faithfulness
-- `GET /v1/connectivity/articulos/{codigo_norma}/{numero}` — conectividad cross-source derivada para un articulo: modelos, doctrina y obligaciones enlazadas
-- `GET /v1/connectivity/documentos/{referencia}` — conectividad derivada para un documento: articulos y obligaciones enlazadas
-- `GET /v1/connectivity/obligaciones/{codigo}` — conectividad derivada para una obligacion: documentos y articulos enlazados
 - `GET /v1/buscar` — busqueda principal sobre legislacion consolidada unicamente; no devuelve modelos tributarios
 - `GET /v1/legislacion/buscar` — alias funcional de la busqueda legislativa
 - `GET /v1/legislacion/buscar/hybrid` — busqueda hibrida con peso vectorial configurable
@@ -33,8 +33,6 @@ Este capitulo no sustituye OpenAPI. Sirve como mapa rapido de que exponer y para
 Uso recomendado:
 
 - usa `consulta` cuando quieras una respuesta agregada sobre modelos, obligaciones, normativa y doctrina con senal resumida de confianza
-- usa `connectivity/articulos` cuando quieras explorar relaciones cross-source explicitamente en vez de inferirlas desde varios endpoints sueltos
-- usa `connectivity/documentos` o `connectivity/obligaciones` cuando el nodo raiz de tu analisis no sea el articulo sino el documento doctrinal o la obligacion operativa
 - usa `buscar` para descubrimiento inicial de legislacion
 - usa `modelos` o `consulta` cuando la pregunta sea sobre modelos AEAT como `303`, `349` o `100`
 - usa `get_norma` y `get_articulo` para detalle trazable
@@ -161,14 +159,8 @@ Uso recomendado:
 
 ## Fuentes documentales adicionales
 
-- `GET /v1/bdns`
-- `GET /v1/bdns/{referencia}`
-- `GET /v1/borme`
-- `GET /v1/borme/{referencia}`
 - `GET /v1/cnmv`
 - `GET /v1/cnmv/{referencia}`
-- `GET /v1/sepblac`
-- `GET /v1/sepblac/{referencia}`
 - `GET /v1/cendoj`
 - `GET /v1/cendoj/{referencia}`
 - `GET /v1/eurlex`
@@ -180,32 +172,35 @@ Uso recomendado:
 
 ## Gobernanza AI (AI Act compliance)
 
-- `GET /v1/ai/risk/register` — registro de riesgos AI activos
-- `POST /v1/ai/risk/report` — reporte de incidente de riesgo
 - `GET /v1/ai/audit-log` — auditoria de decisiones AI (filtrado por fecha/componente)
 - `GET /v1/ai/audit-log/{request_id}` — log completo de una peticion
-- `GET /v1/ai/fairness-report` — evaluacion de sesgo (geografico, temporal, fuente)
 - `GET /v1/ai/models` — registry de modelos IA registrados y versions
+- `GET /v1/ai/models/active` — modelo activo
+- `GET /v1/ai/config/current` — configuracion AI activa
+- `GET /v1/ai/config/history` — historial de configuraciones
 - `GET /v1/data/lineage` — lineage y calidad de datos por tabla/campo
 - `GET /v1/data/quality` — score de calidad por tabla
 - `GET /v1/data/catalog` — catalogo completo de fuentes y tablas trazadas
-- `POST /v1/gdpr/solicitud` — creacion de solicitud ARCO (acceso, rectificacion, supresion, etc.)
-- `GET /v1/gdpr/dpia` — resumen de evaluacion de impacto (DPIA)
-- `GET /v1/human-review/pending` — revisiones humanas pendientes
-- `POST /v1/human-review/{id}/decide` — aprobar/rechazar/modificar revision
-- `GET /v1/human-review/history` — historial de revisiones humanas
-- `GET /v1/xai/explain` — explicabilidad de resultados de busqueda
+- `GET /v1/data/catalog/{tabla}` — catalogo de una tabla concreta
+- `GET /v1/ai/human-review/pending` — revisiones humanas pendientes
+- `GET /v1/ai/human-review/stats` — estadisticas de revision humana
+- `GET /v1/ai/human-review/by-status/{status}` — revisiones por estado
+- `GET /v1/ai/human-review/by-request/{request_id}` — revisiones por request id
+- `GET /v1/ai/human-review/{review_id}` — detalle de revision humana
+- `POST /v1/ai/human-review/{review_id}/decide` — aprobar/rechazar/modificar revision
+- `POST /v1/ai/human-review/check` — evaluar si una respuesta requiere revision humana
 
 Uso recomendado:
 
-- `fairness-report` para auditorias de sesgo y cumplimiento AI Act
-- `risk/register` y `risk/report` para gestion continua de riesgos
 - `audit-log` para trazabilidad de decisiones AI ante reguladores
-- `gdpr/solicitud` para ejercer derechos ARCO de titulares de datos
 - `human-review` para flujos de supervision humana en consultas criticas
-- `xai/explain` para entender por que un chunk es relevante en los resultados
 - `ai/models` para verificar version y configuracion del modelo en uso
 - `data/lineage` y `data/quality` para auditoria de origen y calidad de datos
+
+Nota de estado: routers para `/v1/bdns`, `/v1/borme`, `/v1/sepblac`,
+`/v1/chunks`, `/v1/connectivity`, AI risk/fairness, GDPR y XAI existen en el
+repositorio, pero no estan montados en la app runtime v1.0. Tratar esos bloques
+como `configured_but_unavailable` o backlog hasta que pasen OpenAPI, MCP y tests.
 
 ## Referencias
 

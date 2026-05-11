@@ -79,25 +79,22 @@ curl -s http://127.0.0.1:8000/v1/sources/freshness
 
 La respuesta de `GET /v1/sources/freshness` expone ahora `snapshot_at`, `snapshot_version`, `previous_snapshot_at` y `changed_since_previous` por fuente, ademas del estado de freshness calculado.
 
-Conectividad cross-source por articulo:
+Disponibilidad explicita de dominios/tablas:
 
 ```bash
-curl -s http://127.0.0.1:8000/v1/connectivity/articulos/LIVA/91
+curl -s "http://127.0.0.1:8000/v1/domain-availability?only_empty=true"
 ```
 
-La respuesta agrega conexiones derivadas del corpus para ese articulo, separando `modelos`, `doctrina` y `obligaciones`, con sus `totales`.
-
-Conectividad derivada por documento:
+La respuesta separa tablas vacias en estados seguros: `workflow_empty`,
+`allowed_empty` y `configured_but_unavailable`. Un agente no debe inventar
+respuesta si el dominio requerido aparece bloqueado.
 
 ```bash
-curl -s http://127.0.0.1:8000/v1/connectivity/documentos/V0000-26
+curl -s http://127.0.0.1:8000/v1/domain-availability/wallet_custodian
 ```
 
-Conectividad derivada por obligacion:
-
-```bash
-curl -s http://127.0.0.1:8000/v1/connectivity/obligaciones/IRNR_FACTA
-```
+Nota: los endpoints `/v1/connectivity/*` existen como router en el repositorio,
+pero no estan montados en la app runtime v1.0.
 
 Busqueda general de legislacion:
 

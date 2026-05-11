@@ -1129,7 +1129,72 @@ def test_run_sync_does_not_mark_partial_for_transient_pending_fetch_error(monkey
 
     assert result == {"processed": 0, "stored": 0, "discovered": 0}
     assert marked_done == []
-    assert sync_calls == [("worker-dgt", "ok", None)]
+    assert sync_calls[-1] == ("worker-dgt", "ok", None)
+    assert all(call[1] != "partial" for call in sync_calls)
+
+
+def test_run_sync_marks_partial_for_dgt_session_502_without_dead_letter(monkeypatch):
+    sync_calls = []
+    dead_letter_calls = []
+
+    class FakeConnection:
+        pass
+
+    class FakeBegin:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        def begin(self):
+            return FakeBegin()
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_log_sync(conn, worker_name, status, **kwargs):
+        sync_calls.append((worker_name, status, kwargs.get("error_msg")))
+
+    request = httpx.Request("GET", "https://petete.tributos.hacienda.gob.es")
+    response = httpx.Response(502, request=request, text="Bad Gateway")
+    upstream_error = httpx.HTTPStatusError("502 Bad Gateway", request=request, response=response)
+
+    monkeypatch.setattr("dgt.DGT_DISCOVERY", False)
+    monkeypatch.setattr("dgt.SEED_URLS", [])
+    monkeypatch.setattr("dgt.create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr("dgt.ensure_database_connection", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dgt.httpx.Client", lambda *args, **kwargs: FakeClient())
+    monkeypatch.setattr("dgt.start_session", lambda client: (_ for _ in ()).throw(upstream_error))
+    monkeypatch.setattr("dgt._ensure_sync_log_table", lambda conn: None)
+    monkeypatch.setattr("dgt.ensure_source_revision_table", lambda conn: None)
+    monkeypatch.setattr("dgt.ensure_dgt_queue_table", lambda conn: None)
+    monkeypatch.setattr("dgt._ensure_dgt_queue", lambda conn, worker_name, seed_list: None)
+    monkeypatch.setattr("dgt.log_sync", fake_log_sync)
+    monkeypatch.setattr(
+        "dgt.handle_worker_failure",
+        lambda *args, **kwargs: dead_letter_calls.append(args) or True,
+    )
+
+    result = run_sync(seed_urls=[])
+
+    assert result == {"processed": 0, "stored": 0, "discovered": 0}
+    assert sync_calls[0] == (
+        "worker-dgt",
+        "running",
+        "progress: sync_start; discovered=0; processed=0; stored=0",
+    )
+    assert sync_calls[1] == (
+        "worker-dgt",
+        "partial",
+        "DGT upstream temporarily unavailable: 502 Bad Gateway",
+    )
+    assert dead_letter_calls == []
 
 
 def test_log_progress_writes_running_sync_log(monkeypatch):

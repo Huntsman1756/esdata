@@ -55,7 +55,7 @@ def fmt_value(val, max_len=60):
 
 def show_dead_letters(engine, resolved=False, worker_name=None, limit=100):
     """Fetch and display dead-letter entries."""
-    conditions = ["resolved = 0"] if not resolved else ["resolved = 1"]
+    conditions = ["resolved IS FALSE"] if not resolved else ["resolved IS TRUE"]
     params = {}
 
     if worker_name:
@@ -70,7 +70,7 @@ def show_dead_letters(engine, resolved=False, worker_name=None, limit=100):
                 SELECT id, worker_name, entity_id, entity_type,
                        error_message, retry_count, max_retries,
                        first_failed_at, last_failed_at,
-                       resolved_at, resolved_by, notes
+                       resolved, resolved_at, resolved_by, notes
                 FROM sync_dead_letter
                 WHERE {where}
                 ORDER BY last_failed_at DESC
@@ -117,7 +117,7 @@ def show_dead_letters(engine, resolved=False, worker_name=None, limit=100):
 
 def show_counts(engine, resolved=False):
     """Show counts per worker and entity_type."""
-    conditions = ["resolved = 0"] if not resolved else ["resolved = 1"]
+    conditions = ["resolved IS FALSE"] if not resolved else ["resolved IS TRUE"]
     where = " AND ".join(conditions) if conditions else "1=1"
 
     with engine.begin() as conn:
@@ -192,8 +192,8 @@ def resolve_dead_letter(engine, dead_letter_id, reason):
         result = conn.execute(
             text("""
                 UPDATE sync_dead_letter
-                SET resolved = 1, resolved_at = :now, resolved_by = :resolved_by, notes = :notes
-                WHERE id = :id AND resolved = 0
+                SET resolved = TRUE, resolved_at = :now, resolved_by = :resolved_by, notes = :notes
+                WHERE id = :id AND resolved IS FALSE
             """),
             {"id": dead_letter_id, "now": now, "resolved_by": resolved_by, "notes": reason},
         )

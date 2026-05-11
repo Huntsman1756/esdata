@@ -24,14 +24,10 @@ Dominios y prefijos relevantes montados en la API:
 - `/v1/modelos`
 - `/v1/cambios`
 - `/v1/compliance`
-- `/v1/bdns`
-- `/v1/borme`
 - `/v1/cnmv`
-- `/v1/sepblac`
 - `/v1/obligaciones`
 - `/v1/empresas`
 - `/v1/entidades`
-- `/v1/chunks`
 - `/v1/cendoj`
 - `/v1/eurlex`
 - `/v1/bde`
@@ -40,6 +36,19 @@ Dominios y prefijos relevantes montados en la API:
 - `/v1/screening`
 - `/v1/xbrl`
 - `/v1/banking`
+- `/v1/domain-availability`
+- `/v1/sources`
+- `/v1/observability`
+- `/v1/ai/audit-log`
+- `/v1/ai/human-review`
+- `/v1/ai/models`
+- `/v1/data`
+
+Nota de estado: existen routers definidos en codigo para `/v1/bdns`, `/v1/borme`,
+`/v1/sepblac`, `/v1/chunks`, `/v1/connectivity`, AI risk/fairness, GDPR y XAI,
+pero no estan montados en `apps/api/main.py` en la superficie activa v1.0. No
+deben documentarse como disponibles hasta cablearlos, probarlos y exponerlos en
+OpenAPI/MCP.
 
 Algunos endpoints funcionales especialmente importantes hoy:
 

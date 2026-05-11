@@ -23,6 +23,10 @@ def _next_stdio_request_id() -> str:
     return f"mcp-{uuid.uuid4().hex[:12]}"
 
 
+def _advertised_stdio_tool_names() -> set[str]:
+    return {tool["name"] for tool in get_stdio_tool_definitions()}
+
+
 def _response_summary_from_payload(payload: dict[str, Any]) -> str:
     error = payload.get("error")
     if isinstance(error, dict):
@@ -294,6 +298,9 @@ class MCPStdioServer:
             original_send(payload)
 
     async def _dispatch_tool(self, tool_name: str, arguments: dict, msg_id: Any):
+        if tool_name not in _advertised_stdio_tool_names():
+            self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
+            return
 
         if tool_name == "consulta_fiscal":
             try:

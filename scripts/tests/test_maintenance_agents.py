@@ -4,6 +4,8 @@ import importlib.util
 import subprocess
 from pathlib import Path
 
+from sqlalchemy import create_engine, text
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -184,6 +186,152 @@ def test_mcp_validation_suite_requires_fail_closed_empty_domain_response():
     assert ok is True
     assert details["blocked"] is True
     assert "wallet_custodian" in details["tables"]
+
+
+def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
+    suite = _load_validation_suite()
+
+    class FakeResponse:
+        def __init__(self, status_code=200, *, headers=None, payload=None, text=""):
+            self.status_code = status_code
+            self.headers = headers or {}
+            self._payload = payload or {}
+            self.text = text
+
+        def json(self):
+            return self._payload
+
+    class FakeClient:
+        def get(self, path, headers=None):
+            assert path == "/mcp"
+            assert headers["Accept"] == "text/event-stream"
+            assert headers["X-API-Key"] == "mcp-secret"
+            return FakeResponse(headers={"mcp-session-id": "session-1"})
+
+        def post(self, path, headers=None, json=None):
+            assert path == "/mcp"
+            assert headers["MCP-Session-ID"] == "session-1"
+            assert headers["X-API-Key"] == "mcp-secret"
+            if json["method"] == "initialize":
+                return FakeResponse(payload={"result": {"serverInfo": {"name": "esdata"}}})
+            if json["method"] == "tools/list":
+                return FakeResponse(
+                    payload={
+                        "result": {
+                            "tools": [
+                                {"name": "consulta_fiscal"},
+                                {"name": "list_modelos_por_supuesto"},
+                                {"name": "list_domain_availability"},
+                            ]
+                        }
+                    }
+                )
+            raise AssertionError(json)
+
+    monkeypatch.setenv("MCP_API_KEY", "mcp-secret")
+
+    check = suite._check_mcp_transport(FakeClient())
+
+    assert check["ok"] is True
+    assert check["missing_tools"] == []
+
+
+def test_mcp_validation_suite_accepts_mcp_session_id_on_missing_session_handshake(monkeypatch):
+    suite = _load_validation_suite()
+
+    class FakeResponse:
+        def __init__(self, status_code=200, *, headers=None, payload=None, text=""):
+            self.status_code = status_code
+            self.headers = headers or {}
+            self._payload = payload or {}
+            self.text = text
+
+        def json(self):
+            return self._payload
+
+    class FakeClient:
+        def get(self, path, headers=None):
+            return FakeResponse(
+                status_code=400,
+                headers={"Mcp-Session-Id": "session-1"},
+                text='{"error":{"message":"Bad Request: Missing session ID"}}',
+            )
+
+        def post(self, path, headers=None, json=None):
+            if json["method"] == "initialize":
+                return FakeResponse(payload={"result": {"serverInfo": {"name": "esdata"}}})
+            return FakeResponse(
+                payload={
+                    "result": {
+                        "tools": [
+                            {"name": "consulta_fiscal"},
+                            {"name": "list_modelos_por_supuesto"},
+                            {"name": "list_domain_availability"},
+                        ]
+                    }
+                }
+            )
+
+    monkeypatch.setenv("MCP_API_KEY", "mcp-secret")
+
+    check = suite._check_mcp_transport(FakeClient())
+
+    assert check["handshake_status_code"] == 400
+    assert check["ok"] is True
+
+
+def test_dead_letter_cli_uses_boolean_filters_and_resolves_rows(capsys):
+    path = ROOT / "scripts" / "maintenance" / "show_dead_letter_queue.py"
+    spec = importlib.util.spec_from_file_location("show_dead_letter_queue_under_test", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_dead_letter (
+                    id INTEGER PRIMARY KEY,
+                    worker_name TEXT,
+                    entity_id TEXT,
+                    entity_type TEXT,
+                    error_message TEXT,
+                    retry_count INTEGER,
+                    max_retries INTEGER,
+                    first_failed_at TEXT,
+                    last_failed_at TEXT,
+                    resolved BOOLEAN DEFAULT FALSE,
+                    resolved_at TEXT,
+                    resolved_by TEXT,
+                    notes TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO sync_dead_letter (
+                    id, worker_name, entity_id, entity_type, error_message,
+                    retry_count, max_retries, first_failed_at, last_failed_at, resolved
+                ) VALUES (
+                    1, 'worker-dgt', 'session_init', 'session_init', '502 Bad Gateway',
+                    1, 3, '2026-05-10T00:00:00Z', '2026-05-10T00:00:00Z', FALSE
+                )
+                """
+            )
+        )
+
+    rows = module.show_dead_letters(engine)
+    assert rows[0]["resolved"] in (False, 0)
+
+    assert module.resolve_dead_letter(engine, 1, "transient upstream recovered") is True
+    module.show_counts(engine, resolved=True)
+    output = capsys.readouterr().out
+    assert "worker-dgt" in output
 
 
 def test_alertmanager_telegram_uses_secret_files():

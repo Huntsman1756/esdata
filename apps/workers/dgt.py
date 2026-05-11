@@ -96,6 +96,13 @@ def build_dgt_tls_verify() -> bool | ssl.SSLContext:
     return context
 
 
+def _is_transient_upstream_error(exc: Exception) -> bool:
+    """Classify temporary Petete/DGT failures that should not poison DLQ."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in {502, 503, 504}
+    return isinstance(exc, (httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout, httpx.RemoteProtocolError))
+
+
 def build_search_payload(num_consulta: str) -> dict[str, str]:
     return {
         "type2": "on",
@@ -764,6 +771,26 @@ def run_sync(  # noqa: C901
             "discovered": total_discovered,
         }
     except Exception as exc:
+        if _is_transient_upstream_error(exc):
+            error_msg = f"DGT upstream temporarily unavailable: {exc}"
+            logger.warning(error_msg)
+            with engine.begin() as conn:
+                _ensure_sync_log_table(conn)
+                log_sync(
+                    conn,
+                    worker_name,
+                    "partial",
+                    documentos_processed=total_processed,
+                    documentos_upserted=total_stored,
+                    doctrina_links_created=links_created,
+                    error_msg=error_msg,
+                )
+            return {
+                "processed": total_processed,
+                "stored": total_stored,
+                "discovered": total_discovered,
+            }
+
         with engine.begin() as conn:
             _ensure_sync_log_table(conn)
             log_sync(
