@@ -247,6 +247,23 @@ class ModeloCasilla(BaseModel):
     orden: int | None = Field(default=None, description="Orden de aparición")
 
 
+class ModeloCasillasResponse(BaseModel):
+    codigo: str = Field(description="Codigo del modelo")
+    campana: str | None = Field(default=None, description="Campana consultada")
+    casillas: list[ModeloCasilla] = Field(default_factory=list, description="Pagina de casillas devueltas")
+    total: int = Field(description="Total de casillas que cumplen los filtros")
+    limit: int = Field(description="Tamano de pagina aplicado")
+    offset: int = Field(description="Offset aplicado")
+    has_more: bool = Field(description="Si hay mas casillas disponibles")
+    next_offset: int | None = Field(default=None, description="Offset para continuar, si hay mas")
+    filters: dict = Field(default_factory=dict, description="Filtros aplicados")
+    classification: str = Field(description="confirmado si hay casillas oficiales devueltas; requiere_verificacion si no")
+    obligation_notice: str = Field(description="Aviso de que casilla no implica obligatoriedad por supuesto")
+    completeness: str = Field(description="Estado de completitud del modelo/campana")
+    verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+    confidence: dict = Field(default_factory=dict, description="Confianza y revision requerida")
+
+
 class ModeloClave(BaseModel):
     codigo: str = Field(description="Código de la clave")
     etiqueta: str = Field(description="Etiqueta descriptiva")
@@ -3503,6 +3520,10 @@ class ConsultaFiscalResponse(BaseModel):
     modelos: list[dict] = Field(default_factory=list, description="Modelos AEAT identificados")
     resultados: list[dict] = Field(default_factory=list, description="Resultados de búsqueda unificados")
     total_resultados: int = Field(description="Número total de resultados")
+    result_metadata: dict = Field(
+        default_factory=dict,
+        description="Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos.",
+    )
     relevancia: dict = Field(description="Información de relevancia de los resultados")
     confianza: dict | None = Field(default=None, description="Información de confianza (faithfulness, grounding)")
     cited_chunks: list[ChunkCitation] = Field(default_factory=list, description="Chunks citados con evidencia")

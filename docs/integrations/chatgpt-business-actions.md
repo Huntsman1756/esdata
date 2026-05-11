@@ -125,7 +125,18 @@ Comprobar al menos:
 - un detalle de articulo
 - una busqueda doctrinal
 - un detalle de modelo AEAT
+- una pagina de casillas de un modelo AEAT (`/v1/modelos/{codigo}/casillas?limit=25`)
 - un supuesto de modelos AEAT (`/v1/modelos/por-supuesto`) sin convertir candidatos en obligaciones si no hay evidencia explicita
+
+## Reglas de respuesta para Actions
+
+- Si una respuesta trae `verified=false`, `review_required=true`, `evidence_limited` o `no_verified`, el GPT debe declarar incertidumbre y no decir "debe presentar", "es obligatorio" o equivalente.
+- Si un modelo AEAT viene como `candidato`, tratarlo como opcion plausible pendiente de revision.
+- Si viene como `requiere_verificacion`, no operacionalizarlo sin fuente oficial/humano.
+- Si viene como `confirmado`, citar la evidencia devuelta por ESData y mantener la condicion de aplicacion.
+- No completar respuestas con conocimiento externo cuando el prompt dice "usa solo ESData"; si ESData no devuelve evidencia, responder que no queda verificado.
+- Para listas grandes, pedir paginas acotadas (`limit`, `offset`, filtros) y continuar solo si `has_more=true`.
+- En casillas de modelos, `confirmado` significa que la casilla/campo existe en el modelo/campana devuelto; no significa que esa casilla sea obligatoria para un caso concreto.
 
 ## Separacion de superficies
 

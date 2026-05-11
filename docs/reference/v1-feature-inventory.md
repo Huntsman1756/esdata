@@ -186,7 +186,7 @@ Status: `implemented`, curated surface.
 The active GPT Actions contract is `docs/openapi-gpt.json` and the served URL
 `/gpt-actions/modelos/openapi.json`.
 
-It exposes 13 paths:
+It exposes 14 paths:
 
 - `/status`
 - `/v1/consulta`
@@ -200,6 +200,7 @@ It exposes 13 paths:
 - `/v1/doctrina/{referencia}`
 - `/v1/modelos`
 - `/v1/modelos/{codigo}`
+- `/v1/modelos/{codigo}/casillas`
 - `/v1/modelos/por-supuesto`
 
 Auth: `ApiKeyAuth`, header `X-API-Key`.

@@ -13,9 +13,11 @@ from schemas import (
 )
 from schemas import (
     ModeloDetail as ModeloDetailSchema,
+    ModeloCasillasResponse,
 )
 from services.modelos import (
     build_modelo_truth_contract,
+    count_campaign_casillas,
     get_active_campaign,
     get_model_row,
     get_modelo_campana_operativa,
@@ -538,12 +540,26 @@ async def get_modelo_articulos(codigo: str):
 @router.get(
     "/{codigo}/casillas",
     operation_id="get_modelo_casillas",
-    response_model=None,
+    response_model=ModeloCasillasResponse,
     summary="Casillas de un modelo",
 )
 async def get_modelo_casillas(
     request: Request,
-    codigo: str, campana: str = Query(None, description="Campana especifica")
+    codigo: str,
+    campana: str = Query(None, description="Campana especifica"),
+    limit: int = Query(
+        200,
+        ge=1,
+        le=500,
+        description="Tamano de pagina. Por defecto 200 para evitar respuestas MCP/Actions truncadas.",
+    ),
+    offset: int = Query(0, ge=0, description="Desplazamiento para continuar la pagina anterior."),
+    q: str | None = Query(
+        None,
+        description="Filtro textual sobre codigo, etiqueta o descripcion de la casilla.",
+    ),
+    tipo_casilla: str | None = Query(None, description="Filtro por tipo de casilla."),
+    pagina: int | None = Query(None, ge=1, description="Filtro por pagina del formulario/PDF."),
 ):
     """Lista todas las casillas de un modelo para una campaña."""
     with db_session() as db:
@@ -554,10 +570,28 @@ async def get_modelo_casillas(
             )
 
         camp_row = get_active_campaign(db, codigo, campana)
+        filters = {"q": q, "tipo_casilla": tipo_casilla, "pagina": pagina}
 
         if not camp_row:
-            payload = {"codigo": codigo, "casillas": []}
+            payload = {
+                "codigo": codigo,
+                "campana": campana,
+                "casillas": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "has_more": False,
+                "next_offset": None,
+                "filters": filters,
+                "classification": "requiere_verificacion",
+                "obligation_notice": (
+                    "No hay campana activa o coincidente. No afirmar obligatoriedad ni completitud."
+                ),
+            }
             completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+            payload["completeness"] = completeness
+            payload["verified"] = verified
+            payload["confidence"] = {"score": 0.0, "label": "baja", "review_required": True}
             _record_modelo_query_audit(
                 request,
                 path=f"/v1/modelos/{codigo}/casillas",
@@ -572,13 +606,49 @@ async def get_modelo_casillas(
             return payload
 
         campana_id = camp_row["id"]
-        rows = list_campaign_casillas(db, campana_id)
+        total = count_campaign_casillas(
+            db,
+            campana_id,
+            q=q,
+            tipo_casilla=tipo_casilla,
+            pagina=pagina,
+        )
+        rows = list_campaign_casillas(
+            db,
+            campana_id,
+            limit=limit,
+            offset=offset,
+            q=q,
+            tipo_casilla=tipo_casilla,
+            pagina=pagina,
+        )
+        casillas = [dict(r) for r in rows]
+        has_more = offset + len(casillas) < total
 
         payload = {
             "codigo": codigo,
-            "casillas": [dict(r) for r in rows],
+            "campana": camp_row["campana"],
+            "casillas": casillas,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(casillas) if has_more else None,
+            "filters": filters,
+            "classification": "confirmado" if casillas else "requiere_verificacion",
+            "obligation_notice": (
+                "Las casillas devueltas son campos oficiales del modelo/campana. "
+                "No implican por si solas que una casilla sea obligatoria para un supuesto concreto."
+            ),
         }
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+        payload["completeness"] = completeness
+        payload["verified"] = verified
+        payload["confidence"] = {
+            "score": 0.9 if verified else 0.5 if payload["casillas"] else 0.0,
+            "label": "alta" if verified else "media" if payload["casillas"] else "baja",
+            "review_required": not verified,
+        }
         _record_modelo_query_audit(
             request,
             path=f"/v1/modelos/{codigo}/casillas",
@@ -589,9 +659,12 @@ async def get_modelo_casillas(
                     "title": item["etiqueta"],
                     "numero": item["codigo"],
                 }
-                for item in payload["casillas"]
+                for item in payload["casillas"][:100]
             ],
-            response_summary=f"casillas={len(payload['casillas'])}",
+            response_summary=(
+                f"casillas={len(payload['casillas'])};total={total};"
+                f"limit={limit};offset={offset};has_more={has_more}"
+            ),
             confidence={
                 "score": 0.9 if verified else 0.5 if payload["casillas"] else 0.0,
                 "label": "alta" if verified else "media" if payload["casillas"] else "baja",

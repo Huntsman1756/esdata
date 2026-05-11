@@ -335,3 +335,111 @@ def test_compute_confianza_does_not_cover_unreturned_resolved_model():
     assert confianza["modelos_cubiertos"] == []
     assert "modelo_200" not in confianza["fuentes"]
     assert confianza["review_required"] is True
+
+
+def test_score_resultado_without_direct_terms_stays_low_even_with_rank():
+    from routers.consulta import _score_resultado
+
+    scored = _score_resultado(
+        {
+            "tipo": "modelo",
+            "codigo": "999",
+            "nombre": "Declaracion sin relacion con la consulta",
+            "rank": 5,
+        },
+        "wallet custodian mica",
+        [],
+    )
+
+    assert scored["_relevancia"]["terminos_encontrados"] == []
+    assert scored["_relevancia"]["nivel"] == "baja"
+    assert scored["_relevancia"]["score"] < 0.3
+
+
+def _seed_many_modelo_100_casillas(total: int = 12):
+    from db import engine
+
+    with engine.begin() as conn:
+        campana_id = conn.execute(
+            text(
+                """
+                SELECT mc.id
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = '100' AND mc.campana = '2025'
+                """
+            )
+        ).scalar_one()
+        for value in range(1, total + 1):
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO modelo_casilla
+                        (campana_id, codigo, etiqueta, descripcion, tipo_casilla, pagina, orden)
+                    VALUES
+                        (:campana_id, :codigo, :etiqueta, :descripcion, 'importe', 2, :orden)
+                    ON CONFLICT(campana_id, codigo) DO UPDATE SET
+                        etiqueta = excluded.etiqueta,
+                        descripcion = excluded.descripcion,
+                        tipo_casilla = excluded.tipo_casilla,
+                        pagina = excluded.pagina,
+                        orden = excluded.orden,
+                        activa = 1
+                    """
+                ),
+                {
+                    "campana_id": campana_id,
+                    "codigo": f"T{value:03d}",
+                    "etiqueta": f"Casilla test {value}",
+                    "descripcion": f"Descripcion test {value}",
+                    "orden": 1000 + value,
+                },
+            )
+
+
+@pytest.mark.asyncio
+async def test_modelo_100_casillas_are_paginated_and_truth_labeled():
+    _seed_many_modelo_100_casillas(12)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/100/casillas", params={"limit": 5, "offset": 0})
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["codigo"] == "100"
+    assert len(data["casillas"]) == 5
+    assert data["total"] >= 13
+    assert data["limit"] == 5
+    assert data["offset"] == 0
+    assert data["has_more"] is True
+    assert data["next_offset"] == 5
+    assert data["classification"] == "confirmado"
+    assert data["verified"] is False
+    assert data["confidence"]["review_required"] is True
+    assert "No implican" in data["obligation_notice"]
+
+
+@pytest.mark.asyncio
+async def test_modelo_100_casillas_support_filtering():
+    _seed_many_modelo_100_casillas(12)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get(
+            "/v1/modelos/100/casillas",
+            params={"limit": 20, "q": "Casilla test 7", "tipo_casilla": "importe", "pagina": 2},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 1
+    assert all("test 7" in item["etiqueta"].lower() for item in data["casillas"])
+    assert data["filters"]["q"] == "Casilla test 7"

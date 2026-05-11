@@ -69,6 +69,12 @@ Ejemplos de tareas tipicas en stdio:
 - clasificar modelos AEAT candidatos por perfil y supuesto, por ejemplo `sociedad_valores` con clientes residentes/no residentes
 - devolver `candidato` o `requiere_verificacion` cuando no haya evidencia explicita de obligatoriedad; no debe usarse para afirmar obligacion sin revision
 
+`get_modelo_casillas` en HTTP MCP:
+
+- usar `limit`/`offset` para modelos grandes; por defecto devuelve una pagina, no una descarga completa
+- continuar con `next_offset` solo si `has_more=true`
+- tratar `classification=confirmado` como existencia de casilla/campo oficial en la campana consultada, no como obligatoriedad individual
+
 `listar_obligaciones_aplicables`:
 
 - revisar obligaciones operativas aplicables a un caso o perfil
@@ -83,6 +89,14 @@ Ejemplos de tareas tipicas en stdio:
 - `HTTP MCP` y `stdio MCP` no comparten catalogo ni semantica
 - no asumir que una tool visible en stdio existe tambien en HTTP MCP
 - no documentar una tool como "MCP general" sin indicar explicitamente si pertenece a `HTTP` o a `stdio`
+- si `verified=false`, `review_required=true`, `evidence_limited` o `requiere_verificacion`, el cliente debe responder con incertidumbre y no completar la respuesta con conocimiento externo
+- para listas grandes, pedir una pagina acotada (`limit`, filtros, o primeros N) y continuar solo cuando la respuesta incluya `has_more=true`
+
+Glosario operativo:
+
+- `confirmado`: ESData devuelve evidencia explicita suficiente para la aplicabilidad indicada, o existencia oficial del recurso consultado
+- `candidato`: ESData encuentra una relacion plausible, pero no confirma obligatoriedad ni aplicabilidad completa
+- `requiere_verificacion`: ESData no tiene evidencia suficiente; requiere fuente oficial/humano antes de usarlo en un flujo compliance
 
 ## Casos de uso recomendados
 

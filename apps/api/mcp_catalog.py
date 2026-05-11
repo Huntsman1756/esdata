@@ -80,7 +80,11 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
     return [
         {
             "name": "consulta_fiscal",
-            "description": "Consulta fiscal inteligente en lenguaje natural.",
+            "description": (
+                "Consulta fiscal/legal grounded sobre fuentes ESData. Usar solo la evidencia, "
+                "citas y metadatos devueltos; si review_required/verified=false, abstenerse "
+                "de afirmar obligatoriedad o certeza. No usar conocimiento externo."
+            ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -88,6 +92,9 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
                     "sujeto": {"type": "string"},
                     "pais": {"type": "string"},
                     "tipo_operacion": {"type": "string"},
+                    "vigente_en": {"type": "string", "description": "Fecha YYYY-MM-DD para consulta temporal."},
+                    "sources": {"type": "string", "description": "Fuentes separadas por coma cuando se quiera limitar retrieval."},
+                    "hybrid_weight": {"type": "number", "description": "Peso del ranking hibrido si se usan sources."},
                 },
                 "required": ["q"],
             },
@@ -143,7 +150,11 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
         },
         {
             "name": "agente_consulta",
-            "description": "Consulta guiada para el agente operativo.",
+            "description": (
+                "Wrapper stdio para consultas de agente con contexto de entidad regulada; "
+                "mapea tipo_entidad a sujeto y llama a consulta_fiscal. Responder solo con "
+                "evidencia devuelta por ESData y respetar verified/review_required."
+            ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -166,7 +177,8 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
             "name": "list_modelos_por_supuesto",
             "description": (
                 "Clasifica modelos AEAT candidatos por supuesto fiscal. "
-                "No afirma obligatoriedad sin evidencia explicita."
+                "No afirma obligatoriedad sin evidencia explicita; clasificacion candidato "
+                "o requiere_verificacion exige revision y no permite decir 'debe presentar'."
             ),
             "inputSchema": {
                 "type": "object",

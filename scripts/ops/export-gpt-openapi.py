@@ -37,6 +37,7 @@ INCLUDE_PATHS = {
     "/v1/doctrina/{referencia}",
     "/v1/modelos",
     "/v1/modelos/{codigo}",
+    "/v1/modelos/{codigo}/casillas",
     "/v1/modelos/por-supuesto",
 }
 
@@ -56,6 +57,7 @@ INCLUDE_SCHEMAS = {
     "ModeloDetail",
     "ModeloArticulo",
     "ModeloCasilla",
+    "ModeloCasillasResponse",
     "ModeloClave",
     "ModeloInstruccion",
     "ModeloNormativa",
@@ -159,6 +161,15 @@ OPERATION_OVERRIDES = {
             "Get full details for a specific AEAT tax model including linked legislation articles, "
             "active campaign boxes (casillas), key codes (claves), step-by-step instructions, "
             "regulatory framework (normativa), and related doctrine."
+        ),
+    },
+    "get_modelo_casillas": {
+        "summary": "Get paginated AEAT model boxes",
+        "description": (
+            "Return a paginated list of official boxes/fields for an AEAT model campaign. "
+            "Use limit/offset and continue only when has_more is true. A returned box "
+            "confirms that the field exists in the model/campaign; it does not prove the "
+            "box is mandatory for a concrete taxpayer scenario."
         ),
     },
     "list_modelos_por_supuesto": {

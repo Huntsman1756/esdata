@@ -471,6 +471,111 @@
         }
       }
     },
+    "/v1/modelos/{codigo}/casillas": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Get paginated AEAT model boxes",
+        "description": "Return a paginated list of official boxes/fields for an AEAT model campaign. Use limit/offset and continue only when has_more is true. A returned box confirms that the field exists in the model/campaign; it does not prove the box is mandatory for a concrete taxpayer scenario.",
+        "operationId": "get_modelo_casillas",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina. Por defecto 200 para evitar respuestas MCP/Actions truncadas.",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina. Por defecto 200 para evitar respuestas MCP/Actions truncadas."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Desplazamiento para continuar la pagina anterior.",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Desplazamiento para continuar la pagina anterior."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtro textual sobre codigo, etiqueta o descripcion de la casilla.",
+              "title": "Q"
+            },
+            "description": "Filtro textual sobre codigo, etiqueta o descripcion de la casilla."
+          },
+          {
+            "name": "tipo_casilla",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtro por tipo de casilla.",
+              "title": "Tipo Casilla"
+            },
+            "description": "Filtro por tipo de casilla."
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Filtro por pagina del formulario/PDF.",
+              "title": "Pagina"
+            },
+            "description": "Filtro por pagina del formulario/PDF."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeloCasillasResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/consulta": {
       "get": {
         "tags": [
@@ -887,6 +992,11 @@
             "title": "Total Resultados",
             "description": "Número total de resultados"
           },
+          "result_metadata": {
+            "type": "object",
+            "title": "Result Metadata",
+            "description": "Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos."
+          },
           "relevancia": {
             "type": "object",
             "title": "Relevancia",
@@ -1245,6 +1355,96 @@
           "etiqueta"
         ],
         "title": "ModeloCasilla"
+      },
+      "ModeloCasillasResponse": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Codigo del modelo"
+          },
+          "campana": {
+            "type": "string",
+            "title": "Campana",
+            "description": "Campana consultada"
+          },
+          "casillas": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCasilla"
+            },
+            "type": "array",
+            "title": "Casillas",
+            "description": "Pagina de casillas devueltas"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total de casillas que cumplen los filtros"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Tamano de pagina aplicado"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Offset aplicado"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "description": "Si hay mas casillas disponibles"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset",
+            "description": "Offset para continuar, si hay mas"
+          },
+          "filters": {
+            "type": "object",
+            "title": "Filters",
+            "description": "Filtros aplicados"
+          },
+          "classification": {
+            "type": "string",
+            "title": "Classification",
+            "description": "confirmado si hay casillas oficiales devueltas; requiere_verificacion si no"
+          },
+          "obligation_notice": {
+            "type": "string",
+            "title": "Obligation Notice",
+            "description": "Aviso de que casilla no implica obligatoriedad por supuesto"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "Estado de completitud del modelo/campana"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Si la respuesta queda verificada con base suficiente"
+          },
+          "confidence": {
+            "type": "object",
+            "title": "Confidence",
+            "description": "Confianza y revision requerida"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "total",
+          "limit",
+          "offset",
+          "has_more",
+          "classification",
+          "obligation_notice",
+          "completeness",
+          "verified"
+        ],
+        "title": "ModeloCasillasResponse"
       },
       "ModeloClave": {
         "properties": {

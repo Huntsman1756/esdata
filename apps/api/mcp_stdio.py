@@ -309,11 +309,21 @@ class MCPStdioServer:
                 sujeto = arguments.get("sujeto", "")
                 pais = arguments.get("pais", "")
                 tipo_operacion = arguments.get("tipo_operacion", "")
+                vigente_en = arguments.get("vigente_en")
+                sources = arguments.get("sources")
+                hybrid_weight = arguments.get("hybrid_weight")
+                params = {"q": q, "sujeto": sujeto, "pais": pais, "tipo_operacion": tipo_operacion}
+                if vigente_en:
+                    params["vigente_en"] = vigente_en
+                if sources:
+                    params["sources"] = sources
+                if hybrid_weight is not None:
+                    params["hybrid_weight"] = hybrid_weight
 
                 # Call the actual endpoint
                 result = await self._call_endpoint(
                     "GET", "/v1/consulta",
-                    params={"q": q, "sujeto": sujeto, "pais": pais, "tipo_operacion": tipo_operacion},
+                    params=params,
                 )
                 status_code = result["status_code"]
                 data = result["data"] or {}
@@ -1316,12 +1326,23 @@ class MCPStdioServer:
         else:
             self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
 
+    def _clip_text(self, value: str | None, limit: int) -> str:
+        text = value or ""
+        if len(text) <= limit:
+            return text
+        return f"{text[:limit]} [TRUNCATED: consultar structuredContent/citas para el texto completo]"
+
     def _format_modelos_por_supuesto(self, data: dict) -> str:
         lines = [
             f"Estado: {data.get('status', 'unknown')}",
             f"Verificado: {data.get('verified', False)}",
         ]
         confidence = data.get("confidence") or {}
+        lines.append(f"Revision requerida: {confidence.get('review_required', not data.get('verified', False))}")
+        lines.append(
+            "Limite de uso: responder solo con evidencia devuelta por ESData; "
+            "no afirmar obligatoriedad sin clasificacion confirmado y evidencia explicita."
+        )
         if confidence.get("aviso"):
             lines.append(f"Aviso: {confidence['aviso']}")
         lines.append("")
@@ -1354,6 +1375,8 @@ class MCPStdioServer:
         confianza = data.get("confianza")
         if confianza:
             lines.append(f"Confianza: {confianza.get('nivel_texto', 'N/A')} (nivel: {confianza.get('nivel', 0)})")
+            lines.append(f"  Revision requerida: {confianza.get('review_required', False)}")
+            lines.append("  Limite de uso: responder solo con evidencia devuelta por ESData; no usar conocimiento externo.")
             aviso = confianza.get("aviso")
             if aviso:
                 lines.append(f"  Aviso: {aviso}")
@@ -1363,6 +1386,15 @@ class MCPStdioServer:
             clasificados = confianza.get("resultados_clasificados", {})
             if clasificados:
                 lines.append(f"  Resultados por tipo: {', '.join(f'{k}: {v}' for k, v in clasificados.items())}")
+
+        result_metadata = data.get("result_metadata") or {}
+        if result_metadata:
+            lines.append(
+                "Resultados devueltos: "
+                f"{result_metadata.get('returned_count', data.get('total_resultados', 0))}; "
+                f"truncated={result_metadata.get('truncated', False)}; "
+                f"has_more={result_metadata.get('has_more', False)}"
+            )
 
         lines.append("")
 
@@ -1381,7 +1413,7 @@ class MCPStdioServer:
 
             for inst in modelo.get("instrucciones", []):
                 lines.append(f"  [{inst['seccion'].upper()}] {inst['titulo']}:")
-                lines.append(f"    {inst['contenido'][:500]}")
+                lines.append(f"    {self._clip_text(inst.get('contenido'), 500)}")
             lines.append("")
 
         for resultado in data.get("resultados", []):
@@ -1392,13 +1424,13 @@ class MCPStdioServer:
 
             if resultado["tipo"] == "normativa":
                 lines.append(f"  Normativa: {resultado['norma']} art. {resultado['articulo']}{relevancia_str}")
-                lines.append(f"    {resultado.get('texto', '')[:300]}")
+                lines.append(f"    {self._clip_text(resultado.get('texto'), 300)}")
                 evidencia = resultado.get("evidencia")
                 if evidencia and evidencia.get("motivo_ranking"):
                     lines.append(f"    Motivo: {evidencia['motivo_ranking']}")
             elif resultado["tipo"] == "doctrina":
                 lines.append(f"  Doctrina: {resultado.get('referencia', '')} — {resultado.get('titulo', '')}{relevancia_str}")
-                lines.append(f"    {resultado.get('fragmento', '')[:300]}")
+                lines.append(f"    {self._clip_text(resultado.get('fragmento'), 300)}")
             elif resultado["tipo"] == "obligacion":
                 lines.append(f"  Obligacion: {resultado['nombre']}{relevancia_str}")
                 lines.append(f"    {resultado.get('sujeto', '')} | {resultado.get('periodicidad', '')}")

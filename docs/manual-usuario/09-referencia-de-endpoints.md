@@ -66,7 +66,7 @@ Uso recomendado:
 - `GET /v1/modelos/por-supuesto` — clasifica modelos AEAT candidatos para un supuesto fiscal; no marca modelos como obligatorios sin evidencia explicita
 - `GET /v1/modelos/{codigo}` — detalle completo del modelo
 - `GET /v1/modelos/{codigo}/articulos`
-- `GET /v1/modelos/{codigo}/casillas`
+- `GET /v1/modelos/{codigo}/casillas` — pagina por defecto `limit=200`, maximo `500`; soporta `offset`, `q`, `tipo_casilla` y `pagina`
 - `GET /v1/modelos/{codigo}/claves`
 - `GET /v1/modelos/{codigo}/instrucciones`
 - `GET /v1/modelos/{codigo}/normativa`
@@ -80,6 +80,14 @@ Uso recomendado:
 - usa `/{codigo}` cuando quieras una vista completa
 - usa `/por-supuesto` cuando el agente pregunte por modelos aplicables a un perfil, por ejemplo `sociedad_valores` con clientes residentes/no residentes; tratar `candidato` como no obligatorio hasta verificacion humana/oficial
 - usa endpoints especializados cuando necesites payload mas pequeno o UI mas focalizada
+- para listas grandes, pide `limit` y continua solo si `has_more=true` usando `next_offset`; no trates una pagina como listado completo
+- en `/casillas`, `classification=confirmado` confirma que la casilla/campo existe en el modelo/campana devuelto, no que sea obligatoria para un supuesto concreto
+
+Glosario de clasificacion:
+
+- `confirmado`: hay evidencia explicita suficiente para afirmar la aplicabilidad indicada o la existencia del registro consultado
+- `candidato`: coincidencia plausible, no obligatoria; requiere revision antes de operacionalizar
+- `requiere_verificacion`: evidencia insuficiente o ambigua; no debe usarse para responder como hecho
 
 ## Convenios DTA y retenciones internacionales
 

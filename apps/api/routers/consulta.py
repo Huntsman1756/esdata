@@ -475,7 +475,7 @@ def _score_resultado(r: dict, q: str, expanded_keywords: list[str]) -> dict:
         coincidencia = "sin coincidencia directa de terminos"
 
     rank = r.get("rank")
-    if rank is not None and rank > 0:
+    if terminos_encontrados and rank is not None and rank > 0:
         rank_normalized = min(rank / 5.0, 1.0)
         score = score * 0.6 + rank_normalized * 0.4
 
@@ -1385,6 +1385,19 @@ async def consulta_fiscal(
         modelos=modelos_detalle if modelos_detalle else [],
         resultados=deduped,
         total_resultados=len(deduped),
+        result_metadata={
+            "returned_count": len(deduped),
+            "scored_count": len(scored_results),
+            "pre_abstention_count": len(scored_results),
+            "truncated": len(deduped) < len(scored_results),
+            "has_more": False,
+            "internal_limits": {
+                "doctrina_text_match_limit": 10,
+                "unified_search_limit": 20,
+                "rerank_top_k": RERANK_TOP_K,
+            },
+            "boundary": "Responder solo con evidencia devuelta por ESData; si verified/review_required indican revision, no afirmar obligatoriedad.",
+        },
         relevancia=relevancia,
         confianza=confianza if isinstance(confianza, dict) else None,
         cited_chunks=cited_chunks if cited_chunks else [],

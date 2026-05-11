@@ -247,6 +247,33 @@ def _validate_modelos_por_supuesto(payload: dict[str, Any]) -> tuple[bool, dict[
     return ok, details
 
 
+def _validate_modelo_casillas_pagination(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    casillas = payload.get("casillas") or []
+    confidence = payload.get("confidence") or {}
+    details = {
+        "codigo": payload.get("codigo"),
+        "returned": len(casillas),
+        "total": payload.get("total"),
+        "limit": payload.get("limit"),
+        "offset": payload.get("offset"),
+        "has_more": payload.get("has_more"),
+        "classification": payload.get("classification"),
+        "verified": payload.get("verified"),
+        "review_required": confidence.get("review_required"),
+        "notice": payload.get("obligation_notice"),
+    }
+    ok = (
+        payload.get("codigo") == "100"
+        and payload.get("limit") == 25
+        and payload.get("offset") == 0
+        and len(casillas) <= 25
+        and isinstance(payload.get("total"), int)
+        and "obligatoria" in (payload.get("obligation_notice") or "")
+        and confidence.get("review_required") is True
+    )
+    return ok, details
+
+
 def run_read_only_suite(base_url: str) -> dict[str, Any]:
     base_url = base_url.rstrip("/")
     checks: list[dict[str, Any]] = []
@@ -294,6 +321,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 },
                 _validate_modelos_por_supuesto,
                 "modelos_por_supuesto_sociedad_valores_fail_closed",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/100/casillas",
+                {"limit": 25, "offset": 0},
+                _validate_modelo_casillas_pagination,
+                "modelo_100_casillas_paginated_agent_contract",
             )
         )
 

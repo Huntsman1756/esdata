@@ -135,3 +135,80 @@ def test_stdio_rejects_hidden_unadvertised_dispatch_branches() -> None:
     assert "error" in payload
     assert payload["error"]["code"] == -32601
     assert "Unknown tool" in payload["error"]["message"]
+
+
+def test_stdio_formatter_surfaces_review_boundary_and_truncation() -> None:
+    MCPStdioServer, _, _ = _get_stdio_and_audit_deps()
+    server = MCPStdioServer()
+    output = server._format_response(
+        {
+            "consulta": "consulta test",
+            "total_resultados": 1,
+            "result_metadata": {"returned_count": 1, "truncated": True, "has_more": False},
+            "confianza": {
+                "nivel_texto": "baja",
+                "nivel": 0,
+                "review_required": True,
+                "aviso": "NO VERIFICADO",
+            },
+            "modelos": [
+                {
+                    "codigo": "100",
+                    "nombre": "Modelo 100",
+                    "instrucciones": [
+                        {
+                            "seccion": "test",
+                            "titulo": "Texto largo",
+                            "contenido": "x" * 1000,
+                        }
+                    ],
+                }
+            ],
+            "resultados": [],
+        }
+    )
+
+    assert "Revision requerida: True" in output
+    assert "responder solo con evidencia devuelta por ESData" in output
+    assert "[TRUNCATED:" in output
+
+
+def test_stdio_modelos_por_supuesto_formatter_forbids_obligation_claims() -> None:
+    MCPStdioServer, _, _ = _get_stdio_and_audit_deps()
+    server = MCPStdioServer()
+    output = server._format_modelos_por_supuesto(
+        {
+            "status": "evidence_limited",
+            "verified": False,
+            "confidence": {"review_required": True},
+            "modelos": [
+                {
+                    "codigo": "216",
+                    "clasificacion": "candidato",
+                    "ambito": "clientes_no_residentes",
+                    "condicion_aplicacion": "si hay retenciones IRNR",
+                    "motivo": "coincidencia conservadora",
+                }
+            ],
+        }
+    )
+
+    assert "Revision requerida: True" in output
+    assert "no afirmar obligatoriedad" in output
+
+
+def test_stdio_tool_descriptions_enforce_esdata_evidence_boundary() -> None:
+    from mcp_catalog import get_stdio_tool_definitions
+
+    tools = {tool["name"]: tool for tool in get_stdio_tool_definitions()}
+    consulta_description = tools["consulta_fiscal"]["description"].lower()
+    agente_description = tools["agente_consulta"]["description"].lower()
+
+    assert "no usar conocimiento externo" in consulta_description
+    assert "evidencia" in consulta_description
+    assert "review_required" in consulta_description
+    assert "evidencia" in agente_description
+    assert "review_required" in agente_description
+    assert {"vigente_en", "sources", "hybrid_weight"} <= set(
+        tools["consulta_fiscal"]["inputSchema"]["properties"]
+    )

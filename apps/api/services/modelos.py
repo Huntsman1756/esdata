@@ -337,17 +337,94 @@ def list_modelo_normativa(db, codigo: str):
     ).mappings()
 
 
-def list_campaign_casillas(db, campana_id: int):
-    return db.execute(
-        text(
+def _campaign_casillas_filters(
+    *,
+    campana_id: int,
+    q: str | None = None,
+    tipo_casilla: str | None = None,
+    pagina: int | None = None,
+) -> tuple[str, dict]:
+    where_parts = ["campana_id = :campana_id", "activa = true"]
+    params: dict[str, object] = {"campana_id": campana_id}
+    if q:
+        where_parts.append(
             """
-            SELECT codigo, etiqueta, descripcion, tipo_casilla, pagina, orden
+            (
+                LOWER(codigo) LIKE :q_like
+                OR LOWER(etiqueta) LIKE :q_like
+                OR LOWER(COALESCE(descripcion, '')) LIKE :q_like
+            )
+            """
+        )
+        params["q_like"] = f"%{q.lower()}%"
+    if tipo_casilla:
+        where_parts.append("tipo_casilla = :tipo_casilla")
+        params["tipo_casilla"] = tipo_casilla
+    if pagina is not None:
+        where_parts.append("pagina = :pagina")
+        params["pagina"] = pagina
+    return " AND ".join(where_parts), params
+
+
+def count_campaign_casillas(
+    db,
+    campana_id: int,
+    *,
+    q: str | None = None,
+    tipo_casilla: str | None = None,
+    pagina: int | None = None,
+) -> int:
+    where_clause, params = _campaign_casillas_filters(
+        campana_id=campana_id,
+        q=q,
+        tipo_casilla=tipo_casilla,
+        pagina=pagina,
+    )
+    row = db.execute(
+        text(
+            f"""
+            SELECT COUNT(*) AS total
             FROM modelo_casilla
-            WHERE campana_id = :campana_id AND activa = true
-            ORDER BY orden
+            WHERE {where_clause}
             """
         ),
-        {"campana_id": campana_id},
+        params,
+    ).mappings().first()
+    return int(row["total"]) if row else 0
+
+
+def list_campaign_casillas(
+    db,
+    campana_id: int,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+    q: str | None = None,
+    tipo_casilla: str | None = None,
+    pagina: int | None = None,
+):
+    where_clause, params = _campaign_casillas_filters(
+        campana_id=campana_id,
+        q=q,
+        tipo_casilla=tipo_casilla,
+        pagina=pagina,
+    )
+    pagination_clause = ""
+    if limit is not None:
+        pagination_clause = "LIMIT :limit OFFSET :offset"
+        params["limit"] = limit
+        params["offset"] = offset
+    return db.execute(
+        text(
+            f"""
+            SELECT codigo, etiqueta, descripcion, tipo_casilla, pagina, orden
+            FROM modelo_casilla
+            WHERE {where_clause}
+            ORDER BY COALESCE(orden, 2147483647), codigo
+            {pagination_clause}
+            """
+        ),
+        params,
     ).mappings()
 
 

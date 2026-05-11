@@ -284,6 +284,26 @@ async def test_mcp_tools_list_schema_valid():
 
 
 @pytest.mark.asyncio
+async def test_mcp_get_modelo_casillas_exposes_pagination_filters():
+    async with await _make_client() as c:
+        await _initialize(c)
+        resp = await c.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            headers=MCP_HEADERS,
+        )
+
+    assert resp.status_code == 200
+    tools = {tool["name"]: tool for tool in resp.json()["result"]["tools"]}
+    schema = tools["get_modelo_casillas"]["inputSchema"]
+    properties = schema["properties"]
+
+    assert {"codigo", "campana", "limit", "offset", "q", "tipo_casilla", "pagina"} <= set(properties)
+    assert properties["limit"].get("maximum") == 500
+    assert properties["limit"].get("minimum") == 1
+
+
+@pytest.mark.asyncio
 async def test_mcp_tools_count():
     """2.8 tools/list returns the expected number of http-mcp tools."""
     from mcp_catalog import HTTP_MCP_OPERATIONS

@@ -145,8 +145,13 @@ curl -G -s http://127.0.0.1:8000/v1/modelos/303 --data-urlencode "campana=2025"
 Casillas de un modelo:
 
 ```bash
-curl -G -s http://127.0.0.1:8000/v1/modelos/303/casillas --data-urlencode "campana=2025"
+curl -G -s http://127.0.0.1:8000/v1/modelos/303/casillas \
+  --data-urlencode "campana=2025" \
+  --data-urlencode "limit=50" \
+  --data-urlencode "offset=0"
 ```
+
+Para modelos con muchas casillas, como el modelo 100, no pedir el listado completo en una sola respuesta. Usar `limit`, `offset`, `q`, `tipo_casilla` o `pagina`, y continuar solo si la respuesta trae `has_more=true`.
 
 Vista operativa multi-modelo:
 
