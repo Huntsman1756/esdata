@@ -12,7 +12,7 @@ Classification of all Python files in `apps/workers/`.
 | `embeddings.py` | Embedding generation/management |
 | `vocabulary.py` | Vocabulary definitions and lookup |
 | `vocabulary_validation.py` | Document payload sanitization |
-| `hermes_monitor.py` | Service monitor daemon (runs as `hermes` service) |
+| `scripts/hermes_monitor.py` | Canonical read-only service monitor copied into the worker image as `/app/hermes_monitor.py` for the `hermes` service |
 
 ## TYPE-B: Domain Module (imported by others, no service needed)
 

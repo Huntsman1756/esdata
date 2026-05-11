@@ -367,8 +367,9 @@ Implemented:
 
 Partial/needs cleanup:
 
-- Hermes exists in two implementations: container `apps/workers/hermes_monitor.py`
-  and host/systemd `scripts/hermes_monitor.py`. Their behavior is not identical.
+- Hermes has one canonical implementation: `scripts/hermes_monitor.py`.
+  `apps/workers/Dockerfile.worker` copies it into `/app/hermes_monitor.py` so
+  Docker Compose and host/systemd use the same read-only monitor behavior.
 - Alertmanager config can validate while Telegram delivery still needs an actual
   manual alert proof.
 - `scripts/maintenance/show_dead_letter_queue.py` now uses PostgreSQL boolean
@@ -385,7 +386,8 @@ Critical for honest v1.0 claims:
    If no, keep them marked as backlog/unavailable in manuals.
 2. Normalize worker documentation: only deployed Compose/systemd jobs should be
    claimed as production jobs.
-3. Standardize Hermes implementation for production.
+3. Decide whether unmounted worker modules are v1.0 deployed jobs or backlog,
+   then align worker inventory docs with Compose/systemd.
 
 Resolved in this remediation batch:
 
@@ -397,6 +399,7 @@ Resolved in this remediation batch:
    ownership in revision `20260511_0068_freshness_tables_schema.py`.
 5. The hourly MCP validation suite now includes real `/mcp` transport
    handshake and `tools/list`.
+6. Hermes Docker and host/systemd now use the same canonical monitor script.
 
 Important but not blocking if documented:
 

@@ -138,6 +138,13 @@ def test_hermes_monitor_analyzes_domain_availability_contract(monkeypatch):
     assert analysis["unknown"] == 0
 
 
+def test_worker_image_uses_canonical_hermes_monitor_script():
+    dockerfile = (ROOT / "apps" / "workers" / "Dockerfile.worker").read_text(encoding="utf-8")
+
+    assert "COPY scripts/hermes_monitor.py /app/hermes_monitor.py" in dockerfile
+    assert not (ROOT / "apps" / "workers" / "hermes_monitor.py").exists()
+
+
 def test_mcp_validation_suite_accepts_explicit_empty_domain_contract():
     suite = _load_validation_suite()
 

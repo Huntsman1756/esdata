@@ -21,6 +21,9 @@ RUN sed -i '/esdata_common/d' /tmp/requirements.txt && \
     cp -r /tmp/esdata_common /usr/local/lib/python3.12/site-packages/esdata_common
 
 COPY apps/workers/ /app
+# Hermes is a deployed worker service but its canonical implementation lives
+# with maintenance scripts so host/systemd and Docker use the same monitor.
+COPY scripts/hermes_monitor.py /app/hermes_monitor.py
 
 USER app
 
