@@ -10,6 +10,7 @@ Classification of all Python files in `apps/workers/`.
 | `dead_letter.py` | Dead-letter queue for failed sync entities |
 | `change_detection.py` | Content change detection, revision tracking |
 | `embeddings.py` | Embedding generation/management |
+| `entrypoint.py` | Docker worker entrypoint; executes `WORKER_CMD` |
 | `vocabulary.py` | Vocabulary definitions and lookup |
 | `vocabulary_validation.py` | Document payload sanitization |
 | `scripts/hermes_monitor.py` | Canonical read-only service monitor copied into the worker image as `/app/hermes_monitor.py` for the `hermes` service |
@@ -27,12 +28,12 @@ Classification of all Python files in `apps/workers/`.
 
 ## TYPE-C: Standalone Workers (should have docker-compose service)
 
-### With Docker Service (15 files)
+### With Docker Service (19 files)
 
 | File | Service(s) | Purpose |
 |------|------------|---------|
 | `boe.py` | `worker-boe`, `cron-boe-daily` | BOE legislacion sync |
-| `aeat_models.py` | `worker-aeat`, `cron-modelos-daily` | AEAT portal model discovery |
+| `aeat_models.py` | `worker-modelos`, `cron-modelos-daily` | AEAT portal model discovery |
 | `aeat_current_designs.py` | `cron-aeat-current-daily` | AEAT current 1XX/2XX record designs and 2026 taxpayer calendar |
 | `boe_modelos_worker.py` | `worker-boe-modelos`, `cron-boe-modelos-daily` | BOE->models orchestrator |
 | `dgt.py` | `worker-dgt`, `cron-dgt-weekly` | DGT doctrine scraping |
@@ -51,7 +52,13 @@ Classification of all Python files in `apps/workers/`.
 | `ofac_sdn.py` | `cron-ofac-sdn-weekly` | OFAC SDN official XML sanctions list |
 | `mica.py` | `cron-mica-weekly` | ESMA Interim MiCA Register CASP official CSV |
 
-### Missing Docker Service - NEEDS SERVICE (34 files)
+### Existing Worker Modules Not Deployed In Production (38 files)
+
+These files contain worker-style code, but they are not production jobs in the
+current Compose/systemd wiring. They must stay documented as `not deployed` or
+domain `partial/configured_but_unavailable` until each one has official-source
+ingestion, run-once verification, cron/systemd wiring, rollback/retry evidence
+and MCP/API availability semantics.
 
 | File | Purpose | Priority |
 |------|---------|----------|
@@ -61,6 +68,7 @@ Classification of all Python files in `apps/workers/`.
 | `consumer_credit_real.py` | Consumer Credit real EUR-Lex data | Medium |
 | `corporate_sustainability.py` | CSRD sustainability reports | Medium |
 | `crd_brrd_emir.py` | CRD V/BRRD/EMIR regulations | Medium |
+| `csr.py` | CSRD worker with EUR-Lex + company seed data | Medium |
 | `csdr.py` | CSDR regulation | Medium |
 | `dac8.py` | DAC8 directive | High |
 | `dac8_real.py` | DAC8 real data | High |
@@ -85,8 +93,11 @@ Classification of all Python files in `apps/workers/`.
 | `psd2.py` | PSD2 regulation | Medium |
 | `psd2_eba.py` | PSD2 EBA/BdE registry sync | Medium |
 | `pbc.py` | PBC regulation | Medium |
+| `rirnr.py` | RIRNR BOE consolidated regulation ingestion | High |
+| `screening_real.py` | Multi-list screening worker with unofficial/fallback sources | Medium |
 | `sfdr.py` | SFDR data | Medium |
 | `solvency.py` | Solvency data | Medium |
+| `sustainable_finance.py` | SFDR/sustainable finance worker with seed-backed product data | Medium |
 | `xbrl.py` | XBRL from CNMV | Medium |
 | `xbrl_taxonomy.py` | XBRL taxonomy | Low |
 
@@ -107,3 +118,4 @@ One-shot data loaders with `--run-once` but no `run_sync()`, no heartbeat, no DL
 | `rd2172008.py` | RD 217/2008 |
 | `nrv9.py` | NRV9 |
 | `trlmv.py` | TRLMV |
+| `screening.py` | Development-only fictitious screening data |

@@ -60,8 +60,7 @@ The whole repository is not a clean v1.0 claim yet. The main blockers to an hone
 feature list are:
 
 1. Several router modules define endpoints that are not mounted at runtime.
-2. Stdio MCP has hidden callable branches that are not advertised in `tools/list`.
-3. Several worker modules exist but are not wired in production Compose/systemd.
+2. Several worker modules exist but are not wired in production Compose/systemd.
 4. `docs/database.md` is stale and conflicts with the active table registry and `source_revision` policy.
 5. Some roadmap sections overclaim cron/worker coverage for modules not present in production wiring.
 6. DGT, EUR-Lex, PSD2/EBA, BOE modelos/casillas and some broad regulatory domains remain partial by evidence.
@@ -377,6 +376,10 @@ Partial/needs cleanup:
   needs production execution as part of deploy verification.
 - Public `/metrics` is intended to be blocked externally by Caddy but remains
   an internal API route for Prometheus scraping.
+- `docs/worker-inventory.md` now distinguishes deployed Compose/systemd workers
+  from worker-style modules that are not production jobs. Undeployed worker
+  modules must remain `not deployed`/`partial` until they have official-source
+  ingestion, run-once evidence, cron wiring and availability semantics.
 
 ## v1.0 Blockers And Cleanup List
 
@@ -384,9 +387,7 @@ Critical for honest v1.0 claims:
 
 1. Decide whether unmounted routers are in v1.0. If yes, mount/test/document them.
    If no, keep them marked as backlog/unavailable in manuals.
-2. Normalize worker documentation: only deployed Compose/systemd jobs should be
-   claimed as production jobs.
-3. Decide whether unmounted worker modules are v1.0 deployed jobs or backlog,
+2. Decide whether unmounted worker modules are v1.0 deployed jobs or backlog,
    then align worker inventory docs with Compose/systemd.
 
 Resolved in this remediation batch:
@@ -400,6 +401,9 @@ Resolved in this remediation batch:
 5. The hourly MCP validation suite now includes real `/mcp` transport
    handshake and `tools/list`.
 6. Hermes Docker and host/systemd now use the same canonical monitor script.
+7. Worker inventory documentation now counts the deployed worker list from the
+   actual table rows and classifies all `apps/workers/*.py` files without
+   claiming undeployed modules as production jobs.
 
 Important but not blocking if documented:
 

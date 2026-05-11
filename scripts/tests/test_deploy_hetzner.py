@@ -122,6 +122,27 @@ def _extract_run_once_workers(text: str) -> set[str]:
     return workers
 
 
+def _markdown_table_files(section: str) -> list[str]:
+    return re.findall(r"^\| `([^`]+\.py)` \|", section, flags=re.MULTILINE)
+
+
+def _markdown_heading_count(text: str, heading: str) -> int:
+    match = re.search(rf"^### {re.escape(heading)} \((\d+) files\)", text, flags=re.MULTILINE)
+    assert match is not None, f"missing heading {heading!r}"
+    return int(match.group(1))
+
+
+def _markdown_section(text: str, heading: str) -> str:
+    marker = f"### {heading}"
+    start = text.index(marker)
+    remainder = text[start:]
+    next_heading = re.search(r"\n#{2,6} ", remainder[len(marker) :])
+    if not next_heading:
+        return remainder
+    end = len(marker) + next_heading.start()
+    return remainder[:end]
+
+
 def _service_block(text: str, service: str) -> str:
     marker = f"  {service}:"
     _, remainder = text.split(marker, 1)
@@ -182,6 +203,29 @@ def test_canonical_deploy_worker_set_matches_continuous_compose_workers():
     assert _extract_up_line_workers(server_doc) == expected_workers
     assert _extract_up_line_workers(runbook) == expected_workers
     assert _extract_run_once_workers(server_doc).issuperset(expected_workers)
+
+
+def test_worker_inventory_classifies_all_worker_python_files_and_keeps_counts_current():
+    inventory = _read("docs/worker-inventory.md")
+    worker_files = {
+        path.name
+        for path in (ROOT / "apps" / "workers").glob("*.py")
+        if path.name != "__init__.py"
+    }
+
+    documented_files = set(re.findall(r"`([^`]+\.py)`", inventory))
+    missing = sorted(worker_files - documented_files)
+
+    assert missing == []
+    assert "NEEDS SERVICE" not in inventory
+
+    with_service = _markdown_section(inventory, "With Docker Service")
+    not_deployed = _markdown_section(inventory, "Existing Worker Modules Not Deployed In Production")
+
+    assert _markdown_heading_count(inventory, "With Docker Service") == len(_markdown_table_files(with_service))
+    assert _markdown_heading_count(inventory, "Existing Worker Modules Not Deployed In Production") == len(
+        _markdown_table_files(not_deployed)
+    )
 
 
 def test_server_installation_root_matches_systemd_and_runbook_paths():
