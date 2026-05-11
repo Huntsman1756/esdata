@@ -56,13 +56,17 @@ The core MCP/API product is real: official-source retrieval, AEAT models, BOE le
 doctrine, domain availability, freshness, query audit, deployed workers, validation gates,
 Docker deployment, and GPT Actions are all present.
 
-The whole repository is not a clean v1.0 claim yet. The main blockers to an honest v1.0
-feature list are:
+The whole repository is not a clean v1.0 claim yet. The main constraints on an
+honest v1.0 feature list are:
 
-1. Several router modules define endpoints that are not mounted at runtime.
-2. Several worker modules exist but are not wired in production Compose/systemd.
-3. Some roadmap sections overclaim cron/worker coverage for modules not present in production wiring.
-4. DGT, EUR-Lex, PSD2/EBA, BOE modelos/casillas and some broad regulatory domains remain partial by evidence.
+1. Several router modules define endpoints that are not mounted at runtime; they
+   are v1.0 backlog/unmounted, not public product surface.
+2. Several worker modules exist but are not wired in production Compose/systemd;
+   they are v1.0 backlog/not deployed unless explicitly listed as deployed jobs.
+3. Some older roadmap sections overclaim cron/worker coverage for modules not
+   present in production wiring.
+4. DGT, EUR-Lex, PSD2/EBA, BOE modelos/casillas and some broad regulatory
+   domains remain partial by evidence.
 
 ## Public And Integration Surfaces
 
@@ -384,10 +388,12 @@ Partial/needs cleanup:
 
 Critical for honest v1.0 claims:
 
-1. Decide whether unmounted routers are in v1.0. If yes, mount/test/document them.
-   If no, keep them marked as backlog/unavailable in manuals.
-2. Decide whether unmounted worker modules are v1.0 deployed jobs or backlog,
-   then align worker inventory docs with Compose/systemd.
+1. Do not claim unmounted routers as v1.0 runtime endpoints. They are backlog
+   until mounted, tested, documented in OpenAPI/MCP and validated against real
+   data/availability semantics.
+2. Do not claim undeployed worker modules as v1.0 production jobs. They are
+   backlog until they have official-source ingestion, run-once evidence,
+   Compose/systemd wiring and MCP/API availability semantics.
 
 Resolved in this remediation batch:
 
@@ -403,6 +409,8 @@ Resolved in this remediation batch:
 7. Worker inventory documentation now counts the deployed worker list from the
    actual table rows and classifies all `apps/workers/*.py` files without
    claiming undeployed modules as production jobs.
+8. Manual pages explicitly list all known unmounted routers as backlog rather
+   than available v1.0 endpoints.
 
 Important but not blocking if documented:
 

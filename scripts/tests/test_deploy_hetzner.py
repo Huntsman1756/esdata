@@ -4,6 +4,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = ROOT / "infra" / "deploy" / "docker-compose.prod.yml"
 EXPECTED_EXTERNAL_ENV_FILE = "/etc/esdata/esdata.env"
+KNOWN_UNMOUNTED_ROUTER_PREFIXES = {
+    "/v1/bdns",
+    "/v1/borme",
+    "/v1/sepblac",
+    "/v1/modelos/calendario",
+    "/v1/chunks",
+    "/v1/connectivity",
+    "/v1/irs/modelos",
+    "/v1/ai/risk",
+    "/v1/ai/safety",
+    "/v1/ai/fairness-report",
+    "/v1/gdpr",
+    "/v1/ai/xai",
+}
 
 
 def _read(relative_path: str) -> str:
@@ -235,6 +249,19 @@ def test_v1_inventory_does_not_mark_current_database_doc_as_stale():
     assert "`docs/database.md` is stale" not in inventory
     assert "scripts/ralph/table-remediation-registry.json" in database_doc
     assert "`source_revision` es la tabla canonica" in database_doc
+
+
+def test_manuals_mark_known_unmounted_routers_as_backlog_not_available():
+    surfaces = _read("docs/manual-usuario/03-superficies-disponibles.md")
+    endpoint_ref = _read("docs/manual-usuario/09-referencia-de-endpoints.md")
+    inventory = _read("docs/reference/v1-feature-inventory.md")
+
+    for prefix in sorted(KNOWN_UNMOUNTED_ROUTER_PREFIXES):
+        assert prefix in surfaces
+        assert prefix in endpoint_ref
+
+    assert "backlog/unmounted" in inventory
+    assert "Manual pages explicitly list all known unmounted routers as backlog" in inventory
 
 
 def test_server_installation_root_matches_systemd_and_runbook_paths():

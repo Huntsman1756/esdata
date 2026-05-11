@@ -45,10 +45,11 @@ Dominios y prefijos relevantes montados en la API:
 - `/v1/data`
 
 Nota de estado: existen routers definidos en codigo para `/v1/bdns`, `/v1/borme`,
-`/v1/sepblac`, `/v1/chunks`, `/v1/connectivity`, AI risk/fairness, GDPR y XAI,
-pero no estan montados en `apps/api/main.py` en la superficie activa v1.0. No
-deben documentarse como disponibles hasta cablearlos, probarlos y exponerlos en
-OpenAPI/MCP.
+`/v1/sepblac`, `/v1/modelos/calendario`, `/v1/chunks`, `/v1/connectivity`,
+`/v1/irs/modelos`, `/v1/ai/risk`, `/v1/ai/safety`, `/v1/ai/fairness-report`,
+`/v1/gdpr` y `/v1/ai/xai`, pero no estan montados en `apps/api/main.py` en la
+superficie activa v1.0. No deben documentarse como disponibles hasta cablearlos,
+probarlos y exponerlos en OpenAPI/MCP.
 
 Algunos endpoints funcionales especialmente importantes hoy:
 
