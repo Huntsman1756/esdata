@@ -107,3 +107,18 @@ Local verification:
 Learnings:
 - Network assertions must be derived from Compose profile metadata so new scheduled services are covered automatically.
 Next: A-04
+
+=== Iteration 7 - 2026-05-11T20:17:00+02:00 ===
+Story: A-04 Smoke test all persistent workers
+Verification run: VPS docker compose run --rm on each persistent worker's cron-equivalent run-once service.
+Result: PASS-WITH-CAVEAT
+Root cause: the PRD smoke command `docker compose run worker-* --run-once` is invalid for this Dockerfile because it replaces the container command with a binary named `--run-once`. The real architecture passes run-once through WORKER_CMD in cron-equivalent services.
+Fix applied: no code change; used the correct smoke method for this Compose architecture.
+Production verification:
+- Tested cron equivalents for persistent workers: cron-aepd-weekly, cron-bde-weekly, cron-bdns-weekly, cron-boe-daily, cron-boe-modelos-daily, cron-borme-weekly, cron-cdi-weekly, cron-cendoj-weekly, cron-cnmv-weekly, cron-dgt-weekly, cron-eurlex-weekly, cron-modelos-daily, cron-sepblac-weekly, cron-teac-weekly.
+- Exit 0: 14/14.
+- CNMV needed a longer timeout than 300s; with 1200s it completed: URLs discovered 72, documents processed 72, stored 0, exit 0.
+- Observed upstream responses from official sources: AEAT, BOE, BDE, BDNS, BORME, CENDOJ, CNMV/BOE PDFs, DGT, EUR-Lex, SEPBLAC, TEAC.
+Warnings:
+- The smoke method should be documented as cron-equivalent services, not direct `--run-once` args on persistent worker services.
+Next: A-05
