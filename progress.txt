@@ -15,3 +15,23 @@ Learnings:
 - Weekly cron workers must be listed explicitly in WORKER_THRESHOLDS_HOURS; otherwise healthy weekly jobs alert after 25h.
 - DB retry coverage must include cron-specific scripts, not only persistent worker services.
 Next: P-02
+
+=== Iteration 2 - 2026-05-11T19:28:00+02:00 ===
+Story: P-02 Diagnose and fix official-regulatory-references stale alert
+Verification run: local focused pytest, VPS deploy, manual cron run, network inspect, /status, /metrics, Alertmanager query.
+Result: PASS
+Root cause: official-regulatory-references existed as a worker script and had historical sync_log rows, but it was not deployed as a Compose cron service or systemd timer, so it could not refresh on schedule. It also lacked ensure_database_connection(), leaving it exposed to Docker DNS churn before sync_log writes.
+Fix applied: added DB retry guard, a weekly /status freshness threshold, a profiled Compose cron service, and esdata-official-regulatory-references-weekly.timer.
+Production verification:
+- VPS branch/head: fix/full-audit-stale-workers @ e1b39b5.
+- Docker rebuild: api and official-regulatory-references built; api recreated and /health returned ok.
+- Timer: esdata-official-regulatory-references-weekly.timer enabled and active; next run Wed 2026-05-13 11:20 Europe/Madrid.
+- Manual run: sync_log count moved BEFORE=2 AFTER=3; latest row id=521, status=ok, documentos_processed=49, documentos_upserted=49, errors=0.
+- Ephemeral container network: ["deploy_esdata-internal"].
+- /status: workers["official-regulatory-references"].stale=false.
+- /metrics: worker_stale_status{worker="official-regulatory-references"} 0.0.
+- Alertmanager: amtool query alertname=WorkerSilent returned no active alerts.
+Learnings:
+- Non-cron-prefixed scheduled services still need explicit tests because generic cron inventory only covered service names starting with cron-.
+- psql inside docker compose exec consumes SSH stdin unless stdin is redirected; use exec -T ... < /dev/null for remote scripted verification.
+Next: P-03

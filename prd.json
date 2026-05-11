@@ -10,7 +10,7 @@
       "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; BEFORE=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM sync_log WHERE worker='cron-psd2-weekly'\"); $COMPOSE run --rm cron-psd2-weekly 2>&1 | tail -20; AFTER=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM sync_log WHERE worker='cron-psd2-weekly'\"); [ \"$AFTER\" -gt \"$BEFORE\" ] && echo PASS || echo FAIL-NO-SYNC-ENTRY"
     },
-    {"id": "P-02", "title": "Diagnose and fix official-regulatory-references stale alert", "priority": 2, "phase": "production-fire", "passes": false},
+    {"id": "P-02", "title": "Diagnose and fix official-regulatory-references stale alert", "priority": 2, "phase": "production-fire", "passes": true},
     {"id": "P-03", "title": "Diagnose and fix cron-pgc-boe-monthly stale alert", "priority": 3, "phase": "production-fire", "passes": false},
     {"id": "A-01", "title": "Full worker inventory - ensure_database_connection coverage", "priority": 4, "phase": "audit", "passes": false},
     {"id": "A-02", "title": "Verify all systemd timers exist and match cron services", "priority": 5, "phase": "audit", "passes": false},
