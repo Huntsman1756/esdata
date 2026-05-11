@@ -1,9 +1,16 @@
 === Iteration 1 - 2026-05-11T19:40:00+02:00 ===
 Story: P-01 Diagnose and fix cron-psd2-weekly stale alert
 Verification run: local focused pytest and VPS manual cron run with sync_log before/after.
-Result: PASS pending production deploy verification in this iteration.
+Result: PASS
 Root cause: cron-psd2-weekly is a weekly timer, but /status had no explicit threshold for it, so it fell back to the 25h default and exported worker_stale_status=1 after a successful weekly run. psd2_eba.py also lacked ensure_database_connection(), leaving it exposed to known Docker DNS churn before writing sync_log.
 Fix applied: added cron-psd2-weekly to weekly thresholds and added ensure_database_connection(engine) before PSD2 sync work.
+Production verification:
+- VPS branch/head: fix/full-audit-stale-workers @ 9c0fd2e.
+- Docker rebuild: api and cron-psd2-weekly built; api recreated and /health returned ok.
+- Manual run: sync_log count moved BEFORE=2 AFTER=3; latest row id=519, status=ok, rows_processed=11.
+- /status: workers["cron-psd2-weekly"].stale=false.
+- /metrics: worker_stale_status{worker="cron-psd2-weekly"} 0.0.
+- Alertmanager: amtool query alertname=WorkerSilent returned no active alerts.
 Learnings:
 - Weekly cron workers must be listed explicitly in WORKER_THRESHOLDS_HOURS; otherwise healthy weekly jobs alert after 25h.
 - DB retry coverage must include cron-specific scripts, not only persistent worker services.
