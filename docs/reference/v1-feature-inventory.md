@@ -155,8 +155,11 @@ Important limitation:
   contracts and the real `/mcp` transport handshake + `tools/list` for the
   required v1.0 MCP tools.
 - Large/list contracts are paginated for agent clients: `get_modelo` embeds only
-  one `casillas` page (`casillas_limit`/`casillas_offset`), `get_modelo_casillas`
-  exposes `limit`/`offset`, `list_articulos` exposes `limit`/`offset`, and
+  one `casillas` page (`casillas_limit`/`casillas_offset`) and bounded related
+  lists (`related_limit`, `articulos_offset`, `*_total`, `*_has_more` where
+  applicable), `get_modelo_casillas`, `list_modelos`, `list_legislacion`,
+  `get_modelo_articulos`, `get_modelo_claves`, `get_modelo_instrucciones`,
+  DTA list tools and `listar_workflow_compliance` expose `limit`/`offset`, and
   `listar_obligaciones_aplicables` exposes `limite`/`offset` plus
   `status`/`verified`/`confidence` so an empty applicable set is not interpreted
   as "no obligations exist".
@@ -213,9 +216,11 @@ It exposes 14 paths:
 - `/v1/modelos/por-supuesto`
 
 `/v1/modelos/{codigo}` now exposes `casillas_total`, `casillas_limit`,
-`casillas_offset`, `casillas_has_more` and `casillas_next_offset`. Actions
-clients must page through casillas instead of asking the model to summarize a
-multi-thousand-field response in one turn.
+`casillas_offset`, `casillas_has_more`, `casillas_next_offset`,
+`articulos_total`, `articulos_limit`, `articulos_has_more`, `claves_total`,
+`instrucciones_total` and `normativa_total`. Actions clients must page through
+large lists instead of asking the model to summarize a multi-thousand-field
+response in one turn.
 
 Auth: `ApiKeyAuth`, header `X-API-Key`.
 

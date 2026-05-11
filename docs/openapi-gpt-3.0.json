@@ -413,6 +413,35 @@
         "summary": "List AEAT tax models",
         "description": "List all AEAT tax form models (100, 303, 111, etc.) with their linked article counts and active campaign box counts.",
         "operationId": "list_modelos",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -433,7 +462,7 @@
           "modelos"
         ],
         "summary": "Get AEAT model details",
-        "description": "Get details for a specific AEAT tax model including linked legislation articles, a paginated page of active campaign boxes (casillas), key codes (claves), step-by-step instructions, regulatory framework (normativa), and related doctrine. Use casillas_limit/casillas_offset or /v1/modelos/{codigo}/casillas when all boxes are needed.",
+        "description": "Get details for a specific AEAT tax model including linked legislation articles, a paginated page of active campaign boxes (casillas), key codes (claves), step-by-step instructions, regulatory framework (normativa), and related doctrine. Use casillas_limit/casillas_offset or /v1/modelos/{codigo}/casillas when all boxes are needed. Use related_limit and articulos_offset for bounded related lists, and continue only when the returned metadata indicates more results.",
         "operationId": "get_modelo",
         "parameters": [
           {
@@ -482,6 +511,33 @@
               "title": "Casillas Offset"
             },
             "description": "Offset de casillas incluidas."
+          },
+          {
+            "name": "related_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano maximo para listas relacionadas incluidas: articulos, claves, instrucciones y normativa.",
+              "default": 100,
+              "title": "Related Limit"
+            },
+            "description": "Tamano maximo para listas relacionadas incluidas: articulos, claves, instrucciones y normativa."
+          },
+          {
+            "name": "articulos_offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de articulos incluidos.",
+              "default": 0,
+              "title": "Articulos Offset"
+            },
+            "description": "Offset de articulos incluidos."
           }
         ],
         "responses": {
@@ -725,11 +781,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Return only tables with zero live rows.",
+              "description": "Return only tables that are not safe to answer from directly.",
               "default": false,
               "title": "Only Empty"
             },
-            "description": "Return only tables with zero live rows."
+            "description": "Return only tables that are not safe to answer from directly."
           },
           {
             "name": "status",
@@ -1543,6 +1599,12 @@
             "title": "Campanas",
             "description": "Campañas disponibles"
           },
+          "campanas_total": {
+            "type": "integer",
+            "title": "Campanas Total",
+            "description": "Total de campanas disponibles",
+            "default": 0
+          },
           "articulos": {
             "items": {
               "$ref": "#/components/schemas/ModeloArticulo"
@@ -1550,6 +1612,35 @@
             "type": "array",
             "title": "Articulos",
             "description": "Artículos de ley vinculados"
+          },
+          "articulos_total": {
+            "type": "integer",
+            "title": "Articulos Total",
+            "description": "Total de articulos vinculados disponibles",
+            "default": 0
+          },
+          "articulos_limit": {
+            "type": "integer",
+            "title": "Articulos Limit",
+            "description": "Limite aplicado a articulos en esta respuesta",
+            "default": 0
+          },
+          "articulos_offset": {
+            "type": "integer",
+            "title": "Articulos Offset",
+            "description": "Offset aplicado a articulos en esta respuesta",
+            "default": 0
+          },
+          "articulos_has_more": {
+            "type": "boolean",
+            "title": "Articulos Has More",
+            "description": "Si hay mas articulos disponibles",
+            "default": false
+          },
+          "articulos_next_offset": {
+            "type": "integer",
+            "title": "Articulos Next Offset",
+            "description": "Offset para continuar articulos"
           },
           "casillas": {
             "items": {
@@ -1596,6 +1687,12 @@
             "title": "Claves",
             "description": "Claves de la campaña activa"
           },
+          "claves_total": {
+            "type": "integer",
+            "title": "Claves Total",
+            "description": "Total de claves disponibles",
+            "default": 0
+          },
           "instrucciones": {
             "items": {
               "$ref": "#/components/schemas/ModeloInstruccion"
@@ -1603,6 +1700,12 @@
             "type": "array",
             "title": "Instrucciones",
             "description": "Instrucciones"
+          },
+          "instrucciones_total": {
+            "type": "integer",
+            "title": "Instrucciones Total",
+            "description": "Total de instrucciones disponibles",
+            "default": 0
           },
           "normativa": {
             "items": {
@@ -1612,6 +1715,12 @@
             "title": "Normativa",
             "description": "Normativa BOE"
           },
+          "normativa_total": {
+            "type": "integer",
+            "title": "Normativa Total",
+            "description": "Total de referencias normativas disponibles",
+            "default": 0
+          },
           "doctrina_relacionada": {
             "items": {
               "$ref": "#/components/schemas/DoctrinaRelacionada"
@@ -1619,6 +1728,12 @@
             "type": "array",
             "title": "Doctrina Relacionada",
             "description": "Doctrina relacionada vía artículos"
+          },
+          "doctrina_relacionada_total": {
+            "type": "integer",
+            "title": "Doctrina Relacionada Total",
+            "description": "Total de doctrina relacionada devuelta",
+            "default": 0
           },
           "completeness": {
             "type": "string",
@@ -1908,6 +2023,26 @@
             },
             "type": "array",
             "title": "Modelos"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
           }
         },
         "type": "object",

@@ -61,8 +61,14 @@ def infer_query_audit_tool_name(path: str) -> str:
         return path.split("/mcp/tools/")[-1] or "unknown"
     if path.startswith("/v1/consulta"):
         return "consulta_fiscal"
-    if path.startswith("/v1/obligaciones/"):
+    if path.startswith("/v1/obligaciones/aplicables"):
+        return "listar_obligaciones_aplicables"
+    if path.startswith("/v1/obligaciones/deadlines"):
+        return "listar_deadlines"
+    if path.startswith("/v1/obligaciones/operativas"):
         return "listar_obligaciones_operativas"
+    if path.startswith("/v1/obligaciones/"):
+        return "get_obligacion"
     if path.startswith("/v1/legislacion/buscar"):
         return "buscar"
     if path.startswith("/v1/legislacion/"):

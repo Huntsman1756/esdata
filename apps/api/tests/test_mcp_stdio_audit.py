@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -50,6 +51,64 @@ def _invoke_stdio_tool(tool_name: str, arguments: dict) -> dict:
 
 def _entry_by_path(entries: list, path: str):
     return next(entry for entry in entries if entry.path == path)
+
+
+class _ChunkedMCPInput:
+    def __init__(self, data: bytes, chunk_size: int = 7):
+        self._data = data
+        self._pos = 0
+        self._chunk_size = chunk_size
+
+    async def receive_line(self) -> bytes:
+        if self._pos >= len(self._data):
+            return b""
+        newline_pos = self._data.find(b"\n", self._pos)
+        if newline_pos == -1:
+            line = self._data[self._pos :]
+            self._pos = len(self._data)
+            return line
+        end = newline_pos + 1
+        line = self._data[self._pos : end]
+        self._pos = end
+        return line
+
+    async def receive_some(self, max_bytes: int) -> bytes:
+        if self._pos >= len(self._data):
+            return b""
+        take = min(max_bytes, self._chunk_size, len(self._data) - self._pos)
+        chunk = self._data[self._pos : self._pos + take]
+        self._pos += take
+        return chunk
+
+
+def test_stdio_parser_consumes_canonical_headers_and_chunked_body() -> None:
+    MCPStdioServer, _, _ = _get_stdio_and_audit_deps()
+    server = MCPStdioServer()
+    message = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+    body = json.dumps(message).encode("utf-8")
+    framed = (
+        b"Content-Length: "
+        + str(len(body)).encode("ascii")
+        + b"\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n"
+        + body
+    )
+
+    parsed = anyio.run(server._read_message, _ChunkedMCPInput(framed, chunk_size=5))
+
+    assert parsed == message
+
+
+def test_stdio_parser_rejects_malformed_headers_without_stack_trace() -> None:
+    MCPStdioServer, _, _ = _get_stdio_and_audit_deps()
+    server = MCPStdioServer()
+    framed = b"Content-Length: 2\r\nNot-A-Header\r\n\r\n{}"
+
+    try:
+        anyio.run(server._read_message, _ChunkedMCPInput(framed))
+    except ValueError as exc:
+        assert "Malformed MCP stdio header" in str(exc)
+    else:
+        raise AssertionError("Malformed MCP header was accepted")
 
 
 def test_stdio_consulta_persists_correlated_audit_entries_with_real_request_id() -> None:

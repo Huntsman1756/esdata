@@ -35,8 +35,12 @@ def _record_legislacion_query_audit(
 
 
 @router.get("", operation_id="list_legislacion")
-async def list_legislacion():
+async def list_legislacion(
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
+):
     with db_session() as db:
+        total = int(db.execute(text("SELECT COUNT(*) FROM norma")).scalar() or 0)
         rows = db.execute(
             text(
                 """
@@ -44,8 +48,10 @@ async def list_legislacion():
                        estado_cobertura, boe_id, eli_uri
                 FROM norma
                 ORDER BY codigo
+                LIMIT :limit OFFSET :offset
                 """
-            )
+            ),
+            {"limit": limit, "offset": offset},
         ).mappings()
     # Enrich each norma with per-item provenance (boe_reference + eli_uri)
     # so consumers don't need to round-trip to /{codigo} for citation data.
@@ -55,7 +61,15 @@ async def list_legislacion():
         item["boe_reference"] = item.pop("boe_id", None)
         # eli_uri stays as-is (already in select)
         result.append(item)
-    return {"normas": result}
+    has_more = offset + len(result) < total
+    return {
+        "normas": result,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": has_more,
+        "next_offset": offset + len(result) if has_more else None,
+    }
 
 
 @router.get("/cobertura")

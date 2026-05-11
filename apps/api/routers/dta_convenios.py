@@ -38,6 +38,8 @@ async def listar_reglas_retencion(
     ),
     pais: str | None = Query(None, description="Pais aplicable (codigo ISO)"),
     estado: str = Query("activo", description="Estado: activo, inactivo"),
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
     filters = ["1=1"]
     params: dict = {}
@@ -62,9 +64,10 @@ async def listar_reglas_retencion(
                 FROM irs_withholding_rule
                 WHERE {where_clause}
                 ORDER BY tipo_renta ASC, pais_aplicable ASC NULLS LAST
+                LIMIT :limit OFFSET :offset
                 """.format(where_clause=" AND ".join(filters))
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
 
         reglas = [dict(row) for row in rows]
@@ -80,7 +83,15 @@ async def listar_reglas_retencion(
             params,
         ).scalar()
 
-        return {"reglas": reglas, "total": total}
+        has_more = offset + len(reglas) < total
+        return {
+            "reglas": reglas,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(reglas) if has_more else None,
+        }
 
 
 @router.get(
@@ -135,6 +146,8 @@ async def listar_convenios_dta(
     pais_b: str | None = Query(None, description="Pais destino (codigo ISO)"),
     estado: str = Query("vigente", description="Estado: vigente, expirado, modificado"),
     tipo_acuerdo: str | None = Query(None, description="Tipo: bilateral, multilateral"),
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
     filters = ["1=1"]
     params: dict = {}
@@ -163,9 +176,10 @@ async def listar_convenios_dta(
                 FROM irs_dta_convention
                 WHERE {where_clause}
                 ORDER BY pais_origen ASC, pais_destino ASC
+                LIMIT :limit OFFSET :offset
                 """.format(where_clause=" AND ".join(filters))
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
 
         convenios = []
@@ -187,7 +201,15 @@ async def listar_convenios_dta(
             params,
         ).scalar()
 
-        return {"convenios": convenios, "total": total}
+        has_more = offset + len(convenios) < total
+        return {
+            "convenios": convenios,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(convenios) if has_more else None,
+        }
 
 
 @router.get(

@@ -166,22 +166,61 @@ class MCPStdioServer:
         sys.stdout.write(f"Content-Length: {len(payload.encode('utf-8'))}\r\n\r\n{payload}")
         sys.stdout.flush()
 
+    async def _read_exact(self, stream, content_length: int) -> bytes:
+        chunks: list[bytes] = []
+        remaining = content_length
+        while remaining > 0:
+            chunk = await stream.receive_some(remaining)
+            if not chunk:
+                raise EOFError("stdin closed while reading MCP payload")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        return b"".join(chunks)
+
+    async def _read_message(self, stream) -> dict[str, Any] | None:
+        raw_line = await stream.receive_line()
+        if not raw_line:
+            raise EOFError("stdin closed")
+
+        line = raw_line.decode("utf-8").strip("\r\n")
+        if not line:
+            return None
+
+        if line.lower().startswith("content-length:"):
+            headers: dict[str, str] = {}
+            name, value = line.split(":", 1)
+            headers[name.strip().lower()] = value.strip()
+            while True:
+                raw_header = await stream.receive_line()
+                if raw_header in {b"\r\n", b"\n", b""}:
+                    break
+                header_line = raw_header.decode("utf-8").strip("\r\n")
+                if not header_line:
+                    break
+                if ":" not in header_line:
+                    raise ValueError(f"Malformed MCP stdio header: {header_line}")
+                h_name, h_value = header_line.split(":", 1)
+                headers[h_name.strip().lower()] = h_value.strip()
+
+            content_length = int(headers["content-length"])
+            raw = await self._read_exact(stream, content_length)
+            return json.loads(raw.decode("utf-8"))
+
+        return json.loads(line.strip())
+
     async def run(self):
         try:
             stdin_raw = anyio.wrap_socket(sys.stdin.detach())
             while True:
-                raw_line = await stdin_raw.receive_line()
-                line = raw_line.decode("utf-8")
-                if not line:
+                try:
+                    message = await self._read_message(stdin_raw)
+                except EOFError:
                     break
-
-                # Parse content-length header
-                if "Content-Length:" in line:
-                    content_length = int(line.split(":")[1].strip())
-                    raw = await stdin_raw.receive_some(content_length)
-                    message = json.loads(raw.decode("utf-8"))
-                else:
-                    message = json.loads(line.strip())
+                except (json.JSONDecodeError, KeyError, ValueError) as exc:
+                    self._send_error(None, -32700, f"Parse error: {exc}")
+                    continue
+                if message is None:
+                    continue
 
                 msg_type = message.get("method", "")
                 msg_id = message.get("id")

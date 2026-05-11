@@ -161,7 +161,9 @@ OPERATION_OVERRIDES = {
             "Get details for a specific AEAT tax model including linked legislation articles, "
             "a paginated page of active campaign boxes (casillas), key codes (claves), "
             "step-by-step instructions, regulatory framework (normativa), and related doctrine. "
-            "Use casillas_limit/casillas_offset or /v1/modelos/{codigo}/casillas when all boxes are needed."
+            "Use casillas_limit/casillas_offset or /v1/modelos/{codigo}/casillas when all boxes are needed. "
+            "Use related_limit and articulos_offset for bounded related lists, and continue only when "
+            "the returned metadata indicates more results."
         ),
     },
     "get_modelo_casillas": {

@@ -262,10 +262,16 @@ async def get_modelos_por_supuesto(
 
 
 @router.get("", operation_id="list_modelos", response_model=ModelosListResponse)
-async def list_modelos():
+async def list_modelos(
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
+):
     """Lista todos los modelos AEAT disponibles."""
     with db_session() as db:
-        rows = list_modelos_summary(db)
+        all_rows = list(list_modelos_summary(db))
+        rows = all_rows[offset : offset + limit]
+        total = len(all_rows)
+        has_more = offset + len(rows) < total
 
         return {
             "modelos": [
@@ -280,7 +286,12 @@ async def list_modelos():
                     "casillas_count": row["casillas_count"],
                 }
                 for row in rows
-            ]
+            ],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(rows) if has_more else None,
         }
 
 
@@ -382,6 +393,13 @@ async def get_modelo(
         description="Tamano de pagina para casillas incluidas. Use /casillas para navegar el listado completo.",
     ),
     casillas_offset: int = Query(0, ge=0, description="Offset de casillas incluidas."),
+    related_limit: int = Query(
+        100,
+        ge=1,
+        le=500,
+        description="Tamano maximo para listas relacionadas incluidas: articulos, claves, instrucciones y normativa.",
+    ),
+    articulos_offset: int = Query(0, ge=0, description="Offset de articulos incluidos."),
 ):
     """
     Detalle de un modelo con artículos, casillas, claves, instrucciones,
@@ -403,7 +421,9 @@ async def get_modelo(
         campana_id = camp_row["id"] if camp_row else None
         campana_activa = camp_row["campana"] if camp_row else None
 
-        art_rows = list_modelo_articulos(db, codigo)
+        all_art_rows = list(list_modelo_articulos(db, codigo))
+        art_rows = all_art_rows[articulos_offset : articulos_offset + related_limit]
+        articulos_total = len(all_art_rows)
 
         articulos = [
             {
@@ -436,13 +456,21 @@ async def get_modelo(
 
         claves = []
         if campana_id:
-            clav_rows = list_campaign_claves(db, campana_id)
+            all_clav_rows = list(list_campaign_claves(db, campana_id))
+            clav_rows = all_clav_rows[:related_limit]
             claves = [dict(r) for r in clav_rows]
+            claves_total = len(all_clav_rows)
+        else:
+            claves_total = 0
 
         instrucciones = []
         if campana_id:
-            instr_rows = list_campaign_instructions(db, campana_id)
+            all_instr_rows = list(list_campaign_instructions(db, campana_id))
+            instr_rows = all_instr_rows[:related_limit]
             instrucciones = [dict(r) for r in instr_rows]
+            instrucciones_total = len(all_instr_rows)
+        else:
+            instrucciones_total = 0
 
         operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
         estado_metadato = (
@@ -451,7 +479,8 @@ async def get_modelo(
             else None
         )
 
-        norm_rows = list_modelo_normativa(db, codigo)
+        all_norm_rows = list(list_modelo_normativa(db, codigo))
+        norm_rows = all_norm_rows[:related_limit]
         normativa = [
             {
                 **dict(r),
@@ -460,7 +489,8 @@ async def get_modelo(
             for r in norm_rows
         ]
 
-        camp_rows = list_modelo_campanas(db, codigo)
+        all_camp_rows = list(list_modelo_campanas(db, codigo))
+        camp_rows = all_camp_rows[:related_limit]
         campanas = [dict(r) for r in camp_rows]
         doctrina_relacionada = list_related_doctrina(db, articulos)
         completeness, verified = build_modelo_truth_contract(
@@ -477,7 +507,17 @@ async def get_modelo(
             "url_info": model_row["url_info"],
             "campana_activa": campana_activa,
             "campanas": campanas,
+            "campanas_total": len(all_camp_rows),
             "articulos": articulos,
+            "articulos_total": articulos_total,
+            "articulos_limit": related_limit,
+            "articulos_offset": articulos_offset,
+            "articulos_has_more": articulos_offset + len(articulos) < articulos_total,
+            "articulos_next_offset": (
+                articulos_offset + len(articulos)
+                if articulos_offset + len(articulos) < articulos_total
+                else None
+            ),
             "casillas": casillas,
             "casillas_total": casillas_total,
             "casillas_limit": casillas_limit,
@@ -485,9 +525,13 @@ async def get_modelo(
             "casillas_has_more": casillas_has_more,
             "casillas_next_offset": casillas_next_offset,
             "claves": claves,
+            "claves_total": claves_total,
             "instrucciones": instrucciones,
+            "instrucciones_total": instrucciones_total,
             "normativa": normativa,
+            "normativa_total": len(all_norm_rows),
             "doctrina_relacionada": doctrina_relacionada,
+            "doctrina_relacionada_total": len(doctrina_relacionada),
             "completeness": completeness,
             "verified": verified,
         }
@@ -532,7 +576,11 @@ async def get_modelo(
 
 
 @router.get("/{codigo}/articulos", operation_id="get_modelo_articulos")
-async def get_modelo_articulos(codigo: str):
+async def get_modelo_articulos(
+    codigo: str,
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
+):
     """Solo artículos enlazados a un modelo (para filtros/paginación futura)."""
     with db_session() as db:
         model_row = get_model_row(db, codigo)
@@ -542,7 +590,10 @@ async def get_modelo_articulos(codigo: str):
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
 
-        rows = list_modelo_articulos(db, codigo)
+        all_rows = list(list_modelo_articulos(db, codigo))
+        rows = all_rows[offset : offset + limit]
+        total = len(all_rows)
+        has_more = offset + len(rows) < total
 
         return {
             "codigo": codigo,
@@ -558,6 +609,11 @@ async def get_modelo_articulos(codigo: str):
                 }
                 for row in rows
             ],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(rows) if has_more else None,
         }
 
 
@@ -704,7 +760,10 @@ async def get_modelo_casillas(
 )
 async def get_modelo_claves(
     request: Request,
-    codigo: str, campana: str = Query(None, description="Campana especifica")
+    codigo: str,
+    campana: str = Query(None, description="Campana especifica"),
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
     """Lista todas las claves de un modelo para una campaña."""
     with db_session() as db:
@@ -717,7 +776,15 @@ async def get_modelo_claves(
         camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
-            payload = {"codigo": codigo, "claves": []}
+            payload = {
+                "codigo": codigo,
+                "claves": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "has_more": False,
+                "next_offset": None,
+            }
             completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             _record_modelo_query_audit(
                 request,
@@ -733,11 +800,19 @@ async def get_modelo_claves(
             return payload
 
         campana_id = camp_row["id"]
-        rows = list_campaign_claves(db, campana_id)
+        all_rows = list(list_campaign_claves(db, campana_id))
+        rows = all_rows[offset : offset + limit]
+        total = len(all_rows)
+        has_more = offset + len(rows) < total
 
         payload = {
             "codigo": codigo,
             "claves": [dict(r) for r in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(rows) if has_more else None,
         }
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(
@@ -770,7 +845,10 @@ async def get_modelo_claves(
 )
 async def get_modelo_instrucciones(
     request: Request,
-    codigo: str, campana: str = Query(None, description="Campana especifica")
+    codigo: str,
+    campana: str = Query(None, description="Campana especifica"),
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
     """Lista las instrucciones de un modelo para una campaña."""
     with db_session() as db:
@@ -783,7 +861,15 @@ async def get_modelo_instrucciones(
         camp_row = get_active_campaign(db, codigo, campana)
 
         if not camp_row:
-            payload = {"codigo": codigo, "instrucciones": []}
+            payload = {
+                "codigo": codigo,
+                "instrucciones": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "has_more": False,
+                "next_offset": None,
+            }
             completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             _record_modelo_query_audit(
                 request,
@@ -799,11 +885,19 @@ async def get_modelo_instrucciones(
             return payload
 
         campana_id = camp_row["id"]
-        rows = list_campaign_instructions(db, campana_id)
+        all_rows = list(list_campaign_instructions(db, campana_id))
+        rows = all_rows[offset : offset + limit]
+        total = len(all_rows)
+        has_more = offset + len(rows) < total
 
         payload = {
             "codigo": codigo,
             "instrucciones": [dict(r) for r in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(rows) if has_more else None,
         }
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         _record_modelo_query_audit(

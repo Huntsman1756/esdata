@@ -297,6 +297,54 @@ def _validate_modelo_casillas_pagination(payload: dict[str, Any]) -> tuple[bool,
     return ok, details
 
 
+def _validate_modelo_detail_bounded(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    details = {
+        "codigo": payload.get("codigo"),
+        "casillas_returned": len(payload.get("casillas") or []),
+        "casillas_total": payload.get("casillas_total"),
+        "casillas_limit": payload.get("casillas_limit"),
+        "articulos_returned": len(payload.get("articulos") or []),
+        "articulos_total": payload.get("articulos_total"),
+        "articulos_limit": payload.get("articulos_limit"),
+        "articulos_has_more": payload.get("articulos_has_more"),
+    }
+    ok = (
+        payload.get("codigo") == "100"
+        and payload.get("casillas_limit") == 25
+        and len(payload.get("casillas") or []) <= 25
+        and isinstance(payload.get("casillas_total"), int)
+        and payload.get("articulos_limit") == 10
+        and len(payload.get("articulos") or []) <= 10
+        and isinstance(payload.get("articulos_total"), int)
+        and "articulos_has_more" in payload
+        and "articulos_next_offset" in payload
+    )
+    return ok, details
+
+
+def _validate_list_pagination(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    list_key = "normas" if "normas" in payload else "modelos" if "modelos" in payload else None
+    items = payload.get(list_key or "") or []
+    details = {
+        "list_key": list_key,
+        "returned": len(items),
+        "total": payload.get("total"),
+        "limit": payload.get("limit"),
+        "offset": payload.get("offset"),
+        "has_more": payload.get("has_more"),
+        "next_offset": payload.get("next_offset"),
+    }
+    ok = (
+        list_key is not None
+        and payload.get("limit") == 5
+        and payload.get("offset") == 0
+        and len(items) <= 5
+        and isinstance(payload.get("total"), int)
+        and "has_more" in payload
+    )
+    return ok, details
+
+
 def _validate_obligaciones_aplicables_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     confidence = payload.get("confidence") or {}
     total = payload.get("total")
@@ -358,7 +406,8 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
             ("/v1/crd/capital-positions", "direct_availability_crd_capital_positions"),
             ("/v1/emir/trade-reports", "direct_availability_emir_trade_reports"),
             ("/v1/consumer-credit/contracts", "direct_availability_consumer_credit_contracts"),
-            ("/v1/insurance/idd-distributors", "direct_availability_insurance_idd_distributors"),
+            ("/v1/insurance/distributors", "direct_availability_insurance_idd_distributors"),
+            ("/v1/insurance/uci-products", "direct_availability_insurance_uci_products"),
             ("/v1/transparency/issuers", "direct_availability_transparency_issuers"),
             ("/v1/xbrl/facts", "direct_availability_xbrl_facts"),
         ]:
@@ -383,6 +432,24 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         checks.append(
             _check_json_contract(
                 client,
+                "/v1/legislacion",
+                {"limit": 5, "offset": 0},
+                _validate_list_pagination,
+                "legislacion_list_pagination_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos",
+                {"limit": 5, "offset": 0},
+                _validate_list_pagination,
+                "modelos_list_pagination_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
                 "/v1/modelos/por-supuesto",
                 {
                     "tipo_entidad": "sociedad_valores",
@@ -392,6 +459,20 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 },
                 _validate_modelos_por_supuesto,
                 "modelos_por_supuesto_sociedad_valores_fail_closed",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/100",
+                {
+                    "casillas_limit": 25,
+                    "casillas_offset": 0,
+                    "related_limit": 10,
+                    "articulos_offset": 0,
+                },
+                _validate_modelo_detail_bounded,
+                "modelo_100_detail_bounded_contract",
             )
         )
         checks.append(

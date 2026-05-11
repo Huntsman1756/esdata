@@ -79,7 +79,13 @@ Ejemplos de tareas tipicas en stdio:
 
 - tambien pagina las casillas embebidas con `casillas_limit`/`casillas_offset`
 - si `casillas_has_more=true`, continuar con `/v1/modelos/{codigo}/casillas` o con `casillas_next_offset`
+- limita listas relacionadas con `related_limit`; revisar `articulos_total`, `articulos_has_more`, `claves_total`, `instrucciones_total` y `normativa_total` antes de asumir que se ha visto todo
 - no interpretar una casilla devuelta como obligatoria para un caso concreto sin evidencia adicional
+
+Listados MCP/Actions:
+
+- `list_modelos`, `list_legislacion`, `get_modelo_articulos`, `get_modelo_claves`, `get_modelo_instrucciones`, `listar_convenios_dta_internacional`, `listar_reglas_retencion_internacional` y `listar_workflow_compliance` aceptan pagina (`limit`/`offset`)
+- si una respuesta incluye `has_more=true`, el cliente debe pedir la pagina siguiente con `next_offset`; no debe completar la lista por inferencia
 
 `listar_obligaciones_aplicables`:
 

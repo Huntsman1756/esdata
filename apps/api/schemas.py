@@ -328,9 +328,15 @@ class ModeloDetail(BaseModel):
     campanas: list[ModeloCampana] = Field(
         default_factory=list, description="Campañas disponibles"
     )
+    campanas_total: int = Field(default=0, description="Total de campanas disponibles")
     articulos: list[ModeloArticulo] = Field(
         default_factory=list, description="Artículos de ley vinculados"
     )
+    articulos_total: int = Field(default=0, description="Total de articulos vinculados disponibles")
+    articulos_limit: int = Field(default=0, description="Limite aplicado a articulos en esta respuesta")
+    articulos_offset: int = Field(default=0, description="Offset aplicado a articulos en esta respuesta")
+    articulos_has_more: bool = Field(default=False, description="Si hay mas articulos disponibles")
+    articulos_next_offset: int | None = Field(default=None, description="Offset para continuar articulos")
     casillas: list[ModeloCasilla] = Field(
         default_factory=list, description="Casillas de la campaña activa"
     )
@@ -342,15 +348,19 @@ class ModeloDetail(BaseModel):
     claves: list[ModeloClave] = Field(
         default_factory=list, description="Claves de la campaña activa"
     )
+    claves_total: int = Field(default=0, description="Total de claves disponibles")
     instrucciones: list[ModeloInstruccion] = Field(
         default_factory=list, description="Instrucciones"
     )
+    instrucciones_total: int = Field(default=0, description="Total de instrucciones disponibles")
     normativa: list[ModeloNormativa] = Field(
         default_factory=list, description="Normativa BOE"
     )
+    normativa_total: int = Field(default=0, description="Total de referencias normativas disponibles")
     doctrina_relacionada: list[DoctrinaRelacionada] = Field(
         default_factory=list, description="Doctrina relacionada vía artículos"
     )
+    doctrina_relacionada_total: int = Field(default=0, description="Total de doctrina relacionada devuelta")
     completeness: str = Field(description="Estado de completitud: completa o parcial")
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
 
@@ -623,6 +633,11 @@ class ModelosPorSupuestoResponse(BaseModel):
 
 class ModelosListResponse(BaseModel):
     modelos: list[ModeloSummary]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class AEATModeloListItem(BaseModel):
@@ -2879,6 +2894,10 @@ class IrsDttaConventionDetail(IrsDttaConventionSummary):
 class IrsDttaConventionListResponse(BaseModel):
     convenios: list[IrsDttaConventionSummary] = Field(default_factory=list)
     total: int
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class IrsWithholdingRuleSummary(BaseModel):
@@ -2903,6 +2922,10 @@ class IrsWithholdingRuleDetail(IrsWithholdingRuleSummary):
 class IrsWithholdingRuleListResponse(BaseModel):
     reglas: list[IrsWithholdingRuleSummary] = Field(default_factory=list)
     total: int
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class IrsW8FormSummary(BaseModel):

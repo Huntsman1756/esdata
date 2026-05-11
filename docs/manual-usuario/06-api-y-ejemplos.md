@@ -129,15 +129,21 @@ curl -s http://127.0.0.1:8000/v1/legislacion/LIVA/articulos/104
 Listar modelos:
 
 ```bash
-curl -s http://127.0.0.1:8000/v1/modelos
+curl -G -s http://127.0.0.1:8000/v1/modelos \
+  --data-urlencode "limit=200" \
+  --data-urlencode "offset=0"
 ```
+
+La respuesta incluye `total`, `limit`, `offset`, `has_more` y `next_offset`.
 
 Detalle completo de un modelo:
 
 ```bash
 curl -G -s http://127.0.0.1:8000/v1/modelos/303 \
   --data-urlencode "casillas_limit=200" \
-  --data-urlencode "casillas_offset=0"
+  --data-urlencode "casillas_offset=0" \
+  --data-urlencode "related_limit=100" \
+  --data-urlencode "articulos_offset=0"
 ```
 
 Detalle por campana:
@@ -158,7 +164,10 @@ curl -G -s http://127.0.0.1:8000/v1/modelos/303/casillas \
 Para modelos con muchas casillas, como el modelo 100, no pedir el listado completo en una sola respuesta. Usar `limit`, `offset`, `q`, `tipo_casilla` o `pagina`, y continuar solo si la respuesta trae `has_more=true`.
 `GET /v1/modelos/{codigo}` tambien pagina las casillas embebidas mediante
 `casillas_limit`/`casillas_offset` y devuelve `casillas_total`,
-`casillas_has_more` y `casillas_next_offset`.
+`casillas_has_more` y `casillas_next_offset`. Tambien limita listas
+relacionadas mediante `related_limit` y devuelve metadatos como
+`articulos_total`, `articulos_has_more`, `claves_total`,
+`instrucciones_total` y `normativa_total`.
 
 Vista operativa multi-modelo:
 
@@ -171,7 +180,11 @@ curl -G -s http://127.0.0.1:8000/v1/modelos/campanas-operativas --data-urlencode
 Listar convenios DTA:
 
 ```bash
-curl -G -s http://127.0.0.1:8000/v1/internacional/convenios --data-urlencode "pais_a=US" --data-urlencode "pais_b=ES"
+curl -G -s http://127.0.0.1:8000/v1/internacional/convenios \
+  --data-urlencode "pais_a=US" \
+  --data-urlencode "pais_b=ES" \
+  --data-urlencode "limit=200" \
+  --data-urlencode "offset=0"
 ```
 
 Detalle de un convenio:
@@ -183,7 +196,10 @@ curl -s http://127.0.0.1:8000/v1/internacional/convenios/ES_US_DTA
 Listar reglas de retencion:
 
 ```bash
-curl -G -s http://127.0.0.1:8000/v1/internacional/convenios/retenciones --data-urlencode "tipo_renta=dividends"
+curl -G -s http://127.0.0.1:8000/v1/internacional/convenios/retenciones \
+  --data-urlencode "tipo_renta=dividends" \
+  --data-urlencode "limit=200" \
+  --data-urlencode "offset=0"
 ```
 
 Calcular retencion aplicable:
