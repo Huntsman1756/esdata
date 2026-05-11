@@ -1,0 +1,18 @@
+{
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "timeouts": 0,
+  "results": [
+    {
+      "service": "cron-regulatory-daily",
+      "worker_cmd": "python regulatory_watch.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.84,
+      "stdout_tail": "[run-once] Changes detected: 1, inserted: 1",
+      "stderr_tail": "EUR-Lex: SPARQL query failed: Client error '400 Bad Request' for url 'https://data.europa.eu/sparql'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400\naepd: failed to fetch AEPD resoluciones: Server error '503 Service Unavailable' for url 'https://www.aepd.es/sala-prensa/notas-y-resoluciones'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/503\nbde: failed to fetch Banco de Espana publicaciones: Client error '404 Not Found' for url 'https://app.bde.es/pmk/id?a=/bdesite/es/sectores/publicaciones/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404"
+    }
+  ]
+}

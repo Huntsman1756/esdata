@@ -233,6 +233,18 @@
               "title": "Organismo Emisor"
             },
             "description": "Filtrar por organismo (DGT, TEAC, etc.)"
+          },
+          {
+            "name": "include_boe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluir normas BOE relacionadas cuando apliquen",
+              "default": true,
+              "title": "Include Boe"
+            },
+            "description": "Incluir normas BOE relacionadas cuando apliquen"
           }
         ],
         "responses": {
@@ -352,6 +364,47 @@
   },
   "components": {
     "schemas": {
+      "ArticuloDetail": {
+        "properties": {
+          "norma": {
+            "type": "string",
+            "title": "Norma",
+            "description": "Código de la norma"
+          },
+          "numero": {
+            "type": "string",
+            "title": "Numero",
+            "description": "Número del artículo"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto",
+            "description": "Texto vigente del artículo"
+          },
+          "vigente_desde": {
+            "type": "string",
+            "title": "Vigente Desde",
+            "description": "Fecha de inicio de vigencia (YYYY-MM-DD)"
+          },
+          "vigente_hasta": {
+            "type": "string",
+            "title": "Vigente Hasta",
+            "description": "Fecha de fin de vigencia (YYYY-MM-DD)"
+          },
+          "confianza": {
+            "$ref": "#/components/schemas/ConfianzaInfo",
+            "description": "Información de confianza del dato"
+          }
+        },
+        "type": "object",
+        "required": [
+          "norma",
+          "numero",
+          "texto",
+          "confianza"
+        ],
+        "title": "ArticuloDetail"
+      },
       "ArticuloRelacionado": {
         "properties": {
           "norma": {
@@ -558,6 +611,11 @@
             "type": "string",
             "title": "Fragmento",
             "description": "Fragmento del texto con el término buscado"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial del documento (boe.es, portal organismo emisor, etc.) para citación verificable"
           }
         },
         "type": "object",
@@ -630,37 +688,37 @@
           "norma": {
             "type": "string",
             "title": "Norma",
-            "description": "Código de la norma"
+            "description": "Código de la norma verificada para el enlace visible"
           },
           "numero": {
             "type": "string",
             "title": "Numero",
-            "description": "Número del artículo"
+            "description": "Número del artículo verificado para el enlace visible"
           },
           "titulo": {
             "type": "string",
             "title": "Titulo",
-            "description": "Título del artículo"
+            "description": "Título del artículo visible enlazado de forma verificada"
           },
           "casilla": {
             "type": "string",
             "title": "Casilla",
-            "description": "Casilla asociada"
+            "description": "Casilla asociada al enlace verificado visible"
           },
           "nota": {
             "type": "string",
             "title": "Nota",
-            "description": "Nota explicativa"
+            "description": "Nota explicativa del enlace verificado visible"
           },
           "fuente": {
             "type": "string",
             "title": "Fuente",
-            "description": "Fuente del enlace"
+            "description": "Fuente oficial usada para verificar el enlace visible"
           },
           "url_fuente": {
             "type": "string",
             "title": "Url Fuente",
-            "description": "URL de la fuente"
+            "description": "URL oficial que respalda el enlace visible"
           }
         },
         "type": "object",
@@ -848,13 +906,25 @@
             "type": "array",
             "title": "Doctrina Relacionada",
             "description": "Doctrina relacionada vía artículos"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "Estado de completitud: completa o parcial"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Si la respuesta queda verificada con base suficiente"
           }
         },
         "type": "object",
         "required": [
           "codigo",
           "nombre",
-          "impuesto"
+          "impuesto",
+          "completeness",
+          "verified"
         ],
         "title": "ModeloDetail"
       },
@@ -955,6 +1025,16 @@
             "type": "integer",
             "title": "Casillas Count",
             "description": "Número de casillas en la campaña activa"
+          },
+          "url_info": {
+            "type": "string",
+            "title": "Url Info",
+            "description": "URL oficial del modelo en la sede AEAT (procedimientoini/GNNN.shtml)"
+          },
+          "url_listado": {
+            "type": "string",
+            "title": "Url Listado",
+            "description": "URL del listado canónico AEAT donde este modelo se publica"
           }
         },
         "type": "object",
@@ -982,6 +1062,71 @@
           "modelos"
         ],
         "title": "ModelosListResponse"
+      },
+      "Norma": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código de la norma (ej: LIVA, LIRPF)"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Título completo de la norma"
+          },
+          "boe_id": {
+            "type": "string",
+            "title": "Boe Id",
+            "description": "Identificador BOE"
+          },
+          "eli_uri": {
+            "type": "string",
+            "title": "Eli Uri",
+            "description": "URI ELI de la norma"
+          },
+          "jurisdiccion": {
+            "type": "string",
+            "title": "Jurisdiccion",
+            "description": "Jurisdicción (es, autonomico, etc.)"
+          },
+          "tipo_fuente": {
+            "type": "string",
+            "title": "Tipo Fuente",
+            "description": "Tipo de fuente (boe, autonomica, etc.)"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "Tipo de documento (ley, real_decreto_legislativo, etc.)"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito",
+            "description": "Ámbito temático (tributario, etc.)"
+          },
+          "regulacion_relacionada": {
+            "type": "string",
+            "title": "Regulacion Relacionada",
+            "description": "Regulación relacionada"
+          },
+          "estado_cobertura": {
+            "type": "string",
+            "title": "Estado Cobertura",
+            "description": "Estado de cobertura (ingestada, parcial, etc.)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "titulo",
+          "jurisdiccion",
+          "tipo_fuente",
+          "tipo_documento",
+          "ambito",
+          "estado_cobertura"
+        ],
+        "title": "Norma"
       },
       "SearchResult": {
         "properties": {

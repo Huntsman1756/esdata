@@ -1,0 +1,2095 @@
+{
+  "generated_by": "scripts/ralph/verify_scripts_local.py",
+  "scope": "local scripts under scripts/",
+  "policy": "Syntax is required for every script. Runtime execution is blocked for mutative data/schema/deployment scripts unless a safe probe is allowlisted.",
+  "summary": {
+    "total": 207,
+    "verified": 65,
+    "blocked_runtime": 142
+  },
+  "records": [
+    {
+      "path": "scripts/analyze_golden_sources.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/apply_schema_local.py",
+      "kind": "py",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/auto_test.sh",
+      "kind": "sh",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "bash -n OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/backfill_embeddings.py",
+      "kind": "py",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/benchmark_hybrid.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/check_migrations.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/compare_shapes.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/convert_alembic_create_table.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/create_fragmento_table.sql",
+      "kind": "sql",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "SQL file readable; execution not attempted"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/backfill_31x_chunks.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/backfill_chunks.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/backfill_embeddings.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/fix_dates.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/ingest_convenios.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/ingest_crs_fatca.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/ingest_internacional.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/ingest_tin_europa.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/ingest_w8_forms.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/quick_backfill.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/quick_backfill_embeddings.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_aeat_irnr.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_aeat_models.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_aepd.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_aifmd.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_all.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_articulo_materia.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_bde.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_boe.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_borme.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_calendario_fiscal.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_cnmv.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_cnmv_obligation_link.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_cnmv_regulation_link.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_corporate.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_crd.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_crypto_asset.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_crypto_transaction.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_csrd.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_dac.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_dac_crypto_report.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_dac_reporting_entity.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_dac_wallet_holder.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_data_lineage.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_dgt.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_documento_articulo.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_documento_cnmv_version.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_dora.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_emir.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_empty_tables.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_entity_identity.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_eurlex.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_facta.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_fiscal_indicators.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_fraud_incident.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_fraud_prevention_program.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_fraud_risk_assessment.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_internacional.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irnr_rates.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irpf_brackets.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irs_dta_convention.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irs_fiscal.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irs_fiscal_norma.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irs_modelos.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irs_tin_reference.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_irs_withholding_rule.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_iva_rates.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_mar.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_mica.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_mifid_mar_dora.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_modelo_articulo.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_modelos.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_ownership.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pbc.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pgc.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pgc_cuenta.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pgc_cuenta_refs.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pgc_estado_financiero.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pgc_marco.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pgc_norma_valoracion.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_pgc_xbrl_mapping.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_priips.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_psd2.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_remaining_tables.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_screening.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_screening_worker.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_sepblac.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_sfdr.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_source_revision.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_ss_rates.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_tax_data.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_ucits.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_w8_forms.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_xbrl.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_xbrl_fact.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/seed_xbrl_filing.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/temp_seed_norma.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/tests/test_seed_modelos.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/update_chunks.py",
+      "kind": "py",
+      "category": "data",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/data/verify_table_counts.py",
+      "kind": "py",
+      "category": "data",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/dev/compare_search.py",
+      "kind": "py",
+      "category": "dev",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/dev/quick_test.py",
+      "kind": "py",
+      "category": "dev",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/dev/run_api_local.py",
+      "kind": "py",
+      "category": "dev",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/dev/server_wrapper.py",
+      "kind": "py",
+      "category": "dev",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/dev/simple_test.py",
+      "kind": "py",
+      "category": "dev",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/diag_embeddings.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/eurlex_corpus_download.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/eval/eval_phase3.py",
+      "kind": "py",
+      "category": "eval",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/eval/eval_phase3_legacy.py",
+      "kind": "py",
+      "category": "eval",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/eval_subset.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/feedback_loop.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/fix_golden_lirnr.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/generate-corpus-seed.py",
+      "kind": "py",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/generate_chunks.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/hermes_monitor.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/integrity-check.sql",
+      "kind": "sql",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "SQL file readable; execution not attempted"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/maintenance/check_model_data_quality.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\check_model_data_quality.py --help` => exit 0: usage: check_model_data_quality.py [-h] [--json] [--db-url DB_URL]",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\check_model_data_quality.py --static-only --json` => exit 0: {"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/integrate_dead_letter.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\integrate_dead_letter.py --help` => exit 0: usage: integrate_dead_letter.py [-h] [--dry-run] [--apply] [--all]",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\integrate_dead_letter.py --dry-run` => exit 0: Scanned 79 worker files"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/mcp_validation_suite.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/review_schema.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/secrets_audit.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\secrets_audit.py --help` => exit 0: usage: secrets_audit.py [-h] [--json] [--root ROOT]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/show_dead_letter_queue.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/validate-cron-run.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\validate-cron-run.py --help` => exit 0: usage: validate-cron-run.py [-h] [--db-url DB_URL] [--after AFTER]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/verify-doc-artifacts.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\verify-doc-artifacts.py --help` => exit 0: usage: verify-doc-artifacts.py [-h]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/verify-doc-contracts.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\maintenance\\verify-doc-contracts.py --help` => exit 0: usage: verify-doc-contracts.py [-h]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/verify_facta.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/verify_hybrid_fix.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/verify_intl.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/maintenance/verify_schema.py",
+      "kind": "py",
+      "category": "maintenance",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ops/alembic_chain_repair.py",
+      "kind": "py",
+      "category": "ops",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ops/backup-postgres.sh",
+      "kind": "sh",
+      "category": "ops",
+      "status": "blocked_runtime",
+      "evidence": [
+        "bash -n OK"
+      ],
+      "blocker": "Operational/deployment script; syntax verified but not executed against local/VPS infrastructure."
+    },
+    {
+      "path": "scripts/ops/deploy-hetzner.sh",
+      "kind": "sh",
+      "category": "ops",
+      "status": "blocked_runtime",
+      "evidence": [
+        "bash -n OK"
+      ],
+      "blocker": "Operational/deployment script; syntax verified but not executed against local/VPS infrastructure."
+    },
+    {
+      "path": "scripts/ops/export-gpt-openapi.py",
+      "kind": "py",
+      "category": "ops",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\ops\\export-gpt-openapi.py --help` => exit 0: usage: export-gpt-openapi.py [-h] [--openapi OPENAPI] [--output OUTPUT]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ops/seed_aeat_modelos.py",
+      "kind": "py",
+      "category": "ops",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/ops/smoke-check.py",
+      "kind": "py",
+      "category": "ops",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\ops\\smoke-check.py --help` => exit 0: usage: smoke-check.py [-h] --base-url BASE_URL [--retries RETRIES]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ops/source_freshness_snapshot.py",
+      "kind": "py",
+      "category": "ops",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ops/worker_scheduler_guard.py",
+      "kind": "py",
+      "category": "ops",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\ops\\worker_scheduler_guard.py --help` => exit 0: usage: worker_scheduler_guard.py [-h] [--repo-root REPO_ROOT]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/final_product_gate.py",
+      "kind": "py",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/local_full_gate.py",
+      "kind": "py",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/ralph.sh",
+      "kind": "sh",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "bash -n OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/table_registry.py",
+      "kind": "py",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\ralph\\table_registry.py --help` => exit 0: usage: table_registry.py [-h] [--draft DRAFT] [--write WRITE]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/verify_mcp_api_local.py",
+      "kind": "py",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/verify_scripts_local.py",
+      "kind": "py",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/verify_workers_local.py",
+      "kind": "py",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK",
+        "`C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe G:\\_Proyectos\\esdata\\scripts\\ralph\\verify_workers_local.py --help` => exit 0: usage: verify_workers_local.py [-h] [--service SERVICE] [--timeout TIMEOUT]"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/ralph/wrap-opencode.sh",
+      "kind": "sh",
+      "category": "ralph",
+      "status": "verified",
+      "evidence": [
+        "bash -n OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/seed-corpus-documental.sql",
+      "kind": "sql",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "SQL file readable; execution not attempted"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/seed-fiscal-modelos.sql",
+      "kind": "sql",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "SQL file readable; execution not attempted"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/seed-modelos-v2.py",
+      "kind": "py",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/seed-modelos.py",
+      "kind": "py",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/seed_linea_criterio.py",
+      "kind": "py",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/seed_local_pg.py",
+      "kind": "py",
+      "category": "root",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/show_sources.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/smoke_tests.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/step2_queries.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/test_worker_run_once.ps1",
+      "kind": "ps1",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "PowerShell parser OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/test_workers.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/__init__.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_aeat_seed_canonical_flow.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_check_model_data_quality.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_compose_env_example.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_deploy_hetzner.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_eval_phase3.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_maintenance_agents.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_seed_aeat_irnr.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_aeat_models.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_articulo_materia.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_boe.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_cnmv_obligation_link.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_cnmv_regulation_link.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_crypto_asset.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_crypto_transaction.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_dac_crypto_report.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_dac_reporting_entity.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_dac_wallet_holder.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_data_lineage.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_dgt.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_documento_articulo.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_documento_cnmv_version.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_entity_identity.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_fraud_incident.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_fraud_prevention_program.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_fraud_risk_assessment.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_irnr_rates.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_irs_dta_convention.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_irs_fiscal_norma.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_irs_tin_reference.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_irs_withholding_rule.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_mifid_mar_dora.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_modelo_articulo.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_ownership.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_pbc.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_pgc_cuenta.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_pgc_cuenta_refs.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_pgc_estado_financiero.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_pgc_marco.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_pgc_norma_valoracion.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_pgc_xbrl_mapping.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_screening_worker.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_source_revision.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_xbrl_fact.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_seed_xbrl_filing.py",
+      "kind": "py",
+      "category": "test",
+      "status": "blocked_runtime",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": "Mutative data/schema script; not executed without explicit dry-run and official-source review."
+    },
+    {
+      "path": "scripts/tests/test_verify_doc_artifacts.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_verify_doc_contracts.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_verify_schema.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/tests/test_worker_scheduler_guard.py",
+      "kind": "py",
+      "category": "test",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/verify_dac6_sources.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/verify_keyword_routing.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    },
+    {
+      "path": "scripts/verify_parse.py",
+      "kind": "py",
+      "category": "root",
+      "status": "verified",
+      "evidence": [
+        "py_compile OK"
+      ],
+      "blocker": null
+    }
+  ]
+}

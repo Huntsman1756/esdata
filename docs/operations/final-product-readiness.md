@@ -10,6 +10,17 @@ the server.
 
 `CONDITIONAL PASS - VPS`
 
+Update 2026-05-11:
+
+- Public `https://api.desuscribir.es/metrics` is blocked at Caddy and returns `404`.
+- VPS SSH password authentication is disabled; root access remains key-only with `PermitRootLogin prohibit-password`.
+- VPS timezone is `Europe/Madrid`; `esdata-*` timers list in CEST.
+- `RuntimeMaxSec` was removed from oneshot units; `TimeoutStartSec` remains the execution cap.
+- Ralph scripts are present on the VPS and `table_registry.py` supports both local and prod Postgres container names.
+- Local gates are green: `local_full_gate.py` `5/5`, `final_product_gate.py` `6/6`.
+- VPS gates are green: table registry `163` tables, `0` blockers, `0` errors; `verify_mcp_api_local.py` `10/10`; `mcp_validation_suite.py` `ok=true`.
+- `worker-dgt` was restarted after temporary Hacienda/Petete `502/504` responses. The controlled `cron-dgt-weekly` run completed `ok`.
+
 The local stack and deployment artifacts pass the final Ralph gate:
 
 ```bash

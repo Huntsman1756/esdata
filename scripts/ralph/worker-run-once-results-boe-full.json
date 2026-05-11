@@ -1,0 +1,18 @@
+{
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "timeouts": 0,
+  "results": [
+    {
+      "service": "cron-boe-daily",
+      "worker_cmd": "python boe.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 1262.47,
+      "stdout_tail": "ue/dt-6 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:25,036 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/dt-7 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:26,091 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/dt-8 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:27,139 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/dt-9 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:28,188 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/dd \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:29,233 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:30,276 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-2 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:31,334 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-3 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:32,390 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-4 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:33,433 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-5 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:34,482 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-6 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:35,535 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-7 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:36,579 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-8 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:37,630 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-9 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:38,715 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-10 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:39,766 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-11 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:40,814 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-12 \"HTTP/1.1 200 OK\"\n2026-05-10 09:45:41,864 INFO:httpx:HTTP Request: GET https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2018-16036/texto/bloque/df-13 \"HTTP/1.1 200 OK\"\n  DONE RDL19_2018: 27 blocks, 27 articulos\n[run-once] Bloques: 1127, Artículos: 1127",
+      "stderr_tail": ""
+    }
+  ]
+}

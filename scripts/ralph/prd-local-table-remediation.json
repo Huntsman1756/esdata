@@ -1,0 +1,146 @@
+{
+  "project": "esdata",
+  "branchName": "ralph/local-table-remediation",
+  "description": "Ralph backlog to remediate all empty local production tables with real official-source data, or explicitly classify them as allowed-empty before VPS deployment. No fake seeds, no fixture data, and no VPS deployment in this phase.",
+  "userStories": [
+    {
+      "id": "TABLE-001",
+      "title": "Create authoritative table remediation registry",
+      "description": "Create a machine-readable registry for all 163 public tables with owner domain, expected population status, official source family, ingestion path, verification SQL, and deployment classification.",
+      "acceptanceCriteria": [
+        "Every public table appears exactly once in the registry",
+        "Each table is classified as populated, allowed_empty, or blocker",
+        "Each blocker has an official source URL family and target worker/script",
+        "Each allowed_empty table has a reason such as incident-only, audit-only, eval-only, user-generated, or derived-only",
+        "A verification script fails non-zero if an unclassified empty table exists"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "TABLE-002",
+      "title": "Add local table gate command",
+      "description": "Implement a repeatable local gate that reads the table remediation registry, queries local Postgres, and blocks deployment when required tables are empty or populated with unapproved fixture/seed provenance.",
+      "acceptanceCriteria": [
+        "Gate command runs locally against Docker Postgres without VPS access",
+        "Gate reports counts for populated, allowed_empty, and blocker tables",
+        "Gate fails if any blocker table has zero rows",
+        "Gate fails if compliance tables contain source URLs outside official allowlisted domains",
+        "Gate output is appended to Ralph progress after each successful story"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "TABLE-003",
+      "title": "Remediate IRNR official tables",
+      "description": "Populate IRNR model instruction and withholding-rate tables from AEAT/BOE official sources, extending the fixed IRNR model discovery worker.",
+      "acceptanceCriteria": [
+        "irnr_instruccion has official AEAT instruction rows for current IRNR models where AEAT publishes instruction pages",
+        "irnr_withholding_rate has current official-source rows with source_url, effective_date, legal_basis, and uncertainty notes",
+        "No rates are hardcoded from non-official seed scripts",
+        "Malformed or missing AEAT pages are logged as partial with data_freshness_warning metadata, not silently ignored",
+        "Focused tests and docker run-once worker execution pass"
+      ],
+      "priority": 3,
+      "passes": true
+    },
+    {
+      "id": "TABLE-004",
+      "title": "Remediate PGC official accounting tables",
+      "description": "Replace unverified PGC seed assumptions with a BOE-backed PGC ingestion path for chart of accounts, valuation rules, financial statements, and PGC-to-tax references where official references exist.",
+      "acceptanceCriteria": [
+        "pgc_marco, pgc_norma_valoracion, pgc_cuenta, and pgc_estado_financiero are populated from BOE official consolidated or official publication sources",
+        "pgc_cuenta rows include legal_basis/source_url/provenance fields or a linked source record",
+        "pgc_cuenta_fiscal_ref and pgc_cuenta_modelo_aeat_ref are populated only where mappings are official or marked as human-reviewed derived metadata",
+        "Existing corrupted/static seed data is not used as authoritative input",
+        "PGC API tests and table gate pass for the PGC group"
+      ],
+      "priority": 4,
+      "passes": true
+    },
+    {
+      "id": "TABLE-005",
+      "title": "Remediate document decomposition tables",
+      "description": "Backfill document fragment, section, CNMV version, and lineage tables from already-ingested official documents, preserving traceability to the source document and ingestion run.",
+      "acceptanceCriteria": [
+        "documento_fragmento and documento_seccion are populated from documento_interpretativo rows with official source_url",
+        "documento_cnmv_version is populated for CNMV documents where versioning can be inferred or fetched from official CNMV metadata",
+        "data_lineage links derived rows to exact source records and worker sync_log rows",
+        "No derived fragment is treated as authoritative without source document reference",
+        "Search/retrieval tests prove fragments do not cross-contaminate source families"
+      ],
+      "priority": 5,
+      "passes": true
+    },
+    {
+      "id": "TABLE-006",
+      "title": "Remediate XBRL and PGC-XBRL tables",
+      "description": "Populate XBRL taxonomy and filing/fact tables using official taxonomy packages and official filing sources, or classify filing/fact tables as allowed-empty until a real filing ingestion target is configured.",
+      "acceptanceCriteria": [
+        "xbrl_taxonomy is populated from official ESEF/ESMA or IFRS taxonomy sources",
+        "pgc_xbrl_mapping is populated only from documented official mapping or explicitly human-reviewed derived mapping",
+        "xbrl_filing and xbrl_fact are either populated from official CNMV/ESEF filings or classified allowed_empty with a clear rationale",
+        "Fixture-first test data is not counted as production-real data",
+        "XBRL API tests and table gate pass for this group"
+      ],
+      "priority": 6,
+      "passes": true
+    },
+    {
+      "id": "TABLE-007",
+      "title": "Classify eval, review, alert, and incident tables as allowed-empty",
+      "description": "Mark event-only operational tables as allowed-empty where zero rows is the correct healthy state, while preserving their schema and observability checks.",
+      "acceptanceCriteria": [
+        "data_freshness_alerts, eval_run, eval_query, human_review, ai_model_registry, embedding_version, and similar operational tables are classified individually",
+        "Allowed-empty reason is explicit and reviewable",
+        "Gate verifies tables exist, RLS is enabled, and writes are possible in tests without requiring production rows",
+        "No fake alert/review/eval rows are inserted just to satisfy counts"
+      ],
+      "priority": 7,
+      "passes": true
+    },
+    {
+      "id": "TABLE-008",
+      "title": "Remediate financial regulatory domain tables",
+      "description": "For AIFMD, UCITS, SFDR, PRIIPs, MiFID, MAR, DORA, CRD/BRRD/EMIR, PSD2, SEPA, LIVMC, and transparency tables, either connect each table to an official EU/Spanish regulatory source or classify as target-state blockers.",
+      "acceptanceCriteria": [
+        "Each table has official source family assigned: EUR-Lex, CNMV, Banco de Espana, EBA, ESMA, BOE, or other approved authority",
+        "Tables with entity-specific data are populated only from official registries or filings, not examples",
+        "Tables without an implemented official ingestion worker remain blockers, not fake-populated",
+        "At least one representative domain group has a run-once worker and sync_log evidence before this story can pass",
+        "Gate reports remaining domain blockers with source and implementation estimate"
+      ],
+      "priority": 8,
+      "passes": true
+    },
+    {
+      "id": "TABLE-009",
+      "title": "Remediate ownership, PBC, fraud, and screening tables",
+      "description": "Populate AML/PBC, beneficial ownership, screening, and fraud-risk tables only from official registries, official documents, or clearly marked user-generated workflow inputs.",
+      "acceptanceCriteria": [
+        "beneficial_owner_record, ownership_relation, ownership_share, ubo_record, pbc_* and screening_* tables have official/user-generated classification",
+        "BORME-derived rows link back to official BORME documents where used",
+        "SEPBLAC/PBC references link to official SEPBLAC/BOE documents",
+        "Workflow-only tables are allowed_empty until a real user case exists",
+        "No synthetic companies or people are inserted as production data"
+      ],
+      "priority": 9,
+      "passes": true
+    },
+    {
+      "id": "TABLE-010",
+      "title": "Final local deployment evidence package",
+      "description": "Run all local table gates, worker run-once checks, API/MCP checks, and produce a final deployment decision report for the VPS.",
+      "acceptanceCriteria": [
+        "All earlier TABLE stories are passes:true",
+        "Zero unclassified empty tables remain",
+        "Zero compliance blocker tables remain empty",
+        "All populated compliance rows have official source provenance or explicit human-reviewed derived status",
+        "Final report states PRODUCTION READY, CONDITIONAL PASS, or BLOCKED for VPS deployment"
+      ],
+      "priority": 10,
+      "passes": true
+    }
+  ]
+}

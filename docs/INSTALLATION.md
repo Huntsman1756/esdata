@@ -69,7 +69,7 @@ docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.
 ## Paso 5. Levantar runtime minimo
 
 ```bash
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-boe-modelos worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-cdi worker-aepd
 ```
 
 ## Paso 6. Smoke check
@@ -86,7 +86,7 @@ curl -i -H "Accept: text/event-stream" -H "X-API-Key: $MCP_API_KEY" http://127.0
 Arranque recomendado tras bootstrap si no usaste el script canonico:
 
 ```bash
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-aepd
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-boe-modelos worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-cdi worker-aepd
 ```
 
 Cron jobs one-shot manuales:

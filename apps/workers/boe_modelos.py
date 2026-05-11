@@ -105,8 +105,8 @@ def parse_anexo_casilla_references(xml_text: str, modelo_codigo: str) -> list[di
 def parse_boe_table_fields(xml_text: str) -> list[dict]:
     """Parsear XML del BOE para extraer especificaciones de campos desde tablas.
 
-    Busca elementos <table> dentro de <texto> y extrae filas con 3+ columnas
-    (<td>) que definan especificaciones de campos: codigo, naturaleza y descripcion.
+    Busca elementos <table> dentro de <texto> y extrae filas con 2+ columnas
+    (<td> o <th>) que definan especificaciones de campos: codigo y descripcion.
 
     Args:
         xml_text: Texto XML completo del BOE.
@@ -114,8 +114,8 @@ def parse_boe_table_fields(xml_text: str) -> list[dict]:
     Returns:
         Lista de dicts con claves: codigo, naturaleza, descripcion.
         - codigo: codigo de posicion, cero-padded a 4 digitos si es numerico.
-        - naturaleza: contenido de la segunda columna (N, A, N/A, etc.).
-        - descripcion: contenido de la tercera columna.
+        - naturaleza: "N" por defecto (las tablas HAC tienen solo 2 columnas).
+        - descripcion: contenido de la segunda columna.
         Lista vacia si no hay <texto>, <table> o tablas validas.
     """
     root = ET.fromstring(xml_text)
@@ -123,26 +123,47 @@ def parse_boe_table_fields(xml_text: str) -> list[dict]:
     if texto is None:
         return []
 
+    def _get_cell_text(cell):
+        if cell.text and cell.text.strip():
+            return cell.text.strip()
+        # Text might be in child elements (e.g. <p> inside <td>)
+        for child in cell:
+            if child.text and child.text.strip():
+                return child.text.strip()
+        return ""
+
     fields = []
     for table in texto.findall("table"):
         rows = table.findall("row")
+        if not rows:
+            rows = table.findall("tr")
         if len(rows) < 2:
             continue
 
         for row in rows:
+            # Also check for HTML-style <th> elements (header cells)
             tds = row.findall("td")
-            if len(tds) < 3:
+            ths = row.findall("th")
+            # Combine both td and th elements
+            cells = tds + ths
+            if len(cells) < 2:
                 continue
 
-            raw_codigo = (tds[0].text or "").strip()
-            naturaleza = (tds[1].text or "").strip()
-            descripcion = (tds[2].text or "").strip()
+            codigo_raw = _get_cell_text(cells[0])
+            if not codigo_raw:
+                continue
 
-            codigo = raw_codigo.zfill(4) if raw_codigo.isdigit() else raw_codigo
+            descripcion = _get_cell_text(cells[1]) if len(cells) > 1 else ""
+
+            # Zero-pad numeric codes to 4 digits
+            if codigo_raw.isdigit():
+                codigo = codigo_raw.zfill(4)
+            else:
+                codigo = codigo_raw
 
             fields.append({
                 "codigo": codigo,
-                "naturaleza": naturaleza,
+                "naturaleza": "N",
                 "descripcion": descripcion,
             })
 

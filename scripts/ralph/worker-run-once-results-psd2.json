@@ -1,0 +1,18 @@
+{
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "timeouts": 0,
+  "results": [
+    {
+      "service": "cron-psd2-weekly",
+      "worker_cmd": "python psd2_eba.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.84,
+      "stdout_tail": "[run-once] rows_processed=11 counts={'aspsp': 5, 'aisp': 3, 'pisp': 3} source=bde_verified_seed error_msg=eba_euclid_spa_not_accessible_public_json_endpoint",
+      "stderr_tail": "2026-05-10 08:55:54,105 INFO:httpx:HTTP Request: GET https://euclid.eba.europa.eu/register/pir/dl/json \"HTTP/1.1 200 OK\"\n2026-05-10 08:55:54,141 INFO:httpx:HTTP Request: GET https://euclid.eba.europa.eu/register/pir/download \"HTTP/1.1 200 OK\"\n2026-05-10 08:55:54,179 INFO:httpx:HTTP Request: GET https://euclid.eba.europa.eu/register/pir/export/json \"HTTP/1.1 200 OK\"\n2026-05-10 08:55:54,215 INFO:httpx:HTTP Request: GET https://euclid.eba.europa.eu/register/resources/eba-register-psd2.json \"HTTP/1.1 200 OK\"\n2026-05-10 08:55:54,215 INFO:__main__:EBA EUCLID register not accessible via probed JSON endpoints â€” SPA requires JS navigation or direct BdE feed. Falling back to BdE-verified seed for Spanish ASPSPs.\n2026-05-10 08:55:54,239 INFO:__main__:PSD2 EBA sync done. source=bde_verified_seed counts={'aspsp': 5, 'aisp': 3, 'pisp': 3} error_msg=eba_euclid_spa_not_accessible_public_json_endpoint"
+    }
+  ]
+}

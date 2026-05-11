@@ -15,30 +15,27 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "source_revision",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("worker_name", sa.Text(), nullable=False),
-        sa.Column("source_entity_tipo", sa.Text(), nullable=False),
-        sa.Column("source_entity_id", sa.Text(), nullable=False),
-        sa.Column("content_hash_sha256", sa.Text(), nullable=False),
-        sa.Column("etag", sa.Text(), nullable=True),
-        sa.Column("last_modified", sa.Text(), nullable=True),
-        sa.Column("content_length", sa.Integer(), nullable=True),
-        sa.Column(
-            "fetched_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        sa.UniqueConstraint(
-            "worker_name", "source_entity_tipo", "source_entity_id"
-        ),
+    op.execute(
+        """
+        CREATE TABLE IF NOT EXISTS source_revision (
+            id SERIAL PRIMARY KEY,
+            worker_name TEXT NOT NULL,
+            source_entity_tipo TEXT NOT NULL,
+            source_entity_id TEXT NOT NULL,
+            content_hash_sha256 TEXT NOT NULL,
+            etag TEXT,
+            last_modified TEXT,
+            content_length INTEGER,
+            fetched_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            UNIQUE (worker_name, source_entity_tipo, source_entity_id)
+        )
+        """
     )
-    op.create_index(
-        "idx_source_revision_worker_entity",
-        "source_revision",
-        ["worker_name", "source_entity_tipo", "source_entity_id"],
+    op.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_source_revision_worker_entity
+        ON source_revision (worker_name, source_entity_tipo, source_entity_id)
+        """
     )
 
 

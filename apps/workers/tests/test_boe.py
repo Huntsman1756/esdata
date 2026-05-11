@@ -15,14 +15,80 @@ from boe import (
     _hold_sync_lock,
     _ensure_sync_log_table,
     _ensure_schema,
+    _yyyymmdd_to_iso,
     auto_link_doctrina,
     auto_link_materias,
     parse_block_xml,
+    parse_block_xml_versions,
     parse_index,
     parse_metadata,
     upsert_articulo,
     upsert_norma,
 )
+
+
+def test_parse_block_xml_uses_latest_valid_boe_version():
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+<response>
+  <data>
+    <bloque id="a90" tipo="precepto" titulo="ArtÃ­culo 90">
+      <version fecha_vigencia="19930101">
+        <p>ArtÃ­culo 90. Tipo impositivo general.</p>
+        <p>Uno. El impuesto se exigirÃ¡ al tipo del 15 por 100.</p>
+      </version>
+      <version fecha_vigencia="20120715">
+        <p>ArtÃ­culo 90. Tipo impositivo general.</p>
+        <p>Uno. El impuesto se exigirÃ¡ al tipo del 21 por ciento.</p>
+      </version>
+    </bloque>
+  </data>
+</response>"""
+
+    block = parse_block_xml("a90", xml)
+
+    assert block.vigente_desde == "2012-07-15"
+    assert "21 por ciento" in block.texto
+    assert "15 por 100" not in block.texto
+
+
+def test_parse_block_xml_versions_keeps_full_official_history():
+    xml = """<?xml version="1.0" encoding="utf-8"?>
+<response>
+  <data>
+    <bloque id="a90" tipo="precepto" titulo="ArtÃƒÂ­culo 90">
+      <version fecha_vigencia="19930101">
+        <p>ArtÃƒÂ­culo 90. Tipo impositivo general.</p>
+        <p>Uno. El impuesto se exigirÃƒÂ¡ al tipo del 15 por 100.</p>
+      </version>
+      <version fecha_vigencia="20100701">
+        <p>ArtÃƒÂ­culo 90. Tipo impositivo general.</p>
+        <p>Uno. El impuesto se exigirÃƒÂ¡ al tipo del 18 por ciento.</p>
+      </version>
+      <version fecha_vigencia="20120715">
+        <p>ArtÃƒÂ­culo 90. Tipo impositivo general.</p>
+        <p>Uno. El Impuesto se exigirÃƒÂ¡ al tipo del 21 por ciento.</p>
+      </version>
+    </bloque>
+  </data>
+</response>"""
+
+    versions = parse_block_xml_versions("a90", xml)
+
+    assert [version.vigente_desde for version in versions] == [
+        "1993-01-01",
+        "2010-07-01",
+        "2012-07-15",
+    ]
+    assert "18 por ciento" in versions[1].texto
+
+
+def test_yyyymmdd_to_iso_rejects_malformed_boe_date():
+    try:
+        _yyyymmdd_to_iso("--")
+    except ValueError as exc:
+        assert "Invalid BOE date" in str(exc)
+    else:
+        raise AssertionError("malformed BOE date must be rejected")
 
 
 def test_parse_metadata_maps_boe_payload():
@@ -1073,7 +1139,7 @@ def test_auto_link_doctrina_upgrades_confidence_when_better_match_found():
         ).fetchone()
 
     assert row[0] == 1.0  # confidence upgraded
-    assert row[1] == "auto_link"
+    assert row[1] == "auto_link_exact"
     assert row[2] == "Referencia auto-detectada: LIVA art. 91"
 
 
@@ -1208,13 +1274,13 @@ def test_auto_link_doctrina_art_norma_variants():
     from boe import _extract_doctrina_refs
 
     refs = _extract_doctrina_refs("Resolucion sobre art. 91 LIVA en materia de IVA.")
-    assert ("LIVA", "91", 1.0) in refs
+    assert ("LIVA", "91", 1.0, "auto_link_exact") in refs
 
     refs = _extract_doctrina_refs("Conforme Art. 15 LIS se determina la base.")
-    assert ("LIS", "15", 1.0) in refs
+    assert ("LIS", "15", 1.0, "auto_link_exact") in refs
 
     refs = _extract_doctrina_refs("Aplicable el ART 50 LGT al presente caso.")
-    assert ("LGT", "50", 1.0) in refs
+    assert ("LGT", "50", 1.0, "auto_link_exact") in refs
 
 
 def test_auto_link_doctrina_matches_articulo_ley_del_iva():

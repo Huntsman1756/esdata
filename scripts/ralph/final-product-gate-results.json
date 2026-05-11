@@ -1,0 +1,136 @@
+{
+  "generated_at": "2026-05-11T04:02:39.962957+00:00",
+  "scope": "local final product-readiness gate plus VPS artifact validation",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "name": "local_full_gate",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "scripts/ralph/local_full_gate.py",
+          "--base-url",
+          "http://localhost:8001",
+          "--api-key",
+          "dev-key",
+          "--write",
+          "scripts/ralph/local-full-gate-results.json"
+        ],
+        "exit_code": 0,
+        "stdout_tail": "{\n  \"total\": 5,\n  \"passed\": 5,\n  \"failed\": 0\n}\n",
+        "stderr_tail": ""
+      },
+      "blocker": null
+    },
+    {
+      "name": "compose_prod_config",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "docker",
+          "compose",
+          "--env-file",
+          "infra/deploy/compose.env.example",
+          "-f",
+          "infra/deploy/docker-compose.prod.yml",
+          "config",
+          "--quiet"
+        ],
+        "exit_code": 0,
+        "stdout_tail": "",
+        "stderr_tail": ""
+      },
+      "blocker": null
+    },
+    {
+      "name": "alertmanager_telegram_config",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "docker",
+          "run",
+          "--rm",
+          "--entrypoint",
+          "amtool",
+          "-v",
+          "C:\\Users\\rome_\\AppData\\Local\\Temp\\esdata-alertmanager-v4ue9o5o\\alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro",
+          "-v",
+          "C:\\Users\\rome_\\AppData\\Local\\Temp\\esdata-alertmanager-v4ue9o5o:/etc/alertmanager/secrets:ro",
+          "prom/alertmanager:v0.28.1",
+          "check-config",
+          "/etc/alertmanager/alertmanager.yml"
+        ],
+        "exit_code": 0,
+        "stdout_tail": "Checking '/etc/alertmanager/alertmanager.yml'  SUCCESS\nFound:\n - global config\n - route\n - 1 inhibit rules\n - 2 receivers\n - 0 templates\n\n",
+        "stderr_tail": ""
+      },
+      "blocker": null
+    },
+    {
+      "name": "maintenance_agent_tests",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "-m",
+          "pytest",
+          "scripts/tests/test_maintenance_agents.py",
+          "scripts/tests/test_deploy_hetzner.py",
+          "-q"
+        ],
+        "exit_code": 0,
+        "stdout_tail": "============================= test session starts =============================\nplatform win32 -- Python 3.12.10, pytest-9.0.3, pluggy-1.6.0\nrootdir: G:\\_Proyectos\\esdata\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, asyncio-1.3.0, cov-7.1.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollected 28 items\n\nscripts\\tests\\test_maintenance_agents.py .........                       [ 32%]\nscripts\\tests\\test_deploy_hetzner.py ...................                 [100%]\n\n============================= 28 passed in 0.33s ==============================\n",
+        "stderr_tail": ""
+      },
+      "blocker": null
+    },
+    {
+      "name": "hermes_read_only_probe",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "docker",
+          "compose",
+          "run",
+          "--rm",
+          "--no-deps",
+          "-e",
+          "ESDATA_API_URL=http://api:8000",
+          "-e",
+          "ESDATA_API_KEY=dev-key",
+          "-e",
+          "DATABASE_URL=postgresql+psycopg://esdata:esdata_dev@postgres:5432/esdata",
+          "worker-boe",
+          "python",
+          "hermes_monitor.py",
+          "--no-restart"
+        ],
+        "exit_code": 0,
+        "stdout_tail": " [WARNING] hermes-monitor:   UNHEALTHY: worker-teac (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: cron-modelos-daily (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-boe-modelos (reason=status=partial, stale=False, hours_since_run=18.2h)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-bdns (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-borme (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-cnmv (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-sepblac (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-cendoj (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-eurlex (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-bde (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [WARNING] hermes-monitor:   UNHEALTHY: worker-aepd (reason=stale, stale=True, hours_since_run=unknown)\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-dgt is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-teac is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker cron-modelos-daily is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-boe-modelos is unhealthy but within grace period (18.2h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-bdns is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-borme is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-cnmv is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-sepblac is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-cendoj is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-eurlex is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-bde is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Worker worker-aepd is unhealthy but within grace period (0.0h < 2h), skipping restart\n2026-05-11 04:02:39 [INFO] hermes-monitor: Hermes Monitor finished.\n",
+        "stderr_tail": " Container esdata-worker-boe-run-bf903f7f5dea Creating \n Container esdata-worker-boe-run-bf903f7f5dea Created \n"
+      },
+      "blocker": null
+    },
+    {
+      "name": "final_prd_status",
+      "status": "pass",
+      "evidence": {
+        "path": "scripts\\ralph\\prd-final-product-readiness.json",
+        "stories": [
+          "FINAL-001",
+          "FINAL-002",
+          "FINAL-003"
+        ],
+        "runtime_gate_passed": true
+      },
+      "blocker": null
+    }
+  ],
+  "ok": true,
+  "vps_scope_note": "VPS deployment and live Telegram delivery still require running this gate and the documented smoke tests on the server."
+}

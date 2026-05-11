@@ -13,9 +13,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from aeat_irnr import (
     _discover_irnr_models,
     _extract_model_name,
+    _extract_instruction_sections,
+    _extract_irnr_rate_rows,
     _get_existing_codes,
     _mark_deprecated_irnr_models,
     _upsert_irnr_model,
+    _upsert_irnr_instructions,
+    _upsert_irnr_rates,
 )
 
 # ---------------------------------------------------------------------------
@@ -47,6 +51,58 @@ class TestExtractModelName:
         assert "Retenciones" in name
 
 
+class TestExtractInstructionSections:
+    def test_extracts_official_page_text_with_source(self):
+        html = """
+        <html>
+        <body>
+          <header>Menu</header>
+          <main>
+            <h1>Modelo 210</h1>
+            <h2>Información</h2>
+            <p>Instrucciones oficiales para presentar el modelo 210.</p>
+            <h2>Normativa</h2>
+            <p>Orden EHA/3316/2010.</p>
+          </main>
+        </body>
+        </html>
+        """
+
+        result = _extract_instruction_sections(
+            html,
+            "Modelo 210. IRNR",
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml",
+        )
+
+        assert len(result) == 1
+        assert result[0]["seccion"] == "portal_aeat_modelo"
+        assert result[0]["source_family"] == "AEAT official portal"
+        assert "Fuente oficial AEAT" in result[0]["contenido"]
+        assert "Orden EHA/3316/2010" in result[0]["contenido"]
+
+
+class TestExtractIrnrRateRows:
+    def test_extracts_current_aeat_rate_rows(self):
+        html = """
+        <html><body>
+        <h1>Tipos de gravamen en el IRNR sin establecimiento permanente</h1>
+        <p>Dividendos y otros rendimientos derivados de la participación en fondos propios.</p>
+        <p>Intereses y otros rendimientos obtenidos por la cesión a terceros de capitales propios.</p>
+        <p>Pensiones y demás prestaciones similares.</p>
+        <p>Página actualizada: 18/junio/2025</p>
+        </body></html>
+        """
+
+        result = _extract_irnr_rate_rows(html)
+
+        tipos = {row["tipo_renta"]: row["tipo_retencion"] for row in result}
+        assert tipos["general_ue_islandia_noruega"] == 19.0
+        assert tipos["general_resto_contribuyentes"] == 24.0
+        assert tipos["trabajo_temporada"] == 2.0
+        assert tipos["reaseguro"] == 1.5
+        assert all("AEAT official portal" in row["source_family"] for row in result)
+
+
 # ---------------------------------------------------------------------------
 # Model discovery
 # ---------------------------------------------------------------------------
@@ -57,14 +113,14 @@ class TestDiscoverIrrnModels:
         html = """
         <html>
         <body>
-            <a href="/Sede/enlectivo_hacienda/modelos-informacion-y-declaraciones/no_residentes/modelo_123_irnr.html">
-                123 - Rendimientos IRNR
+            <a href="/Sede/procedimientoini/GF00.shtml">
+                Modelo 210. IRNR sin establecimiento permanente
             </a>
-            <a href="/Sede/enlectivo_hacienda/modelos-informacion-y-declaraciones/no_residentes/modelo_124_dividendos.html">
-                124 - Dividendos
+            <a href="/Sede/procedimientoini/GF01.shtml">
+                Modelo 211. Retencion adquisicion inmuebles
             </a>
-            <a href="/Sede/enlectivo_hacienda/modelos-informacion-y-declaraciones/no_residentes/modelo_216_facta.html">
-                216 - FactA no residentes
+            <a href="/Sede/procedimientoini/GF05.shtml">
+                Modelo 216. Retenciones IRNR
             </a>
         </body>
         </html>
@@ -73,8 +129,8 @@ class TestDiscoverIrrnModels:
             result = _discover_irnr_models()
 
         codigos = {m["codigo"] for m in result}
-        assert "123" in codigos
-        assert "124" in codigos
+        assert "210" in codigos
+        assert "211" in codigos
         assert "216" in codigos
         assert len(result) == 3
 
@@ -82,13 +138,14 @@ class TestDiscoverIrrnModels:
         html = """
         <html>
         <body>
-            <a href="/modelo_116_test.html">116 - Actividades</a>
-            <a href="/modelo_123_test.html">123 - Rendimientos</a>
-            <a href="/modelo_124_test.html">124 - Dividendos</a>
-            <a href="/modelo_212_test.html">212 - Dividendos empresas</a>
-            <a href="/modelo_216_test.html">216 - FactA</a>
-            <a href="/modelo_296_test.html">296 - Resumen</a>
-            <a href="/modelo_878_test.html">878 - Proveedores</a>
+            <a href="/modelo-210-test.html">Modelo 210. Sin establecimiento permanente</a>
+            <a href="/modelo-211-test.html">Modelo 211. Retencion inmuebles</a>
+            <a href="/modelo-213-test.html">Modelo 213. Gravamen especial</a>
+            <a href="/modelo-216-test.html">Modelo 216. Retenciones</a>
+            <a href="/modelo-226-test.html">Modelo 226. Regimen opcional</a>
+            <a href="/modelo-228-test.html">Modelo 228. Devolucion reinversion</a>
+            <a href="/modelo-247-test.html">Modelo 247. Desplazamiento</a>
+            <a href="/modelo-296-test.html">Modelo 296. Resumen anual</a>
         </body>
         </html>
         """
@@ -96,16 +153,16 @@ class TestDiscoverIrrnModels:
             result = _discover_irnr_models()
 
         codigos = {m["codigo"] for m in result}
-        assert codigos == {"116", "123", "124", "212", "216", "296", "878"}
-        assert len(result) == 7
+        assert codigos == {"210", "211", "213", "216", "226", "228", "247", "296"}
+        assert len(result) == 8
 
     def test_deduplicates_by_code(self):
         html = """
         <html>
         <body>
-            <a href="/modelo_123_first.html">123 - First link</a>
-            <a href="/modelo_123_second.html">123 - Second link</a>
-            <a href="/modelo_216.html">216 - FactA</a>
+            <a href="/modelo_210_first.html">Modelo 210. First link</a>
+            <a href="/modelo_210_second.html">Modelo 210. Second link</a>
+            <a href="/modelo_216.html">Modelo 216. Retenciones</a>
         </body>
         </html>
         """
@@ -114,7 +171,7 @@ class TestDiscoverIrrnModels:
 
         assert len(result) == 2
         codigos = [m["codigo"] for m in result]
-        assert codigos.count("123") == 1
+        assert codigos.count("210") == 1
 
     def test_returns_empty_on_no_html(self):
         with patch("aeat_irnr._fetch", return_value=None):
@@ -139,8 +196,8 @@ class TestDiscoverIrrnModels:
         html = """
         <html>
         <body>
-            <a href="/generic.html">123 - Rendimientos IRNR</a>
-            <a href="/generic2.html">216 - FactA no residentes</a>
+            <a href="/generic.html">Modelo 210. IRNR</a>
+            <a href="/generic2.html">216 - Retenciones no residentes</a>
         </body>
         </html>
         """
@@ -148,7 +205,7 @@ class TestDiscoverIrrnModels:
             result = _discover_irnr_models()
 
         codigos = {m["codigo"] for m in result}
-        assert "123" in codigos
+        assert "210" in codigos
         assert "216" in codigos
 
 
@@ -192,6 +249,113 @@ class TestUpsertIrrnModel:
             ).fetchone()
 
         assert row == ("123", "Rendimientos IRNR", "anual", "IRNR", "https://example.com/123")
+
+    def test_upsert_irnr_instructions(self):
+        engine = create_engine("sqlite:///:memory:")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE irnr_instruccion (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        modelo_id INTEGER NOT NULL,
+                        seccion TEXT NOT NULL,
+                        titulo TEXT NOT NULL,
+                        contenido TEXT,
+                        source_url TEXT,
+                        source_family TEXT,
+                        actualizado_en TEXT,
+                        UNIQUE (modelo_id, seccion)
+                    )
+                    """
+                )
+            )
+
+            result = _upsert_irnr_instructions(
+                conn,
+                1,
+                [
+                    {
+                        "seccion": "portal_aeat_modelo",
+                        "titulo": "Modelo 210",
+                        "contenido": "Fuente oficial AEAT",
+                        "source_url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml",
+                        "source_family": "AEAT official portal",
+                    }
+                ],
+            )
+
+        assert result == 1
+
+        with engine.begin() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT seccion, source_family FROM irnr_instruccion WHERE modelo_id = 1"
+                )
+            ).fetchone()
+
+        assert row == ("portal_aeat_modelo", "AEAT official portal")
+
+    def test_upsert_irnr_rates(self):
+        engine = create_engine("sqlite:///:memory:")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE irnr_withholding_rate (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        modelo_id INTEGER NOT NULL,
+                        tipo_renta TEXT NOT NULL,
+                        tipo_retencion FLOAT NOT NULL,
+                        articulo_referencia TEXT,
+                        fuente_texto TEXT,
+                        source_url TEXT,
+                        source_family TEXT,
+                        effective_date TEXT,
+                        legal_basis TEXT,
+                        uncertainty_notes TEXT,
+                        activo BOOLEAN DEFAULT 1,
+                        actualizado_en TEXT,
+                        UNIQUE (modelo_id, tipo_renta)
+                    )
+                    """
+                )
+            )
+
+            result = _upsert_irnr_rates(
+                conn,
+                1,
+                [
+                    {
+                        "tipo_renta": "general_resto_contribuyentes",
+                        "tipo_retencion": 24.0,
+                        "articulo_referencia": "art. 25 TRLIRNR",
+                        "fuente_texto": "Resto contribuyentes: 24%",
+                        "source_url": "https://sede.agenciatributaria.gob.es/Sede/no-residentes/irnr-sin-establecimiento-permanente/tipos-gravamen-irnr-sin-establecimiento-permanente.html",
+                        "source_family": "AEAT official portal; BOE official text",
+                        "effective_date": None,
+                        "legal_basis": "Artículo 25 TRLIRNR",
+                        "uncertainty_notes": "Test",
+                    }
+                ],
+            )
+
+        assert result == 1
+
+        with engine.begin() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT tipo_renta, tipo_retencion, source_family FROM irnr_withholding_rate WHERE modelo_id = 1"
+                )
+            ).fetchone()
+
+        assert row == (
+            "general_resto_contribuyentes",
+            24.0,
+            "AEAT official portal; BOE official text",
+        )
 
     def test_upsert_updates_existing_model(self):
         engine = create_engine("sqlite:///:memory:")

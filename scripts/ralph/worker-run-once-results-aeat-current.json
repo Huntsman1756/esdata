@@ -1,0 +1,18 @@
+{
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "timeouts": 0,
+  "results": [
+    {
+      "service": "cron-aeat-current-daily",
+      "worker_cmd": "python aeat_current_designs.py --run-once",
+      "mode": "docker-compose-run",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 7.1,
+      "stdout_tail": "{\n  \"design_links\": 74,\n  \"resources_stored\": 7,\n  \"resources_unchanged\": 61,\n  \"spreadsheet_fields\": 2527,\n  \"calendar_entries\": 248,\n  \"calendar_inserted\": 0,\n  \"skipped\": 6\n}",
+      "stderr_tail": ""
+    }
+  ]
+}

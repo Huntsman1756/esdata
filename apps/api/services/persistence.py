@@ -215,7 +215,13 @@ def dumps_json_list(value) -> str:
 
 
 def _json_default(obj):
+    from datetime import date, datetime
     from decimal import Decimal
+
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
     if isinstance(obj, Decimal):
         return float(obj)
     raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable')

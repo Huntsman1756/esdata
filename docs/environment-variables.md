@@ -85,6 +85,7 @@
 | `HC_PING_URL_CRON_DGT_WEEKLY` | No | vacio | `runtime deploy` | `cron-dgt-weekly` |
 | `HC_PING_URL_CRON_TEAC_WEEKLY` | No | vacio | `runtime deploy` | `cron-teac-weekly` |
 | `HC_PING_URL_CRON_MODELOS_DAILY` | No | vacio | `runtime deploy` | `cron-modelos-daily` |
+| `HC_PING_URL_CRON_AEAT_CURRENT_DAILY` | No | vacio | `runtime deploy` | `cron-aeat-current-daily` |
 | `HC_PING_URL_CRON_BDNS_WEEKLY` | No | vacio | `runtime deploy` | `cron-bdns-weekly` |
 | `HC_PING_URL_CRON_BORME_WEEKLY` | No | vacio | `runtime deploy` | `cron-borme-weekly` |
 | `HC_PING_URL_CRON_CNMV_WEEKLY` | No | vacio | `runtime deploy` | `cron-cnmv-weekly` |
@@ -125,7 +126,6 @@ Notas operativas de `runtime deploy`:
 
 | Variable | Estado | Nota |
 |----------|--------|------|
-| `NEXT_PUBLIC_API_BASE_URL` | `legacy/no cableada` | Retirada del runtime activo; no debe aparecer en `infra/deploy/compose.env.example` |
 | `MCP_SECRET_ACTIVE` | `legacy/no cableada` | Sigue apareciendo en docs antiguos/perimetrales, pero el deploy Compose activo no la cablea |
 | `MCP_SECRET_PREVIOUS` | `legacy/no cableada` | Igual que `MCP_SECRET_ACTIVE`; fuera del boundary activo de Compose |
 | `CLOUDFLARE_ZONE_ID` | `legacy/no cableada` | Variable historica de workflows/docs de perimetro; no forma parte del deploy Compose activo |

@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-05-11T04:02:37.206315+00:00",
+  "scope": "local-only pre-VPS deployment gate",
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "name": "prd_status",
+      "status": "pass",
+      "evidence": {
+        "path": "scripts\\ralph\\prd-local-full-verification.json",
+        "incomplete": []
+      },
+      "blocker": null
+    },
+    {
+      "name": "table_registry_gate",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "scripts/ralph/table_registry.py",
+          "--gate",
+          "scripts/ralph/table-remediation-registry.json"
+        ],
+        "exit_code": 0,
+        "stdout_tail": "{\n  \"total_tables\": 163,\n  \"blockers_empty\": 0,\n  \"errors\": 0\n}\nOK: local table gate passed for scripts\\ralph\\table-remediation-registry.json\n",
+        "stderr_tail": ""
+      },
+      "blocker": null
+    },
+    {
+      "name": "worker_cron_artifacts",
+      "status": "pass",
+      "evidence": {
+        "files": [
+          "worker-run-once-results-weekly.json",
+          "worker-run-once-results-psd2.json",
+          "worker-run-once-results-boe-modelos.json",
+          "worker-run-once-results-aeat-current.json",
+          "worker-run-once-results-regulatory-fixed.json",
+          "worker-run-once-results-modelos.json",
+          "worker-run-once-results-boe-full.json"
+        ],
+        "missing": [],
+        "failed_results": [],
+        "totals": {
+          "total": 16,
+          "passed": 16,
+          "failed": 0,
+          "timeouts": 0
+        },
+        "services": [
+          "cron-aeat-current-daily",
+          "cron-aepd-weekly",
+          "cron-bde-weekly",
+          "cron-bdns-weekly",
+          "cron-boe-daily",
+          "cron-boe-modelos-daily",
+          "cron-borme-weekly",
+          "cron-cendoj-weekly",
+          "cron-cnmv-weekly",
+          "cron-dgt-weekly",
+          "cron-eurlex-weekly",
+          "cron-modelos-daily",
+          "cron-psd2-weekly",
+          "cron-regulatory-daily",
+          "cron-sepblac-weekly",
+          "cron-teac-weekly"
+        ]
+      },
+      "blocker": null
+    },
+    {
+      "name": "script_registry_gate",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "scripts/ralph/verify_scripts_local.py",
+          "--gate",
+          "scripts/ralph/script-verification-registry.json"
+        ],
+        "exit_code": 0,
+        "stdout_tail": "OK: verified scripts\\ralph\\script-verification-registry.json\n{\n  \"total\": 207,\n  \"verified\": 65,\n  \"blocked_runtime\": 142\n}\nOK: local script gate passed for scripts\\ralph\\script-verification-registry.json\n",
+        "stderr_tail": ""
+      },
+      "blocker": null
+    },
+    {
+      "name": "mcp_api_accuracy_gate",
+      "status": "pass",
+      "evidence": {
+        "command": [
+          "C:\\Users\\rome_\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "scripts/ralph/verify_mcp_api_local.py",
+          "--base-url",
+          "http://localhost:8001",
+          "--api-key",
+          "dev-key",
+          "--write",
+          "scripts/ralph/mcp-api-local-results.json"
+        ],
+        "exit_code": 0,
+        "stdout_tail": "{\n  \"total\": 10,\n  \"passed\": 10,\n  \"failed\": 0\n}\n",
+        "stderr_tail": ""
+      },
+      "blocker": null
+    }
+  ],
+  "ok": true
+}

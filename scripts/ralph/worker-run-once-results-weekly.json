@@ -1,0 +1,108 @@
+{
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "timeouts": 0,
+  "results": [
+    {
+      "service": "cron-aepd-weekly",
+      "worker_cmd": "python aepd.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.81,
+      "stdout_tail": "2026-05-10 08:59:17,466 INFO:runtime:DB DNS resolved: postgres -> 172.27.0.3\n2026-05-10 08:59:17,476 INFO:runtime:DB connection established\n2026-05-10 08:59:17,549 INFO:httpx:HTTP Request: GET https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673 \"HTTP/1.1 200 OK\"\n[run-once] Documentos procesados: 1, almacenados: 1",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-bde-weekly",
+      "worker_cmd": "python bde.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.88,
+      "stdout_tail": "2026-05-10 08:59:21,387 INFO:runtime:DB DNS resolved: postgres -> 172.27.0.3\n2026-05-10 08:59:21,397 INFO:runtime:DB connection established\n2026-05-10 08:59:21,686 INFO:httpx:HTTP Request: GET https://www.bde.es/wbe/es/publicaciones/informacion-estadistica/ \"HTTP/1.1 200 OK\"\n  [SKIP] BDE-20260510 unchanged\n[run-once] Documentos procesados: 1, almacenados: 0",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-bdns-weekly",
+      "worker_cmd": "python bdns.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.88,
+      "stdout_tail": "2026-05-10 08:59:25,329 INFO:runtime:DB DNS resolved: postgres -> 172.27.0.3\n2026-05-10 08:59:25,351 INFO:runtime:DB connection established\n2026-05-10 08:59:25,647 INFO:httpx:HTTP Request: GET https://www.infosubvenciones.es/bdnstrans/GE/es/convocatoria/749075/document/1034404 \"HTTP/1.1 200 \"\n  [SKIP] BDNS-749075-1034404 unchanged\n[run-once] Documentos procesados: 1, almacenados: 0",
+      "stderr_tail": "/app/bdns.py:98: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).\n  \"fecha\": datetime.utcnow().date().isoformat(),"
+    },
+    {
+      "service": "cron-borme-weekly",
+      "worker_cmd": "python borme.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.86,
+      "stdout_tail": "2026-05-10 08:59:29,188 INFO:runtime:DB DNS resolved: postgres -> 172.27.0.3\n2026-05-10 08:59:29,205 INFO:runtime:DB connection established\n2026-05-10 08:59:29,279 INFO:httpx:HTTP Request: GET https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BORME-A-2025-55-37 unchanged\n[run-once] Documentos procesados: 1, almacenados: 0",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-cendoj-weekly",
+      "worker_cmd": "python cendoj.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.89,
+      "stdout_tail": "2026-05-10 08:59:33,128 INFO:runtime:DB DNS resolved: postgres -> 172.27.0.3\n2026-05-10 08:59:33,139 INFO:runtime:DB connection established\n2026-05-10 08:59:33,331 INFO:httpx:HTTP Request: GET https://www.poderjudicial.es/search/indexAN.jsp \"HTTP/1.1 200 \"\n[run-once] Documentos procesados: 1, almacenados: 1",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-cnmv-weekly",
+      "worker_cmd": "python cnmv.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 67.25,
+      "stdout_tail": "P/1.1 200 OK\"\n  [SKIP] BOE-A-2013-5875 unchanged\n2026-05-10 09:00:31,254 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2013/02/19/pdfs/BOE-A-2013-1785.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2013-1785 unchanged\n2026-05-10 09:00:31,323 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2012/08/04/pdfs/BOE-A-2012-10479.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2012-10479 unchanged\n2026-05-10 09:00:31,421 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/12/24/pdfs/BOE-A-2011-20107.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-20107 unchanged\n2026-05-10 09:00:31,694 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/12/23/pdfs/BOE-A-2011-20033.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-20033 unchanged\n2026-05-10 09:00:32,273 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/12/15/pdfs/BOE-A-2011-19550.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-19550 unchanged\n2026-05-10 09:00:33,058 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/12/31/pdfs/BOE-A-2011-20653.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-20653 unchanged\n2026-05-10 09:00:33,133 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/12/06/pdfs/BOE-A-2011-19174.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-19174 unchanged\n2026-05-10 09:00:36,280 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2012/01/04/pdfs/BOE-A-2012-80.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2012-80 unchanged\n2026-05-10 09:00:36,317 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/06/27/pdfs/BOE-A-2011-11011.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-11011 unchanged\n2026-05-10 09:00:36,416 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/06/22/pdfs/BOE-A-2011-10830.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-10830 unchanged\n2026-05-10 09:00:36,478 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/01/25/pdfs/BOE-A-2011-1330.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-1330 unchanged\n2026-05-10 09:00:36,634 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2011/01/11/pdfs/BOE-A-2011-551.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2011-551 unchanged\n2026-05-10 09:00:37,455 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2010/12/06/pdfs/BOE-A-2010-18687.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2010-18687 unchanged\n2026-05-10 09:00:37,569 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2010/10/29/pdfs/BOE-A-2010-16493.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2010-16493 unchanged\n2026-05-10 09:00:38,712 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2010/09/30/pdfs/BOE-A-2010-14947.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2010-14947 unchanged\n2026-05-10 09:00:38,798 INFO:httpx:HTTP Request: GET http://www.boe.es/boe/dias/2010/08/16/pdfs/BOE-A-2010-13162.pdf \"HTTP/1.1 302 Found\"\n2026-05-10 09:00:38,813 INFO:httpx:HTTP Request: GET https://www.boe.es/boe/dias/2010/08/16/pdfs/BOE-A-2010-13162.pdf \"HTTP/1.1 200 OK\"\n  [SKIP] BOE-A-2010-13162 unchanged\n[run-once] URLs descubiertas: 72, Documentos procesados: 72, almacenados: 0",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-dgt-weekly",
+      "worker_cmd": "python dgt.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.76,
+      "stdout_tail": "2026-05-10 09:00:44,206 INFO:__main__:DB DNS resolved: postgres -> 172.27.0.3\n2026-05-10 09:00:44,215 INFO:__main__:DB connection established\n2026-05-10 09:00:44,352 INFO:httpx:HTTP Request: GET https://petete.tributos.hacienda.gob.es/consultas/ \"HTTP/1.1 200 \"\n2026-05-10 09:00:44,374 INFO:httpx:HTTP Request: GET https://petete.tributos.hacienda.gob.es/consultas/ \"HTTP/1.1 200 \"\n2026-05-10 09:00:44,375 INFO:__main__:DGT queue empty, sync complete\n[run-once] Documentos procesados: 0, almacenados: 0",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-eurlex-weekly",
+      "worker_cmd": "python eurlex.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 63.23,
+      "stdout_tail": "[SPARQL] Querying directives from 2025-11-11...\n  [SPARQL] Querying regulations from 2025-11-11...\n  [SPARQL] Found 0 total, 0 new since 2025-11-11\n[run-once] Bloques: 1970, Articulos: 2, Normas: 32, Nuevos SPARQL: 0",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-sepblac-weekly",
+      "worker_cmd": "python sepblac.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 3.78,
+      "stdout_tail": "2026-05-10 09:01:51,645 INFO:runtime:DB DNS resolved: postgres -> 172.27.0.3\n2026-05-10 09:01:51,654 INFO:runtime:DB connection established\n2026-05-10 09:01:52,142 INFO:httpx:HTTP Request: GET https://www.sepblac.es/es/ \"HTTP/1.1 200 OK\"\n  [SKIP] SEPBLAC-COMUNICACION-INDICIO unchanged\n2026-05-10 09:01:52,190 INFO:httpx:HTTP Request: GET https://www.sepblac.es/es/publicaciones/ \"HTTP/1.1 200 OK\"\n  [SKIP] SEPBLAC-publicaciones unchanged\n[run-once] Documentos procesados: 2, almacenados: 0",
+      "stderr_tail": ""
+    },
+    {
+      "service": "cron-teac-weekly",
+      "worker_cmd": "python teac.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 5.78,
+      "stdout_tail": "%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/04803/2024/00/00 unchanged\n2026-05-10 09:01:57,554 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/02259/2025/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/02259/2025/00/00 unchanged\n2026-05-10 09:01:57,618 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/07402/2022/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/07402/2022/00/00 unchanged\n2026-05-10 09:01:57,688 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/02501/2023/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/02501/2023/00/00 unchanged\n2026-05-10 09:01:57,755 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/03381/2023/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/03381/2023/00/00 unchanged\n2026-05-10 09:01:57,819 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/03972/2023/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/03972/2023/00/00 unchanged\n2026-05-10 09:01:57,885 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/05861/2025/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/05861/2025/00/00 unchanged\n2026-05-10 09:01:58,004 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/07211/2024/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/07211/2024/00/00 unchanged\n2026-05-10 09:01:58,114 INFO:httpx:HTTP Request: GET https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/08105/2025/00/0/1&q=s%3d1%26rs%3d%26rn%3d%26ra%3d%26fd%3d%26fh%3d%26u%3d00%26n%3d%26p%3d%26c1%3d%26c2%3d%26c3%3d%26tc%3d1%26tr%3d1%26tp%3d%26tf%3d%26c%3d0%26pg%3d \"HTTP/1.1 200 OK\"\n  [SKIP] 00/08105/2025/00/00 unchanged\n[run-once] Documentos procesados: 10, almacenados: 0",
+      "stderr_tail": ""
+    }
+  ]
+}

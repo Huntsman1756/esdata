@@ -22,6 +22,7 @@ import hashlib
 import logging
 import os
 import re
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from html import unescape
@@ -138,6 +139,11 @@ def _normalize_key(source: str, norma: str) -> str:
     """Create a unique key for idempotency."""
     raw = f"{source}:{norma}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _change_entity_id(change: RegulatoryChange) -> str:
+    raw = f"{change.source}:{change.norma}:{change.change_type}:{change.description}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 # ============================================================
@@ -418,15 +424,17 @@ def check_eurlex_changes(client: httpx.Client) -> list[RegulatoryChange]:
                 if not celex or not celex.startswith("3"):
                     continue
 
-                # Check if we've already recorded this
+                entity_id = compute_hash(f"eurlex:{celex}:new_norm")
                 existing = conn.execute(
                     text("""
-                        SELECT 1 FROM regulatory_changes
-                        WHERE source = 'eurlex'
-                          AND norma = :norma
+                        SELECT 1
+                        FROM source_revision
+                        WHERE worker_name = 'reg-watch'
+                          AND source_entity_tipo = 'regulatory_change'
+                          AND source_entity_id = :entity_id
                         LIMIT 1
                     """),
-                    {"norma": celex},
+                    {"entity_id": entity_id},
                 ).fetchone()
 
                 if existing is None:
@@ -532,7 +540,7 @@ def check_authority_changes(
 # ============================================================
 
 def insert_changes(changes: list[RegulatoryChange]) -> int:
-    """Insert detected changes into regulatory_changes table.
+    """Record detected changes in source_revision.
 
     Idempotent: skips entries with same (source, norma, change_type, description).
     Returns count of inserted changes.
@@ -545,22 +553,21 @@ def insert_changes(changes: list[RegulatoryChange]) -> int:
 
     with engine.begin() as conn:
         for change in changes:
-            # Check if this exact change was already recorded
+            entity_id = _change_entity_id(change)
+            content_hash = compute_hash(
+                f"{change.source}:{change.norma}:{change.change_type}:"
+                f"{change.description}:{change.severity}"
+            )
             existing = conn.execute(
                 text("""
-                    SELECT 1 FROM regulatory_changes
-                    WHERE source = :source
-                      AND norma = :norma
-                      AND change_type = :change_type
-                      AND description = :description
+                    SELECT 1
+                    FROM source_revision
+                    WHERE worker_name = 'reg-watch'
+                      AND source_entity_tipo = 'regulatory_change'
+                      AND source_entity_id = :entity_id
                     LIMIT 1
                 """),
-                {
-                    "source": change.source,
-                    "norma": change.norma,
-                    "change_type": change.change_type,
-                    "description": change.description,
-                },
+                {"entity_id": entity_id},
             ).fetchone()
 
             if existing is not None:
@@ -568,21 +575,18 @@ def insert_changes(changes: list[RegulatoryChange]) -> int:
 
             conn.execute(
                 text("""
-                    INSERT INTO regulatory_changes (
-                        source, norma, change_type, description,
-                        detected_at, severity
+                    INSERT INTO source_revision (
+                        worker_name, source_entity_tipo, source_entity_id,
+                        content_hash_sha256, fetched_at
                     ) VALUES (
-                        :source, :norma, :change_type, :description,
-                        :detected_at, :severity
+                        'reg-watch', 'regulatory_change', :entity_id,
+                        :content_hash, :detected_at
                     )
                 """),
                 {
-                    "source": change.source,
-                    "norma": change.norma,
-                    "change_type": change.change_type,
-                    "description": change.description,
+                    "entity_id": entity_id,
+                    "content_hash": content_hash,
                     "detected_at": now,
-                    "severity": change.severity,
                 },
             )
             inserted += 1
@@ -803,6 +807,8 @@ if __name__ == "__main__":
             f"[run-once] Changes detected: {result['changes_detected']}, "
             f"inserted: {result['changes_inserted']}"
         )
+        if result.get("error"):
+            sys.exit(1)
     else:
         print(f"Starting Regulatory Watch worker (interval={interval}s)")
         while True:

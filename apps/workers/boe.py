@@ -11,8 +11,6 @@ Auditoria: cada ejecucion escribe en `sync_log` (worker='worker-boe').
 Limitaciones conocidas:
 - Parser HTML de articulado depende de la estructura del XML BOE; cambios
   en upstream pueden generar `[PARTIAL]` rows.
-- Consolidacion (texto vigente) parcial: solo se almacena ultima version
-  conocida; histogramas de versiones no se reconstruyen retroactivamente.
 """
 
 import argparse
@@ -97,8 +95,30 @@ _SYNC_LOG_BOOTSTRAP_LOGGED: set[str] = set()
 
 
 def _ensure_sync_log_table(conn) -> None:
-    """Garantiza tabla `sync_log` (no-op en todos los dialects; schema owned por Alembic)."""
+    """Ensure sync_log exists for SQLite tests; production schema is Alembic-owned."""
     dialect = conn.engine.dialect.name
+    if dialect == "sqlite":
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
+        return
+
     if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
         _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
 
@@ -275,6 +295,10 @@ def fetch_index(client: httpx.Client, boe_id: str) -> list[BloqueIndex]:
 
 
 def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto:
+    return max(fetch_block_versions(client, boe_id, block_id), key=lambda block: block.vigente_desde)
+
+
+def fetch_block_versions(client: httpx.Client, boe_id: str, block_id: str) -> list[BloqueTexto]:
     # Try the consolidated JSON API first
     try:
         response = client.get(
@@ -282,7 +306,7 @@ def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto
             headers={"Accept": "application/xml"},
         )
         if getattr(response, "status_code", 200) == 200:
-            return parse_block_xml(block_id, response.text)
+            return parse_block_xml_versions(block_id, response.text)
     except (httpx.HTTPStatusError, httpx.RequestError):
         pass
 
@@ -290,33 +314,53 @@ def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto
     xml_url = f"https://www.boe.es/diario_boe/xml.php?id={boe_id}"
     response = client.get(xml_url, timeout=60.0)
     response.raise_for_status()
-    return _extract_xml_block(response.text, block_id)
+    return [_extract_xml_block(response.text, block_id)]
 
 
 def parse_block_xml(block_id: str, xml_text: str) -> BloqueTexto:
+    versions = parse_block_xml_versions(block_id, xml_text)
+    return max(versions, key=lambda block: block.vigente_desde)
+
+
+def parse_block_xml_versions(block_id: str, xml_text: str) -> list[BloqueTexto]:
     root = ET.fromstring(xml_text)
     bloque = root.find(".//bloque")
-    version = root.find(".//version")
-    if bloque is None or version is None:
+    versions = root.findall(".//version")
+    if bloque is None or not versions:
         raise ValueError(f"Invalid BOE block payload for {block_id}")
 
     titulo = bloque.attrib.get("titulo", "").strip()
     tipo_articulo, numero = _infer_tipo_y_numero(titulo)
-    parts = []
-    for p in version.findall("p"):
-        text_value = "".join(p.itertext()).strip()
-        if text_value:
-            parts.append(text_value)
+    blocks = []
+    for version in versions:
+        try:
+            vigente_desde = _yyyymmdd_to_iso(version.attrib.get("fecha_vigencia", ""))
+        except ValueError as exc:
+            logger.warning("Skipping BOE block %s version with invalid date: %s", block_id, exc)
+            continue
+        parts = []
+        for p in version.findall("p"):
+            text_value = "".join(p.itertext()).strip()
+            if text_value:
+                parts.append(text_value)
+        if not parts:
+            continue
+        blocks.append(
+            BloqueTexto(
+                bloque_id=block_id,
+                tipo_bloque=bloque.attrib.get("tipo", ""),
+                numero=numero,
+                titulo=titulo,
+                tipo_articulo=tipo_articulo,
+                texto="\n".join(parts),
+                vigente_desde=vigente_desde,
+            )
+        )
 
-    return BloqueTexto(
-        bloque_id=block_id,
-        tipo_bloque=bloque.attrib.get("tipo", ""),
-        numero=numero,
-        titulo=titulo,
-        tipo_articulo=tipo_articulo,
-        texto="\n".join(parts),
-        vigente_desde=_yyyymmdd_to_iso(version.attrib["fecha_vigencia"]),
-    )
+    if not blocks:
+        raise ValueError(f"Invalid BOE block payload for {block_id}: no valid fecha_vigencia")
+
+    return sorted(blocks, key=lambda block: block.vigente_desde)
 
 
 def fetch_metadata(client: httpx.Client, codigo: str, boe_id: str) -> NormaMetadata:
@@ -463,6 +507,30 @@ def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
         },
     )
 
+    conn.execute(
+        text(
+            """
+            UPDATE version_articulo
+            SET vigente_hasta = (
+                SELECT MIN(next_va.vigente_desde)
+                FROM version_articulo AS next_va
+                WHERE next_va.articulo_id = version_articulo.articulo_id
+                  AND next_va.vigente_desde > version_articulo.vigente_desde
+            )
+            WHERE articulo_id = (
+                SELECT a.id
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = :codigo AND a.numero = :numero
+            )
+            """
+        ),
+        {
+            "codigo": codigo,
+            "numero": bloque.numero,
+        },
+    )
+
 
 def auto_link_materias(conn) -> int:
     """Link materias to articles based on keyword matching in article text.
@@ -558,14 +626,16 @@ def auto_link_doctrina(conn) -> int:
                 WHERE documento_articulo.metodo_enlace IN (
                     'auto_link',
                     'auto_link_exact',
-                    'auto_link_heuristic'
+                    'auto_link_heuristic',
+                    'contextual_fallback'
                 )
                 AND (
                     (
                         EXCLUDED.metodo_enlace = 'auto_link_exact'
                         AND documento_articulo.metodo_enlace IN (
                             'auto_link',
-                            'auto_link_heuristic'
+                            'auto_link_heuristic',
+                            'contextual_fallback'
                         )
                     )
                     OR (
@@ -763,10 +833,14 @@ def log_sync(
 def _ensure_schema(conn) -> None:
     """Ensure worker-owned schema objects exist before syncing.
 
-    Tables are created by Alembic only. This function ensures
-    extensions and indexes that the worker needs exist.
+    PostgreSQL tables are created by Alembic only. SQLite receives a small
+    compatibility schema so worker unit tests exercise real upsert logic.
     """
     dialect = conn.engine.dialect.name
+
+    if dialect == "sqlite":
+        _ensure_sqlite_schema(conn)
+        return
 
     if dialect == "postgresql":
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
@@ -788,6 +862,141 @@ def _ensure_schema(conn) -> None:
                     "CREATE INDEX idx_version_articulo_texto_trgm ON version_articulo USING gin (texto gin_trgm_ops)"
                 )
             )
+
+
+def _sqlite_columns(conn, table_name: str) -> set[str]:
+    rows = conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+    return {row[1] for row in rows}
+
+
+def _sqlite_add_column_if_missing(conn, table_name: str, column_sql: str) -> bool:
+    column_name = column_sql.split()[0]
+    if column_name not in _sqlite_columns(conn, table_name):
+        conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}"))
+        return True
+    return False
+
+
+def _ensure_sqlite_schema(conn) -> None:
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS norma (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT UNIQUE NOT NULL,
+                titulo TEXT NOT NULL,
+                boe_id TEXT UNIQUE NOT NULL,
+                eli_uri TEXT UNIQUE,
+                jurisdiccion TEXT NOT NULL,
+                tipo_fuente TEXT NOT NULL,
+                tipo_documento TEXT NOT NULL DEFAULT 'ley',
+                ambito TEXT NOT NULL DEFAULT 'tributario',
+                estado_cobertura TEXT NOT NULL DEFAULT 'ingestada',
+                vigente_desde TEXT NOT NULL
+            )
+            """
+        )
+    )
+    norma_upgraded = False
+    for column_sql in (
+        "tipo_documento TEXT NOT NULL DEFAULT 'ley'",
+        "estado_cobertura TEXT NOT NULL DEFAULT 'ingestada'",
+    ):
+        norma_upgraded = _sqlite_add_column_if_missing(conn, "norma", column_sql) or norma_upgraded
+    if "ambito" not in _sqlite_columns(conn, "norma"):
+        conn.execute(text("ALTER TABLE norma ADD COLUMN ambito TEXT NOT NULL DEFAULT 'tributario'"))
+        norma_upgraded = True
+    if norma_upgraded:
+        conn.execute(
+            text(
+                """
+                UPDATE norma
+                SET tipo_documento = COALESCE(NULLIF(tipo_documento, ''), 'ley'),
+                    ambito = CASE
+                        WHEN ambito IS NULL OR ambito = '' OR ambito = 'fiscal' THEN 'tributario'
+                        ELSE ambito
+                    END,
+                    estado_cobertura = COALESCE(NULLIF(estado_cobertura, ''), 'ingestada')
+                """
+            )
+        )
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS articulo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                norma_id INTEGER NOT NULL,
+                numero TEXT NOT NULL,
+                titulo TEXT NOT NULL,
+                tipo TEXT NOT NULL,
+                UNIQUE(norma_id, numero)
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS version_articulo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                articulo_id INTEGER NOT NULL,
+                texto TEXT NOT NULL,
+                vigente_desde TEXT NOT NULL,
+                vigente_hasta TEXT,
+                boe_bloque_id TEXT
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS materia (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug TEXT UNIQUE NOT NULL,
+                etiqueta TEXT NOT NULL
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS articulo_materia (
+                articulo_id INTEGER NOT NULL,
+                materia_id INTEGER NOT NULL,
+                relevancia INTEGER NOT NULL,
+                UNIQUE(articulo_id, materia_id)
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS documento_interpretativo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referencia TEXT,
+                texto TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS documento_articulo (
+                documento_id INTEGER NOT NULL,
+                articulo_id INTEGER NOT NULL,
+                metodo_enlace TEXT NOT NULL,
+                confianza_enlace REAL NOT NULL,
+                nota TEXT,
+                UNIQUE(documento_id, articulo_id)
+            )
+            """
+        )
+    )
+    _ensure_sync_log_table(conn)
 
 
 def _report_idle_in_transaction_connections(engine) -> None:
@@ -903,6 +1112,7 @@ def run_sync(
 
                 bloques_fetched = 0
                 articulos_upserted = 0
+                block_errors = []
                 ley_start = datetime.now(timezone.utc).isoformat()
                 try:
                     with engine.begin() as conn:
@@ -914,9 +1124,20 @@ def run_sync(
                         if only_block_ids and item.id not in only_block_ids:
                             continue
                         touch_heartbeat()
-                        bloque = fetch_block(client, boe_id, item.id)
+                        try:
+                            bloques = fetch_block_versions(client, boe_id, item.id)
+                        except ValueError as exc:
+                            block_errors.append(f"{item.id}: {exc}")
+                            logger.warning(
+                                "Skipping BOE block %s/%s: %s",
+                                codigo,
+                                item.id,
+                                exc,
+                            )
+                            continue
                         with engine.begin() as conn:
-                            upsert_articulo(conn, codigo, bloque)
+                            for bloque in bloques:
+                                upsert_articulo(conn, codigo, bloque)
                         bloques_fetched += 1
                         articulos_upserted += 1
                         time.sleep(float(os.environ.get("WORKER_REQUEST_DELAY", "1.0")))
@@ -924,12 +1145,20 @@ def run_sync(
                     with engine.begin() as conn:
                         auto_link_materias(conn)
                         auto_link_doctrina(conn)
+                        status = "partial" if block_errors else "ok"
+                        error_msg = (
+                            f"skipped_invalid_blocks={len(block_errors)}; "
+                            + "; ".join(block_errors[:5])
+                            if block_errors
+                            else None
+                        )
                         log_sync(
                             conn,
                             worker_name,
-                            "ok",
+                            status,
                             bloques=bloques_fetched,
                             articulos=articulos_upserted,
+                            error_msg=error_msg,
                             started_at=ley_start,
                         )
                     total_bloques += bloques_fetched
@@ -959,7 +1188,12 @@ def run_sync(
 
 
 def _yyyymmdd_to_iso(value: str) -> str:
-    return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+    if not re.fullmatch(r"\d{8}", value or ""):
+        raise ValueError(f"Invalid BOE date: {value!r}")
+    try:
+        return datetime.strptime(value, "%Y%m%d").date().isoformat()
+    except ValueError as exc:
+        raise ValueError(f"Invalid BOE date: {value!r}") from exc
 
 
 def _infer_tipo_y_numero(titulo: str) -> tuple[str, str]:

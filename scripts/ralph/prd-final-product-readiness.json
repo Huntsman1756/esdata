@@ -1,0 +1,42 @@
+{
+  "project": "esdata",
+  "branchName": "ralph/final-product-readiness",
+  "description": "Final Ralph product-readiness gate before VPS rollout. Scope is local verification plus deployable VPS configuration artifacts; it does not claim VPS success until run on the server.",
+  "userStories": [
+    {
+      "id": "FINAL-001",
+      "title": "Local full gate remains green",
+      "acceptanceCriteria": [
+        "LOCAL-001 through LOCAL-006 remain passing",
+        "Tables have zero blocker/unclassified states",
+        "Worker and cron run-once artifacts remain all passing",
+        "MCP/API accuracy checks remain all passing"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "FINAL-002",
+      "title": "VPS monitoring artifacts are deployable",
+      "acceptanceCriteria": [
+        "Hermes is read-only/restart-disabled by default",
+        "MCP validation timer is read-only",
+        "Alertmanager Telegram config validates with prom/alertmanager:v0.28.1",
+        "Docker Compose production config renders successfully"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "FINAL-003",
+      "title": "Operational documentation reflects final state",
+      "acceptanceCriteria": [
+        "Deployment runbook documents Hermes and Alertmanager secret setup",
+        "Grafana/Alertmanager runbook includes reproducible Telegram test",
+        "Roadmap records what is locally verified and what remains VPS-gated"
+      ],
+      "priority": 3,
+      "passes": true
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "project": "esdata",
+  "branchName": "ralph/vps-deployment",
+  "description": "Complete VPS deployment setup for esdata production environment",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix backup service entrypoint for busybox compatibility",
+      "description": "The backup service in docker-compose.prod.yml uses a multi-line entrypoint with pipefail which busybox sh doesn't support. Create a standalone backup.sh script and mount it as a volume.",
+      "acceptanceCriteria": [
+        "Create scripts/backup.sh with simple sh-compatible backup logic",
+        "Update docker-compose.prod.yml to use the script as entrypoint",
+        "Backup service starts and runs without errors",
+        "pg_dump runs successfully and creates .sql.gz files in /backups"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Already fixed locally, needs testing on VPS"
+    },
+    {
+      "id": "US-002",
+      "title": "Fix worker-boe-modelos import path resolution",
+      "description": "The worker-boe-modelos container fails because runtime.py uses relative imports that don't work when executed as __main__. Change to absolute imports.",
+      "acceptanceCriteria": [
+        "Change 'from .dead_letter import' to 'import dead_letter' in runtime.py",
+        "Use dead_letter.add_dead_letter() instead of add_dead_letter()",
+        "Worker starts and connects to database successfully",
+        "Worker runs sync loop without import errors"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Already fixed in code, needs rebuild and test on VPS"
+    },
+    {
+      "id": "US-003",
+      "title": "Fix dead_letter boolean comparison",
+      "description": "The dead_letter.py query uses 'resolved = 0' but the column is BOOLEAN type. Change to resolved = False.",
+      "acceptanceCriteria": [
+        "Change resolved = 0 to resolved = :resolved with resolved=False parameter",
+        "Worker-boe-modelos runs without SQL type errors",
+        "Dead letter entries can be created and queried correctly"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Already fixed in code, needs rebuild and test on VPS"
+    },
+    {
+      "id": "US-004",
+      "title": "Create sync_dead_letter table in production database",
+      "description": "The sync_dead_letter table doesn't exist in the production database. Create it with the correct schema matching dead_letter.py expectations.",
+      "acceptanceCriteria": [
+        "Table sync_dead_letter exists with all required columns",
+        "Indexes ix_dead_letter_worker_resolved and ix_dead_letter_last_failed created",
+        "Unique constraint on (worker_name, entity_id) works",
+        "Worker-boe-modelos can insert into the table without errors"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Already created manually on VPS, should be in alembic migration"
+    },
+    {
+      "id": "US-005",
+      "title": "Fix worker-cdi healthcheck timeout",
+      "description": "Worker-cdi is unhealthy due to healthcheck timeout. The worker processes 86 conventions but the healthcheck expects a heartbeat file that may not be created for long-running workers.",
+      "acceptanceCriteria": [
+        "Worker-cdi healthcheck passes (either fix healthcheck or ensure heartbeat file exists)",
+        "Worker continues running and syncing conventions",
+        "No restart loops for worker-cdi"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Worker is functional, only healthcheck is failing"
+    },
+    {
+      "id": "US-006",
+      "title": "Verify HTTPS and DNS for api.desuscribir.es and esdata.desuscribir.es",
+      "description": "Confirm both domains resolve to the VPS IP and Caddy serves valid Let's Encrypt SSL certificates.",
+      "acceptanceCriteria": [
+        "api.desuscribir.es resolves to 212.227.227.64",
+        "esdata.desuscribir.es resolves to 212.227.227.64",
+        "HTTPS returns valid response on api.desuscribir.es",
+        "HTTPS returns valid response on esdata.desuscribir.es",
+        "Caddy logs show successful certificate issuance"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Already verified working"
+    },
+    {
+      "id": "US-007",
+      "title": "Install opencode on VPS and configure for autonomous deployment",
+      "description": "Install opencode on the VPS, configure with user's API keys, and set up for autonomous deployment work.",
+      "acceptanceCriteria": [
+        "opencode v0.0.55 installed on VPS at ~/go/bin/opencode",
+        "Config copied from local to /root/.config/opencode/opencode.json",
+        "Ripgrep and fzf installed for full opencode features",
+        "opencode can connect to Qwen 3.6 model via nan provider"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Already installed and configured"
+    },
+    {
+      "id": "US-008",
+      "title": "Set up systemd timers for cron jobs",
+      "description": "Install the systemd timer units from infra/deploy/systemd/ to schedule periodic data syncs on the VPS.",
+      "acceptanceCriteria": [
+        "All timer units installed in /etc/systemd/system/",
+        "Timer units enabled and active",
+        "First scheduled runs execute successfully",
+        "Timer logs show successful executions"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Timer files exist in infra/deploy/systemd/ but not yet installed"
+    }
+  ]
+}

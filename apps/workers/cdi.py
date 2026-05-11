@@ -29,6 +29,7 @@ from runtime import (
     get_database_url,
     get_interval_seconds,
     handle_worker_failure,
+    sleep_with_heartbeat,
     touch_heartbeat,
 )
 from sqlalchemy import create_engine, text
@@ -598,7 +599,7 @@ def main():
                     "discovery",
                     exc,
                 )
-            time.sleep(interval)
+            sleep_with_heartbeat(interval)
 
 
 if __name__ == "__main__":

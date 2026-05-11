@@ -34,22 +34,25 @@ from change_detection import (
 logger = configure_logging("worker-aeat-irnr")
 
 AEAT_SEDE = "https://sede.agenciatributaria.gob.es"
-AEAT_IRNR_PORTAL = (
-    "https://www.sede.agenciatributaria.gob.es/Sede/enlectivo_hacienda/"
-    "modelos-informacion-y-declaraciones/no_residentes/"
+AEAT_IRNR_PORTAL = f"{AEAT_SEDE}/Sede/impuestos-tasas/irnr.html"
+AEAT_IRNR_RATES_URL = (
+    f"{AEAT_SEDE}/Sede/no-residentes/irnr-sin-establecimiento-permanente/"
+    "tipos-gravamen-irnr-sin-establecimiento-permanente.html"
 )
+BOE_IRNR_LAW_URL = "https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527"
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("IRNR_SYNC_INTERVAL", 86400)
 
 # Modelos IRNR especificos que este worker gestiona
 IRNR_MODELOS = {
-    "116": "Actividades economicas (periodo trimestral)",
-    "123": "Rendimientos sin establecimiento permanente",
-    "124": "Dividendos y rentas del capital mobiliario",
-    "212": "Dividendos y rentas del capital (empresas)",
-    "216": "FactA a terceros (no residentes)",
+    "210": "IRNR sin establecimiento permanente",
+    "211": "Retencion en la adquisicion de bienes inmuebles",
+    "213": "Gravamen especial sobre bienes inmuebles de entidades no residentes",
+    "216": "Retenciones e ingresos a cuenta",
+    "226": "Regimen opcional para residentes UE/EEE",
+    "228": "Devolucion por exencion por reinversion en vivienda habitual",
+    "247": "Comunicacion de desplazamiento al extranjero",
     "296": "Resumen anual de retenciones",
-    "878": "Relacion de pagos a proveedores no residentes",
 }
 
 
@@ -105,21 +108,23 @@ def _discover_irnr_models() -> list[dict]:
         codigo = None
         url_info = None
 
-        # Pattern 1: URL contains modelo_XXXX_
-        match = re.search(r"modelo_(\d{3})_", href)
+        # Pattern 1: URL contains modelo-XXX or modelo_XXX.
+        match = re.search(r"modelo[-_](\d{3})(?:[-_./]|$)", href, re.IGNORECASE)
         if match:
             codigo = match.group(1)
             url_info = href if href.startswith("http") else urljoin(AEAT_IRNR_PORTAL, href)
 
-        # Pattern 2: Text starts with model code
+        # Pattern 2: Text starts with "Modelo XXX" or a bare model code.
         if not codigo and text:
-            text_match = re.match(r"^(\d{3})\s*[-—:]", text)
+            text_match = re.match(r"^(?:Modelo\s*)?(\d{3})\s*[\.\-:]", text, re.IGNORECASE)
             if text_match:
                 codigo = text_match.group(1)
-                url_info = AEAT_IRNR_PORTAL
+                url_info = href if href.startswith("http") else urljoin(AEAT_IRNR_PORTAL, href)
 
         if codigo and codigo in IRNR_MODELOS and url_info:
             nombre = _extract_model_name(text, codigo)
+            if nombre == f"Modelo {codigo}":
+                nombre = IRNR_MODELOS[codigo]
             models.append({
                 "codigo": codigo,
                 "nombre": nombre,
@@ -150,6 +155,217 @@ def _extract_model_name(raw_text: str, codigo: str) -> str:
     return f"Modelo {codigo}"
 
 
+def _extract_instruction_sections(html: str, title: str, source_url: str) -> list[dict]:
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "nav", "header", "footer"]):
+        tag.decompose()
+
+    lines = [line.strip() for line in soup.get_text("\n", strip=True).splitlines()]
+    lines = [line for line in lines if line]
+    content = "\n".join(lines)
+    if len(content) < 100:
+        return []
+
+    return [
+        {
+            "seccion": "portal_aeat_modelo",
+            "titulo": title[:200],
+            "contenido": f"Fuente oficial AEAT: {source_url}\n\n{content[:8000]}",
+            "source_url": source_url,
+            "source_family": "AEAT official portal",
+        }
+    ]
+
+
+def _extract_irnr_rate_rows(html: str, source_url: str = AEAT_IRNR_RATES_URL) -> list[dict]:
+    text_content = BeautifulSoup(html, "html.parser").get_text("\n", strip=True)
+    required_phrases = [
+        "Tipos de gravamen en el IRNR sin establecimiento permanente",
+        "Dividendos",
+        "Intereses",
+        "Pensiones",
+        "Página actualizada:",
+    ]
+    if not all(phrase in text_content for phrase in required_phrases):
+        return []
+
+    legal_basis = f"Artículo 25 TRLIRNR (BOE-A-2004-4527); fuente AEAT: {source_url}"
+    notes = (
+        "Tipos extraidos de la pagina oficial AEAT de tipos de gravamen IRNR sin "
+        "establecimiento permanente. La pagina informa 'Pagina actualizada: 18/junio/2025'. "
+        "Cuando la pagina no indica una fecha de vigencia individual para el concepto, "
+        "effective_date se deja sin informar."
+    )
+
+    return [
+        {
+            "tipo_renta": "general_ue_islandia_noruega",
+            "tipo_retencion": 19.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Con caracter general: Residentes UE, Islandia y Noruega: 19%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "general_liechtenstein_desde_2021_07_11",
+            "tipo_retencion": 19.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Con caracter general: Liechtenstein desde 11-07-2021: 19%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": "2021-07-11",
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "general_liechtenstein_hasta_2021_07_10",
+            "tipo_retencion": 24.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Con caracter general: Liechtenstein hasta 10-07-2021: 24%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": "Historico incluido en la tabla AEAT; no usar como tipo actual desde 11-07-2021.",
+        },
+        {
+            "tipo_renta": "general_resto_contribuyentes",
+            "tipo_retencion": 24.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Con caracter general: Resto contribuyentes: 24%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "trabajo_temporada",
+            "tipo_retencion": 2.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Contrato de duracion determinada para trabajadores de temporada: 2%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "dividendos_participacion_fondos_propios",
+            "tipo_retencion": 19.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Dividendos y otros rendimientos derivados de la participacion en fondos propios: 19%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "intereses_capitales_propios",
+            "tipo_retencion": 19.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Intereses y otros rendimientos obtenidos por la cesion a terceros de capitales propios: 19%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "pensiones_tramo_hasta_12000",
+            "tipo_retencion": 8.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Pensiones: hasta 12.000 euros, 8%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "pensiones_tramo_12000_18700",
+            "tipo_retencion": 30.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Pensiones: desde 12.000 euros hasta 18.700 euros, 30% sobre el resto.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "pensiones_tramo_desde_18700",
+            "tipo_retencion": 40.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Pensiones: desde 18.700 euros en adelante, 40%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "trabajo_misiones_diplomaticas_consulares",
+            "tipo_retencion": 8.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Trabajo en Misiones Diplomaticas y Representaciones Consulares de Espana en el extranjero: 8%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "reaseguro",
+            "tipo_retencion": 1.5,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Rendimientos derivados de operaciones de reaseguro: 1,5%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "navegacion_maritima_aerea",
+            "tipo_retencion": 4.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Entidades de navegacion maritima o aerea residentes en el extranjero: 4%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "ganancias_iic",
+            "tipo_retencion": 19.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Ganancias patrimoniales por acciones o participaciones de instituciones de inversion colectiva: 19%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+        {
+            "tipo_renta": "otras_ganancias_transmisiones",
+            "tipo_retencion": 19.0,
+            "articulo_referencia": "art. 25 TRLIRNR",
+            "fuente_texto": "Otras ganancias patrimoniales por transmisiones de elementos patrimoniales: 19%.",
+            "source_url": source_url,
+            "source_family": "AEAT official portal; BOE official text",
+            "effective_date": None,
+            "legal_basis": legal_basis,
+            "uncertainty_notes": notes,
+        },
+    ]
+
+
 # -------------------------------------------------------------------
 # Database operations
 # -------------------------------------------------------------------
@@ -167,8 +383,7 @@ def _upsert_irnr_model(conn, codigo: str, nombre: str, url_info: str, periodo: s
                     periodo = COALESCE(EXCLUDED.periodo, aeat_modelo.periodo),
                     impuesto = COALESCE(EXCLUDED.impuesto, aeat_modelo.impuesto),
                     url_info = EXCLUDED.url_info,
-                    activo = true,
-                    actualizado_at = datetime('now')
+                    activo = true
                 """
             ),
             {
@@ -188,30 +403,19 @@ def _upsert_irnr_model(conn, codigo: str, nombre: str, url_info: str, periodo: s
 def _mark_deprecated_irnr_models(conn, discovered_codes: set[str]) -> int:
     """Marca como inactivos los modelos IRNR en DB que no aparecen en el portal."""
     try:
-        if discovered_codes:
-            placeholders = ", ".join(f":code_{i}" for i in range(len(discovered_codes)))
-            params = {f"code_{i}": code for i, code in enumerate(discovered_codes)}
-            params["now"] = None
-            sql = f"""
-                UPDATE aeat_modelo
-                SET activo = false, actualizado_at = datetime('now')
-                WHERE activo = true
-                  AND impuesto = 'IRNR'
-                  AND codigo NOT IN ({placeholders})
-                """
-            result = conn.execute(text(sql), params)
-        else:
-            result = conn.execute(
-                text(
-                    """
-                    UPDATE aeat_modelo
-                    SET activo = false, actualizado_at = datetime('now')
-                    WHERE activo = true
-                      AND impuesto = 'IRNR'
-                      AND codigo NOT IN ('__none__')
-                    """
-                )
-            )
+        if not discovered_codes:
+            return 0
+
+        placeholders = ", ".join(f":code_{i}" for i in range(len(discovered_codes)))
+        params = {f"code_{i}": code for i, code in enumerate(discovered_codes)}
+        sql = f"""
+            UPDATE aeat_modelo
+            SET activo = false
+            WHERE activo = true
+              AND impuesto = 'IRNR'
+              AND codigo NOT IN ({placeholders})
+            """
+        result = conn.execute(text(sql), params)
         return result.rowcount
     except Exception as exc:
         logger.warning("Failed to mark deprecated IRNR models: %s", exc)
@@ -227,6 +431,109 @@ def _get_existing_codes(conn) -> set[str]:
         return {row[0] for row in rows}
     except Exception:
         return set()
+
+
+def _get_model_id(conn, codigo: str) -> int | None:
+    row = conn.execute(
+        text("SELECT id FROM aeat_modelo WHERE codigo = :codigo"),
+        {"codigo": codigo},
+    ).fetchone()
+    return row[0] if row else None
+
+
+def _upsert_irnr_instructions(conn, modelo_id: int, instructions: list[dict]) -> int:
+    count = 0
+    for inst in instructions:
+        conn.execute(
+            text(
+                """
+                INSERT INTO irnr_instruccion (
+                    modelo_id, seccion, titulo, contenido, source_url, source_family
+                )
+                VALUES (
+                    :modelo_id, :seccion, :titulo, :contenido, :source_url, :source_family
+                )
+                ON CONFLICT (modelo_id, seccion) DO UPDATE SET
+                    titulo = EXCLUDED.titulo,
+                    contenido = EXCLUDED.contenido,
+                    source_url = EXCLUDED.source_url,
+                    source_family = EXCLUDED.source_family,
+                    actualizado_en = CURRENT_TIMESTAMP
+                """
+            ),
+            {
+                "modelo_id": modelo_id,
+                "seccion": inst["seccion"],
+                "titulo": inst["titulo"],
+                "contenido": inst["contenido"],
+                "source_url": inst["source_url"],
+                "source_family": inst["source_family"],
+            },
+        )
+        count += 1
+    return count
+
+
+def _upsert_irnr_rates(conn, modelo_id: int, rates: list[dict]) -> int:
+    count = 0
+    for rate in rates:
+        conn.execute(
+            text(
+                """
+                INSERT INTO irnr_withholding_rate (
+                    modelo_id,
+                    tipo_renta,
+                    tipo_retencion,
+                    articulo_referencia,
+                    fuente_texto,
+                    source_url,
+                    source_family,
+                    effective_date,
+                    legal_basis,
+                    uncertainty_notes,
+                    activo
+                )
+                VALUES (
+                    :modelo_id,
+                    :tipo_renta,
+                    :tipo_retencion,
+                    :articulo_referencia,
+                    :fuente_texto,
+                    :source_url,
+                    :source_family,
+                    :effective_date,
+                    :legal_basis,
+                    :uncertainty_notes,
+                    true
+                )
+                ON CONFLICT (modelo_id, tipo_renta) DO UPDATE SET
+                    tipo_retencion = EXCLUDED.tipo_retencion,
+                    articulo_referencia = EXCLUDED.articulo_referencia,
+                    fuente_texto = EXCLUDED.fuente_texto,
+                    source_url = EXCLUDED.source_url,
+                    source_family = EXCLUDED.source_family,
+                    effective_date = EXCLUDED.effective_date,
+                    legal_basis = EXCLUDED.legal_basis,
+                    uncertainty_notes = EXCLUDED.uncertainty_notes,
+                    activo = true,
+                    actualizado_en = CURRENT_TIMESTAMP
+                """
+            ),
+            {
+                "modelo_id": modelo_id,
+                "tipo_renta": rate["tipo_renta"],
+                "tipo_retencion": rate["tipo_retencion"],
+                "articulo_referencia": rate.get("articulo_referencia"),
+                "fuente_texto": rate.get("fuente_texto"),
+                "source_url": rate.get("source_url"),
+                "source_family": rate.get("source_family"),
+                "effective_date": rate.get("effective_date"),
+                "legal_basis": rate.get("legal_basis"),
+                "uncertainty_notes": rate.get("uncertainty_notes"),
+            },
+        )
+        count += 1
+    return count
 
 
 # -------------------------------------------------------------------
@@ -252,6 +559,12 @@ def run_sync(engine, run_once: bool = False):
 
             upserted = 0
             skipped = 0
+            instructions_upserted = 0
+            rates_upserted = 0
+            rate_rows: list[dict] = []
+            rate_html = _fetch(AEAT_IRNR_RATES_URL, _build_client, logger, "IRNR rates")
+            if rate_html:
+                rate_rows = _extract_irnr_rate_rows(rate_html)
 
             with engine.begin() as conn:
                 for model in discovered:
@@ -259,9 +572,21 @@ def run_sync(engine, run_once: bool = False):
                     nombre = model["nombre"]
                     url_info = model["url_info"]
 
-                    if _upsert_irnr_model(conn, codigo, nombre, url_info):
+                    if _upsert_irnr_model(conn, codigo, nombre, url_info, impuesto="IRNR"):
                         upserted += 1
                         logger.info("  Upserted IRNR modelo %s (%s)", codigo, nombre)
+                        modelo_id = _get_model_id(conn, codigo)
+                        if modelo_id:
+                            page_html = _fetch(url_info, _build_client, logger, f"IRNR modelo {codigo}")
+                            if page_html:
+                                instructions = _extract_instruction_sections(page_html, nombre, url_info)
+                                instructions_upserted += _upsert_irnr_instructions(
+                                    conn,
+                                    modelo_id,
+                                    instructions,
+                                )
+                            if codigo == "210" and rate_rows:
+                                rates_upserted += _upsert_irnr_rates(conn, modelo_id, rate_rows)
                     else:
                         skipped += 1
 
@@ -270,7 +595,14 @@ def run_sync(engine, run_once: bool = False):
                 if deprecated_count:
                     logger.info("Marked %d IRNR models as deprecated", deprecated_count)
 
-            logger.info("IRNR sync complete: %d upserted, %d skipped, %d deprecated", upserted, skipped, deprecated_count)
+            logger.info(
+                "IRNR sync complete: %d upserted, %d instructions, %d rates, %d skipped, %d deprecated",
+                upserted,
+                instructions_upserted,
+                rates_upserted,
+                skipped,
+                deprecated_count,
+            )
 
         except Exception as exc:
             logger.exception("IRNR sync failed: %s", exc)

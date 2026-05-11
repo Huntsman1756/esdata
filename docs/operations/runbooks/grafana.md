@@ -94,6 +94,16 @@ Uso recomendado:
 
 ## Prueba manual de Alertmanager / Telegram
 
+Antes de arrancar el perfil `prod`, crear los secretos de Telegram en el VPS:
+
+```bash
+sudo install -d -m 0750 -o deploy -g deploy /srv/esdata/infra/deploy/secrets/alertmanager
+sudo install -m 0640 -o deploy -g deploy /dev/null /srv/esdata/infra/deploy/secrets/alertmanager/telegram_bot_token
+sudoedit /srv/esdata/infra/deploy/secrets/alertmanager/telegram_bot_token
+```
+
+`infra/observability/alertmanager.yml` lee el token con `bot_token_file`. El chat id se configura como `TELEGRAM_CHAT_ID` en `/etc/esdata/esdata.env` porque Alertmanager `v0.28.1` no soporta `chat_id_file`; Compose lo renderiza en un fichero temporal antes de arrancar Alertmanager. No se debe poner el bot token en variables de entorno.
+
 Procedimiento reproducible desde el VPS para inyectar una alerta de prueba:
 
 ```bash

@@ -1,0 +1,18 @@
+{
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "timeouts": 0,
+  "results": [
+    {
+      "service": "cron-modelos-daily",
+      "worker_cmd": "python aeat_models.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 581.69,
+      "stdout_tail": "",
+      "stderr_tail": "entoini/DJ12.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:26,965 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ13.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,004 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ14.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,043 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ15.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,086 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ16.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,128 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ17.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,172 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ18.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,213 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ19.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,255 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ20.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,315 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ21.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,368 [INFO] httpx: HTTP Request: GET https://www1.agenciatributaria.gob.es/wlpl/ADGD-DOCU/Ma24DocuAccMantW?fAcc=AccAltaW \"HTTP/1.0 302 Moved Temporarily\"\n2026-05-10 09:22:27,406 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/errores/erro4033.html \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,462 [INFO] httpx: HTTP Request: GET https://www1.agenciatributaria.gob.es/wlpl/ADGD-DOCU/SvMa24QueryW \"HTTP/1.0 302 Moved Temporarily\"\n2026-05-10 09:22:27,497 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/errores/erro4033.html \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,549 [INFO] httpx: HTTP Request: GET https://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FGCSV \"HTTP/1.0 302 Moved Temporarily\"\n2026-05-10 09:22:27,585 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/errores/erro4033.html \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,629 [INFO] httpx: HTTP Request: GET https://www.boe.es/buscar/doc.php?id=BOE-A-2025-1732 \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,683 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/procedimientos/DJ28.shtml \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,724 [INFO] httpx: HTTP Request: GET https://sede.agenciatributaria.gob.es/Sede/condiciones-uso-sede-electronica/accesibilidad/declaracion-accesibilidad.html \"HTTP/1.1 200 OK\"\n2026-05-10 09:22:27,731 [INFO] worker-aeat-modelos:   Upserted modelo A24 (Agencia Tributaria  Modelo A24. II. EE. Solicitud de devolución del impuesto sobre líquidos para cigarrillos electró...)\n2026-05-10 09:22:27,753 [INFO] worker-aeat-modelos: Sync complete: 217 upserted, 0 skipped, 0 deprecated"
+    }
+  ]
+}

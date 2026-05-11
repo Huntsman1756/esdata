@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from services.persistence import dumps_json, ensure_governance_tables, rows_to_dicts
 
@@ -78,6 +78,7 @@ SOURCE_METADATA = {
         "cadencia": "weekly",
         "modo_deteccion_cambios": "sha256",
         "worker": "worker-cnmv",
+        "cron_worker": "cron-cnmv-weekly",
         "stale_after_hours": 24 * 8,
     },
     "sepblac": {
@@ -86,6 +87,7 @@ SOURCE_METADATA = {
         "cadencia": "weekly",
         "modo_deteccion_cambios": "sha256",
         "worker": "worker-sepblac",
+        "cron_worker": "cron-sepblac-weekly",
         "stale_after_hours": 24 * 8,
     },
     "eurlex": {
@@ -94,6 +96,7 @@ SOURCE_METADATA = {
         "cadencia": "weekly",
         "modo_deteccion_cambios": "etag",
         "worker": "worker-eurlex",
+        "cron_worker": "cron-eurlex-weekly",
         "stale_after_hours": 24 * 8,
     },
     "cendoj": {
@@ -102,6 +105,7 @@ SOURCE_METADATA = {
         "cadencia": "weekly",
         "modo_deteccion_cambios": "sha256",
         "worker": "worker-cendoj",
+        "cron_worker": "cron-cendoj-weekly",
         "stale_after_hours": 24 * 8,
     },
     "bde": {
@@ -110,6 +114,7 @@ SOURCE_METADATA = {
         "cadencia": "weekly",
         "modo_deteccion_cambios": "last-modified",
         "worker": "worker-bde",
+        "cron_worker": "cron-bde-weekly",
         "stale_after_hours": 24 * 8,
     },
     "aepd": {
@@ -118,6 +123,7 @@ SOURCE_METADATA = {
         "cadencia": "weekly",
         "modo_deteccion_cambios": "last-modified",
         "worker": "worker-aepd",
+        "cron_worker": "cron-aepd-weekly",
         "stale_after_hours": 24 * 8,
     },
 }
@@ -138,6 +144,14 @@ def _coerce_datetime(value: str | None):
     return value
 
 
+def _serialize_datetime(value):
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 def _compute_stale(last_success_at: str | None, stale_after_hours: int) -> bool:
     parsed = _coerce_datetime(last_success_at)
     if parsed is None:
@@ -148,26 +162,49 @@ def _compute_stale(last_success_at: str | None, stale_after_hours: int) -> bool:
     return age_hours > stale_after_hours
 
 
+def _source_worker_names(source: dict) -> tuple[str, ...]:
+    names = [source["worker"]]
+    cron_worker = source.get("cron_worker")
+    if cron_worker:
+        names.append(cron_worker)
+    names.extend(source.get("worker_aliases", []))
+    return tuple(dict.fromkeys(names))
+
+
 def get_source_manifest(db) -> list[dict]:
     # MCP 4.3 keeps row-level completeness/provenance in persistence only; this
     # service intentionally remains source-level until that boundary changes.
     ensure_governance_tables()
     sources = _parse_manifest()
     for source in sources:
-        row = db.execute(
+        worker_names = _source_worker_names(source)
+        latest_row = db.execute(
             text(
                 """
                 SELECT finished_at, status
                 FROM sync_log
-                WHERE worker = :worker
+                WHERE worker IN :workers
                 ORDER BY finished_at DESC, id DESC
                 LIMIT 1
                 """
-            ),
-            {"worker": source["worker"]},
+            ).bindparams(bindparam("workers", expanding=True)),
+            {"workers": worker_names},
         ).mappings().first()
-        source["last_success_at"] = row["finished_at"] if row and row.get("status") == "ok" else None
-        source["last_status"] = row["status"] if row else "never_run"
+        success_row = db.execute(
+            text(
+                """
+                SELECT finished_at
+                FROM sync_log
+                WHERE worker IN :workers
+                  AND status = 'ok'
+                ORDER BY finished_at DESC, id DESC
+                LIMIT 1
+                """
+            ).bindparams(bindparam("workers", expanding=True)),
+            {"workers": worker_names},
+        ).mappings().first()
+        source["last_success_at"] = success_row["finished_at"] if success_row else None
+        source["last_status"] = latest_row["status"] if latest_row else "never_run"
         source["stale"] = _compute_stale(source["last_success_at"], source["stale_after_hours"])
     return sources
 
@@ -184,7 +221,7 @@ def _persist_freshness_snapshots(db, sources: list[dict]) -> list[dict]:
 
         payload = {
             "source_id": source["source_id"],
-            "last_success_at": source["last_success_at"],
+            "last_success_at": _serialize_datetime(source["last_success_at"]),
             "last_status": source["last_status"],
             "stale": source["stale"],
             "cadencia": source["cadencia"],

@@ -1,0 +1,89 @@
+{
+  "project": "esdata",
+  "branchName": "ralph/local-full-verification",
+  "description": "Local-only Ralph backlog to verify every cron, job, worker, script, and production table before any VPS deployment. No VPS changes are allowed in this phase.",
+  "userStories": [
+    {
+      "id": "LOCAL-001",
+      "title": "Inventory local runtime surface",
+      "description": "Enumerate all local Compose services, cron services, systemd units, workers, scripts, migrations, and database tables that must be verified.",
+      "acceptanceCriteria": [
+        "Inventory lists every Docker Compose service and profiled cron service",
+        "Inventory lists every systemd unit template/timer under infra/deploy/systemd",
+        "Inventory lists worker entrypoints and scripts that affect ingestion or operations",
+        "Inventory lists all local database tables and row counts",
+        "Inventory records evidence commands and outputs"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "LOCAL-002",
+      "title": "Verify local database tables contain real data",
+      "description": "Check every production table in the local database for row counts, provenance columns, seed/mock placeholders, RLS, and real official-source data where the table is expected to be populated.",
+      "acceptanceCriteria": [
+        "Every table has a row-count classification: populated, allowed-empty, or blocker",
+        "Compliance-critical tables have official source/provenance fields populated",
+        "No mock/sample/placeholder data is present in populated compliance tables",
+        "All unexpected empty tables are either filled with real data locally or logged as blockers",
+        "SQL evidence is stored in the progress log"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "LOCAL-003",
+      "title": "Verify every worker and cron job locally",
+      "description": "Run every continuous worker or cron-equivalent local run-once job against the local stack, verify exit status, sync_log outcome, and real official upstream usage.",
+      "acceptanceCriteria": [
+        "Every worker has a local happy-path run or a documented blocker",
+        "Every cron service has a local run-once command and log evidence",
+        "Each successful run writes sync_log or equivalent operational evidence",
+        "Retries/dead-letter behavior is exercised where available",
+        "No worker serves or writes mock regulatory data"
+      ],
+      "priority": 3,
+      "passes": true
+    },
+    {
+      "id": "LOCAL-004",
+      "title": "Verify local scripts and operational tooling",
+      "description": "Run or statically verify every operational script, deployment script, maintenance script, SQL integrity script, and Ralph wrapper that can affect production readiness.",
+      "acceptanceCriteria": [
+        "Every script has syntax/help/dry-run execution evidence or a blocker",
+        "Destructive scripts are not executed without explicit safe dry-run mode",
+        "Scripts that require env vars fail closed with actionable errors",
+        "Maintenance scripts run read-only by default where compliance data is involved"
+      ],
+      "priority": 4,
+      "passes": true
+    },
+    {
+      "id": "LOCAL-005",
+      "title": "Verify MCP/API response accuracy locally",
+      "description": "Run deterministic local API/MCP checks for current legal/tax facts, stale-data behavior, source freshness, audit logging, and malformed inputs.",
+      "acceptanceCriteria": [
+        "LIVA article 90 returns current 21% text with BOE provenance",
+        "Source freshness endpoint returns non-empty official source families",
+        "Malformed/ambiguous requests fail safely",
+        "Tool or endpoint invocations are audit logged with traceability",
+        "No stale data is served silently in tested paths"
+      ],
+      "priority": 5,
+      "passes": true
+    },
+    {
+      "id": "LOCAL-006",
+      "title": "Package final local deployment gate",
+      "description": "Create a single local verification command/report that must pass before any VPS deployment to 212.227.227.64.",
+      "acceptanceCriteria": [
+        "A repeatable local gate command exists",
+        "The gate covers database, workers, cron, scripts, MCP/API, and freshness checks",
+        "The gate fails non-zero on blockers",
+        "Final report states exactly what is ready and what remains blocked"
+      ],
+      "priority": 6,
+      "passes": true
+    }
+  ]
+}

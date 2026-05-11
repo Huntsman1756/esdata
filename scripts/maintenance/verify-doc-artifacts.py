@@ -67,6 +67,15 @@ _LINE_LENGTH_LIMIT: Final[int] = 200
 _MANUAL_USERLINE_LENGTH_LIMIT: Final[int] = 300
 
 
+def _read_text(path: Path) -> str:
+    data = path.read_bytes()
+    if data.startswith(b"\xff\xfe") or data.startswith(b"\xfe\xff"):
+        return data.decode("utf-16")
+    if data.startswith(b"\xef\xbb\xbf"):
+        return data.decode("utf-8-sig")
+    return data.decode("utf-8")
+
+
 def expected_payload_for_artifact(path: Path) -> dict | None:
     os.environ.setdefault("APP_ENV", "test")
     os.environ.setdefault("ESDATA_API_KEY", "test-secret-key")
@@ -91,7 +100,7 @@ def verify_artifact(path: Path, expected_payload: dict | None = None) -> list[st
     if not path.exists():
         return [f"missing artifact: {path.relative_to(ROOT)}"]
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(_read_text(path))
     except json.JSONDecodeError as exc:
         errors.append(f"invalid json: {path.relative_to(ROOT)} ({exc})")
         return errors
@@ -104,7 +113,7 @@ def verify_reference(path: Path) -> list[str]:
     errors: list[str] = []
     if not path.exists():
         return [f"missing docs file: {path.relative_to(ROOT)}"]
-    content = path.read_text(encoding="utf-8")
+    content = _read_text(path)
     for artifact in ARTIFACTS:
         if artifact.name in content and not artifact.exists():
             errors.append(
@@ -120,13 +129,13 @@ def verify_reference(path: Path) -> list[str]:
 def extract_env_example_variables(path: Path) -> set[str]:
     if not path.exists():
         return set()
-    return {match.group(1) for match in ENV_ASSIGNMENT_RE.finditer(path.read_text(encoding="utf-8"))}
+    return {match.group(1) for match in ENV_ASSIGNMENT_RE.finditer(_read_text(path))}
 
 
 def extract_documented_variables(path: Path) -> set[str]:
     if not path.exists():
         return set()
-    return {match.group(1) for match in DOC_VARIABLE_LINE_RE.finditer(path.read_text(encoding="utf-8"))}
+    return {match.group(1) for match in DOC_VARIABLE_LINE_RE.finditer(_read_text(path))}
 
 
 def verify_env_documentation(env_example: Path, env_doc: Path) -> list[str]:
@@ -173,7 +182,7 @@ def verify_docs_vs_roadmap() -> list[str]:
     if not roadmap_path.exists():
         return errors
 
-    roadmap_content = roadmap_path.read_text(encoding="utf-8")
+    roadmap_content = _read_text(roadmap_path)
 
     # Find features marked as [PARTIAL] or [TARGET] in the roadmap
     partial_target_features = set(re.findall(r"\[(?:PARTIAL|TARGET)\]", roadmap_content))
@@ -184,7 +193,7 @@ def verify_docs_vs_roadmap() -> list[str]:
     for doc_path in DOCS_DIR.rglob("*.md"):
         if "archive" in doc_path.parts or "manual-usuario" in doc_path.parts:
             continue
-        doc_content = doc_path.read_text(encoding="utf-8")
+        doc_content = _read_text(doc_path)
         # Look for overly confident claims about features that are still partial/target
         for feature_marker in partial_target_features:
             # If docs claim something is implemented but roadmap says partial/target
@@ -224,14 +233,14 @@ def verify_workers_documented() -> list[str]:
     # Check docs for worker references
     docs_content = ""
     for doc_path in DOCS_DIR.rglob("*.md"):
-        docs_content += doc_path.read_text(encoding="utf-8") + "\n"
+        docs_content += _read_text(doc_path) + "\n"
 
     # Check manual-usuario specifically
     manual_dir = DOCS_DIR / "manual-usuario"
     if manual_dir.exists():
         manual_content = ""
         for doc_path in manual_dir.rglob("*.md"):
-            manual_content += doc_path.read_text(encoding="utf-8") + "\n"
+            manual_content += _read_text(doc_path) + "\n"
     else:
         manual_content = ""
 
@@ -259,7 +268,7 @@ def verify_endpoints_documented() -> list[str]:
     # Extract endpoint paths from router files
     endpoint_paths = set()
     for router_file in router_files:
-        content = router_file.read_text(encoding="utf-8")
+        content = _read_text(router_file)
         for match in re.finditer(r'@(?:get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']', content):
             endpoint_paths.add(match.group(1))
 
@@ -269,7 +278,7 @@ def verify_endpoints_documented() -> list[str]:
     # Check docs for endpoint references
     docs_content = ""
     for doc_path in DOCS_DIR.rglob("*.md"):
-        docs_content += doc_path.read_text(encoding="utf-8") + "\n"
+        docs_content += _read_text(doc_path) + "\n"
 
     undocumented = sorted(p for p in endpoint_paths if "/" not in p or p not in docs_content)
     if len(undocumented) > len(endpoint_paths) * 0.3:
@@ -351,7 +360,7 @@ def lint_markdown_file(path: Path) -> list[str]:
     if not path.exists():
         return errors
 
-    content = path.read_text(encoding="utf-8")
+    content = _read_text(path)
     lines = content.split("\n")
     in_code_block = False
     seen_headings: dict[str, int] = {}
@@ -433,7 +442,7 @@ def verify_internal_links(path: Path) -> list[str]:
     if not path.exists():
         return errors
 
-    content = path.read_text(encoding="utf-8")
+    content = _read_text(path)
     lines = content.split("\n")
 
     for i, line in enumerate(lines, 1):
@@ -462,7 +471,7 @@ def verify_internal_links(path: Path) -> list[str]:
                 )
             elif anchor:
                 # Check if anchor exists in target file
-                target_content = target.read_text(encoding="utf-8")
+                target_content = _read_text(target)
                 # Normalize anchor: lowercase, replace spaces with hyphens, remove special chars
                 normalized_anchor = (
                     anchor.lower()

@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from runtime import (
     configure_logging,
     ensure_database_connection,
+    get_bool_env,
     get_database_url,
     get_interval_seconds,
     handle_worker_failure,
@@ -1028,6 +1029,8 @@ def run_sync(  # noqa: C901
     worker_name: str = "worker-eurlex",
 ) -> dict[str, int]:
     """Run a full sync cycle: seed CELEXs + SPARQL discovery."""
+    fetch_articles = get_bool_env("EURLEX_FETCH_ARTICLES", False)
+    discovery_enabled = get_bool_env("EURLEX_DISCOVERY_ENABLED", False)
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine)
     bloques_fetched = 0
@@ -1050,6 +1053,9 @@ def run_sync(  # noqa: C901
                 vigente_desde = norma_def["vigente_desde"]
                 upsert_norma(conn, norma_def, vigente_desde)
                 normas_upserted += 1
+
+                if not fetch_articles:
+                    continue
 
                 index = fetch_index(client, celex)
                 if not index:
@@ -1112,7 +1118,7 @@ def run_sync(  # noqa: C901
                 if bid.startswith("EUR-CELEX-"):
                     existing_celexs.add(bid.replace("EUR-CELEX-", ""))
 
-            new_celexs = discover_new_celexs(client, existing_celexs)
+            new_celexs = discover_new_celexs(client, existing_celexs) if discovery_enabled else []
             for celex in new_celexs:
                 nuevos_sparql += 1
                 # Use EUR-Lex search to get metadata
@@ -1182,7 +1188,9 @@ def run_sync(  # noqa: C901
                     print(f"  [SKIP] Could not process new CELEX {celex}")
 
             summary_msg = (
-                f"summary: unchanged={skipped_unchanged}; no_index={skipped_no_index}; fetch_errors={fetch_errors}"
+                f"summary: unchanged={skipped_unchanged}; no_index={skipped_no_index}; "
+                f"fetch_errors={fetch_errors}; fetch_articles={fetch_articles}; "
+                f"discovery_enabled={discovery_enabled}"
             )
             log_status = "partial" if fetch_errors else "ok"
             log_sync(

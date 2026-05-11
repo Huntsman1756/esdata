@@ -1,0 +1,18 @@
+{
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "timeouts": 0,
+  "results": [
+    {
+      "service": "cron-boe-modelos-daily",
+      "worker_cmd": "python boe_modelos_worker.py --run-once",
+      "mode": "dev-worker",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 12.06,
+      "stdout_tail": "ls worker...\n2026-05-10 09:48:30,439 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-1992-28740 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:30,582 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-2006-20764 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:30,696 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-2014-12328 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:30,808 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-2003-23186 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:30,878 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-1993-253 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:30,878 [INFO] __main__: SKIP IRNR: no BOE ID mapping\n2026-05-10 09:48:30,878 [INFO] __main__: SKIP IIEE: no BOE ID mapping\n2026-05-10 09:48:30,878 [INFO] __main__: SKIP HL: no BOE ID mapping\n2026-05-10 09:48:30,878 [INFO] __main__: SKIP DAC6: no BOE ID mapping\n2026-05-10 09:48:30,878 [INFO] __main__: SKIP DAC6RD: no BOE ID mapping\n2026-05-10 09:48:30,878 [INFO] __main__: SKIP DAC6EU: no BOE ID mapping\n2026-05-10 09:48:30,878 [INFO] __main__: Found 5 HAC orders to process\n2026-05-10 09:48:30,929 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-1992-28740 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:31,042 [INFO] httpx: HTTP Request: GET https://www.boe.es/boe/dias/1992/12/29/pdfs/A44247-44305.pdf \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:34,202 [INFO] __main__: Processed BOE-A-1992-28740: 15 XML casillas, 0 PDF casillas\n2026-05-10 09:48:34,250 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-2006-20764 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:34,378 [INFO] httpx: HTTP Request: GET https://www.boe.es/boe/dias/2006/11/29/pdfs/A41734-41810.pdf \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:35,069 [INFO] __main__: Processed BOE-A-2006-20764: 0 XML casillas, 0 PDF casillas\n2026-05-10 09:48:35,181 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-2014-12328 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:35,316 [INFO] httpx: HTTP Request: GET https://www.boe.es/boe/dias/2014/11/28/pdfs/BOE-A-2014-12328.pdf \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:36,788 [INFO] __main__: Processed BOE-A-2014-12328: 49 XML casillas, 0 PDF casillas\n2026-05-10 09:48:36,839 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-2003-23186 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:37,003 [INFO] httpx: HTTP Request: GET https://www.boe.es/boe/dias/2003/12/18/pdfs/A44987-45065.pdf \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:38,082 [INFO] __main__: Processed BOE-A-2003-23186: 0 XML casillas, 0 PDF casillas\n2026-05-10 09:48:38,121 [INFO] httpx: HTTP Request: GET https://www.boe.es/diario_boe/xml.php?id=BOE-A-1993-253 \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:38,164 [INFO] httpx: HTTP Request: GET https://www.boe.es/boe/dias/1993/01/05/pdfs/A00268-00268.pdf \"HTTP/1.1 200 OK\"\n2026-05-10 09:48:38,314 [INFO] __main__: Processed BOE-A-1993-253: 0 XML casillas, 0 PDF casillas",
+      "stderr_tail": ""
+    }
+  ]
+}

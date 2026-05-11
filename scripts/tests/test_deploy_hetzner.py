@@ -353,19 +353,18 @@ def test_maintenance_agent_units_are_safe_by_default():
     assert "ProtectSystem=strict" in hermes
 
     assert "User=deploy" in validation_service
-    assert "mcp_validation_suite.py --read-only" in validation_service
-    assert "RuntimeMaxSec=10m" in validation_service
+    assert "mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000" in validation_service
     assert "NoNewPrivileges=true" in validation_service
+    assert "TimeoutStartSec=10m" in validation_service
     assert "Unit=esdata-mcp-validation.service" in validation_timer
 
 
-def test_scheduled_jobs_have_overlap_locks_and_runtime_caps():
+def test_scheduled_jobs_have_overlap_locks_and_start_timeout_caps():
     generic = _read("infra/deploy/systemd/esdata-job@.service")
     boe_modelos = _read("infra/deploy/systemd/esdata-boe-modelos-daily.service")
 
     for unit in (generic, boe_modelos):
         assert "RuntimeDirectory=esdata-jobs" in unit
-        assert "RuntimeMaxSec=6h" in unit
         assert "TimeoutStartSec=6h" in unit
         assert "/usr/bin/flock -n /run/esdata-jobs/" in unit
 

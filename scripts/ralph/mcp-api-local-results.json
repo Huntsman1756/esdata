@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-05-11T04:02:37.182548+00:00",
+  "base_url": "http://localhost:8001",
+  "official_reference_checked": {
+    "source": "BOE",
+    "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a90",
+    "reference": "BOE-A-1992-28740",
+    "expected_current_text": "Artículo 90: tipo general 21 por ciento",
+    "expected_historical_2011": "Artículo 90: tipo general 18 por ciento desde 2010-07-01 hasta 2012-07-15"
+  },
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "name": "/health",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200
+      },
+      "blocker": null
+    },
+    {
+      "name": "/status",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200
+      },
+      "blocker": null
+    },
+    {
+      "name": "liva_90_current",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200,
+        "vigente_desde": "2012-07-15",
+        "vigente_hasta": null,
+        "boe_reference": "BOE-A-1992-28740",
+        "source_url": "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a90",
+        "contains_21": true
+      },
+      "blocker": null
+    },
+    {
+      "name": "liva_90_1994",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200,
+        "vigente_en": "1994-01-01",
+        "expected_text": "15 por 100",
+        "contains_expected_text": true,
+        "vigente_desde": "1993-01-01",
+        "vigente_hasta": "1995-01-20",
+        "boe_reference": "BOE-A-1992-28740"
+      },
+      "blocker": null
+    },
+    {
+      "name": "liva_90_2011",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200,
+        "vigente_en": "2011-01-01",
+        "expected_text": "18 por ciento",
+        "contains_expected_text": true,
+        "vigente_desde": "2010-07-01",
+        "vigente_hasta": "2012-07-15",
+        "boe_reference": "BOE-A-1992-28740"
+      },
+      "blocker": null
+    },
+    {
+      "name": "liva_90_2012_boundary",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200,
+        "vigente_en": "2012-07-15",
+        "expected_text": "21 por ciento",
+        "contains_expected_text": true,
+        "vigente_desde": "2012-07-15",
+        "vigente_hasta": null,
+        "boe_reference": "BOE-A-1992-28740"
+      },
+      "blocker": null
+    },
+    {
+      "name": "source_freshness",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200,
+        "total": 6,
+        "source_ids": [
+          "aepd",
+          "bde",
+          "cendoj",
+          "cnmv",
+          "eurlex",
+          "sepblac"
+        ],
+        "stale_sources": []
+      },
+      "blocker": null
+    },
+    {
+      "name": "missing_article_safe_404",
+      "status": "pass",
+      "evidence": {
+        "status_code": 404,
+        "detail": {
+          "error": "Articulo no encontrado"
+        }
+      },
+      "blocker": null
+    },
+    {
+      "name": "unknown_norma_safe_404",
+      "status": "pass",
+      "evidence": {
+        "status_code": 404,
+        "detail": {
+          "error": "Articulo no encontrado"
+        }
+      },
+      "blocker": null
+    },
+    {
+      "name": "query_audit_traceability",
+      "status": "pass",
+      "evidence": {
+        "status_code": 200,
+        "request_id": "ralph-local-005-325991b126",
+        "total": 1,
+        "tool_names": [
+          "get_articulo"
+        ]
+      },
+      "blocker": null
+    }
+  ],
+  "ok": true
+}

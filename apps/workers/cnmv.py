@@ -1186,7 +1186,7 @@ def run_sync(
             "Configura la variable de entorno correspondiente.",
             worker_name,
         )
-        return {"processed": 0, "stored": 0}
+        return {"processed": 0, "stored": 0, "discovered": 0}
 
     # Discover URLs (23.1)
     urls = _discover_new_urls(seed_urls)
@@ -1196,7 +1196,7 @@ def run_sync(
             "Configura la variable de entorno correspondiente.",
             worker_name,
         )
-        return {"processed": 0, "stored": 0}
+        return {"processed": 0, "stored": 0, "discovered": 0}
 
     request_delay = float(os.environ.get("WORKER_REQUEST_DELAY", "1.0"))
     processed = 0
