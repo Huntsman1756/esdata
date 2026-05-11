@@ -269,7 +269,10 @@ def _validate_modelo_casillas_pagination(payload: dict[str, Any]) -> tuple[bool,
         and len(casillas) <= 25
         and isinstance(payload.get("total"), int)
         and "obligatoria" in (payload.get("obligation_notice") or "")
-        and confidence.get("review_required") is True
+        and (
+            payload.get("verified") is True
+            or confidence.get("review_required") is True
+        )
     )
     return ok, details
 
