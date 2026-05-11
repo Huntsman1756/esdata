@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata PGC BOE monthly sync
+
+[Timer]
+OnCalendar=*-*-03 02:20:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-pgc-boe-monthly.service
+
+[Install]
+WantedBy=timers.target

@@ -389,6 +389,7 @@ def test_cron_services_use_esdata_internal_network_for_database_resolution():
         "cron-cnmv-weekly",
         "cron-sepblac-weekly",
         "cron-bde-weekly",
+        "cron-pgc-boe-monthly",
     ):
         block = _service_block(compose, service)
         assert "networks:" in block

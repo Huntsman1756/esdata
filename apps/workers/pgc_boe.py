@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 import httpx
 from bs4 import BeautifulSoup
-from runtime import configure_logging, get_database_url
+from runtime import configure_logging, ensure_database_connection, get_database_url
 from sqlalchemy import create_engine, text
 
 
@@ -287,6 +287,7 @@ def run_sync(engine=None, run_once: bool = False) -> dict:
     del run_once
     started_at = datetime.now(UTC)
     engine = engine or create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine, logger=logger)
     html_text = fetch_boe_text()
     marcos = parse_pgc_marco(html_text)
     accounts = parse_pgc_accounts(html_text)

@@ -230,6 +230,24 @@ async def test_status_keeps_official_regulatory_references_healthy_with_three_da
 
 
 @pytest.mark.asyncio
+async def test_status_keeps_monthly_pgc_cron_healthy_with_twenty_day_lag():
+    app, _ = _get_app_and_engine()
+    _seed_sync_log(
+        "cron-pgc-boe-monthly",
+        finished_at=datetime.now(UTC) - timedelta(days=20),
+        status="ok",
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["cron-pgc-boe-monthly"]
+    assert worker["status"] == "ok"
+    assert worker["stale"] is False
+
+
+@pytest.mark.asyncio
 async def test_status_exposes_structured_sync_log_summary_fields():
     app, _ = _get_app_and_engine()
     _seed_sync_log(
