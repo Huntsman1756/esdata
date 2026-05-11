@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Export a curated OpenAPI spec for Custom GPT Actions.
 
-Produces a spec containing only the 7 endpoints relevant for the GPT,
+Produces a spec containing only the endpoints relevant for GPT Actions,
 with clean descriptions and (optionally) OpenAPI 3.0.x compatibility.
 
 Usage:
@@ -25,6 +25,11 @@ from main import app
 # Curated list of paths to expose to the GPT
 # ---------------------------------------------------------------------------
 INCLUDE_PATHS = {
+    "/status",
+    "/v1/consulta",
+    "/v1/domain-availability",
+    "/v1/domain-availability/{table}",
+    "/v1/sources/freshness",
     "/v1/legislacion/buscar",
     "/v1/legislacion/{codigo}",
     "/v1/legislacion/{codigo}/articulos/{numero}",
@@ -32,6 +37,7 @@ INCLUDE_PATHS = {
     "/v1/doctrina/{referencia}",
     "/v1/modelos",
     "/v1/modelos/{codigo}",
+    "/v1/modelos/por-supuesto",
 }
 
 # Schemas referenced by the curated endpoints
@@ -62,6 +68,46 @@ INCLUDE_SCHEMAS = {
 
 # Override descriptions for GPT clarity
 OPERATION_OVERRIDES = {
+    "status_status_get": {
+        "summary": "Get API operational status",
+        "description": (
+            "Return API runtime status and operational metadata. Use this before relying "
+            "on tax or legal answers if the integration needs to verify service health."
+        ),
+    },
+    "consulta_fiscal": {
+        "summary": "Ask a grounded Spanish tax/legal query",
+        "description": (
+            "Run a grounded ESData fiscal/legal retrieval query. Responses must be treated "
+            "according to their confidence, relevance, citations, and review_required fields. "
+            "Do not infer mandatory obligations when the response only returns low-relevance "
+            "candidates or explicitly requires verification."
+        ),
+    },
+    "list_domain_availability": {
+        "summary": "List data availability by domain/table",
+        "description": (
+            "List ESData domain availability statuses, including workflow_empty, allowed_empty, "
+            "configured_but_unavailable, and populated domains. Use this to explain explicitly "
+            "when a domain has no current data instead of inventing an answer."
+        ),
+    },
+    "get_domain_availability": {
+        "summary": "Get one table/domain availability status",
+        "description": (
+            "Return the availability status for a specific ESData table or domain. Use this "
+            "when a query depends on a table that may be empty, unavailable, or intentionally "
+            "allowed to be empty."
+        ),
+    },
+    "source_freshness_v1_sources_freshness_get": {
+        "summary": "Check source freshness",
+        "description": (
+            "Return freshness and ingestion status for official source families. Use this "
+            "before answering currency-sensitive questions about tax models, deadlines, "
+            "legislation, doctrine, or regulatory updates."
+        ),
+    },
     "buscar_legislacion": {
         "summary": "Search Spanish legislation by text",
         "description": (
@@ -113,6 +159,15 @@ OPERATION_OVERRIDES = {
             "Get full details for a specific AEAT tax model including linked legislation articles, "
             "active campaign boxes (casillas), key codes (claves), step-by-step instructions, "
             "regulatory framework (normativa), and related doctrine."
+        ),
+    },
+    "list_modelos_por_supuesto": {
+        "summary": "Classify AEAT model candidates for a fiscal scenario",
+        "description": (
+            "Return AEAT model candidates for a described fiscal scenario. Classifications are "
+            "confirmed, candidate, or requires verification based only on ESData evidence. "
+            "Do not present a model as mandatory unless the response explicitly supports that "
+            "claim and the confidence/review fields allow it."
         ),
     },
 }
@@ -250,8 +305,21 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
             }
         ],
         "paths": filtered_paths,
+        "security": [
+            {
+                "ApiKeyAuth": [],
+            }
+        ],
         "components": {
             "schemas": filtered_schemas,
+            "securitySchemes": {
+                "ApiKeyAuth": {
+                    "type": "apiKey",
+                    "in": "header",
+                    "name": "X-API-Key",
+                    "description": "Dedicated ESData API key for GPT Actions.",
+                }
+            },
         },
     }
 

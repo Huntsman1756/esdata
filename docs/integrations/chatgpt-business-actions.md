@@ -117,10 +117,15 @@ En el builder de `ChatGPT Business`:
 
 Comprobar al menos:
 
+- estado operativo (`/status`)
+- frescura de fuentes (`/v1/sources/freshness`)
+- disponibilidad de dominios/tablas (`/v1/domain-availability`)
+- una consulta fiscal grounded (`/v1/consulta`)
 - una busqueda legislativa
 - un detalle de articulo
 - una busqueda doctrinal
 - un detalle de modelo AEAT
+- un supuesto de modelos AEAT (`/v1/modelos/por-supuesto`) sin convertir candidatos en obligaciones si no hay evidencia explicita
 
 ## Separacion de superficies
 

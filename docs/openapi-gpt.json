@@ -12,6 +12,23 @@
     }
   ],
   "paths": {
+    "/status": {
+      "get": {
+        "summary": "Get API operational status",
+        "description": "Return API runtime status and operational metadata. Use this before relying on tax or legal answers if the integration needs to verify service health.",
+        "operationId": "status_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/legislacion/buscar": {
       "get": {
         "tags": [
@@ -295,6 +312,99 @@
         "description": "Get a specific doctrine document by reference (e.g. V0000-26, 00/1234/2024). Returns full text, linked articles, and confidence information."
       }
     },
+    "/v1/modelos/por-supuesto": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Classify AEAT model candidates for a fiscal scenario",
+        "description": "Return AEAT model candidates for a described fiscal scenario. Classifications are confirmed, candidate, or requires verification based only on ESData evidence. Do not present a model as mandatory unless the response explicitly supports that claim and the confidence/review fields allow it.",
+        "operationId": "list_modelos_por_supuesto",
+        "parameters": [
+          {
+            "name": "tipo_entidad",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de entidad, ej: sociedad_valores",
+              "title": "Tipo Entidad"
+            },
+            "description": "Tipo de entidad, ej: sociedad_valores"
+          },
+          {
+            "name": "clientes_residentes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si el supuesto incluye clientes residentes en Espana",
+              "default": false,
+              "title": "Clientes Residentes"
+            },
+            "description": "Si el supuesto incluye clientes residentes en Espana"
+          },
+          {
+            "name": "clientes_no_residentes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si el supuesto incluye clientes no residentes",
+              "default": false,
+              "title": "Clientes No Residentes"
+            },
+            "description": "Si el supuesto incluye clientes no residentes"
+          },
+          {
+            "name": "tipo_renta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de renta u operacion economica, ej: capital_mobiliario",
+              "title": "Tipo Renta"
+            },
+            "description": "Tipo de renta u operacion economica, ej: capital_mobiliario"
+          },
+          {
+            "name": "tipo_operacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de operacion, ej: retencion, informativa",
+              "title": "Tipo Operacion"
+            },
+            "description": "Tipo de operacion, ej: retencion, informativa"
+          },
+          {
+            "name": "incluir_obligacion_sociedad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluir modelos propios de la sociedad no derivados de clientes",
+              "default": false,
+              "title": "Incluir Obligacion Sociedad"
+            },
+            "description": "Incluir modelos propios de la sociedad no derivados de clientes"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelosPorSupuestoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/modelos": {
       "get": {
         "tags": [
@@ -360,8 +470,228 @@
           }
         }
       }
+    },
+    "/v1/consulta": {
+      "get": {
+        "tags": [
+          "consulta"
+        ],
+        "summary": "Ask a grounded Spanish tax/legal query",
+        "description": "Run a grounded ESData fiscal/legal retrieval query. Responses must be treated according to their confidence, relevance, citations, and review_required fields. Do not infer mandatory obligations when the response only returns low-relevance candidates or explicitly requires verification.",
+        "operationId": "consulta_fiscal",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Pregunta fiscal en lenguaje natural (ej: 'facta no residente', 'irpf dividendos ue', 'iva entregas intracomunitarias')",
+              "default": "",
+              "title": "Q"
+            },
+            "description": "Pregunta fiscal en lenguaje natural (ej: 'facta no residente', 'irpf dividendos ue', 'iva entregas intracomunitarias')"
+          },
+          {
+            "name": "sujeto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de sujeto: contribuyente, no_residente, empresa, retenedor, etc.",
+              "default": "",
+              "title": "Sujeto"
+            },
+            "description": "Tipo de sujeto: contribuyente, no_residente, empresa, retenedor, etc."
+          },
+          {
+            "name": "pais",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "País/territorio: es, ue, intracomunitario, fuera_ue, etc.",
+              "default": "",
+              "title": "Pais"
+            },
+            "description": "País/territorio: es, ue, intracomunitario, fuera_ue, etc."
+          },
+          {
+            "name": "tipo_operacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de operación: entrega_bienes, prestacion_servicios, dividendos, retencion, etc.",
+              "default": "",
+              "title": "Tipo Operacion"
+            },
+            "description": "Tipo de operación: entrega_bienes, prestacion_servicios, dividendos, retencion, etc."
+          },
+          {
+            "name": "vigente_en",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fecha de vigencia (YYYY-MM-DD)",
+              "title": "Vigente En"
+            },
+            "description": "Fecha de vigencia (YYYY-MM-DD)"
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar fuentes por tipo, separadas por coma. Valores: legislacion, doctrina, pgc, modelos, screening, entities, norms, articles. Si no se indica, usa todas las fuentes por defecto.",
+              "title": "Sources"
+            },
+            "description": "Filtrar fuentes por tipo, separadas por coma. Valores: legislacion, doctrina, pgc, modelos, screening, entities, norms, articles. Si no se indica, usa todas las fuentes por defecto."
+          },
+          {
+            "name": "hybrid_weight",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "description": "Peso del componente vectorial (0.0=fulltext, 0.3=hibrido, 1.0=vectorial)",
+              "default": 0.3,
+              "title": "Hybrid Weight"
+            },
+            "description": "Peso del componente vectorial (0.0=fulltext, 0.3=hibrido, 1.0=vectorial)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaFiscalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/domain-availability": {
+      "get": {
+        "tags": [
+          "domain-availability"
+        ],
+        "summary": "List data availability by domain/table",
+        "operationId": "list_domain_availability",
+        "parameters": [
+          {
+            "name": "only_empty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Return only tables with zero live rows.",
+              "default": false,
+              "title": "Only Empty"
+            },
+            "description": "Return only tables with zero live rows."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter by populated/workflow_empty/allowed_empty/configured_but_unavailable.",
+              "title": "Status"
+            },
+            "description": "Filter by populated/workflow_empty/allowed_empty/configured_but_unavailable."
+          },
+          {
+            "name": "domain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Case-insensitive domain substring.",
+              "title": "Domain"
+            },
+            "description": "Case-insensitive domain substring."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "description": "List ESData domain availability statuses, including workflow_empty, allowed_empty, configured_but_unavailable, and populated domains. Use this to explain explicitly when a domain has no current data instead of inventing an answer."
+      }
+    },
+    "/v1/domain-availability/{table}": {
+      "get": {
+        "tags": [
+          "domain-availability"
+        ],
+        "summary": "Get one table/domain availability status",
+        "operationId": "get_domain_availability",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "description": "Return the availability status for a specific ESData table or domain. Use this when a query depends on a table that may be empty, unavailable, or intentionally allowed to be empty."
+      }
+    },
+    "/v1/sources/freshness": {
+      "get": {
+        "tags": [
+          "source-manifest"
+        ],
+        "summary": "Check source freshness",
+        "operationId": "source_freshness_v1_sources_freshness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "description": "Return freshness and ingestion status for official source families. Use this before answering currency-sensitive questions about tax models, deadlines, legislation, doctrine, or regulatory updates."
+      }
     }
   },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
   "components": {
     "schemas": {
       "ArticuloDetail": {
@@ -437,6 +767,70 @@
         ],
         "title": "ArticuloRelacionado"
       },
+      "ChunkCitation": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "title": "Chunk Id",
+            "description": "ID del chunk recuperado"
+          },
+          "source_document": {
+            "type": "string",
+            "title": "Source Document",
+            "description": "Documento fuente del chunk"
+          },
+          "article_number": {
+            "type": "string",
+            "title": "Article Number",
+            "description": "Numero de articulo si aplica"
+          },
+          "rerank_score": {
+            "type": "number",
+            "title": "Rerank Score",
+            "description": "Puntuacion de reranking"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt",
+            "description": "Vista previa del contenido del chunk"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "source_document",
+          "rerank_score",
+          "excerpt"
+        ],
+        "title": "ChunkCitation"
+      },
+      "ClaimCitation": {
+        "properties": {
+          "claim": {
+            "type": "object",
+            "title": "Claim",
+            "description": "Afirmacion factual estructurada"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/ChunkCitation"
+            },
+            "type": "array",
+            "title": "Citations",
+            "description": "Chunks que respaldan la afirmacion"
+          },
+          "grounded": {
+            "type": "boolean",
+            "title": "Grounded",
+            "description": "Si la afirmacion esta respaldada por evidencia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim"
+        ],
+        "title": "ClaimCitation"
+      },
       "ConfianzaInfo": {
         "properties": {
           "nivel": {
@@ -464,6 +858,69 @@
           "fuentes"
         ],
         "title": "ConfianzaInfo"
+      },
+      "ConsultaFiscalResponse": {
+        "properties": {
+          "consulta": {
+            "type": "string",
+            "title": "Consulta",
+            "description": "Pregunta fiscal recibida"
+          },
+          "modelos": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Modelos",
+            "description": "Modelos AEAT identificados"
+          },
+          "resultados": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Resultados",
+            "description": "Resultados de búsqueda unificados"
+          },
+          "total_resultados": {
+            "type": "integer",
+            "title": "Total Resultados",
+            "description": "Número total de resultados"
+          },
+          "relevancia": {
+            "type": "object",
+            "title": "Relevancia",
+            "description": "Información de relevancia de los resultados"
+          },
+          "confianza": {
+            "type": "object",
+            "title": "Confianza",
+            "description": "Información de confianza (faithfulness, grounding)"
+          },
+          "cited_chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ChunkCitation"
+            },
+            "type": "array",
+            "title": "Cited Chunks",
+            "description": "Chunks citados con evidencia"
+          },
+          "claim_citations": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimCitation"
+            },
+            "type": "array",
+            "title": "Claim Citations",
+            "description": "Citas por afirmación factual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "consulta",
+          "total_resultados",
+          "relevancia"
+        ],
+        "title": "ConsultaFiscalResponse"
       },
       "DoctrinaDetail": {
         "properties": {
@@ -1047,6 +1504,146 @@
         ],
         "title": "ModeloSummary"
       },
+      "ModeloSupuestoCandidate": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Codigo AEAT"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "Nombre del modelo en ESData"
+          },
+          "clasificacion": {
+            "type": "string",
+            "title": "Clasificacion",
+            "description": "confirmado, candidato o requiere_verificacion"
+          },
+          "condicion_aplicacion": {
+            "type": "string",
+            "title": "Condicion Aplicacion",
+            "description": "Condicion explicita para considerar el modelo"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo",
+            "description": "Razon de la clasificacion"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito",
+            "description": "Ambito del supuesto fiscal"
+          },
+          "periodo": {
+            "type": "string",
+            "title": "Periodo",
+            "description": "Periodo de presentacion"
+          },
+          "impuesto": {
+            "type": "string",
+            "title": "Impuesto",
+            "description": "Impuesto asociado"
+          },
+          "candidate_score": {
+            "type": "number",
+            "title": "Candidate Score",
+            "description": "Puntuacion conservadora 0-1"
+          },
+          "matched_factors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched Factors",
+            "description": "Factores del supuesto cubiertos"
+          },
+          "missing_factors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Factors",
+            "description": "Factores aun no acreditados"
+          },
+          "evidencia": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloSupuestoEvidencia"
+            },
+            "type": "array",
+            "title": "Evidencia",
+            "description": "Evidencia trazable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "clasificacion",
+          "condicion_aplicacion",
+          "motivo",
+          "ambito",
+          "candidate_score"
+        ],
+        "title": "ModeloSupuestoCandidate"
+      },
+      "ModeloSupuestoEvidencia": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Tabla o fuente interna usada como evidencia"
+          },
+          "source_document": {
+            "type": "string",
+            "title": "Source Document",
+            "description": "Identificador documental"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial o trazable"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt",
+            "description": "Texto exacto o resumen de evidencia"
+          },
+          "official": {
+            "type": "boolean",
+            "title": "Official",
+            "description": "Si la fuente procede del corpus oficial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "excerpt",
+          "official"
+        ],
+        "title": "ModeloSupuestoEvidencia"
+      },
+      "ModeloSupuestoExcluded": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Codigo excluido"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Motivo de exclusion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "reason"
+        ],
+        "title": "ModeloSupuestoExcluded"
+      },
       "ModelosListResponse": {
         "properties": {
           "modelos": {
@@ -1062,6 +1659,62 @@
           "modelos"
         ],
         "title": "ModelosListResponse"
+      },
+      "ModelosPorSupuestoResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "confirmed, evidence_limited o no_verified"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Si la aplicabilidad esta verificada con evidencia explicita"
+          },
+          "scenario_inputs": {
+            "type": "object",
+            "title": "Scenario Inputs",
+            "description": "Parametros del supuesto usados"
+          },
+          "modelos": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloSupuestoCandidate"
+            },
+            "type": "array",
+            "title": "Modelos",
+            "description": "Modelos clasificados"
+          },
+          "excluded_modelos": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloSupuestoExcluded"
+            },
+            "type": "array",
+            "title": "Excluded Modelos",
+            "description": "Modelos descartados"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Advertencias de no invencion"
+          },
+          "confidence": {
+            "type": "object",
+            "title": "Confidence",
+            "description": "Confianza operacional"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "verified",
+          "scenario_inputs",
+          "confidence"
+        ],
+        "title": "ModelosPorSupuestoResponse"
       },
       "Norma": {
         "properties": {
@@ -1218,6 +1871,14 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Dedicated ESData API key for GPT Actions."
       }
     }
   }
