@@ -300,7 +300,7 @@ def _validate_modelo_casillas_pagination(payload: dict[str, Any]) -> tuple[bool,
 def run_read_only_suite(base_url: str) -> dict[str, Any]:
     base_url = base_url.rstrip("/")
     checks: list[dict[str, Any]] = []
-    with httpx.Client(base_url=base_url, timeout=20) as client:
+    with httpx.Client(base_url=base_url, timeout=60) as client:
         checks.append(_check_get(client, "/health"))
         checks.append(_check_get(client, "/status"))
         checks.append(_check_mcp_transport(client))
