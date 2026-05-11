@@ -61,9 +61,8 @@ feature list are:
 
 1. Several router modules define endpoints that are not mounted at runtime.
 2. Several worker modules exist but are not wired in production Compose/systemd.
-4. `docs/database.md` is stale and conflicts with the active table registry and `source_revision` policy.
-5. Some roadmap sections overclaim cron/worker coverage for modules not present in production wiring.
-6. DGT, EUR-Lex, PSD2/EBA, BOE modelos/casillas and some broad regulatory domains remain partial by evidence.
+3. Some roadmap sections overclaim cron/worker coverage for modules not present in production wiring.
+4. DGT, EUR-Lex, PSD2/EBA, BOE modelos/casillas and some broad regulatory domains remain partial by evidence.
 
 ## Public And Integration Surfaces
 

@@ -228,6 +228,15 @@ def test_worker_inventory_classifies_all_worker_python_files_and_keeps_counts_cu
     )
 
 
+def test_v1_inventory_does_not_mark_current_database_doc_as_stale():
+    inventory = _read("docs/reference/v1-feature-inventory.md")
+    database_doc = _read("docs/database.md")
+
+    assert "`docs/database.md` is stale" not in inventory
+    assert "scripts/ralph/table-remediation-registry.json" in database_doc
+    assert "`source_revision` es la tabla canonica" in database_doc
+
+
 def test_server_installation_root_matches_systemd_and_runbook_paths():
     expected_root = "/srv/esdata"
 
