@@ -379,18 +379,7 @@ def test_worker_silent_alert_uses_exported_stale_status_instead_of_global_lag_th
 def test_cron_services_use_esdata_internal_network_for_database_resolution():
     compose = _read("infra/deploy/docker-compose.prod.yml")
 
-    for service in (
-        "cron-boe-daily",
-        "cron-dgt-weekly",
-        "cron-teac-weekly",
-        "cron-modelos-daily",
-        "cron-bdns-weekly",
-        "cron-borme-weekly",
-        "cron-cnmv-weekly",
-        "cron-sepblac-weekly",
-        "cron-bde-weekly",
-        "cron-pgc-boe-monthly",
-    ):
+    for service in _profiled_cron_services():
         block = _service_block(compose, service)
         assert "networks:" in block
         assert "- esdata-internal" in block

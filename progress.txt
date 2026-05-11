@@ -91,3 +91,19 @@ Local verification:
 Learnings:
 - Cron classification must come from Compose profile metadata, not service naming convention.
 Next: A-03
+
+=== Iteration 6 - 2026-05-11T20:02:00+02:00 ===
+Story: A-03 Audit all cron Docker network assignments
+Verification run: local deploy contract test and VPS docker compose config plus ephemeral container inspect.
+Result: PASS
+Root cause: no active failure remained, but the test previously checked only a manual subset of cron services.
+Fix applied: changed the network contract test to iterate every service with profiles: ["cron"].
+Production verification:
+- VPS profiled cron services checked: 22.
+- Services missing esdata-internal: none.
+- Ephemeral container spot-check: cron-boe-daily joined ["deploy_esdata-internal"].
+Local verification:
+- python -m pytest scripts/tests/test_deploy_hetzner.py -q --basetemp .pytest-tmp: 23 passed.
+Learnings:
+- Network assertions must be derived from Compose profile metadata so new scheduled services are covered automatically.
+Next: A-04
