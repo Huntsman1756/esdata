@@ -194,6 +194,24 @@ async def test_status_keeps_weekly_cron_healthy_with_three_day_lag():
 
 
 @pytest.mark.asyncio
+async def test_status_keeps_psd2_weekly_cron_healthy_with_three_day_lag():
+    app, _ = _get_app_and_engine()
+    _seed_sync_log(
+        "cron-psd2-weekly",
+        finished_at=datetime.now(UTC) - timedelta(hours=72),
+        status="ok",
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["cron-psd2-weekly"]
+    assert worker["status"] == "ok"
+    assert worker["stale"] is False
+
+
+@pytest.mark.asyncio
 async def test_status_exposes_structured_sync_log_summary_fields():
     app, _ = _get_app_and_engine()
     _seed_sync_log(
