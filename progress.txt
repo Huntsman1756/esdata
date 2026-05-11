@@ -35,3 +35,23 @@ Learnings:
 - Non-cron-prefixed scheduled services still need explicit tests because generic cron inventory only covered service names starting with cron-.
 - psql inside docker compose exec consumes SSH stdin unless stdin is redirected; use exec -T ... < /dev/null for remote scripted verification.
 Next: P-03
+
+=== Iteration 3 - 2026-05-11T19:32:00+02:00 ===
+Story: P-03 Diagnose and fix cron-pgc-boe-monthly stale alert
+Verification run: local focused pytest, VPS deploy, monthly cron manual run, network inspect, /status, /metrics, Alertmanager query.
+Result: PASS
+Root cause: cron-pgc-boe-monthly had one successful historical sync_log row, but no Compose cron service and no systemd timer, so it could not refresh on schedule. Because /status also lacked a monthly threshold, the healthy monthly worker fell back to the 25h default and exported stale=true.
+Fix applied: added ensure_database_connection() to pgc_boe.py, added cron-pgc-boe-monthly Compose service, added esdata-pgc-boe-monthly.timer, and added a 40-day freshness threshold for the monthly worker.
+Production verification:
+- VPS branch/head: fix/full-audit-stale-workers @ 8290df0.
+- Docker rebuild: api and cron-pgc-boe-monthly built; api recreated and /health returned ok.
+- Timer: esdata-pgc-boe-monthly.timer enabled and active; next run Wed 2026-06-03 02:20 Europe/Madrid.
+- Manual run: BOE request returned HTTP 200; sync_log count moved BEFORE=1 AFTER=2; latest row id=523, status=ok, rows_processed=888, errors=0.
+- Ephemeral container network: ["deploy_esdata-internal"].
+- /status: workers["cron-pgc-boe-monthly"].stale=false.
+- /metrics: worker_stale_status{worker="cron-pgc-boe-monthly"} 0.0.
+- Alertmanager: amtool query alertname=WorkerSilent returned no active alerts.
+Learnings:
+- Monthly workers need explicit freshness thresholds sized to schedule cadence; otherwise a successful monthly run alerts after 25h.
+- PGC BOE upserts are idempotent: existing normas/estados can report 0 changed while the worker still verifies and refreshes account data.
+Next: A-01
