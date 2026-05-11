@@ -16,7 +16,7 @@ import os
 import time
 
 from boe import log_sync
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -286,6 +286,7 @@ def upsert_sfdr_annual_report(conn, payload: dict):
 def run_sync(worker_name: str = "cron-sfdr-weekly"):
     """Run SFDR sync cycle."""
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    ensure_database_connection(engine)
     sync_start = time.time()
     processed = 0
     stored = 0

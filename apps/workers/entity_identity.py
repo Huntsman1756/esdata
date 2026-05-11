@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 import httpx
 from sqlalchemy import create_engine, text
 
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, ensure_database_connection
 
 
 GLEIF_API_BASE = "https://api.gleif.io/api/v1"
@@ -280,6 +280,7 @@ def _extract_aliases_from_gleif(record: dict) -> list[dict]:
 def run_once() -> dict:
     """Ejecuta una pasada de sincronización LEI."""
     engine = create_engine(DATABASE_URL)
+    ensure_database_connection(engine)
     _ensure_entity_tables(engine)
 
     empresas = _get_empresas_sin_lei(engine)
@@ -320,6 +321,7 @@ def main():
 
     db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
     engine = create_engine(db_url)
+    ensure_database_connection(engine)
 
     while True:
         try:

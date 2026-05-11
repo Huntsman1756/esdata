@@ -12,7 +12,7 @@
     },
     {"id": "P-02", "title": "Diagnose and fix official-regulatory-references stale alert", "priority": 2, "phase": "production-fire", "passes": true},
     {"id": "P-03", "title": "Diagnose and fix cron-pgc-boe-monthly stale alert", "priority": 3, "phase": "production-fire", "passes": true},
-    {"id": "A-01", "title": "Full worker inventory - ensure_database_connection coverage", "priority": 4, "phase": "audit", "passes": false},
+    {"id": "A-01", "title": "Full worker inventory - ensure_database_connection coverage", "priority": 4, "phase": "audit", "passes": true},
     {"id": "A-02", "title": "Verify all systemd timers exist and match cron services", "priority": 5, "phase": "audit", "passes": false},
     {"id": "A-03", "title": "Audit all cron Docker network assignments", "priority": 6, "phase": "audit", "passes": false},
     {"id": "A-04", "title": "Smoke test all persistent workers", "priority": 7, "phase": "audit", "passes": false},

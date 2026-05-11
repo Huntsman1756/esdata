@@ -18,7 +18,7 @@ import time
 from datetime import UTC, datetime, date
 
 from boe import _ensure_sync_log_table, log_sync
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -571,6 +571,7 @@ def run_sync(
     worker_name: str = "worker-mifid-mar-dora",
 ) -> dict[str, int]:
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     sync_start = datetime.now(UTC).isoformat()
 
     try:

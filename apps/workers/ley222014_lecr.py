@@ -19,7 +19,7 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 
 logger = logging.getLogger(__name__)
 
@@ -335,6 +335,7 @@ def run_sync(
 ) -> dict[str, int]:
     """Run LECR sync: parse BOE XML chunks for Ley 22/2014."""
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     bloques_fetched = 0
     articulos_upserted = 0
     sync_start = datetime.now(timezone.utc).isoformat()

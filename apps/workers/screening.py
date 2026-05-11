@@ -17,7 +17,7 @@ from datetime import datetime, date, timezone
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from workers.runtime import get_database_url
+from workers.runtime import get_database_url, ensure_database_connection
 
 
 # ---------------------------------------------------------------------------
@@ -538,6 +538,7 @@ def run_once() -> dict:
     """Run a one-time ingestion of screening datasets. Returns summary."""
     database_url = get_database_url()
     engine = create_engine(database_url)
+    ensure_database_connection(engine)
     _ensure_screening_tables(engine)
 
     with engine.begin() as conn:
@@ -578,6 +579,7 @@ def main() -> None:
 
     db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
     engine = create_engine(db_url)
+    ensure_database_connection(engine)
 
     print(f"[screening] Running every {args.interval} seconds...")
     while True:

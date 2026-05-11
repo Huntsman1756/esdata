@@ -25,7 +25,7 @@ import httpx
 import openpyxl
 import xlrd
 from bs4 import BeautifulSoup
-from runtime import configure_logging, get_database_url
+from runtime import configure_logging, get_database_url, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 
@@ -593,6 +593,7 @@ def main() -> int:
     parser.parse_args()
 
     engine = create_engine(get_database_url(), future=True, pool_pre_ping=True)
+    ensure_database_connection(engine)
     stats = run_sync(engine)
     print(json.dumps(stats, indent=2, ensure_ascii=False))
     return 0

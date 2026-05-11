@@ -55,3 +55,22 @@ Learnings:
 - Monthly workers need explicit freshness thresholds sized to schedule cadence; otherwise a successful monthly run alerts after 25h.
 - PGC BOE upserts are idempotent: existing normas/estados can report 0 changed while the worker still verifies and refreshes account data.
 Next: A-01
+
+=== Iteration 4 - 2026-05-11T19:55:00+02:00 ===
+Story: A-01 Full worker inventory - ensure_database_connection coverage
+Verification run: inventory script, compileall, focused pytest for coverage guard, PGC, and PGC-XBRL.
+Result: PASS
+Root cause: 35 worker modules that create SQLAlchemy engines still lacked the shared ensure_database_connection() guard. The prior production failures showed this guard must cover both persistent workers and cron/auxiliary workers.
+Fix applied: added ensure_database_connection(engine) after engine creation in all DB worker files missing it and added docs/worker-db-retry-coverage.md plus scripts/tests/test_worker_db_retry_coverage.py.
+Verification:
+- In-scope worker files with create_engine(...): 62.
+- Missing retry guard after fix: 0.
+- Out-of-scope helper/dataset modules without create_engine(...): 20.
+- python -m compileall -q apps/workers: PASS.
+- python -m pytest scripts/tests/test_worker_db_retry_coverage.py -q --basetemp .pytest-tmp: 3 passed.
+- PYTHONPATH=... python -m pytest apps/api/tests/test_pgc.py -q --basetemp .pytest-tmp: 48 passed.
+- PYTHONPATH=... python -m pytest apps/api/tests/test_xbrl.py -k "pgc_xbrl_mapping_worker" -q --basetemp .pytest-tmp: 8 passed, 40 deselected.
+Learnings:
+- Coverage checks must filter by actual DB engine creation; otherwise helper modules without DB are false positives.
+- Conditional package/non-package imports need both branches covered.
+Next: A-02

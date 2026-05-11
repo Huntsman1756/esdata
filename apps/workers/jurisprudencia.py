@@ -26,7 +26,7 @@ import httpx
 from sqlalchemy import create_engine, text
 
 from boe import _ensure_sync_log_table, log_sync
-from runtime import handle_worker_failure
+from runtime import handle_worker_failure, ensure_database_connection
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -512,6 +512,7 @@ def _normalize_records(
 
 def run_sync(worker_name: str = "worker-jurisprudencia") -> dict[str, int]:
     engine = create_engine(DATABASE_URL)
+    ensure_database_connection(engine)
     stored = 0
     links = 0
     processed = 0
@@ -693,6 +694,7 @@ def main():
 
     db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata")
     engine = create_engine(db_url)
+    ensure_database_connection(engine)
 
     # Continuous mode
     print(f"Starting jurisprudencia worker (sync every {SYNC_INTERVAL_SECONDS}s)")

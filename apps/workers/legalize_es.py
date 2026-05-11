@@ -12,7 +12,7 @@ _workers_dir = Path(__file__).resolve().parent
 if str(_workers_dir) not in sys.path:
     sys.path.insert(0, str(_workers_dir))
 
-from runtime import configure_logging, get_database_url
+from runtime import configure_logging, get_database_url, ensure_database_connection
 
 DATABASE_URL = get_database_url()
 logger = configure_logging("worker-legalize-es")
@@ -198,6 +198,7 @@ def main():
     db_url = args.db_url or os.getenv("DATABASE_URL", DATABASE_URL)
     fixture_paths = [Path(item) for item in args.fixture]
     engine = create_engine(db_url)
+    ensure_database_connection(engine)
     run_sync(engine, fixture_paths=fixture_paths)
 
 

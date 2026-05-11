@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime
 
-from runtime import configure_logging, get_database_url
+from runtime import configure_logging, get_database_url, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 
@@ -174,6 +174,7 @@ def upsert_cnmv_version(conn, doc: dict) -> int:
 def run_sync(engine=None, run_once: bool = False) -> dict:
     del run_once
     engine = engine or create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     docs_sql = """
         SELECT id, organismo_emisor, referencia, fecha, titulo, texto, url_fuente, estado_vigencia
         FROM documento_interpretativo
@@ -230,6 +231,7 @@ def main() -> None:
     parser.add_argument("--run-once", action="store_true")
     args = parser.parse_args()
     engine = create_engine(args.db_url or DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     result = run_sync(engine=engine, run_once=args.run_once)
     logger.info("Document decomposition complete: %s", result)
 

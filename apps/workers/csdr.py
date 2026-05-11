@@ -26,7 +26,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 
 logger = logging.getLogger(__name__)
 
@@ -374,6 +374,7 @@ def run_sync(
     worker_name: str = "worker-csdr",
 ) -> dict[str, int]:
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     bloques_fetched = 0
     articulos_upserted = 0
     sync_start = datetime.now(UTC).isoformat()
