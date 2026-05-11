@@ -228,3 +228,11 @@ async def test_obligaciones_aplicables_are_paginated_for_mcp_clients():
     assert payload["offset"] == 0
     assert payload["total"] >= len(payload["obligaciones"])
     assert payload["has_more"] == (payload["total"] > len(payload["obligaciones"]))
+    if payload["total"] == 0:
+        assert payload["status"] == "evidence_limited"
+        assert payload["verified"] is False
+        assert payload["confidence"]["review_required"] is True
+        assert "No interpretar" in payload["confidence"]["aviso"]
+    else:
+        assert payload["status"] == "matched"
+        assert payload["verified"] is True

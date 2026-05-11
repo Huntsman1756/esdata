@@ -89,9 +89,23 @@ async def listar_obligaciones_aplicables(
         total = len(aplicables)
         page = aplicables[offset : offset + limite]
         has_more = offset + len(page) < total
+        verified = total > 0
         return {
             "perfil": profile,
             "obligaciones": page,
+            "status": "matched" if verified else "evidence_limited",
+            "verified": verified,
+            "confidence": {
+                "review_required": not verified,
+                "aviso": (
+                    None
+                    if verified
+                    else (
+                        "ESData no ha encontrado obligaciones aplicables verificadas para el perfil. "
+                        "No interpretar como inexistencia de obligaciones; requiere revision oficial/humana."
+                    )
+                ),
+            },
             "total": total,
             "limit": limite,
             "offset": offset,

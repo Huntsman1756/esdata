@@ -297,6 +297,34 @@ def _validate_modelo_casillas_pagination(payload: dict[str, Any]) -> tuple[bool,
     return ok, details
 
 
+def _validate_obligaciones_aplicables_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    confidence = payload.get("confidence") or {}
+    total = payload.get("total")
+    details = {
+        "total": total,
+        "returned": len(payload.get("obligaciones") or []),
+        "status": payload.get("status"),
+        "verified": payload.get("verified"),
+        "review_required": confidence.get("review_required"),
+        "limit": payload.get("limit"),
+        "offset": payload.get("offset"),
+    }
+    if total == 0:
+        ok = (
+            payload.get("status") == "evidence_limited"
+            and payload.get("verified") is False
+            and confidence.get("review_required") is True
+            and "No interpretar" in (confidence.get("aviso") or "")
+        )
+    else:
+        ok = (
+            payload.get("status") == "matched"
+            and payload.get("verified") is True
+            and len(payload.get("obligaciones") or []) <= payload.get("limit", 0)
+        )
+    return ok, details
+
+
 def run_read_only_suite(base_url: str) -> dict[str, Any]:
     base_url = base_url.rstrip("/")
     checks: list[dict[str, Any]] = []
@@ -373,6 +401,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"limit": 25, "offset": 0},
                 _validate_modelo_casillas_pagination,
                 "modelo_100_casillas_paginated_agent_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/obligaciones/aplicables",
+                {"tipo_entidad": "sociedad_valores", "limite": 1, "offset": 0},
+                _validate_obligaciones_aplicables_contract,
+                "obligaciones_aplicables_profile_contract",
             )
         )
 

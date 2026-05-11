@@ -86,6 +86,9 @@ Ejemplos de tareas tipicas en stdio:
 - revisar obligaciones operativas aplicables a un caso o perfil
 - obtener una vista de plazos y obligaciones relacionadas
 - usar `limite`/`offset`; la salida incluye `total`, `has_more` y `next_offset`
+- si no hay obligaciones aplicables verificadas, la herramienta debe devolver
+  `status=evidence_limited`, `verified=false` y `review_required=true`; no
+  convertirlo en "no existen obligaciones"
 
 `list_domain_availability`:
 

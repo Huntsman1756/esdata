@@ -222,7 +222,10 @@ curl -G -s http://127.0.0.1:8000/v1/obligaciones/aplicables --data-urlencode "ti
 
 Este endpoint devuelve `total`, `limit`, `offset`, `has_more` y `next_offset`.
 Para MCP/Actions, usar `limite` y `offset` en vez de pedir todo el conjunto de
-obligaciones en una sola respuesta.
+obligaciones en una sola respuesta. Si devuelve `total=0`, debe venir con
+`status=evidence_limited`, `verified=false` y `confidence.review_required=true`;
+eso no significa que no existan obligaciones, sino que ESData no tiene evidencia
+aplicable verificada para ese perfil.
 
 Detalle de una obligacion:
 

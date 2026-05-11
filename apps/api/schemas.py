@@ -484,6 +484,9 @@ class ObligacionesListResponse(BaseModel):
 class ObligacionesAplicablesResponse(BaseModel):
     perfil: dict = Field(description="Perfil regulatorio aplicado")
     obligaciones: list[ObligacionResumen]
+    status: str | None = Field(default=None, description="matched o evidence_limited")
+    verified: bool | None = Field(default=None, description="Si hay aplicabilidad verificada para el perfil")
+    confidence: dict | None = Field(default=None, description="Confianza y revision requerida")
     total: int | None = Field(default=None, description="Total de obligaciones aplicables antes de paginar")
     limit: int | None = Field(default=None, description="Límite aplicado")
     offset: int | None = Field(default=None, description="Offset aplicado")
@@ -3323,6 +3326,9 @@ class ObligacionDetail(ObligacionRegulatoriaSummary):
 class ObligacionesAplicablesResponse(BaseModel):
     perfil: dict
     obligaciones: list[ObligacionRegulatoriaSummary] = Field(default_factory=list)
+    status: str | None = None
+    verified: bool | None = None
+    confidence: dict | None = None
     total: int | None = None
     limit: int | None = None
     offset: int | None = None

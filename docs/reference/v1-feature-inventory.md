@@ -157,7 +157,9 @@ Important limitation:
 - Large/list contracts are paginated for agent clients: `get_modelo` embeds only
   one `casillas` page (`casillas_limit`/`casillas_offset`), `get_modelo_casillas`
   exposes `limit`/`offset`, `list_articulos` exposes `limit`/`offset`, and
-  `listar_obligaciones_aplicables` exposes `limite`/`offset`.
+  `listar_obligaciones_aplicables` exposes `limite`/`offset` plus
+  `status`/`verified`/`confidence` so an empty applicable set is not interpreted
+  as "no obligations exist".
 - Direct empty-domain endpoints are covered by the same `availability_status`
   envelope as `/v1/domain-availability`; a bare `[]` is not a valid compliance
   answer for configured but unavailable domains.

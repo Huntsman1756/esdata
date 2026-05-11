@@ -1514,7 +1514,17 @@ class MCPStdioServer:
         perfil = data.get("perfil", {})
 
         if not obligaciones:
-            return "No se encontraron obligaciones aplicables para el perfil regulatorio indicado."
+            confidence = data.get("confidence") or {}
+            aviso = confidence.get("aviso") or (
+                "No se encontraron obligaciones aplicables verificadas para el perfil regulatorio indicado. "
+                "No interpretar como inexistencia de obligaciones."
+            )
+            return (
+                f"Perfil: {perfil.get('tipo_entidad', 'desconocido')} | "
+                f"Estado: {data.get('status', 'evidence_limited')}\n"
+                f"Verified: {data.get('verified', False)} | Review required: {confidence.get('review_required', True)}\n"
+                f"{aviso}"
+            )
 
         lines = [
             f"Perfil: {perfil.get('tipo_entidad', 'desconocido')} | Supervisor: {perfil.get('supervision_principal', 'N/A')}",
