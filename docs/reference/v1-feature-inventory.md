@@ -33,6 +33,7 @@ Primary evidence files:
 - `infra/deploy/systemd/`
 - `scripts/ralph/table-remediation-registry.json`
 - `scripts/maintenance/mcp_validation_suite.py`
+- `scripts/maintenance/mcp_deep_contract_audit.py`
 - `docs/master-execution-roadmap.md`
 
 ## Status Vocabulary
@@ -154,6 +155,14 @@ Important limitation:
 - `scripts/maintenance/mcp_validation_suite.py` now validates both REST backing
   contracts and the real `/mcp` transport handshake + `tools/list` for the
   required v1.0 MCP tools.
+- `scripts/maintenance/mcp_deep_contract_audit.py` is the release-grade
+  read-only gate for broad MCP confidence. It checks all Ralph registry tables
+  against live DB row counts/RLS, all public FK relationships for orphan rows,
+  every `/v1/domain-availability/{table}` contract, HTTP MCP `tools/list`
+  parity with `HTTP_MCP_OPERATIONS`, GPT Actions OpenAPI shape, and the
+  semantic fail-closed suite. Latest local evidence: `163` tables, `56`
+  relationships, `163` availability endpoints, `36` HTTP MCP tools and `23`
+  semantic checks passed.
 - Large/list contracts are paginated for agent clients: `get_modelo` embeds only
   one `casillas` page (`casillas_limit`/`casillas_offset`) and bounded related
   lists (`related_limit`, `articulos_offset`, `*_total`, `*_has_more` where

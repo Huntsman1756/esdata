@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
@@ -31,6 +32,17 @@ def _load_validation_suite():
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_deep_contract_audit():
+    path = ROOT / "scripts" / "maintenance" / "mcp_deep_contract_audit.py"
+    spec = importlib.util.spec_from_file_location("mcp_deep_contract_audit_under_test", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -209,6 +221,13 @@ def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
             return self._payload
 
     class FakeClient:
+        def request(self, method, path, **kwargs):
+            if method == "GET":
+                return self.get(path, headers=kwargs.get("headers"))
+            if method == "POST":
+                return self.post(path, headers=kwargs.get("headers"), json=kwargs.get("json"))
+            raise AssertionError(method)
+
         def get(self, path, headers=None):
             assert path == "/mcp"
             assert headers["Accept"] == "text/event-stream"
@@ -257,6 +276,13 @@ def test_mcp_validation_suite_accepts_mcp_session_id_on_missing_session_handshak
             return self._payload
 
     class FakeClient:
+        def request(self, method, path, **kwargs):
+            if method == "GET":
+                return self.get(path, headers=kwargs.get("headers"))
+            if method == "POST":
+                return self.post(path, headers=kwargs.get("headers"), json=kwargs.get("json"))
+            raise AssertionError(method)
+
         def get(self, path, headers=None):
             return FakeResponse(
                 status_code=400,
@@ -285,6 +311,64 @@ def test_mcp_validation_suite_accepts_mcp_session_id_on_missing_session_handshak
 
     assert check["handshake_status_code"] == 400
     assert check["ok"] is True
+
+
+def test_maintenance_http_retry_respects_retry_after(monkeypatch):
+    suite = _load_validation_suite()
+    sleeps: list[float] = []
+
+    class FakeResponse:
+        def __init__(self, status_code, *, headers=None):
+            self.status_code = status_code
+            self.headers = headers or {}
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = 0
+
+        def request(self, method, path, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return FakeResponse(429, headers={"Retry-After": "2"})
+            return FakeResponse(200)
+
+    monkeypatch.setattr(suite.time, "sleep", lambda seconds: sleeps.append(seconds))
+    client = FakeClient()
+
+    response = suite._request_with_retry(client, "GET", "/v1/domain-availability")
+
+    assert response.status_code == 200
+    assert client.calls == 2
+    assert sleeps == [2.0]
+
+
+def test_deep_contract_audit_detects_fk_orphans():
+    audit = _load_deep_contract_audit()
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
+        conn.execute(text("CREATE TABLE parent (id INTEGER PRIMARY KEY)"))
+        conn.execute(text("CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id))"))
+        conn.execute(text("INSERT INTO child (id, parent_id) VALUES (1, 999)"))
+
+    def fake_foreign_keys(engine):
+        return [
+            {
+                "constraint_name": "fk_child_parent",
+                "child_table": "child",
+                "parent_table": "parent",
+                "child_columns": ["parent_id"],
+                "parent_columns": ["id"],
+            }
+        ]
+
+    audit._foreign_keys = fake_foreign_keys
+
+    result = audit.audit_foreign_keys(engine)
+
+    assert result.ok is False
+    assert result.details["relationships_checked"] == 1
+    assert result.details["orphan_failures"][0]["orphan_count"] == 1
 
 
 def test_dead_letter_cli_uses_boolean_filters_and_resolves_rows(capsys):

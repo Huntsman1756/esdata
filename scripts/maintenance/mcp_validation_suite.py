@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -23,13 +24,38 @@ def _mcp_headers() -> dict[str, str]:
     return {"X-API-Key": api_key} if api_key else {}
 
 
+def _request_with_retry(
+    client: httpx.Client,
+    method: str,
+    path: str,
+    *,
+    max_attempts: int = 5,
+    **kwargs: Any,
+) -> httpx.Response:
+    response: httpx.Response | None = None
+    for attempt in range(1, max_attempts + 1):
+        response = client.request(method, path, **kwargs)
+        if response.status_code != 429:
+            return response
+        if attempt == max_attempts:
+            return response
+        retry_after = response.headers.get("Retry-After")
+        try:
+            delay = max(1.0, float(retry_after or 1))
+        except ValueError:
+            delay = 1.0
+        time.sleep(delay)
+    assert response is not None
+    return response
+
+
 def _check_get(
     client: httpx.Client,
     path: str,
     required_text: str | None = None,
     params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    response = client.get(path, params=params, headers=_headers())
+    response = _request_with_retry(client, "GET", path, params=params, headers=_headers())
     ok = response.status_code == 200
     if required_text is not None:
         ok = ok and required_text in response.text
@@ -48,7 +74,7 @@ def _check_json_contract(
     validator,
     name: str,
 ) -> dict[str, Any]:
-    response = client.get(path, params=params, headers=_headers())
+    response = _request_with_retry(client, "GET", path, params=params, headers=_headers())
     check: dict[str, Any] = {
         "name": name,
         "path": path,
@@ -88,7 +114,7 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         **_mcp_headers(),
     }
     try:
-        handshake = client.get("/mcp", headers=headers)
+        handshake = _request_with_retry(client, "GET", "/mcp", headers=headers)
     except httpx.HTTPError as exc:
         check["error"] = f"handshake_failed: {exc}"
         return check
@@ -112,7 +138,9 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         "MCP-Session-ID": session_id,
         **_mcp_headers(),
     }
-    initialize = client.post(
+    initialize = _request_with_retry(
+        client,
+        "POST",
         "/mcp",
         headers=rpc_headers,
         json={
@@ -131,7 +159,9 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         check["error"] = initialize.text[:500]
         return check
 
-    tools = client.post(
+    tools = _request_with_retry(
+        client,
+        "POST",
         "/mcp",
         headers=rpc_headers,
         json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},

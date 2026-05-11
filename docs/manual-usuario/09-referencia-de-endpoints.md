@@ -17,6 +17,11 @@ Este capitulo no sustituye OpenAPI. Sirve como mapa rapido de que exponer y para
 - `GET /v1/sources/freshness` — ledger de freshness por fuente con `snapshot_at`, `snapshot_version`, `previous_snapshot_at` y senal `changed_since_previous`
 - `GET /v1/sources/freshness-alerts` — alertas de frescura
 
+Gate operativo recomendado:
+
+- `scripts/maintenance/mcp_validation_suite.py --read-only` para monitorizacion horaria ligera.
+- `scripts/maintenance/mcp_deep_contract_audit.py` para validacion amplia antes de release/despliegue: tablas vivas, relaciones FK, disponibilidad por dominio, contrato MCP `tools/list`, GPT Actions OpenAPI y suite semantica fail-closed. Es read-only y respeta `Retry-After` si la API aplica rate limiting.
+
 ## Busqueda y legislacion
 
 - `GET /v1/consulta` — consulta fiscal agregada con resultados, relevancia, confianza y score de faithfulness

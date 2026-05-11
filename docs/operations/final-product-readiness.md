@@ -19,6 +19,12 @@ Update 2026-05-11:
 - Ralph scripts are present on the VPS and `table_registry.py` supports both local and prod Postgres container names.
 - Local gates are green: `local_full_gate.py` `5/5`, `final_product_gate.py` `6/6`.
 - VPS gates are green: table registry `163` tables, `0` blockers, `0` errors; `verify_mcp_api_local.py` `10/10`; `mcp_validation_suite.py` `ok=true`.
+- Deep MCP contract gate is available as `scripts/maintenance/mcp_deep_contract_audit.py`.
+  Latest local evidence: `163` DB tables, `56` FK relationships, `163`
+  domain-availability table contracts, `36` HTTP MCP tools, GPT Actions
+  OpenAPI and `23` semantic fail-closed/pagination checks all passed. It
+  respects API `429`/`Retry-After` instead of treating production rate
+  limiting as a false functional failure.
 - `worker-dgt` was restarted after temporary Hacienda/Petete `502/504` responses. The controlled `cron-dgt-weekly` run completed `ok`.
 
 The local stack and deployment artifacts pass the final Ralph gate:
@@ -117,6 +123,22 @@ synthetic fields until a deterministic parser is validated.
 ## MCP/API Accuracy
 
 The final local gate includes live checks against the API:
+
+```bash
+ESDATA_API_KEY=dev-key MCP_API_KEY=dev-mcp-key \
+DATABASE_URL=postgresql+psycopg://esdata:esdata_dev@localhost:5432/esdata \
+python scripts/maintenance/mcp_deep_contract_audit.py \
+  --base-url http://127.0.0.1:8001 \
+  --database-url "$DATABASE_URL"
+```
+
+This deeper read-only gate is the preferred MCP release check when a manual
+question-by-question validation is not enough. It checks every public DB table
+against the Ralph registry, every public FK for orphan rows, every registry
+table against `/v1/domain-availability/{table}`, the real MCP handshake and
+`tools/list`, the reduced GPT Actions OpenAPI contract, and the semantic
+fail-closed suite for high-risk questions such as empty domains, model 100
+pagination and sociedad de valores model classification.
 
 - health/status
 - LIVA article 90 current 21 percent with BOE provenance
