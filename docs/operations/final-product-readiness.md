@@ -20,7 +20,7 @@ Update 2026-05-11:
 - Local gates are green: `local_full_gate.py` `5/5`, `final_product_gate.py` `6/6`.
 - VPS gates are green: table registry `163` tables, `0` blockers, `0` errors; `verify_mcp_api_local.py` `10/10`; `mcp_validation_suite.py` `ok=true`.
 - Deep MCP contract gate is available as `scripts/maintenance/mcp_deep_contract_audit.py`.
-  Latest local evidence: `163` DB tables, `56` FK relationships, `163`
+  Latest local and VPS evidence: `163` DB tables, `56` FK relationships, `163`
   domain-availability table contracts, `36` HTTP MCP tools, GPT Actions
   OpenAPI and `23` semantic fail-closed/pagination checks all passed. It
   respects API `429`/`Retry-After` instead of treating production rate
