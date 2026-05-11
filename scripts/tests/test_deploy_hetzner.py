@@ -410,6 +410,18 @@ def test_every_profiled_cron_service_has_systemd_timer():
     assert not missing
 
 
+def test_official_regulatory_references_has_profiled_cron_service_and_timer():
+    compose = _read("infra/deploy/docker-compose.prod.yml")
+    block = _service_block(compose, "official-regulatory-references")
+    timer = _read("infra/deploy/systemd/esdata-official-regulatory-references-weekly.timer")
+
+    assert 'profiles: ["cron"]' in block
+    assert "WORKER_CMD: python official_regulatory_references.py --run-once" in block
+    assert "- esdata-internal" in block
+    assert "OnCalendar=Wed *-*-* 11:20:00 Europe/Madrid" in timer
+    assert "Unit=esdata-job@official-regulatory-references.service" in timer
+
+
 def test_esdata_timers_pin_europe_madrid_timezone():
     for timer in (ROOT / "infra" / "deploy" / "systemd").glob("esdata-*.timer"):
         text = timer.read_text(encoding="utf-8")

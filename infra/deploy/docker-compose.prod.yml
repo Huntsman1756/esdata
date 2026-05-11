@@ -802,6 +802,23 @@ services:
     networks:
       - esdata-internal
 
+  official-regulatory-references:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_OFFICIAL_REGULATORY_REFERENCES:-}
+      WORKER_CMD: python official_regulatory_references.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
   cron-giin-monthly:
     <<: *cron-hardening
     build:

@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from boe import _ensure_sync_log_table, log_sync
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import ensure_database_connection, get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -866,6 +866,7 @@ def upsert_aeat_model_references(conn, worker_name: str) -> dict[str, int]:
 
 def run_sync(worker_name: str = "official-regulatory-references") -> dict[str, int]:
     engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+    ensure_database_connection(engine, logger=logger)
     started_at = datetime.now(UTC).isoformat()
     try:
         with engine.begin() as conn:
