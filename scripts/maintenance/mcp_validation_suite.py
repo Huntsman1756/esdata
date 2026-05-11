@@ -212,6 +212,26 @@ def _validate_empty_domain_abstention(payload: dict[str, Any]) -> tuple[bool, di
     return ok, details
 
 
+def _validate_direct_empty_domain_envelope(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    details = {
+        "table": payload.get("table"),
+        "availability_status": payload.get("availability_status"),
+        "status": payload.get("status"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+        "total": payload.get("total"),
+        "items_count": len(payload.get("items") or []),
+    }
+    ok = (
+        payload.get("availability_status")
+        in {"workflow_empty", "allowed_empty", "configured_but_unavailable"}
+        and payload.get("status") == payload.get("availability_status")
+        and payload.get("safe_to_answer") is False
+        and payload.get("items") == []
+        and payload.get("total") == 0
+    )
+    return ok, details
+
+
 def _validate_available_domain_not_blocked(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     confianza = payload.get("confianza") or {}
     details = {
@@ -303,6 +323,26 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 "consulta_empty_domain_fail_closed",
             )
         )
+        for path, name in [
+            ("/v1/mica/wallet-custodians", "direct_availability_mica_wallet_custodians"),
+            ("/v1/aifmd/funds", "direct_availability_aifmd_funds"),
+            ("/v1/ucits/funds", "direct_availability_ucits_funds"),
+            ("/v1/crd/capital-positions", "direct_availability_crd_capital_positions"),
+            ("/v1/emir/trade-reports", "direct_availability_emir_trade_reports"),
+            ("/v1/consumer-credit/contracts", "direct_availability_consumer_credit_contracts"),
+            ("/v1/insurance/idd-distributors", "direct_availability_insurance_idd_distributors"),
+            ("/v1/transparency/issuers", "direct_availability_transparency_issuers"),
+            ("/v1/xbrl/facts", "direct_availability_xbrl_facts"),
+        ]:
+            checks.append(
+                _check_json_contract(
+                    client,
+                    path,
+                    {},
+                    _validate_direct_empty_domain_envelope,
+                    name,
+                )
+            )
         checks.append(
             _check_json_contract(
                 client,

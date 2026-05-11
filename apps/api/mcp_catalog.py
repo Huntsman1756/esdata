@@ -135,6 +135,14 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
                     "reporting_reservado": {"type": "boolean"},
                     "aml_cft_reforzado": {"type": "boolean"},
                     "cross_border_ue": {"type": "boolean"},
+                    "limite": {
+                        "type": "integer",
+                        "description": "Maximo de obligaciones devueltas (1-200).",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Offset para continuar una pagina previa.",
+                    },
                 },
                 "required": [],
             },

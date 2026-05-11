@@ -75,10 +75,22 @@ Ejemplos de tareas tipicas en stdio:
 - continuar con `next_offset` solo si `has_more=true`
 - tratar `classification=confirmado` como existencia de casilla/campo oficial en la campana consultada, no como obligatoriedad individual
 
+`get_modelo`:
+
+- tambien pagina las casillas embebidas con `casillas_limit`/`casillas_offset`
+- si `casillas_has_more=true`, continuar con `/v1/modelos/{codigo}/casillas` o con `casillas_next_offset`
+- no interpretar una casilla devuelta como obligatoria para un caso concreto sin evidencia adicional
+
 `listar_obligaciones_aplicables`:
 
 - revisar obligaciones operativas aplicables a un caso o perfil
 - obtener una vista de plazos y obligaciones relacionadas
+- usar `limite`/`offset`; la salida incluye `total`, `has_more` y `next_offset`
+
+`list_domain_availability`:
+
+- `only_empty=true` significa "no seguro para responder directamente", no solo `row_count=0`
+- los endpoints directos de dominios vacios deben devolver `availability_status`, `safe_to_answer=false`, `items=[]` y `total=0`
 
 `get_obligacion_completa`:
 

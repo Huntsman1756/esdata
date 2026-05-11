@@ -60,6 +60,8 @@ async def listar_obligaciones_aplicables(
     reporting_reservado: bool = Query(True, description="Si aplica reporting reservado CNMV"),
     aml_cft_reforzado: bool = Query(True, description="Si la entidad esta sujeta a obligaciones AML/CFT operativas"),
     cross_border_ue: bool = Query(False, description="Si la entidad presta servicios cross-border UE"),
+    limite: int = Query(100, ge=1, le=200, description="Numero maximo de obligaciones aplicables devueltas"),
+    offset: int = Query(0, ge=0, description="Offset de obligaciones aplicables"),
 ):
     profile = build_sociedad_valores_profile(
         reporting_reservado=reporting_reservado,
@@ -84,7 +86,18 @@ async def listar_obligaciones_aplicables(
 
         obligaciones = [dict(row) for row in rows]
         aplicables = [enrich_obligacion_metadata(item) for item in obligaciones if obligation_applies(profile, item)]
-        return {"perfil": profile, "obligaciones": aplicables}
+        total = len(aplicables)
+        page = aplicables[offset : offset + limite]
+        has_more = offset + len(page) < total
+        return {
+            "perfil": profile,
+            "obligaciones": page,
+            "total": total,
+            "limit": limite,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(page) if has_more else None,
+        }
 
 
 @router.get("/operativas", response_model=list[dict], operation_id="listar_obligaciones_operativas")

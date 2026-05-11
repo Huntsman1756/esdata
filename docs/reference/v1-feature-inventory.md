@@ -154,6 +154,13 @@ Important limitation:
 - `scripts/maintenance/mcp_validation_suite.py` now validates both REST backing
   contracts and the real `/mcp` transport handshake + `tools/list` for the
   required v1.0 MCP tools.
+- Large/list contracts are paginated for agent clients: `get_modelo` embeds only
+  one `casillas` page (`casillas_limit`/`casillas_offset`), `get_modelo_casillas`
+  exposes `limit`/`offset`, `list_articulos` exposes `limit`/`offset`, and
+  `listar_obligaciones_aplicables` exposes `limite`/`offset`.
+- Direct empty-domain endpoints are covered by the same `availability_status`
+  envelope as `/v1/domain-availability`; a bare `[]` is not a valid compliance
+  answer for configured but unavailable domains.
 
 ### Stdio MCP
 
@@ -202,6 +209,11 @@ It exposes 14 paths:
 - `/v1/modelos/{codigo}`
 - `/v1/modelos/{codigo}/casillas`
 - `/v1/modelos/por-supuesto`
+
+`/v1/modelos/{codigo}` now exposes `casillas_total`, `casillas_limit`,
+`casillas_offset`, `casillas_has_more` and `casillas_next_offset`. Actions
+clients must page through casillas instead of asking the model to summarize a
+multi-thousand-field response in one turn.
 
 Auth: `ApiKeyAuth`, header `X-API-Key`.
 

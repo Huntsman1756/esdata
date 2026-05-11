@@ -334,6 +334,11 @@ class ModeloDetail(BaseModel):
     casillas: list[ModeloCasilla] = Field(
         default_factory=list, description="Casillas de la campaña activa"
     )
+    casillas_total: int = Field(default=0, description="Total de casillas disponibles para la campaña activa")
+    casillas_limit: int = Field(default=0, description="Límite aplicado a casillas en esta respuesta")
+    casillas_offset: int = Field(default=0, description="Offset aplicado a casillas en esta respuesta")
+    casillas_has_more: bool = Field(default=False, description="Si hay más casillas disponibles")
+    casillas_next_offset: int | None = Field(default=None, description="Offset para continuar casillas")
     claves: list[ModeloClave] = Field(
         default_factory=list, description="Claves de la campaña activa"
     )
@@ -364,6 +369,10 @@ class ArticulosListResponse(BaseModel):
     norma: str = Field(description="Código de la norma")
     articulos: list[ArticuloListItem]
     total: int | None = None
+    limit: int | None = Field(default=None, description="Límite aplicado")
+    offset: int | None = Field(default=None, description="Offset aplicado")
+    has_more: bool | None = Field(default=None, description="Si existen más resultados")
+    next_offset: int | None = Field(default=None, description="Offset de continuación")
 
 
 class ArticulosHistoryResponse(BaseModel):
@@ -475,6 +484,11 @@ class ObligacionesListResponse(BaseModel):
 class ObligacionesAplicablesResponse(BaseModel):
     perfil: dict = Field(description="Perfil regulatorio aplicado")
     obligaciones: list[ObligacionResumen]
+    total: int | None = Field(default=None, description="Total de obligaciones aplicables antes de paginar")
+    limit: int | None = Field(default=None, description="Límite aplicado")
+    offset: int | None = Field(default=None, description="Offset aplicado")
+    has_more: bool | None = Field(default=None, description="Si existen más resultados")
+    next_offset: int | None = Field(default=None, description="Offset de continuación")
 
 
 class EmpresaResumen(BaseModel):
@@ -3309,6 +3323,11 @@ class ObligacionDetail(ObligacionRegulatoriaSummary):
 class ObligacionesAplicablesResponse(BaseModel):
     perfil: dict
     obligaciones: list[ObligacionRegulatoriaSummary] = Field(default_factory=list)
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class EmpresaSummary(BaseModel):

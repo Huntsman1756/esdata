@@ -49,6 +49,14 @@ def test_domain_availability_classifies_empty_tables_from_ralph_registry(tmp_pat
                 "target_path": "worker",
                 "action": "Verify provenance.",
             },
+            {
+                "table": "missing_configured",
+                "classification": "configured_but_unavailable",
+                "domain": "Missing official registry",
+                "official_source_family": "CNMV/ESMA official source",
+                "target_path": "apps/workers/missing.py",
+                "action": "Official source table; missing physical table is not safe to answer.",
+            },
         ]
     }
     registry_path = tmp_path / "registry.json"
@@ -62,12 +70,20 @@ def test_domain_availability_classifies_empty_tables_from_ralph_registry(tmp_pat
             conn.execute(text(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY)"))
         conn.execute(text("INSERT INTO populated_table (id) VALUES (1)"))
         records = {r["table"]: r for r in domain_availability.list_domain_availability(conn)}
+        empty_records = {
+            r["table"]: r
+            for r in domain_availability.list_domain_availability(conn, only_empty=True)
+        }
 
     assert records["empty_workflow"]["availability_status"] == "workflow_empty"
     assert records["empty_allowed"]["availability_status"] == "allowed_empty"
     assert records["empty_configured"]["availability_status"] == "configured_but_unavailable"
     assert records["populated_table"]["availability_status"] == "populated"
     assert records["empty_configured"]["safe_to_answer"] is False
+    assert records["missing_configured"]["row_count"] is None
+    assert records["missing_configured"]["availability_status"] == "configured_but_unavailable"
+    assert "missing_configured" in empty_records
+    assert "populated_table" not in empty_records
 
     domain_availability.clear_registry_cache()
 
@@ -105,6 +121,38 @@ def test_empty_domain_router_uses_explicit_availability_status():
             "configured_but_unavailable",
         }
         assert payload["status"] == payload["availability_status"]
+        assert payload["items"] == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/v1/aifmd/funds",
+        "/v1/ucits/funds",
+        "/v1/crd/capital-positions",
+        "/v1/emir/trade-reports",
+        "/v1/consumer-credit/contracts",
+        "/v1/insurance/idd-distributors",
+        "/v1/transparency/issuers",
+        "/v1/xbrl/facts",
+    ],
+)
+def test_empty_domain_router_extended_tables_use_availability_envelope(path):
+    from main import app
+
+    with TestClient(app) as client:
+        response = client.get(path, headers={"x-api-key": "test-secret-key"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    if payload.get("total", 0) == 0:
+        assert payload["availability_status"] in {
+            "workflow_empty",
+            "allowed_empty",
+            "configured_but_unavailable",
+        }
+        assert payload["status"] == payload["availability_status"]
+        assert payload["safe_to_answer"] is False
         assert payload["items"] == []
 
 
@@ -157,3 +205,26 @@ async def test_consulta_regular_aeat_query_is_not_blocked_by_availability_guard(
     assert response.status_code == 200
     payload = response.json()
     assert "availability" not in (payload["confianza"] or {})
+
+
+@pytest.mark.asyncio
+async def test_obligaciones_aplicables_are_paginated_for_mcp_clients():
+    from main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get(
+            "/v1/obligaciones/aplicables",
+            params={"tipo_entidad": "sociedad_valores", "limite": 1, "offset": 0},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["obligaciones"]) <= 1
+    assert payload["limit"] == 1
+    assert payload["offset"] == 0
+    assert payload["total"] >= len(payload["obligaciones"])
+    assert payload["has_more"] == (payload["total"] > len(payload["obligaciones"]))

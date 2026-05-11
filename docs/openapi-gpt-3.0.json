@@ -433,7 +433,7 @@
           "modelos"
         ],
         "summary": "Get AEAT model details",
-        "description": "Get full details for a specific AEAT tax model including linked legislation articles, active campaign boxes (casillas), key codes (claves), step-by-step instructions, regulatory framework (normativa), and related doctrine.",
+        "description": "Get details for a specific AEAT tax model including linked legislation articles, a paginated page of active campaign boxes (casillas), key codes (claves), step-by-step instructions, regulatory framework (normativa), and related doctrine. Use casillas_limit/casillas_offset or /v1/modelos/{codigo}/casillas when all boxes are needed.",
         "operationId": "get_modelo",
         "parameters": [
           {
@@ -455,6 +455,33 @@
               "title": "Campana"
             },
             "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa."
+          },
+          {
+            "name": "casillas_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina para casillas incluidas. Use /casillas para navegar el listado completo.",
+              "default": 200,
+              "title": "Casillas Limit"
+            },
+            "description": "Tamano de pagina para casillas incluidas. Use /casillas para navegar el listado completo."
+          },
+          {
+            "name": "casillas_offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de casillas incluidas.",
+              "default": 0,
+              "title": "Casillas Offset"
+            },
+            "description": "Offset de casillas incluidas."
           }
         ],
         "responses": {
@@ -1531,6 +1558,35 @@
             "type": "array",
             "title": "Casillas",
             "description": "Casillas de la campaña activa"
+          },
+          "casillas_total": {
+            "type": "integer",
+            "title": "Casillas Total",
+            "description": "Total de casillas disponibles para la campaña activa",
+            "default": 0
+          },
+          "casillas_limit": {
+            "type": "integer",
+            "title": "Casillas Limit",
+            "description": "Límite aplicado a casillas en esta respuesta",
+            "default": 0
+          },
+          "casillas_offset": {
+            "type": "integer",
+            "title": "Casillas Offset",
+            "description": "Offset aplicado a casillas en esta respuesta",
+            "default": 0
+          },
+          "casillas_has_more": {
+            "type": "boolean",
+            "title": "Casillas Has More",
+            "description": "Si hay más casillas disponibles",
+            "default": false
+          },
+          "casillas_next_offset": {
+            "type": "integer",
+            "title": "Casillas Next Offset",
+            "description": "Offset para continuar casillas"
           },
           "claves": {
             "items": {

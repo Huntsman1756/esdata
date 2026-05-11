@@ -395,6 +395,8 @@ class MCPStdioServer:
                         "reporting_reservado": arguments.get("reporting_reservado", True),
                         "aml_cft_reforzado": arguments.get("aml_cft_reforzado", True),
                         "cross_border_ue": arguments.get("cross_border_ue", False),
+                        "limite": arguments.get("limite", 100),
+                        "offset": arguments.get("offset", 0),
                     },
                 )
                 status_code = result["status_code"]
@@ -1516,9 +1518,14 @@ class MCPStdioServer:
 
         lines = [
             f"Perfil: {perfil.get('tipo_entidad', 'desconocido')} | Supervisor: {perfil.get('supervision_principal', 'N/A')}",
-            f"Obligaciones aplicables: {len(obligaciones)}",
+            f"Obligaciones aplicables: {len(obligaciones)}/{data.get('total', len(obligaciones))}",
             "",
         ]
+        if data.get("has_more"):
+            lines.append(
+                f"[TRUNCATED] Hay mas obligaciones. Continuar con offset={data.get('next_offset')}."
+            )
+            lines.append("")
 
         for obs in obligaciones:
             lines.append(f"=== {obs['codigo']} — {obs['nombre']} ===")

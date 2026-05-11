@@ -85,9 +85,11 @@ Disponibilidad explicita de dominios/tablas:
 curl -s "http://127.0.0.1:8000/v1/domain-availability?only_empty=true"
 ```
 
-La respuesta separa tablas vacias en estados seguros: `workflow_empty`,
-`allowed_empty` y `configured_but_unavailable`. Un agente no debe inventar
-respuesta si el dominio requerido aparece bloqueado.
+La respuesta separa tablas no consultables directamente en estados seguros:
+`workflow_empty`, `allowed_empty` y `configured_but_unavailable`. `only_empty=true`
+incluye tambien tablas configuradas que no se pueden contar en la instancia
+actual (`row_count=null`), porque tampoco son seguras para responder. Un agente
+no debe inventar respuesta si el dominio requerido aparece bloqueado.
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/domain-availability/wallet_custodian
@@ -133,7 +135,9 @@ curl -s http://127.0.0.1:8000/v1/modelos
 Detalle completo de un modelo:
 
 ```bash
-curl -s http://127.0.0.1:8000/v1/modelos/303
+curl -G -s http://127.0.0.1:8000/v1/modelos/303 \
+  --data-urlencode "casillas_limit=200" \
+  --data-urlencode "casillas_offset=0"
 ```
 
 Detalle por campana:
@@ -152,6 +156,9 @@ curl -G -s http://127.0.0.1:8000/v1/modelos/303/casillas \
 ```
 
 Para modelos con muchas casillas, como el modelo 100, no pedir el listado completo en una sola respuesta. Usar `limit`, `offset`, `q`, `tipo_casilla` o `pagina`, y continuar solo si la respuesta trae `has_more=true`.
+`GET /v1/modelos/{codigo}` tambien pagina las casillas embebidas mediante
+`casillas_limit`/`casillas_offset` y devuelve `casillas_total`,
+`casillas_has_more` y `casillas_next_offset`.
 
 Vista operativa multi-modelo:
 
@@ -212,6 +219,10 @@ Obligaciones aplicables para perfil base:
 ```bash
 curl -G -s http://127.0.0.1:8000/v1/obligaciones/aplicables --data-urlencode "tipo_entidad=sociedad_valores" --data-urlencode "reporting_reservado=true" --data-urlencode "aml_cft_reforzado=true"
 ```
+
+Este endpoint devuelve `total`, `limit`, `offset`, `has_more` y `next_offset`.
+Para MCP/Actions, usar `limite` y `offset` en vez de pedir todo el conjunto de
+obligaciones en una sola respuesta.
 
 Detalle de una obligacion:
 

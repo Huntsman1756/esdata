@@ -205,7 +205,7 @@ def list_domain_availability(
 ) -> list[dict[str, Any]]:
     records = [availability_record(db, item) for item in _registry_items()]
     if only_empty:
-        records = [record for record in records if record["row_count"] == 0]
+        records = [record for record in records if not record["safe_to_answer"]]
     if status:
         records = [record for record in records if record["availability_status"] == status]
     if domain:

@@ -425,6 +425,31 @@ async def test_modelo_100_casillas_are_paginated_and_truth_labeled():
 
 
 @pytest.mark.asyncio
+async def test_modelo_detail_limits_embedded_casillas_for_agent_clients():
+    _seed_many_modelo_100_casillas(12)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get(
+            "/v1/modelos/100",
+            params={"casillas_limit": 5, "casillas_offset": 0},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["codigo"] == "100"
+    assert len(data["casillas"]) == 5
+    assert data["casillas_total"] >= 13
+    assert data["casillas_limit"] == 5
+    assert data["casillas_offset"] == 0
+    assert data["casillas_has_more"] is True
+    assert data["casillas_next_offset"] == 5
+
+
+@pytest.mark.asyncio
 async def test_modelo_100_casillas_support_filtering():
     _seed_many_modelo_100_casillas(12)
 

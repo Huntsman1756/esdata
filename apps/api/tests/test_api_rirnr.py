@@ -42,6 +42,22 @@ async def test_rirnr_articulos_returns_200(client):
     assert data["norma"] == "RIRNR"
     assert "articulos" in data
     assert len(data["articulos"]) > 0
+    assert data["total"] >= len(data["articulos"])
+    assert data["limit"] == 200
+    assert data["offset"] == 0
+    assert isinstance(data["has_more"], bool)
+
+
+@pytest.mark.asyncio
+async def test_rirnr_articulos_support_pagination_metadata(client):
+    r = await client.get("/v1/legislacion/RIRNR/articulos", params={"limit": 1, "offset": 0})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["articulos"]) == 1
+    assert data["total"] >= 1
+    assert data["limit"] == 1
+    assert data["offset"] == 0
+    assert data["has_more"] == (data["total"] > 1)
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,7 @@
 from db import db_session
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from request_context import get_request_id, get_user_id
+from schemas import ArticulosListResponse
 from services.query_audit import get_query_audit_service
 from sqlalchemy import text
 
@@ -133,8 +134,14 @@ async def get_norma(request: Request, codigo: str):
     return payload
 
 
-@router.get("/{codigo}/articulos", operation_id="list_articulos")
-async def list_articulos(request: Request, codigo: str, tipo: str | None = None):
+@router.get("/{codigo}/articulos", operation_id="list_articulos", response_model=ArticulosListResponse)
+async def list_articulos(
+    request: Request,
+    codigo: str,
+    tipo: str | None = None,
+    limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
+    offset: int = Query(0, ge=0, description="Offset de resultados"),
+):
     filters = ["n.codigo = :codigo"]
     params = {"codigo": codigo}
 
@@ -143,6 +150,18 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
         params["tipo"] = tipo
 
     with db_session() as db:
+        total_row = db.execute(
+            text(
+                """
+                SELECT COUNT(*) AS total
+                FROM norma n
+                JOIN articulo a ON a.norma_id = n.id
+                WHERE {where_clause}
+                """.format(where_clause=" AND ".join(filters))
+            ),
+            params,
+        ).mappings().first()
+        total = int(total_row["total"]) if total_row else 0
         rows = list(
             db.execute(
                 text(
@@ -152,9 +171,10 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
                     JOIN articulo a ON a.norma_id = n.id
                     WHERE {where_clause}
                     ORDER BY a.numero
+                    LIMIT :limit OFFSET :offset
                     """.format(where_clause=" AND ".join(filters))
                 ),
-                params,
+                {**params, "limit": limit, "offset": offset},
             ).mappings()
         )
         if not rows:
@@ -185,7 +205,16 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
             "source_url": source_url,
             "eli_uri": row["eli_uri"],
         })
-    payload = {"norma": codigo, "articulos": articulos}
+    has_more = offset + len(articulos) < total
+    payload = {
+        "norma": codigo,
+        "articulos": articulos,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": has_more,
+        "next_offset": offset + len(articulos) if has_more else None,
+    }
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}/articulos",
@@ -199,9 +228,9 @@ async def list_articulos(request: Request, codigo: str, tipo: str | None = None)
             }
             for row in rows
         ],
-        response_summary=f"articulos={len(rows)}",
-        confidence={"score": 0.9 if rows else 0.0, "label": "alta" if rows else "baja"},
-        verified=bool(rows),
+        response_summary=f"articulos={len(rows)}/{total}",
+        confidence={"score": 0.9 if total else 0.0, "label": "alta" if total else "baja"},
+        verified=bool(total),
     )
     return payload
 

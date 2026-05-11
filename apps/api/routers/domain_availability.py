@@ -17,7 +17,7 @@ router = APIRouter(prefix="/v1/domain-availability", tags=["domain-availability"
 
 @router.get("", operation_id="list_domain_availability")
 def list_domain_availability(
-    only_empty: bool = Query(False, description="Return only tables with zero live rows."),
+    only_empty: bool = Query(False, description="Return only tables that are not safe to answer from directly."),
     status: str | None = Query(None, description="Filter by populated/workflow_empty/allowed_empty/configured_but_unavailable."),
     domain: str | None = Query(None, description="Case-insensitive domain substring."),
 ):

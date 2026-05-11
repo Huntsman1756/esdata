@@ -375,6 +375,13 @@ async def get_modelo(
         None,
         description="Campana especifica (ej: 2025). Si no se indica, usa la activa.",
     ),
+    casillas_limit: int = Query(
+        200,
+        ge=1,
+        le=500,
+        description="Tamano de pagina para casillas incluidas. Use /casillas para navegar el listado completo.",
+    ),
+    casillas_offset: int = Query(0, ge=0, description="Offset de casillas incluidas."),
 ):
     """
     Detalle de un modelo con artículos, casillas, claves, instrucciones,
@@ -412,9 +419,20 @@ async def get_modelo(
         ]
 
         casillas = []
+        casillas_total = 0
+        casillas_has_more = False
+        casillas_next_offset = None
         if campana_id:
-            cas_rows = list_campaign_casillas(db, campana_id)
+            casillas_total = count_campaign_casillas(db, campana_id)
+            cas_rows = list_campaign_casillas(
+                db,
+                campana_id,
+                limit=casillas_limit,
+                offset=casillas_offset,
+            )
             casillas = [dict(r) for r in cas_rows]
+            casillas_has_more = casillas_offset + len(casillas) < casillas_total
+            casillas_next_offset = casillas_offset + len(casillas) if casillas_has_more else None
 
         claves = []
         if campana_id:
@@ -461,6 +479,11 @@ async def get_modelo(
             "campanas": campanas,
             "articulos": articulos,
             "casillas": casillas,
+            "casillas_total": casillas_total,
+            "casillas_limit": casillas_limit,
+            "casillas_offset": casillas_offset,
+            "casillas_has_more": casillas_has_more,
+            "casillas_next_offset": casillas_next_offset,
             "claves": claves,
             "instrucciones": instrucciones,
             "normativa": normativa,
@@ -497,7 +520,8 @@ async def get_modelo(
                 ],
             ],
             response_summary=(
-                f"campanas={len(campanas)};articulos={len(articulos)};casillas={len(casillas)};"
+                f"campanas={len(campanas)};articulos={len(articulos)};"
+                f"casillas={len(casillas)}/{casillas_total};"
                 f"instrucciones={len(instrucciones)}"
             ),
             confidence={"score": 0.9 if verified else 0.5, "label": "alta" if verified else "media"},
