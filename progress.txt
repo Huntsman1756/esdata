@@ -283,3 +283,25 @@ Learnings:
 - Worker inventory must be derived from `WORKER_CMD` in Compose, not from old roadmap claims.
 - Undeployed worker-style modules are product backlog, not production jobs, even when they have tests or `run_sync()`.
 Next: A-13
+
+=== Iteration 16 - 2026-05-12T03:39:00+02:00 ===
+Story: A-13 Seed AEAT models - populate Hacienda tables
+Verification run: local AEAT metadata tests, seed tests, production seed/repair, API probes and SQL integrity checks.
+Result: PASS
+Root cause: Hacienda tables were populated, but `aeat_modelo.impuesto` could be contaminated by AEAT navigation text. Production showed model 100 as `IRNR` and FATCA/CRS informative models as tax-family values after a full AEAT run.
+Fix applied: added deterministic model-tax overrides and changed `_infer_impuesto` to classify from model code, URL and model title instead of noisy page text. Repaired production `aeat_modelo.impuesto` for critical AEAT models.
+Production verification:
+- Seeded/verified table counts: `aeat_modelo=219`, `modelo_articulo=51`, `modelo_campana=230`, `modelo_campana_operativa=11`, `modelo_casilla=28875`, `modelo_clave=33`, `modelo_instruccion=21`, `modelo_normativa=23`.
+- FK/orphan checks for `modelo_campana`, `modelo_casilla` and `modelo_articulo`: all `0`.
+- Container-level inference check: `PASS aeat impuesto inference`.
+- API probes: model `100` => `IRPF`, `casillas_total=2521`, `verified=true`, `completeness=completa`; `200` => `IS/IRNR`; `216` => `IRNR`; `289` and `290` => `INFORMATIVO`.
+- Critical impuesto mismatch query for `100/200/216/289/290/303/347/349`: `0`.
+Local verification:
+- `python -m pytest apps\workers\tests\test_aeat_models.py::TestFetchModelMetadata -q --basetemp .pytest-tmp`: 6 passed.
+- `python -m compileall -q apps\workers\aeat_models.py apps\workers\tests\test_aeat_models.py`: PASS.
+- `python -m pytest scripts\data\tests\test_seed_modelos.py scripts\tests\test_seed_modelo_articulo.py -q --basetemp .pytest-tmp`: 31 passed, 2 skipped.
+Warnings:
+- Model `290` is present but has `casillas_total=0` and `completeness=parcial`, so MCP/API must keep it evidence-limited and must not invent presentation details.
+Learnings:
+- AEAT model classification must be deterministic for known models; full-page text scraping is too noisy for compliance metadata.
+Next: A-14
