@@ -87,7 +87,7 @@
                             "id":  "Q-07",
                             "title":  "DGT doctrina - verify consultas vinculantes return correct traceable data",
                             "priority":  7,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Query DGT doctrine by topic or V-number",
                                                        "Each result must have numero_consulta, fecha, organo=DGT",

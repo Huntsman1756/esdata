@@ -361,6 +361,45 @@ Verification run:
 - VPS: API rebuilt from commit `2cac9243`; Q-06 probes above PASS; `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> ok=true.
 Next: Q-07
 
+=== Iteration Q-07 - 2026-05-12T21:25:00+02:00 ===
+Story: Q-07 DGT doctrina - verify consultas vinculantes return correct traceable data
+Queries tested: 5
+Results: correct=4 honest_limit=1 incorrect=0
+Incorrect answers found: none after fix
+Root cause:
+- PostgreSQL doctrine search used `documento_fragmento` as the primary path but did not fall back to `documento_interpretativo` when chunks returned zero rows; exact DGT references could exist in detail but not in search.
+- Doctrina detail did not expose `fecha` or `url_fuente`.
+- Joins could duplicate the same DGT consultation across chunks/articles.
+Fixes applied:
+- Added DGT result contract fields `numero_consulta` and `organo`.
+- Added `fecha` and `url_fuente` to doctrine detail responses.
+- Added fallback from chunk search to direct document search when chunk results are empty.
+- Deduplicated doctrine search results and restricted exact `Vxxxx-xx` searches to the exact reference.
+Evidence:
+- QUERY: GET /v1/doctrina/buscar?q=IVA&organismo_emisor=DGT&include_boe=false
+  DOMAIN: DGT
+  RESPONSE: total=7, first=V2274-22, organismo_emisor=DGT, organo=DGT, fecha=2022-10-27, source_url=https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V2274-22.
+  OFFICIAL SOURCE: PETETE official DGT consultation URLs.
+  VERDICT: CORRECT
+- QUERY: GET /v1/doctrina/buscar?q=V1923-24&organismo_emisor=DGT
+  DOMAIN: DGT
+  RESPONSE: total=1, first=V1923-24, fecha=2024-09-03, source_url=https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V1923-24.
+  OFFICIAL SOURCE: PETETE URL responds HTTP 200.
+  VERDICT: CORRECT
+- QUERY: GET /v1/doctrina/V1923-24
+  DOMAIN: DGT
+  RESPONSE: referencia=V1923-24, organismo_emisor=DGT, fecha=2024-09-03, url_fuente official PETETE, texto starts with LGT article 88.
+  OFFICIAL SOURCE: PETETE official DGT consultation URL.
+  VERDICT: CORRECT
+- QUERY: mcp_validation_suite read-only
+  DOMAIN: MCP contract
+  RESPONSE: ok=true with ESDATA_API_KEY and MCP_API_KEY in env.
+  VERDICT: CORRECT
+Verification run:
+- Local RED then GREEN: `pytest apps/api/tests/test_doctrina_router.py ...` -> 8 passed.
+- VPS: API rebuilt from commit `4524887`; `/health` ok; DGT probes above PASS.
+Next: Q-08
+
 === Iteration Q-04 - 2026-05-12T18:49:00+02:00 ===
 Story: Q-04 BOE search - verify ranked results are legally correct and not contaminated
 Queries tested: 5
