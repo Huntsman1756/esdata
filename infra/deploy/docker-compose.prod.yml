@@ -473,7 +473,11 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      AEPD_SEED_URLS: ${AEPD_SEED_URLS:?AEPD_SEED_URLS is required}
+      AEPD_SEED_URLS: ${AEPD_SEED_URLS:-}
+      AEPD_DISCOVER_FROM_INDEX: ${AEPD_DISCOVER_FROM_INDEX:-true}
+      AEPD_GUIDES_INDEX_URL: ${AEPD_GUIDES_INDEX_URL:-https://www.aepd.es/guias-y-herramientas/guias}
+      AEPD_MAX_URLS_PER_RUN: ${AEPD_MAX_URLS_PER_RUN:-25}
+      AEPD_DISCOVERY_PAGES: ${AEPD_DISCOVERY_PAGES:-3}
       SYNC_INTERVAL_SECONDS: ${AEPD_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python aepd.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
@@ -754,7 +758,11 @@ services:
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      AEPD_SEED_URLS: ${AEPD_SEED_URLS:?AEPD_SEED_URLS is required}
+      AEPD_SEED_URLS: ${AEPD_SEED_URLS:-}
+      AEPD_DISCOVER_FROM_INDEX: ${AEPD_DISCOVER_FROM_INDEX:-true}
+      AEPD_GUIDES_INDEX_URL: ${AEPD_GUIDES_INDEX_URL:-https://www.aepd.es/guias-y-herramientas/guias}
+      AEPD_MAX_URLS_PER_RUN: ${AEPD_MAX_URLS_PER_RUN:-25}
+      AEPD_DISCOVERY_PAGES: ${AEPD_DISCOVERY_PAGES:-3}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_AEPD_WEEKLY:-}
       WORKER_CMD: python aepd.py --run-once
     depends_on:

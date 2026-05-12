@@ -283,3 +283,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: el esquema productivo de `sync_log` usa `finished_at`, no `ended_at`. Las consultas de frescura deben usar `COALESCE(finished_at, started_at)`.
 - Impacto: una verificacion con `ended_at` falla aunque la telemetria este sana, generando falso negativo en auditorias de cron/workers.
 - Regla practica: en scripts remotos que se pasan por `ssh ... "bash -s"`, cualquier `docker compose exec -T ...` debe terminar con `< /dev/null`; si no, Compose puede consumir el resto del script desde stdin y truncar la evidencia. Para scripts largos, generar un fichero LF temporal, copiarlo por `scp` y ejecutarlo con `bash`.
+
+### 2026-05-12 - AEPD no debe depender solo de `AEPD_SEED_URLS`
+
+- Scope: `apps/workers/aepd.py`, `apps/workers/tests/test_aepd.py`, `infra/deploy/docker-compose.prod.yml`.
+- Hallazgo: AEPD estaba cableado como seed-only y Compose exigia `AEPD_SEED_URLS`. Si el seed oficial fallaba o quedaba vacio, el worker podia no ampliar corpus real y antes devolvia cero sin `sync_log` explicito.
+- Impacto: el dominio AEPD parecia operativo por tener worker/router, pero el corpus productivo seguia reducido y no habia discovery oficial vivo comparable al de BORME/BOE.
+- Regla practica: usar `https://www.aepd.es/guias-y-herramientas/guias` como discovery oficial acotado para guias/documentos; filtrar externos, filtros, feed y obsoletos; si no hay URLs, registrar `sync_log status=partial`. No afirmar cobertura completa de resoluciones sancionadoras AEPD hasta localizar endpoint oficial estable y probarlo.
