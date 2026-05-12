@@ -25,7 +25,7 @@
     {"id": "A-11", "title": "Prometheus alert rules - verify coverage for all stale workers", "priority": 14, "phase": "audit", "passes": true},
     {"id": "A-12", "title": "Classify undocumented workers - docs/worker-inventory.md", "priority": 15, "phase": "audit", "passes": true},
     {"id": "A-13", "title": "Seed AEAT models - populate Hacienda tables", "priority": 16, "phase": "audit", "passes": true},
-    {"id": "A-14", "title": "Final population report - all compliance tables", "priority": 17, "phase": "audit", "passes": false}
+    {"id": "A-14", "title": "Final population report - all compliance tables", "priority": 17, "phase": "audit", "passes": true}
   ],
   "workerRemediationStories": [
     {

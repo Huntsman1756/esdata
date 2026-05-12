@@ -305,3 +305,25 @@ Warnings:
 Learnings:
 - AEAT model classification must be deterministic for known models; full-page text scraping is too noisy for compliance metadata.
 Next: A-14
+
+=== Iteration 17 - 2026-05-12T03:48:00+02:00 ===
+Story: A-14 Final population report - all compliance tables
+Verification run: production exact table counts, broad `pg_stat_user_tables` snapshot, `sync_log` freshness, `/status`, Alertmanager and Hermes probes.
+Result: PASS
+Root cause: no data-population blocker found in this iteration. A previous A-13 metadata contamination was already remediated before the final count/freshness report.
+Fix applied: none.
+Production verification:
+- Critical exact counts: `articulo=969`, `version_articulo=2252`, `aeat_modelo=219`, `norma=37`.
+- Broad populated snapshot includes high-volume operational/compliance tables: `giin_registry=508593`, `documento_articulo=47755`, `modelo_casilla=28875`, `source_revision=18097`, `documento_interpretativo=18033`, `modelo_recurso=11302`, `sync_log=706`, `query_audit_log=473`.
+- `sync_log` freshness: `36` workers seen, `36` with latest telemetry within `24h`, `0` older than `24h`.
+- Latest stale-fire workers remain fresh: `cron-pgc-boe-monthly`, `cron-psd2-weekly`, and `official-regulatory-references` all have `status=ok`, `errors=0`, latest rows within `24h`.
+- `/status`: database `ok`, `35` workers listed, `stale=false` for all checked workers. `worker-dgt` reports `running` because it is actively processing; `worker-modelos` reports `skipped` because AEAT sync lock was held by the full AEAT run. Neither is stale and Hermes classifies all workers healthy.
+- Alertmanager active `WorkerSilent` alerts: `[]`.
+- Hermes cycles #197-#198: API OK, domain availability OK (`empty=90`, `workflow=53`, `allowed=3`, `configured_unavailable=34`), `workers_checked=35`, `availability_unknown=0`, `unhealthy=0`, `dlq=0`.
+Warnings:
+- `modelo 290` remains `completeness=parcial` with `casillas_total=0`; it is safe only as evidence-limited metadata, not as a complete presentation guide.
+- Domain availability still intentionally reports empty unavailable domains (`configured_but_unavailable`), which is safe fail-closed behavior rather than hidden data.
+Learnings:
+- Production `sync_log` uses `finished_at`, not `ended_at`; verification scripts must use `COALESCE(finished_at, started_at)`.
+- When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
+Next: COMPLETE
