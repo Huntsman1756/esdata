@@ -245,3 +245,24 @@ Production verification:
 Learnings:
 - When running multi-command scripts through SSH stdin, redirect `docker compose exec -T ... < /dev/null`; otherwise the exec process can consume the rest of the script input and truncate evidence.
 Next: A-11
+
+=== Iteration 14 - 2026-05-12T02:51:00+02:00 ===
+Story: A-11 Prometheus alert rules - verify coverage for all stale workers
+Verification run: local scheduler/observability tests plus production Prometheus, API metrics, /status, Alertmanager and systemd timer probes.
+Result: PASS
+Root cause: no production rule defect found in the current deployed revision. The stale Telegram alert had already resolved after P-01/P-02/P-03; this story verified the monitoring contract rather than applying a code fix.
+Fix applied: none.
+Production verification:
+- `promtool check rules /etc/prometheus/alerts.yml`: SUCCESS, 7 rules found.
+- `WorkerSilent` loaded in Prometheus as `worker_stale_status == 1`, duration `3600`, state `inactive`.
+- `/metrics` exports `worker_stale_status{worker="cron-psd2-weekly"} 0.0`, `worker_stale_status{worker="official-regulatory-references"} 0.0`, and `worker_stale_status{worker="cron-pgc-boe-monthly"} 0.0`.
+- Authenticated `/status` marks all three workers `status=ok`, `errors=0`, `stale=false`.
+- Alertmanager query for `alertname=WorkerSilent` returned no active alerts.
+- Timers exist for `esdata-psd2-weekly.timer`, `esdata-official-regulatory-references-weekly.timer`, and `esdata-pgc-boe-monthly.timer` with Europe/Madrid schedules.
+Local verification:
+- `python -m pytest scripts/tests/test_deploy_hetzner.py scripts/tests/test_worker_scheduler_guard.py -q --basetemp .pytest-tmp`: 28 passed.
+- `python scripts/ops/worker_scheduler_guard.py check --repo-root . --installed-unit infra/deploy/systemd/esdata-job@.service`: `WorkerSilent uses stale gauge: True`; `Installed unit has --no-deps: False`.
+Learnings:
+- Prometheus and Alertmanager ports are intentionally not published to the host; rule inspection must run inside their containers.
+- The generic `WorkerSilent` rule is correct because worker-specific coverage comes from API-exported metric labels, not hardcoded alert expressions.
+Next: A-12
