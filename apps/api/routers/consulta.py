@@ -881,6 +881,8 @@ def _with_unverified_review_required(confianza: dict) -> dict:
     updated = dict(confianza)
     updated["aviso"] = UNVERIFIED_EVIDENCE_AVISO
     updated["review_required"] = True
+    updated["faithfulness_score"] = 0.0
+    updated["faithfulness_label"] = "baja"
     return updated
 
 
