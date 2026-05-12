@@ -141,6 +141,67 @@ def test_extract_xsd_zip_fields_from_declaracion_informativa_schema():
     assert "maxOccurs: 1" in fields[0]["descripcion"]
 
 
+def test_extract_xsd_zip_fields_resolves_presentation_imported_types():
+    presentation = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+               xmlns:body="urn:test:body"
+               targetNamespace="urn:test:presentation">
+      <xs:import namespace="urn:test:body" schemaLocation="BodyTypes.xsd"/>
+      <xs:complexType name="PresentationHeader_Type">
+        <xs:sequence>
+          <xs:element name="PresentationCode" type="xs:string">
+            <xs:annotation><xs:documentation>Identificador del mensaje</xs:documentation></xs:annotation>
+          </xs:element>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:element name="Presentation">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="PresentationHeader" type="PresentationHeader_Type"/>
+            <xs:element name="PresentationBody" type="body:Body_Type"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+    """
+    body = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+               targetNamespace="urn:test:body">
+      <xs:complexType name="Base_Type">
+        <xs:sequence>
+          <xs:element name="BaseField" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:complexType name="Body_Type">
+        <xs:complexContent>
+          <xs:extension base="Base_Type">
+            <xs:sequence>
+              <xs:element name="ReportingPeriod" type="xs:date"/>
+              <xs:element name="Amount" type="xs:decimal" minOccurs="0"/>
+            </xs:sequence>
+          </xs:extension>
+        </xs:complexContent>
+      </xs:complexType>
+    </xs:schema>
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zipped:
+        zipped.writestr("ModelPresentation_v1.0.xsd", presentation)
+        zipped.writestr("BodyTypes.xsd", body)
+
+    fields = worker.extract_xsd_zip_fields(buffer.getvalue())
+
+    assert [field["codigo"] for field in fields] == [
+        "XSD:Presentation/PresentationHeader/PresentationCode",
+        "XSD:Presentation/PresentationBody/BaseField",
+        "XSD:Presentation/PresentationBody/ReportingPeriod",
+        "XSD:Presentation/PresentationBody/Amount",
+    ]
+    assert fields[0]["tipo_casilla"] == "diseno_registro_xsd_campo"
+    assert "Documentacion: Identificador del mensaje" in fields[0]["descripcion"]
+    assert "minOccurs: 0" in fields[3]["descripcion"]
+
+
 def test_extract_pdf_text_fields_from_numbered_design_table():
     text = """
     Descripcion de hoja DISENO DE REGISTRO

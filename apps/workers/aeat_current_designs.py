@@ -55,6 +55,22 @@ SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
         "formato": "zip",
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI54.shtml",
     },
+    {
+        "codigo": "231",
+        "label": "Modelo 231 - Esquema XSD y WSDL de presentacion pais por pais",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI41/WS/231_XSD-2.0_WSDL-2-0-1.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI41.shtml",
+    },
+    {
+        "codigo": "238",
+        "label": "Modelo 238 - Esquema XSD y WSDL de operadores de plataformas",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI52/WS/238_XSD-V1.0_WSDL-V1.0.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI52.shtml",
+    },
 ]
 CALENDAR_ANNUAL_URL = (
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/"
@@ -397,11 +413,23 @@ def _xsd_field_code(path: list[str]) -> str:
     return f"XSD:{path[-1][:100]}:{digest}"[:120]
 
 
+def _xsd_documentation(element: ET.Element) -> str | None:
+    docs = []
+    for node in element.findall(f".//{XSD_NAMESPACE}documentation"):
+        value = " ".join("".join(node.itertext()).split())
+        if value:
+            docs.append(value)
+    return " | ".join(docs)[:500] if docs else None
+
+
 def _xsd_descriptor(element: ET.Element, xsd_name: str, path: list[str]) -> str:
     parts = [
         f"XPath: /{'/'.join(path)}",
         f"Fuente XSD: {xsd_name}",
     ]
+    doc = _xsd_documentation(element)
+    if doc:
+        parts.append(f"Documentacion: {doc}")
     type_name = element.attrib.get("type")
     if type_name:
         parts.append(f"Tipo XSD: {type_name}")
@@ -412,16 +440,35 @@ def _xsd_descriptor(element: ET.Element, xsd_name: str, path: list[str]) -> str:
     return "; ".join(parts)[:2000]
 
 
-def _extract_xsd_fields_from_root(root: ET.Element, xsd_name: str) -> list[dict]:
-    complex_types = {
-        node.attrib["name"]: node
-        for node in root.findall(f"{XSD_NAMESPACE}complexType")
-        if node.attrib.get("name")
-    }
+def _build_xsd_complex_type_registry(roots: list[ET.Element]) -> dict[str, ET.Element]:
+    complex_types: dict[str, ET.Element] = {}
+    for root in roots:
+        for node in root.findall(f"{XSD_NAMESPACE}complexType"):
+            name = node.attrib.get("name")
+            if name and name not in complex_types:
+                complex_types[name] = node
+    return complex_types
+
+
+def _extract_xsd_fields_from_schema(
+    root: ET.Element,
+    xsd_name: str,
+    *,
+    complex_types: dict[str, ET.Element] | None = None,
+    root_complex_type: str | None = "DeclaracionInformativa",
+    root_element_name: str | None = None,
+) -> list[dict]:
+    complex_types = complex_types or _build_xsd_complex_type_registry([root])
     fields: list[dict] = []
     seen_paths: set[str] = set()
 
     def traverse_container(container: ET.Element, path: list[str], ancestors: set[str]) -> None:
+        for content in _xsd_children(container, "complexContent", "simpleContent"):
+            for derivation in _xsd_children(content, "extension", "restriction"):
+                base_type = _xsd_local_type(derivation.attrib.get("base"))
+                if base_type and base_type in complex_types and base_type not in ancestors:
+                    traverse_container(complex_types[base_type], path, {*ancestors, base_type})
+                traverse_container(derivation, path, ancestors)
         for child in _xsd_children(container, "sequence", "choice", "all"):
             traverse_container(child, path, ancestors)
         for element in _xsd_children(container, "element"):
@@ -467,24 +514,70 @@ def _extract_xsd_fields_from_root(root: ET.Element, xsd_name: str) -> list[dict]
             }
         )
 
-    root_type = complex_types.get("DeclaracionInformativa")
+    if root_element_name:
+        root_element = next(
+            (
+                element
+                for element in root.findall(f"{XSD_NAMESPACE}element")
+                if element.attrib.get("name") == root_element_name
+            ),
+            None,
+        )
+        if root_element is None:
+            return []
+        traverse_element(root_element, [], set())
+        return fields
+
+    if root_complex_type is None:
+        return []
+    root_type = complex_types.get(root_complex_type)
     if root_type is None:
         return []
-    traverse_container(root_type, ["DeclaracionInformativa"], {"DeclaracionInformativa"})
+    traverse_container(root_type, [root_complex_type], {root_complex_type})
     return fields
 
 
 def extract_xsd_zip_fields(payload: bytes) -> list[dict]:
     fields: list[dict] = []
     with zipfile.ZipFile(io.BytesIO(payload)) as zipped:
-        xsd_names = [
-            name
+        xsd_payloads = {
+            name: ET.fromstring(zipped.read(name))
             for name in zipped.namelist()
+            if name.lower().endswith(".xsd")
+        }
+        complex_types = _build_xsd_complex_type_registry(list(xsd_payloads.values()))
+        declaracion_names = [
+            name
+            for name in xsd_payloads
             if re.search(r"(^|/)DeclaracionInformativa\d+\.xsd$", name, flags=re.IGNORECASE)
         ]
-        for xsd_name in sorted(xsd_names):
-            root = ET.fromstring(zipped.read(xsd_name))
-            fields.extend(_extract_xsd_fields_from_root(root, xsd_name.rsplit("/", 1)[-1]))
+        if declaracion_names:
+            for xsd_name in sorted(declaracion_names):
+                fields.extend(
+                    _extract_xsd_fields_from_schema(
+                        xsd_payloads[xsd_name],
+                        xsd_name.rsplit("/", 1)[-1],
+                        complex_types=complex_types,
+                        root_complex_type="DeclaracionInformativa",
+                    )
+                )
+            return fields
+
+        presentation_names = [
+            name
+            for name in xsd_payloads
+            if re.search(r"Presentation[^/]*\.xsd$", name, flags=re.IGNORECASE)
+        ]
+        for xsd_name in sorted(presentation_names):
+            fields.extend(
+                _extract_xsd_fields_from_schema(
+                    xsd_payloads[xsd_name],
+                    xsd_name.rsplit("/", 1)[-1],
+                    complex_types=complex_types,
+                    root_complex_type=None,
+                    root_element_name="Presentation",
+                )
+            )
     return fields
 
 
