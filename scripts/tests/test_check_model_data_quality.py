@@ -43,9 +43,18 @@ def _create_db(db_path: Path) -> None:
                 id INTEGER PRIMARY KEY,
                 modelo_id INTEGER NOT NULL,
                 campana TEXT NOT NULL,
+                activo BOOLEAN DEFAULT 1,
                 url_instrucciones TEXT,
                 url_normativa TEXT,
                 url_formato TEXT
+            );
+
+            CREATE TABLE modelo_casilla (
+                id INTEGER PRIMARY KEY,
+                campana_id INTEGER NOT NULL,
+                codigo TEXT NOT NULL,
+                etiqueta TEXT NOT NULL,
+                activa BOOLEAN DEFAULT 1
             );
 
             CREATE TABLE modelo_normativa (
@@ -178,6 +187,43 @@ def test_find_db_issues_flags_curated_draft_conflict_in_modelo_campana_operativa
         findings = module.find_db_issues(_sqlite_db_url(db_path))
 
         assert any(f["check_id"] == "db.operativa_curated_state_conflict" for f in findings)
+
+
+def test_find_db_issues_flags_empty_active_campaign_when_other_campaign_has_casillas():
+    module = _load_module()
+    with _temp_dir() as tmp_dir:
+        db_path = tmp_dir / "quality.sqlite3"
+        _create_db(db_path)
+
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute(
+                "INSERT INTO aeat_modelo (id, codigo, nombre, url_info) VALUES (?, ?, ?, ?)",
+                (1, "290", "Modelo 290 FATCA", "https://sede.agenciatributaria.gob.es/modelo-290"),
+            )
+            conn.execute(
+                "INSERT INTO modelo_campana (id, modelo_id, campana, activo) VALUES (?, ?, ?, ?)",
+                (1, 1, "2013", 1),
+            )
+            conn.execute(
+                "INSERT INTO modelo_campana (id, modelo_id, campana, activo) VALUES (?, ?, ?, ?)",
+                (2, 1, "2025", 0),
+            )
+            conn.execute(
+                "INSERT INTO modelo_casilla (campana_id, codigo, etiqueta, activa) VALUES (?, ?, ?, ?)",
+                (2, "DR:1:1", "NIF entidad declarante", 1),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        findings = module.find_db_issues(_sqlite_db_url(db_path))
+
+        assert any(
+            f["check_id"] == "db.modelo_campana_active_empty_historical_fields"
+            and "codigo=290" in f["location"]
+            for f in findings
+        )
 
 
 def test_find_db_issues_uses_approved_host_check_ids():

@@ -393,6 +393,74 @@ def count_campaign_casillas(
     return int(row["total"]) if row else 0
 
 
+def get_campaign_for_casillas(db, codigo: str, campana: str | None = None) -> dict:
+    """Select the campaign used to expose model fields.
+
+    If a caller requests a specific campaign, use it strictly. Without an
+    explicit campaign, prefer the active campaign, but do not hide official
+    parsed fields if the active campaign is empty and a newer/previous campaign
+    has casillas. This keeps the response evidence-limited and transparent
+    instead of silently returning an empty list while usable data exists.
+    """
+
+    active_row = get_active_campaign(db, codigo)
+    requested_row = get_active_campaign(db, codigo, campana) if campana else active_row
+    active_campaign = active_row["campana"] if active_row else None
+
+    if campana or not requested_row:
+        return {
+            "campaign": requested_row,
+            "active_campaign": active_campaign,
+            "selection_notice": None,
+        }
+
+    active_total = count_campaign_casillas(db, requested_row["id"])
+    if active_total > 0:
+        return {
+            "campaign": requested_row,
+            "active_campaign": active_campaign,
+            "selection_notice": None,
+        }
+
+    fallback_row = db.execute(
+        text(
+            """
+            SELECT
+                mc.id,
+                mc.campana,
+                mc.url_instrucciones,
+                mc.url_normativa,
+                mc.url_formato
+            FROM modelo_campana mc
+            JOIN aeat_modelo m ON m.id = mc.modelo_id
+            JOIN modelo_casilla c ON c.campana_id = mc.id AND c.activa = true
+            WHERE m.codigo = :codigo
+              AND COALESCE(m.activo, true) = true
+            GROUP BY mc.id, mc.campana, mc.url_instrucciones, mc.url_normativa, mc.url_formato
+            ORDER BY mc.campana DESC
+            LIMIT 1
+            """
+        ),
+        {"codigo": codigo},
+    ).mappings().first()
+
+    if fallback_row and fallback_row["id"] != requested_row["id"]:
+        return {
+            "campaign": fallback_row,
+            "active_campaign": active_campaign,
+            "selection_notice": (
+                f"La campana activa {active_campaign} no tiene casillas parseadas; "
+                f"se devuelven casillas oficiales de la campana {fallback_row['campana']}."
+            ),
+        }
+
+    return {
+        "campaign": requested_row,
+        "active_campaign": active_campaign,
+        "selection_notice": None,
+    }
+
+
 def list_campaign_casillas(
     db,
     campana_id: int,

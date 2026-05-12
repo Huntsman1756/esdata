@@ -19,6 +19,7 @@ from services.modelos import (
     build_modelo_truth_contract,
     count_campaign_casillas,
     get_active_campaign,
+    get_campaign_for_casillas,
     get_model_row,
     get_modelo_campana_operativa,
     get_modelo_campana_operativa_row,
@@ -420,6 +421,11 @@ async def get_modelo(
         camp_row = get_active_campaign(db, codigo, campana)
         campana_id = camp_row["id"] if camp_row else None
         campana_activa = camp_row["campana"] if camp_row else None
+        casillas_selection = get_campaign_for_casillas(db, codigo, campana)
+        casillas_camp_row = casillas_selection["campaign"]
+        casillas_campana_id = casillas_camp_row["id"] if casillas_camp_row else None
+        casillas_campana = casillas_camp_row["campana"] if casillas_camp_row else None
+        casillas_selection_notice = casillas_selection["selection_notice"]
 
         all_art_rows = list(list_modelo_articulos(db, codigo))
         art_rows = all_art_rows[articulos_offset : articulos_offset + related_limit]
@@ -442,11 +448,11 @@ async def get_modelo(
         casillas_total = 0
         casillas_has_more = False
         casillas_next_offset = None
-        if campana_id:
-            casillas_total = count_campaign_casillas(db, campana_id)
+        if casillas_campana_id:
+            casillas_total = count_campaign_casillas(db, casillas_campana_id)
             cas_rows = list_campaign_casillas(
                 db,
-                campana_id,
+                casillas_campana_id,
                 limit=casillas_limit,
                 offset=casillas_offset,
             )
@@ -519,6 +525,8 @@ async def get_modelo(
                 else None
             ),
             "casillas": casillas,
+            "casillas_campana": casillas_campana,
+            "casillas_selection_notice": casillas_selection_notice,
             "casillas_total": casillas_total,
             "casillas_limit": casillas_limit,
             "casillas_offset": casillas_offset,
@@ -649,13 +657,18 @@ async def get_modelo_casillas(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
 
-        camp_row = get_active_campaign(db, codigo, campana)
+        casillas_selection = get_campaign_for_casillas(db, codigo, campana)
+        camp_row = casillas_selection["campaign"]
+        campana_activa = casillas_selection["active_campaign"]
+        selection_notice = casillas_selection["selection_notice"]
         filters = {"q": q, "tipo_casilla": tipo_casilla, "pagina": pagina}
 
         if not camp_row:
             payload = {
                 "codigo": codigo,
                 "campana": campana,
+                "campana_activa": campana_activa,
+                "selection_notice": selection_notice,
                 "casillas": [],
                 "total": 0,
                 "limit": limit,
@@ -708,6 +721,8 @@ async def get_modelo_casillas(
         payload = {
             "codigo": codigo,
             "campana": camp_row["campana"],
+            "campana_activa": campana_activa,
+            "selection_notice": selection_notice,
             "casillas": casillas,
             "total": total,
             "limit": limit,

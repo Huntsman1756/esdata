@@ -268,6 +268,12 @@ class ModeloCasilla(BaseModel):
 class ModeloCasillasResponse(BaseModel):
     codigo: str = Field(description="Codigo del modelo")
     campana: str | None = Field(default=None, description="Campana consultada")
+    campana_activa: str | None = Field(
+        default=None, description="Campana marcada como activa para el modelo"
+    )
+    selection_notice: str | None = Field(
+        default=None, description="Aviso si la campana usada difiere de la activa"
+    )
     casillas: list[ModeloCasilla] = Field(default_factory=list, description="Pagina de casillas devueltas")
     total: int = Field(description="Total de casillas que cumplen los filtros")
     limit: int = Field(description="Tamano de pagina aplicado")
@@ -363,6 +369,12 @@ class ModeloDetail(BaseModel):
     casillas_offset: int = Field(default=0, description="Offset aplicado a casillas en esta respuesta")
     casillas_has_more: bool = Field(default=False, description="Si hay más casillas disponibles")
     casillas_next_offset: int | None = Field(default=None, description="Offset para continuar casillas")
+    casillas_campana: str | None = Field(
+        default=None, description="Campana usada para devolver casillas"
+    )
+    casillas_selection_notice: str | None = Field(
+        default=None, description="Aviso si las casillas proceden de una campana distinta de la activa"
+    )
     claves: list[ModeloClave] = Field(
         default_factory=list, description="Claves de la campaña activa"
     )

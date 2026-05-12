@@ -397,6 +397,90 @@ def _seed_many_modelo_100_casillas(total: int = 12):
             )
 
 
+def _seed_modelo_with_empty_active_campaign_and_historical_casillas(codigo: str = "290"):
+    from db import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info)
+                VALUES (
+                    :codigo,
+                    'Modelo 290. Declaracion informativa anual de cuentas financieras FATCA',
+                    'anual',
+                    'INFORMATIVO',
+                    'https://sede.agenciatributaria.gob.es/modelo-290'
+                )
+                ON CONFLICT(codigo) DO UPDATE SET
+                    nombre = excluded.nombre,
+                    periodo = excluded.periodo,
+                    impuesto = excluded.impuesto,
+                    url_info = excluded.url_info,
+                    activo = 1
+                """
+            ),
+            {"codigo": codigo},
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+                SELECT id, '2013', 1, 'https://sede.agenciatributaria.gob.es/modelo-290-2013'
+                FROM aeat_modelo
+                WHERE codigo = :codigo
+                ON CONFLICT(modelo_id, campana) DO UPDATE SET
+                    activo = 1,
+                    url_instrucciones = excluded.url_instrucciones
+                """
+            ),
+            {"codigo": codigo},
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+                SELECT id, '2025', 0, 'https://sede.agenciatributaria.gob.es/modelo-290-2025'
+                FROM aeat_modelo
+                WHERE codigo = :codigo
+                ON CONFLICT(modelo_id, campana) DO UPDATE SET
+                    activo = 0,
+                    url_instrucciones = excluded.url_instrucciones
+                """
+            ),
+            {"codigo": codigo},
+        )
+        campana_id = conn.execute(
+            text(
+                """
+                SELECT mc.id
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = :codigo AND mc.campana = '2025'
+                """
+            ),
+            {"codigo": codigo},
+        ).scalar_one()
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_casilla
+                    (campana_id, codigo, etiqueta, descripcion, tipo_casilla, pagina, orden)
+                VALUES
+                    (:campana_id, 'DR:1:1', 'NIF entidad declarante', 'Campo oficial de diseno de registro', 'diseno_registro_campo', 1, 1)
+                ON CONFLICT(campana_id, codigo) DO UPDATE SET
+                    etiqueta = excluded.etiqueta,
+                    descripcion = excluded.descripcion,
+                    tipo_casilla = excluded.tipo_casilla,
+                    pagina = excluded.pagina,
+                    orden = excluded.orden,
+                    activa = 1
+                """
+            ),
+            {"campana_id": campana_id},
+        )
+
+
 @pytest.mark.asyncio
 async def test_modelo_100_casillas_are_paginated_and_truth_labeled():
     _seed_many_modelo_100_casillas(12)
@@ -468,3 +552,45 @@ async def test_modelo_100_casillas_support_filtering():
     assert data["total"] >= 1
     assert all("test 7" in item["etiqueta"].lower() for item in data["casillas"])
     assert data["filters"]["q"] == "Casilla test 7"
+
+
+@pytest.mark.asyncio
+async def test_modelo_casillas_falls_back_to_latest_campaign_with_fields_when_active_is_empty():
+    _seed_modelo_with_empty_active_campaign_and_historical_casillas("290")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/290/casillas", params={"limit": 5})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["campana_activa"] == "2013"
+    assert data["campana"] == "2025"
+    assert data["total"] == 1
+    assert data["classification"] == "confirmado"
+    assert data["verified"] is False
+    assert data["confidence"]["review_required"] is True
+    assert "campana activa 2013 no tiene casillas" in data["selection_notice"]
+
+
+@pytest.mark.asyncio
+async def test_modelo_detail_reports_casillas_fallback_campaign_transparently():
+    _seed_modelo_with_empty_active_campaign_and_historical_casillas("290")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/290", params={"casillas_limit": 5})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["campana_activa"] == "2013"
+    assert data["casillas_campana"] == "2025"
+    assert data["casillas_total"] == 1
+    assert data["verified"] is False
+    assert "campana activa 2013 no tiene casillas" in data["casillas_selection_notice"]
