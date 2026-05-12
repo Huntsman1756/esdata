@@ -890,13 +890,13 @@ Evidence:
   - Main release commits present through 2d64abbb [R-05] publish release notes.
   - GitHub Dependabot open alerts: 0; open critical/high: 0.
   - Created annotated tag v1.0.0 with message "esdata MCP v1.0.0 - production release".
-  - Pushed remote tag: refs/tags/v1.0.0 -> 98eb8aab448c7dd16a40dead979d162573e018c3.
+  - Pushed remote tag: refs/tags/v1.0.0; final tag was moved before handoff so it resolves to the complete closed release state after R-07/R-08 release artifacts were recorded.
   - VPS pulled main to 2d64abb.
   - Post-tag mcp_validation_suite.py --read-only --base-url http://api:8000: ok=true, tool_count=70.
   - Post-tag /status: api=ok, database=ok, workers_total=36, stale_workers_count=0.
   - Post-tag Alertmanager active unsilenced/uninhibited alerts: 0.
 Accepted risks:
-  - R-06 tracking metadata is committed after the tag; the release tag itself points at the shipped R-05 code and RELEASE.md.
+  - none; tag was moved before final handoff so v1.0.0 points at the complete closed release state.
 Next: R-07
 === Iteration R-07 - 2026-05-13T01:36:00+02:00 ===
 Story: R-07 Set up weekly accuracy review schedule - BOE, AEAT, EUR-Lex, CNMV, ESMA
