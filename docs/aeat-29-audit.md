@@ -71,6 +71,29 @@ M-03 resolvio los `STATUS-E` automatizables mediante fuentes oficiales AEAT dire
 
 Verificacion VPS M-03: `cron-aeat-current-daily` cargo `xsd_fields=638`, `parse_errors=0`; SQL productivo devolvio `179=47`, `231=59`, `238=153`, `240=36`, `241=403`, `290=152`; API `/v1/modelos/{179,231,238,240,241,290}` expone esos campos con trazabilidad XSD.
 
+## Resultado M-04 a M-09
+
+M-04 anade contrato explicito `no-casillas-expected` para modelos `STATUS-B`. Esto significa que el MCP/API ya no debe decir "evidencia limitada" cuando la ausencia de casillas es el estado curado del modelo; debe decir que no se esperan casillas estructuradas y no inferir obligatoriedad.
+
+| codigo | estado final | casillas activas | completeness API | verified API |
+|---|---|---:|---|---|
+| 102 | STATUS-B | 0 | `no-casillas-expected` | `true` |
+| 146 | STATUS-B | 0 | `no-casillas-expected` | `true` |
+| 147 | STATUS-B | 0 | `no-casillas-expected` | `true` |
+| 186 | STATUS-B | 0 | `no-casillas-expected` | `true` |
+| 206 | STATUS-B | 0 | `no-casillas-expected` | `true` |
+| 247 | STATUS-B | 0 | `no-casillas-expected` | `true` |
+
+M-05: no se ha identificado ningun modelo `STATUS-C` deprecated con evidencia oficial suficiente dentro de estos 29. El contrato API soporta `deprecated`, pero ningun modelo se marca asi sin fuente oficial.
+
+M-06: los `STATUS-D` quedan documentados en este archivo y en `apps/workers/aeat_current_designs.py`. No se cargan campos desde formularios dinamicos, PDFs esquematicos ni ejemplos XML.
+
+M-07: el modelo `290` ya no depende del fallback de 6 campos; carga 152 campos XSD oficiales de FATCA. Aun asi queda `verified=false` y `completeness=parcial` porque el XSD prueba campos de presentacion, no obligatoriedad ni completitud operativa por supuesto.
+
+M-08: el contrato MCP/API reconoce `completa`, `parcial`, `no-casillas-expected` y `deprecated`.
+
+M-09: cobertura productiva final de modelos AEAT 1XX/2XX: `86` modelos activos, `65` con casillas/campos activos oficiales. `mcp_validation_suite` devuelve `ok=true`; `/status` devuelve API `ok`, DB `ok`, `stale_workers=0`.
+
 ## Evidencia usada
 
 - DB productiva via Docker Compose: `aeat_modelo`, `modelo_campana`, `modelo_recurso`, `modelo_casilla`.

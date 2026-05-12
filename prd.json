@@ -55,7 +55,7 @@
       "id": "M-04",
       "title": "Set completeness=no-casillas-expected for STATUS-B models",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Handle STATUS-B models 102,146,147,186,206,247",
         "Only set no-casillas-expected if DB/API contract supports it",
@@ -67,7 +67,7 @@
       "id": "M-05",
       "title": "Set completeness and verified correctly for STATUS-C deprecated models",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "If M-00/M-03 identifies deprecated models, expose them as deprecated",
         "No model is marked deprecated without official evidence"
@@ -78,7 +78,7 @@
       "id": "M-06",
       "title": "Document STATUS-D models — Playwright-blocked or non-parseable",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Document STATUS-D blockers in code comments or docs",
         "Never invent fields for dynamic endpoints or schematic PDFs"
@@ -89,7 +89,7 @@
       "id": "M-07",
       "title": "Verify modelo 290 stays correctly as parcial/evidence-limited",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "290 remains verified=false/completeness=parcial until full source is found",
         "Official FATCA XSD fields are exposed as partial official evidence, without claiming obligation or full operational completeness"
@@ -100,7 +100,7 @@
       "id": "M-08",
       "title": "Update MCP response logic for completeness=deprecated",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "MCP handles deprecated completeness if/when STATUS-C exists",
         "Existing verified/parcial logic remains untouched"
@@ -111,7 +111,7 @@
       "id": "M-09",
       "title": "Final coverage report — 29 models resolved",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Every model in the 29-item list has final status",
         "mcp_validation_suite ok=true",

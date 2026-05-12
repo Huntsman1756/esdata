@@ -104,6 +104,14 @@ SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
     },
 ]
+# STATUS-D (M-06): modelos 234, 235 y 236 solo tienen ZIP oficial con ejemplos XML
+# (`Ejemplos_XML_M234_235_236_Manual.zip`). No se cargan porque un ejemplo no es un
+# contrato completo de campos/casillas; requieren XSD oficial o contrato endpoint.
+# STATUS-D (M-06): modelos 121, 136, 140, 150, 221, 228, 230 y 239 dependen de
+# formularios/endpoint dinamicos AEAT. Deben resolverse con Playwright o contrato
+# endpoint documentado, no con scraping heuristico.
+# STATUS-D (M-06): modelos 294 y 295 tienen PDF esquematico de posiciones sin tabla
+# textual determinista; no se parsean para evitar campos inventados.
 CALENDAR_ANNUAL_URL = (
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/"
     "calendario-contribuyente-2026/calendario-anual.html"

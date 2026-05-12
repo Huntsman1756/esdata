@@ -36,6 +36,8 @@
 - STATUS-B preliminar: `102`, `146`, `147`, `186`, `206`, `247` - formulario/declaracion sin diseno de registro estructurado localizado.
 - STATUS-D preliminar: `121`, `136`, `140`, `143`, `150`, `221`, `228`, `230`, `239`, `294`, `295` - endpoint dinamico, FAQ/ayuda o PDF esquematico no parseable sin riesgo.
 - STATUS-E/M-03 final: `179`, `231`, `238`, `240`, `241`, `290` resueltos con XSD/ZIP oficiales AEAT y campos `diseno_registro_xsd_campo`; `234`, `235`, `236` reclasificados a STATUS-D porque solo hay ejemplos XML; `233` queda como unico STATUS-E pendiente hasta localizar contrato/plantilla oficial determinista.
+- M-04/M-09 final: `102`, `146`, `147`, `186`, `206`, `247` usan `modelo_campana_operativa.completeness_estado='no-casillas-expected'`; agentes deben tratarlo como ausencia verificada de casillas estructuradas, no como `evidencia limitada`.
+- `deprecated` existe en contrato API/MCP, pero no hay modelo STATUS-C marcado en esta fase sin evidencia oficial.
 - Regla: no poblar `modelo_casilla` desde ejemplos XML, FAQ, normativa o PDF esquematico si no hay tabla/campo determinista.
 
 ---

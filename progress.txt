@@ -434,3 +434,81 @@ Learnings:
 - Ejemplos XML no son contrato completo; `234/235/236` quedan STATUS-D aunque haya ZIP oficial.
 - `290` deja de depender del fallback de 6 campos, pero conserva `verified=false/completeness=parcial` porque el XSD no prueba por si solo aplicabilidad completa.
 Next: M-04
+
+=== Iteration 5 - 2026-05-12T19:10:00+02:00 ===
+Story: M-04 Set completeness=no-casillas-expected for STATUS-B models
+Models processed: 102,146,147,186,206,247
+Result per model:
+  - 102: STATUS-B | casillas loaded: 0 | completeness: no-casillas-expected | source: AEAT descarga modelo 102 | reason: documento de ingreso segundo plazo IRPF sin diseno independiente.
+  - 146: STATUS-B | casillas loaded: 0 | completeness: no-casillas-expected | source: AEAT descarga modelo 146 | reason: formulario/comunicacion sin diseno de registro estructurado localizado.
+  - 147: STATUS-B | casillas loaded: 0 | completeness: no-casillas-expected | source: AEAT descarga modelo 147 | reason: comunicacion descargable sin diseno estructurado.
+  - 186: STATUS-B | casillas loaded: 0 | completeness: no-casillas-expected | source: AEAT procedimiento GI06 | reason: procedimiento informativo sin diseno especifico localizado.
+  - 206: STATUS-B | casillas loaded: 0 | completeness: no-casillas-expected | source: AEAT procedimiento GE04 | reason: documento ingreso/devolucion vinculado a modelo 200.
+  - 247: STATUS-B | casillas loaded: 0 | completeness: no-casillas-expected | source: AEAT descarga modelo 247 | reason: comunicacion descargable sin diseno estructurado.
+Overall result: PASS
+Verification run:
+- Local: `PYTHONPATH=apps;apps/api;apps/workers python -m pytest apps/api/tests/test_modelos_truth_contract.py scripts/tests/test_verify_schema.py -q --basetemp .pytest-tmp` -> 36 passed.
+- VPS SQL: `modelo_campana_operativa` devuelve 6 filas con `completeness_estado=no-casillas-expected`.
+- VPS API: `/v1/modelos/{102,146,147,186,206,247}` devuelve `casillas_total=0`, `verified=true`; `/casillas` devuelve `classification=sin_casillas_esperadas`.
+Learnings:
+- La ausencia verificada de casillas necesita contrato propio; `parcial` quedaba demasiado ambiguo para agentes.
+Next: M-05
+
+=== Iteration 6 - 2026-05-12T19:12:00+02:00 ===
+Story: M-05 Set completeness and verified correctly for STATUS-C deprecated models
+Models processed: none
+Overall result: PASS-WITH-CAVEAT
+Result per model:
+  - None: no hay modelos STATUS-C/deprecated identificados con evidencia oficial en el conjunto de 29.
+Verification run:
+- Local tests del contrato `deprecated` pasan en `test_modelos_truth_contract.py`.
+- No se marco ningun modelo como `deprecated` en produccion porque no hay fuente oficial suficiente.
+Learnings:
+- El estado `deprecated` queda implementado para futuros hallazgos, pero no se usa sin evidencia.
+Next: M-06
+
+=== Iteration 7 - 2026-05-12T19:15:00+02:00 ===
+Story: M-06 Document STATUS-D models - Playwright-blocked or non-parseable
+Models processed: 121,136,140,143,150,221,228,230,234,235,236,239,294,295
+Overall result: PASS
+Verification run:
+- `docs/aeat-29-audit.md` contiene STATUS-D por modelo.
+- `apps/workers/aeat_current_designs.py` contiene comentarios STATUS-D para endpoints dinamicos, ejemplos XML y PDFs esquematicos.
+Learnings:
+- Un ZIP oficial con ejemplos XML no es suficiente para cargar campos; se requiere XSD, tabla determinista o contrato endpoint.
+Next: M-07
+
+=== Iteration 8 - 2026-05-12T19:17:00+02:00 ===
+Story: M-07 Verify modelo 290 stays correctly as parcial/evidence-limited
+Models processed: 290
+Result per model:
+  - 290: STATUS-A | casillas loaded: 152 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI38/Ayuda/XSD_WSDL/290_XSD_2.0_WSDL_2.1.1.zip | reason: XSD oficial FATCA cargado; contrato sigue parcial porque no prueba obligatoriedad completa.
+Overall result: PASS
+Verification run:
+- VPS API `/v1/modelos/290?casillas_limit=1` devuelve `casillas_total=152`, first `XSD:Presentation/PresentationHeader/PresentationCode`, `verified=false`, `completeness=parcial`.
+Learnings:
+- Cargar XSD no equivale a afirmar "obligatorio"; el agente debe seguir usando lenguaje evidence-limited para FATCA.
+Next: M-08
+
+=== Iteration 9 - 2026-05-12T19:20:00+02:00 ===
+Story: M-08 Update MCP response logic for completeness=deprecated
+Models processed: contract-level
+Overall result: PASS
+Verification run:
+- Local tests cubren `deprecated` y `no-casillas-expected`.
+- API schema y servicio aceptan `completa`, `parcial`, `no-casillas-expected`, `deprecated`.
+Learnings:
+- `verified=true` para `deprecated` significa que el estado obsoleto esta verificado, no que el modelo sea vigente.
+Next: M-09
+
+=== Iteration 10 - 2026-05-12T19:25:00+02:00 ===
+Story: M-09 Final coverage report - 29 models resolved
+Models processed: 102,121,136,140,143,146,147,150,172,173,179,186,206,221,228,230,231,233,234,235,236,238,239,240,241,247,290,294,295
+Overall result: PASS
+Verification run:
+- VPS coverage 1XX/2XX: total `86`, with active casillas/campos `65`.
+- VPS status: API `ok`, database `ok`, `stale_workers=0`.
+- VPS `mcp_validation_suite.py --read-only --base-url http://api:8000` -> `ok=true`, 36 tools.
+Learnings:
+- Resultado final honesto: 65/86 con campos oficiales activos, 6 sin casillas esperadas, 14 bloqueados/parciales documentados, 1 STATUS-E pendiente (`233`).
+Next: COMPLETE
