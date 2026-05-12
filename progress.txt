@@ -345,6 +345,22 @@ Evidence:
 - VPS `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`.
 Next: Q-10
 
+=== Iteration 10 - 2026-05-12T20:10:00+02:00 ===
+Story: Q-10 AEPD - verify 25 real documents are returned with correct traceable metadata
+Queries tested: 6
+Results: correct=4 honest_limit=2 incorrect=0
+Incorrect answers found: none
+Fixes applied: `/v1/aepd` now supports `limit/offset`, `items`, `total`, `has_more`, `url_aepd`; `/v1/aepd/buscar` added before the catch-all detail route; AEPD search now tokenizes and normalizes accents so `proteccion datos` matches `proteccion de datos` content.
+Evidence:
+- Local tests: `pytest apps/api/tests/test_aepd_router.py apps/api/tests/test_mcp_private.py::test_mcp_catalog_exposes_expected_core_http_operations scripts/tests/test_verify_doc_artifacts.py -q --basetemp .pytest-tmp` -> 15 passed.
+- VPS `/v1/aepd?limit=3` -> `total=25`, `items_len=3`, first row `AEPD-tech-dispatch-aprendizaje-federado`, URL `https://www.aepd.es/guias/tech-dispatch-aprendizaje-federado.pdf`.
+- VPS `/v1/aepd/buscar?q=proteccion%20datos&limit=3` -> `total=19`, `items_len=3`.
+- VPS detail for first AEPD row returns full text length `55889` and the same `url_aepd`.
+- Official source HEAD for first PDF -> HTTP 200, `content-type: application/pdf`, `content-language: es`.
+- VPS `/v1/buscar?q=GDPR%20AEPD` -> `results_len=0`, so AEPD documents do not bleed into consolidated BOE legislation search.
+- VPS GPT OpenAPI includes `/v1/aepd/buscar`; `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`.
+Next: Q-11
+
 === Iteration Q-06 - 2026-05-12T21:05:00+02:00 ===
 Story: Q-06 EUR-Lex / MiFID II - verify real article content is returned
 Queries tested: 4

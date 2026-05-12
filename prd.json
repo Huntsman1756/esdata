@@ -125,7 +125,7 @@
                             "id":  "Q-10",
                             "title":  "AEPD - verify 25 real documents are returned with correct traceable metadata",
                             "priority":  10,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "AEPD endpoint must expose at least 25 documents",
                                                        "Each sampled document must have titulo, fecha, url_aepd or boe_referencia",
