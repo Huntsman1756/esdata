@@ -1,3 +1,6 @@
+import re
+import unicodedata
+
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query
 from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
@@ -5,9 +8,55 @@ from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/aepd", tags=["aepd"])
 
+_NORMALIZED_DOC_EXPR = (
+    "translate(LOWER(COALESCE(d.texto, '') || ' ' || COALESCE(d.titulo, '')), "
+    ":accent_src, :accent_dst)"
+)
+_LOWER_DOC_EXPR = "LOWER(COALESCE(d.texto, '') || ' ' || COALESCE(d.titulo, ''))"
+_ACCENT_SRC = "".join(
+    chr(codepoint)
+    for codepoint in [
+        0x00E1,
+        0x00E0,
+        0x00E4,
+        0x00E2,
+        0x00E9,
+        0x00E8,
+        0x00EB,
+        0x00EA,
+        0x00ED,
+        0x00EC,
+        0x00EF,
+        0x00EE,
+        0x00F3,
+        0x00F2,
+        0x00F6,
+        0x00F4,
+        0x00FA,
+        0x00F9,
+        0x00FC,
+        0x00FB,
+        0x00F1,
+        0x00E7,
+    ]
+)
+_ACCENT_DST = "aaaaeeeeiiiioooouuuunc"
+
 
 def _fragment(text_value: str) -> str:
     return text_value[:220] + ("..." if len(text_value) > 220 else "")
+
+
+def _normalize_search_terms(q: str) -> list[str]:
+    without_accents = unicodedata.normalize("NFKD", q).encode("ascii", "ignore").decode("ascii")
+    return [term.lower() for term in re.findall(r"[a-zA-Z0-9]+", without_accents) if len(term) >= 2]
+
+
+def _doc_search_expr(db) -> str:
+    dialect = getattr(getattr(db, "bind", None), "dialect", None)
+    if getattr(dialect, "name", "") == "sqlite":
+        return _LOWER_DOC_EXPR
+    return _NORMALIZED_DOC_EXPR
 
 
 async def _listar_aepd_response(
@@ -21,12 +70,6 @@ async def _listar_aepd_response(
     filters = ["d.tipo_fuente = 'aepd'"]
     params: dict[str, str | int] = {"limit": limit, "offset": offset}
 
-    if q:
-        filters.append(
-            "(LOWER(d.texto) LIKE LOWER(:term) OR LOWER(COALESCE(d.titulo, '')) LIKE LOWER(:term))"
-        )
-        params["term"] = f"%{q}%"
-
     if tipo:
         filters.append("d.tipo_documento = :tipo")
         params["tipo"] = tipo
@@ -35,10 +78,22 @@ async def _listar_aepd_response(
         filters.append("d.ambito = :ambito")
         params["ambito"] = ambito
 
-    where_clause = " AND ".join(filters)
-    count_params = {key: value for key, value in params.items() if key not in {"limit", "offset"}}
-
     with db_session() as db:
+        if q:
+            terms = _normalize_search_terms(q)
+            if not terms:
+                terms = [q.lower()]
+            search_expr = _doc_search_expr(db)
+            if search_expr == _NORMALIZED_DOC_EXPR:
+                params["accent_src"] = _ACCENT_SRC
+                params["accent_dst"] = _ACCENT_DST
+            for idx, term in enumerate(terms):
+                key = f"term_{idx}"
+                filters.append(f"{search_expr} LIKE :{key}")
+                params[key] = f"%{term}%"
+
+        where_clause = " AND ".join(filters)
+        count_params = {key: value for key, value in params.items() if key not in {"limit", "offset"}}
         rows = db.execute(
             text(
                 f"""

@@ -38,10 +38,12 @@ async def test_aepd_search_alias_is_not_captured_as_document_reference():
         base_url="http://test",
         headers={"x-api-key": "test-secret-key"},
     ) as client:
-        response = await client.get("/v1/aepd/buscar", params={"q": "proteccion datos", "limit": 1})
+        response = await client.get("/v1/aepd/buscar", params={"q": "cookies consentimiento", "limit": 1})
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["limit"] == 1
     assert "items" in payload
     assert isinstance(payload["total"], int)
+    assert payload["total"] >= 1
+    assert payload["items"][0]["url_aepd"] == payload["items"][0]["url_fuente"]
