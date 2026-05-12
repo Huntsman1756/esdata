@@ -127,6 +127,24 @@ def test_extract_pdf_text_fields_from_positions_nature_table():
     assert "Naturaleza: Numerico" in fields[1]["descripcion"]
 
 
+def test_extract_pdf_text_fields_accepts_nature_with_trailing_dot():
+    text = """
+    POSICIONES NATURALEZA DESCRIPCION DE LOS CAMPOS
+    1 Numerico. TIPO DE REGISTRO.
+    2-4 Numerico. MODELO DECLARACION.
+    9-17 Alfanumerico. NIF DEL DECLARANTE.
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert [field["codigo"] for field in fields] == [
+        "DRPDF:POS:1",
+        "DRPDF:POS:2-4",
+        "DRPDF:POS:9-17",
+    ]
+    assert fields[2]["etiqueta"] == "NIF DEL DECLARANTE"
+
+
 def test_is_pdf_format_detects_official_design_pdf_urls():
     assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.pdf")
     assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.PDF?download=1")

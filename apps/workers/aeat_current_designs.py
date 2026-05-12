@@ -413,10 +413,10 @@ def extract_pdf_text_fields(text_value: str) -> list[dict]:
     fields: list[dict] = []
     seen_codes: set[str] = set()
     numbered_row = re.compile(
-        r"^\s*(\d{1,4})\s+(\d{1,5})\s+(\d{1,5})\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\s+(.+?)\s*$"
+        r"^\s*(\d{1,4})\s+(\d{1,5})\s+(\d{1,5})\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\.?\s+(.+?)\s*$"
     )
     positions_row = re.compile(
-        r"^\s*(\d{1,5}(?:\s*-\s*\d{1,5})?)\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\s+(.+?)\s*$"
+        r"^\s*(\d{1,5}(?:\s*-\s*\d{1,5})?)\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\.?\s+(.+?)\s*$"
     )
 
     for raw_line in text_value.splitlines():
