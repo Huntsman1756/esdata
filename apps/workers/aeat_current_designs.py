@@ -18,8 +18,10 @@ import io
 import json
 import os
 import re
+import zipfile
 from datetime import UTC, date, datetime
 from urllib.parse import urljoin, urlparse
+import xml.etree.ElementTree as ET
 
 import httpx
 import openpyxl
@@ -35,6 +37,24 @@ AEAT_SEDE = "https://sede.agenciatributaria.gob.es"
 DESIGN_INDEX_URLS = [
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-100-199.html",
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-200-299.html",
+]
+SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
+    {
+        "codigo": "172",
+        "label": "Modelo 172 - Esquemas XSD declaracion informativa sobre saldos en monedas virtuales",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI53/Esquemas172.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI53.shtml",
+    },
+    {
+        "codigo": "173",
+        "label": "Modelo 173 - Esquemas XSD declaracion informativa sobre operaciones con monedas virtuales",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI54/Esquemas173.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI54.shtml",
+    },
 ]
 CALENDAR_ANNUAL_URL = (
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/calendario-contribuyente/"
@@ -137,6 +157,11 @@ def discover_current_design_links(client: httpx.Client) -> list[dict]:
                     "source_index": index_url,
                 }
             )
+    for link in SUPPLEMENTAL_CURRENT_DESIGN_LINKS:
+        key = (link["codigo"], link["url"])
+        if key not in seen:
+            seen.add(key)
+            links.append(dict(link))
     return links
 
 
@@ -247,6 +272,10 @@ def _is_pdf_format(url: str) -> bool:
     return url.lower().split("?", 1)[0].endswith(".pdf")
 
 
+def _is_zip_format(url: str) -> bool:
+    return url.lower().split("?", 1)[0].endswith(".zip")
+
+
 def _cell_text(value) -> str:
     if value is None:
         return ""
@@ -343,6 +372,119 @@ def extract_properties_fields(payload: bytes) -> list[dict]:
                 "orden": len(fields) + 1,
             }
         )
+    return fields
+
+
+XSD_NAMESPACE = "{http://www.w3.org/2001/XMLSchema}"
+
+
+def _xsd_local_type(type_name: str | None) -> str | None:
+    if not type_name:
+        return None
+    return type_name.rsplit(":", 1)[-1]
+
+
+def _xsd_children(node: ET.Element, *names: str) -> list[ET.Element]:
+    wanted = {f"{XSD_NAMESPACE}{name}" for name in names}
+    return [child for child in list(node) if child.tag in wanted]
+
+
+def _xsd_field_code(path: list[str]) -> str:
+    base = "XSD:" + "/".join(path)
+    if len(base) <= 120:
+        return base
+    digest = hashlib.sha1("/".join(path).encode("utf-8")).hexdigest()[:8]
+    return f"XSD:{path[-1][:100]}:{digest}"[:120]
+
+
+def _xsd_descriptor(element: ET.Element, xsd_name: str, path: list[str]) -> str:
+    parts = [
+        f"XPath: /{'/'.join(path)}",
+        f"Fuente XSD: {xsd_name}",
+    ]
+    type_name = element.attrib.get("type")
+    if type_name:
+        parts.append(f"Tipo XSD: {type_name}")
+    min_occurs = element.attrib.get("minOccurs", "1")
+    max_occurs = element.attrib.get("maxOccurs", "1")
+    parts.append(f"minOccurs: {min_occurs}")
+    parts.append(f"maxOccurs: {max_occurs}")
+    return "; ".join(parts)[:2000]
+
+
+def _extract_xsd_fields_from_root(root: ET.Element, xsd_name: str) -> list[dict]:
+    complex_types = {
+        node.attrib["name"]: node
+        for node in root.findall(f"{XSD_NAMESPACE}complexType")
+        if node.attrib.get("name")
+    }
+    fields: list[dict] = []
+    seen_paths: set[str] = set()
+
+    def traverse_container(container: ET.Element, path: list[str], ancestors: set[str]) -> None:
+        for child in _xsd_children(container, "sequence", "choice", "all"):
+            traverse_container(child, path, ancestors)
+        for element in _xsd_children(container, "element"):
+            traverse_element(element, path, ancestors)
+
+    def traverse_element(element: ET.Element, path: list[str], ancestors: set[str]) -> None:
+        name = element.attrib.get("name") or element.attrib.get("ref")
+        if not name:
+            return
+        local_name = name.rsplit(":", 1)[-1]
+        next_path = [*path, local_name]
+        type_name = _xsd_local_type(element.attrib.get("type"))
+        inline_complex = _xsd_children(element, "complexType")
+        inline_simple = _xsd_children(element, "simpleType")
+
+        if inline_complex:
+            traverse_container(inline_complex[0], next_path, ancestors)
+            return
+        if type_name and type_name in complex_types:
+            if type_name in ancestors:
+                return
+            traverse_container(complex_types[type_name], next_path, {*ancestors, type_name})
+            return
+        if _xsd_children(element, "sequence", "choice", "all"):
+            traverse_container(element, next_path, ancestors)
+            return
+        if not type_name and not inline_simple:
+            return
+
+        path_key = "/".join(next_path)
+        if path_key in seen_paths:
+            return
+        seen_paths.add(path_key)
+        order = len(fields) + 1
+        fields.append(
+            {
+                "codigo": _xsd_field_code(next_path),
+                "etiqueta": " > ".join(next_path)[:500],
+                "descripcion": _xsd_descriptor(element, xsd_name, next_path),
+                "tipo_casilla": "diseno_registro_xsd_campo",
+                "pagina": None,
+                "orden": order,
+            }
+        )
+
+    root_type = complex_types.get("DeclaracionInformativa")
+    if root_type is None:
+        return []
+    traverse_container(root_type, ["DeclaracionInformativa"], {"DeclaracionInformativa"})
+    return fields
+
+
+def extract_xsd_zip_fields(payload: bytes) -> list[dict]:
+    fields: list[dict] = []
+    with zipfile.ZipFile(io.BytesIO(payload)) as zipped:
+        xsd_names = [
+            name
+            for name in zipped.namelist()
+            if re.search(r"(^|/)DeclaracionInformativa\d+\.xsd$", name, flags=re.IGNORECASE)
+        ]
+        for xsd_name in sorted(xsd_names):
+            root = ET.fromstring(zipped.read(xsd_name))
+            fields.extend(_extract_xsd_fields_from_root(root, xsd_name.rsplit("/", 1)[-1]))
     return fields
 
 
@@ -488,7 +630,7 @@ def _campaign_has_fields(conn, campana_id: int) -> bool:
                 SELECT 1
                 FROM modelo_casilla
                 WHERE campana_id = :campana_id
-                  AND tipo_casilla = 'diseno_registro_campo'
+                  AND tipo_casilla IN ('diseno_registro_campo', 'diseno_registro_xsd_campo')
                 LIMIT 1
                 """
             ),
@@ -624,6 +766,7 @@ def run_sync(engine) -> dict:
         "resources_unchanged": 0,
         "spreadsheet_fields": 0,
         "pdf_fields": 0,
+        "xsd_fields": 0,
         "parse_errors": 0,
         "calendar_entries": 0,
         "calendar_inserted": 0,
@@ -683,6 +826,9 @@ def run_sync(engine) -> dict:
                     elif _is_pdf_format(link["url"]):
                         fields = extract_pdf_fields(payload)
                         stats["pdf_fields"] += _upsert_design_fields(conn, campana_id, fields)
+                    elif _is_zip_format(link["url"]):
+                        fields = extract_xsd_zip_fields(payload)
+                        stats["xsd_fields"] += _upsert_design_fields(conn, campana_id, fields)
                 except Exception as exc:
                     stats["parse_errors"] += 1
                     logger.warning(
