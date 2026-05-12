@@ -759,3 +759,18 @@ Verification run:
 Learnings:
 - Resultado final honesto: 65/86 con campos oficiales activos, 6 sin casillas esperadas, 14 bloqueados/parciales documentados, 1 STATUS-E pendiente (`233`).
 Next: COMPLETE
+
+=== Iteration Q-12 - 2026-05-12T20:33:19+02:00 ===
+Story: Q-12 Cross-domain contamination check - verify domains do not bleed into each other
+Queries tested: 5
+Results: correct=5 honest_limit=0 incorrect=0
+Evidence:
+- tipo IVA 21%: /v1/buscar returns LIVA art. 90, BOE-A-1992-28740, source_url https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a90.
+- modelo 303: /v1/consulta returns first result tipo=modelo codigo=303 with review_required=false.
+- circular CNMV: /v1/cnmv/buscar returns total=65 and first documento tipo_documento=circular_cnmv, boe_referencia=BOE-A-2025-14700, url_cnmv official BOE PDF.
+- MiFID II articulo 1: /v1/eurlex/buscar returns MIFID2_2014_65, coverage_status=article_text_available, verified=true.
+- RGPD AEPD: /v1/aepd/buscar returns AEPD documents with official aepd.es URLs.
+Incorrect answers found: none
+Fixes applied: added structured LIVA 90 fallback for unserved IVA type queries and made EUR-Lex ignore structural legal stopwords such as articulo/article in query tokenization.
+Verification: local focused pytest 17 passed; VPS API checks passed; scripts/maintenance/mcp_validation_suite.py --read-only with API and MCP keys => ok=true.
+Next: Q-13

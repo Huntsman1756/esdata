@@ -151,7 +151,7 @@
                             "id":  "Q-12",
                             "title":  "Cross-domain contamination check - verify domains do not bleed into each other",
                             "priority":  12,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "tipo IVA must return LIVA",
                                                        "modelo 303 must return AEAT modelos",
