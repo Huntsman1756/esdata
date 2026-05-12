@@ -10,7 +10,13 @@ from sqlalchemy.exc import ProgrammingError
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "workers"))
 
-from services.search import _chunk_rank_boost, _search_legislacion_pg, search_legislacion
+from services.search import (
+    _apply_legal_priority,
+    _chunk_rank_boost,
+    _legal_priority_boost,
+    _search_legislacion_pg,
+    search_legislacion,
+)
 
 
 class TestChunkRankBoost:
@@ -25,6 +31,57 @@ class TestChunkRankBoost:
     def test_zero_rank_unchanged(self):
         rank = _chunk_rank_boost(True, 0.0)
         assert rank == pytest.approx(0.0)
+
+
+class TestLegalPriorityBoost:
+    def test_prefers_liva_90_for_general_iva_rate_query(self):
+        text_90 = "Articulo 90. Tipo impositivo general. El Impuesto se exigira al tipo del 21 por ciento."
+        text_91 = "Articulo 91. Tipos impositivos reducidos. Se aplicara el tipo del 10 por ciento."
+
+        boost_90 = _legal_priority_boost("tipo impositivo IVA general", "LIVA", "90", text_90, text_90)
+        boost_91 = _legal_priority_boost("tipo impositivo IVA general", "LIVA", "91", text_91, text_91)
+
+        assert boost_90 > boost_91
+
+    def test_prefers_lis_10_for_corporate_tax_base_query(self):
+        text_10 = "Articulo 10. Concepto y determinacion de la base imponible."
+        text_da = "Disposicion adicional trigesima cuarta. Limites sobre la base imponible."
+
+        boost_10 = _legal_priority_boost("base imponible Impuesto Sociedades", "LIS", "10", text_10, text_10)
+        boost_da = _legal_priority_boost(
+            "base imponible Impuesto Sociedades",
+            "LIS",
+            "trigesima cuarta",
+            text_da,
+            text_da,
+        )
+
+        assert boost_10 > boost_da
+
+    def test_apply_legal_priority_reorders_close_legal_results(self):
+        results = [
+            {
+                "norma": "LIVA",
+                "numero": "91",
+                "rank": 0.0886,
+                "texto": "Articulo 91. Tipos impositivos reducidos.",
+                "fragmento": "Articulo 91. Tipos impositivos reducidos.",
+                "motivo_ranking": "ts_rank=0.0886",
+            },
+            {
+                "norma": "LIVA",
+                "numero": "90",
+                "rank": 0.0788,
+                "texto": "Articulo 90. Tipo impositivo general. El Impuesto se exigira al tipo del 21 por ciento.",
+                "fragmento": "Articulo 90. Tipo impositivo general.",
+                "motivo_ranking": "ts_rank=0.0788",
+            },
+        ]
+
+        reordered = _apply_legal_priority("tipo impositivo IVA general", results)
+
+        assert reordered[0]["norma"] == "LIVA"
+        assert reordered[0]["numero"] == "90"
 
 
 class TestSearchLegislacionSmoke:
