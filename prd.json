@@ -58,7 +58,7 @@
       "id": "R-05",
       "title": "Write RELEASE.md - honest contract language, not marketing",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Document trusted domains",
         "Document limited-evidence domains",

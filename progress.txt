@@ -870,3 +870,16 @@ Evidence:
 Accepted risks:
   - none.
 Next: R-05
+=== Iteration R-05 - 2026-05-13T01:38:00+02:00 ===
+Story: R-05 Write RELEASE.md - honest contract language, not marketing
+Result: PASS
+Evidence:
+  - Added RELEASE.md for esdata MCP v1.0.0.
+  - Documented trusted surfaces: AEAT modelos/casillas, no-casillas forms, BOE consolidated legislation, DGT, CNMV, EUR-Lex MiFID II, AEPD and MiCA/ESMA CASP.
+  - Documented limited-evidence surfaces: AEAT parcial, FATCA/CRS, BORME, EUR-Lex metadata-only and scenario applicability.
+  - Documented non-covered areas: legal/tax advice, real-time AEAT filing validation, definitive BORME, AEPD sanctions when absent, configured-but-unavailable domains and unsafe AEAT STATUS-D sources.
+  - Response contracts define verified/completeness values, evidence_limited, configured_but_unavailable, workflow_empty and allowed_empty.
+  - Verification: contract language count=15, PASS.
+Accepted risks:
+  - none.
+Next: R-06
