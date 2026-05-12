@@ -68,6 +68,9 @@ WORKER_THRESHOLDS_HOURS = {
     "cron-psd2-weekly": 24 * 8,
     "official-regulatory-references": 24 * 8,
     "cron-pgc-boe-monthly": 24 * 40,
+    "cron-giin-monthly": 24 * 40,
+    "cron-ofac-sdn-weekly": 24 * 8,
+    "cron-mica-weekly": 24 * 8,
 }
 
 
