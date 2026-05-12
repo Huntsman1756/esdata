@@ -32,7 +32,7 @@
       "id": "R-03",
       "title": "Test backup restore - not just backup existence",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Locate latest DB backup",
         "Restore into non-production test database",

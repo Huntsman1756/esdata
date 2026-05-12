@@ -840,3 +840,17 @@ Evidence:
 Accepted risks:
   - deploy has NOPASSWD sudo for non-root automated deployment; access is key-only and root login is disabled.
 Next: R-03
+=== Iteration R-03 - 2026-05-12T23:58:00+02:00 ===
+Story: R-03 Test backup restore - not just backup existence
+Result: PASS-WITH-CAVEAT
+Evidence:
+  - Latest backup located on VPS: /srv/esdata/infra/deploy/backups/backup_20260510_201531.sql.gz, SQL gzip dump, 53 MB, pg_dump 16.13.
+  - Restored into non-production database esdata_restore_test with psql, not pg_restore, because the backup is a plain SQL dump.
+  - First restore attempt exposed Docker /dev/shm pressure; retry passed with PGOPTIONS limiting maintenance memory and parallel workers.
+  - Restore completed in 56 seconds and produced 163 public tables.
+  - Restored core counts: aeat_modelo=219, norma=37, articulo=902, query_audit_log=73.
+  - Current production comparison: aeat_modelo=219, norma=37, articulo=1062, query_audit_log=1177.
+  - Test database dropped after verification; remaining esdata_restore_test databases: 0.
+Accepted risks:
+  - Count deltas for articulo and query_audit_log are expected because the latest available backup is from 2026-05-10 and production has received later ingestion/audit writes.
+Next: R-04
