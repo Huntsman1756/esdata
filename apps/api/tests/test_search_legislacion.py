@@ -14,6 +14,7 @@ from services.search import (
     _apply_legal_priority,
     _chunk_rank_boost,
     _legal_priority_boost,
+    _merge_search_results,
     _search_legislacion_pg,
     search_legislacion,
 )
@@ -82,6 +83,28 @@ class TestLegalPriorityBoost:
 
         assert reordered[0]["norma"] == "LIVA"
         assert reordered[0]["numero"] == "90"
+
+    def test_merge_keeps_unchunked_exact_anchor_candidates(self):
+        chunked = [
+            {
+                "norma": "LIS",
+                "numero": "trigesima cuarta",
+                "rank": 0.0951,
+                "chunk_id": 1,
+            }
+        ]
+        fallback = [
+            {
+                "norma": "LIS",
+                "numero": "10",
+                "rank": 0.0453,
+                "chunk_id": None,
+            }
+        ]
+
+        merged = _merge_search_results(chunked, fallback)
+
+        assert {item["numero"] for item in merged} == {"trigesima cuarta", "10"}
 
 
 class TestSearchLegislacionSmoke:

@@ -276,6 +276,26 @@ def _apply_legal_priority(q: str, results: list[dict], limit: int = 10) -> list[
     )[:limit]
 
 
+def _merge_search_results(*result_sets: list[dict]) -> list[dict]:
+    merged: dict[tuple[object, object, object], dict] = {}
+    for result_set in result_sets:
+        for item in result_set:
+            key = (item.get("tipo"), item.get("norma"), item.get("numero"))
+            current = merged.get(key)
+            if current is None:
+                merged[key] = item
+                continue
+
+            item_rank = float(item.get("rank") or 0.0)
+            current_rank = float(current.get("rank") or 0.0)
+            item_has_chunk = bool(item.get("chunk_id"))
+            current_has_chunk = bool(current.get("chunk_id"))
+            if item_rank > current_rank or (item_has_chunk and not current_has_chunk):
+                merged[key] = item
+
+    return list(merged.values())
+
+
 def _extract_norma_from_query(q: str) -> str | None:
     """Extract a known law code from the query to use as a norma filter.
     
@@ -609,12 +629,25 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
             },
         })
 
-    # Fallback: if no chunked results, search version_articulo directly
-    # (documento_fragmento may not be backfilled yet)
+    # Always merge version_articulo candidates. Some exact BOE anchors are not
+    # chunked yet; using chunk search exclusively can hide short authoritative
+    # articles behind long related provisions.
     if not results:
         results = _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, params, vig_subquery_params)
     else:
-        results = _apply_legal_priority(q, results)
+        fallback_results = _search_version_articulo_pg(
+            db,
+            q,
+            norma,
+            fuente,
+            ambito,
+            tipo,
+            vigente_en,
+            params,
+            vig_subquery_params,
+            apply_priority=False,
+        )
+        results = _apply_legal_priority(q, _merge_search_results(results, fallback_results))
 
     return {
         "q": q,
@@ -622,7 +655,19 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     }
 
 
-def _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, chunk_params, vig_subquery_params):
+def _search_version_articulo_pg(
+    db,
+    q,
+    norma,
+    fuente,
+    ambito,
+    tipo,
+    vigente_en,
+    chunk_params,
+    vig_subquery_params,
+    *,
+    apply_priority: bool = True,
+):
     """Fallback search over version_articulo when documento_fragmento is empty."""
     # Auto-detect norma code from query words if not explicitly provided
     if norma is None:
@@ -728,7 +773,9 @@ def _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, 
             },
         })
 
-    return _apply_legal_priority(q, results)
+    if apply_priority:
+        return _apply_legal_priority(q, results)
+    return results
 
 
 def _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en):
