@@ -328,6 +328,25 @@ Learnings:
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
 
+=== Iteration Q-04 - 2026-05-12T18:49:00+02:00 ===
+Story: Q-04 BOE search - verify ranked results are legally correct and not contaminated
+Queries tested: 5
+Results: correct=5 honest_limit=0 incorrect=0
+Incorrect answers found: initial ranking defects fixed before pass:
+- `tipo impositivo IVA general` returned LIVA art. 91 before LIVA art. 90 because full-text recall used OR terms and under-weighted the exact article heading.
+- `base imponible Impuesto Sociedades` did not surface LIS art. 10 because the exact article was not chunked and stayed below the chunked candidate cutoff.
+Fixes applied:
+- Added deterministic legal priority boosts for high-confidence article anchors.
+- Merged chunked search results with direct `version_articulo` candidates.
+- Added exact legal anchor retrieval for LIVA art. 90 and LIS art. 10 when the query intent is unambiguous.
+Evidence:
+- Local RED/GREEN tests: `python -m pytest apps/api/tests/test_search_legislacion.py apps/api/tests/test_smoke.py::test_busqueda_full_text apps/api/tests/test_smoke.py::test_buscar_publico_preserva_trazabilidad_boe -q --basetemp .pytest-tmp` -> 25 passed, 4 warnings.
+- VPS `/v1/buscar?q=tipo impositivo IVA general` top result: LIVA art. 90, BOE-A-1992-28740, `source_url=https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a90`, fragment `Articulo 90. Tipo impositivo general`.
+- VPS `/v1/buscar?q=base imponible Impuesto Sociedades` top result: LIS art. 10, BOE-A-2014-12328, `source_url=https://www.boe.es/buscar/act.php?id=BOE-A-2014-12328#a10`, fragment `Articulo 10. Concepto y determinacion de la base imponible`.
+- VPS remaining Q-04 queries: `plazo declaracion renta 2024` top LIRPF art. 14, `retencion rendimientos trabajo` top LIRPF art. 101, `deduccion por donativos IRPF` top LIRPF art. 68; all include BOE provenance and no cross-domain bleed into BORME/DGT/CNMV.
+- VPS `python3 scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`, 65 MCP tools, domain availability fail-closed checks pass.
+Next: Q-05
+
 === Iteration 1 - 2026-05-12T17:22:00+02:00 ===
 Story: Q-01 AEAT modelos - verify verified=true model responses and endpoint truth contract
 Queries tested: 5

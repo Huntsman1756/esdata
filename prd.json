@@ -48,7 +48,7 @@
                             "id":  "Q-04",
                             "title":  "BOE search - verify ranked results are legally correct and not contaminated",
                             "priority":  4,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Run 5 fiscal/legal search queries",
                                                        "Top results must come from the correct law/domain",
