@@ -3924,6 +3924,208 @@
           }
         }
       }
+    },
+    "/v1/aepd": {
+      "get": {
+        "tags": [
+          "aepd"
+        ],
+        "summary": "List AEPD documents",
+        "operationId": "listar_aepd",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ambito (proteccion_datos, derechos_ar, ficheros_datos, cookies)",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito (proteccion_datos, derechos_ar, ficheros_datos, cookies)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "List official AEPD documents loaded by ESData. Responses include `items`, `total`, `url_aepd`, and pagination metadata. Do not treat missing sanctioning resolutions as loaded unless the response explicitly returns them."
+      }
+    },
+    "/v1/aepd/buscar": {
+      "get": {
+        "tags": [
+          "aepd"
+        ],
+        "summary": "Search AEPD documents",
+        "operationId": "buscar_aepd",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ambito",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Search official AEPD documents by title or text. Use `url_aepd`/`url_fuente` as the cited official source and do not mix these guidance/document results with consolidated BOE legal articles."
+      }
+    },
+    "/v1/aepd/{referencia}": {
+      "get": {
+        "tags": [
+          "aepd"
+        ],
+        "summary": "Get AEPD document detail",
+        "operationId": "get_aepd",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoDetail"
+                }
+              }
+            }
+          }
+        },
+        "description": "Return full text and official AEPD source URL for a loaded AEPD document."
+      }
     }
   },
   "security": [
@@ -4892,6 +5094,11 @@
             "type": "string",
             "title": "Url Fuente"
           },
+          "url_aepd": {
+            "type": "string",
+            "title": "Url Aepd",
+            "description": "Alias de URL fuente AEPD para consumidores MCP"
+          },
           "organismo_emisor": {
             "type": "string",
             "title": "Organismo Emisor",
@@ -4974,6 +5181,11 @@
             "title": "Url Fuente",
             "description": "URL fuente oficial"
           },
+          "url_aepd": {
+            "type": "string",
+            "title": "Url Aepd",
+            "description": "Alias de URL fuente AEPD para consumidores MCP"
+          },
           "organismo_emisor": {
             "type": "string",
             "title": "Organismo Emisor",
@@ -5023,6 +5235,14 @@
             "type": "array",
             "title": "Documentos"
           },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocInterpretativoListItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Alias paginado para consumidores MCP/GPT"
+          },
           "skip": {
             "type": "integer",
             "title": "Skip",
@@ -5037,6 +5257,21 @@
             "type": "integer",
             "title": "Total",
             "description": "Total resultados (cnmv)"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Offset paginacion"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "description": "Si hay mas resultados"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset",
+            "description": "Siguiente offset"
           }
         },
         "type": "object",

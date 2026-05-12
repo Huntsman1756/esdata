@@ -58,6 +58,9 @@ HTTP_MCP_OPERATIONS = [
     "get_borme",
     "listar_boe_diario",
     "get_boe_diario",
+    "listar_aepd",
+    "buscar_aepd",
+    "get_aepd",
     "listar_cnmv",
     "buscar_cnmv",
     "get_cnmv",
@@ -133,6 +136,12 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "listar_borme"
     if path.startswith("/v1/boe-diario"):
         return "listar_boe_diario"
+    if path.startswith("/v1/aepd/buscar"):
+        return "buscar_aepd"
+    if path.startswith("/v1/aepd/"):
+        return "get_aepd"
+    if path.startswith("/v1/aepd"):
+        return "listar_aepd"
     if path.startswith("/v1/cnmv"):
         return "listar_cnmv"
     if path.startswith("/v1/eurlex"):

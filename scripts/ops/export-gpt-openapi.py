@@ -38,6 +38,9 @@ INCLUDE_PATHS = {
     "/v1/doctrina/{referencia}",
     "/v1/boe-diario",
     "/v1/boe-diario/{referencia}",
+    "/v1/aepd",
+    "/v1/aepd/buscar",
+    "/v1/aepd/{referencia}",
     "/v1/cnmv/buscar",
     "/v1/cnmv/{referencia}",
     "/v1/mica/casp/buscar",
@@ -161,6 +164,26 @@ OPERATION_OVERRIDES = {
             "Get a specific doctrine document by reference (e.g. V0000-26, 00/1234/2024). "
             "Returns full text, linked articles, and confidence information."
         ),
+    },
+    "listar_aepd": {
+        "summary": "List AEPD documents",
+        "description": (
+            "List official AEPD documents loaded by ESData. Responses include `items`, "
+            "`total`, `url_aepd`, and pagination metadata. Do not treat missing "
+            "sanctioning resolutions as loaded unless the response explicitly returns them."
+        ),
+    },
+    "buscar_aepd": {
+        "summary": "Search AEPD documents",
+        "description": (
+            "Search official AEPD documents by title or text. Use `url_aepd`/`url_fuente` "
+            "as the cited official source and do not mix these guidance/document results "
+            "with consolidated BOE legal articles."
+        ),
+    },
+    "get_aepd": {
+        "summary": "Get AEPD document detail",
+        "description": "Return full text and official AEPD source URL for a loaded AEPD document.",
     },
     "buscar_casp": {
         "summary": "Search ESMA MiCA CASP register",

@@ -3975,6 +3975,7 @@ class DocInterpretativoListItem(BaseModel):
     ambito: str = Field(description="Ambito")
     fragmento: str = Field(description="Extracto truncado (<=223 chars)")
     url_fuente: str | None = Field(default=None, description="URL fuente oficial")
+    url_aepd: str | None = Field(default=None, description="Alias de URL fuente AEPD para consumidores MCP")
     organismo_emisor: str | None = Field(default=None, description="Organismo emisor (cendoj)")
     estado_vigencia: str | None = Field(default=None, description="Estado vigencia (cnmv)")
     fecha_publicacion: str | None = Field(default=None, description="Fecha publicacion (cnmv)")
@@ -3985,9 +3986,13 @@ class DocInterpretativoListItem(BaseModel):
 
 class DocInterpretativoListResponse(BaseModel):
     documentos: list[DocInterpretativoListItem]
+    items: list[DocInterpretativoListItem] = Field(default_factory=list, description="Alias paginado para consumidores MCP/GPT")
     skip: int | None = Field(default=None, description="Offset paginacion (cnmv)")
     limit: int | None = Field(default=None, description="Limite paginacion (cnmv)")
     total: int | None = Field(default=None, description="Total resultados (cnmv)")
+    offset: int | None = Field(default=None, description="Offset paginacion")
+    has_more: bool | None = Field(default=None, description="Si hay mas resultados")
+    next_offset: int | None = Field(default=None, description="Siguiente offset")
 
 
 class DocInterpretativoDetail(BaseModel):
@@ -3998,6 +4003,7 @@ class DocInterpretativoDetail(BaseModel):
     ambito: str
     texto: str
     url_fuente: str | None = None
+    url_aepd: str | None = Field(default=None, description="Alias de URL fuente AEPD para consumidores MCP")
     organismo_emisor: str | None = Field(default=None, description="Organismo emisor (cendoj)")
     estado_vigencia: str | None = Field(default=None, description="Estado vigencia (cnmv)")
     numero_circular: str | None = Field(default=None, description="Numero circular (cnmv)")

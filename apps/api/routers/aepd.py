@@ -6,16 +6,20 @@ from sqlalchemy import text
 router = APIRouter(prefix="/v1/aepd", tags=["aepd"])
 
 
-@router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_aepd")
-async def listar_aepd(
-    q: str | None = Query(None, description="Filtrar por texto o título"),
-    tipo: str | None = Query(None, description="Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)"),
-    ambito: str | None = Query(None, description="Filtrar por ámbito (proteccion_datos, derechos_ar, ficheros_datos, cookies)"),
+def _fragment(text_value: str) -> str:
+    return text_value[:220] + ("..." if len(text_value) > 220 else "")
+
+
+async def _listar_aepd_response(
+    *,
+    q: str | None,
+    tipo: str | None,
+    ambito: str | None,
+    limit: int,
+    offset: int,
 ):
-    filters = [
-        "d.tipo_fuente = 'aepd'",
-    ]
-    params: dict[str, str] = {}
+    filters = ["d.tipo_fuente = 'aepd'"]
+    params: dict[str, str | int] = {"limit": limit, "offset": offset}
 
     if q:
         filters.append(
@@ -31,35 +35,80 @@ async def listar_aepd(
         filters.append("d.ambito = :ambito")
         params["ambito"] = ambito
 
+    where_clause = " AND ".join(filters)
+    count_params = {key: value for key, value in params.items() if key not in {"limit", "offset"}}
+
     with db_session() as db:
         rows = db.execute(
             text(
-                """
+                f"""
                 SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente
                 FROM documento_interpretativo d
                 WHERE {where_clause}
                 ORDER BY fecha DESC, referencia DESC
-                LIMIT 20
-                """.format(where_clause=" AND ".join(filters))
+                LIMIT :limit OFFSET :offset
+                """
             ),
             params,
         ).mappings()
 
-        return {
-            "documentos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
-                    "ambito": row["ambito"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
+        total = db.execute(
+            text(
+                f"""
+                SELECT COUNT(*)
+                FROM documento_interpretativo d
+                WHERE {where_clause}
+                """
+            ),
+            count_params,
+        ).scalar_one()
+
+    documentos = [
+        {
+            "referencia": row["referencia"],
+            "fecha": str(row["fecha"]) if row["fecha"] else None,
+            "titulo": row["titulo"],
+            "tipo_documento": row["tipo_documento"],
+            "ambito": row["ambito"],
+            "fragmento": _fragment(row["texto"]),
+            "url_fuente": row["url_fuente"],
+            "url_aepd": row["url_fuente"],
         }
+        for row in rows
+    ]
+    has_more = offset + len(documentos) < total
+    return {
+        "documentos": documentos,
+        "items": documentos,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "skip": offset,
+        "has_more": has_more,
+        "next_offset": offset + limit if has_more else None,
+    }
+
+
+@router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_aepd")
+async def listar_aepd(
+    q: str | None = Query(None, description="Filtrar por texto o titulo"),
+    tipo: str | None = Query(None, description="Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)"),
+    ambito: str | None = Query(None, description="Filtrar por ambito (proteccion_datos, derechos_ar, ficheros_datos, cookies)"),
+    limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
+):
+    return await _listar_aepd_response(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
+
+
+@router.get("/buscar", response_model=DocInterpretativoListResponse, operation_id="buscar_aepd")
+async def buscar_aepd(
+    q: str = Query(..., min_length=1, description="Filtrar por texto o titulo"),
+    tipo: str | None = Query(None, description="Filtrar por tipo"),
+    ambito: str | None = Query(None, description="Filtrar por ambito"),
+    limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
+):
+    return await _listar_aepd_response(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
 
 
 @router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_aepd")
@@ -82,15 +131,16 @@ async def get_aepd(referencia: str):
             .first()
         )
 
-        if not row:
-            raise HTTPException(status_code=404, detail={"error": "Documento AEPD no encontrado"})
+    if not row:
+        raise HTTPException(status_code=404, detail={"error": "Documento AEPD no encontrado"})
 
-        return {
-            "referencia": row["referencia"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "tipo_documento": row["tipo_documento"],
-            "ambito": row["ambito"],
-            "texto": row["texto"],
-            "url_fuente": row["url_fuente"],
-        }
+    return {
+        "referencia": row["referencia"],
+        "fecha": str(row["fecha"]) if row["fecha"] else None,
+        "titulo": row["titulo"],
+        "tipo_documento": row["tipo_documento"],
+        "ambito": row["ambito"],
+        "texto": row["texto"],
+        "url_fuente": row["url_fuente"],
+        "url_aepd": row["url_fuente"],
+    }
