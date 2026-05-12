@@ -230,3 +230,18 @@ Local verification:
 Learnings:
 - Historical endpoints need the same source metadata as current endpoints; otherwise an agent can cite current text but not superseded/current-boundary checks.
 Next: A-10
+
+=== Iteration 13 - 2026-05-12T02:48:00+02:00 ===
+Story: A-10 Verify query_audit_log append-only and captures invocations
+Verification run: production `/mcp` tool call plus SQL count/row inspection and attempted UPDATE against `query_audit_log`.
+Result: PASS
+Root cause: no code defect found; verification needed to prove the append-only control and invocation capture after the MCP/API changes.
+Fix applied: none.
+Production verification:
+- Before MCP call: `query_audit_log` count 448.
+- After `/mcp tools/call get_articulo LIVA art. 1`: count 449.
+- Latest row: `id=449 | user_id=ralph-a10 | tool_name=get_articulo | path=/v1/legislacion/LIVA/articulos/1 | verified=1 | chunks=1`.
+- Attempted `UPDATE query_audit_log SET tool_name='tamper' WHERE id=449` failed with `query_audit_log is append-only: UPDATE not permitted (row id=449)`.
+Learnings:
+- When running multi-command scripts through SSH stdin, redirect `docker compose exec -T ... < /dev/null`; otherwise the exec process can consume the rest of the script input and truncate evidence.
+Next: A-11
