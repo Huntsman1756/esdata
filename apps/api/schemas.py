@@ -1344,6 +1344,10 @@ class CASPDetail(BaseModel):
 class CASPListResponse(BaseModel):
     items: list[CASPSummary]
     total: int
+    quality_signal: str | None = Field(default=None, description="official_esma_register | configured_but_unavailable")
+    availability_status: str | None = Field(default=None, description="populated | workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    source_url: str | None = Field(default=None, description="Official source URL for the loaded register")
 
 
 # ---------------------------------------------------------------------------
@@ -1388,6 +1392,9 @@ class CryptoAssetDetail(BaseModel):
 class CryptoAssetListResponse(BaseModel):
     items: list[CryptoAssetSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------
@@ -1440,6 +1447,9 @@ class CryptoTransactionDetail(BaseModel):
 class CryptoTransactionListResponse(BaseModel):
     items: list[CryptoTransactionSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------
@@ -1474,6 +1484,9 @@ class TokenizedAssetDetail(BaseModel):
 class TokenizedAssetListResponse(BaseModel):
     items: list[TokenizedAssetSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------
@@ -1506,6 +1519,9 @@ class WalletCustodianDetail(BaseModel):
 class WalletCustodianListResponse(BaseModel):
     items: list[WalletCustodianSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------

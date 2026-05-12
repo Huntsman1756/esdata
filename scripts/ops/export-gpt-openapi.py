@@ -40,6 +40,7 @@ INCLUDE_PATHS = {
     "/v1/boe-diario/{referencia}",
     "/v1/cnmv/buscar",
     "/v1/cnmv/{referencia}",
+    "/v1/mica/casp/buscar",
     "/v1/modelos",
     "/v1/modelos/{codigo}",
     "/v1/modelos/{codigo}/casillas",
@@ -75,6 +76,8 @@ INCLUDE_SCHEMAS = {
     "DocInterpretativoListResponse",
     "DocInterpretativoListItem",
     "DocInterpretativoDetail",
+    "CASPListResponse",
+    "CASPSummary",
     "HTTPValidationError",
     "ValidationError",
 }
@@ -157,6 +160,15 @@ OPERATION_OVERRIDES = {
         "description": (
             "Get a specific doctrine document by reference (e.g. V0000-26, 00/1234/2024). "
             "Returns full text, linked articles, and confidence information."
+        ),
+    },
+    "buscar_casp": {
+        "summary": "Search ESMA MiCA CASP register",
+        "description": (
+            "Search the loaded ESMA MiCA Crypto-Asset Service Providers register by "
+            "provider name or registration number. Treat results as authoritative only "
+            "when quality_signal is official_esma_register and availability_status is populated. "
+            "If safe_to_answer is false, do not infer that a provider is absent from the real register."
         ),
     },
     "list_modelos": {

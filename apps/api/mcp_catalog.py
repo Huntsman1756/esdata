@@ -74,6 +74,7 @@ HTTP_MCP_OPERATIONS = [
     "listar_formularios_w8",
     "listar_referencias_tin",
     "list_casp",
+    "buscar_casp",
     "get_casp",
     "list_psd2_aspsp",
     "get_psd2_aspsp",
@@ -142,6 +143,8 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "listar_registros_giin"
     if path.startswith("/v1/irs-fiscal"):
         return "listar_normas_irs"
+    if path.startswith("/v1/mica/casp/buscar"):
+        return "buscar_casp"
     if path.startswith("/v1/mica/casp"):
         return "list_casp"
     if path.startswith("/v1/psd2"):

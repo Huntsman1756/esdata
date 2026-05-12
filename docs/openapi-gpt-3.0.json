@@ -1638,6 +1638,86 @@
         }
       }
     },
+    "/v1/mica/casp/buscar": {
+      "get": {
+        "tags": [
+          "mica"
+        ],
+        "summary": "Search ESMA MiCA CASP register",
+        "description": "Search the loaded ESMA MiCA Crypto-Asset Service Providers register by provider name or registration number. Treat results as authoritative only when quality_signal is official_esma_register and availability_status is populated. If safe_to_answer is false, do not infer that a provider is absent from the real register.",
+        "operationId": "buscar_casp",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Busqueda por nombre o numero de registro",
+              "title": "Q"
+            },
+            "description": "Busqueda por nombre o numero de registro"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado: active, suspended, revoked",
+              "title": "Status"
+            },
+            "description": "Filtrar por estado: active, suspended, revoked"
+          },
+          {
+            "name": "home_member_state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado miembro (ISO 3166-1 alpha-2)",
+              "title": "Home Member State"
+            },
+            "description": "Filtrar por estado miembro (ISO 3166-1 alpha-2)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CASPListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/mica/casp/{casp_id}": {
       "get": {
         "tags": [
@@ -4391,6 +4471,26 @@
           "total": {
             "type": "integer",
             "title": "Total"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal",
+            "description": "official_esma_register | configured_but_unavailable"
+          },
+          "availability_status": {
+            "type": "string",
+            "title": "Availability Status",
+            "description": "populated | workflow_empty | configured_but_unavailable"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "Whether this list is backed by real populated data"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Official source URL for the loaded register"
           }
         },
         "type": "object",

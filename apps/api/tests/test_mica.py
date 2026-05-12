@@ -54,9 +54,44 @@ async def test_casp_list_returns_items(client):
 
 
 @pytest.mark.asyncio
+async def test_casp_search_alias_returns_quality_contract(client):
+    resp = await client.get("/v1/mica/casp/buscar?q=crypto", headers={"x-api-key": "test-secret-key"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+    assert "total" in data
+    if data["total"] == 0:
+        assert data["availability_status"] in {
+            "workflow_empty",
+            "allowed_empty",
+            "configured_but_unavailable",
+        }
+        assert data["safe_to_answer"] is False
+    else:
+        assert data["quality_signal"] == "official_esma_register"
+        assert data["availability_status"] == "populated"
+        assert data["safe_to_answer"] is True
+        assert "esma" in data["source_url"].lower()
+
+
+@pytest.mark.asyncio
 async def test_crypto_assets_list_status_200(client):
     resp = await client.get("/v1/mica/crypto-assets", headers={"x-api-key": "test-secret-key"})
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_crypto_assets_empty_contract_is_explicit(client):
+    resp = await client.get("/v1/mica/crypto-assets", headers={"x-api-key": "test-secret-key"})
+    assert resp.status_code == 200
+    data = resp.json()
+    if data["total"] == 0:
+        assert data["availability_status"] in {
+            "workflow_empty",
+            "configured_but_unavailable",
+        }
+        assert data["safe_to_answer"] is False
+        assert data["items"] == []
 
 
 @pytest.mark.asyncio
@@ -69,6 +104,17 @@ async def test_tokenized_assets_list_status_200(client):
 async def test_wallet_custodians_list_status_200(client):
     resp = await client.get("/v1/mica/wallet-custodians", headers={"x-api-key": "test-secret-key"})
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_wallet_custodians_empty_contract_is_explicit(client):
+    resp = await client.get("/v1/mica/wallet-custodians", headers={"x-api-key": "test-secret-key"})
+    assert resp.status_code == 200
+    data = resp.json()
+    if data["total"] == 0:
+        assert data["availability_status"] == "configured_but_unavailable"
+        assert data["safe_to_answer"] is False
+        assert data["items"] == []
 
 
 @pytest.mark.asyncio
