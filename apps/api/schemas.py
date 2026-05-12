@@ -733,6 +733,8 @@ class AEATModeloDetail(BaseModel):
     completeness: str = Field(description="Contrato de completitud operativo del modelo")
     verified: bool = Field(description="Si el contrato de completitud permite respuesta autoritativa")
     casillas_total: int = Field(default=0, description="Numero de casillas/campos oficiales cargados para la campana consultada")
+    casillas_campana: str | None = Field(default=None, description="Campana usada para contar casillas/campos")
+    casillas_selection_notice: str | None = Field(default=None, description="Aviso si las casillas proceden de una campana distinta")
     campana_actual: AEATCampanaDetail | None = Field(default=None, description="Campana actual con recursos activos")
     historial: list[AEATCampanaDetail] | None = Field(default=None, description="Historial de campanas y versiones si include_history=true")
 

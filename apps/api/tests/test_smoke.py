@@ -796,6 +796,8 @@ async def test_modelo_aeat_detalle_solo_activos_por_defecto():
     assert data["completeness"] == "parcial"
     assert data["verified"] is False
     assert data["casillas_total"] == 1
+    assert data["casillas_campana"] == "2025"
+    assert data["casillas_selection_notice"] is None
     assert data["campana_actual"]["campana"] == "2025"
     assert len(data["campana_actual"]["recursos"]) == 1
     assert data["historial"] is None

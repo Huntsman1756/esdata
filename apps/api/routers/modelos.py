@@ -339,13 +339,17 @@ async def get_modelo_aeat(
                 "completeness": "parcial",
                 "verified": False,
                 "casillas_total": 0,
+                "casillas_campana": None,
+                "casillas_selection_notice": None,
                 "campana_actual": None,
                 "historial": [] if include_history else None,
             }
 
         campana_actual = campanas[0]
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana=campana)
-        casillas_total = count_campaign_casillas(db, campana_actual["id"])
+        casillas_selection = get_campaign_for_casillas(db, codigo, campana)
+        casillas_camp_row = casillas_selection["campaign"]
+        casillas_total = count_campaign_casillas(db, casillas_camp_row["id"]) if casillas_camp_row else 0
         campana_actual_payload = {
             "campana": campana_actual["campana"],
             "activo": bool(campana_actual["activo"]),
@@ -377,6 +381,8 @@ async def get_modelo_aeat(
             "completeness": completeness,
             "verified": verified,
             "casillas_total": casillas_total,
+            "casillas_campana": casillas_camp_row["campana"] if casillas_camp_row else None,
+            "casillas_selection_notice": casillas_selection["selection_notice"],
             "campana_actual": campana_actual_payload,
             "historial": historial_payload,
         }

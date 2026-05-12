@@ -737,6 +737,26 @@ async def test_modelo_detail_reports_casillas_fallback_campaign_transparently():
 
 
 @pytest.mark.asyncio
+async def test_modelo_aeat_detail_reports_casillas_fallback_campaign_transparently():
+    _seed_modelo_with_empty_active_campaign_and_historical_casillas("290")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/aeat/290")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["campana_actual"]["campana"] == "2013"
+    assert data["casillas_campana"] == "2025"
+    assert data["casillas_total"] == 1
+    assert data["verified"] is False
+    assert "campana activa 2013 no tiene casillas" in data["casillas_selection_notice"]
+
+
+@pytest.mark.asyncio
 async def test_modelo_no_casillas_expected_is_verified_without_fake_fields():
     _seed_modelo_with_explicit_completeness(
         codigo="146",

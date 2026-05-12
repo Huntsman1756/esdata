@@ -335,6 +335,7 @@ Results: correct=0 honest_limit=5 incorrect=0
 Incorrect answers found: none
 Fixes applied:
 - `/v1/modelos/aeat/{codigo}` now exposes `completeness`, `verified`, and `casillas_total`, matching the truth contract already exposed by `/v1/modelos/{codigo}`.
+- `/v1/modelos/aeat/{codigo}` now reuses the same transparent casillas fallback as `/v1/modelos/{codigo}` and exposes `casillas_campana` plus `casillas_selection_notice`; this prevents active campaigns without parsed fields, such as M303/2026, from hiding official fields loaded for the latest usable campaign.
 - No AEAT model campaign in production currently has explicit `completeness_estado='completa'`; Q-01 therefore closes as HONEST-LIMIT rather than upgrading confidence.
 Evidence:
 - Production DB check: `modelo_campana_operativa.completeness_estado` has `no-casillas-expected=6`, `NULL=11`, `completa=0`.
