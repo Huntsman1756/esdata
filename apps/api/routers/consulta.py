@@ -846,13 +846,11 @@ def _apply_grounding_abstention_if_needed(
 
     uncovered_terms = _collect_uncovered_query_terms(query, resultados)
     if uncovered_terms:
-        confianza = dict(confianza)
-        confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
+        confianza = _with_unverified_review_required(confianza)
         return [], confianza, []
 
     if not cited_chunks:
-        confianza = dict(confianza)
-        confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
+        confianza = _with_unverified_review_required(confianza)
         return [], confianza, []
 
     has_full_article_evidence = any(
@@ -875,9 +873,15 @@ def _apply_grounding_abstention_if_needed(
     if best_score >= GROUNDING_THRESHOLD:
         return resultados, confianza, cited_chunks
 
-    confianza = dict(confianza)
-    confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
+    confianza = _with_unverified_review_required(confianza)
     return [], confianza, []
+
+
+def _with_unverified_review_required(confianza: dict) -> dict:
+    updated = dict(confianza)
+    updated["aviso"] = UNVERIFIED_EVIDENCE_AVISO
+    updated["review_required"] = True
+    return updated
 
 
 def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tuple[list[dict], dict]:
@@ -888,7 +892,7 @@ def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tupl
     aviso_actual = (confianza.get("aviso") or "").strip().lower()
     if aviso_actual == "consulta vacia":
         return [], confianza
-    confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
+    confianza = _with_unverified_review_required(confianza)
     return [], confianza
 
 
@@ -1270,8 +1274,7 @@ async def consulta_fiscal(
         # No claim citations and no resolved modelos — check if grounding is empty
         if not cited_chunks and confianza.get("faithfulness_score", 0.0) < FAITHFULNESS_REVIEW_THRESHOLD:
             final_results = []
-            confianza = dict(confianza)
-            confianza["aviso"] = UNVERIFIED_EVIDENCE_AVISO
+            confianza = _with_unverified_review_required(confianza)
 
     final_results, confianza = _apply_abstention_if_needed(final_results, confianza)
     if not final_results:
