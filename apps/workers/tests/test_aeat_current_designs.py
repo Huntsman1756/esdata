@@ -85,6 +85,54 @@ def test_extract_properties_fields_from_model_100_dictionary():
     assert "Casilla oficial" not in fields[1]["descripcion"]
 
 
+def test_extract_pdf_text_fields_from_numbered_design_table():
+    text = """
+    Descripcion de hoja DISENO DE REGISTRO
+    No Posic. Lon Tipo Descripcion Validacion Contenido Uso
+    1 1 9 An Inicio del identificador de modelo y pagina obligatorio <T145010>
+    2 10 1 A Indicador de pagina complementaria obligatorio blanco o C
+    3 11 9 An NIF del declarante obligatorio
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert [field["codigo"] for field in fields] == ["DRPDF:N:1", "DRPDF:N:2", "DRPDF:N:3"]
+    assert fields[0]["etiqueta"] == "Inicio del identificador de modelo y pagina"
+    assert fields[0]["tipo_casilla"] == "diseno_registro_campo"
+    assert "Posic.: 1" in fields[0]["descripcion"]
+    assert "Lon.: 9" in fields[0]["descripcion"]
+
+
+def test_extract_pdf_text_fields_from_positions_nature_table():
+    text = """
+    MODELO 196
+    DISENOS DE REGISTRO
+    POSICIONES NATURALEZA DESCRIPCION DE LOS CAMPOS
+    1 Numerico TIPO DE REGISTRO.
+    Constante numero 1.
+    2-4 Numerico MODELO DECLARACION.
+    Constante 196.
+    5-8 Numerico EJERCICIO.
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert [field["codigo"] for field in fields] == [
+        "DRPDF:POS:1",
+        "DRPDF:POS:2-4",
+        "DRPDF:POS:5-8",
+    ]
+    assert fields[1]["etiqueta"] == "MODELO DECLARACION"
+    assert "Posiciones: 2-4" in fields[1]["descripcion"]
+    assert "Naturaleza: Numerico" in fields[1]["descripcion"]
+
+
+def test_is_pdf_format_detects_official_design_pdf_urls():
+    assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.pdf")
+    assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.PDF?download=1")
+    assert not worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.xlsx")
+
+
 def test_extract_deadline_date_from_calendar_title():
     assert worker._extract_deadline_date("Hasta el 20 de enero").isoformat() == "2026-01-20"
     assert worker._extract_deadline_date("Hasta el 30 de junio").isoformat() == "2026-06-30"

@@ -5,9 +5,9 @@ This worker only uses official AEAT pages:
 - current record designs for models 100-199 and 200-299;
 - current taxpayer calendar 2026.
 
-It stores official design resources and extracts structured spreadsheet fields
-as `modelo_casilla` records with `tipo_casilla='diseno_registro_campo'`.
-PDF-only designs are stored as resources but are not parsed into fields.
+It stores official design resources and extracts deterministic spreadsheet,
+properties, and PDF design-register fields as `modelo_casilla` records with
+`tipo_casilla='diseno_registro_campo'`.
 """
 
 from __future__ import annotations
@@ -243,6 +243,10 @@ def _is_properties_format(url: str) -> bool:
     return url.lower().split("?", 1)[0].endswith(".properties")
 
 
+def _is_pdf_format(url: str) -> bool:
+    return url.lower().split("?", 1)[0].endswith(".pdf")
+
+
 def _cell_text(value) -> str:
     if value is None:
         return ""
@@ -340,6 +344,124 @@ def extract_properties_fields(payload: bytes) -> list[dict]:
             }
         )
     return fields
+
+
+_PDF_NATURE_WORDS = {
+    "A",
+    "AN",
+    "ALFABETICO",
+    "ALFABÉTICO",
+    "ALFANUMERICO",
+    "ALFANUMÉRICO",
+    "NUM",
+    "NUMERICO",
+    "NUMÉRICO",
+}
+
+
+def _normalize_pdf_word(value: str) -> str:
+    return (
+        value.upper()
+        .replace("Á", "A")
+        .replace("É", "E")
+        .replace("Í", "I")
+        .replace("Ó", "O")
+        .replace("Ú", "U")
+    )
+
+
+def _clean_pdf_label(value: str) -> str:
+    label = " ".join(value.split())
+    marker = re.search(
+        r"\s+(?:obligatorio|opcional|optativo|obligatoria|opcionalmente)\b",
+        label,
+        flags=re.IGNORECASE,
+    )
+    if marker:
+        label = label[: marker.start()]
+    return label.strip(" .")[:500]
+
+
+def _append_pdf_field(
+    fields: list[dict],
+    seen_codes: set[str],
+    codigo: str,
+    etiqueta: str,
+    descripcion: str,
+) -> None:
+    if not etiqueta:
+        return
+    unique_code = codigo[:120]
+    if unique_code in seen_codes:
+        unique_code = f"{unique_code}:{len(fields) + 1}"[:120]
+    seen_codes.add(unique_code)
+    fields.append(
+        {
+            "codigo": unique_code,
+            "etiqueta": etiqueta[:500],
+            "descripcion": descripcion[:2000],
+            "tipo_casilla": "diseno_registro_campo",
+            "pagina": None,
+            "orden": len(fields) + 1,
+        }
+    )
+
+
+def extract_pdf_text_fields(text_value: str) -> list[dict]:
+    """Extract only clear AEAT design-register rows from PDF text."""
+
+    fields: list[dict] = []
+    seen_codes: set[str] = set()
+    numbered_row = re.compile(
+        r"^\s*(\d{1,4})\s+(\d{1,5})\s+(\d{1,5})\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\s+(.+?)\s*$"
+    )
+    positions_row = re.compile(
+        r"^\s*(\d{1,5}(?:\s*-\s*\d{1,5})?)\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\s+(.+?)\s*$"
+    )
+
+    for raw_line in text_value.splitlines():
+        line = " ".join(raw_line.split())
+        if not line:
+            continue
+
+        numbered_match = numbered_row.match(line)
+        if numbered_match:
+            number, position, length, field_type, label = numbered_match.groups()
+            if _normalize_pdf_word(field_type) in _PDF_NATURE_WORDS:
+                _append_pdf_field(
+                    fields,
+                    seen_codes,
+                    f"DRPDF:N:{number}",
+                    _clean_pdf_label(label),
+                    f"Posic.: {position}; Lon.: {length}; Tipo: {field_type}",
+                )
+                continue
+
+        positions_match = positions_row.match(line)
+        if not positions_match:
+            continue
+        positions, nature, label = positions_match.groups()
+        if _normalize_pdf_word(nature) not in _PDF_NATURE_WORDS:
+            continue
+        cleaned_positions = re.sub(r"\s+", "", positions)
+        _append_pdf_field(
+            fields,
+            seen_codes,
+            f"DRPDF:POS:{cleaned_positions}",
+            _clean_pdf_label(label),
+            f"Posiciones: {cleaned_positions}; Naturaleza: {nature}",
+        )
+    return fields
+
+
+def extract_pdf_fields(payload: bytes) -> list[dict]:
+    from pypdf import PdfReader
+
+    reader = PdfReader(io.BytesIO(payload))
+    text_parts = []
+    for page in reader.pages:
+        text_parts.append(page.extract_text() or "")
+    return extract_pdf_text_fields("\n".join(text_parts))
 
 
 def _read_spreadsheet_rows(payload: bytes) -> list[list[list[object]]]:
@@ -501,6 +623,8 @@ def run_sync(engine) -> dict:
         "resources_stored": 0,
         "resources_unchanged": 0,
         "spreadsheet_fields": 0,
+        "pdf_fields": 0,
+        "parse_errors": 0,
         "calendar_entries": 0,
         "calendar_inserted": 0,
         "skipped": 0,
@@ -549,12 +673,22 @@ def run_sync(engine) -> dict:
                 stats["resources_stored"] += 1
 
             if not _campaign_has_fields(conn, campana_id):
-                if _is_spreadsheet_format(link["url"]):
-                    fields = extract_spreadsheet_fields(payload)
-                    stats["spreadsheet_fields"] += _upsert_design_fields(conn, campana_id, fields)
-                elif _is_properties_format(link["url"]):
-                    fields = extract_properties_fields(payload)
-                    stats["spreadsheet_fields"] += _upsert_design_fields(conn, campana_id, fields)
+                try:
+                    if _is_spreadsheet_format(link["url"]):
+                        fields = extract_spreadsheet_fields(payload)
+                        stats["spreadsheet_fields"] += _upsert_design_fields(conn, campana_id, fields)
+                    elif _is_properties_format(link["url"]):
+                        fields = extract_properties_fields(payload)
+                        stats["spreadsheet_fields"] += _upsert_design_fields(conn, campana_id, fields)
+                    elif _is_pdf_format(link["url"]):
+                        fields = extract_pdf_fields(payload)
+                        stats["pdf_fields"] += _upsert_design_fields(conn, campana_id, fields)
+                except Exception as exc:
+                    stats["parse_errors"] += 1
+                    logger.warning(
+                        "Could not extract design fields from official AEAT resource",
+                        extra={"codigo": link["codigo"], "url": link["url"], "error": str(exc)},
+                    )
 
         calendar_entries = _extract_calendar_entries(client)
         stats["calendar_entries"] = len(calendar_entries)
