@@ -358,8 +358,9 @@ Fixes applied:
 - `no-casillas-expected` now returns `evidence_status=no_casillas_expected` with the same non-inference warning in all model surfaces.
 Evidence:
 - Local: `PYTHONPATH=apps;apps/api;apps/workers python -m pytest apps/api/tests/test_modelos_truth_contract.py apps/api/tests/test_smoke.py::test_modelo_aeat_detalle_solo_activos_por_defecto -q --basetemp .pytest-tmp` -> `23 passed`.
-- Partial samples selected for VPS verification: `290`, `233`, `234`.
-- No-casillas samples selected for VPS verification: `102`, `146`, `247`.
+- VPS commit `2e15adc`: partial samples `290`, `233`, `234` return `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, and explicit no-obligation/no-applicability notice. `290` exposes 152 official XSD fields but remains evidence-limited.
+- VPS commit `2e15adc`: no-casillas samples `102`, `146`, `247` return `verified=true`, `completeness=no-casillas-expected`, `evidence_status=no_casillas_expected`, `casillas_total=0`, `classification=sin_casillas_esperadas`.
+- VPS `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`.
 Learnings:
 - `verified=false` is machine-readable but not enough for agent UX; `evidence_status=evidence_limited` makes the fail-closed behavior explicit.
 Next: Q-03
