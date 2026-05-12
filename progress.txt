@@ -774,3 +774,17 @@ Incorrect answers found: none
 Fixes applied: added structured LIVA 90 fallback for unserved IVA type queries and made EUR-Lex ignore structural legal stopwords such as articulo/article in query tokenization.
 Verification: local focused pytest 17 passed; VPS API checks passed; scripts/maintenance/mcp_validation_suite.py --read-only with API and MCP keys => ok=true.
 Next: Q-13
+
+=== Iteration Q-13 - 2026-05-12T20:50:12+02:00 ===
+Story: Q-13 Audit trail - verify query_audit_log captures Q-01 to Q-12 retrieval calls
+Queries tested: 6
+Results: correct=6 honest_limit=1 incorrect=0
+Evidence:
+- Generated request_id prefix q13-audit-* and called /v1/buscar, /v1/eurlex/buscar, /v1/aepd/buscar, /v1/cnmv/buscar, /v1/mica/casp/buscar and /v1/borme.
+- query_audit_log stored 6 rows with user_id=codex-q13, tool_name/path/query_text, retrieved_chunks, verified and completeness.
+- EUR-Lex audit row traces to norma MIFID2_2014_65 with boe_id EUR-CELEX-32014L0065, official EUR-Lex URL and 93 articulos.
+- Append-only trigger blocks UPDATE: query_audit_log_append_only raised "UPDATE not permitted" inside transaction.
+Incorrect answers found: none
+Fixes applied: added shared retrieval audit helper and wired AEPD, BORME, CNMV, EUR-Lex and MiCA/CASP search/list endpoints into query_audit_log.
+Verification: local focused pytest 21 passed; VPS audit rows present; append-only UPDATE blocked; mcp_validation_suite.py --read-only => ok=true.
+Next: Q-14

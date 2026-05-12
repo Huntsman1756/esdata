@@ -165,7 +165,7 @@
                             "id":  "Q-13",
                             "title":  "Audit trail - verify query_audit_log captures all Q-01 to Q-12 test calls",
                             "priority":  13,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "query_audit_log must have entries for calls made during this sprint",
                                                        "Each entry has tool_name or endpoint, input, output_summary, timestamp",
