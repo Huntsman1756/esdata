@@ -380,6 +380,10 @@ Verification run:
 - `PYTHONPATH=apps;apps\\workers python -m pytest apps\\workers\\tests\\test_aeat_models.py::TestFetchModelMetadata -q --basetemp .pytest-tmp` -> 10 passed.
 - `python -m compileall apps\\workers\\aeat_models.py apps\\workers\\tests\\test_aeat_models.py` -> PASS.
 - Suite completa `apps\\workers\\tests\\test_aeat_models.py` mantiene 2 fallos preexistentes ajenos a M-01 en tests de `run_sync` con SQLite sin tablas `aeat_modelo`/`sync_dead_letter`; no se mezclan en esta historia.
+- VPS deploy: commit `f4400837` desplegado en `/srv/esdata`; `worker-modelos` y `cron-modelos-daily` reconstruidos.
+- VPS DB repair: `aeat_modelo` devuelve nombres corregidos para `102` y `206`; campanas activas mantienen `casillas=0` por `STATUS-B`.
+- VPS API probes: `/v1/modelos/102?casillas_limit=3` y `/v1/modelos/206?casillas_limit=3` devuelven los nombres corregidos, `casillas_total=0`, `verified=false`, `completeness=parcial`.
+- VPS health: `/status` devuelve API/database OK y `stale_workers=0`; `mcp_validation_suite.py --read-only --base-url http://api:8000` -> `ok=true`.
 Learnings:
 - `102` y `206` deben permanecer en `MODEL_METADATA_OVERRIDES` porque sus paginas oficiales describen formularios padre (`100`/`200`) o paginas agrupadas.
 - M-01 no carga casillas: ambos son STATUS-B en M-00.
