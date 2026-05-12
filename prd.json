@@ -178,7 +178,7 @@
                             "id":  "Q-14",
                             "title":  "Observability - confirm 0 FIRING alerts and all workers have recent sync_log",
                             "priority":  14,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Alertmanager has 0 FIRING alerts",
                                                        "Prometheus WorkerSilent has no stale workers",

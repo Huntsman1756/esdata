@@ -788,3 +788,17 @@ Incorrect answers found: none
 Fixes applied: added shared retrieval audit helper and wired AEPD, BORME, CNMV, EUR-Lex and MiCA/CASP search/list endpoints into query_audit_log.
 Verification: local focused pytest 21 passed; VPS audit rows present; append-only UPDATE blocked; mcp_validation_suite.py --read-only => ok=true.
 Next: Q-14
+
+=== Iteration Q-14 - 2026-05-12T20:52:53+02:00 ===
+Story: Q-14 Observability - confirm 0 FIRING alerts and all workers have recent sync_log
+Queries tested: 4
+Results: correct=4 honest_limit=0 incorrect=0
+Evidence:
+- Docker Compose prod profile: api healthy, postgres healthy, prometheus/alertmanager/grafana up, persistent workers healthy.
+- Alertmanager active unsilenced/uninhibited alerts: [] (0 FIRING).
+- /status returns api=ok, database=ok, 36 workers and stale=[].
+- sync_log latest per worker: 37 workers with a run within 7 days; query for workers older than 7 days returned 0 rows.
+Incorrect answers found: none
+Fixes applied: none
+Verification: VPS Alertmanager API, /status, docker compose ps and sync_log SQL all PASS.
+Next: Q-15
