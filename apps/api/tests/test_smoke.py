@@ -13,10 +13,11 @@ def _client():
 
 
 def _seed_doctrina_fixture(reference: str, metodo_enlace: str, confianza_enlace: float):
-    from conftest import engine
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from db import db_session
 
-    with engine.begin() as conn:
-        conn.execute(
+    with db_session() as db:
+        db.execute(
             text(
                 """
                 INSERT INTO documento_interpretativo (
@@ -35,7 +36,7 @@ def _seed_doctrina_fixture(reference: str, metodo_enlace: str, confianza_enlace:
                 "url_fuente": f"https://example.invalid/dgt/{reference}",
             },
         )
-        conn.execute(
+        db.execute(
             text(
                 """
                 INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
@@ -52,6 +53,48 @@ def _seed_doctrina_fixture(reference: str, metodo_enlace: str, confianza_enlace:
                 "confianza_enlace": confianza_enlace,
             },
         )
+        db.commit()
+
+
+def _seed_liva_90_fixture():
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from db import db_session
+
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '90', 'Tipo impositivo general', 'articulo'
+                FROM norma
+                WHERE codigo = 'LIVA'
+                ON CONFLICT (norma_id, numero) DO NOTHING
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+                SELECT a.id,
+                       'Articulo 90. Tipo impositivo general. El impuesto se exigira al tipo del 21 por ciento.',
+                       '2012-09-01',
+                       NULL,
+                       'a90'
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = 'LIVA'
+                  AND a.numero = '90'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM version_articulo existing
+                      WHERE existing.articulo_id = a.id
+                        AND existing.vigente_hasta IS NULL
+                  )
+                """
+            )
+        )
+        db.commit()
 
 
 @pytest.mark.asyncio
@@ -286,6 +329,23 @@ async def test_buscar_publico_preserva_trazabilidad_boe():
         if res["tipo"] == "articulo" and res["norma"] == "LIVA":
             assert res["boe_reference"] == "BOE-A-1992-28740"
             assert res["source_url"].startswith("https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a")
+
+
+@pytest.mark.asyncio
+async def test_buscar_tipo_iva_general_fallback_devuelve_liva_90_trazable():
+    _seed_liva_90_fixture()
+
+    async with _client() as c:
+        r = await c.get("/v1/buscar?q=tipo+IVA+21%25")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["resultados"]
+    first = data["resultados"][0]
+    assert first["tipo"] == "articulo"
+    assert first["norma"] == "LIVA"
+    assert first["numero"] == "90"
+    assert first["boe_reference"] == "BOE-A-1992-28740"
+    assert first["source_url"].endswith("#a90")
 
 
 @pytest.mark.asyncio

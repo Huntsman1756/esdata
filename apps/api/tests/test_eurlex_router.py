@@ -203,10 +203,12 @@ async def test_eurlex_search_tokenizes_mifid_query_and_alias_route():
     async with _client() as c:
         listing = await c.get("/v1/eurlex?q=MiFID+mercado+instrumentos+financieros")
         alias = await c.get("/v1/eurlex/buscar?q=MiFID+mercado+instrumentos+financieros")
+        article_query = await c.get("/v1/eurlex/buscar?q=MiFID+II+articulo+1")
 
     assert listing.status_code == 200
     assert alias.status_code == 200
-    for response in (listing, alias):
+    assert article_query.status_code == 200
+    for response in (listing, alias, article_query):
         docs = response.json()["documentos"]
         assert docs
         assert docs[0]["referencia"] == "MIFID2_2014_65"

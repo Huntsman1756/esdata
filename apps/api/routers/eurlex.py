@@ -76,8 +76,22 @@ def _coverage_metadata(
     }
 
 
+_EURLEX_QUERY_STOPWORDS = {
+    "articulo",
+    "articulos",
+    "article",
+    "articles",
+    "capitulo",
+    "chapter",
+}
+
+
 def _query_tokens(q: str) -> list[str]:
-    return [token for token in re.findall(r"[A-Za-z0-9]+", q) if len(token) >= 3]
+    return [
+        token
+        for token in re.findall(r"[A-Za-z0-9]+", q)
+        if len(token) >= 3 and token.lower() not in _EURLEX_QUERY_STOPWORDS
+    ]
 
 
 @router.get("", response_model=EurLexListResponse, operation_id="listar_eurlex")
