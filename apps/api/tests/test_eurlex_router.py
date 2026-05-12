@@ -38,6 +38,9 @@ async def test_eurlex_lista_response_model():
         r = await c.get("/v1/eurlex")
     data = r.json()
     assert "documentos" in data
+    assert data["limit"] == 20
+    assert data["offset"] == 0
+    assert "total" in data
     for item in data["documentos"]:
         assert "referencia" in item
         assert "fecha" in item
@@ -46,6 +49,18 @@ async def test_eurlex_lista_response_model():
         assert "ambito" in item
         assert "fragmento" in item
         assert "url_fuente" in item
+
+
+@pytest.mark.asyncio
+async def test_eurlex_lista_paginada():
+    async with _client() as c:
+        r = await c.get("/v1/eurlex?limit=1&offset=0")
+    data = r.json()
+    assert r.status_code == 200
+    assert len(data["documentos"]) <= 1
+    assert data["limit"] == 1
+    assert data["offset"] == 0
+    assert "has_more" in data
 
 
 @pytest.mark.asyncio

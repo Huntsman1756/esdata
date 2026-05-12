@@ -35,6 +35,34 @@ HTTP_MCP_OPERATIONS = [
     # Disponibilidad de dominios/tablas
     "list_domain_availability",
     "get_domain_availability",
+    # Fuentes oficiales no-AEAT expuestas para consulta directa
+    "listar_borme",
+    "get_borme",
+    "listar_cnmv",
+    "get_cnmv",
+    "get_cnmv_versions",
+    "get_cnmv_regulation_links",
+    "get_cnmv_obligation_links",
+    "listar_eurlex",
+    "get_eurlex",
+    "listar_obligaciones_internacionales",
+    "detalle_obligacion_internacional",
+    "listar_registros_giin",
+    "detalle_registro_giin",
+    "listar_normas_irs",
+    "listar_formularios_w8",
+    "listar_referencias_tin",
+    "list_casp",
+    "get_casp",
+    "list_psd2_aspsp",
+    "get_psd2_aspsp",
+    "list_psd2_aisp",
+    "get_psd2_aisp",
+    "list_psd2_pisp",
+    "get_psd2_pisp",
+    "list_sepa_payment_rules",
+    "get_sepa_payment_rule",
+    "screening_entries",
     # DTA / Convenios Doble Imposicion
     "listar_convenios_dta_internacional",
     "detalle_convenio_dta_internacional",
@@ -79,6 +107,24 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "buscar_doctrina"
     if path.startswith("/v1/domain-availability"):
         return "list_domain_availability"
+    if path.startswith("/v1/borme"):
+        return "listar_borme"
+    if path.startswith("/v1/cnmv"):
+        return "listar_cnmv"
+    if path.startswith("/v1/eurlex"):
+        return "listar_eurlex"
+    if path.startswith("/v1/internacional/obligaciones"):
+        return "listar_obligaciones_internacionales"
+    if path.startswith("/v1/irs-fiscal/giin"):
+        return "listar_registros_giin"
+    if path.startswith("/v1/irs-fiscal"):
+        return "listar_normas_irs"
+    if path.startswith("/v1/mica/casp"):
+        return "list_casp"
+    if path.startswith("/v1/psd2"):
+        return "list_psd2_aspsp"
+    if path.startswith("/v1/screening/entries"):
+        return "screening_entries"
     return "http_request"
 
 

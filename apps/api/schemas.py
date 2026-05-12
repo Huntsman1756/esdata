@@ -3050,6 +3050,10 @@ class GiinRegistryDetail(GiinRegistrySummary):
 class GiinRegistryListResponse(BaseModel):
     registros: list[GiinRegistrySummary] = Field(default_factory=list)
     total: int
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class IrsFiscalCheckRequest(BaseModel):
@@ -3830,6 +3834,11 @@ class EurLexListItem(BaseModel):
 
 class EurLexListResponse(BaseModel):
     documentos: list[EurLexListItem]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class EurLexDetail(BaseModel):
@@ -3840,6 +3849,43 @@ class EurLexDetail(BaseModel):
     ambito: str = Field(description="Ambito EU")
     texto: str = Field(description="Concatenacion de articulos vigentes")
     url_fuente: str | None = Field(default=None, description="URI ELI EUR-Lex")
+
+
+# --- BORME -----------------------------------------------------------------
+
+class BORMEListItem(BaseModel):
+    referencia: str = Field(description="Referencia oficial del acto/anuncio BORME")
+    fecha: str | None = Field(default=None, description="Fecha del acto/anuncio")
+    titulo: str | None = Field(default=None, description="Titulo detectado")
+    tipo_documento: str | None = Field(default=None, description="Tipo de acto detectado")
+    fragmento: str = Field(description="Extracto truncado del texto oficial")
+    url_fuente: str | None = Field(default=None, description="URL oficial BORME/BOE")
+
+
+class BORMEListResponse(BaseModel):
+    actos: list[BORMEListItem]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
+
+
+class BORMEEmpresaRelacionada(BaseModel):
+    id: int
+    nombre: str
+    rol: str | None = None
+    confianza_extraccion: float
+
+
+class BORMEDetail(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    tipo_documento: str | None = None
+    texto: str
+    url_fuente: str | None = None
+    empresas_relacionadas: list[BORMEEmpresaRelacionada] = Field(default_factory=list)
 
 
 # --- documento_interpretativo (cnmv / bde / aepd / cendoj) -----------------

@@ -1,0 +1,63 @@
+{
+  "projectName": "esdata-non-aeat-source-domain-audit",
+  "branchName": "fix/source-domain-mcp-coverage",
+  "userStories": [
+    {
+      "id": "S-00",
+      "title": "Map non-AEAT official source coverage and fail-closed gaps",
+      "priority": 1,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "List BOE, BORME, CNMV, EUR-Lex, FATCA/GIIN, CRS, ESMA/MiCA, PSD2/SEPA, screening and doctrine-source domains.",
+        "Record production row counts, latest worker/job state and API/MCP exposure status.",
+        "Classify each domain as covered, partial, workflow_empty, allowed_empty or configured_but_unavailable.",
+        "Write evidence to docs/source-domain-audit.md."
+      ],
+      "verificationCommand": "test -f docs/source-domain-audit.md && grep -q 'Non-AEAT Source Domain Audit' docs/source-domain-audit.md && grep -q 'GIIN' docs/source-domain-audit.md && echo PASS"
+    },
+    {
+      "id": "S-01",
+      "title": "Expose BORME and key non-AEAT sources through API/MCP safely",
+      "priority": 2,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Mount BORME router in FastAPI.",
+        "Add BORME schemas so OpenAPI import succeeds.",
+        "Expose read-only source tools through HTTP MCP catalog.",
+        "Keep unavailable domains fail-closed through existing availability contract."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_mcp_private.py::test_mcp_catalog_exposes_expected_core_http_operations apps/api/tests/test_mcp_private.py::test_openapi_exposes_borme_router apps/api/tests/test_mcp_private.py::test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key -q"
+    },
+    {
+      "id": "S-02",
+      "title": "Bound source list endpoints before MCP exposure",
+      "priority": 3,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Add limit/offset pagination to /v1/irs-fiscal/giin.",
+        "Add limit/offset pagination to BORME, EUR-Lex, PSD2 ASPSP/AISP/PISP and SEPA list endpoints exposed through MCP.",
+        "Expose pagination metadata in response models where response_model is enforced.",
+        "Test bounded GIIN, EUR-Lex, PSD2 and SEPA responses."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_irs_fiscal.py::TestListarGIIN apps/api/tests/test_eurlex_router.py::test_eurlex_lista_paginada apps/api/tests/test_psd2.py::TestPsd2Aspsp apps/api/tests/test_psd2.py::TestSepaRules -q"
+    },
+    {
+      "id": "S-03",
+      "title": "Deploy source-domain MCP coverage and rerun production gates",
+      "priority": 4,
+      "phase": "source-domain-audit",
+      "passes": false,
+      "acceptanceCriteria": [
+        "Deploy commit to VPS.",
+        "Verify /v1/borme returns 200.",
+        "Verify /v1/irs-fiscal/giin?limit=3 returns exactly three rows and pagination metadata.",
+        "Verify MCP tools/list includes non-AEAT source tools.",
+        "Run mcp_validation_suite and mcp_deep_contract_audit on VPS."
+      ],
+      "verificationCommand": "docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000 && python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000'"
+    }
+  ]
+}

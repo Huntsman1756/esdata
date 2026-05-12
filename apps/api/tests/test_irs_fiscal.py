@@ -280,6 +280,20 @@ class TestListarGIIN:
         body = resp.json()
         assert body["total"] >= 2
         assert len(body["registros"]) >= 2
+        assert body["limit"] == 50
+        assert body["offset"] == 0
+
+    @pytest.mark.asyncio
+    async def test_listado_paginado(self, client):
+        resp = await client.get("/v1/irs-fiscal/giin?limit=1&offset=1")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] >= 2
+        assert len(body["registros"]) == 1
+        assert body["limit"] == 1
+        assert body["offset"] == 1
+        assert body["has_more"] is False
+        assert body["next_offset"] is None
 
     @pytest.mark.asyncio
     async def test_listado_filtro_estado(self, client):

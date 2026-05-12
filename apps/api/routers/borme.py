@@ -11,6 +11,8 @@ router = APIRouter(prefix="/v1/borme", tags=["borme"])
 async def listar_borme(
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo de acto detectado"),
+    limit: int = Query(20, ge=1, le=100, description="Limite de actos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = [
         "d.organismo_emisor = 'BORME'",
@@ -36,25 +38,42 @@ async def listar_borme(
                 FROM documento_interpretativo d
                 WHERE {where_clause}
                 ORDER BY fecha DESC, referencia DESC
-                LIMIT 20
+                LIMIT :limit OFFSET :offset
+                """.format(where_clause=" AND ".join(filters))
+            ),
+            {**params, "limit": limit, "offset": offset},
+        ).mappings()
+        total = db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM documento_interpretativo d
+                WHERE {where_clause}
                 """.format(where_clause=" AND ".join(filters))
             ),
             params,
-        ).mappings()
+        ).scalar()
 
+        actos = [
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "tipo_documento": row["tipo_documento"],
+                "fragmento": row["texto"][:220]
+                + ("..." if len(row["texto"]) > 220 else ""),
+                "url_fuente": row["url_fuente"],
+            }
+            for row in rows
+        ]
+        next_offset = offset + limit if offset + len(actos) < int(total or 0) else None
         return {
-            "actos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
+            "actos": actos,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": next_offset is not None,
+            "next_offset": next_offset,
         }
 
 

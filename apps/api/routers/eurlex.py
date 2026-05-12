@@ -18,6 +18,8 @@ async def listar_eurlex(
         None,
         description="Filtrar por ámbito (fiscal_ue, mercado_interior, competencia_ue, ...)",
     ),
+    limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = ["n.tipo_fuente = 'eurlex'"]
     params: dict[str, str] = {}
@@ -67,11 +69,15 @@ async def listar_eurlex(
         FROM norma n
         WHERE {where_clause}
         ORDER BY n.vigente_desde DESC, n.codigo DESC
-        LIMIT 20
+        LIMIT :limit OFFSET :offset
     """
 
     with db_session() as db:
-        rows = db.execute(text(sql), params).mappings().all()
+        rows = db.execute(text(sql), {**params, "limit": limit, "offset": offset}).mappings().all()
+        total = db.execute(
+            text(f"SELECT COUNT(*) FROM norma n WHERE {where_clause}"),
+            params,
+        ).scalar()
 
     documentos = []
     for row in rows:
@@ -88,7 +94,15 @@ async def listar_eurlex(
                 "url_fuente": row["url_fuente"],
             }
         )
-    return {"documentos": documentos}
+    next_offset = offset + limit if offset + len(documentos) < int(total or 0) else None
+    return {
+        "documentos": documentos,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": next_offset is not None,
+        "next_offset": next_offset,
+    }
 
 
 @router.get("/{referencia:path}", response_model=EurLexDetail, operation_id="get_eurlex")
