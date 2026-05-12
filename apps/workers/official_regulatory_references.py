@@ -40,6 +40,12 @@ IRS_PUB_515_URL = "https://www.irs.gov/publications/p515"
 IRS_W8_URL = "https://www.irs.gov/forms-pubs/about-form-w-8-ben"
 IRS_W8_INSTRUCTIONS_URL = "https://www.irs.gov/instructions/iw8"
 OECD_TIN_URL = "https://www.oecd.org/tax/automatic-exchange/crs-implementation-and-assistance/tax-identification-numbers/"
+FATCA_IGA_ES_US_SOURCE_URL = "https://www.boe.es/buscar/act.php?id=BOE-A-2014-6854"
+FATCA_MODELO_290_SOURCE_URL = "https://www.boe.es/buscar/doc.php?id=BOE-A-2014-6922"
+CRS_RD_1021_2015_SOURCE_URL = "https://www.boe.es/buscar/act.php?id=BOE-A-2015-12399"
+CRS_MODELO_289_SOURCE_URL = "https://www.boe.es/buscar/doc.php?id=BOE-A-2016-9834"
+DAC2_SOURCE_URL = "https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32014L0107"
+DAC6_SOURCE_URL = "https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32018L0822"
 
 
 CSRD_ESRS_ROWS = [
@@ -181,6 +187,168 @@ IRS_WITHHOLDING_RULE_ROWS = [
         "articulo_referencia": "Chapter 3 withholding / FDAP income",
         "estado": "activo",
         "source_url": IRS_PUB_515_URL,
+    },
+]
+
+INTERNATIONAL_OBLIGATION_ROWS = [
+    {
+        "codigo": "FATCA",
+        "titulo": "FATCA en Espana: acuerdo Espana-Estados Unidos y modelo 290",
+        "tipo": "referencia_normativa",
+        "jurisdiccion_origen": "ES-US",
+        "jurisdiccion_aplicacion": "ES",
+        "vigente_desde": "2013-12-09",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Entrada agregada para localizar las fuentes oficiales FATCA relevantes "
+            "en Espana. Para aplicar una obligacion concreta, contrastar el acuerdo "
+            "BOE-A-2014-6854, la Orden HAP/1136/2014 y el modelo AEAT 290."
+        ),
+        "estado": "activo",
+        "source_url": FATCA_IGA_ES_US_SOURCE_URL,
+    },
+    {
+        "codigo": "FATCA_IGA_ES",
+        "titulo": (
+            "Acuerdo Espana-Estados Unidos para la mejora del cumplimiento fiscal "
+            "internacional y la implementacion de FATCA"
+        ),
+        "tipo": "convenio",
+        "jurisdiccion_origen": "ES-US",
+        "jurisdiccion_aplicacion": "ES-US",
+        "vigente_desde": "2013-12-09",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Referencia normativa oficial del acuerdo FATCA publicado como BOE-A-2014-6854. "
+            "Esta fila identifica la fuente; la aplicabilidad operativa exige analizar el "
+            "tipo de institucion financiera, cuenta y persona reportable."
+        ),
+        "estado": "activo",
+        "source_url": FATCA_IGA_ES_US_SOURCE_URL,
+    },
+    {
+        "codigo": "MODELO_290_FATCA",
+        "titulo": (
+            "Orden HAP/1136/2014 que aprueba el modelo 290 de cuentas financieras "
+            "de determinadas personas estadounidenses"
+        ),
+        "tipo": "orden",
+        "jurisdiccion_origen": "ES",
+        "jurisdiccion_aplicacion": "ES",
+        "vigente_desde": "2014-07-03",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Referencia BOE del modelo 290 FATCA. La fila no sustituye al detalle de "
+            "casillas AEAT ni confirma por si sola la obligacion de un caso concreto."
+        ),
+        "estado": "activo",
+        "source_url": FATCA_MODELO_290_SOURCE_URL,
+    },
+    {
+        "codigo": "CRS",
+        "titulo": "CRS/DAC2 en Espana: Real Decreto 1021/2015 y modelo 289",
+        "tipo": "referencia_normativa",
+        "jurisdiccion_origen": "ES-UE",
+        "jurisdiccion_aplicacion": "ES",
+        "vigente_desde": "2016-01-01",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Entrada agregada para localizar las fuentes oficiales CRS/DAC2 relevantes "
+            "en Espana. Para aplicar una obligacion concreta, contrastar el Real Decreto "
+            "1021/2015, la Directiva 2014/107/UE y el modelo AEAT 289."
+        ),
+        "estado": "activo",
+        "source_url": CRS_RD_1021_2015_SOURCE_URL,
+    },
+    {
+        "codigo": "CRS_RD_1021_2015",
+        "titulo": (
+            "Real Decreto 1021/2015 sobre identificacion de residencia fiscal y "
+            "comunicacion de cuentas financieras en asistencia mutua"
+        ),
+        "tipo": "real_decreto",
+        "jurisdiccion_origen": "ES",
+        "jurisdiccion_aplicacion": "ES",
+        "vigente_desde": "2016-01-01",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Referencia normativa oficial CRS/DAC2 en Espana. Define obligaciones de "
+            "identificacion y comunicacion para instituciones financieras en los terminos "
+            "del propio Real Decreto."
+        ),
+        "estado": "activo",
+        "source_url": CRS_RD_1021_2015_SOURCE_URL,
+    },
+    {
+        "codigo": "MODELO_289_CRS",
+        "titulo": (
+            "Orden HAP/1695/2016 que aprueba el modelo 289 de cuentas financieras "
+            "en el ambito de la asistencia mutua"
+        ),
+        "tipo": "orden",
+        "jurisdiccion_origen": "ES",
+        "jurisdiccion_aplicacion": "ES",
+        "vigente_desde": "2016-10-28",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Referencia BOE del modelo 289 DAC2/CRS. La fila aporta fuente normativa; "
+            "las respuestas deben seguir marcando evidencia limitada si faltan campos "
+            "o reglas completas del caso consultado."
+        ),
+        "estado": "activo",
+        "source_url": CRS_MODELO_289_SOURCE_URL,
+    },
+    {
+        "codigo": "DAC2_2014_107_UE",
+        "titulo": (
+            "Directiva 2014/107/UE sobre intercambio automatico obligatorio de "
+            "informacion en fiscalidad"
+        ),
+        "tipo": "directiva",
+        "jurisdiccion_origen": "UE",
+        "jurisdiccion_aplicacion": "UE",
+        "vigente_desde": "2014-12-09",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Referencia EUR-Lex de DAC2, marco UE relacionado con CRS. En Espana se "
+            "contrasta junto con el Real Decreto 1021/2015 y el modelo 289."
+        ),
+        "estado": "activo",
+        "source_url": DAC2_SOURCE_URL,
+    },
+    {
+        "codigo": "DAC6",
+        "titulo": "DAC6: mecanismos transfronterizos sujetos a comunicacion",
+        "tipo": "directiva",
+        "jurisdiccion_origen": "UE",
+        "jurisdiccion_aplicacion": "UE",
+        "vigente_desde": "2018-06-25",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Entrada agregada para localizar la Directiva (UE) 2018/822. El detalle "
+            "operativo nacional debe contrastarse con normativa espanola de transposicion "
+            "y el dominio DAC cargado."
+        ),
+        "estado": "activo",
+        "source_url": DAC6_SOURCE_URL,
+    },
+    {
+        "codigo": "DAC6_2018_822_UE",
+        "titulo": (
+            "Directiva (UE) 2018/822 sobre comunicacion obligatoria de mecanismos "
+            "transfronterizos sujetos a comunicacion"
+        ),
+        "tipo": "directiva",
+        "jurisdiccion_origen": "UE",
+        "jurisdiccion_aplicacion": "UE",
+        "vigente_desde": "2018-06-25",
+        "vigente_hasta": None,
+        "descripcion": (
+            "Referencia EUR-Lex de DAC6. Se incluye como referencia internacional; "
+            "el detalle articulo-a-articulo se sirve desde el dominio DAC si esta cargado."
+        ),
+        "estado": "activo",
+        "source_url": DAC6_SOURCE_URL,
     },
 ]
 
@@ -725,6 +893,47 @@ def upsert_irs_references(conn, worker_name: str) -> dict[str, int]:
     }
 
 
+def upsert_international_obligations(conn, worker_name: str) -> int:
+    count = 0
+    for row in INTERNATIONAL_OBLIGATION_ROWS:
+        payload = {key: value for key, value in row.items() if key != "source_url"}
+        conn.execute(
+            text(
+                """
+                INSERT INTO obligacion_internacional (
+                    codigo, titulo, tipo, jurisdiccion_origen, jurisdiccion_aplicacion,
+                    vigente_desde, vigente_hasta, descripcion, estado
+                )
+                VALUES (
+                    :codigo, :titulo, :tipo, :jurisdiccion_origen, :jurisdiccion_aplicacion,
+                    :vigente_desde, :vigente_hasta, :descripcion, :estado
+                )
+                ON CONFLICT (codigo) DO UPDATE SET
+                    titulo = EXCLUDED.titulo,
+                    tipo = EXCLUDED.tipo,
+                    jurisdiccion_origen = EXCLUDED.jurisdiccion_origen,
+                    jurisdiccion_aplicacion = EXCLUDED.jurisdiccion_aplicacion,
+                    vigente_desde = EXCLUDED.vigente_desde,
+                    vigente_hasta = EXCLUDED.vigente_hasta,
+                    descripcion = EXCLUDED.descripcion,
+                    estado = EXCLUDED.estado,
+                    actualizado_en = now()
+                """
+            ),
+            payload,
+        )
+        record_reference_revision(
+            conn,
+            worker_name,
+            "obligacion_internacional",
+            row["codigo"],
+            payload,
+            row["source_url"],
+        )
+        count += 1
+    return count
+
+
 def upsert_aeat_model_references(conn, worker_name: str) -> dict[str, int]:
     formato_rows = conn.execute(
         text(
@@ -877,8 +1086,9 @@ def run_sync(worker_name: str = "official-regulatory-references") -> dict[str, i
             pbc = upsert_pbc_obligated_subjects(conn, worker_name)
             screening = upsert_screening_lists(conn, worker_name)
             irs = upsert_irs_references(conn, worker_name)
+            international = upsert_international_obligations(conn, worker_name)
             aeat_refs = upsert_aeat_model_references(conn, worker_name)
-            total = csrd + dora + sepa + pbc + screening + sum(irs.values()) + sum(aeat_refs.values())
+            total = csrd + dora + sepa + pbc + screening + sum(irs.values()) + international + sum(aeat_refs.values())
             log_sync(
                 conn,
                 worker_name,
@@ -894,6 +1104,7 @@ def run_sync(worker_name: str = "official-regulatory-references") -> dict[str, i
             "pbc_obligated_subjects": pbc,
             "screening_lists": screening,
             **irs,
+            "obligacion_internacional": international,
             **aeat_refs,
         }
     except Exception as exc:

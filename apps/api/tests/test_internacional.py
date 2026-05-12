@@ -41,15 +41,27 @@ class TestListarObligacionesInternacionales:
         body = resp.json()
         assert body["total"] >= 4
         assert len(body["items"]) >= 4
+        assert body["limit"] == 100
+        assert body["offset"] == 0
+
+    @pytest.mark.asyncio
+    async def test_listado_paginado(self, client):
+        resp = await client.get("/v1/internacional/obligaciones?limit=2&offset=0")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] >= 4
+        assert len(body["items"]) == 2
+        assert body["has_more"] is True
+        assert body["next_offset"] == 2
 
     @pytest.mark.asyncio
     async def test_listado_filtro_tipo(self, client):
-        resp = await client.get("/v1/internacional/obligaciones?tipo=ley")
+        resp = await client.get("/v1/internacional/obligaciones?tipo=referencia_normativa")
         assert resp.status_code == 200
         body = resp.json()
         assert body["total"] >= 1
         for item in body["items"]:
-            assert item["tipo"] == "ley"
+            assert item["tipo"] == "referencia_normativa"
 
     @pytest.mark.asyncio
     async def test_listado_filtro_tipo_directiva(self, client):
@@ -70,12 +82,12 @@ class TestListarObligacionesInternacionales:
 
     @pytest.mark.asyncio
     async def test_listado_filtro_jurisdiccion(self, client):
-        resp = await client.get("/v1/internacional/obligaciones?jurisdiccion=US")
+        resp = await client.get("/v1/internacional/obligaciones?jurisdiccion=ES-US")
         assert resp.status_code == 200
         body = resp.json()
         assert body["total"] >= 1
         for item in body["items"]:
-            assert item["jurisdiccion_origen"] == "US"
+            assert item["jurisdiccion_origen"] == "ES-US"
 
     @pytest.mark.asyncio
     async def test_listado_filtro_estado_inactivo(self, client):
@@ -94,8 +106,10 @@ class TestDetalleObligacionInternacional:
         assert resp.status_code == 200
         body = resp.json()
         assert body["item"]["codigo"] == "FATCA"
-        assert body["item"]["tipo"] == "ley"
+        assert body["item"]["tipo"] == "referencia_normativa"
         assert body["item"]["estado"] == "activo"
+        assert body["item"]["source_url"].startswith("https://www.boe.es/")
+        assert body["item"]["source_worker"] == "official-regulatory-references"
 
     @pytest.mark.asyncio
     async def test_detalle_crs(self, client):
@@ -103,7 +117,8 @@ class TestDetalleObligacionInternacional:
         assert resp.status_code == 200
         body = resp.json()
         assert body["item"]["codigo"] == "CRS"
-        assert body["item"]["tipo"] == "estandar"
+        assert body["item"]["tipo"] == "referencia_normativa"
+        assert body["item"]["source_url"].startswith("https://www.boe.es/")
 
     @pytest.mark.asyncio
     async def test_detalle_fatca_iga(self, client):

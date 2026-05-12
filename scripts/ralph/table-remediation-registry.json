@@ -1143,12 +1143,12 @@
     },
     {
       "table": "obligacion_internacional",
-      "row_count": 0,
-      "classification": "configured_but_unavailable",
+      "row_count": 9,
+      "classification": "populated",
       "domain": "Obligations / Controls",
       "official_source_family": "AEAT/OECD/IRS/EUR-Lex official international tax source",
-      "target_path": "apps/workers/obligaciones.py",
-      "action": "International obligation table; keep empty until official CRS/FATCA/DAC obligation ingestion is implemented.",
+      "target_path": "apps/workers/official_regulatory_references.py",
+      "action": "Reference table populated from official BOE/EUR-Lex CRS/FATCA/DAC sources; continue to answer case applicability conservatively.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"obligacion_internacional\";"
     },

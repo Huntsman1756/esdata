@@ -369,6 +369,21 @@ STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS source_revision (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        worker_name TEXT NOT NULL,
+        source_entity_tipo TEXT NOT NULL,
+        source_entity_id TEXT NOT NULL,
+        content_hash_sha256 TEXT NOT NULL,
+        etag TEXT,
+        last_modified TEXT,
+        content_length INTEGER,
+        fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        dgt_url TEXT,
+        UNIQUE(worker_name, source_entity_tipo, source_entity_id)
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS obligacion_micro_obligacion (
         obligacion_id INTEGER NOT NULL REFERENCES obligacion_regulatoria(id) ON DELETE CASCADE,
         micro_obligacion_id INTEGER NOT NULL REFERENCES micro_obligacion(id) ON DELETE CASCADE,
@@ -398,12 +413,21 @@ STATEMENTS = [
         codigo, titulo, tipo, jurisdiccion_origen, jurisdiccion_aplicacion,
         vigente_desde, vigente_hasta, descripcion, estado
     ) VALUES
-        ('FATCA', 'Foreign Account Tax Compliance Act (FATCA) — Ley 16/2012 de implementacion', 'ley', 'US', 'ES', '2012-12-28', NULL, 'Ley espanola que implementa FATCA en Espana, requiriendo a instituciones financieras espanolas reportar cuentas de titulares estadounidenses al IRS.', 'activo'),
-        ('CRS', 'Common Reporting Standard (CRS) — Estandar OCDE para intercambio automatico de informacion financiera', 'estandar', 'OCDE', 'internacional', '2016-01-01', NULL, 'Estandar internacional para el intercambio automatico de informacion financiera entre jurisdicciones participantes para combatir la evasion fiscal transfronteriza.', 'activo'),
+        ('FATCA', 'FATCA en Espana: acuerdo Espana-Estados Unidos y modelo 290', 'referencia_normativa', 'ES-US', 'ES', '2013-12-09', NULL, 'Entrada agregada para localizar las fuentes oficiales FATCA relevantes en Espana.', 'activo'),
+        ('CRS', 'CRS/DAC2 en Espana: Real Decreto 1021/2015 y modelo 289', 'referencia_normativa', 'ES-UE', 'ES', '2016-01-01', NULL, 'Entrada agregada para localizar las fuentes oficiales CRS/DAC2 relevantes en Espana.', 'activo'),
         ('FATCA_IGA_ES', 'Acuerdo Intergubernamental FATCA entre Espana y Estados Unidos — Modelo 1', 'convenio', 'ES-US', 'ES-US', '2013-09-02', NULL, 'Acuerdo intergubernamental Modelo 1 entre Espana y EE.UU. para la implementacion de FATCA. Espana intercambia informacion automaticamente con el IRS.', 'activo'),
         ('DAC6', 'Directiva DAC6 — Reporte obligatorio de arreglos transfronterizos agresivos', 'directiva', 'UE', 'UE', '2018-06-25', NULL, 'Obliga a intermediarios a reportar arreglos transfronterizos que cumplan hallmarks de agresividad fiscal.', 'activo'),
         ('DAC7', 'Directiva DAC7 — Informacion para plataformas digitales', 'directiva', 'UE', 'UE', '2020-12-22', NULL, 'Requiere que las plataformas digitales reporten informacion sobre los vendedores que utilizan sus servicios.', 'activo'),
         ('DAC8', 'Directiva DAC8 — Informacion sobre criptoactivos', 'directiva', 'UE', 'UE', '2023-12-27', NULL, 'Extiende el intercambio automatico de informacion para incluir criptoactivos y cripto-proveedores de servicios.', 'inactivo')
+    """,
+    """
+    INSERT INTO source_revision (
+        worker_name, source_entity_tipo, source_entity_id, content_hash_sha256, dgt_url
+    ) VALUES
+        ('official-regulatory-references', 'obligacion_internacional', 'FATCA', 'test-fatca', 'https://www.boe.es/buscar/act.php?id=BOE-A-2014-6854'),
+        ('official-regulatory-references', 'obligacion_internacional', 'CRS', 'test-crs', 'https://www.boe.es/buscar/act.php?id=BOE-A-2015-12399'),
+        ('official-regulatory-references', 'obligacion_internacional', 'FATCA_IGA_ES', 'test-fatca-iga', 'https://www.boe.es/buscar/act.php?id=BOE-A-2014-6854'),
+        ('official-regulatory-references', 'obligacion_internacional', 'DAC6', 'test-dac6', 'https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32018L0822')
     """,
     """
     WITH RECURSIVE filler(n) AS (

@@ -1203,11 +1203,18 @@ class ObligacionInternacionalItem(BaseModel):
     descripcion: str | None = None
     creado_en: str | None = None
     actualizado_en: str | None = None
+    source_url: str | None = Field(default=None, description="URL oficial registrada en source_revision")
+    source_worker: str | None = Field(default=None, description="Worker que cargo la referencia")
+    source_fetched_at: str | None = Field(default=None, description="Fecha de captura de la fuente")
 
 
 class ObligacionInternacionalListResponse(BaseModel):
     items: list[ObligacionInternacionalItem] = Field(default_factory=list)
     total: int
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class ObligacionInternacionalDetailResponse(BaseModel):

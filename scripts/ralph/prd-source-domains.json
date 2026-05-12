@@ -58,6 +58,21 @@
         "Run mcp_validation_suite and mcp_deep_contract_audit on VPS."
       ],
       "verificationCommand": "docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000 && python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000'"
+    },
+    {
+      "id": "S-04",
+      "title": "Populate FATCA/CRS international obligations with official provenance",
+      "priority": 5,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "official-regulatory-references loads FATCA, CRS, DAC2 and DAC6 reference rows into obligacion_internacional from official BOE/EUR-Lex sources.",
+        "/v1/internacional/obligaciones returns bounded paginated responses.",
+        "Detail responses expose source_url/source_worker/source_fetched_at from source_revision.",
+        "VPS run writes a fresh sync_log row and leaves stale_workers=0.",
+        "mcp_validation_suite remains ok=true after deployment."
+      ],
+      "verificationCommand": "docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm official-regulatory-references --run-once && curl -sf http://localhost:${API_PORT:-8000}/v1/internacional/obligaciones?limit=3 | jq '.total' && docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000'"
     }
   ]
 }
