@@ -29,6 +29,17 @@
 
 ---
 
+### AEAT 29 remaining models audit (M-00, 2026-05-12)
+
+- Fuente documental viva: `docs/aeat-29-audit.md`.
+- STATUS-A inmediato: `172`, `173` - ZIP oficial AEAT con WSDL/XSD (`Esquemas172.zip`, `Esquemas173.zip`).
+- STATUS-B preliminar: `102`, `146`, `147`, `186`, `206`, `247` - formulario/declaracion sin diseno de registro estructurado localizado.
+- STATUS-D preliminar: `121`, `136`, `140`, `143`, `150`, `221`, `228`, `230`, `239`, `294`, `295` - endpoint dinamico, FAQ/ayuda o PDF esquematico no parseable sin riesgo.
+- STATUS-E preliminar: `179`, `231`, `233`, `234`, `235`, `236`, `238`, `240`, `241`, `290` - fuente oficial existe pero requiere parser especifico o localizacion de esquema.
+- Regla: no poblar `modelo_casilla` desde ejemplos XML, FAQ, normativa o PDF esquematico si no hay tabla/campo determinista.
+
+---
+
 ## Seguridad S-TIER (no negociable)
 
 1. **Backend-only:** Nunca logica de negocio ni acceso DB en frontend.

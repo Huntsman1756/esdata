@@ -1,100 +1,123 @@
 {
-  "projectName": "esdata-mcp-full-audit",
-  "branchName": "fix/full-audit-stale-workers",
+  "projectName": "esdata-aeat-29-models-audit",
+  "branchName": "fix/aeat-29-models-resource-audit",
   "userStories": [
     {
-      "id": "P-01",
-      "title": "Diagnose and fix cron-psd2-weekly stale alert",
+      "id": "M-00",
+      "title": "Pre-audit: map all 29 models to source type before touching any code",
       "priority": 1,
-      "phase": "production-fire",
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; BEFORE=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM sync_log WHERE worker='cron-psd2-weekly'\"); $COMPOSE run --rm cron-psd2-weekly 2>&1 | tail -20; AFTER=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM sync_log WHERE worker='cron-psd2-weekly'\"); [ \"$AFTER\" -gt \"$BEFORE\" ] && echo PASS || echo FAIL-NO-SYNC-ENTRY"
-    },
-    {"id": "P-02", "title": "Diagnose and fix official-regulatory-references stale alert", "priority": 2, "phase": "production-fire", "passes": true},
-    {"id": "P-03", "title": "Diagnose and fix cron-pgc-boe-monthly stale alert", "priority": 3, "phase": "production-fire", "passes": true},
-    {"id": "A-01", "title": "Full worker inventory - ensure_database_connection coverage", "priority": 4, "phase": "audit", "passes": true},
-    {"id": "A-02", "title": "Verify all systemd timers exist and match cron services", "priority": 5, "phase": "audit", "passes": true},
-    {"id": "A-03", "title": "Audit all cron Docker network assignments", "priority": 6, "phase": "audit", "passes": true},
-    {"id": "A-04", "title": "Smoke test all persistent workers", "priority": 7, "phase": "audit", "passes": true},
-    {"id": "A-05", "title": "Run all cron jobs once - verify sync_log entries", "priority": 8, "phase": "audit", "passes": true},
-    {"id": "A-06", "title": "DB integrity - FK, NULLs, duplicates", "priority": 9, "phase": "audit", "passes": true},
-    {"id": "A-07", "title": "Regulatory data accuracy spot-check", "priority": 10, "phase": "audit", "passes": true},
-    {"id": "A-08", "title": "Test all API endpoints", "priority": 11, "phase": "audit", "passes": true},
-    {"id": "A-09", "title": "MCP tool accuracy spot-check", "priority": 12, "phase": "audit", "passes": true},
-    {"id": "A-10", "title": "Verify query_audit_log append-only and captures invocations", "priority": 13, "phase": "audit", "passes": true},
-    {"id": "A-11", "title": "Prometheus alert rules - verify coverage for all stale workers", "priority": 14, "phase": "audit", "passes": true},
-    {"id": "A-12", "title": "Classify undocumented workers - docs/worker-inventory.md", "priority": 15, "phase": "audit", "passes": true},
-    {"id": "A-13", "title": "Seed AEAT models - populate Hacienda tables", "priority": 16, "phase": "audit", "passes": true},
-    {"id": "A-14", "title": "Final population report - all compliance tables", "priority": 17, "phase": "audit", "passes": true}
-  ],
-  "workerRemediationStories": [
-    {
-      "id": "W-C-01",
-      "title": "Assess and wire high-priority AEAT/IRNR/DAC standalone workers",
-      "status": "backlog",
-      "files": ["aeat_irnr.py", "dac8.py", "dac8_real.py", "dac_directives.py", "modelos.py", "rirnr.py"],
       "acceptanceCriteria": [
-        "Official source URLs verified and documented",
-        "Run-once execution writes sync_log",
-        "Compose/systemd wiring added only when production-safe",
-        "MCP/API availability remains fail-closed until data is verified"
-      ]
+        "For each of the 29 models: identify the AEAT source URL and format",
+        "Classify each as STATUS-A/B/C/D/E before writing a single line of code",
+        "Write full classification table to docs/aeat-29-audit.md",
+        "This story produces the map only; no casillas loaded"
+      ],
+      "verificationCommand": "test -f docs/aeat-29-audit.md && awk '/\\|/{count++} END{print count}' docs/aeat-29-audit.md | grep -E '^[2-9][0-9]' && echo PASS || echo FAIL-AUDIT-MAP-MISSING"
     },
     {
-      "id": "W-C-02",
-      "title": "Assess and wire capital-markets standalone workers",
-      "status": "backlog",
-      "files": ["aifmd_ucits.py", "crd_brrd_emir.py", "csdr.py", "dora.py", "mar_mifid.py", "mifid_mar_dora.py", "priips_ownership.py", "prospectos.py", "xbrl.py", "xbrl_taxonomy.py"],
+      "id": "M-01",
+      "title": "Fix modelo 102 and 206 nombre contamination + load casillas if available",
+      "priority": 2,
+      "passes": false,
       "acceptanceCriteria": [
-        "Official CNMV/EUR-Lex/ESMA source boundaries verified",
-        "Idempotent writes and sync_log telemetry proven",
-        "Cron/systemd schedules justified by publication cadence",
-        "Domain availability metadata updated before exposing answers"
-      ]
+        "102: official AEAT name is segundo plazo fraccionamiento IRPF",
+        "206: official AEAT name is IS/IRNR document of ingreso/devolucion tied to model 200",
+        "Use M-00 status before deciding completeness or casillas"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT codigo, nombre FROM aeat_modelo WHERE codigo IN ('102','206');\" && echo 'Verify names are correct per AEAT official' || echo FAIL"
     },
     {
-      "id": "W-C-03",
-      "title": "Assess and wire sustainability and insurance standalone workers",
-      "status": "backlog",
-      "files": ["corporate_sustainability.py", "csr.py", "insurance.py", "sfdr.py", "solvency.py", "sustainable_finance.py"],
+      "id": "M-02",
+      "title": "Load casillas for STATUS-A models identified in M-00",
+      "priority": 3,
+      "passes": false,
       "acceptanceCriteria": [
-        "EU/Spanish official sources verified",
-        "Seed-only data separated from official ingested data",
-        "No compliance answer exposed as verified until evidence is complete"
-      ]
+        "Implement ZIP/XSD parser for STATUS-A models 172 and 173",
+        "Run worker and confirm modelo_casilla rows are loaded",
+        "If parsing cannot be done safely, reclassify and document"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT m.codigo, COUNT(cs.id) AS casillas FROM aeat_modelo m JOIN modelo_campana c ON c.modelo_id=m.id AND c.activa=true LEFT JOIN modelo_casilla cs ON cs.campana_id=c.id WHERE m.codigo IN ('172','173') GROUP BY m.codigo ORDER BY m.codigo;\" && echo 'Verify STATUS-A models have casillas > 0' || echo FAIL"
     },
     {
-      "id": "W-C-04",
-      "title": "Assess and wire banking, PBC and screening standalone workers",
-      "status": "backlog",
-      "files": ["consumer_credit.py", "consumer_credit_real.py", "fraud.py", "pbc.py", "psd2.py", "screening_real.py"],
+      "id": "M-03",
+      "title": "Handle STATUS-E models — automatable non-PDF sources",
+      "priority": 4,
+      "passes": false,
       "acceptanceCriteria": [
-        "Official source precedence documented",
-        "Unofficial or fallback sources quarantined from authoritative answers",
-        "Retries, dead-letter behavior and stale warnings verified"
-      ]
+        "Audit STATUS-E models 179,231,233,234,235,236,238,240,241,290",
+        "Write targeted parsers only for deterministic structured formats",
+        "Escalate ambiguous sources to STATUS-D"
+      ],
+      "verificationCommand": "test -f docs/aeat-29-audit.md && grep -q 'STATUS-E' docs/aeat-29-audit.md && echo PASS || echo FAIL"
     },
     {
-      "id": "W-C-05",
-      "title": "Assess and wire enrichment standalone workers",
-      "status": "backlog",
-      "files": ["dgt_doctrina.py", "document_decomposition.py", "entity_identity.py", "jurisprudencia.py", "legalize_es.py", "micro_obligations.py"],
+      "id": "M-04",
+      "title": "Set completeness=no-casillas-expected for STATUS-B models",
+      "priority": 5,
+      "passes": false,
       "acceptanceCriteria": [
-        "Clear ownership of target tables documented",
-        "Runtime role separated from helper/import-only modules",
-        "No local or derived content treated as authoritative source text"
-      ]
+        "Handle STATUS-B models 102,146,147,186,206,247",
+        "Only set no-casillas-expected if DB/API contract supports it",
+        "MCP must not describe these as evidencia limitada when verified as no-casillas by design"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT codigo FROM aeat_modelo WHERE codigo IN ('102','146','147','186','206','247') ORDER BY codigo::int;\" && echo PASS || echo FAIL"
     },
     {
-      "id": "W-C-06",
-      "title": "Assess and wire PGC standalone workers",
-      "status": "backlog",
-      "files": ["pgc.py", "pgc_real.py", "pgc_xbrl_mapping.py"],
+      "id": "M-05",
+      "title": "Set completeness and verified correctly for STATUS-C deprecated models",
+      "priority": 6,
+      "passes": false,
       "acceptanceCriteria": [
-        "Relationship with deployed pgc_boe.py is documented",
-        "Duplicate table writes avoided",
-        "Only official BOE-backed PGC data is exposed as verified"
-      ]
+        "If M-00/M-03 identifies deprecated models, expose them as deprecated",
+        "No model is marked deprecated without official evidence"
+      ],
+      "verificationCommand": "test -f docs/aeat-29-audit.md && echo PASS || echo FAIL"
+    },
+    {
+      "id": "M-06",
+      "title": "Document STATUS-D models — Playwright-blocked or non-parseable",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Document STATUS-D blockers in code comments or docs",
+        "Never invent fields for dynamic endpoints or schematic PDFs"
+      ],
+      "verificationCommand": "grep -q 'STATUS-D' docs/aeat-29-audit.md && echo PASS || echo FAIL-NO-STATUS-D"
+    },
+    {
+      "id": "M-07",
+      "title": "Verify modelo 290 stays correctly as parcial/evidence-limited",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "290 remains verified=false/completeness=parcial until full source is found",
+        "Existing six fallback fields are described as partial official evidence"
+      ],
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/290 | jq '{verified: .verified, completeness: .completeness, casillas: .casillas_total}' && echo 'Verify partial 290 contract' || echo FAIL"
+    },
+    {
+      "id": "M-08",
+      "title": "Update MCP response logic for completeness=deprecated",
+      "priority": 9,
+      "passes": false,
+      "acceptanceCriteria": [
+        "MCP handles deprecated completeness if/when STATUS-C exists",
+        "Existing verified/parcial logic remains untouched"
+      ],
+      "verificationCommand": "test -f docs/aeat-29-audit.md && echo PASS || echo FAIL"
+    },
+    {
+      "id": "M-09",
+      "title": "Final coverage report — 29 models resolved",
+      "priority": 10,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Every model in the 29-item list has final status",
+        "mcp_validation_suite ok=true",
+        "stale_workers=0 confirmed"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*) AS total, SUM(CASE WHEN casillas > 0 THEN 1 ELSE 0 END) AS with_casillas FROM (SELECT m.codigo, COALESCE(SUM(cs_count.n),0) AS casillas FROM aeat_modelo m LEFT JOIN modelo_campana c ON c.modelo_id=m.id AND c.activa=true LEFT JOIN (SELECT campana_id, COUNT(*) n FROM modelo_casilla GROUP BY campana_id) cs_count ON cs_count.campana_id=c.id WHERE m.codigo::int BETWEEN 100 AND 299 GROUP BY m.codigo) sub;\" && echo 'Verify: with_casillas >= 57 baseline' || echo FAIL"
     }
   ]
 }

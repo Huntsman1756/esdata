@@ -327,3 +327,43 @@ Learnings:
 - Production `sync_log` uses `finished_at`, not `ended_at`; verification scripts must use `COALESCE(finished_at, started_at)`.
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
+
+=== Iteration 1 - 2026-05-12T16:20:00+02:00 ===
+Story: M-00 Pre-audit: map all 29 models to source type before touching any code
+Models processed: 102,121,136,140,143,146,147,150,172,173,179,186,206,221,228,230,231,233,234,235,236,238,239,240,241,247,290,294,295
+Result per model:
+  - 102: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-100-mode-declaracion-documentos-devolucion_/descarga-modelo-102.html | reason: documento ingreso segundo plazo IRPF, sin diseno estructurado propio
+  - 121: STATUS-D | casillas loaded: 0 | source: https://www1.agenciatributaria.gob.es/wlpl/DFND-M121/F121Servlet | reason: endpoint dinamico
+  - 136: STATUS-D | casillas loaded: 0 | source: https://www1.agenciatributaria.gob.es/wlpl/PAMW-M136/index.zul | reason: endpoint dinamico ZUL
+  - 140: STATUS-D | casillas loaded: 0 | source: https://www1.agenciatributaria.gob.es/wlpl/DAMA-PRES/F140Sol | reason: formulario dinamico
+  - 143: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/beneficios-fiscales-autorizaciones/irpf/modelo-143-irpf______do-deducciones-familia-discapacidad_/preguntas-frecuentes.html | reason: FAQ/ayuda sin tabla de casillas
+  - 146: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-146-irpf______d-determinacion-importe-retenciones_/descarga-modelo.html | reason: formulario descargable sin diseno de registro
+  - 147: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-147-irpf______panol-efectuado-trabajadores-ajena_/descarga-modelo.html | reason: comunicacion descargable sin diseno estructurado
+  - 150: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-150-irpf______los-trabajadores-desplazados-espanol_/descarga-modelo.html | reason: ayuda PDF detectada es catalogo de paises, no casillas
+  - 172: STATUS-A | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI53/Esquemas172.zip | reason: ZIP oficial con WSDL/XSD
+  - 173: STATUS-A | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI54/Esquemas173.zip | reason: ZIP oficial con WSDL/XSD
+  - 179: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI44/Ayuda/Mod179_DDII_Descripcion_ServicioWeb.pdf | reason: PDF tecnico de servicio web, parser no soportado
+  - 186: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI06.shtml | reason: procedimiento informativo sin diseno especifico localizado
+  - 206: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml | reason: documento ingreso/devolucion vinculado al modelo 200
+  - 221: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/impuesto-sobre-sociedades/modelo-221-prest_____to-exigible-frente-tributaria_/instrucciones.html | reason: instrucciones HTML y endpoint dinamico sin estructura de casillas
+  - 228: STATUS-D | casillas loaded: 0 | source: https://www1.agenciatributaria.gob.es/wlpl/SCEJ-MANT/CONSUL/index.zul?MODELO=228&EJERCICIO=0 | reason: endpoint dinamico; PDFs son FAQ/instrucciones
+  - 230: STATUS-D | casillas loaded: 0 | source: https://www1.agenciatributaria.gob.es/wlpl/PAMW-M230/index.zul | reason: endpoint dinamico ZUL
+  - 231: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-231-decla_____eclaracion-informacion-pais-pais/informacion-sobre-presentacion-mediante-web-service.html | reason: HTML web-service documentation
+  - 233: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-199-282/modelo-233.html | reason: ayuda tecnica HTML
+  - 234: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI46-GI47-GI48/Ejemplos_XML_M234_235_236_Manual.zip | reason: ZIP con ejemplos XML, no XSD completo observado
+  - 235: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI46-GI47-GI48/Ejemplos_XML_M234_235_236_Manual.zip | reason: ZIP con ejemplos XML, no XSD completo observado
+  - 236: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI46-GI47-GI48/Ejemplos_XML_M234_235_236_Manual.zip | reason: ZIP con ejemplos XML, no XSD completo observado
+  - 238: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-238-decl_____informacion-parte-operadores-plataformas/informacion-sobre-presentacion-mediante-web-service.html | reason: HTML web-service documentation
+  - 239: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI57.shtml | reason: procedimiento/formulario indirecto sin esquema localizado
+  - 240: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/impuesto-complementario/modelo-240-comunicacion-entidad-constitutiva-complementario/instrucciones.html | reason: instrucciones HTML/normativa PDF sin parser actual
+  - 241: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-241-decla_____ltinacionales-grupos-nacionales-magnitud/informacion-sobre-presentacion-mediante-formulario.html | reason: guia HTML/normativa PDF sin esquema localizado
+  - 247: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/impuesto-sobre-renta-no-residentes/modelo-247-irnr______njero-efectuada-trabajadores-ajena_/descarga-modelo.html | reason: comunicacion descargable sin diseno estructurado
+  - 290: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml | reason: fuente activa incompleta; fallback 2025 con 6 casillas debe seguir parcial
+  - 294: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos/294_EHA_1674_2006.pdf | reason: PDF esquematico no parseable de forma determinista
+  - 295: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos/295_EHA_1674_2006.pdf | reason: PDF esquematico no parseable de forma determinista
+Overall result: PASS
+Learnings:
+- 172/173 son los unicos STATUS-A inmediatos: ZIP oficial con XSD completo.
+- 294/295 deben quedarse bloqueados salvo parser especifico de PDF esquematico; el texto extraido no ofrece tabla fiable.
+- 234/235/236 aportan ejemplos XML, no XSD completo observado; no son suficientes para afirmar completitud.
+Next: M-01
