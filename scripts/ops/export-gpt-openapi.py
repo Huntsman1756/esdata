@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
 from main import app
+from mcp_catalog import HTTP_MCP_OPERATIONS
 
 # ---------------------------------------------------------------------------
 # Curated list of paths to expose to the GPT
@@ -287,22 +288,25 @@ def _simplify_for_gpt(node):
 
 def export(openapi_version: str | None = None, output_path: str | None = None):
     spec = app.openapi()
+    included_operation_ids = set(HTTP_MCP_OPERATIONS)
 
     # Filter paths
     filtered_paths = {}
     for path, methods in spec.get("paths", {}).items():
-        if path in INCLUDE_PATHS:
-            filtered_methods = {}
-            for method, op in methods.items():
-                op = deepcopy(op)
-                op_id = op.get("operationId", "")
-                if op_id in OPERATION_OVERRIDES:
-                    override = OPERATION_OVERRIDES[op_id]
-                    if "summary" in override:
-                        op["summary"] = override["summary"]
-                    if "description" in override:
-                        op["description"] = override["description"]
-                filtered_methods[method] = op
+        filtered_methods = {}
+        for method, op in methods.items():
+            op_id = op.get("operationId", "")
+            if path not in INCLUDE_PATHS and op_id not in included_operation_ids:
+                continue
+            op = deepcopy(op)
+            if op_id in OPERATION_OVERRIDES:
+                override = OPERATION_OVERRIDES[op_id]
+                if "summary" in override:
+                    op["summary"] = override["summary"]
+                if "description" in override:
+                    op["description"] = override["description"]
+            filtered_methods[method] = op
+        if filtered_methods:
             filtered_paths[path] = filtered_methods
 
     all_schemas = spec.get("components", {}).get("schemas", {})

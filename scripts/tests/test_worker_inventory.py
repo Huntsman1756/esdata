@@ -41,11 +41,11 @@ def test_worker_inventory_mentions_every_worker_module_once_or_more():
 def test_worker_inventory_deployed_count_matches_compose_worker_commands():
     text = INVENTORY_FILE.read_text(encoding="utf-8")
     compose_files = _compose_worker_files()
-    deployed_section = text.split("### With Docker Service (22 files)", 1)[1]
+    deployed_section = text.split("### With Docker Service (23 files)", 1)[1]
     deployed_section = deployed_section.split("### Existing Worker Modules Not Deployed", 1)[0]
 
-    assert "### With Docker Service (22 files)" in text
-    assert len(compose_files) == 22
+    assert "### With Docker Service (23 files)" in text
+    assert len(compose_files) == 23
     for worker_file, services in compose_files.items():
         row_match = re.search(rf"\| `{re.escape(worker_file)}` \| (?P<services>[^|]+) \|", deployed_section)
         assert row_match, worker_file

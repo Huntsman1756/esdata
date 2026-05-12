@@ -14,12 +14,12 @@ Limitaciones conocidas:
 """
 
 import argparse
-from contextlib import contextmanager
 import logging
 import os
 import re
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
@@ -27,7 +27,6 @@ from xml.etree import ElementTree as ET
 import httpx
 from runtime import (
     ensure_database_connection,
-    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
@@ -1126,7 +1125,7 @@ def run_sync(
                         touch_heartbeat()
                         try:
                             bloques = fetch_block_versions(client, boe_id, item.id)
-                        except ValueError as exc:
+                        except (ValueError, httpx.HTTPError) as exc:
                             block_errors.append(f"{item.id}: {exc}")
                             logger.warning(
                                 "Skipping BOE block %s/%s: %s",

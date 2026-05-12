@@ -32,7 +32,6 @@ import httpx
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = ROOT / "scripts" / "ralph" / "table-remediation-registry.json"
 MCP_CATALOG_PATH = ROOT / "apps" / "api" / "mcp_catalog.py"
@@ -431,20 +430,21 @@ def audit_actions_openapi(base_url: str) -> CheckResult:
     security = spec.get("components", {}).get("securitySchemes", {})
     if "ApiKeyAuth" not in security:
         failures.append({"reason": "missing_api_key_security_scheme"})
-    expected_paths = {
-        "/status",
-        "/v1/consulta",
-        "/v1/domain-availability",
-        "/v1/domain-availability/{table}",
-        "/v1/sources/freshness",
-        "/v1/modelos",
-        "/v1/modelos/{codigo}",
-        "/v1/modelos/{codigo}/casillas",
-        "/v1/modelos/por-supuesto",
+    operations_in_spec = {
+        op.get("operationId")
+        for methods in paths.values()
+        for op in methods.values()
+        if isinstance(op, dict)
     }
-    missing_paths = sorted(expected_paths - set(paths))
-    if missing_paths:
-        failures.append({"reason": "missing_expected_actions_paths", "paths": missing_paths})
+    expected_operations = set(_load_http_mcp_operations())
+    missing_operations = sorted(expected_operations - operations_in_spec)
+    if missing_operations:
+        failures.append(
+            {
+                "reason": "missing_http_mcp_operations",
+                "operation_ids": missing_operations,
+            }
+        )
     modelo_params = {
         param.get("name")
         for param in paths.get("/v1/modelos/{codigo}", {}).get("get", {}).get("parameters", [])
@@ -459,6 +459,8 @@ def audit_actions_openapi(base_url: str) -> CheckResult:
         {
             "openapi": spec.get("openapi"),
             "path_count": len(paths),
+            "operation_count": len(operations_in_spec),
+            "expected_operations": len(expected_operations),
             "security_schemes": sorted(security),
             "failures": failures,
         },

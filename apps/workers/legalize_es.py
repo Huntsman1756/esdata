@@ -12,7 +12,19 @@ _workers_dir = Path(__file__).resolve().parent
 if str(_workers_dir) not in sys.path:
     sys.path.insert(0, str(_workers_dir))
 
-from runtime import configure_logging, get_database_url, ensure_database_connection
+try:
+    from runtime import configure_logging, ensure_database_connection, get_database_url
+except ImportError:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("esdata_workers_runtime", _workers_dir / "runtime.py")
+    if spec is None or spec.loader is None:
+        raise
+    workers_runtime = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(workers_runtime)
+    configure_logging = workers_runtime.configure_logging
+    get_database_url = workers_runtime.get_database_url
+    ensure_database_connection = workers_runtime.ensure_database_connection
 
 DATABASE_URL = get_database_url()
 logger = configure_logging("worker-legalize-es")

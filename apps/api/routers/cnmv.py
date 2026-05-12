@@ -140,6 +140,29 @@ async def get_cnmv_versions(referencia: str):
         )
 
         if not rows:
+            rows = (
+                db.execute(
+                    text(
+                        """
+                        SELECT documento_referencia,
+                               version_numero AS version_num,
+                               COALESCE(resumen_cambios, '') AS texto,
+                               estado_version AS cambio_tipo,
+                               fecha_version,
+                               resumen_cambios AS nota,
+                               fuente_version AS url_version
+                        FROM documento_cnmv_version
+                        WHERE documento_referencia = :referencia
+                        ORDER BY version_numero ASC
+                        """
+                    ),
+                    {"referencia": referencia},
+                )
+                .mappings()
+                .all()
+            )
+
+        if not rows:
             raise HTTPException(status_code=404, detail={"error": "Historial de versiones no encontrado"})
 
         versions = [

@@ -5,7 +5,7 @@ Status: IMPLEMENTED as of 2026-05-11.
 Scope: `apps/workers/*.py` files that create SQLAlchemy engines with `create_engine(...)`.
 Requirement: every in-scope worker must call `ensure_database_connection(engine)` before DB work so Docker DNS/network churn fails loudly and retries before sync logic starts.
 
-In-scope DB worker files: 62
+In-scope DB worker files: 63
 Missing retry guard: 0
 
 | Worker file | create_engine calls | Retry guard |
@@ -18,6 +18,7 @@ Missing retry guard: 0
 | `bde.py` | 1 | PASS |
 | `bdns.py` | 1 | PASS |
 | `boe.py` | 1 | PASS |
+| `boe_diario.py` | 1 | PASS |
 | `boe_modelos_worker.py` | 2 | PASS |
 | `borme.py` | 1 | PASS |
 | `cdi.py` | 2 | PASS |
