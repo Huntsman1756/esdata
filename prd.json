@@ -61,7 +61,7 @@
                             "id":  "Q-05",
                             "title":  "BORME - verify heuristic/partial responses are clearly marked as such",
                             "priority":  5,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Call BORME endpoint or search for BORME data",
                                                        "Response must include partial/heuristic signal",

@@ -347,6 +347,23 @@ Evidence:
 - VPS `python3 scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`, 65 MCP tools, domain availability fail-closed checks pass.
 Next: Q-05
 
+=== Iteration Q-05 - 2026-05-12T18:58:00+02:00 ===
+Story: Q-05 BORME - verify heuristic/partial responses are clearly marked as such
+Queries tested: 3
+Results: correct=3 honest_limit=0 incorrect=0
+Incorrect answers found: none after fix
+Fixes applied:
+- BORME list/detail now expose `row_completeness`, `row_provenance` and `quality_signal`.
+- BORME responses explicitly mark the corpus as `partial_heuristic` when rows are `partial` / `official_best_effort`.
+Evidence:
+- Local RED/GREEN: `python -m pytest apps/api/tests/test_borme_router.py -q --basetemp .pytest-tmp` failed first on missing `quality_signal`, then passed after router/schema fix.
+- Local focal suite: `python -m pytest apps/api/tests/test_borme_router.py apps/api/tests/test_mcp_private.py::test_openapi_exposes_borme_router apps/api/tests/test_mcp_private.py::test_mcp_catalog_exposes_expected_core_http_operations -q --basetemp .pytest-tmp` -> 3 passed, 4 warnings.
+- VPS `/v1/borme?limit=1`: `total=51`, first `BORME-C-2026-1994`, `url_fuente=https://www.boe.es/borme/dias/2026/05/12/pdfs/BORME-C-2026-1994.pdf`, `row_completeness=partial`, `row_provenance=official_best_effort`, `quality_signal=partial_heuristic`.
+- VPS `/v1/borme/BORME-C-2026-1994`: same quality signals and `empresas_relacionadas=1`.
+- VPS `/v1/buscar?q=BORME sociedad`: returns legislation/EUR-Lex results with BOE/EUR-Lex provenance, not BORME documents as substitute in consolidated legislation search.
+- VPS `python3 scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`.
+Next: Q-06
+
 === Iteration 1 - 2026-05-12T17:22:00+02:00 ===
 Story: Q-01 AEAT modelos - verify verified=true model responses and endpoint truth contract
 Queries tested: 5
