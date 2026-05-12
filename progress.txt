@@ -328,6 +328,39 @@ Learnings:
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
 
+=== Iteration Q-06 - 2026-05-12T21:05:00+02:00 ===
+Story: Q-06 EUR-Lex / MiFID II - verify real article content is returned
+Queries tested: 4
+Results: correct=2 honest_limit=2 incorrect=0
+Evidence:
+- QUERY: GET /v1/eurlex/buscar?q=MiFID mercado instrumentos financieros
+  DOMAIN: EUR-Lex
+  RESPONSE: total=1, referencia=MIFID2_2014_65, title="Directiva 2014/65/UE sobre los mercados de instrumentos financieros", coverage_status=article_text_available, verified=true, completeness=parcial.
+  OFFICIAL SOURCE: EUR-Lex ELI https://eur-lex.europa.eu/eli/dir/2014/65/oj and CELEX bridge EUR-CELEX-32014L0065.
+  VERDICT: CORRECT
+- QUERY: GET /v1/legislacion/MIFID2_2014_65/articulos/1
+  DOMAIN: EUR-Lex
+  RESPONSE: numero=1, boe_reference=EUR-CELEX-32014L0065, source_url=https://www.boe.es/buscar/act.php?id=EUR-CELEX-32014L0065#a1, texto starts "Ambito de aplicacion".
+  OFFICIAL SOURCE: Directive 2014/65/EU Article 1, CELEX 32014L0065.
+  VERDICT: CORRECT
+- QUERY: GET /v1/eurlex/CSDDD_2024_1760 and GET /v1/eurlex/AI_ACT_2024_1689
+  DOMAIN: EUR-Lex
+  RESPONSE: coverage_status=metadata_only, verified=false, completeness=parcial, evidence_notice includes evidence_limited.
+  OFFICIAL SOURCE: EUR-Lex metadata records are loaded, but no articulado is loaded in ESData for these entries.
+  VERDICT: HONEST-LIMIT
+- QUERY: GET /v1/buscar?q=MiFID II articulo 1
+  DOMAIN: Cross-domain search
+  RESPONSE: results point to MIFID2_2014_65 with EUR-CELEX-32014L0065 and do not return BOE national legislation as substitute.
+  OFFICIAL SOURCE: EUR-Lex Directive 2014/65/EU.
+  VERDICT: CORRECT
+Fixes applied:
+- `/v1/eurlex` now tokenizes `q` instead of requiring a full phrase match.
+- `/v1/eurlex/buscar` is an explicit alias so the MCP/API contract advertised in the quality story works.
+Verification run:
+- Local: `PYTHONPATH=apps;apps/api;apps/workers python -m pytest apps/api/tests/test_eurlex_router.py apps/api/tests/test_mcp_private.py::test_mcp_catalog_exposes_expected_core_http_operations -q --basetemp .pytest-tmp` -> 24 passed.
+- VPS: API rebuilt from commit `2cac9243`; Q-06 probes above PASS; `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> ok=true.
+Next: Q-07
+
 === Iteration Q-04 - 2026-05-12T18:49:00+02:00 ===
 Story: Q-04 BOE search - verify ranked results are legally correct and not contaminated
 Queries tested: 5

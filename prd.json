@@ -74,7 +74,7 @@
                             "id":  "Q-06",
                             "title":  "EUR-Lex / MiFID II - verify real article content is returned",
                             "priority":  6,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "MiFID II must return real article content, not metadata_only",
                                                        "CELEX identifier must be 32014L0065",
