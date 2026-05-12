@@ -339,8 +339,9 @@ Fixes applied:
 - No AEAT model campaign in production currently has explicit `completeness_estado='completa'`; Q-01 therefore closes as HONEST-LIMIT rather than upgrading confidence.
 Evidence:
 - Production DB check: `modelo_campana_operativa.completeness_estado` has `no-casillas-expected=6`, `NULL=11`, `completa=0`.
-- API sample after the contract fix must return non-null truth fields for `145`, `196`, `270`, `283`, `303`.
+- VPS API after deploy commit `50761d2`: `145=59`, `196=62`, `270=37`, `283=19`, `303=57`; all return `verified=false`, `completeness=parcial`. `303` returns `casillas_campana=2025` and notice: active 2026 has no parsed casillas, so official 2025 casillas are returned.
 - Official AEAT source URLs recorded in `modelo_recurso`: 145 `dr145v20.pdf`, 196 `DR_Mod_196_2023.pdf`, 270 `270_HAP_2368_2013.pdf`, 283 `DR_Modelo_283.pdf`, 303 `modelos-300-399.html` / instructions page.
+- VPS `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` with env API key -> `ok=true`.
 Learnings:
 - `casillas_total > 0` is evidence that official fields were loaded, not evidence that the model is authoritative for every operational question.
 - Endpoint-specific null truth fields are a quality defect because agents cannot distinguish limited evidence from missing metadata.
