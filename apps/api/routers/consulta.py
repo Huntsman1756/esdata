@@ -14,7 +14,7 @@ from middleware.metrics import (
 from schemas import ConsultaFiscalResponse
 from services.ai_disclaimer import get_ai_version
 from services.faithfulness import compute_faithfulness
-from services.grounding import validate_claim_grounding
+from services.grounding import apply_claim_level_abstention, validate_claim_grounding
 from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
 from request_context import get_request_id, get_user_id
@@ -725,7 +725,9 @@ def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
             "source_document": chunk.source_document,
             "article_number": chunk.article_number,
             "rerank_score": float(chunk.rerank_score),
+            "relevance_score": normalize_rerank_score(float(chunk.rerank_score)),
             "excerpt": chunk.text[:200],
+            "content_preview": chunk.text[:200],
         }
         for chunk in ranked_chunks
     ]
@@ -793,6 +795,33 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
             "citations": citations,
         })
     return claim_citations
+
+
+def _serialize_cited_chunks_for_response(cited_chunks: list[dict]) -> list[dict]:
+    serialized = []
+    for chunk in cited_chunks:
+        item = dict(chunk)
+        rerank_score = float(item.get("rerank_score") or 0.0)
+        item["rerank_score"] = rerank_score
+        item["relevance_score"] = normalize_rerank_score(rerank_score)
+        serialized.append(item)
+    return serialized
+
+
+def _serialize_claim_citations_for_response(claim_citations: list[dict]) -> list[dict]:
+    serialized = []
+    for claim_item in claim_citations:
+        citations = _serialize_cited_chunks_for_response(claim_item.get("citations") or [])
+        best = citations[0] if citations else {}
+        serialized.append(
+            {
+                **claim_item,
+                "citations": citations,
+                "confidence": float(best.get("relevance_score") or 0.0),
+                "source_url": best.get("source_url"),
+            }
+        )
+    return serialized
 
 
 def _collect_uncovered_query_terms(query: str, resultados: list[dict]) -> set[str]:
@@ -901,8 +930,18 @@ def _apply_abstention_if_needed(resultados: list[dict], confianza: dict) -> tupl
 def _apply_claim_level_abstention(
     resultados: list[dict],
     claim_citations: list[dict],
+    grounding_summary: dict | None = None,
+    confianza: dict | None = None,
 ) -> tuple[list[dict], dict]:
     """Remove ungrounded claims from results when grounding is insufficient."""
+    if grounding_summary is not None:
+        return apply_claim_level_abstention(
+            resultados,
+            grounding_summary,
+            confianza or {},
+            enriched_items=claim_citations,
+        )
+
     grounded_keys: set[str] = set()
     for item in claim_citations:
         if item.get("grounded"):
@@ -1269,8 +1308,11 @@ async def consulta_fiscal(
 
     # Apply claim-level abstention when grounding is insufficient
     if claim_citations and grounding_summary.get("grounding_status") in ("partial", "none"):
-        final_results, _ = _apply_claim_level_abstention(
-            final_results, claim_citations
+        final_results, confianza = _apply_claim_level_abstention(
+            final_results,
+            claim_citations,
+            grounding_summary,
+            confianza,
         )
     elif not claim_citations and not resolved_modelos and q:
         # No claim citations and no resolved modelos — check if grounding is empty

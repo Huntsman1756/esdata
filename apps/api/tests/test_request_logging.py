@@ -3,6 +3,7 @@
 import asyncio
 from pathlib import Path
 import sys
+import uuid
 from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -95,5 +96,5 @@ class TestRequestLoggingMiddleware:
 
         asyncio.run(middleware.dispatch(request, next_fn))
         rid = mock_response.headers["x-request-id"]
-        assert len(rid) == 8
-        assert all(c in "0123456789abcdef" for c in rid)  # hex truncated UUID
+        parsed = uuid.UUID(rid)
+        assert str(parsed) == rid

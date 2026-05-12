@@ -1201,7 +1201,10 @@ class ChunkCitation(BaseModel):
     source_document: str = Field(description="Documento fuente del chunk")
     article_number: str | None = Field(default=None, description="Numero de articulo si aplica")
     rerank_score: float = Field(description="Puntuacion de reranking")
+    relevance_score: float | None = Field(default=None, description="Puntuacion normalizada de relevancia")
     excerpt: str = Field(description="Vista previa del contenido del chunk")
+    content_preview: str | None = Field(default=None, description="Vista previa estable para clientes MCP/GPT")
+    source_url: str | None = Field(default=None, description="URL oficial de la fuente si esta disponible")
 
 
 class ClaimCitation(BaseModel):

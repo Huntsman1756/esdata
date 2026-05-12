@@ -186,8 +186,9 @@ async def listar_convenios_dta(
         for row in rows:
             d = dict(row)
             for k in ("fecha_firma", "fecha_vigencia"):
-                if d.get(k) is not None:
-                    d[k] = d[k].isoformat()
+                value = d.get(k)
+                if value is not None and hasattr(value, "isoformat"):
+                    d[k] = value.isoformat()
             convenios.append(d)
 
         total = db.execute(

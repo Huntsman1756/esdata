@@ -202,7 +202,8 @@ def test_run_sync_creates_sync_log(engine):
 def test_run_sync_handles_api_error(engine):
     """run_sync maneja errores de API gracefully."""
     with patch("rirnr.httpx.Client") as mock_client_class, \
-         patch("rirnr.create_engine", return_value=engine):
+         patch("rirnr.create_engine", return_value=engine), \
+         patch("rirnr.handle_worker_failure", return_value=True):
 
         mock_client_class.side_effect = Exception("Connection refused")
 

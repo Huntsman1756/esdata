@@ -16,6 +16,7 @@ Usage:
 
 import argparse
 import hashlib
+import logging
 import os
 import re
 import time

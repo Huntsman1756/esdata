@@ -140,7 +140,9 @@ def test_empty_domain_router_uses_explicit_availability_status():
 )
 def test_empty_domain_router_extended_tables_use_availability_envelope(path):
     from main import app
+    from middleware.domain_availability import invalidate_cache
 
+    invalidate_cache()
     with TestClient(app) as client:
         response = client.get(path, headers={"x-api-key": "test-secret-key"})
 

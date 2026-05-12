@@ -153,7 +153,17 @@ def parse_boe_table_fields(xml_text: str) -> list[dict]:
             if not codigo_raw:
                 continue
 
-            descripcion = _get_cell_text(cells[1]) if len(cells) > 1 else ""
+            second_cell = _get_cell_text(cells[1]) if len(cells) > 1 else ""
+            third_cell = _get_cell_text(cells[2]) if len(cells) > 2 else ""
+            nature_candidate = second_cell.strip().upper().rstrip(".")
+            if len(cells) > 2 and nature_candidate in {"A", "AN", "N", "NUMERICO", "ALFABETICO", "ALFANUMERICO"}:
+                naturaleza = second_cell
+                descripcion = third_cell
+            elif len(cells) == 2 and nature_candidate in {"A", "AN", "N", "NUMERICO", "ALFABETICO", "ALFANUMERICO"}:
+                continue
+            else:
+                naturaleza = "N"
+                descripcion = second_cell
 
             # Zero-pad numeric codes to 4 digits
             if codigo_raw.isdigit():
@@ -163,7 +173,7 @@ def parse_boe_table_fields(xml_text: str) -> list[dict]:
 
             fields.append({
                 "codigo": codigo,
-                "naturaleza": "N",
+                "naturaleza": naturaleza,
                 "descripcion": descripcion,
             })
 

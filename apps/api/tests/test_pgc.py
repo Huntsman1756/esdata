@@ -17,8 +17,9 @@ WORKERS_DIR = Path(__file__).resolve().parents[2] / "workers"
 
 def _prepend_workers_dir():
     wdir = str(WORKERS_DIR)
-    if wdir not in sys.path:
-        sys.path.insert(0, wdir)
+    while wdir in sys.path:
+        sys.path.remove(wdir)
+    sys.path.insert(0, wdir)
 
 
 def _client():

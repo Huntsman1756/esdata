@@ -108,6 +108,37 @@ def build_modelo_truth_contract(
     )
 
 
+def _modelo_evidence_status(completeness: str, verified: bool) -> str:
+    if completeness == "parcial" or not verified:
+        return "evidence_limited"
+    if completeness == "no-casillas-expected":
+        return "no_casillas_expected"
+    if completeness == "deprecated":
+        return "deprecated"
+    return "verified"
+
+
+def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
+    if completeness == "no-casillas-expected":
+        return (
+            "ESData tiene verificado que este modelo no dispone de casillas "
+            "estructuradas esperadas en la campana consultada. No inferir "
+            "obligatoriedad por supuesto concreto."
+        )
+    if completeness == "deprecated":
+        return (
+            "ESData tiene verificado que este modelo no esta vigente o queda "
+            "clasificado como deprecated. No presentarlo como modelo actual."
+        )
+    if completeness == "parcial" or not verified:
+        return (
+            "Evidencia limitada: ESData expone solo los campos/fuentes oficiales "
+            "cargados para este modelo y no prueba instrucciones completas, "
+            "obligatoriedad ni aplicabilidad a un supuesto concreto."
+        )
+    return "ESData tiene evidencia suficiente para el contrato operativo declarado."
+
+
 def get_modelo_runtime_truth_contract(
     db, codigo: str, campana: str | None = None
 ) -> tuple[str, bool]:
@@ -993,6 +1024,8 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
         "completeness_estado": explicit_completeness,
         "completeness": completeness,
         "verified": verified,
+        "evidence_status": _modelo_evidence_status(completeness, verified),
+        "evidence_notice": _modelo_evidence_notice(completeness, verified),
         "fuentes_recomendadas": (fuentes or {}).get("fuentes_oficiales", []),
     }
 

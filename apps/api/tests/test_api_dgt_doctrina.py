@@ -20,7 +20,7 @@ async def client():
 
 
 def _seed_dgt_fixture(reference: str, metodo_enlace: str, confianza_enlace: float):
-    from conftest import engine
+    engine = app.state.engine
 
     with engine.begin() as conn:
         conn.execute(

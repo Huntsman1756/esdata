@@ -366,7 +366,8 @@ def test_run_sync_creates_sync_log(engine):
 def test_run_sync_handles_api_error(engine):
     """run_sync maneja errores de API gracefully y registra error en sync_log."""
     with patch("ley13_2023.httpx.Client") as mock_client_class, \
-         patch("ley13_2023.create_engine", return_value=engine):
+         patch("ley13_2023.create_engine", return_value=engine), \
+         patch("ley13_2023.handle_worker_failure", return_value=True):
 
         mock_client_class.side_effect = Exception("Connection refused to BOE API")
 

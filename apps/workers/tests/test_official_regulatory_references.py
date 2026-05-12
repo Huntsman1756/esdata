@@ -129,6 +129,7 @@ def test_official_references_checks_database_connection_before_sync(monkeypatch)
     monkeypatch.setattr(official_regulatory_references, "upsert_pbc_obligated_subjects", lambda _conn, _worker: 4)
     monkeypatch.setattr(official_regulatory_references, "upsert_screening_lists", lambda _conn, _worker: 5)
     monkeypatch.setattr(official_regulatory_references, "upsert_irs_references", lambda _conn, _worker: {"irs": 6})
+    monkeypatch.setattr(official_regulatory_references, "upsert_international_obligations", lambda _conn, _worker: 8)
     monkeypatch.setattr(official_regulatory_references, "upsert_aeat_model_references", lambda _conn, _worker: {"aeat": 7})
     monkeypatch.setattr(
         official_regulatory_references,
@@ -146,5 +147,6 @@ def test_official_references_checks_database_connection_before_sync(monkeypatch)
         "pbc_obligated_subjects": 4,
         "screening_lists": 5,
         "irs": 6,
+        "obligacion_internacional": 8,
         "aeat": 7,
     }

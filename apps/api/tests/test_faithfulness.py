@@ -79,7 +79,7 @@ def test_compute_confianza_keeps_faithfulness_as_advisory_signal():
     assert confianza["review_required"] is False
 
 
-def test_apply_abstention_does_not_fail_closed_only_for_low_faithfulness():
+def test_apply_abstention_fail_closes_low_faithfulness_without_evidence():
     from routers.consulta import _apply_abstention_if_needed
 
     resultados = [{"tipo": "normativa", "codigo": "LIS", "articulo": "14"}]
@@ -92,5 +92,8 @@ def test_apply_abstention_does_not_fail_closed_only_for_low_faithfulness():
 
     final_results, updated_confianza = _apply_abstention_if_needed(resultados, confianza)
 
-    assert final_results == resultados
-    assert updated_confianza == confianza
+    assert final_results == []
+    assert updated_confianza["review_required"] is True
+    assert updated_confianza["faithfulness_score"] == 0.0
+    assert updated_confianza["faithfulness_label"] == "baja"
+    assert updated_confianza["aviso"]

@@ -405,6 +405,7 @@ def test_run_sync_uses_configurable_ssl_verification(monkeypatch):
     monkeypatch.setattr("dgt_doctrina.create_engine", lambda *args, **kwargs: FakeEngine())
     monkeypatch.setattr("dgt_doctrina._ensure_sync_log_table", lambda conn: None)
     monkeypatch.setattr("dgt_doctrina.log_sync", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dgt_doctrina.handle_worker_failure", lambda *args, **kwargs: True)
 
     with pytest.raises(RuntimeError, match="stop after client init"):
         run_sync(seed_urls=[])

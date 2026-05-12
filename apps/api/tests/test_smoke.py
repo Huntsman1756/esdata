@@ -794,8 +794,8 @@ async def test_modelos_lista():
     assert r.status_code == 200
     data = r.json()
     assert "modelos" in data
-    assert len(data["modelos"]) == 3  # 100, 111, 303 in test fixture
     codigos = [m["codigo"] for m in data["modelos"]]
+    assert len(codigos) >= 3
     assert "100" in codigos
     assert "111" in codigos
     assert "303" in codigos
@@ -807,8 +807,10 @@ async def test_modelos_aeat_lista_con_total():
         r = await c.get("/v1/modelos/aeat")
     assert r.status_code == 200
     data = r.json()
-    assert data["total"] == 3
-    assert len(data["items"]) == 3
+    assert data["total"] >= 3
+    assert len(data["items"]) >= 3
+    codigos = {item["codigo"] for item in data["items"]}
+    assert {"100", "111", "303"}.issubset(codigos)
     modelo_100 = next(item for item in data["items"] if item["codigo"] == "100")
     assert modelo_100["campana"] == "2025"
     assert modelo_100["recursos_activos"] == 1

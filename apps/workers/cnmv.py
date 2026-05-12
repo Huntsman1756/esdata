@@ -1294,7 +1294,7 @@ def run_sync(
         entity_id = "cnmv"
         if not handle_worker_failure(engine, "cnmv", entity_id, "sync_entity", exc):
             logger.warning("Entity cnmv moved to dead-letter")
-            return {"processed": 0, "stored": 0}
+            return {"processed": 0, "stored": 0, "discovered": discovered}
         with engine.begin() as conn:
             log_sync(
                 conn,

@@ -158,8 +158,8 @@ class TestTypeFiltering:
         )
 
         invoked = Counter()
-        register_invalidation_callback("model_cache", lambda: invoked["model"]())
-        register_invalidation_callback("config_cache", lambda: invoked["config"]())
+        register_invalidation_callback("model_cache", lambda: invoked.update({"model": 1}))
+        register_invalidation_callback("config_cache", lambda: invoked.update({"config": 1}))
 
         invalidate_by_type("config", "test")
         assert invoked == Counter({"config": 1})
@@ -551,14 +551,13 @@ class TestMemoryImpact:
             )
 
             invalidate_all(reason="growth_test")
-            del cache_holder[0]
             gc.collect()
 
             # Measure approximate memory
             sizes.append(sys.getsizeof(cache_holder[0]))
 
-        # All should be 0 (cleared)
-        assert all(s == 0 for s in sizes), f"Memory leak detected: {sizes}"
+        # All measurements should be the singleton None size after invalidation.
+        assert all(s == sys.getsizeof(None) for s in sizes), f"Memory leak detected: {sizes}"
 
     def test_multiple_invalidations_dont_accumulate_callbacks(self):
         """Invalidating the same callback multiple times should not duplicate."""
@@ -694,8 +693,8 @@ class TestRealWorldSimulation:
             nonlocal update_count
             try:
                 for _ in range(10):
-                    state["model_cache"]["v"] += 1
-                    state["config_cache"]["v"] += 1
+                    state["model_cache"]["v"] = state["model_cache"].get("v", 0) + 1
+                    state["config_cache"]["v"] = state["config_cache"].get("v", 0) + 1
                     invalidate_all(reason="legislation_update")
                     with lock:
                         update_count += 1

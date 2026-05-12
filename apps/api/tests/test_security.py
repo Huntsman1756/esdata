@@ -4,6 +4,7 @@ import importlib
 import os
 from pathlib import Path
 import sys
+import uuid
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -35,7 +36,8 @@ async def test_security_headers_include_request_id():
         r = await c.get("/health")
 
     request_id = r.headers["x-request-id"]
-    assert len(request_id) == 8  # truncated UUID hex
+    parsed = uuid.UUID(request_id)
+    assert str(parsed) == request_id
 
 
 @pytest.mark.asyncio
@@ -98,7 +100,10 @@ async def test_rate_limiting_active_on_mcp():
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
-            r = await c.get("/mcp", headers={"x-api-key": "test-mcp-key"})
+            r = await c.get(
+                "/mcp",
+                headers={"x-api-key": "test-mcp-key", "accept": "text/event-stream"},
+            )
 
         assert r.status_code != 401
         assert r.status_code != 429
