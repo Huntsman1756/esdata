@@ -14,12 +14,12 @@ Limitaciones conocidas:
 """
 
 import argparse
-from contextlib import contextmanager
 import logging
 import os
 import re
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
@@ -27,7 +27,6 @@ from xml.etree import ElementTree as ET
 import httpx
 from runtime import (
     ensure_database_connection,
-    handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
 )
@@ -56,7 +55,7 @@ DEFAULT_NORMAS = {
     "LIRPF": "BOE-A-2006-20764",
     "LIS": "BOE-A-2014-12328",
     "LGT": "BOE-A-2003-23186",
-    "ITPAJD": "BOE-A-1993-253",
+    "ITPAJD": "BOE-A-1993-25359",
     # Added 2026-05-09 per audit: compliance domains gap
     "LEY10_2010": "BOE-A-2010-6737",       # Ley 10/2010 Prevencion blanqueo capitales (SEPBLAC)
     "RDL19_2018": "BOE-A-2018-16036",      # RDL 19/2018 Servicios de pago — implementa PSD2 en Espana
@@ -1126,7 +1125,7 @@ def run_sync(
                         touch_heartbeat()
                         try:
                             bloques = fetch_block_versions(client, boe_id, item.id)
-                        except ValueError as exc:
+                        except (ValueError, httpx.HTTPError) as exc:
                             block_errors.append(f"{item.id}: {exc}")
                             logger.warning(
                                 "Skipping BOE block %s/%s: %s",

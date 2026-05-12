@@ -10,16 +10,17 @@ Usage:
     python scripts/ops/export-gpt-openapi.py --output docs/openapi-gpt.json
 """
 
-import json
 import argparse
-from pathlib import Path
+import json
 import sys
 from copy import deepcopy
+from pathlib import Path
 
 # Allow importing from apps/api
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
 from main import app
+from mcp_catalog import HTTP_MCP_OPERATIONS
 
 # ---------------------------------------------------------------------------
 # Curated list of paths to expose to the GPT
@@ -35,6 +36,14 @@ INCLUDE_PATHS = {
     "/v1/legislacion/{codigo}/articulos/{numero}",
     "/v1/doctrina/buscar",
     "/v1/doctrina/{referencia}",
+    "/v1/boe-diario",
+    "/v1/boe-diario/{referencia}",
+    "/v1/aepd",
+    "/v1/aepd/buscar",
+    "/v1/aepd/{referencia}",
+    "/v1/cnmv/buscar",
+    "/v1/cnmv/{referencia}",
+    "/v1/mica/casp/buscar",
     "/v1/modelos",
     "/v1/modelos/{codigo}",
     "/v1/modelos/{codigo}/casillas",
@@ -64,6 +73,14 @@ INCLUDE_SCHEMAS = {
     "ModeloCampana",
     "DoctrinaRelacionada",
     "DoctrinaViaArticulo",
+    "BOEDiarioListResponse",
+    "BOEDiarioListItem",
+    "BOEDiarioDetail",
+    "DocInterpretativoListResponse",
+    "DocInterpretativoListItem",
+    "DocInterpretativoDetail",
+    "CASPListResponse",
+    "CASPSummary",
     "HTTPValidationError",
     "ValidationError",
 }
@@ -146,6 +163,35 @@ OPERATION_OVERRIDES = {
         "description": (
             "Get a specific doctrine document by reference (e.g. V0000-26, 00/1234/2024). "
             "Returns full text, linked articles, and confidence information."
+        ),
+    },
+    "listar_aepd": {
+        "summary": "List AEPD documents",
+        "description": (
+            "List official AEPD documents loaded by ESData. Responses include `items`, "
+            "`total`, `url_aepd`, and pagination metadata. Do not treat missing "
+            "sanctioning resolutions as loaded unless the response explicitly returns them."
+        ),
+    },
+    "buscar_aepd": {
+        "summary": "Search AEPD documents",
+        "description": (
+            "Search official AEPD documents by title or text. Use `url_aepd`/`url_fuente` "
+            "as the cited official source and do not mix these guidance/document results "
+            "with consolidated BOE legal articles."
+        ),
+    },
+    "get_aepd": {
+        "summary": "Get AEPD document detail",
+        "description": "Return full text and official AEPD source URL for a loaded AEPD document.",
+    },
+    "buscar_casp": {
+        "summary": "Search ESMA MiCA CASP register",
+        "description": (
+            "Search the loaded ESMA MiCA Crypto-Asset Service Providers register by "
+            "provider name or registration number. Treat results as authoritative only "
+            "when quality_signal is official_esma_register and availability_status is populated. "
+            "If safe_to_answer is false, do not infer that a provider is absent from the real register."
         ),
     },
     "list_modelos": {
@@ -282,22 +328,25 @@ def _simplify_for_gpt(node):
 
 def export(openapi_version: str | None = None, output_path: str | None = None):
     spec = app.openapi()
+    included_operation_ids = set(HTTP_MCP_OPERATIONS)
 
     # Filter paths
     filtered_paths = {}
     for path, methods in spec.get("paths", {}).items():
-        if path in INCLUDE_PATHS:
-            filtered_methods = {}
-            for method, op in methods.items():
-                op = deepcopy(op)
-                op_id = op.get("operationId", "")
-                if op_id in OPERATION_OVERRIDES:
-                    override = OPERATION_OVERRIDES[op_id]
-                    if "summary" in override:
-                        op["summary"] = override["summary"]
-                    if "description" in override:
-                        op["description"] = override["description"]
-                filtered_methods[method] = op
+        filtered_methods = {}
+        for method, op in methods.items():
+            op_id = op.get("operationId", "")
+            if path not in INCLUDE_PATHS and op_id not in included_operation_ids:
+                continue
+            op = deepcopy(op)
+            if op_id in OPERATION_OVERRIDES:
+                override = OPERATION_OVERRIDES[op_id]
+                if "summary" in override:
+                    op["summary"] = override["summary"]
+                if "description" in override:
+                    op["description"] = override["description"]
+            filtered_methods[method] = op
+        if filtered_methods:
             filtered_paths[path] = filtered_methods
 
     all_schemas = spec.get("components", {}).get("schemas", {})

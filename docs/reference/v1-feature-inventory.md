@@ -90,7 +90,7 @@ Major mounted API domains:
 | Fiscal aggregate query | 1 | implemented/partial | `/v1/consulta` with confidence, citations, review flags and fail-closed behavior. |
 | AEAT models | 15 | implemented/partial | Model list/detail/campaigns/casillas/claves/instructions/normativa/artifacts/fuentes and `por-supuesto`. |
 | Doctrine and DGT doctrine | 5 | implemented/partial | General doctrine plus DGT rendimiento endpoints. DGT upstream is source-fragile. |
-| CNMV/BDE/AEPD/CENDOJ/EUR-Lex documents | 13 | implemented/partial | Document list/detail, CNMV versions/relations/obligations. EUR-Lex depth partial. |
+| CNMV/BDE/AEPD/CENDOJ/EUR-Lex/BOE diario documents | 15 | implemented/partial | Document list/detail, CNMV versions/relations/obligations, BOE diario XML/PDF, EUR-Lex depth partial. |
 | Obligations, compliance, playbooks and changes | 16 | implemented/partial | Operational compliance and regulatory change workflows. |
 | Domain availability and source freshness | 5 | implemented | Explicit `workflow_empty`, `allowed_empty`, `configured_but_unavailable` semantics. |
 | Data governance and audit | 8 | hidden/internal implemented | Query audit, AI audit, lineage, quality, catalog, observability. |
@@ -314,6 +314,7 @@ Documentation warning:
 | Worker/job | Trigger | Status | Notes |
 |---|---|---|---|
 | `worker-boe` / `cron-boe-daily` | continuous + daily | implemented | BOE consolidated legislation into `norma`, `articulo`, `version_articulo`. |
+| `cron-boe-diario-daily` | daily | implemented | BOE non-consolidated `BOE-B/S/N` XML/PDF documents into `documento_interpretativo`; separate from consolidated legislation. |
 | `worker-boe-modelos` / `cron-boe-modelos-daily` | continuous + daily | partial | BOE modelos/casillas; some BOE ID mappings missing by artifact. |
 | `worker-dgt` / `cron-dgt-weekly` | continuous + weekly | partial | Petete/DGT is source-fragile; transient 502/503/504/session failures now log `partial` instead of poisoning DLQ as unrecoverable errors. |
 | `worker-teac` / `cron-teac-weekly` | continuous + weekly | implemented | TEAC doctrine. |
@@ -329,6 +330,8 @@ Documentation warning:
 | `worker-cdi` / `cron-cdi-weekly` | continuous + weekly | implemented | CDI/DTA conventions into IRS DTA convention tables. |
 | `worker-aepd` / `cron-aepd-weekly` | continuous + weekly | implemented | AEPD documents. |
 | `cron-regulatory-daily` | daily | implemented | Watches BOE, AEAT, EUR-Lex, AEPD, BDE, DGT into `source_revision`. |
+| `official-regulatory-references` | weekly | implemented | Loads compact official regulatory references and records sync telemetry. |
+| `cron-pgc-boe-monthly` | monthly | implemented | PGC BOE official-source ingestion. |
 | `cron-psd2-weekly` | weekly | partial | EBA primary unavailable in artifact; uses BdE-verified fallback. |
 | `cron-giin-monthly` | monthly | implemented | IRS FATCA GIIN. |
 | `cron-ofac-sdn-weekly` | weekly | implemented/partial | OFAC SDN only, official XML source. |
@@ -360,11 +363,13 @@ Examples include:
 - `ley*.py`
 - `mar_mifid.py`
 - `mifid_mar_dora.py`
-- `official_regulatory_references.py`
 - `pbc.py`
-- `pgc*.py`
+- `pgc.py`
+- `pgc_real.py`
+- `pgc_xbrl_mapping.py`
 - `priips_ownership.py`
 - `prospectos.py`
+- `psd2.py`
 - `rirnr.py`
 - `screening.py`
 - `screening_real.py`

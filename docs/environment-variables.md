@@ -75,6 +75,10 @@
 | `TEAC_SEED_URLS` | Si | | `runtime deploy` | Worker TEAC + cron |
 | `TEAC_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker TEAC |
 | `MODELOS_SYNC_INTERVAL` | No | `86400` | `runtime deploy` | Worker Modelos |
+| `BOE_DIARIO_IDS` | No | vacio | `runtime deploy` | Lista CSV explicita de `BOE-B/S/N` para `cron-boe-diario-daily`; si queda vacia usa discovery por sumario oficial |
+| `BOE_DIARIO_DAYS_BACK` | No | `1` | `runtime deploy` | Dias hacia atras para discovery de BOE diario |
+| `BOE_DIARIO_MAX_IDS_PER_RUN` | No | `10` | `runtime deploy` | Limite de documentos BOE diario por ejecucion |
+| `BOE_DIARIO_FETCH_PDF_FALLBACK` | No | `true` | `runtime deploy` | Permite fallback PDF oficial si el XML diario no trae texto |
 | `WORKER_REQUEST_DELAY` | No | `1.0` | `runtime deploy` | Workers BOE/DGT/TEAC/BDNS/BORME/CNMV/SEPBLAC/CENDOJ/EUR-Lex/BDE/AEPD/AEAT |
 
 ### Cron y observabilidad
@@ -82,6 +86,7 @@
 | Variable | Requerida | Default | Estado | Uso |
 |----------|-----------|---------|--------|-----|
 | `HC_PING_URL_CRON_BOE_DAILY` | No | vacio | `runtime deploy` | `cron-boe-daily` |
+| `HC_PING_URL_CRON_BOE_DIARIO_DAILY` | No | vacio | `runtime deploy` | `cron-boe-diario-daily` |
 | `HC_PING_URL_CRON_DGT_WEEKLY` | No | vacio | `runtime deploy` | `cron-dgt-weekly` |
 | `HC_PING_URL_CRON_TEAC_WEEKLY` | No | vacio | `runtime deploy` | `cron-teac-weekly` |
 | `HC_PING_URL_CRON_MODELOS_DAILY` | No | vacio | `runtime deploy` | `cron-modelos-daily` |

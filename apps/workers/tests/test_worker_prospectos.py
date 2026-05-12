@@ -363,7 +363,8 @@ def test_run_sync_creates_sync_log(engine):
 def test_run_sync_handles_api_error(engine):
     """run_sync maneja errores de API gracefully y registra error en sync_log."""
     with patch("prospectos.httpx.Client") as mock_client_class, \
-         patch("prospectos.create_engine", return_value=engine):
+         patch("prospectos.create_engine", return_value=engine), \
+         patch("prospectos.handle_worker_failure", return_value=True):
 
         mock_client_class.side_effect = Exception("Connection refused to EUR-Lex")
 

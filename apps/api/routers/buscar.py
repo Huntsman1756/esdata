@@ -55,6 +55,9 @@ def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
                 "vigente_desde": None,
                 "vigente_hasta": None,
                 "rank": 1.0,
+                "fuente_norma": "AEAT",
+                "source_url": row.get("url_info"),
+                "boe_reference": None,
                 "confianza": {
                     "nivel": 2,
                     "fuentes": [row["url_info"]] if row.get("url_info") else [],
@@ -64,6 +67,71 @@ def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
             for row in rows
         ],
     }
+
+
+def _buscar_iva_tipo_fallback(q: str) -> dict | None:
+    lowered_query = q.lower()
+    if "iva" not in lowered_query:
+        return None
+    if not any(marker in lowered_query for marker in ("tipo", "21", "general", "impositivo")):
+        return None
+
+    with db_session() as db:
+        row = db.execute(
+            text(
+                """
+                SELECT
+                    n.codigo AS norma,
+                    n.boe_id AS boe_reference,
+                    n.eli_uri AS source_url,
+                    a.numero AS numero,
+                    va.texto AS texto,
+                    NULL AS source_hash
+                FROM norma n
+                JOIN articulo a ON a.norma_id = n.id
+                JOIN version_articulo va ON va.articulo_id = a.id
+                WHERE n.codigo = 'LIVA'
+                  AND a.numero = '90'
+                  AND va.vigente_hasta IS NULL
+                LIMIT 1
+                """
+            )
+        ).mappings().first()
+
+    if not row:
+        return None
+
+    texto = row["texto"] or ""
+    fragmento = texto[:220] + ("..." if len(texto) > 220 else "")
+    source_url = row["source_url"]
+    if row["boe_reference"]:
+        source_url = f"https://www.boe.es/buscar/act.php?id={row['boe_reference']}#a{row['numero']}"
+    return {
+        "q": q,
+        "resultados": [
+            {
+                "tipo": "articulo",
+                "norma": row["norma"],
+                "numero": row["numero"],
+                "texto": texto,
+                "fragmento": fragmento,
+                "vigente_desde": None,
+                "vigente_hasta": None,
+                "rank": 1.0,
+                "fuente_norma": row["norma"],
+                "boe_reference": row["boe_reference"],
+                "source_url": source_url,
+                "source_hash": row["source_hash"],
+                "motivo_ranking": "fallback_structured_liva_tipo_general",
+                "confianza": {
+                    "nivel": 2,
+                    "fuentes": [source_url] if source_url else [],
+                    "aviso": None,
+                },
+            }
+        ],
+    }
+
 
 def _build_legislacion_audit_chunks(result: dict) -> list[dict]:
     chunks: list[dict] = []
@@ -128,6 +196,10 @@ async def buscar(
     result = _buscar_comparacion_modelos_aeat(q)
     if result is None:
         result = search_legislacion(q, norma, fuente, ambito, tipo, vigente_en)
+    if not result.get("resultados"):
+        fallback = _buscar_iva_tipo_fallback(q)
+        if fallback is not None:
+            result = fallback
     _record_search_query_audit(
         request,
         path="/v1/buscar",

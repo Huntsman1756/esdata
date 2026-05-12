@@ -3,6 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import official_regulatory_references
 from official_regulatory_references import (
     CSRD_ESRS_ROWS,
     CSRD_SOURCE_URL,
@@ -90,3 +91,62 @@ def test_irs_reference_rows_use_official_sources_and_are_minimal():
 def test_aeat_obligation_models_are_explicit_allowlist():
     assert {"100", "200", "303", "390"}.issubset(set(AEAT_OBLIGATION_MODELS))
     assert all(code.isdigit() for code in AEAT_OBLIGATION_MODELS)
+
+
+def test_official_references_checks_database_connection_before_sync(monkeypatch):
+    calls = []
+
+    class FakeConnection:
+        pass
+
+    class FakeTransaction:
+        def __enter__(self):
+            return FakeConnection()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeEngine:
+        def begin(self):
+            return FakeTransaction()
+
+    fake_engine = FakeEngine()
+
+    monkeypatch.setattr(official_regulatory_references, "create_engine", lambda *_args, **_kwargs: fake_engine)
+    monkeypatch.setattr(
+        official_regulatory_references,
+        "ensure_database_connection",
+        lambda engine, logger=None: calls.append(("ensure", engine)),
+    )
+    monkeypatch.setattr(
+        official_regulatory_references,
+        "_ensure_sync_log_table",
+        lambda _conn: calls.append("ensure_sync_log"),
+    )
+    monkeypatch.setattr(official_regulatory_references, "upsert_csrd_ess", lambda _conn, _worker: 1)
+    monkeypatch.setattr(official_regulatory_references, "upsert_dora_incident_framework", lambda _conn, _worker: 2)
+    monkeypatch.setattr(official_regulatory_references, "upsert_sepa_rules", lambda _conn, _worker: 3)
+    monkeypatch.setattr(official_regulatory_references, "upsert_pbc_obligated_subjects", lambda _conn, _worker: 4)
+    monkeypatch.setattr(official_regulatory_references, "upsert_screening_lists", lambda _conn, _worker: 5)
+    monkeypatch.setattr(official_regulatory_references, "upsert_irs_references", lambda _conn, _worker: {"irs": 6})
+    monkeypatch.setattr(official_regulatory_references, "upsert_international_obligations", lambda _conn, _worker: 8)
+    monkeypatch.setattr(official_regulatory_references, "upsert_aeat_model_references", lambda _conn, _worker: {"aeat": 7})
+    monkeypatch.setattr(
+        official_regulatory_references,
+        "log_sync",
+        lambda *_args, **_kwargs: calls.append("log_sync"),
+    )
+
+    result = official_regulatory_references.run_sync()
+
+    assert calls[0] == ("ensure", fake_engine)
+    assert result == {
+        "csrd_ess": 1,
+        "dora_framework": 2,
+        "sepa_rules": 3,
+        "pbc_obligated_subjects": 4,
+        "screening_lists": 5,
+        "irs": 6,
+        "obligacion_internacional": 8,
+        "aeat": 7,
+    }

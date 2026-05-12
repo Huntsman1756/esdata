@@ -26,8 +26,14 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from change_detection import (
+    check_content_changed,
+    destination_row_exists,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
 from runtime import (
-    configure_logging,
     ensure_database_connection,
     get_bool_env,
     get_database_url,
@@ -35,14 +41,6 @@ from runtime import (
     handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
-    init_sentry,
-)
-from change_detection import (
-    check_content_changed,
-    destination_row_exists,
-    ensure_source_revision_table,
-    invalidate_old_embeddings,
-    record_revision,
 )
 
 EURLEX_BASE = os.getenv(
@@ -268,6 +266,41 @@ def _is_supported_block(titulo: str) -> bool:
 
 def _yyyymmdd_to_iso(value: str) -> str:
     return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+
+
+def _normalize_celex(value: str) -> str:
+    return value.strip().replace("EUR-CELEX-", "").upper()
+
+
+def _csv_env_set(name: str) -> set[str]:
+    raw = os.getenv(name, "")
+    if not raw.strip():
+        return set()
+    return {_normalize_celex(item) for item in raw.split(",") if item.strip()}
+
+
+def _int_env(name: str, default: int = 0) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"  [WARN] Invalid integer for {name}={raw!r}; using {default}")
+        return default
+
+
+def _selected_seed_normas(normas: list[dict]) -> list[dict]:
+    allowlist = _csv_env_set("EURLEX_ONLY_CELEX") or _csv_env_set("EURLEX_CELEX_ALLOWLIST")
+    selected = [
+        norma
+        for norma in normas
+        if not allowlist or _normalize_celex(norma["boe_id"]) in allowlist
+    ]
+    max_docs = _int_env("EURLEX_MAX_CELEX_PER_RUN", 0)
+    if max_docs > 0:
+        selected = selected[:max_docs]
+    return selected
 
 
 # ============================================================
@@ -826,6 +859,97 @@ def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
     )
 
 
+def _table_columns(conn, table: str) -> set[str]:
+    dialect = conn.engine.dialect.name
+    if dialect == "sqlite":
+        rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+        return {row[1] for row in rows}
+    rows = conn.execute(
+        text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = :table
+            """
+        ),
+        {"table": table},
+    ).fetchall()
+    return {row[0] for row in rows}
+
+
+def _eurlex_quality_columns_available(conn) -> bool:
+    columns = _table_columns(conn, "norma")
+    return {"articles_expected", "articles_parsed", "quality_status", "quality_checked_at"} <= columns
+
+
+def _count_parsed_articles(conn, codigo: str) -> int:
+    return int(
+        conn.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM version_articulo va
+                JOIN articulo a ON a.id = va.articulo_id
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = :codigo
+                  AND n.tipo_fuente = 'eurlex'
+                  AND va.vigente_hasta IS NULL
+                  AND COALESCE(va.texto, '') <> ''
+                """
+            ),
+            {"codigo": codigo},
+        ).scalar()
+        or 0
+    )
+
+
+def _quality_status(expected: int | None, parsed: int, empty_official: int = 0) -> str:
+    if parsed <= 0:
+        return "metadata_only"
+    if expected is not None and expected > parsed + empty_official:
+        return "partial"
+    return "article_text_available"
+
+
+def update_eurlex_quality(
+    conn,
+    codigo: str,
+    expected: int | None,
+    empty_official: int = 0,
+) -> None:
+    if not _eurlex_quality_columns_available(conn):
+        return
+    parsed = _count_parsed_articles(conn, codigo)
+    has_empty_official = "articles_empty_official" in _table_columns(conn, "norma")
+    set_empty_official = (
+        ", articles_empty_official = :empty_official" if has_empty_official else ""
+    )
+    params = {
+        "codigo": codigo,
+        "expected": expected,
+        "parsed": parsed,
+        "quality_status": _quality_status(expected, parsed, empty_official),
+        "checked_at": datetime.now(UTC).isoformat(),
+        "empty_official": empty_official,
+    }
+    conn.execute(
+        text(
+            f"""
+            UPDATE norma
+            SET articles_expected = :expected,
+                articles_parsed = :parsed,
+                quality_status = :quality_status,
+                quality_checked_at = :checked_at
+                {set_empty_official}
+            WHERE codigo = :codigo
+              AND tipo_fuente = 'eurlex'
+            """
+        ),
+        params,
+    )
+
+
 def _eli_path(boe_id: str) -> str:
     """Convert EUR-CELEX-32014L0065 -> reg/2014/65/oj or dir/2014/65/oj.
 
@@ -960,8 +1084,32 @@ _SYNC_LOG_BOOTSTRAP_LOGGED: set[str] = set()
 
 
 def _ensure_sync_log_table(conn) -> None:
-    """Garantiza tabla `sync_log` (no-op; schema owned por Alembic)."""
+    """Ensure sync_log exists for SQLite tests; production schema is Alembic-owned."""
     dialect = conn.engine.dialect.name
+    if dialect == "sqlite":
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+        return
     if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
         _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
 
@@ -1048,20 +1196,25 @@ def run_sync(  # noqa: C901
             ensure_source_revision_table(conn)
 
             # Phase 1: Process hardcoded CELEXs
-            for norma_def in EURLEX_NORMAS:
+            seed_normas = _selected_seed_normas(EURLEX_NORMAS)
+            for norma_def in seed_normas:
                 celex = norma_def["boe_id"].replace("EUR-CELEX-", "")
                 vigente_desde = norma_def["vigente_desde"]
                 upsert_norma(conn, norma_def, vigente_desde)
                 normas_upserted += 1
 
                 if not fetch_articles:
+                    update_eurlex_quality(conn, norma_def["codigo"], None)
                     continue
 
                 index = fetch_index(client, celex)
                 if not index:
                     print(f"  [SKIP] {celex} has no index")
                     skipped_no_index += 1
+                    update_eurlex_quality(conn, norma_def["codigo"], None)
                     continue
+                expected_articles = sum(1 for item in index if _is_supported_block(item["titulo"]))
+                empty_official_articles = 0
 
                 for item in index:
                     if not _is_supported_block(item["titulo"]):
@@ -1075,6 +1228,8 @@ def run_sync(  # noqa: C901
                         bloque = fetch_block_from_corpus(celex)
                         if not bloque:
                             continue
+                    if not bloque.texto:
+                        empty_official_articles += 1
 
                     change = check_content_changed(
                         conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
@@ -1104,6 +1259,12 @@ def run_sync(  # noqa: C901
                     articulos_upserted += 1
 
                     time.sleep(1)  # Rate limit EUR-Lex REST
+                update_eurlex_quality(
+                    conn,
+                    norma_def["codigo"],
+                    expected_articles,
+                    empty_official=empty_official_articles,
+                )
 
             # Phase 2: SPARQL discovery for new CELEXs
             existing_celexs = set()
@@ -1151,6 +1312,8 @@ def run_sync(  # noqa: C901
 
                         index = fetch_index(client, celex)
                         if index:
+                            expected_articles = sum(1 for item in index if _is_supported_block(item["titulo"]))
+                            empty_official_articles = 0
                             for item in index:
                                 if not _is_supported_block(item["titulo"]):
                                     bloques_fetched += 1
@@ -1161,6 +1324,8 @@ def run_sync(  # noqa: C901
                                     bloque = fetch_block_from_corpus(celex)
                                     if not bloque:
                                         continue
+                                if not bloque.texto:
+                                    empty_official_articles += 1
                                 change = check_content_changed(
                                     conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                                 )
@@ -1181,8 +1346,15 @@ def run_sync(  # noqa: C901
                                 bloques_fetched += 1
                                 articulos_upserted += 1
                                 time.sleep(1)
+                            update_eurlex_quality(
+                                conn,
+                                f"EURLEX-{celex}",
+                                expected_articles,
+                                empty_official=empty_official_articles,
+                            )
                         else:
                             skipped_no_index += 1
+                            update_eurlex_quality(conn, f"EURLEX-{celex}", None)
                 except Exception:
                     fetch_errors += 1
                     print(f"  [SKIP] Could not process new CELEX {celex}")
@@ -1190,7 +1362,7 @@ def run_sync(  # noqa: C901
             summary_msg = (
                 f"summary: unchanged={skipped_unchanged}; no_index={skipped_no_index}; "
                 f"fetch_errors={fetch_errors}; fetch_articles={fetch_articles}; "
-                f"discovery_enabled={discovery_enabled}"
+                f"discovery_enabled={discovery_enabled}; seed_selected={len(seed_normas)}"
             )
             log_status = "partial" if fetch_errors else "ok"
             log_sync(

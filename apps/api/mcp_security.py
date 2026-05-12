@@ -17,6 +17,13 @@ async def guard_mcp_http(request: Request, call_next):
     if not request.url.path.startswith("/mcp"):
         return await call_next(request)
 
+    provided_key = request.headers.get("X-API-Key", "")
+    required_key = os.getenv("MCP_API_KEY", "").strip()
+    if required_key and provided_key != required_key:
+        return JSONResponse({"detail": "Invalid or missing MCP API key"}, status_code=401)
+    if not required_key and os.environ.get("APP_ENV", "").lower() != "test":
+        return JSONResponse({"detail": "Invalid or missing MCP API key"}, status_code=401)
+
     if request.method == "GET":
         accept = request.headers.get("accept", "")
         if "text/event-stream" not in accept.lower():
@@ -28,14 +35,5 @@ async def guard_mcp_http(request: Request, call_next):
             if request_id:
                 response.headers["X-Request-ID"] = request_id
             return response
-
-    app_env = os.environ.get("APP_ENV", "").lower()
-    if app_env != "test":
-        provided_key = request.headers.get("X-API-Key", "")
-        required_key = os.getenv("MCP_API_KEY", "").strip()
-        if required_key and provided_key != required_key:
-            return JSONResponse({"detail": "Invalid or missing MCP API key"}, status_code=401)
-        elif not required_key:
-            return JSONResponse({"detail": "Invalid or missing MCP API key"}, status_code=401)
 
     return await call_next(request)

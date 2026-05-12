@@ -299,6 +299,67 @@ def _find_operativa_issues(conn, findings: list[Finding]) -> None:
     )
 
 
+def _find_campaign_selection_issues(conn, findings: list[Finding]) -> None:
+    rows = conn.execute(
+        text(
+            """
+            WITH campaign_counts AS (
+                SELECT
+                    m.codigo,
+                    mc.id AS campana_id,
+                    mc.campana,
+                    mc.activo,
+                    COUNT(c.id) AS casillas_count
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id = m.id
+                LEFT JOIN modelo_casilla c ON c.campana_id = mc.id
+                    AND COALESCE(c.activa, true) = true
+                WHERE m.codigo LIKE '1__'
+                   OR m.codigo LIKE '2__'
+                GROUP BY m.codigo, mc.id, mc.campana, mc.activo
+            ),
+            active_empty AS (
+                SELECT codigo, campana AS active_campaign
+                FROM campaign_counts
+                WHERE COALESCE(activo, true) = true
+                  AND casillas_count = 0
+            ),
+            historical_with_fields AS (
+                SELECT codigo, MAX(campana) AS fallback_campaign, SUM(casillas_count) AS fallback_casillas
+                FROM campaign_counts
+                WHERE COALESCE(activo, true) = false
+                  AND casillas_count > 0
+                GROUP BY codigo
+            )
+            SELECT
+                ae.codigo,
+                ae.active_campaign,
+                hwf.fallback_campaign,
+                hwf.fallback_casillas
+            FROM active_empty ae
+            JOIN historical_with_fields hwf ON hwf.codigo = ae.codigo
+            ORDER BY ae.codigo
+            """
+        )
+    ).mappings()
+
+    findings.extend(
+        Finding(
+            check_id="db.modelo_campana_active_empty_historical_fields",
+            severity="high",
+            location=(
+                "modelo_campana:"
+                f"codigo={row['codigo']},active={row['active_campaign']},fallback={row['fallback_campaign']}"
+            ),
+            message=(
+                "Active campaign has zero active casillas while another campaign has parsed fields; "
+                "API/MCP must not silently expose an empty model field list."
+            ),
+        )
+        for row in rows
+    )
+
+
 def _find_db_url_host_issues(conn, findings: list[Finding]) -> None:
     aeat_rows = conn.execute(
         text(
@@ -383,6 +444,7 @@ def find_db_issues(db_url: str) -> list[dict[str, str]]:
             _find_db_url_host_issues(conn, findings)
             _find_modelo_articulo_issues(conn, findings)
             _find_operativa_issues(conn, findings)
+            _find_campaign_selection_issues(conn, findings)
     finally:
         engine.dispose()
 

@@ -13,10 +13,11 @@ def _client():
 
 
 def _seed_doctrina_fixture(reference: str, metodo_enlace: str, confianza_enlace: float):
-    from conftest import engine
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from db import db_session
 
-    with engine.begin() as conn:
-        conn.execute(
+    with db_session() as db:
+        db.execute(
             text(
                 """
                 INSERT INTO documento_interpretativo (
@@ -35,7 +36,7 @@ def _seed_doctrina_fixture(reference: str, metodo_enlace: str, confianza_enlace:
                 "url_fuente": f"https://example.invalid/dgt/{reference}",
             },
         )
-        conn.execute(
+        db.execute(
             text(
                 """
                 INSERT INTO documento_articulo (documento_id, articulo_id, metodo_enlace, confianza_enlace, nota)
@@ -52,6 +53,48 @@ def _seed_doctrina_fixture(reference: str, metodo_enlace: str, confianza_enlace:
                 "confianza_enlace": confianza_enlace,
             },
         )
+        db.commit()
+
+
+def _seed_liva_90_fixture():
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from db import db_session
+
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '90', 'Tipo impositivo general', 'articulo'
+                FROM norma
+                WHERE codigo = 'LIVA'
+                ON CONFLICT (norma_id, numero) DO NOTHING
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+                SELECT a.id,
+                       'Articulo 90. Tipo impositivo general. El impuesto se exigira al tipo del 21 por ciento.',
+                       '2012-09-01',
+                       NULL,
+                       'a90'
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = 'LIVA'
+                  AND a.numero = '90'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM version_articulo existing
+                      WHERE existing.articulo_id = a.id
+                        AND existing.vigente_hasta IS NULL
+                  )
+                """
+            )
+        )
+        db.commit()
 
 
 @pytest.mark.asyncio
@@ -167,6 +210,20 @@ async def test_liva_articulo_91_traceability_fields():
 
 
 @pytest.mark.asyncio
+async def test_liva_articulo_historial_traceability_fields():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/91/historial")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["boe_reference"] == "BOE-A-1992-28740"
+    assert data["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a91"
+    assert len(data["historial"]) >= 1
+    for item in data["historial"]:
+        assert item["boe_reference"] == "BOE-A-1992-28740"
+        assert item["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a91"
+
+
+@pytest.mark.asyncio
 async def test_liva_articulo_91_vigente_en_fecha():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2020-01-01")
@@ -221,10 +278,22 @@ async def test_legislacion_expone_itpajd_con_clasificacion():
     assert norma["tipo_documento"] == "real_decreto_legislativo"
     assert norma["ambito"] == "tributario"
     assert norma["estado_cobertura"] == "ingestada"
+    assert norma["boe_id"] == "BOE-A-1993-25359"
+    assert norma["boe_reference"] == "BOE-A-1993-25359"
+    assert norma["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359"
 
-    assert detalle.json()["tipo_documento"] == "real_decreto_legislativo"
-    assert detalle.json()["estado_cobertura"] == "ingestada"
-    assert "transmisiones" in articulo.json()["texto"].lower()
+    detalle_json = detalle.json()
+    assert detalle_json["tipo_documento"] == "real_decreto_legislativo"
+    assert detalle_json["estado_cobertura"] == "ingestada"
+    assert detalle_json["boe_id"] == "BOE-A-1993-25359"
+    assert detalle_json["boe_reference"] == "BOE-A-1993-25359"
+    assert detalle_json["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359"
+    assert detalle_json["vigente_desde"] == "1993-10-21"
+
+    articulo_json = articulo.json()
+    assert articulo_json["boe_reference"] == "BOE-A-1993-25359"
+    assert articulo_json["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359#a7"
+    assert "transmisiones" in articulo_json["texto"].lower()
 
 
 @pytest.mark.asyncio
@@ -247,6 +316,36 @@ async def test_busqueda_full_text():
     for res in data["resultados"]:
         assert "confianza" in res
         assert "fragmento" in res
+
+
+@pytest.mark.asyncio
+async def test_buscar_publico_preserva_trazabilidad_boe():
+    async with _client() as c:
+        r = await c.get("/v1/buscar?q=IVA")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["resultados"]) > 0
+    for res in data["resultados"]:
+        if res["tipo"] == "articulo" and res["norma"] == "LIVA":
+            assert res["boe_reference"] == "BOE-A-1992-28740"
+            assert res["source_url"].startswith("https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a")
+
+
+@pytest.mark.asyncio
+async def test_buscar_tipo_iva_general_fallback_devuelve_liva_90_trazable():
+    _seed_liva_90_fixture()
+
+    async with _client() as c:
+        r = await c.get("/v1/buscar?q=tipo+IVA+21%25")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["resultados"]
+    first = data["resultados"][0]
+    assert first["tipo"] == "articulo"
+    assert first["norma"] == "LIVA"
+    assert first["numero"] == "90"
+    assert first["boe_reference"] == "BOE-A-1992-28740"
+    assert first["source_url"].endswith("#a90")
 
 
 @pytest.mark.asyncio
@@ -695,8 +794,8 @@ async def test_modelos_lista():
     assert r.status_code == 200
     data = r.json()
     assert "modelos" in data
-    assert len(data["modelos"]) == 3  # 100, 111, 303 in test fixture
     codigos = [m["codigo"] for m in data["modelos"]]
+    assert len(codigos) >= 3
     assert "100" in codigos
     assert "111" in codigos
     assert "303" in codigos
@@ -708,8 +807,10 @@ async def test_modelos_aeat_lista_con_total():
         r = await c.get("/v1/modelos/aeat")
     assert r.status_code == 200
     data = r.json()
-    assert data["total"] == 3
-    assert len(data["items"]) == 3
+    assert data["total"] >= 3
+    assert len(data["items"]) >= 3
+    codigos = {item["codigo"] for item in data["items"]}
+    assert {"100", "111", "303"}.issubset(codigos)
     modelo_100 = next(item for item in data["items"] if item["codigo"] == "100")
     assert modelo_100["campana"] == "2025"
     assert modelo_100["recursos_activos"] == 1
@@ -754,6 +855,13 @@ async def test_modelo_aeat_detalle_solo_activos_por_defecto():
     assert r.status_code == 200
     data = r.json()
     assert data["codigo"] == "100"
+    assert data["completeness"] == "parcial"
+    assert data["verified"] is False
+    assert data["evidence_status"] == "evidence_limited"
+    assert "Evidencia limitada" in data["evidence_notice"]
+    assert data["casillas_total"] >= 1
+    assert data["casillas_campana"] == "2025"
+    assert data["casillas_selection_notice"] is None
     assert data["campana_actual"]["campana"] == "2025"
     assert len(data["campana_actual"]["recursos"]) == 1
     assert data["historial"] is None

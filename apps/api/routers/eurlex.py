@@ -1,5 +1,8 @@
+import re
+
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import EurLexDetail, EurLexListResponse
 from sqlalchemy import text
 
@@ -10,32 +13,123 @@ router = APIRouter(prefix="/v1/eurlex", tags=["eurlex"])
 # escribe con `tipo_fuente='eurlex'` y CELEX como `codigo`/`boe_id`.
 
 
+def _coverage_metadata(
+    articulos_total: int,
+    articles_expected: int | None = None,
+    articles_parsed: int | None = None,
+    articles_empty_official: int | None = None,
+    quality_status: str | None = None,
+) -> dict:
+    effective_parsed = articles_parsed if articles_parsed is not None else articulos_total
+    effective_empty = articles_empty_official or 0
+    effective_status = quality_status
+    if not effective_status:
+        effective_status = "article_text_available" if effective_parsed > 0 else "metadata_only"
+
+    if effective_status == "article_text_available" or effective_parsed > 0:
+        notice = (
+            "Official EUR-Lex article text is available in ESData, but no "
+            "articles_expected/articles_parsed parity check is recorded yet. "
+            "Do not claim exhaustive coverage."
+        )
+        if articles_expected is not None and articles_parsed is not None:
+            if articles_expected > articles_parsed + effective_empty:
+                notice = (
+                    "Official EUR-Lex article text is partially available in ESData. "
+                    "articles_parsed is lower than articles_expected; treat coverage "
+                    "as partial and do not claim exhaustive coverage."
+                )
+            elif effective_empty > 0:
+                notice = (
+                    "Official EUR-Lex article text is available in ESData. "
+                    "Some official empty blocks were reconciled because the current "
+                    "EUR-Lex manifestation exposes a heading without body text. "
+                    "Still verify legal conclusions against cited source text."
+                )
+            else:
+                notice = (
+                    "Official EUR-Lex article text is available in ESData and the "
+                    "latest worker run recorded articles_parsed >= articles_expected. "
+                    "Still verify legal conclusions against cited source text."
+                )
+        return {
+            "coverage_status": "article_text_available",
+            "articles_expected": articles_expected,
+            "articles_parsed": articles_parsed,
+            "articles_empty_official": articles_empty_official,
+            "quality_status": effective_status,
+            "verified": True,
+            "completeness": "parcial",
+            "evidence_notice": notice,
+        }
+    return {
+        "coverage_status": "metadata_only",
+        "articles_expected": articles_expected,
+        "articles_parsed": articles_parsed,
+        "articles_empty_official": articles_empty_official,
+        "quality_status": effective_status,
+        "verified": False,
+        "completeness": "parcial",
+        "evidence_notice": (
+            "EUR-Lex metadata is loaded, but no official article text is available "
+            "in ESData for this CELEX. Treat answers as evidence_limited."
+        ),
+    }
+
+
+_EURLEX_QUERY_STOPWORDS = {
+    "articulo",
+    "articulos",
+    "article",
+    "articles",
+    "capitulo",
+    "chapter",
+}
+
+
+def _query_tokens(q: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[A-Za-z0-9]+", q)
+        if len(token) >= 3 and token.lower() not in _EURLEX_QUERY_STOPWORDS
+    ]
+
+
 @router.get("", response_model=EurLexListResponse, operation_id="listar_eurlex")
 async def listar_eurlex(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo (directiva, reglamento, decision)"),
     ambito: str | None = Query(
         None,
         description="Filtrar por ámbito (fiscal_ue, mercado_interior, competencia_ue, ...)",
     ),
+    limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = ["n.tipo_fuente = 'eurlex'"]
     params: dict[str, str] = {}
 
     if q:
-        filters.append(
-            "("
-            "LOWER(COALESCE(n.titulo, '')) LIKE LOWER(:term) "
-            "OR EXISTS ("
-            "  SELECT 1 FROM articulo a "
-            "  JOIN version_articulo va ON va.articulo_id = a.id "
-            "  WHERE a.norma_id = n.id "
-            "    AND va.vigente_hasta IS NULL "
-            "    AND LOWER(va.texto) LIKE LOWER(:term)"
-            ")"
-            ")"
-        )
-        params["term"] = f"%{q}%"
+        tokens = _query_tokens(q)
+        if not tokens:
+            tokens = [q]
+        for index, token in enumerate(tokens):
+            param = f"term_{index}"
+            filters.append(
+                "("
+                f"LOWER(n.codigo) LIKE LOWER(:{param}) "
+                f"OR LOWER(COALESCE(n.titulo, '')) LIKE LOWER(:{param}) "
+                "OR EXISTS ("
+                "  SELECT 1 FROM articulo a "
+                "  JOIN version_articulo va ON va.articulo_id = a.id "
+                "  WHERE a.norma_id = n.id "
+                "    AND va.vigente_hasta IS NULL "
+                f"    AND LOWER(va.texto) LIKE LOWER(:{param})"
+                ")"
+                ")"
+            )
+            params[param] = f"%{token}%"
 
     if tipo:
         filters.append("n.tipo_documento = :tipo")
@@ -63,20 +157,36 @@ async def listar_eurlex(
                   AND va.vigente_hasta IS NULL
                 ORDER BY a.id ASC
                 LIMIT 1
-            )                                     AS primer_texto
+            )                                     AS primer_texto,
+            (
+                SELECT COUNT(*)
+                FROM version_articulo va
+                JOIN articulo a ON a.id = va.articulo_id
+                WHERE a.norma_id = n.id
+                  AND va.vigente_hasta IS NULL
+            )                                     AS articulos_total,
+            n.articles_expected                   AS articles_expected,
+            n.articles_parsed                     AS articles_parsed,
+            n.articles_empty_official             AS articles_empty_official,
+            n.quality_status                      AS quality_status
         FROM norma n
         WHERE {where_clause}
         ORDER BY n.vigente_desde DESC, n.codigo DESC
-        LIMIT 20
+        LIMIT :limit OFFSET :offset
     """
 
     with db_session() as db:
-        rows = db.execute(text(sql), params).mappings().all()
+        rows = db.execute(text(sql), {**params, "limit": limit, "offset": offset}).mappings().all()
+        total = db.execute(
+            text(f"SELECT COUNT(*) FROM norma n WHERE {where_clause}"),
+            params,
+        ).scalar()
 
     documentos = []
     for row in rows:
         primer = row["primer_texto"] or ""
         fragmento = primer[:220] + ("..." if len(primer) > 220 else "")
+        articulos_total = int(row["articulos_total"] or 0)
         documentos.append(
             {
                 "referencia": row["referencia"],
@@ -86,9 +196,48 @@ async def listar_eurlex(
                 "ambito": row["ambito"],
                 "fragmento": fragmento,
                 "url_fuente": row["url_fuente"],
+                "articulos_total": articulos_total,
+                **_coverage_metadata(
+                    articulos_total,
+                    row["articles_expected"],
+                    row["articles_parsed"],
+                    row["articles_empty_official"],
+                    row["quality_status"],
+                ),
             }
         )
-    return {"documentos": documentos}
+    next_offset = offset + limit if offset + len(documentos) < int(total or 0) else None
+    response = {
+        "documentos": documentos,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": next_offset is not None,
+        "next_offset": next_offset,
+    }
+    path = request.url.path
+    record_retrieval_query_audit(
+        request,
+        path=path,
+        query_text=q or "",
+        tool_name="buscar_eurlex" if path.endswith("/buscar") else "listar_eurlex",
+        items=documentos,
+        total=int(total or 0),
+        verified=any(item.get("verified") for item in documentos),
+    )
+    return response
+
+
+@router.get("/buscar", response_model=EurLexListResponse, operation_id="buscar_eurlex")
+async def buscar_eurlex(
+    request: Request,
+    q: str = Query(..., min_length=1, description="Termino de busqueda EUR-Lex"),
+    tipo: str | None = Query(None, description="Filtrar por tipo (directiva, reglamento, decision)"),
+    ambito: str | None = Query(None, description="Filtrar por ambito"),
+    limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
+):
+    return await listar_eurlex(request=request, q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
 
 
 @router.get("/{referencia:path}", response_model=EurLexDetail, operation_id="get_eurlex")
@@ -98,7 +247,18 @@ async def get_eurlex(referencia: str):
             db.execute(
                 text(
                     """
-                    SELECT id, codigo, vigente_desde, titulo, tipo_documento, ambito, eli_uri
+                    SELECT
+                        id,
+                        codigo,
+                        vigente_desde,
+                        titulo,
+                        tipo_documento,
+                        ambito,
+                        eli_uri,
+                        articles_expected,
+                        articles_parsed,
+                        articles_empty_official,
+                        quality_status
                     FROM norma
                     WHERE tipo_fuente = 'eurlex'
                       AND codigo = :referencia
@@ -136,6 +296,7 @@ async def get_eurlex(referencia: str):
         )
 
     texto_completo = "\n\n".join(r["texto"] for r in articulos if r["texto"])
+    articulos_total = len([r for r in articulos if r["texto"]])
 
     return {
         "referencia": norma_row["codigo"],
@@ -145,4 +306,12 @@ async def get_eurlex(referencia: str):
         "ambito": norma_row["ambito"],
         "texto": texto_completo,
         "url_fuente": norma_row["eli_uri"],
+        "articulos_total": articulos_total,
+        **_coverage_metadata(
+            articulos_total,
+            norma_row["articles_expected"],
+            norma_row["articles_parsed"],
+            norma_row["articles_empty_official"],
+            norma_row["quality_status"],
+        ),
     }

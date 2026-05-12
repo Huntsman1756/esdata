@@ -135,10 +135,12 @@ SFDR_SEED_SQL = [
 async def _seed_sfdr():
     """Semilla basica de datos SFDR para tests del router."""
     from db import engine
+    from middleware.domain_availability import invalidate_cache
 
     with engine.begin() as conn:
         for sql in SFDR_SEED_SQL:
             conn.execute(text(sql))
+    invalidate_cache()
 
     yield
 
@@ -148,6 +150,7 @@ async def _seed_sfdr():
         conn.execute(text("DELETE FROM sfdr_entity_paci"))
         conn.execute(text("DELETE FROM sfdr_paci_indicator"))
         conn.execute(text("DELETE FROM sfdr_product"))
+    invalidate_cache()
 
 
 @pytest_asyncio.fixture

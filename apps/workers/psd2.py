@@ -24,7 +24,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds
+from runtime import get_database_url, get_interval_seconds, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -187,6 +187,7 @@ def store_sepa_rules(db):
 
 def run_once(domain):
     engine = create_engine(DATABASE_URL)
+    ensure_database_connection(engine)
     total = 0
 
     with engine.begin() as conn:

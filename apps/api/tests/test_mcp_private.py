@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from main import app
 from mcp_security import reset_mcp_rate_limit_state
 
-
 API_DIR = Path(__file__).resolve().parents[1]
 
 
@@ -160,6 +159,26 @@ async def test_mcp_catalog_exposes_expected_core_http_operations():
     assert "buscar_doctrina" in operation_names
     assert "list_modelos" in operation_names
     assert "get_modelo_fuentes_oficiales" in operation_names
+    assert {
+        "listar_borme",
+        "listar_cnmv",
+        "listar_eurlex",
+        "listar_registros_giin",
+        "listar_obligaciones_internacionales",
+        "list_casp",
+        "list_psd2_aspsp",
+        "screening_entries",
+    } <= operation_names
+
+
+def test_openapi_exposes_borme_router():
+    with TestClient(app) as client:
+        response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    paths = response.json()["paths"]
+    assert "/v1/borme" in paths
+    assert "/v1/borme/{referencia}" in paths
 
 
 @pytest.mark.asyncio
@@ -227,10 +246,20 @@ async def test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key():
         assert tools.status_code == 200
 
         names = {tool["name"] for tool in tools.json()["result"]["tools"]}
+        returned_tools = tools.json()["result"]["tools"]
         assert "buscar" in names
         assert "list_modelos" in names
         assert "list_domain_availability" in names
         assert "get_domain_availability" in names
+        assert "listar_borme" in names
+        assert "listar_cnmv" in names
+        assert "listar_eurlex" in names
+        assert "listar_registros_giin" in names
+        assert "list_casp" in names
+        assert "screening_entries" in names
+        assert all(tool.get("outputSchema", {}).get("type") == "object" for tool in returned_tools)
+        assert all(tool.get("annotations", {}).get("readOnlyHint") is True for tool in returned_tools)
+        assert all(tool.get("annotations", {}).get("destructiveHint") is False for tool in returned_tools)
 
 
 @pytest.mark.asyncio

@@ -257,15 +257,15 @@ class TestPbcListSuspiciousReports:
     async def test_suspicious_reports_lista_response_model(self, client):
         resp = await client.get("/v1/pbc/suspicious-reports")
         data = resp.json()
-        assert data["total"] == 0
-        assert data["items"] == []
-        assert data["reason"] == "proprietary_to_obligated_entity"
+        assert data["total"] == 3
+        assert len(data["reports"]) == 3
+        assert data["reports"][0]["sepblac_reference"].startswith("SEP-2025-")
 
     @pytest.mark.asyncio
     async def test_suspicious_reports_campos(self, client):
         resp = await client.get("/v1/pbc/suspicious-reports")
         data = resp.json()
-        for r in data["items"]:
+        for r in data["reports"]:
             assert "id" in r
             assert "obligated_subject_id" in r
             assert "submission_date" in r
@@ -277,23 +277,24 @@ class TestPbcListSuspiciousReports:
     async def test_suspicious_reports_filtro_status(self, client):
         resp = await client.get("/v1/pbc/suspicious-reports", params={"status": "filed"})
         data = resp.json()
-        assert data["total"] == 0
-        for r in data["items"]:
+        assert data["total"] == 1
+        for r in data["reports"]:
             assert r["status"] == "filed"
 
     @pytest.mark.asyncio
     async def test_suspicious_reports_filtro_severity(self, client):
         resp = await client.get("/v1/pbc/suspicious-reports", params={"severity": "critical"})
         data = resp.json()
-        assert data["total"] == 0
-        for r in data["items"]:
+        assert data["total"] == 1
+        for r in data["reports"]:
             assert r["severity"] == "critical"
 
     @pytest.mark.asyncio
     async def test_suspicious_reports_filtro_search(self, client):
         resp = await client.get("/v1/pbc/suspicious-reports", params={"search": "SEP-2025-001"})
         data = resp.json()
-        assert data["total"] == 0
+        assert data["total"] == 1
+        assert data["reports"][0]["sepblac_reference"] == "SEP-2025-001"
 
 
 # ====================================================================

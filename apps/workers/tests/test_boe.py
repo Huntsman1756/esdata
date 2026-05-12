@@ -1,10 +1,10 @@
-import sys
 import subprocess
+import sys
 from contextlib import contextmanager
 from pathlib import Path
-import httpx
 from unittest.mock import patch
 
+import httpx
 from sqlalchemy import create_engine, event, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -12,9 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from boe import (
     BloqueTexto,
     NormaMetadata,
-    _hold_sync_lock,
-    _ensure_sync_log_table,
     _ensure_schema,
+    _ensure_sync_log_table,
+    _hold_sync_lock,
     _yyyymmdd_to_iso,
     auto_link_doctrina,
     auto_link_materias,
@@ -129,11 +129,11 @@ def test_parse_metadata_uses_per_code_classification_for_itpajd():
         ]
     }
 
-    metadata = parse_metadata("ITPAJD", "BOE-A-1993-253", payload)
+    metadata = parse_metadata("ITPAJD", "BOE-A-1993-25359", payload)
 
     assert metadata == NormaMetadata(
         codigo="ITPAJD",
-        boe_id="BOE-A-1993-253",
+        boe_id="BOE-A-1993-25359",
         titulo="Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
         eli_uri="https://www.boe.es/eli/es/rdlg/1993/09/24/1",
         jurisdiccion="es",
@@ -165,7 +165,7 @@ def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
 def test_default_normas_include_itpajd():
     from boe import DEFAULT_NORMAS
 
-    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-253"
+    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-25359"
 
 
 def test_run_sync_ingests_itpajd_article_and_version():
@@ -190,7 +190,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
             return False
 
         def get(self, url, headers=None):
-            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+            if url.endswith("/id/BOE-A-1993-25359/metadatos"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -202,7 +202,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/indice"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -218,13 +218,13 @@ def test_run_sync_ingests_itpajd_article_and_version():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/bloque/a7"):
                 return FakeResponse(
                     text_data="""
                     <response>
                       <data>
                         <bloque id="a7" tipo="precepto" titulo="Artículo 7">
-                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                          <version id_norma="BOE-A-1993-25359" fecha_publicacion="19930925" fecha_vigencia="19930925">
                             <p class="articulo">Artículo 7. Operaciones societarias.</p>
                             <p class="parrafo">Uno. Son operaciones societarias sujetas las previstas en esta norma.</p>
                           </version>
@@ -262,7 +262,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
 
     assert norma == (
         "ITPAJD",
-        "BOE-A-1993-253",
+        "BOE-A-1993-25359",
         "real_decreto_legislativo",
         "tributario",
         "ingestada",
@@ -302,7 +302,7 @@ def test_run_sync_does_not_fetch_remote_blocks_inside_transaction():
         def get(self, url, headers=None):
             if "/texto/indice" in url or "/texto/bloque/" in url:
                 self.transaction_states.append(self.engine.in_transaction)
-            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+            if url.endswith("/id/BOE-A-1993-25359/metadatos"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -314,7 +314,7 @@ def test_run_sync_does_not_fetch_remote_blocks_inside_transaction():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/indice"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -330,13 +330,13 @@ def test_run_sync_does_not_fetch_remote_blocks_inside_transaction():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/bloque/a7"):
                 return FakeResponse(
                     text_data="""
                     <response>
                       <data>
                         <bloque id="a7" tipo="precepto" titulo="Artículo 7">
-                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                          <version id_norma="BOE-A-1993-25359" fecha_publicacion="19930925" fecha_vigencia="19930925">
                             <p class="articulo">Artículo 7. Operaciones societarias.</p>
                           </version>
                         </bloque>
@@ -900,8 +900,9 @@ def test_run_once_flag_accepts_argparse():
 
 def test_run_sync_returns_dict_with_bloques_and_articulos():
     """Verify run_sync returns a dict with separate bloques and articulos counts."""
-    from boe import run_sync
     import inspect
+
+    from boe import run_sync
 
     sig = inspect.signature(run_sync)
     assert sig.return_annotation == dict[str, int]
@@ -1757,6 +1758,114 @@ def test_run_sync_records_correct_worker_name_for_continuous_vs_cron(monkeypatch
         ).fetchall()
 
     assert [w[0] for w in workers] == ["worker-boe", "cron-boe-daily"]
+
+
+def test_run_sync_marks_single_block_http_failure_as_partial(monkeypatch):
+    import boe
+
+    log_calls = []
+
+    class FakeBegin:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeDialect:
+        name = "sqlite"
+
+    class FakeEngine:
+        dialect = FakeDialect()
+        url = type("Url", (), {"host": "localhost"})()
+
+        def begin(self):
+            return FakeBegin()
+
+    @contextmanager
+    def fake_sync_lock(engine):
+        yield True
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_fetch_block_versions(client, boe_id, block_id):
+        if block_id == "a1":
+            request = httpx.Request(
+                "GET",
+                "https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/"
+                "BOE-A-1992-28740/texto/bloque/a1",
+            )
+            response = httpx.Response(502, request=request, text="Bad Gateway")
+            response.raise_for_status()
+        return [
+            BloqueTexto(
+                bloque_id=block_id,
+                tipo_bloque="articulo",
+                numero="2",
+                titulo="Articulo 2",
+                tipo_articulo="articulo",
+                texto="texto vigente",
+                vigente_desde="1993-01-01",
+            )
+        ]
+
+    monkeypatch.setattr(boe, "create_engine", lambda *args, **kwargs: FakeEngine())
+    monkeypatch.setattr(boe, "ensure_database_connection", lambda *args, **kwargs: None)
+    monkeypatch.setattr(boe.httpx, "Client", lambda *args, **kwargs: FakeClient())
+    monkeypatch.setattr(boe, "_hold_sync_lock", fake_sync_lock)
+    monkeypatch.setattr(boe, "DEFAULT_NORMAS", {"LIVA": "BOE-A-1992-28740"})
+    monkeypatch.setattr(boe, "KNOWN_BOE_CODES", {"LIVA"})
+    monkeypatch.setattr(
+        boe,
+        "fetch_metadata",
+        lambda client, codigo, boe_id: NormaMetadata(
+            codigo="LIVA",
+            titulo="Ley 37/1992",
+            boe_id="BOE-A-1992-28740",
+            eli_uri="https://www.boe.es/eli/es/l/1992/12/28/37",
+            jurisdiccion="es",
+            tipo_fuente="boe",
+            tipo_documento="ley",
+            ambito="tributario",
+            estado_cobertura="ingestada",
+            vigente_desde="1993-01-01",
+        ),
+    )
+    monkeypatch.setattr(
+        boe,
+        "fetch_index",
+        lambda client, boe_id: [
+            type("Idx", (), {"id": "a1", "titulo": "Artículo 1"})(),
+            type("Idx", (), {"id": "a2", "titulo": "Artículo 2"})(),
+        ],
+    )
+    monkeypatch.setattr(boe, "fetch_block_versions", fake_fetch_block_versions)
+    monkeypatch.setattr(boe, "_ensure_schema", lambda conn: None)
+    monkeypatch.setattr(boe, "upsert_norma", lambda conn, metadata: None)
+    monkeypatch.setattr(boe, "upsert_articulo", lambda conn, codigo, bloque: None)
+    monkeypatch.setattr(boe, "auto_link_materias", lambda conn: None)
+    monkeypatch.setattr(boe, "auto_link_doctrina", lambda conn: None)
+    monkeypatch.setattr(boe, "touch_heartbeat", lambda: None)
+    monkeypatch.setattr(boe.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(
+        boe,
+        "log_sync",
+        lambda conn, worker, status, **kwargs: log_calls.append(
+            {"worker": worker, "status": status, **kwargs}
+        ),
+    )
+
+    result = boe.run_sync(codigos=["LIVA"])
+
+    assert result == {"bloques": 1, "articulos": 1}
+    assert log_calls[-1]["status"] == "partial"
+    assert "skipped_invalid_blocks=1" in log_calls[-1]["error_msg"]
+    assert "502 Bad Gateway" in log_calls[-1]["error_msg"]
 
 
 def test_run_sync_touches_heartbeat_during_long_boe_processing(monkeypatch):

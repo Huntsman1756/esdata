@@ -57,7 +57,35 @@ def _infer_categoria_obligado(codigo: str, impuesto: str | None, obligados: str 
     return None
 
 
-def _build_truth_contract(*, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None) -> tuple[str, bool]:
+EXPLICIT_COMPLETENESS_STATES = {
+    "completa",
+    "parcial",
+    "no-casillas-expected",
+    "deprecated",
+}
+
+
+def _normalize_explicit_completeness(value: str | None) -> str | None:
+    normalized = (value or "").strip().lower()
+    return normalized if normalized in EXPLICIT_COMPLETENESS_STATES else None
+
+
+def _build_truth_contract(
+    *,
+    has_instructions: bool,
+    has_casillas: bool,
+    metadata_state: str | None = None,
+    explicit_completeness: str | None = None,
+) -> tuple[str, bool]:
+    explicit_state = _normalize_explicit_completeness(explicit_completeness)
+    if explicit_state == "deprecated":
+        return "deprecated", True
+    if explicit_state == "no-casillas-expected":
+        return "no-casillas-expected", True
+    if explicit_state == "parcial":
+        return "parcial", False
+    if explicit_state == "completa":
+        return "completa", True
     if not has_instructions or not has_casillas:
         return "parcial", False
     if metadata_state in {None, "inferido"}:
@@ -66,13 +94,49 @@ def _build_truth_contract(*, has_instructions: bool, has_casillas: bool, metadat
 
 
 def build_modelo_truth_contract(
-    *, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None
+    *,
+    has_instructions: bool,
+    has_casillas: bool,
+    metadata_state: str | None = None,
+    explicit_completeness: str | None = None,
 ) -> tuple[str, bool]:
     return _build_truth_contract(
         has_instructions=has_instructions,
         has_casillas=has_casillas,
         metadata_state=metadata_state,
+        explicit_completeness=explicit_completeness,
     )
+
+
+def _modelo_evidence_status(completeness: str, verified: bool) -> str:
+    if completeness == "parcial" or not verified:
+        return "evidence_limited"
+    if completeness == "no-casillas-expected":
+        return "no_casillas_expected"
+    if completeness == "deprecated":
+        return "deprecated"
+    return "verified"
+
+
+def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
+    if completeness == "no-casillas-expected":
+        return (
+            "ESData tiene verificado que este modelo no dispone de casillas "
+            "estructuradas esperadas en la campana consultada. No inferir "
+            "obligatoriedad por supuesto concreto."
+        )
+    if completeness == "deprecated":
+        return (
+            "ESData tiene verificado que este modelo no esta vigente o queda "
+            "clasificado como deprecated. No presentarlo como modelo actual."
+        )
+    if completeness == "parcial" or not verified:
+        return (
+            "Evidencia limitada: ESData expone solo los campos/fuentes oficiales "
+            "cargados para este modelo y no prueba instrucciones completas, "
+            "obligatoriedad ni aplicabilidad a un supuesto concreto."
+        )
+    return "ESData tiene evidencia suficiente para el contrato operativo declarado."
 
 
 def get_modelo_runtime_truth_contract(
@@ -94,10 +158,16 @@ def get_modelo_runtime_truth_contract(
         if operativa_row and operativa_row.get("estado_metadato")
         else None
     )
+    explicit_completeness = (
+        operativa_row["completeness_estado"]
+        if operativa_row and operativa_row.get("completeness_estado")
+        else None
+    )
     return build_modelo_truth_contract(
         has_instructions=has_instructions,
         has_casillas=has_casillas,
         metadata_state=metadata_state,
+        explicit_completeness=explicit_completeness,
     )
 
 
@@ -117,7 +187,8 @@ def get_modelo_campana_operativa_row(db, campana_id: int):
                     norma_base,
                     nota,
                     origen_metadato,
-                    estado_metadato
+                    estado_metadato,
+                    completeness_estado
                 FROM modelo_campana_operativa
                 WHERE campana_id = :campana_id
                 LIMIT 1
@@ -391,6 +462,74 @@ def count_campaign_casillas(
         params,
     ).mappings().first()
     return int(row["total"]) if row else 0
+
+
+def get_campaign_for_casillas(db, codigo: str, campana: str | None = None) -> dict:
+    """Select the campaign used to expose model fields.
+
+    If a caller requests a specific campaign, use it strictly. Without an
+    explicit campaign, prefer the active campaign, but do not hide official
+    parsed fields if the active campaign is empty and a newer/previous campaign
+    has casillas. This keeps the response evidence-limited and transparent
+    instead of silently returning an empty list while usable data exists.
+    """
+
+    active_row = get_active_campaign(db, codigo)
+    requested_row = get_active_campaign(db, codigo, campana) if campana else active_row
+    active_campaign = active_row["campana"] if active_row else None
+
+    if campana or not requested_row:
+        return {
+            "campaign": requested_row,
+            "active_campaign": active_campaign,
+            "selection_notice": None,
+        }
+
+    active_total = count_campaign_casillas(db, requested_row["id"])
+    if active_total > 0:
+        return {
+            "campaign": requested_row,
+            "active_campaign": active_campaign,
+            "selection_notice": None,
+        }
+
+    fallback_row = db.execute(
+        text(
+            """
+            SELECT
+                mc.id,
+                mc.campana,
+                mc.url_instrucciones,
+                mc.url_normativa,
+                mc.url_formato
+            FROM modelo_campana mc
+            JOIN aeat_modelo m ON m.id = mc.modelo_id
+            JOIN modelo_casilla c ON c.campana_id = mc.id AND c.activa = true
+            WHERE m.codigo = :codigo
+              AND COALESCE(m.activo, true) = true
+            GROUP BY mc.id, mc.campana, mc.url_instrucciones, mc.url_normativa, mc.url_formato
+            ORDER BY mc.campana DESC
+            LIMIT 1
+            """
+        ),
+        {"codigo": codigo},
+    ).mappings().first()
+
+    if fallback_row and fallback_row["id"] != requested_row["id"]:
+        return {
+            "campaign": fallback_row,
+            "active_campaign": active_campaign,
+            "selection_notice": (
+                f"La campana activa {active_campaign} no tiene casillas parseadas; "
+                f"se devuelven casillas oficiales de la campana {fallback_row['campana']}."
+            ),
+        }
+
+    return {
+        "campaign": requested_row,
+        "active_campaign": active_campaign,
+        "selection_notice": None,
+    }
 
 
 def list_campaign_casillas(
@@ -854,10 +993,16 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
         if operativa_row and operativa_row.get("estado_metadato")
         else None
     )
+    explicit_completeness = (
+        operativa_row["completeness_estado"]
+        if operativa_row and operativa_row.get("completeness_estado")
+        else None
+    )
     completeness, verified = build_modelo_truth_contract(
         has_instructions=bool(instrucciones),
         has_casillas=bool(casillas),
         metadata_state=estado_metadato,
+        explicit_completeness=explicit_completeness,
     )
 
     return {
@@ -876,8 +1021,11 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
         "presentacion_resumen": presentacion_payload,
         "origen_metadato": origen_metadato,
         "estado_metadato": estado_metadato,
+        "completeness_estado": explicit_completeness,
         "completeness": completeness,
         "verified": verified,
+        "evidence_status": _modelo_evidence_status(completeness, verified),
+        "evidence_notice": _modelo_evidence_notice(completeness, verified),
         "fuentes_recomendadas": (fuentes or {}).get("fuentes_oficiales", []),
     }
 

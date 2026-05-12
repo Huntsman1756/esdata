@@ -82,7 +82,7 @@ def _profiled_cron_services() -> list[str]:
 
         service_match = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", raw_line)
         if service_match:
-            if current_service and current_service.startswith("cron-") and service_has_cron_profile:
+            if current_service and service_has_cron_profile:
                 cron_names.append(current_service)
 
             current_service = service_match.group(1)
@@ -95,7 +95,7 @@ def _profiled_cron_services() -> list[str]:
         if current_service and 'profiles: ["cron"]' in raw_line:
             service_has_cron_profile = True
 
-    if current_service and current_service.startswith("cron-") and service_has_cron_profile:
+    if current_service and service_has_cron_profile:
         cron_names.append(current_service)
 
     return cron_names
@@ -379,17 +379,7 @@ def test_worker_silent_alert_uses_exported_stale_status_instead_of_global_lag_th
 def test_cron_services_use_esdata_internal_network_for_database_resolution():
     compose = _read("infra/deploy/docker-compose.prod.yml")
 
-    for service in (
-        "cron-boe-daily",
-        "cron-dgt-weekly",
-        "cron-teac-weekly",
-        "cron-modelos-daily",
-        "cron-bdns-weekly",
-        "cron-borme-weekly",
-        "cron-cnmv-weekly",
-        "cron-sepblac-weekly",
-        "cron-bde-weekly",
-    ):
+    for service in _profiled_cron_services():
         block = _service_block(compose, service)
         assert "networks:" in block
         assert "- esdata-internal" in block
@@ -408,6 +398,18 @@ def test_every_profiled_cron_service_has_systemd_timer():
     ]
 
     assert not missing
+
+
+def test_official_regulatory_references_has_profiled_cron_service_and_timer():
+    compose = _read("infra/deploy/docker-compose.prod.yml")
+    block = _service_block(compose, "official-regulatory-references")
+    timer = _read("infra/deploy/systemd/esdata-official-regulatory-references-weekly.timer")
+
+    assert 'profiles: ["cron"]' in block
+    assert "WORKER_CMD: python official_regulatory_references.py --run-once" in block
+    assert "- esdata-internal" in block
+    assert "OnCalendar=Wed *-*-* 11:20:00 Europe/Madrid" in timer
+    assert "Unit=esdata-job@official-regulatory-references.service" in timer
 
 
 def test_esdata_timers_pin_europe_madrid_timezone():

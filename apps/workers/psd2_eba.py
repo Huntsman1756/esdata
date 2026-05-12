@@ -35,6 +35,11 @@ from datetime import UTC, datetime
 import httpx
 from sqlalchemy import create_engine, text
 
+try:
+    from .runtime import ensure_database_connection
+except ImportError:  # pragma: no cover - direct worker execution in Docker
+    from runtime import ensure_database_connection
+
 logger = logging.getLogger(__name__)
 
 EBA_EUCLID_BASE = "https://euclid.eba.europa.eu/register"
@@ -372,6 +377,7 @@ def _write_sync_log(conn, status: str, rows_processed: int, error_msg: str | Non
 def run_sync() -> dict:
     """Main sync logic. Attempts EBA direct, falls back to BdE-verified seed."""
     engine = create_engine(_get_database_url())
+    ensure_database_connection(engine, logger=logger)
     rows_processed = 0
     counts = {"aspsp": 0, "aisp": 0, "pisp": 0}
     source = "bde_verified_seed"

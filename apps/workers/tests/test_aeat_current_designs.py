@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import sys
+import zipfile
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -49,7 +50,8 @@ def test_discover_current_design_links_filters_1xx_2xx_official_links():
 
     links = worker.discover_current_design_links(FakeClient(pages))
 
-    assert [link["codigo"] for link in links] == ["111", "202", "222"]
+    assert [link["codigo"] for link in links[:3]] == ["111", "202", "222"]
+    assert {"172", "173"}.issubset({link["codigo"] for link in links})
     assert all(link["url"].startswith(worker.AEAT_SEDE) for link in links)
 
 
@@ -83,6 +85,250 @@ def test_extract_properties_fields_from_model_100_dictionary():
     assert fields[0]["etiqueta"] == "Primer Declarante: NIF"
     assert "Casilla oficial: *01" in fields[0]["descripcion"]
     assert "Casilla oficial" not in fields[1]["descripcion"]
+
+
+def test_extract_xsd_zip_fields_from_declaracion_informativa_schema():
+    xsd = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+               xmlns:ddii="https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/dit/adu/eeca/esquemas"
+               targetNamespace="https://example.test">
+      <xs:complexType name="DeclaracionInformativa">
+        <xs:sequence>
+          <xs:element name="Cabecera" type="ddii:CabeceraDI"/>
+          <xs:element name="Declarado" type="ddii:DeclaradoType" maxOccurs="10000"/>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:complexType name="CabeceraDI">
+        <xs:sequence>
+          <xs:element name="Modelo" type="ddii:ModeloType"/>
+          <xs:element name="Ejercicio" type="ddii:YearType"/>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:complexType name="DeclaradoType">
+        <xs:sequence>
+          <xs:element name="IDRegistroDeclarado" type="ddii:TextMax20Type"/>
+          <xs:element name="IDDeclarado">
+            <xs:complexType>
+              <xs:choice>
+                <xs:element name="NIF" type="ddii:NIFType"/>
+                <xs:element name="IDOtro" type="ddii:IDOtroType"/>
+              </xs:choice>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:schema>
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zipped:
+        zipped.writestr("DeclaracionInformativa172.xsd", xsd)
+        zipped.writestr("RespuestaDeclaracion172.xsd", xsd)
+
+    fields = worker.extract_xsd_zip_fields(buffer.getvalue())
+
+    assert [field["etiqueta"] for field in fields] == [
+        "DeclaracionInformativa > Cabecera > Modelo",
+        "DeclaracionInformativa > Cabecera > Ejercicio",
+        "DeclaracionInformativa > Declarado > IDRegistroDeclarado",
+        "DeclaracionInformativa > Declarado > IDDeclarado > NIF",
+        "DeclaracionInformativa > Declarado > IDDeclarado > IDOtro",
+    ]
+    assert fields[0]["codigo"] == "XSD:DeclaracionInformativa/Cabecera/Modelo"
+    assert fields[0]["tipo_casilla"] == "diseno_registro_xsd_campo"
+    assert fields[4]["codigo"] == "XSD:DeclaracionInformativa/Declarado/IDDeclarado/IDOtro"
+    assert "Fuente XSD: DeclaracionInformativa172.xsd" in fields[0]["descripcion"]
+    assert "XPath: /DeclaracionInformativa/Cabecera/Modelo" in fields[0]["descripcion"]
+    assert "maxOccurs: 1" in fields[0]["descripcion"]
+
+
+def test_extract_direct_xsd_fields_from_declaracion_informativa_schema():
+    xsd = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+               targetNamespace="https://example.test">
+      <xs:complexType name="DeclaracionInformativa">
+        <xs:sequence>
+          <xs:element name="Cabecera">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="Modelo" type="xs:string"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:schema>
+    """
+
+    fields = worker.extract_xsd_fields(xsd.encode("utf-8"), "DeclaracionInformativa.xsd")
+
+    assert fields == [
+        {
+            "codigo": "XSD:DeclaracionInformativa/Cabecera/Modelo",
+            "etiqueta": "DeclaracionInformativa > Cabecera > Modelo",
+            "descripcion": (
+                "XPath: /DeclaracionInformativa/Cabecera/Modelo; "
+                "Fuente XSD: DeclaracionInformativa.xsd; Tipo XSD: xs:string; "
+                "minOccurs: 1; maxOccurs: 1"
+            ),
+            "tipo_casilla": "diseno_registro_xsd_campo",
+            "pagina": None,
+            "orden": 1,
+        }
+    ]
+
+
+def test_extract_xsd_zip_fields_resolves_presentation_imported_types():
+    presentation = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+               xmlns:body="urn:test:body"
+               targetNamespace="urn:test:presentation">
+      <xs:import namespace="urn:test:body" schemaLocation="BodyTypes.xsd"/>
+      <xs:complexType name="PresentationHeader_Type">
+        <xs:sequence>
+          <xs:element name="PresentationCode" type="xs:string">
+            <xs:annotation><xs:documentation>Identificador del mensaje</xs:documentation></xs:annotation>
+          </xs:element>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:element name="Presentation">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="PresentationHeader" type="PresentationHeader_Type"/>
+            <xs:element name="PresentationBody" type="body:Body_Type"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+    """
+    body = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+               targetNamespace="urn:test:body">
+      <xs:complexType name="Base_Type">
+        <xs:sequence>
+          <xs:element name="BaseField" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+      <xs:complexType name="Body_Type">
+        <xs:complexContent>
+          <xs:extension base="Base_Type">
+            <xs:sequence>
+              <xs:element name="ReportingPeriod" type="xs:date"/>
+              <xs:element name="Amount" type="xs:decimal" minOccurs="0"/>
+            </xs:sequence>
+          </xs:extension>
+        </xs:complexContent>
+      </xs:complexType>
+    </xs:schema>
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zipped:
+        zipped.writestr("ModelPresentation_v1.0.xsd", presentation)
+        zipped.writestr("BodyTypes.xsd", body)
+
+    fields = worker.extract_xsd_zip_fields(buffer.getvalue())
+
+    assert [field["codigo"] for field in fields] == [
+        "XSD:Presentation/PresentationHeader/PresentationCode",
+        "XSD:Presentation/PresentationBody/BaseField",
+        "XSD:Presentation/PresentationBody/ReportingPeriod",
+        "XSD:Presentation/PresentationBody/Amount",
+    ]
+    assert fields[0]["tipo_casilla"] == "diseno_registro_xsd_campo"
+    assert "Documentacion: Identificador del mensaje" in fields[0]["descripcion"]
+    assert "minOccurs: 0" in fields[3]["descripcion"]
+
+
+def test_extract_xsd_zip_fields_accepts_spanish_presentacion_root():
+    xsd = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="M240Presentacion">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="Cabecera">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="CodigoPresentacion" type="xs:string"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zipped:
+        zipped.writestr("M240CDNtnlPresentacion_v1.1.xsd", xsd)
+
+    fields = worker.extract_xsd_zip_fields(buffer.getvalue())
+
+    assert fields[0]["codigo"] == "XSD:M240Presentacion/Cabecera/CodigoPresentacion"
+
+
+def test_extract_pdf_text_fields_from_numbered_design_table():
+    text = """
+    Descripcion de hoja DISENO DE REGISTRO
+    No Posic. Lon Tipo Descripcion Validacion Contenido Uso
+    1 1 9 An Inicio del identificador de modelo y pagina obligatorio <T145010>
+    2 10 1 A Indicador de pagina complementaria obligatorio blanco o C
+    3 11 9 An NIF del declarante obligatorio
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert [field["codigo"] for field in fields] == ["DRPDF:N:1", "DRPDF:N:2", "DRPDF:N:3"]
+    assert fields[0]["etiqueta"] == "Inicio del identificador de modelo y pagina"
+    assert fields[0]["tipo_casilla"] == "diseno_registro_campo"
+    assert "Posic.: 1" in fields[0]["descripcion"]
+    assert "Lon.: 9" in fields[0]["descripcion"]
+
+
+def test_extract_pdf_text_fields_from_positions_nature_table():
+    text = """
+    MODELO 196
+    DISENOS DE REGISTRO
+    POSICIONES NATURALEZA DESCRIPCION DE LOS CAMPOS
+    1 Numerico TIPO DE REGISTRO.
+    Constante numero 1.
+    2-4 Numerico MODELO DECLARACION.
+    Constante 196.
+    5-8 Numerico EJERCICIO.
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert [field["codigo"] for field in fields] == [
+        "DRPDF:POS:1",
+        "DRPDF:POS:2-4",
+        "DRPDF:POS:5-8",
+    ]
+    assert fields[1]["etiqueta"] == "MODELO DECLARACION"
+    assert "Posiciones: 2-4" in fields[1]["descripcion"]
+    assert "Naturaleza: Numerico" in fields[1]["descripcion"]
+
+
+def test_extract_pdf_text_fields_accepts_nature_with_trailing_dot():
+    text = """
+    POSICIONES NATURALEZA DESCRIPCION DE LOS CAMPOS
+    1 Numerico. TIPO DE REGISTRO.
+    2-4 Numerico. MODELO DECLARACION.
+    9-17 Alfanumerico. NIF DEL DECLARANTE.
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert [field["codigo"] for field in fields] == [
+        "DRPDF:POS:1",
+        "DRPDF:POS:2-4",
+        "DRPDF:POS:9-17",
+    ]
+    assert fields[2]["etiqueta"] == "NIF DEL DECLARANTE"
+
+
+def test_is_pdf_format_detects_official_design_pdf_urls():
+    assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.pdf")
+    assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.PDF?download=1")
+    assert not worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.xlsx")
 
 
 def test_extract_deadline_date_from_calendar_title():

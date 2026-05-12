@@ -54,6 +54,94 @@ PLAYWRIGHT_BROWSERS_PATH = "/tmp/ms-playwright"
 AEAT_SYNC_LOCK_KEY = 88420031
 AEAT_RESOURCE_FETCH_RETRIES = 3
 
+MODEL_TAX_OVERRIDES = {
+    "100": "IRPF",
+    "102": "IRPF",
+    "111": "IRPF",
+    "115": "IRPF",
+    "123": "IRPF/IS/IRNR",
+    "124": "IRNR",
+    "130": "IRPF",
+    "156": "INFORMATIVO",
+    "159": "INFORMATIVO",
+    "165": "INFORMATIVO",
+    "170": "INFORMATIVO",
+    "171": "INFORMATIVO",
+    "172": "INFORMATIVO",
+    "173": "INFORMATIVO",
+    "179": "INFORMATIVO",
+    "180": "IRPF",
+    "181": "INFORMATIVO",
+    "182": "INFORMATIVO",
+    "184": "INFORMATIVO",
+    "185": "INFORMATIVO",
+    "186": "INFORMATIVO",
+    "187": "IRPF",
+    "188": "INFORMATIVO",
+    "189": "IRPF",
+    "190": "IRPF",
+    "192": "INFORMATIVO",
+    "193": "IRPF",
+    "194": "IRPF/IS",
+    "195": "INFORMATIVO",
+    "196": "IRPF",
+    "198": "IRPF",
+    "199": "INFORMATIVO",
+    "200": "IS/IRNR",
+    "202": "IS/IRNR",
+    "206": "IS/IRNR",
+    "210": "IRNR",
+    "211": "IRNR",
+    "213": "IRNR",
+    "216": "IRNR",
+    "231": "INFORMATIVO",
+    "233": "INFORMATIVO",
+    "234": "INFORMATIVO",
+    "238": "INFORMATIVO",
+    "239": "INFORMATIVO",
+    "240": "INFORMATIVO",
+    "241": "INFORMATIVO",
+    "247": "IRNR",
+    "270": "INFORMATIVO",
+    "280": "INFORMATIVO",
+    "281": "INFORMATIVO",
+    "283": "INFORMATIVO",
+    "289": "INFORMATIVO",
+    "290": "INFORMATIVO",
+    "291": "IRNR",
+    "294": "INFORMATIVO",
+    "295": "INFORMATIVO",
+    "296": "IRNR",
+    "299": "INFORMATIVO",
+    "303": "IVA",
+    "347": "INFORMATIVO",
+    "349": "IVA",
+    "390": "IVA",
+}
+
+MODEL_METADATA_OVERRIDES = {
+    "102": {
+        "nombre": "Modelo 102. IRPF. Segundo plazo del fraccionamiento de la declaracion anual.",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": (
+            "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/"
+            "impuesto-sobre-renta-personas-fisicas/"
+            "modelo-100-mode-declaracion-documentos-devolucion_/"
+            "descarga-modelo-102.html"
+        ),
+    },
+    "206": {
+        "nombre": (
+            "Modelo 206. IS/IRNR. Documento de ingreso o devolucion. "
+            "(Modelo 200 y 206)."
+        ),
+        "periodo": "anual",
+        "impuesto": "IS/IRNR",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml",
+    },
+}
+
 
 class FallbackRequired(RuntimeError):
     """Signal that the HTTP client cannot retrieve usable portal HTML."""
@@ -437,6 +525,54 @@ def _extract_model_name(raw_text: str, codigo: str) -> str:
     return f"Modelo {codigo}"
 
 
+def _extract_model_code_from_name(nombre: str) -> str | None:
+    match = re.search(r"\bModelo\s+([0-9]{3})\b", nombre or "", re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+def _infer_impuesto(codigo: str, page_text: str, url_info: str, nombre: str) -> str | None:
+    """Infer the tax family from the model detail page without trusting nav noise."""
+
+    if codigo in MODEL_TAX_OVERRIDES:
+        return MODEL_TAX_OVERRIDES[codigo]
+
+    compact = re.sub(r"\s+", " ", " ".join((codigo, url_info or "", nombre or "")).lower())
+    is_sociedades = (
+        "impuesto sobre sociedades" in compact
+        or "impuesto sociedades" in compact
+        or "/is/" in compact
+        or "modelo 200" in compact
+    )
+    is_irnr = (
+        "impuesto sobre la renta de no residentes" in compact
+        or "renta de no residentes" in compact
+        or "irnr" in compact
+        or "/no-residentes/" in compact
+    )
+    if is_sociedades and is_irnr:
+        return "IS/IRNR"
+    if is_sociedades:
+        return "IS"
+    if is_irnr:
+        return "IRNR"
+    if "irpf" in compact or "impuesto sobre la renta de las personas fisicas" in compact:
+        return "IRPF"
+    if "declaracion informativa" in compact or "declaración informativa" in compact or "informativo" in compact:
+        return "INFORMATIVO"
+    if "iva" in compact or "impuesto sobre el valor anadido" in compact or "impuesto sobre el valor añadido" in compact:
+        return "IVA"
+    return None
+
+
+def _apply_model_metadata_override(codigo: str, metadata: dict) -> dict:
+    override = MODEL_METADATA_OVERRIDES.get(codigo)
+    if not override:
+        return metadata
+    merged = {**metadata, **override}
+    merged["metadata_override"] = True
+    return merged
+
+
 def _fetch_model_metadata(
     codigo: str,
     url_info: str | None = None,
@@ -483,28 +619,28 @@ def _fetch_model_metadata(
     elif "anual" in page_text:
         periodo = "anual"
 
-    impuesto = None
-    if "irpf" in page_text:
-        impuesto = "IRPF"
-    elif "iva" in page_text:
-        impuesto = "IVA"
-    elif "is" in page_text or "impuesto sociedades" in page_text:
-        impuesto = "IS"
-    elif "irnr" in page_text:
-        impuesto = "IRNR"
-    elif "informacion" in page_text or "informativo" in page_text:
-        impuesto = "informacion"
+    nombre = _extract_model_name(model_soup.get_text(" ", strip=True)[:150], codigo)
+    embedded_code = _extract_model_code_from_name(nombre)
+    if embedded_code and embedded_code != codigo and codigo not in MODEL_METADATA_OVERRIDES:
+        logger.warning(
+            "AEAT detail page for modelo %s appears to describe modelo %s; keeping discovered metadata",
+            codigo,
+            embedded_code,
+        )
+        return None
 
-    return {
+    impuesto = _infer_impuesto(codigo, page_text, url_info, nombre)
+
+    return _apply_model_metadata_override(codigo, {
         "codigo": codigo,
-        "nombre": _extract_model_name(model_soup.get_text(" ", strip=True)[:150], codigo),
+        "nombre": nombre,
         "url_info": url_info,
         "periodo": periodo,
         "impuesto": impuesto,
         "campana": _infer_campaign(model_soup.get_text(" ", strip=True), url_info),
         "detail_html": model_html,
         "recursos": _extract_model_resources(model_html, url_info),
-    }
+    })
 
 
 def _upsert_aeat_model(conn, codigo: str, nombre: str, url_info: str, periodo: str | None = None, impuesto: str | None = None) -> bool:
@@ -700,18 +836,14 @@ def _try_acquire_sync_lock(conn) -> bool:
 @contextmanager
 def _hold_sync_lock(engine):
     if engine.dialect.name != "postgresql":
-        yield True
+        with engine.connect() as conn:
+            yield _try_acquire_sync_lock(conn)
         return
 
     lock_conn = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
     acquired = False
     try:
-        acquired = bool(
-            lock_conn.execute(
-                text("SELECT pg_try_advisory_lock(:lock_key)"),
-                {"lock_key": AEAT_SYNC_LOCK_KEY},
-            ).scalar()
-        )
+        acquired = _try_acquire_sync_lock(lock_conn)
         yield acquired
     finally:
         try:
@@ -909,17 +1041,21 @@ def _get_existing_codes(conn) -> set[str]:
 
 
 def _get_seeded_models(conn) -> list[dict]:
-    rows = conn.execute(
-        text(
-            """
-            SELECT codigo, nombre, url_info
-            FROM aeat_modelo
-            WHERE activo = true
-              AND url_info IS NOT NULL
-            ORDER BY codigo
-            """
-        )
-    ).fetchall()
+    try:
+        rows = conn.execute(
+            text(
+                """
+                SELECT codigo, nombre, url_info
+                FROM aeat_modelo
+                WHERE activo = true
+                  AND url_info IS NOT NULL
+                ORDER BY codigo
+                """
+            )
+        ).fetchall()
+    except Exception as exc:
+        logger.warning("Failed to load seeded AEAT models: %s", exc)
+        return []
     return [
         {"codigo": row.codigo, "nombre": row.nombre or f"Modelo {row.codigo}", "url_info": row.url_info}
         for row in rows
@@ -952,7 +1088,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                                 conn,
                                 started_at,
                                 datetime.now(UTC),
-                                "skipped",
+                                "partial",
                                 stats,
                                 "AEAT sync already in progress",
                             )

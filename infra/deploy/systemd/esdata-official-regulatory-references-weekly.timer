@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata official regulatory references weekly sync
+
+[Timer]
+OnCalendar=Wed *-*-* 11:20:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@official-regulatory-references.service
+
+[Install]
+WantedBy=timers.target

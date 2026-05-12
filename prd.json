@@ -1,22 +1,109 @@
 {
-  "projectName": "esdata-stdio-http-bridge",
-  "branchName": "fix/stdio-http-bridge",
-  "description": "Exponer vía HTTP MCP las 6 tools stdio que tienen endpoint REST equivalente. Clientes HTTP MCP (Claude Desktop via HTTP transport, Cursor, etc.) ahora pueden consumir consulta_fiscal, listar_obligaciones_operativas, listar_deadlines, listar_obligaciones_aplicables, get_obligacion, listar_workflow_compliance. Stdio-only tools (agente_monitoreo_status que depende de función Python interna) documentadas como limitación conocida.",
+  "projectName": "esdata-release-v1",
+  "branchName": "release/v1.0.0",
   "userStories": [
     {
-      "id": "E-01",
-      "title": "Añadir 6 operation_id al HTTP_MCP_OPERATIONS para exponer tools stdio vía HTTP (P0)",
+      "id": "R-01",
+      "title": "Audit all GitHub vulnerabilities - triage and fix CRITICAL and HIGH",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "HTTP MCP tools/list devuelve al menos 33 tools (antes 27 + 6 nuevas)",
-        "tools/call consulta_fiscal via HTTP MCP devuelve resultado con provenance",
-        "tools/call listar_obligaciones_operativas via HTTP MCP devuelve lista",
-        "tools/call listar_deadlines via HTTP MCP devuelve deadlines",
-        "tools/call get_obligacion via HTTP MCP devuelve detalle por código",
-        "tools/call listar_workflow_compliance via HTTP MCP devuelve workflow"
+        "List all 7 vulnerabilities with package, severity, current version, patched version, action and risk decision",
+        "Fix every CRITICAL and HIGH advisory with available patches",
+        "Assess MODERATE and LOW advisories and fix when covered by the same safe upgrade",
+        "Document all findings in docs/security-audit.md"
       ],
-      "verificationCommand": "manual — invoke MCP handshake and verify tools/list count >= 33"
+      "verificationCommand": "gh api /repos/Huntsman1756/esdata/dependabot/alerts --jq '[.[] | select(.state==\"open\" and (.security_vulnerability.severity==\"critical\" or .security_vulnerability.severity==\"high\"))] | length' 2>/dev/null | grep '^0$' && echo PASS || echo 'FAIL or default branch still awaiting merge scan'"
+    },
+    {
+      "id": "R-02",
+      "title": "VPS hardening - create deploy user, disable root login, confirm UFW and fail2ban",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Create and verify deploy user SSH before disabling root",
+        "Disable root SSH login and reload sshd",
+        "Confirm UFW active with DB port closed externally",
+        "Confirm fail2ban active and monitoring SSH"
+      ],
+      "verificationCommand": "ssh deploy@${VPS_HOST} 'echo deploy-user-ok' && ssh -o PasswordAuthentication=no root@${VPS_HOST} 'echo' 2>&1 | grep -i 'Permission denied\\|Connection refused' && echo PASS || echo FAIL-CHECK-SSH-MANUALLY"
+    },
+    {
+      "id": "R-03",
+      "title": "Test backup restore - not just backup existence",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Locate latest DB backup",
+        "Restore into non-production test database",
+        "Compare core row counts against production backup time",
+        "Drop restore test DB after verification"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d esdata_restore_test -tAc 'SELECT COUNT(*) FROM aeat_modelo' 2>/dev/null | grep -vE '^0$' && echo PASS || echo 'FAIL or test DB not found'"
+    },
+    {
+      "id": "R-04",
+      "title": "Merge fix/aeat-29-models-resource-audit to main - with full regression gate",
+      "priority": 4,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Run full test suite before merge",
+        "Merge with --no-ff",
+        "Run mcp_validation_suite on VPS after merge",
+        "Confirm /status API OK, DB OK, stale_workers=0"
+      ],
+      "verificationCommand": "git log --oneline -3 main && curl -sf http://localhost:${API_PORT:-8000}/status | jq '{api, db, stale_workers}' && echo PASS"
+    },
+    {
+      "id": "R-05",
+      "title": "Write RELEASE.md - honest contract language, not marketing",
+      "priority": 5,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Document trusted domains",
+        "Document limited-evidence domains",
+        "Document non-covered domains",
+        "Define response contracts and known limitations"
+      ],
+      "verificationCommand": "test -f RELEASE.md && grep -c 'verified\\|evidence_limited\\|configured_but_unavailable\\|parcial' RELEASE.md | awk '{print ($1 >= 4) ? \"PASS\" : \"FAIL-MISSING-CONTRACT-LANGUAGE\"}'"
+    },
+    {
+      "id": "R-06",
+      "title": "Create and push tag v1.0.0",
+      "priority": 6,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Main clean and all release commits present",
+        "Annotated tag v1.0.0 created and pushed",
+        "Remote tag verified",
+        "mcp_validation_suite and /status green after tag"
+      ],
+      "verificationCommand": "git ls-remote --tags origin | grep -q 'refs/tags/v1.0.0' && curl -sf http://localhost:${API_PORT:-8000}/status | jq '.api' | grep -q 'ok\\|OK' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "R-07",
+      "title": "Set up weekly accuracy review schedule - BOE, AEAT, EUR-Lex, CNMV, ESMA",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Create weekly accuracy check script",
+        "Check freshness thresholds per domain",
+        "Install Monday 08:00 Europe/Madrid cron on VPS",
+        "Exit non-zero when stale threshold fails"
+      ],
+      "verificationCommand": "test -f scripts/weekly-accuracy-check.sh && bash scripts/weekly-accuracy-check.sh && echo PASS || echo FAIL"
+    },
+    {
+      "id": "R-08",
+      "title": "Final smoke test - 10 real queries across all live domains post-release",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Run 10 production queries across AEAT, BOE, DGT, CNMV, AEPD, EUR-Lex and /status",
+        "All 10 must pass after v1.0.0 tag",
+        "Any failure blocks release"
+      ],
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.api' | grep -q 'ok\\|OK' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/303 | jq '.verified' | grep -q 'true' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/290 | jq '.completeness' | grep -q 'parcial' && echo 'CORE SMOKE PASS - run full 10-query suite manually'"
     }
   ]
 }

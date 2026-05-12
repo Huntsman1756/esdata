@@ -19,6 +19,7 @@ from services.modelos import (
     build_modelo_truth_contract,
     count_campaign_casillas,
     get_active_campaign,
+    get_campaign_for_casillas,
     get_model_row,
     get_modelo_campana_operativa,
     get_modelo_campana_operativa_row,
@@ -46,6 +47,37 @@ router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
 
 def _date_to_str(value):
     return str(value) if value is not None else None
+
+
+def _modelo_evidence_status(completeness: str, verified: bool) -> str:
+    if completeness == "parcial" or not verified:
+        return "evidence_limited"
+    if completeness == "no-casillas-expected":
+        return "no_casillas_expected"
+    if completeness == "deprecated":
+        return "deprecated"
+    return "verified"
+
+
+def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
+    if completeness == "no-casillas-expected":
+        return (
+            "ESData tiene verificado que este modelo no dispone de casillas "
+            "estructuradas esperadas en la campana consultada. No inferir "
+            "obligatoriedad por supuesto concreto."
+        )
+    if completeness == "deprecated":
+        return (
+            "ESData tiene verificado que este modelo no esta vigente o queda "
+            "clasificado como deprecated. No presentarlo como modelo actual."
+        )
+    if completeness == "parcial" or not verified:
+        return (
+            "Evidencia limitada: ESData expone solo los campos/fuentes oficiales "
+            "cargados para este modelo y no prueba instrucciones completas, "
+            "obligatoriedad ni aplicabilidad a un supuesto concreto."
+        )
+    return "ESData tiene evidencia suficiente para el contrato operativo declarado."
 
 
 def _record_modelo_query_audit(
@@ -335,11 +367,22 @@ async def get_modelo_aeat(
                 "codigo": model_row["codigo"],
                 "nombre": model_row["nombre"],
                 "activo": bool(model_row["activo"]),
+                "completeness": "parcial",
+                "verified": False,
+                "evidence_status": _modelo_evidence_status("parcial", False),
+                "evidence_notice": _modelo_evidence_notice("parcial", False),
+                "casillas_total": 0,
+                "casillas_campana": None,
+                "casillas_selection_notice": None,
                 "campana_actual": None,
                 "historial": [] if include_history else None,
             }
 
         campana_actual = campanas[0]
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana=campana)
+        casillas_selection = get_campaign_for_casillas(db, codigo, campana)
+        casillas_camp_row = casillas_selection["campaign"]
+        casillas_total = count_campaign_casillas(db, casillas_camp_row["id"]) if casillas_camp_row else 0
         campana_actual_payload = {
             "campana": campana_actual["campana"],
             "activo": bool(campana_actual["activo"]),
@@ -368,6 +411,13 @@ async def get_modelo_aeat(
             "codigo": model_row["codigo"],
             "nombre": model_row["nombre"],
             "activo": bool(model_row["activo"]),
+            "completeness": completeness,
+            "verified": verified,
+            "evidence_status": _modelo_evidence_status(completeness, verified),
+            "evidence_notice": _modelo_evidence_notice(completeness, verified),
+            "casillas_total": casillas_total,
+            "casillas_campana": casillas_camp_row["campana"] if casillas_camp_row else None,
+            "casillas_selection_notice": casillas_selection["selection_notice"],
             "campana_actual": campana_actual_payload,
             "historial": historial_payload,
         }
@@ -420,6 +470,11 @@ async def get_modelo(
         camp_row = get_active_campaign(db, codigo, campana)
         campana_id = camp_row["id"] if camp_row else None
         campana_activa = camp_row["campana"] if camp_row else None
+        casillas_selection = get_campaign_for_casillas(db, codigo, campana)
+        casillas_camp_row = casillas_selection["campaign"]
+        casillas_campana_id = casillas_camp_row["id"] if casillas_camp_row else None
+        casillas_campana = casillas_camp_row["campana"] if casillas_camp_row else None
+        casillas_selection_notice = casillas_selection["selection_notice"]
 
         all_art_rows = list(list_modelo_articulos(db, codigo))
         art_rows = all_art_rows[articulos_offset : articulos_offset + related_limit]
@@ -442,11 +497,11 @@ async def get_modelo(
         casillas_total = 0
         casillas_has_more = False
         casillas_next_offset = None
-        if campana_id:
-            casillas_total = count_campaign_casillas(db, campana_id)
+        if casillas_campana_id:
+            casillas_total = count_campaign_casillas(db, casillas_campana_id)
             cas_rows = list_campaign_casillas(
                 db,
-                campana_id,
+                casillas_campana_id,
                 limit=casillas_limit,
                 offset=casillas_offset,
             )
@@ -478,6 +533,11 @@ async def get_modelo(
             if operativa_row and operativa_row.get("estado_metadato")
             else None
         )
+        explicit_completeness = (
+            operativa_row["completeness_estado"]
+            if operativa_row and operativa_row.get("completeness_estado")
+            else None
+        )
 
         all_norm_rows = list(list_modelo_normativa(db, codigo))
         norm_rows = all_norm_rows[:related_limit]
@@ -497,6 +557,7 @@ async def get_modelo(
             has_instructions=bool(instrucciones),
             has_casillas=bool(casillas),
             metadata_state=estado_metadato,
+            explicit_completeness=explicit_completeness,
         )
 
         payload = {
@@ -519,6 +580,8 @@ async def get_modelo(
                 else None
             ),
             "casillas": casillas,
+            "casillas_campana": casillas_campana,
+            "casillas_selection_notice": casillas_selection_notice,
             "casillas_total": casillas_total,
             "casillas_limit": casillas_limit,
             "casillas_offset": casillas_offset,
@@ -534,6 +597,8 @@ async def get_modelo(
             "doctrina_relacionada_total": len(doctrina_relacionada),
             "completeness": completeness,
             "verified": verified,
+            "evidence_status": _modelo_evidence_status(completeness, verified),
+            "evidence_notice": _modelo_evidence_notice(completeness, verified),
         }
         _record_modelo_query_audit(
             request,
@@ -649,13 +714,18 @@ async def get_modelo_casillas(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
 
-        camp_row = get_active_campaign(db, codigo, campana)
+        casillas_selection = get_campaign_for_casillas(db, codigo, campana)
+        camp_row = casillas_selection["campaign"]
+        campana_activa = casillas_selection["active_campaign"]
+        selection_notice = casillas_selection["selection_notice"]
         filters = {"q": q, "tipo_casilla": tipo_casilla, "pagina": pagina}
 
         if not camp_row:
             payload = {
                 "codigo": codigo,
                 "campana": campana,
+                "campana_activa": campana_activa,
+                "selection_notice": selection_notice,
                 "casillas": [],
                 "total": 0,
                 "limit": limit,
@@ -671,7 +741,22 @@ async def get_modelo_casillas(
             completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             payload["completeness"] = completeness
             payload["verified"] = verified
-            payload["confidence"] = {"score": 0.0, "label": "baja", "review_required": True}
+            payload["evidence_status"] = _modelo_evidence_status(completeness, verified)
+            payload["evidence_notice"] = _modelo_evidence_notice(completeness, verified)
+            if completeness == "no-casillas-expected":
+                payload["classification"] = "sin_casillas_esperadas"
+                payload["obligation_notice"] = (
+                    "ESData tiene verificado que este modelo no dispone de casillas "
+                    "estructuradas esperadas en la campana consultada. No inferir "
+                    "obligatoriedad por supuesto concreto."
+                )
+                payload["confidence"] = {
+                    "score": 0.9,
+                    "label": "alta",
+                    "review_required": False,
+                }
+            else:
+                payload["confidence"] = {"score": 0.0, "label": "baja", "review_required": True}
             _record_modelo_query_audit(
                 request,
                 path=f"/v1/modelos/{codigo}/casillas",
@@ -705,9 +790,25 @@ async def get_modelo_casillas(
         casillas = [dict(r) for r in rows]
         has_more = offset + len(casillas) < total
 
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+        classification = "confirmado" if casillas else "requiere_verificacion"
+        obligation_notice = (
+            "Las casillas devueltas son campos oficiales del modelo/campana. "
+            "No implican por si solas que una casilla sea obligatoria para un supuesto concreto."
+        )
+        if not casillas and completeness == "no-casillas-expected":
+            classification = "sin_casillas_esperadas"
+            obligation_notice = (
+                "ESData tiene verificado que este modelo no dispone de casillas "
+                "estructuradas esperadas en la campana consultada. No inferir "
+                "obligatoriedad por supuesto concreto."
+            )
+
         payload = {
             "codigo": codigo,
             "campana": camp_row["campana"],
+            "campana_activa": campana_activa,
+            "selection_notice": selection_notice,
             "casillas": casillas,
             "total": total,
             "limit": limit,
@@ -715,15 +816,13 @@ async def get_modelo_casillas(
             "has_more": has_more,
             "next_offset": offset + len(casillas) if has_more else None,
             "filters": filters,
-            "classification": "confirmado" if casillas else "requiere_verificacion",
-            "obligation_notice": (
-                "Las casillas devueltas son campos oficiales del modelo/campana. "
-                "No implican por si solas que una casilla sea obligatoria para un supuesto concreto."
-            ),
+            "classification": classification,
+            "obligation_notice": obligation_notice,
         }
-        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         payload["completeness"] = completeness
         payload["verified"] = verified
+        payload["evidence_status"] = _modelo_evidence_status(completeness, verified)
+        payload["evidence_notice"] = _modelo_evidence_notice(completeness, verified)
         payload["confidence"] = {
             "score": 0.9 if verified else 0.5 if payload["casillas"] else 0.0,
             "label": "alta" if verified else "media" if payload["casillas"] else "baja",
@@ -989,6 +1088,10 @@ async def get_campana_operativa_modelo(
             raise HTTPException(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
+        completeness = payload["completeness"]
+        verified = bool(payload["verified"])
+        payload["evidence_status"] = _modelo_evidence_status(completeness, verified)
+        payload["evidence_notice"] = _modelo_evidence_notice(completeness, verified)
         return payload
 
 

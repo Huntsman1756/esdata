@@ -15,7 +15,8 @@ import logging
 import time
 
 from boe import log_sync
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from change_detection import ensure_source_revision_table
+from runtime import ensure_database_connection, get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
@@ -303,6 +304,7 @@ def upsert_csrd_double_materiality(conn, payload: dict):
 def run_sync(worker_name: str = "cron-csrd-weekly"):
     """Run CSRD sync cycle."""
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    ensure_database_connection(engine)
     sync_start = time.time()
     processed = 0
     stored = 0
@@ -370,22 +372,6 @@ def run_sync(worker_name: str = "cron-csrd-weekly"):
                 started_at=sync_start,
             )
         raise
-
-
-def ensure_source_revision_table(conn):
-    """Ensure source_revision table exists."""
-    conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS source_revision (
-            id SERIAL PRIMARY KEY,
-            worker_name TEXT NOT NULL,
-            entity_type TEXT NOT NULL,
-            entity_id TEXT NOT NULL,
-            content_hash TEXT NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_source_revision_unique
-            ON source_revision (worker_name, entity_type, entity_id);
-    """))
 
 
 # ---------------------------------------------------------------------------

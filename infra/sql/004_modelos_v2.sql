@@ -111,6 +111,10 @@ CREATE TABLE modelo_campana_operativa (
     nota                     TEXT,
     origen_metadato          TEXT DEFAULT 'seed_curado',
     estado_metadato          TEXT DEFAULT 'curado',
+    completeness_estado      TEXT CHECK (
+        completeness_estado IS NULL
+        OR completeness_estado IN ('completa', 'parcial', 'no-casillas-expected', 'deprecated')
+    ),
     actualizado_at           TIMESTAMPTZ DEFAULT now()
 );
 

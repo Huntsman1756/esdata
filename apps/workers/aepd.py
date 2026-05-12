@@ -19,6 +19,7 @@ import time
 from datetime import UTC, datetime
 from html import unescape
 from io import BytesIO
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from boe import _ensure_sync_log_table, log_sync
@@ -53,16 +54,43 @@ def _parse_seed_urls(value: str | None) -> list[str]:
 SEED_URLS = _parse_seed_urls(os.getenv("AEPD_SEED_URLS"))
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
+AEPD_GUIDES_INDEX_URL = os.getenv(
+    "AEPD_GUIDES_INDEX_URL", "https://www.aepd.es/guias-y-herramientas/guias"
+)
+DEFAULT_AEPD_MAX_URLS_PER_RUN = 25
+DEFAULT_AEPD_DISCOVERY_PAGES = 3
 
 
 def _normalize_whitespace(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def _env_bool(name: str, default: bool = True) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r; using %s", name, value, default)
+        return default
+    return max(parsed, 0)
+
+
 def _extract_reference(url: str, text_value: str) -> str:
-    path_match = re.search(r"(/guias/|/docs/|/docs/)([^/]+)", url)
-    if path_match:
-        return f"AEPD-{path_match.group(2)}"
+    path = urlparse(url).path.rstrip("/")
+    filename = path.split("/")[-1]
+    if filename:
+        slug = filename.removesuffix(".pdf")
+        if slug:
+            return f"AEPD-{slug}"
     text_match = re.search(r"(\d{4}/\d{2})", text_value)
     if text_match:
         return f"AEPD-{text_match.group(1).replace('/', '-')}"
@@ -117,6 +145,77 @@ def extract_text(content: bytes) -> str:
 
 def _is_pdf(content: bytes) -> bool:
     return content[:5] == b"%PDF-"
+
+
+def _is_official_aepd_document_url(value: str) -> bool:
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    if parsed.netloc not in {"www.aepd.es", "aepd.es"}:
+        return False
+
+    path = parsed.path
+    if path.endswith(".pdf") and path.startswith(("/documento/", "/guias/")):
+        return True
+
+    return (
+        path.startswith("/guias-y-herramientas/guias/")
+        and "guias-y-documentos-obsoletos" not in path
+        and not parsed.query
+        and "." not in path.rsplit("/", 1)[-1]
+    )
+
+
+def _extract_aepd_document_urls_from_index(html: str, *, base_url: str) -> list[str]:
+    urls: list[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r'href=["\']([^"\']+)["\']', html, flags=re.IGNORECASE):
+        absolute_url = urljoin(base_url, unescape(match.group(1)))
+        if not _is_official_aepd_document_url(absolute_url):
+            continue
+        if absolute_url in seen:
+            continue
+        seen.add(absolute_url)
+        urls.append(absolute_url)
+    return urls
+
+
+def discover_aepd_document_urls(
+    client: httpx.Client,
+    *,
+    index_url: str = AEPD_GUIDES_INDEX_URL,
+    max_urls: int,
+    max_pages: int,
+) -> list[str]:
+    """Discover current AEPD guide/document URLs from the official index."""
+    if max_urls <= 0 or max_pages <= 0:
+        return []
+
+    discovered: list[str] = []
+    seen: set[str] = set()
+    page_urls = [index_url]
+    for page in range(1, max_pages):
+        page_urls.append(urljoin(index_url, f"?page={page}"))
+
+    for page_url in page_urls:
+        try:
+            response = client.get(page_url)
+            response.raise_for_status()
+        except Exception as exc:
+            logger.warning("AEPD discovery skipped %s: %s", page_url, exc)
+            continue
+
+        for document_url in _extract_aepd_document_urls_from_index(
+            response.text, base_url=page_url
+        ):
+            if document_url in seen:
+                continue
+            seen.add(document_url)
+            discovered.append(document_url)
+            if len(discovered) >= max_urls:
+                return discovered
+
+    return discovered
 
 
 def build_document_payload(url: str, content: bytes) -> dict[str, str]:
@@ -205,22 +304,11 @@ def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-aepd",
 ) -> dict[str, int]:
-    import logging
-    import os
-
-    logger = logging.getLogger(__name__)
-    urls = seed_urls or SEED_URLS
-    if not urls:
-        logger.error(
-            "SEED_URLS vacío en %s — worker abortado sin ingestión. "
-            "Configura la variable de entorno correspondiente.",
-            worker_name,
-        )
-        return {"processed": 0, "stored": 0}
-
     request_delay = float(os.environ.get("WORKER_REQUEST_DELAY", "1.0"))
     processed = 0
     stored = 0
+    errors = 0
+    sync_start = datetime.now(UTC).isoformat()
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine)
 
@@ -228,56 +316,90 @@ def run_sync(
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
-            for url in urls:
-                response = client.get(url)
-                response.raise_for_status()
-                payload = build_document_payload(url, response.content)
-                processed += 1
-
-                change = check_content_changed(
-                    conn, worker_name, "documento", payload["referencia"], response.content
+            urls = list(seed_urls) if seed_urls is not None else list(SEED_URLS)
+            if seed_urls is None and _env_bool("AEPD_DISCOVER_FROM_INDEX", True):
+                discovered = discover_aepd_document_urls(
+                    client,
+                    index_url=os.getenv("AEPD_GUIDES_INDEX_URL", AEPD_GUIDES_INDEX_URL),
+                    max_urls=_env_int("AEPD_MAX_URLS_PER_RUN", DEFAULT_AEPD_MAX_URLS_PER_RUN),
+                    max_pages=_env_int("AEPD_DISCOVERY_PAGES", DEFAULT_AEPD_DISCOVERY_PAGES),
                 )
+                if discovered:
+                    urls = discovered
 
-                if not change.changed and destination_row_exists(
-                    conn,
-                    "documento_interpretativo",
-                    "referencia",
-                    payload["referencia"],
-                ):
-                    print(f"  [SKIP] {payload['referencia']} unchanged")
-                    continue
-
-                invalidated = invalidate_old_embeddings(conn, payload["referencia"])
-                if invalidated:
-                    print(
-                        f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"
-                    )
-
-                upsert_documento_interpretativo(conn, payload)
-                record_revision(
+            urls = list(dict.fromkeys(urls))
+            if not urls:
+                message = (
+                    "No AEPD URLs discovered and AEPD_SEED_URLS is empty; "
+                    "worker wrote explicit partial telemetry."
+                )
+                logger.warning(message)
+                log_sync(
                     conn,
                     worker_name,
-                    "documento",
-                    payload["referencia"],
-                    response.content,
+                    "partial",
+                    documentos_processed=0,
+                    documentos_upserted=0,
+                    error_msg=message,
+                    started_at=sync_start,
                 )
-                stored += 1
-                time.sleep(request_delay)
+                return {"processed": 0, "stored": 0, "errors": 0}
+
+            for url in urls:
+                try:
+                    response = client.get(url)
+                    response.raise_for_status()
+                    payload = build_document_payload(url, response.content)
+                    processed += 1
+
+                    change = check_content_changed(
+                        conn, worker_name, "documento", payload["referencia"], response.content
+                    )
+                    if not change.changed and destination_row_exists(
+                        conn,
+                        "documento_interpretativo",
+                        "referencia",
+                        payload["referencia"],
+                    ):
+                        print(f"  [SKIP] {payload['referencia']} unchanged")
+                        continue
+
+                    invalidated = invalidate_old_embeddings(conn, payload["referencia"])
+                    if invalidated:
+                        print(
+                            f"  [INVALIDATE] {invalidated} old embeddings for {payload['referencia']}"
+                        )
+
+                    upsert_documento_interpretativo(conn, payload)
+                    record_revision(
+                        conn,
+                        worker_name,
+                        "documento",
+                        payload["referencia"],
+                        response.content,
+                    )
+                    stored += 1
+                    time.sleep(request_delay)
+                except Exception as item_exc:
+                    errors += 1
+                    logger.warning("AEPD URL skipped %s: %s", url, item_exc)
 
             log_sync(
                 conn,
                 worker_name,
-                "ok",
+                "partial" if errors else "ok",
                 documentos_processed=processed,
                 documentos_upserted=stored,
+                error_msg=f"{errors} AEPD URLs skipped" if errors else None,
+                started_at=sync_start,
             )
 
-        return {"processed": processed, "stored": stored}
+        return {"processed": processed, "stored": stored, "errors": errors}
     except Exception as exc:
         entity_id = "aepd"
         if not handle_worker_failure(engine, "aepd", entity_id, "sync_entity", exc):
             logger.warning("Entity aepd moved to dead-letter")
-            return {"processed": 0, "stored": 0}
+            return {"processed": 0, "stored": 0, "errors": errors}
         with engine.begin() as conn:
             log_sync(
                 conn,
@@ -286,6 +408,7 @@ def run_sync(
                 documentos_processed=processed,
                 documentos_upserted=stored,
                 error_msg=str(exc),
+                started_at=sync_start,
             )
         raise
 

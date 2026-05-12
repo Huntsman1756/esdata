@@ -29,6 +29,96 @@
         }
       }
     },
+    "/v1/buscar": {
+      "get": {
+        "tags": [
+          "buscar"
+        ],
+        "summary": "Buscar en legislacion consolidada",
+        "operationId": "buscar",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Termino de busqueda",
+              "title": "Q"
+            },
+            "description": "Termino de busqueda"
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por fuente (boe, autonomica, etc.)",
+              "title": "Fuente"
+            },
+            "description": "Filtrar por fuente (boe, autonomica, etc.)"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ambito (tributario, etc.)",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito (tributario, etc.)"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de articulo",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo de articulo"
+          },
+          {
+            "name": "norma",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por codigo de norma (LIVA, LIRPF, etc.)",
+              "title": "Norma"
+            },
+            "description": "Filtrar por codigo de norma (LIVA, LIRPF, etc.)"
+          },
+          {
+            "name": "vigente_en",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fecha de vigencia (YYYY-MM-DD)",
+              "title": "Vigente En"
+            },
+            "description": "Fecha de vigencia (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegislacionSearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/legislacion/buscar": {
       "get": {
         "tags": [
@@ -118,6 +208,54 @@
         "description": "Search consolidated Spanish laws (LIVA, LIRPF, LIS, etc.) by keyword. Returns matching articles with snippets and relevance scores. Filter by norma (e.g. LIVA, LIRPF), ambito, tipo, fuente, or vigencia."
       }
     },
+    "/v1/legislacion": {
+      "get": {
+        "tags": [
+          "legislacion"
+        ],
+        "summary": "List Legislacion",
+        "operationId": "list_legislacion",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/legislacion/{codigo}": {
       "get": {
         "tags": [
@@ -147,6 +285,74 @@
           }
         },
         "description": "Get metadata for a Spanish law by code (e.g. LIVA, LIRPF, LIS). Returns title, jurisdiction, document type, and coverage status."
+      }
+    },
+    "/v1/legislacion/{codigo}/articulos": {
+      "get": {
+        "tags": [
+          "legislacion"
+        ],
+        "summary": "List Articulos",
+        "operationId": "list_articulos",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Tipo"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticulosListResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/legislacion/{codigo}/articulos/{numero}": {
@@ -196,6 +402,94 @@
           }
         },
         "description": "Get the full text of a specific article from a law. Optionally filter by vigencia_en (YYYY-MM-DD) for historical versions. Returns the article text, validity dates, and confidence info."
+      }
+    },
+    "/v1/legislacion/{codigo}/articulos/{numero}/historial": {
+      "get": {
+        "tags": [
+          "legislacion"
+        ],
+        "summary": "Get Articulo Historial",
+        "operationId": "get_articulo_historial",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "numero",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Numero"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/materias": {
+      "get": {
+        "tags": [
+          "materias"
+        ],
+        "summary": "List Materias",
+        "operationId": "list_materias",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/materias/{slug}": {
+      "get": {
+        "tags": [
+          "materias"
+        ],
+        "summary": "Get Materia",
+        "operationId": "get_materia",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
       }
     },
     "/v1/doctrina/buscar": {
@@ -310,6 +604,52 @@
           }
         },
         "description": "Get a specific doctrine document by reference (e.g. V0000-26, 00/1234/2024). Returns full text, linked articles, and confidence information."
+      }
+    },
+    "/v1/modelos/campanas-operativas": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Vista operativa agregada de varios modelos",
+        "operationId": "list_modelos_campanas_operativas",
+        "parameters": [
+          {
+            "name": "codigos",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Codigos separados por comas, ej: 124,216,296",
+              "title": "Codigos"
+            },
+            "description": "Codigos separados por comas, ej: 124,216,296"
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelosCampanasOperativasResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-beta": true
       }
     },
     "/v1/modelos/por-supuesto": {
@@ -554,6 +894,64 @@
         }
       }
     },
+    "/v1/modelos/{codigo}/articulos": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Get Modelo Articulos",
+        "description": "Solo artículos enlazados a un modelo (para filtros/paginación futura).",
+        "operationId": "get_modelo_articulos",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/modelos/{codigo}/casillas": {
       "get": {
         "tags": [
@@ -659,6 +1057,351 @@
         }
       }
     },
+    "/v1/modelos/{codigo}/claves": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Claves de un modelo",
+        "description": "Lista todas las claves de un modelo para una campaña.",
+        "operationId": "get_modelo_claves",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/modelos/{codigo}/instrucciones": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Instrucciones de un modelo",
+        "description": "Lista las instrucciones de un modelo para una campaña.",
+        "operationId": "get_modelo_instrucciones",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/modelos/{codigo}/normativa": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Get Modelo Normativa",
+        "description": "Lista la normativa (BOE) de un modelo.",
+        "operationId": "get_modelo_normativa",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/modelos/{codigo}/artefactos": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Artefactos técnicos disponibles para un modelo",
+        "operationId": "get_modelo_artefactos",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeloArtefactosResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-beta": true
+      }
+    },
+    "/v1/modelos/{codigo}/resumen-operativo": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Resumen operativo para agentes sobre un modelo",
+        "operationId": "get_modelo_resumen_operativo",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeloResumenOperativoResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-beta": true
+      }
+    },
+    "/v1/modelos/{codigo}/campana-operativa": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Vista de campaña operativa para agentes",
+        "operationId": "get_modelo_campana_operativa",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeloCampanaOperativaResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-beta": true
+      }
+    },
+    "/v1/modelos/{codigo}/fuentes-oficiales": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Fuentes oficiales recomendadas para trabajar un modelo",
+        "operationId": "get_modelo_fuentes_oficiales",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "campana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campana especifica",
+              "title": "Campana"
+            },
+            "description": "Campana especifica"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeloFuentesOficialesResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-beta": true
+      }
+    },
     "/v1/consulta": {
       "get": {
         "tags": [
@@ -760,6 +1503,696 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConsultaFiscalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compliance/workflow": {
+      "get": {
+        "tags": [
+          "compliance"
+        ],
+        "summary": "Listar Workflow Compliance",
+        "operationId": "listar_workflow_compliance",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/mica/casp": {
+      "get": {
+        "tags": [
+          "mica"
+        ],
+        "summary": "List Casp",
+        "description": "Listar proveedores de servicios de criptoactivos (CASP) del registro ESMA.",
+        "operationId": "list_casp",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado: active, suspended, revoked",
+              "title": "Status"
+            },
+            "description": "Filtrar por estado: active, suspended, revoked"
+          },
+          {
+            "name": "home_member_state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado miembro (ISO 3166-1 alpha-2)",
+              "title": "Home Member State"
+            },
+            "description": "Filtrar por estado miembro (ISO 3166-1 alpha-2)"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Busqueda por nombre",
+              "title": "Search"
+            },
+            "description": "Busqueda por nombre"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CASPListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/mica/casp/buscar": {
+      "get": {
+        "tags": [
+          "mica"
+        ],
+        "summary": "Search ESMA MiCA CASP register",
+        "description": "Search the loaded ESMA MiCA Crypto-Asset Service Providers register by provider name or registration number. Treat results as authoritative only when quality_signal is official_esma_register and availability_status is populated. If safe_to_answer is false, do not infer that a provider is absent from the real register.",
+        "operationId": "buscar_casp",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Busqueda por nombre o numero de registro",
+              "title": "Q"
+            },
+            "description": "Busqueda por nombre o numero de registro"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado: active, suspended, revoked",
+              "title": "Status"
+            },
+            "description": "Filtrar por estado: active, suspended, revoked"
+          },
+          {
+            "name": "home_member_state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado miembro (ISO 3166-1 alpha-2)",
+              "title": "Home Member State"
+            },
+            "description": "Filtrar por estado miembro (ISO 3166-1 alpha-2)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CASPListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/mica/casp/{casp_id}": {
+      "get": {
+        "tags": [
+          "mica"
+        ],
+        "summary": "Get Casp",
+        "description": "Obtener detalle de un CASP por ID.",
+        "operationId": "get_casp",
+        "parameters": [
+          {
+            "name": "casp_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Casp Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CASPDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/aspsp": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "List Psd2 Aspsp",
+        "operationId": "list_psd2_aspsp",
+        "parameters": [
+          {
+            "name": "regulatory_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado regulatorio: registered, suspended, revoked",
+              "title": "Regulatory Status"
+            },
+            "description": "Estado regulatorio: registered, suspended, revoked"
+          },
+          {
+            "name": "home_member_state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado miembro: ES, DE, FR, etc.",
+              "title": "Home Member State"
+            },
+            "description": "Estado miembro: ES, DE, FR, etc."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Limite de resultados",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Limite de resultados"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/aspsp/{item_id}": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "Get Psd2 Aspsp",
+        "operationId": "get_psd2_aspsp",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/aisp": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "List Psd2 Aisp",
+        "operationId": "list_psd2_aisp",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado: active, inactive, suspended",
+              "title": "Status"
+            },
+            "description": "Estado: active, inactive, suspended"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Limite de resultados",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Limite de resultados"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/aisp/{item_id}": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "Get Psd2 Aisp",
+        "operationId": "get_psd2_aisp",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/pisp": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "List Psd2 Pisp",
+        "operationId": "list_psd2_pisp",
+        "parameters": [
+          {
+            "name": "authorization_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado: authorized, suspended, revoked",
+              "title": "Authorization Status"
+            },
+            "description": "Estado: authorized, suspended, revoked"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Limite de resultados",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Limite de resultados"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/pisp/{item_id}": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "Get Psd2 Pisp",
+        "operationId": "get_psd2_pisp",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/sepa-rules": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "List Sepa Payment Rules",
+        "operationId": "list_sepa_payment_rules",
+        "parameters": [
+          {
+            "name": "payment_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de pago: SEPA CT, SEPA CCT, SEPA Core, SEPA B2B",
+              "title": "Payment Type"
+            },
+            "description": "Tipo de pago: SEPA CT, SEPA CCT, SEPA Core, SEPA B2B"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Limite de resultados",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Limite de resultados"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/psd2/sepa-rules/{item_id}": {
+      "get": {
+        "tags": [
+          "psd2"
+        ],
+        "summary": "Get Sepa Payment Rule",
+        "operationId": "get_sepa_payment_rule",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/screening/entries": {
+      "get": {
+        "tags": [
+          "screening"
+        ],
+        "summary": "Screening Entries",
+        "description": "List screening entries with filters.",
+        "operationId": "screening_entries",
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de lista: sanctions, pep, watchlist",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo de lista: sanctions, pep, watchlist"
+          },
+          {
+            "name": "codigo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por codigo de lista (OFAC_SDN, EU_SANCTIONS, etc.)",
+              "title": "Codigo"
+            },
+            "description": "Filtrar por codigo de lista (OFAC_SDN, EU_SANCTIONS, etc.)"
+          },
+          {
+            "name": "activo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Filtrar por estado activo",
+              "title": "Activo"
+            },
+            "description": "Filtrar por estado activo"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Buscar por nombre o alias",
+              "title": "Q"
+            },
+            "description": "Buscar por nombre o alias"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Limite de resultados",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Limite de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreeningEntriesResponse"
                 }
               }
             }
@@ -873,6 +2306,1826 @@
         },
         "description": "Return freshness and ingestion status for official source families. Use this before answering currency-sensitive questions about tax models, deadlines, legislation, doctrine, or regulatory updates."
       }
+    },
+    "/v1/internacional/obligaciones": {
+      "get": {
+        "tags": [
+          "internacional"
+        ],
+        "summary": "Listar Obligaciones Internacionales",
+        "operationId": "listar_obligaciones_internacionales",
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo: tratado, convenio, directiva, ley",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo: tratado, convenio, directiva, ley"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado: activo, inactivo, obsoleto",
+              "default": "activo",
+              "title": "Estado"
+            },
+            "description": "Estado: activo, inactivo, obsoleto"
+          },
+          {
+            "name": "jurisdiccion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por jurisdiccion de origen",
+              "title": "Jurisdiccion"
+            },
+            "description": "Filtrar por jurisdiccion de origen"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Numero maximo de registros",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Numero maximo de registros"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Desplazamiento para paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Desplazamiento para paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligacionInternacionalListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/internacional/obligaciones/{codigo}": {
+      "get": {
+        "tags": [
+          "internacional"
+        ],
+        "summary": "Detalle Obligacion Internacional",
+        "operationId": "detalle_obligacion_internacional",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligacionInternacionalDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/internacional/convenios/retenciones": {
+      "get": {
+        "tags": [
+          "convenios-dta"
+        ],
+        "summary": "Listar reglas de retencion",
+        "description": "Lista reglas de retencion por tipo de renta y pais.",
+        "operationId": "listar_reglas_retencion_internacional",
+        "parameters": [
+          {
+            "name": "tipo_renta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de renta: dividends, interest, royalties, capital_gains, other",
+              "title": "Tipo Renta"
+            },
+            "description": "Tipo de renta: dividends, interest, royalties, capital_gains, other"
+          },
+          {
+            "name": "pais",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Pais aplicable (codigo ISO)",
+              "title": "Pais"
+            },
+            "description": "Pais aplicable (codigo ISO)"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado: activo, inactivo",
+              "default": "activo",
+              "title": "Estado"
+            },
+            "description": "Estado: activo, inactivo"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrsWithholdingRuleListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/internacional/convenios": {
+      "get": {
+        "tags": [
+          "convenios-dta"
+        ],
+        "summary": "Listar convenios DTA",
+        "description": "Lista convenios de doble tributacion con filtros por pais y estado.",
+        "operationId": "listar_convenios_dta_internacional",
+        "parameters": [
+          {
+            "name": "pais_a",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Pais origen (codigo ISO)",
+              "title": "Pais A"
+            },
+            "description": "Pais origen (codigo ISO)"
+          },
+          {
+            "name": "pais_b",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Pais destino (codigo ISO)",
+              "title": "Pais B"
+            },
+            "description": "Pais destino (codigo ISO)"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado: vigente, expirado, modificado",
+              "default": "vigente",
+              "title": "Estado"
+            },
+            "description": "Estado: vigente, expirado, modificado"
+          },
+          {
+            "name": "tipo_acuerdo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo: bilateral, multilateral",
+              "title": "Tipo Acuerdo"
+            },
+            "description": "Tipo: bilateral, multilateral"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Tamano de pagina aplicado",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Tamano de pagina aplicado"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de resultados",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrsDttaConventionListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/internacional/convenios/{codigo}": {
+      "get": {
+        "tags": [
+          "convenios-dta"
+        ],
+        "summary": "Detalle convenio DTA",
+        "description": "Detalle completo de un convenio de doble tributacion.",
+        "operationId": "detalle_convenio_dta_internacional",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrsDttaConventionDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/internacional/convenios/retencion": {
+      "post": {
+        "tags": [
+          "convenios-dta"
+        ],
+        "summary": "Calcular retencion aplicable",
+        "description": "Calcula el tipo de retencion aplicable cruzando reglas de retencion con convenios DTA vigentes. Si existe un convenio DTA vigente entre el pais de residencia y el tipo de renta, devuelve la tasa reducida.",
+        "operationId": "calcular_retencion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IrsFiscalCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrsFiscalCheckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/irs-fiscal/normas": {
+      "get": {
+        "tags": [
+          "irs-fiscal"
+        ],
+        "summary": "Listar Normas Irs",
+        "operationId": "listar_normas_irs",
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo: publicacion, forma, instruccion, ley, convenio",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo: publicacion, forma, instruccion, ley, convenio"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado: activo, inactivo, obsoleto",
+              "default": "activo",
+              "title": "Estado"
+            },
+            "description": "Estado: activo, inactivo, obsoleto"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrsFiscalNormaListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/irs-fiscal/w8-formularios": {
+      "get": {
+        "tags": [
+          "irs-fiscal"
+        ],
+        "summary": "Listar Formularios W8",
+        "operationId": "listar_formularios_w8",
+        "parameters": [
+          {
+            "name": "tipo_sujeto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo: persona_fisica, persona_juridica, exento",
+              "title": "Tipo Sujeto"
+            },
+            "description": "Filtrar por tipo: persona_fisica, persona_juridica, exento"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Estado: activo, inactivo",
+              "default": "activo",
+              "title": "Estado"
+            },
+            "description": "Estado: activo, inactivo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrsW8FormListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/irs-fiscal/tin-referencias": {
+      "get": {
+        "tags": [
+          "irs-fiscal"
+        ],
+        "summary": "Listar Referencias Tin",
+        "operationId": "listar_referencias_tin",
+        "parameters": [
+          {
+            "name": "pais",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por codigo de pais (ISO 3166-1 alpha-2)",
+              "title": "Pais"
+            },
+            "description": "Filtrar por codigo de pais (ISO 3166-1 alpha-2)"
+          },
+          {
+            "name": "ocde",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Filtrar por pais OCDE",
+              "title": "Ocde"
+            },
+            "description": "Filtrar por pais OCDE"
+          },
+          {
+            "name": "eu_vat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Filtrar por pais UE VAT",
+              "title": "Eu Vat"
+            },
+            "description": "Filtrar por pais UE VAT"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IrsTinReferenceListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/irs-fiscal/giin": {
+      "get": {
+        "tags": [
+          "irs-fiscal"
+        ],
+        "summary": "Listar Registros Giin",
+        "operationId": "listar_registros_giin",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado FATCA: activo, inactivo, suspendido",
+              "title": "Estado"
+            },
+            "description": "Filtrar por estado FATCA: activo, inactivo, suspendido"
+          },
+          {
+            "name": "pais",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por pais de la entidad",
+              "title": "Pais"
+            },
+            "description": "Filtrar por pais de la entidad"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo: FFI, NFFE, Exempt Beneficial Owner",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo: FFI, NFFE, Exempt Beneficial Owner"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Limite de registros devueltos",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Limite de registros devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiinRegistryListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/irs-fiscal/giin/{giin}": {
+      "get": {
+        "tags": [
+          "irs-fiscal"
+        ],
+        "summary": "Detalle Registro Giin",
+        "operationId": "detalle_registro_giin",
+        "parameters": [
+          {
+            "name": "giin",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Giin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiinRegistryDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/eurlex": {
+      "get": {
+        "tags": [
+          "eurlex"
+        ],
+        "summary": "Listar Eurlex",
+        "operationId": "listar_eurlex",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o título",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o título"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo (directiva, reglamento, decision)",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo (directiva, reglamento, decision)"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ámbito (fiscal_ue, mercado_interior, competencia_ue, ...)",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ámbito (fiscal_ue, mercado_interior, competencia_ue, ...)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EurLexListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/eurlex/{referencia}": {
+      "get": {
+        "tags": [
+          "eurlex"
+        ],
+        "summary": "Get Eurlex",
+        "operationId": "get_eurlex",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EurLexDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/obligaciones/aplicables": {
+      "get": {
+        "tags": [
+          "obligaciones"
+        ],
+        "summary": "Listar Obligaciones Aplicables",
+        "operationId": "listar_obligaciones_aplicables",
+        "parameters": [
+          {
+            "name": "tipo_entidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tipo de entidad regulada",
+              "default": "sociedad_valores",
+              "title": "Tipo Entidad"
+            },
+            "description": "Tipo de entidad regulada"
+          },
+          {
+            "name": "reporting_reservado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si aplica reporting reservado CNMV",
+              "default": true,
+              "title": "Reporting Reservado"
+            },
+            "description": "Si aplica reporting reservado CNMV"
+          },
+          {
+            "name": "aml_cft_reforzado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si la entidad esta sujeta a obligaciones AML/CFT operativas",
+              "default": true,
+              "title": "Aml Cft Reforzado"
+            },
+            "description": "Si la entidad esta sujeta a obligaciones AML/CFT operativas"
+          },
+          {
+            "name": "cross_border_ue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si la entidad presta servicios cross-border UE",
+              "default": false,
+              "title": "Cross Border Ue"
+            },
+            "description": "Si la entidad presta servicios cross-border UE"
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Numero maximo de obligaciones aplicables devueltas",
+              "default": 100,
+              "title": "Limite"
+            },
+            "description": "Numero maximo de obligaciones aplicables devueltas"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de obligaciones aplicables",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de obligaciones aplicables"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligacionesAplicablesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/obligaciones/operativas": {
+      "get": {
+        "tags": [
+          "obligaciones"
+        ],
+        "summary": "Listar Obligaciones Operativas",
+        "description": "Listar obligaciones con datos operativos completos (plazos, sanciones, triggers).\n\nDiseñado para que el LLM consumidor del MCP pueda responder preguntas de\ncumplimiento con datos estructurados en lugar de texto libre.",
+        "operationId": "listar_obligaciones_operativas",
+        "parameters": [
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ámbito",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ámbito"
+          },
+          {
+            "name": "frecuencia",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por frecuencia: mensual, trimestral, anual, eventual",
+              "title": "Frecuencia"
+            },
+            "description": "Filtrar por frecuencia: mensual, trimestral, anual, eventual"
+          },
+          {
+            "name": "con_sancion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Solo obligaciones con sanciones definidas",
+              "default": true,
+              "title": "Con Sancion"
+            },
+            "description": "Solo obligaciones con sanciones definidas"
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Número máximo de resultados",
+              "default": 50,
+              "title": "Limite"
+            },
+            "description": "Número máximo de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "title": "Response Listar Obligaciones Operativas"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/obligaciones/deadlines": {
+      "get": {
+        "tags": [
+          "obligaciones"
+        ],
+        "summary": "Listar Deadlines",
+        "description": "Listar obligaciones próximas a vencer o presentar.\n\nDevuelve obligaciones ordenadas por frecuencia y ventana de presentación,\nútil para que el LLM responda \"qué tengo que presentar pronto\".",
+        "operationId": "listar_deadlines",
+        "parameters": [
+          {
+            "name": "dias_proximo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "description": "Mostrar obligaciones en los próximos N días",
+              "default": 30,
+              "title": "Dias Proximo"
+            },
+            "description": "Mostrar obligaciones en los próximos N días"
+          },
+          {
+            "name": "frecuencia",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por frecuencia",
+              "title": "Frecuencia"
+            },
+            "description": "Filtrar por frecuencia"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "title": "Response Listar Deadlines"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/obligaciones/{codigo}": {
+      "get": {
+        "tags": [
+          "obligaciones"
+        ],
+        "summary": "Get Obligacion",
+        "operationId": "get_obligacion",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligacionDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Listar Cnmv",
+        "operationId": "listar_cnmv",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o título",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o título"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ámbito regulatorio",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ámbito regulatorio"
+          },
+          {
+            "name": "tipo_documento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de documento",
+              "title": "Tipo Documento"
+            },
+            "description": "Filtrar por tipo de documento"
+          },
+          {
+            "name": "vigencia",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado de vigencia",
+              "title": "Vigencia"
+            },
+            "description": "Filtrar por estado de vigencia"
+          },
+          {
+            "name": "regulacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por regulación EU/ES relacionada (mifid_ii, mifir, mar, dora, priips, LIVMC)",
+              "title": "Regulacion"
+            },
+            "description": "Filtrar por regulación EU/ES relacionada (mifid_ii, mifir, mar, dora, priips, LIVMC)"
+          },
+          {
+            "name": "obligacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de obligación (presentacion_modelo, remision_informacion, control_interno, comunicacion_indicio, reporting_prudencial)",
+              "title": "Obligacion"
+            },
+            "description": "Filtrar por tipo de obligación (presentacion_modelo, remision_informacion, control_interno, comunicacion_indicio, reporting_prudencial)"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginación",
+              "default": 0,
+              "title": "Skip"
+            },
+            "description": "Offset de paginación"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Número de resultados (máx 100)",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Número de resultados (máx 100)"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campo de ordenación: fecha, referencia, titulo",
+              "default": "fecha",
+              "title": "Order By"
+            },
+            "description": "Campo de ordenación: fecha, referencia, titulo"
+          },
+          {
+            "name": "order_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Dirección de ordenación: asc, desc",
+              "default": "desc",
+              "title": "Order Dir"
+            },
+            "description": "Dirección de ordenación: asc, desc"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv/buscar": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Buscar Cnmv",
+        "operationId": "buscar_cnmv",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ambito regulatorio",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito regulatorio"
+          },
+          {
+            "name": "tipo_documento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de documento",
+              "title": "Tipo Documento"
+            },
+            "description": "Filtrar por tipo de documento"
+          },
+          {
+            "name": "vigencia",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado de vigencia",
+              "title": "Vigencia"
+            },
+            "description": "Filtrar por estado de vigencia"
+          },
+          {
+            "name": "regulacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por regulacion EU/ES relacionada",
+              "title": "Regulacion"
+            },
+            "description": "Filtrar por regulacion EU/ES relacionada"
+          },
+          {
+            "name": "obligacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de obligacion",
+              "title": "Obligacion"
+            },
+            "description": "Filtrar por tipo de obligacion"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Skip"
+            },
+            "description": "Offset de paginacion"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Numero de resultados",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Numero de resultados"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campo de ordenacion",
+              "default": "fecha",
+              "title": "Order By"
+            },
+            "description": "Campo de ordenacion"
+          },
+          {
+            "name": "order_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Direccion de ordenacion",
+              "default": "desc",
+              "title": "Order Dir"
+            },
+            "description": "Direccion de ordenacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv/{referencia}/versions": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Get Cnmv Versions",
+        "description": "Get version history for a CNMV document (Fase 23.6).",
+        "operationId": "get_cnmv_versions",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CNMVVersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv/{referencia}/relaciones": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Get Cnmv Regulation Links",
+        "description": "Get regulation links for a CNMV document (Fase 23.7).",
+        "operationId": "get_cnmv_regulation_links",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CNMVRegulationLinkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv/{referencia}/obligaciones": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Get Cnmv Obligation Links",
+        "description": "Get obligation links for a CNMV document (Fase 23.9).",
+        "operationId": "get_cnmv_obligation_links",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CNMVObligationLinkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv/{referencia}": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Get Cnmv",
+        "operationId": "get_cnmv",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/borme": {
+      "get": {
+        "tags": [
+          "borme"
+        ],
+        "summary": "Listar Borme",
+        "operationId": "listar_borme",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o título",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o título"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de acto detectado",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo de acto detectado"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de actos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de actos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BORMEListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/borme/{referencia}": {
+      "get": {
+        "tags": [
+          "borme"
+        ],
+        "summary": "Get Borme",
+        "operationId": "get_borme",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BORMEDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/boe-diario": {
+      "get": {
+        "tags": [
+          "boe-diario"
+        ],
+        "summary": "Listar Boe Diario",
+        "operationId": "listar_boe_diario",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "anuncio_boe | suplemento_boe | notificacion_boe",
+              "title": "Tipo"
+            },
+            "description": "anuncio_boe | suplemento_boe | notificacion_boe"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BOEDiarioListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/boe-diario/{referencia}": {
+      "get": {
+        "tags": [
+          "boe-diario"
+        ],
+        "summary": "Get Boe Diario",
+        "operationId": "get_boe_diario",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BOEDiarioDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/aepd": {
+      "get": {
+        "tags": [
+          "aepd"
+        ],
+        "summary": "List AEPD documents",
+        "operationId": "listar_aepd",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ambito (proteccion_datos, derechos_ar, ficheros_datos, cookies)",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito (proteccion_datos, derechos_ar, ficheros_datos, cookies)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "List official AEPD documents loaded by ESData. Responses include `items`, `total`, `url_aepd`, and pagination metadata. Do not treat missing sanctioning resolutions as loaded unless the response explicitly returns them."
+      }
+    },
+    "/v1/aepd/buscar": {
+      "get": {
+        "tags": [
+          "aepd"
+        ],
+        "summary": "Search AEPD documents",
+        "operationId": "buscar_aepd",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ambito",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Search official AEPD documents by title or text. Use `url_aepd`/`url_fuente` as the cited official source and do not mix these guidance/document results with consolidated BOE legal articles."
+      }
+    },
+    "/v1/aepd/{referencia}": {
+      "get": {
+        "tags": [
+          "aepd"
+        ],
+        "summary": "Get AEPD document detail",
+        "operationId": "get_aepd",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoDetail"
+                }
+              }
+            }
+          }
+        },
+        "description": "Return full text and official AEPD source URL for a loaded AEPD document."
+      }
     }
   },
   "security": [
@@ -923,6 +4176,31 @@
         ],
         "title": "ArticuloDetail"
       },
+      "ArticuloListItem": {
+        "properties": {
+          "numero": {
+            "type": "string",
+            "title": "Numero",
+            "description": "Número del artículo"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Título del artículo"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "Tipo (articulo, disposicion, etc.)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero",
+          "tipo"
+        ],
+        "title": "ArticuloListItem"
+      },
       "ArticuloRelacionado": {
         "properties": {
           "norma": {
@@ -954,6 +4232,677 @@
           "confianza_enlace"
         ],
         "title": "ArticuloRelacionado"
+      },
+      "ArticulosListResponse": {
+        "properties": {
+          "norma": {
+            "type": "string",
+            "title": "Norma",
+            "description": "Código de la norma"
+          },
+          "articulos": {
+            "items": {
+              "$ref": "#/components/schemas/ArticuloListItem"
+            },
+            "type": "array",
+            "title": "Articulos"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Límite aplicado"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Offset aplicado"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "description": "Si existen más resultados"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset",
+            "description": "Offset de continuación"
+          }
+        },
+        "type": "object",
+        "required": [
+          "norma",
+          "articulos"
+        ],
+        "title": "ArticulosListResponse"
+      },
+      "BOEDiarioDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "texto"
+        ],
+        "title": "BOEDiarioDetail"
+      },
+      "BOEDiarioListItem": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Identificador oficial BOE-B/BOE-S/BOE-N"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha de publicacion"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Titulo oficial del documento"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "anuncio_boe | suplemento_boe | notificacion_boe"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento",
+            "description": "Extracto truncado del texto oficial"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "XML o PDF oficial utilizado"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "fragmento"
+        ],
+        "title": "BOEDiarioListItem"
+      },
+      "BOEDiarioListResponse": {
+        "properties": {
+          "documentos": {
+            "items": {
+              "$ref": "#/components/schemas/BOEDiarioListItem"
+            },
+            "type": "array",
+            "title": "Documentos"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documentos"
+        ],
+        "title": "BOEDiarioListResponse"
+      },
+      "BORMEDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal"
+          },
+          "empresas_relacionadas": {
+            "items": {
+              "$ref": "#/components/schemas/BORMEEmpresaRelacionada"
+            },
+            "type": "array",
+            "title": "Empresas Relacionadas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "texto"
+        ],
+        "title": "BORMEDetail"
+      },
+      "BORMEEmpresaRelacionada": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "confianza_extraccion": {
+            "type": "number",
+            "title": "Confianza Extraccion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "confianza_extraccion"
+        ],
+        "title": "BORMEEmpresaRelacionada"
+      },
+      "BORMEListItem": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Referencia oficial del acto/anuncio BORME"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha del acto/anuncio"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Titulo detectado"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "Tipo de acto detectado"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento",
+            "description": "Extracto truncado del texto oficial"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "URL oficial BORME/BOE"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal",
+            "description": "partial_heuristic | official_exact"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "fragmento"
+        ],
+        "title": "BORMEListItem"
+      },
+      "BORMEListResponse": {
+        "properties": {
+          "actos": {
+            "items": {
+              "$ref": "#/components/schemas/BORMEListItem"
+            },
+            "type": "array",
+            "title": "Actos"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal",
+            "description": "Overall quality signal for BORME extraction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actos"
+        ],
+        "title": "BORMEListResponse"
+      },
+      "CASPDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID del CASP"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Nombre del CASP"
+          },
+          "registration_number": {
+            "type": "string",
+            "title": "Registration Number",
+            "description": "Número de registro"
+          },
+          "home_member_state": {
+            "type": "string",
+            "title": "Home Member State",
+            "description": "Estado miembro"
+          },
+          "passport_active": {
+            "type": "boolean",
+            "title": "Passport Active",
+            "description": "Pasaporte activo"
+          },
+          "services_offered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Services Offered",
+            "description": "Servicios ofrecidos"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Estado: active, suspended, revoked"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "description": "Fecha de creación"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "description": "Fecha de actualización"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "passport_active",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CASPDetail"
+      },
+      "CASPListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CASPSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal",
+            "description": "official_esma_register | configured_but_unavailable"
+          },
+          "availability_status": {
+            "type": "string",
+            "title": "Availability Status",
+            "description": "populated | workflow_empty | configured_but_unavailable"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "Whether this list is backed by real populated data"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Official source URL for the loaded register"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "CASPListResponse"
+      },
+      "CASPSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID del CASP"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Nombre del CASP"
+          },
+          "registration_number": {
+            "type": "string",
+            "title": "Registration Number",
+            "description": "Número de registro"
+          },
+          "home_member_state": {
+            "type": "string",
+            "title": "Home Member State",
+            "description": "Estado miembro"
+          },
+          "passport_active": {
+            "type": "boolean",
+            "title": "Passport Active",
+            "description": "Pasaporte activo"
+          },
+          "services_offered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Services Offered",
+            "description": "Servicios ofrecidos"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Estado: active, suspended, revoked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "passport_active",
+          "status"
+        ],
+        "title": "CASPSummary"
+      },
+      "CNMVObligationLinkItem": {
+        "properties": {
+          "tipo_obligacion": {
+            "type": "string",
+            "title": "Tipo Obligacion"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo_obligacion"
+        ],
+        "title": "CNMVObligationLinkItem"
+      },
+      "CNMVObligationLinkResponse": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "obligaciones": {
+            "items": {
+              "$ref": "#/components/schemas/CNMVObligationLinkItem"
+            },
+            "type": "array",
+            "title": "Obligaciones"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "obligaciones",
+          "total"
+        ],
+        "title": "CNMVObligationLinkResponse"
+      },
+      "CNMVRegulationLinkItem": {
+        "properties": {
+          "regulacion_id": {
+            "type": "string",
+            "title": "Regulacion Id"
+          },
+          "relacion_tipo": {
+            "type": "string",
+            "title": "Relacion Tipo"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "regulacion_id",
+          "relacion_tipo"
+        ],
+        "title": "CNMVRegulationLinkItem"
+      },
+      "CNMVRegulationLinkResponse": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "regulaciones": {
+            "items": {
+              "$ref": "#/components/schemas/CNMVRegulationLinkItem"
+            },
+            "type": "array",
+            "title": "Regulaciones"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "regulaciones",
+          "total"
+        ],
+        "title": "CNMVRegulationLinkResponse"
+      },
+      "CNMVVersionItem": {
+        "properties": {
+          "version_num": {
+            "type": "integer",
+            "title": "Version Num"
+          },
+          "cambio_tipo": {
+            "type": "string",
+            "title": "Cambio Tipo"
+          },
+          "fecha_version": {
+            "type": "string",
+            "title": "Fecha Version"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "url_version": {
+            "type": "string",
+            "title": "Url Version"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_num",
+          "cambio_tipo",
+          "texto"
+        ],
+        "title": "CNMVVersionItem"
+      },
+      "CNMVVersionResponse": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "versiones": {
+            "items": {
+              "$ref": "#/components/schemas/CNMVVersionItem"
+            },
+            "type": "array",
+            "title": "Versiones"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "versiones",
+          "total"
+        ],
+        "title": "CNMVVersionResponse"
       },
       "ChunkCitation": {
         "properties": {
@@ -1115,6 +5064,222 @@
         ],
         "title": "ConsultaFiscalResponse"
       },
+      "DocInterpretativoDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "url_aepd": {
+            "type": "string",
+            "title": "Url Aepd",
+            "description": "Alias de URL fuente AEPD para consumidores MCP"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor",
+            "description": "Organismo emisor (cendoj)"
+          },
+          "estado_vigencia": {
+            "type": "string",
+            "title": "Estado Vigencia",
+            "description": "Estado vigencia (cnmv)"
+          },
+          "numero_circular": {
+            "type": "string",
+            "title": "Numero Circular",
+            "description": "Numero circular (cnmv)"
+          },
+          "fecha_publicacion": {
+            "type": "string",
+            "title": "Fecha Publicacion",
+            "description": "Fecha publicacion (cnmv)"
+          },
+          "referencia_boe": {
+            "type": "string",
+            "title": "Referencia Boe",
+            "description": "Referencia BOE (cnmv)"
+          },
+          "boe_referencia": {
+            "type": "string",
+            "title": "Boe Referencia",
+            "description": "Alias de referencia BOE para consumidores MCP"
+          },
+          "url_cnmv": {
+            "type": "string",
+            "title": "Url Cnmv",
+            "description": "Alias de URL fuente CNMV/BOE para consumidores MCP"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "ambito",
+          "texto"
+        ],
+        "title": "DocInterpretativoDetail"
+      },
+      "DocInterpretativoListItem": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Identificador del documento"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha (ISO date)"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "Tipo de documento"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito",
+            "description": "Ambito"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento",
+            "description": "Extracto truncado (<=223 chars)"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "URL fuente oficial"
+          },
+          "url_aepd": {
+            "type": "string",
+            "title": "Url Aepd",
+            "description": "Alias de URL fuente AEPD para consumidores MCP"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor",
+            "description": "Organismo emisor (cendoj)"
+          },
+          "estado_vigencia": {
+            "type": "string",
+            "title": "Estado Vigencia",
+            "description": "Estado vigencia (cnmv)"
+          },
+          "fecha_publicacion": {
+            "type": "string",
+            "title": "Fecha Publicacion",
+            "description": "Fecha publicacion (cnmv)"
+          },
+          "referencia_boe": {
+            "type": "string",
+            "title": "Referencia Boe",
+            "description": "Referencia BOE (cnmv)"
+          },
+          "boe_referencia": {
+            "type": "string",
+            "title": "Boe Referencia",
+            "description": "Alias de referencia BOE para consumidores MCP"
+          },
+          "url_cnmv": {
+            "type": "string",
+            "title": "Url Cnmv",
+            "description": "Alias de URL fuente CNMV/BOE para consumidores MCP"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "ambito",
+          "fragmento"
+        ],
+        "title": "DocInterpretativoListItem"
+      },
+      "DocInterpretativoListResponse": {
+        "properties": {
+          "documentos": {
+            "items": {
+              "$ref": "#/components/schemas/DocInterpretativoListItem"
+            },
+            "type": "array",
+            "title": "Documentos"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocInterpretativoListItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Alias paginado para consumidores MCP/GPT"
+          },
+          "skip": {
+            "type": "integer",
+            "title": "Skip",
+            "description": "Offset paginacion (cnmv)"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Limite paginacion (cnmv)"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total resultados (cnmv)"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Offset paginacion"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "description": "Si hay mas resultados"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset",
+            "description": "Siguiente offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documentos"
+        ],
+        "title": "DocInterpretativoListResponse"
+      },
       "DoctrinaDetail": {
         "properties": {
           "referencia": {
@@ -1131,6 +5296,16 @@
             "type": "string",
             "title": "Organismo Emisor",
             "description": "Organismo emisor (DGT, TEAC, etc.)"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha del documento (YYYY-MM-DD)"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "URL oficial del documento"
           },
           "texto": {
             "type": "string",
@@ -1222,6 +5397,11 @@
             "title": "Referencia",
             "description": "Referencia del documento"
           },
+          "numero_consulta": {
+            "type": "string",
+            "title": "Numero Consulta",
+            "description": "Numero de consulta DGT cuando el organismo emisor es DGT"
+          },
           "tipo_documento": {
             "type": "string",
             "title": "Tipo Documento",
@@ -1231,6 +5411,11 @@
             "type": "string",
             "title": "Organismo Emisor",
             "description": "Organismo emisor"
+          },
+          "organo": {
+            "type": "string",
+            "title": "Organo",
+            "description": "Alias operativo del organismo emisor"
           },
           "fecha": {
             "type": "string",
@@ -1298,6 +5483,378 @@
         ],
         "title": "DoctrinaViaArticulo"
       },
+      "EurLexDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Identificador CELEX (norma.codigo)"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "vigente_desde (ISO date)"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Titulo oficial de la norma"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "reglamento | directiva | decision"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito",
+            "description": "Ambito EU"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto",
+            "description": "Concatenacion de articulos vigentes"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "URI ELI EUR-Lex"
+          },
+          "articulos_total": {
+            "type": "integer",
+            "title": "Articulos Total",
+            "description": "Numero de articulos/versiones vigentes cargados",
+            "default": 0
+          },
+          "coverage_status": {
+            "type": "string",
+            "title": "Coverage Status",
+            "description": "article_text_available | metadata_only"
+          },
+          "articles_expected": {
+            "type": "integer",
+            "title": "Articles Expected",
+            "description": "Conteo esperado de articulos si el worker pudo medirlo"
+          },
+          "articles_parsed": {
+            "type": "integer",
+            "title": "Articles Parsed",
+            "description": "Conteo de articulos parseados registrado por el worker"
+          },
+          "articles_empty_official": {
+            "type": "integer",
+            "title": "Articles Empty Official",
+            "description": "Bloques oficiales EUR-Lex publicados sin cuerpo de texto en la manifestacion vigente"
+          },
+          "quality_status": {
+            "type": "string",
+            "title": "Quality Status",
+            "description": "metadata_only | partial | article_text_available"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "True solo si hay texto oficial de articulado cargado"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "completa | parcial"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso de evidencia limitada si falta articulado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "titulo",
+          "tipo_documento",
+          "ambito",
+          "texto",
+          "coverage_status",
+          "verified",
+          "completeness"
+        ],
+        "title": "EurLexDetail"
+      },
+      "EurLexListItem": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Identificador CELEX (norma.codigo)"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "vigente_desde (ISO date)"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Titulo oficial de la norma"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "reglamento | directiva | decision"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito",
+            "description": "Ambito EU (mercado_interior, fiscal_ue, ...)"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento",
+            "description": "Extracto truncado (<=223 chars) del primer articulo vigente"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "URI ELI EUR-Lex (norma.eli_uri)"
+          },
+          "articulos_total": {
+            "type": "integer",
+            "title": "Articulos Total",
+            "description": "Numero de articulos/versiones vigentes cargados",
+            "default": 0
+          },
+          "coverage_status": {
+            "type": "string",
+            "title": "Coverage Status",
+            "description": "article_text_available | metadata_only"
+          },
+          "articles_expected": {
+            "type": "integer",
+            "title": "Articles Expected",
+            "description": "Conteo esperado de articulos si el worker pudo medirlo"
+          },
+          "articles_parsed": {
+            "type": "integer",
+            "title": "Articles Parsed",
+            "description": "Conteo de articulos parseados registrado por el worker"
+          },
+          "articles_empty_official": {
+            "type": "integer",
+            "title": "Articles Empty Official",
+            "description": "Bloques oficiales EUR-Lex publicados sin cuerpo de texto en la manifestacion vigente"
+          },
+          "quality_status": {
+            "type": "string",
+            "title": "Quality Status",
+            "description": "metadata_only | partial | article_text_available"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "True solo si hay texto oficial de articulado cargado"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "completa | parcial"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso de evidencia limitada si falta articulado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "titulo",
+          "tipo_documento",
+          "ambito",
+          "fragmento",
+          "coverage_status",
+          "verified",
+          "completeness"
+        ],
+        "title": "EurLexListItem"
+      },
+      "EurLexListResponse": {
+        "properties": {
+          "documentos": {
+            "items": {
+              "$ref": "#/components/schemas/EurLexListItem"
+            },
+            "type": "array",
+            "title": "Documentos"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documentos"
+        ],
+        "title": "EurLexListResponse"
+      },
+      "GiinRegistryDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "giin": {
+            "type": "string",
+            "title": "Giin"
+          },
+          "entidad_nombre": {
+            "type": "string",
+            "title": "Entidad Nombre"
+          },
+          "entidad_pais": {
+            "type": "string",
+            "title": "Entidad Pais"
+          },
+          "tipo_entidad": {
+            "type": "string",
+            "title": "Tipo Entidad"
+          },
+          "estado_fatca": {
+            "type": "string",
+            "title": "Estado Fatca"
+          },
+          "fecha_expiracion": {
+            "type": "string",
+            "title": "Fecha Expiracion"
+          },
+          "fecha_registro": {
+            "type": "string",
+            "title": "Fecha Registro"
+          },
+          "es_exempt_beneficial_owner": {
+            "type": "boolean",
+            "title": "Es Exempt Beneficial Owner"
+          },
+          "es_sponsored_ffo": {
+            "type": "boolean",
+            "title": "Es Sponsored Ffo"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "creado_en": {
+            "type": "string",
+            "title": "Creado En"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "title": "Actualizado En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "giin",
+          "entidad_nombre",
+          "tipo_entidad",
+          "estado_fatca"
+        ],
+        "title": "GiinRegistryDetail"
+      },
+      "GiinRegistryListResponse": {
+        "properties": {
+          "registros": {
+            "items": {
+              "$ref": "#/components/schemas/GiinRegistrySummary"
+            },
+            "type": "array",
+            "title": "Registros"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "GiinRegistryListResponse"
+      },
+      "GiinRegistrySummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "giin": {
+            "type": "string",
+            "title": "Giin"
+          },
+          "entidad_nombre": {
+            "type": "string",
+            "title": "Entidad Nombre"
+          },
+          "entidad_pais": {
+            "type": "string",
+            "title": "Entidad Pais"
+          },
+          "tipo_entidad": {
+            "type": "string",
+            "title": "Tipo Entidad"
+          },
+          "estado_fatca": {
+            "type": "string",
+            "title": "Estado Fatca"
+          },
+          "fecha_expiracion": {
+            "type": "string",
+            "title": "Fecha Expiracion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "giin",
+          "entidad_nombre",
+          "tipo_entidad",
+          "estado_fatca"
+        ],
+        "title": "GiinRegistrySummary"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1310,6 +5867,488 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IrsDttaConventionDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "pais_origen": {
+            "type": "string",
+            "title": "Pais Origen"
+          },
+          "pais_destino": {
+            "type": "string",
+            "title": "Pais Destino"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "fecha_firma": {
+            "type": "string",
+            "title": "Fecha Firma"
+          },
+          "fecha_vigencia": {
+            "type": "string",
+            "title": "Fecha Vigencia"
+          },
+          "tipo_acuerdo": {
+            "type": "string",
+            "title": "Tipo Acuerdo"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "boe_referencia": {
+            "type": "string",
+            "title": "Boe Referencia"
+          },
+          "articulos": {
+            "type": "string",
+            "title": "Articulos"
+          },
+          "texto_completo": {
+            "type": "string",
+            "title": "Texto Completo"
+          },
+          "creado_en": {
+            "type": "string",
+            "title": "Creado En"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "title": "Actualizado En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "pais_origen",
+          "pais_destino",
+          "titulo",
+          "estado"
+        ],
+        "title": "IrsDttaConventionDetail"
+      },
+      "IrsDttaConventionListResponse": {
+        "properties": {
+          "convenios": {
+            "items": {
+              "$ref": "#/components/schemas/IrsDttaConventionSummary"
+            },
+            "type": "array",
+            "title": "Convenios"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "IrsDttaConventionListResponse"
+      },
+      "IrsDttaConventionSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "pais_origen": {
+            "type": "string",
+            "title": "Pais Origen"
+          },
+          "pais_destino": {
+            "type": "string",
+            "title": "Pais Destino"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "fecha_firma": {
+            "type": "string",
+            "title": "Fecha Firma"
+          },
+          "fecha_vigencia": {
+            "type": "string",
+            "title": "Fecha Vigencia"
+          },
+          "tipo_acuerdo": {
+            "type": "string",
+            "title": "Tipo Acuerdo"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "pais_origen",
+          "pais_destino",
+          "titulo",
+          "estado"
+        ],
+        "title": "IrsDttaConventionSummary"
+      },
+      "IrsFiscalCheckRequest": {
+        "properties": {
+          "pais_residencia": {
+            "type": "string",
+            "title": "Pais Residencia"
+          },
+          "tipo_renta": {
+            "type": "string",
+            "title": "Tipo Renta"
+          },
+          "tiene_formulario_w8": {
+            "type": "boolean",
+            "title": "Tiene Formulario W8",
+            "default": false
+          },
+          "entidad_giin": {
+            "type": "string",
+            "title": "Entidad Giin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo_renta"
+        ],
+        "title": "IrsFiscalCheckRequest"
+      },
+      "IrsFiscalCheckResponse": {
+        "properties": {
+          "pais_residencia": {
+            "type": "string",
+            "title": "Pais Residencia"
+          },
+          "tipo_renta": {
+            "type": "string",
+            "title": "Tipo Renta"
+          },
+          "tipo_retencion_aplicable": {
+            "type": "number",
+            "title": "Tipo Retencion Aplicable"
+          },
+          "tiene_convenio_dta": {
+            "type": "boolean",
+            "title": "Tiene Convenio Dta"
+          },
+          "codigo_convenio": {
+            "type": "string",
+            "title": "Codigo Convenio"
+          },
+          "requiere_w8": {
+            "type": "boolean",
+            "title": "Requiere W8"
+          },
+          "formulario_recomendado": {
+            "type": "string",
+            "title": "Formulario Recomendado"
+          },
+          "notas": {
+            "type": "string",
+            "title": "Notas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo_renta",
+          "tipo_retencion_aplicable",
+          "tiene_convenio_dta",
+          "requiere_w8"
+        ],
+        "title": "IrsFiscalCheckResponse"
+      },
+      "IrsFiscalNormaListResponse": {
+        "properties": {
+          "normas": {
+            "items": {
+              "$ref": "#/components/schemas/IrsFiscalNormaSummary"
+            },
+            "type": "array",
+            "title": "Normas"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "IrsFiscalNormaListResponse"
+      },
+      "IrsFiscalNormaSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "anio_vigencia": {
+            "type": "integer",
+            "title": "Anio Vigencia"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "titulo",
+          "tipo",
+          "estado"
+        ],
+        "title": "IrsFiscalNormaSummary"
+      },
+      "IrsTinReferenceListResponse": {
+        "properties": {
+          "referencias": {
+            "items": {
+              "$ref": "#/components/schemas/IrsTinReferenceSummary"
+            },
+            "type": "array",
+            "title": "Referencias"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "IrsTinReferenceListResponse"
+      },
+      "IrsTinReferenceSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo_pais": {
+            "type": "string",
+            "title": "Codigo Pais"
+          },
+          "pais_nombre": {
+            "type": "string",
+            "title": "Pais Nombre"
+          },
+          "formato_tin": {
+            "type": "string",
+            "title": "Formato Tin"
+          },
+          "ejemplo_tin": {
+            "type": "string",
+            "title": "Ejemplo Tin"
+          },
+          "es_ocde": {
+            "type": "boolean",
+            "title": "Es Ocde"
+          },
+          "es_eu_vat": {
+            "type": "boolean",
+            "title": "Es Eu Vat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo_pais",
+          "pais_nombre",
+          "es_ocde",
+          "es_eu_vat"
+        ],
+        "title": "IrsTinReferenceSummary"
+      },
+      "IrsW8FormListResponse": {
+        "properties": {
+          "formularios": {
+            "items": {
+              "$ref": "#/components/schemas/IrsW8FormSummary"
+            },
+            "type": "array",
+            "title": "Formularios"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "IrsW8FormListResponse"
+      },
+      "IrsW8FormSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo_sujeto": {
+            "type": "string",
+            "title": "Tipo Sujeto"
+          },
+          "validez_anios": {
+            "type": "integer",
+            "title": "Validez Anios"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "nombre",
+          "tipo_sujeto",
+          "estado"
+        ],
+        "title": "IrsW8FormSummary"
+      },
+      "IrsWithholdingRuleListResponse": {
+        "properties": {
+          "reglas": {
+            "items": {
+              "$ref": "#/components/schemas/IrsWithholdingRuleSummary"
+            },
+            "type": "array",
+            "title": "Reglas"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "IrsWithholdingRuleListResponse"
+      },
+      "IrsWithholdingRuleSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "tipo_renta": {
+            "type": "string",
+            "title": "Tipo Renta"
+          },
+          "tipo_renta_espanol": {
+            "type": "string",
+            "title": "Tipo Renta Espanol"
+          },
+          "tipo_retencion_default": {
+            "type": "number",
+            "title": "Tipo Retencion Default"
+          },
+          "tipo_retencion_dta": {
+            "type": "number",
+            "title": "Tipo Retencion Dta"
+          },
+          "pais_aplicable": {
+            "type": "string",
+            "title": "Pais Aplicable"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "tipo_renta",
+          "tipo_retencion_default",
+          "estado"
+        ],
+        "title": "IrsWithholdingRuleSummary"
       },
       "LegislacionSearchResponse": {
         "properties": {
@@ -1332,6 +6371,96 @@
           "resultados"
         ],
         "title": "LegislacionSearchResponse"
+      },
+      "ModeloArtefacto": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "Tipo de artefacto"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Título"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL"
+          },
+          "campana": {
+            "type": "string",
+            "title": "Campana",
+            "description": "Campaña"
+          },
+          "boe_id": {
+            "type": "string",
+            "title": "Boe Id",
+            "description": "ID BOE"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha"
+          },
+          "formato": {
+            "type": "string",
+            "title": "Formato",
+            "description": "Formato"
+          },
+          "oficial": {
+            "type": "boolean",
+            "title": "Oficial",
+            "description": "Si es un artefacto oficial"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota",
+            "description": "Nota descriptiva"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "titulo",
+          "url",
+          "oficial"
+        ],
+        "title": "ModeloArtefacto"
+      },
+      "ModeloArtefactosResponse": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código del modelo"
+          },
+          "campana_activa": {
+            "type": "string",
+            "title": "Campana Activa",
+            "description": "Campaña activa"
+          },
+          "criterio_validacion": {
+            "type": "string",
+            "title": "Criterio Validacion",
+            "description": "Criterio de validación"
+          },
+          "artefactos": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloArtefacto"
+            },
+            "type": "array",
+            "title": "Artefactos",
+            "description": "Artefactos del modelo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "criterio_validacion"
+        ],
+        "title": "ModeloArtefactosResponse"
       },
       "ModeloArticulo": {
         "properties": {
@@ -1399,6 +6528,129 @@
         ],
         "title": "ModeloCampana"
       },
+      "ModeloCampanaOperativaResponse": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código del modelo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "Nombre completo"
+          },
+          "campana": {
+            "type": "string",
+            "title": "Campana",
+            "description": "Campaña activa"
+          },
+          "impuesto": {
+            "type": "string",
+            "title": "Impuesto",
+            "description": "Impuesto asociado"
+          },
+          "periodo": {
+            "type": "string",
+            "title": "Periodo",
+            "description": "Periodo"
+          },
+          "frecuencia_presentacion": {
+            "type": "string",
+            "title": "Frecuencia Presentacion",
+            "description": "Frecuencia de presentación"
+          },
+          "ventana_presentacion": {
+            "type": "string",
+            "title": "Ventana Presentacion",
+            "description": "Ventana de presentación"
+          },
+          "canal_presentacion": {
+            "type": "string",
+            "title": "Canal Presentacion",
+            "description": "Canal de presentación"
+          },
+          "categoria_obligado": {
+            "type": "string",
+            "title": "Categoria Obligado",
+            "description": "Categoría del obligado"
+          },
+          "norma_base": {
+            "type": "string",
+            "title": "Norma Base",
+            "description": "Norma base aplicable"
+          },
+          "obligados_resumen": {
+            "type": "string",
+            "title": "Obligados Resumen",
+            "description": "Resumen de obligados"
+          },
+          "plazo_resumen": {
+            "type": "string",
+            "title": "Plazo Resumen",
+            "description": "Resumen del plazo"
+          },
+          "presentacion_resumen": {
+            "type": "string",
+            "title": "Presentacion Resumen",
+            "description": "Resumen de presentación"
+          },
+          "origen_metadato": {
+            "type": "string",
+            "title": "Origen Metadato",
+            "description": "Origen del metadato"
+          },
+          "estado_metadato": {
+            "type": "string",
+            "title": "Estado Metadato",
+            "description": "Estado del metadato"
+          },
+          "completeness_estado": {
+            "type": "string",
+            "title": "Completeness Estado",
+            "description": "Estado explicito curado para sobrescribir el contrato: completa, parcial, no-casillas-expected o deprecated"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Si la respuesta queda verificada con base suficiente"
+          },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status",
+            "description": "Estado de evidencia para consumo por agentes"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso operativo sobre limites de evidencia"
+          },
+          "fuentes_recomendadas": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloFuenteOficial"
+            },
+            "type": "array",
+            "title": "Fuentes Recomendadas",
+            "description": "Fuentes oficiales recomendadas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "impuesto",
+          "completeness",
+          "verified",
+          "evidence_status",
+          "evidence_notice"
+        ],
+        "title": "ModeloCampanaOperativaResponse"
+      },
       "ModeloCasilla": {
         "properties": {
           "codigo": {
@@ -1451,6 +6703,16 @@
             "title": "Campana",
             "description": "Campana consultada"
           },
+          "campana_activa": {
+            "type": "string",
+            "title": "Campana Activa",
+            "description": "Campana marcada como activa para el modelo"
+          },
+          "selection_notice": {
+            "type": "string",
+            "title": "Selection Notice",
+            "description": "Aviso si la campana usada difiere de la activa"
+          },
           "casillas": {
             "items": {
               "$ref": "#/components/schemas/ModeloCasilla"
@@ -1492,7 +6754,7 @@
           "classification": {
             "type": "string",
             "title": "Classification",
-            "description": "confirmado si hay casillas oficiales devueltas; requiere_verificacion si no"
+            "description": "confirmado si hay casillas oficiales devueltas; sin_casillas_esperadas si el modelo esta verificado como sin casillas estructuradas; requiere_verificacion si no"
           },
           "obligation_notice": {
             "type": "string",
@@ -1508,6 +6770,16 @@
             "type": "boolean",
             "title": "Verified",
             "description": "Si la respuesta queda verificada con base suficiente"
+          },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status",
+            "description": "Estado de evidencia para consumo por agentes"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso operativo sobre limites de evidencia"
           },
           "confidence": {
             "type": "object",
@@ -1525,7 +6797,9 @@
           "classification",
           "obligation_notice",
           "completeness",
-          "verified"
+          "verified",
+          "evidence_status",
+          "evidence_notice"
         ],
         "title": "ModeloCasillasResponse"
       },
@@ -1679,6 +6953,16 @@
             "title": "Casillas Next Offset",
             "description": "Offset para continuar casillas"
           },
+          "casillas_campana": {
+            "type": "string",
+            "title": "Casillas Campana",
+            "description": "Campana usada para devolver casillas"
+          },
+          "casillas_selection_notice": {
+            "type": "string",
+            "title": "Casillas Selection Notice",
+            "description": "Aviso si las casillas proceden de una campana distinta de la activa"
+          },
           "claves": {
             "items": {
               "$ref": "#/components/schemas/ModeloClave"
@@ -1738,12 +7022,22 @@
           "completeness": {
             "type": "string",
             "title": "Completeness",
-            "description": "Estado de completitud: completa o parcial"
+            "description": "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
           },
           "verified": {
             "type": "boolean",
             "title": "Verified",
             "description": "Si la respuesta queda verificada con base suficiente"
+          },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status",
+            "description": "Estado de evidencia para consumo por agentes"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso operativo sobre limites de evidencia"
           }
         },
         "type": "object",
@@ -1752,9 +7046,101 @@
           "nombre",
           "impuesto",
           "completeness",
-          "verified"
+          "verified",
+          "evidence_status",
+          "evidence_notice"
         ],
         "title": "ModeloDetail"
+      },
+      "ModeloFuenteOficial": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "Tipo de fuente"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Título"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL"
+          },
+          "organismo": {
+            "type": "string",
+            "title": "Organismo",
+            "description": "Organismo emisor"
+          },
+          "campana": {
+            "type": "string",
+            "title": "Campana",
+            "description": "Campaña"
+          },
+          "boe_id": {
+            "type": "string",
+            "title": "Boe Id",
+            "description": "ID BOE"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha"
+          },
+          "oficial": {
+            "type": "boolean",
+            "title": "Oficial",
+            "description": "Si es fuente oficial"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota",
+            "description": "Nota descriptiva"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "titulo",
+          "url",
+          "organismo",
+          "oficial"
+        ],
+        "title": "ModeloFuenteOficial"
+      },
+      "ModeloFuentesOficialesResponse": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código del modelo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "Nombre completo"
+          },
+          "campana_activa": {
+            "type": "string",
+            "title": "Campana Activa",
+            "description": "Campaña activa"
+          },
+          "fuentes_oficiales": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloFuenteOficial"
+            },
+            "type": "array",
+            "title": "Fuentes Oficiales",
+            "description": "Fuentes oficiales"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo"
+        ],
+        "title": "ModeloFuentesOficialesResponse"
       },
       "ModeloInstruccion": {
         "properties": {
@@ -1821,6 +7207,60 @@
           "titulo"
         ],
         "title": "ModeloNormativa"
+      },
+      "ModeloResumenOperativoResponse": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Código del modelo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "Nombre completo"
+          },
+          "impuesto": {
+            "type": "string",
+            "title": "Impuesto",
+            "description": "Impuesto asociado"
+          },
+          "periodo": {
+            "type": "string",
+            "title": "Periodo",
+            "description": "Periodo"
+          },
+          "campana_activa": {
+            "type": "string",
+            "title": "Campana Activa",
+            "description": "Campaña activa"
+          },
+          "quien_debe_presentarlo": {
+            "type": "string",
+            "title": "Quien Debe Presentarlo",
+            "description": "Quién debe presentarlo"
+          },
+          "plazo_presentacion": {
+            "type": "string",
+            "title": "Plazo Presentacion",
+            "description": "Plazo de presentación"
+          },
+          "fuentes_recomendadas": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloFuenteOficial"
+            },
+            "type": "array",
+            "title": "Fuentes Recomendadas",
+            "description": "Fuentes recomendadas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "impuesto"
+        ],
+        "title": "ModeloResumenOperativoResponse"
       },
       "ModeloSummary": {
         "properties": {
@@ -2015,6 +7455,36 @@
         ],
         "title": "ModeloSupuestoExcluded"
       },
+      "ModelosCampanasOperativasResponse": {
+        "properties": {
+          "codigos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Codigos",
+            "description": "Códigos solicitados"
+          },
+          "campana": {
+            "type": "string",
+            "title": "Campana",
+            "description": "Campaña aplicada"
+          },
+          "resultados": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampanaOperativaResponse"
+            },
+            "type": "array",
+            "title": "Resultados",
+            "description": "Resultados"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigos"
+        ],
+        "title": "ModelosCampanasOperativasResponse"
+      },
       "ModelosListResponse": {
         "properties": {
           "modelos": {
@@ -2172,6 +7642,583 @@
         ],
         "title": "Norma"
       },
+      "ObligacionDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor"
+          },
+          "tipo_obligacion": {
+            "type": "string",
+            "title": "Tipo Obligacion"
+          },
+          "sujeto_obligado": {
+            "type": "string",
+            "title": "Sujeto Obligado"
+          },
+          "periodicidad": {
+            "type": "string",
+            "title": "Periodicidad"
+          },
+          "reporte_modelo": {
+            "type": "string",
+            "title": "Reporte Modelo"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito"
+          },
+          "estado_vigencia": {
+            "type": "string",
+            "title": "Estado Vigencia"
+          },
+          "plazo_dias": {
+            "type": "integer",
+            "title": "Plazo Dias"
+          },
+          "frecuencia_presentacion": {
+            "type": "string",
+            "title": "Frecuencia Presentacion"
+          },
+          "ventana_presentacion": {
+            "type": "string",
+            "title": "Ventana Presentacion"
+          },
+          "trigger_presentacion": {
+            "type": "string",
+            "title": "Trigger Presentacion"
+          },
+          "sancion_min": {
+            "type": "number",
+            "title": "Sancion Min"
+          },
+          "sancion_max": {
+            "type": "number",
+            "title": "Sancion Max"
+          },
+          "prescripcion_anos": {
+            "type": "integer",
+            "title": "Prescripcion Anos"
+          },
+          "documento_origen_tipo": {
+            "type": "string",
+            "title": "Documento Origen Tipo"
+          },
+          "documento_origen_ref": {
+            "type": "string",
+            "title": "Documento Origen Ref"
+          },
+          "seccion_origen": {
+            "type": "string",
+            "title": "Seccion Origen"
+          },
+          "anexo_origen": {
+            "type": "string",
+            "title": "Anexo Origen"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "canal_presentacion": {
+            "type": "string",
+            "title": "Canal Presentacion"
+          },
+          "obligados_resumen": {
+            "type": "string",
+            "title": "Obligados Resumen"
+          },
+          "recargo_voluntario": {
+            "type": "number",
+            "title": "Recargo Voluntario"
+          },
+          "recargo_involuntario": {
+            "type": "number",
+            "title": "Recargo Involuntario"
+          },
+          "interes_demora": {
+            "type": "number",
+            "title": "Interes Demora"
+          },
+          "deposito_previo": {
+            "type": "boolean",
+            "title": "Deposito Previo"
+          },
+          "fuentes_operativas": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuentes Operativas"
+          },
+          "ultima_actualizacion": {
+            "type": "string",
+            "title": "Ultima Actualizacion"
+          },
+          "origen_metadato": {
+            "type": "string",
+            "title": "Origen Metadato"
+          },
+          "estado_metadato": {
+            "type": "string",
+            "title": "Estado Metadato"
+          },
+          "documentos": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Documentos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "nombre"
+        ],
+        "title": "ObligacionDetail"
+      },
+      "ObligacionInternacionalDetailResponse": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/ObligacionInternacionalItem"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item"
+        ],
+        "title": "ObligacionInternacionalDetailResponse"
+      },
+      "ObligacionInternacionalItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "jurisdiccion_origen": {
+            "type": "string",
+            "title": "Jurisdiccion Origen"
+          },
+          "jurisdiccion_aplicacion": {
+            "type": "string",
+            "title": "Jurisdiccion Aplicacion"
+          },
+          "vigente_desde": {
+            "type": "string",
+            "title": "Vigente Desde"
+          },
+          "vigente_hasta": {
+            "type": "string",
+            "title": "Vigente Hasta"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "creado_en": {
+            "type": "string",
+            "title": "Creado En"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "title": "Actualizado En"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial registrada en source_revision"
+          },
+          "source_worker": {
+            "type": "string",
+            "title": "Source Worker",
+            "description": "Worker que cargo la referencia"
+          },
+          "source_fetched_at": {
+            "type": "string",
+            "title": "Source Fetched At",
+            "description": "Fecha de captura de la fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "titulo",
+          "tipo",
+          "estado"
+        ],
+        "title": "ObligacionInternacionalItem"
+      },
+      "ObligacionInternacionalListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ObligacionInternacionalItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "ObligacionInternacionalListResponse"
+      },
+      "ObligacionRegulatoriaSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor"
+          },
+          "tipo_obligacion": {
+            "type": "string",
+            "title": "Tipo Obligacion"
+          },
+          "sujeto_obligado": {
+            "type": "string",
+            "title": "Sujeto Obligado"
+          },
+          "periodicidad": {
+            "type": "string",
+            "title": "Periodicidad"
+          },
+          "reporte_modelo": {
+            "type": "string",
+            "title": "Reporte Modelo"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito"
+          },
+          "estado_vigencia": {
+            "type": "string",
+            "title": "Estado Vigencia"
+          },
+          "plazo_dias": {
+            "type": "integer",
+            "title": "Plazo Dias"
+          },
+          "frecuencia_presentacion": {
+            "type": "string",
+            "title": "Frecuencia Presentacion"
+          },
+          "ventana_presentacion": {
+            "type": "string",
+            "title": "Ventana Presentacion"
+          },
+          "trigger_presentacion": {
+            "type": "string",
+            "title": "Trigger Presentacion"
+          },
+          "sancion_min": {
+            "type": "number",
+            "title": "Sancion Min"
+          },
+          "sancion_max": {
+            "type": "number",
+            "title": "Sancion Max"
+          },
+          "prescripcion_anos": {
+            "type": "integer",
+            "title": "Prescripcion Anos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "nombre"
+        ],
+        "title": "ObligacionRegulatoriaSummary"
+      },
+      "ObligacionesAplicablesResponse": {
+        "properties": {
+          "perfil": {
+            "type": "object",
+            "title": "Perfil"
+          },
+          "obligaciones": {
+            "items": {
+              "$ref": "#/components/schemas/ObligacionRegulatoriaSummary"
+            },
+            "type": "array",
+            "title": "Obligaciones"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "confidence": {
+            "type": "object",
+            "title": "Confidence"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "perfil"
+        ],
+        "title": "ObligacionesAplicablesResponse"
+      },
+      "ScreeningEntriesResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ScreeningEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit"
+        ],
+        "title": "ScreeningEntriesResponse"
+      },
+      "ScreeningEntry": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "entidad_id": {
+            "type": "string",
+            "title": "Entidad Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo_entidad": {
+            "type": "string",
+            "title": "Tipo Entidad"
+          },
+          "pais": {
+            "type": "string",
+            "title": "Pais"
+          },
+          "nif": {
+            "type": "string",
+            "title": "Nif"
+          },
+          "fecha_nacimiento": {
+            "type": "string",
+            "title": "Fecha Nacimiento"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "categorias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categorias"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "fecha_sancion": {
+            "type": "string",
+            "title": "Fecha Sancion"
+          },
+          "fecha_baja": {
+            "type": "string",
+            "title": "Fecha Baja"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo",
+            "default": true
+          },
+          "lista": {
+            "$ref": "#/components/schemas/ScreeningList"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "entidad_id",
+          "nombre",
+          "tipo_entidad",
+          "lista"
+        ],
+        "title": "ScreeningEntry"
+      },
+      "ScreeningList": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "organismo": {
+            "type": "string",
+            "title": "Organismo"
+          },
+          "pais": {
+            "type": "string",
+            "title": "Pais"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "actualizada": {
+            "type": "string",
+            "title": "Actualizada"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "nombre",
+          "tipo",
+          "organismo",
+          "activo"
+        ],
+        "title": "ScreeningList"
+      },
       "SearchResult": {
         "properties": {
           "tipo": {
@@ -2213,6 +8260,46 @@
             "type": "number",
             "title": "Rank",
             "description": "Puntuación de relevancia (ts_rank)"
+          },
+          "fuente_norma": {
+            "type": "string",
+            "title": "Fuente Norma",
+            "description": "Referencia de la fuente normativa"
+          },
+          "boe_reference": {
+            "type": "string",
+            "title": "Boe Reference",
+            "description": "Identificador BOE cuando la fuente sea BOE"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial trazable del resultado"
+          },
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id",
+            "description": "Identificador interno del fragmento recuperado"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "Hash de trazabilidad del contenido recuperado"
+          },
+          "motivo_ranking": {
+            "type": "string",
+            "title": "Motivo Ranking",
+            "description": "Motivo de ranking o mecanismo de coincidencia"
           },
           "confianza": {
             "$ref": "#/components/schemas/ConfianzaInfo",

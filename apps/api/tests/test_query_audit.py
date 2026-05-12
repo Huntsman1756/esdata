@@ -200,3 +200,39 @@ async def test_doctrina_buscar_runtime_persists_query_audit_entry():
     assert entry.user_id == "internal-doctrina-user"
     assert "tipo reducido iva" in entry.query_text.lower()
     assert entry.response_summary
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("path", "request_id", "expected_path", "expected_tool", "query_fragment"),
+    [
+        ("/v1/eurlex/buscar?q=MiFID+II+articulo+1", "req-eurlex-audit-001", "/v1/eurlex/buscar", "buscar_eurlex", "mifid"),
+        ("/v1/aepd/buscar?q=RGPD+AEPD&limit=1", "req-aepd-audit-001", "/v1/aepd/buscar", "buscar_aepd", "rgpd"),
+        ("/v1/cnmv/buscar?q=circular&limit=1", "req-cnmv-audit-001", "/v1/cnmv/buscar", "buscar_cnmv", "circular"),
+        ("/v1/mica/casp/buscar?q=crypto&limit=1", "req-mica-audit-001", "/v1/mica/casp/buscar", "buscar_casp", "crypto"),
+    ],
+)
+async def test_domain_search_endpoints_persist_query_audit_entries(
+    path: str,
+    request_id: str,
+    expected_path: str,
+    expected_tool: str,
+    query_fragment: str,
+):
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": request_id, "x-user-id": "domain-audit-user"},
+    ) as client:
+        response = await client.get(path)
+
+    assert response.status_code == 200
+
+    entries = QueryAuditService().get_by_request_id(request_id)
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.path == expected_path
+    assert entry.tool_name == expected_tool
+    assert entry.user_id == "domain-audit-user"
+    assert query_fragment in entry.query_text.lower()
+    assert entry.response_summary

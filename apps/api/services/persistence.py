@@ -156,6 +156,123 @@ DDL_TEMPLATE = [
     "CREATE INDEX IF NOT EXISTS idx_freshness_alerts_level ON data_freshness_alerts(alert_level, acknowledged)",
 ]
 
+GOVERNANCE_TABLE_COLUMNS = {
+    "ai_audit_log": {
+        "id",
+        "request_id",
+        "timestamp",
+        "componente",
+        "accion",
+        "configuracion",
+        "resultado_resumen",
+        "latencia_ms",
+        "error",
+        "user_id",
+        "ip_address",
+    },
+    "data_lineage": {
+        "id",
+        "entry_id",
+        "tabla",
+        "campo",
+        "fuente_origen",
+        "transformacion",
+        "fecha_ingestion",
+        "worker_correspondiente",
+        "calidad_score",
+        "observaciones",
+    },
+    "human_review": {
+        "id",
+        "review_id",
+        "request_id",
+        "decision_type",
+        "ai_response_id",
+        "status",
+        "reviewer_id",
+        "action",
+        "notes",
+        "confidence_threshold",
+        "ai_confidence",
+        "required_for",
+        "created_at",
+        "reviewed_at",
+        "metadata",
+    },
+    "ai_model_registry": {
+        "id",
+        "model_id",
+        "nombre",
+        "version",
+        "tipo",
+        "proveedor",
+        "hash_modelo",
+        "descripcion",
+        "fecha_despliegue",
+        "activo",
+        "configuracion",
+    },
+    "ai_config_version": {
+        "id",
+        "version_id",
+        "hybrid_weight",
+        "rrf_k",
+        "limit_default",
+        "modo_review",
+        "fecha_cambio",
+        "cambiado_por",
+        "configuracion_completa",
+    },
+    "query_audit_log": {
+        "id",
+        "entry_id",
+        "request_id",
+        "user_id",
+        "path",
+        "query_text",
+        "retrieved_chunks",
+        "response_summary",
+        "model_version",
+        "config_version",
+        "created_at",
+        "tool_name",
+        "sources",
+        "confidence",
+        "completeness",
+        "verified",
+        "response_payload",
+        "grounding_status",
+        "prompt_injection_detected",
+        "grounding_summary",
+    },
+    "source_freshness_snapshot": {
+        "id",
+        "snapshot_id",
+        "source_id",
+        "snapshot_version",
+        "snapshot_at",
+        "last_success_at",
+        "last_status",
+        "stale",
+        "cadencia",
+        "modo_deteccion_cambios",
+        "manifest_hash",
+        "payload",
+    },
+    "data_freshness_alerts": {
+        "id",
+        "alert_id",
+        "source_id",
+        "alert_level",
+        "stale_since",
+        "expected_interval",
+        "message",
+        "acknowledged",
+        "created_at",
+        "resolved_at",
+    },
+}
+
 
 def _ddl_statements_for_dialect(dialect: str) -> list[str]:
     id_column = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "BIGSERIAL PRIMARY KEY"
@@ -199,8 +316,48 @@ def _ensure_query_audit_log_columns(conn) -> None:
                 pass  # column may already exist from Alembic migration
 
 
+def _value(row, key: str, index: int):
+    if hasattr(row, "_mapping"):
+        return row._mapping[key]
+    return row[index]
+
+
+def _verify_postgres_governance_schema(conn) -> None:
+    table_literals = ", ".join(f"'{name}'" for name in sorted(GOVERNANCE_TABLE_COLUMNS))
+    rows = conn.execute(
+        text(
+            f"""
+            SELECT table_name, column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name IN ({table_literals})
+            """
+        )
+    )
+    existing: dict[str, set[str]] = {}
+    for row in rows:
+        existing.setdefault(_value(row, "table_name", 0), set()).add(_value(row, "column_name", 1))
+
+    errors: list[str] = []
+    for table_name, required_columns in sorted(GOVERNANCE_TABLE_COLUMNS.items()):
+        if table_name not in existing:
+            errors.append(f"missing table: {table_name}")
+            continue
+        for column_name in sorted(required_columns - existing[table_name]):
+            errors.append(f"missing column: {table_name}.{column_name}")
+
+    if errors:
+        raise RuntimeError(
+            "Governance schema is incomplete; run Alembic migrations before starting the API: "
+            + "; ".join(errors)
+        )
+
+
 def ensure_governance_tables() -> None:
     with engine.begin() as conn:
+        if conn.engine.dialect.name == "postgresql":
+            _verify_postgres_governance_schema(conn)
+            return
         for statement in _ddl_statements_for_dialect(conn.engine.dialect.name):
             conn.execute(text(statement))
         _ensure_query_audit_log_columns(conn)

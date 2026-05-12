@@ -70,14 +70,14 @@ NORMAS_DATA = [
     {
         "codigo": "ITPAJD",
         "titulo": "Real Decreto Legislativo 1/1993, del ITPAJD",
-        "boe_id": "BOE-A-1993-253",
-        "eli_uri": "https://www.boe.es/eli/es/rdlg/1993/03/24/1",
+        "boe_id": "BOE-A-1993-25359",
+        "eli_uri": "https://www.boe.es/eli/es/rdlg/1993/09/24/1/con",
         "jurisdiccion": "es",
         "tipo_fuente": "boe",
         "tipo_documento": "real_decreto_legislativo",
         "ambito": "tributario",
         "estado_cobertura": "ingestada",
-        "vigente_desde": "1993-03-24",
+        "vigente_desde": "1993-10-21",
     },
 ]
 

@@ -172,6 +172,8 @@ Uso recomendado:
 
 ## Fuentes documentales adicionales
 
+- `GET /v1/boe-diario` — listado de documentos BOE no consolidados (`BOE-B`, `BOE-S`, `BOE-N`) cargados desde XML diario o PDF oficial
+- `GET /v1/boe-diario/{referencia}` — detalle trazable del documento BOE diario; no debe confundirse con legislacion consolidada de `/v1/legislacion`
 - `GET /v1/cnmv`
 - `GET /v1/cnmv/{referencia}`
 - `GET /v1/cendoj`

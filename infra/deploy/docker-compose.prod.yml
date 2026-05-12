@@ -294,7 +294,10 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
+      BORME_SEED_URLS: ${BORME_SEED_URLS:-}
+      BORME_DISCOVER_FROM_SUMMARY: ${BORME_DISCOVER_FROM_SUMMARY:-true}
+      BORME_DAYS_BACK: ${BORME_DAYS_BACK:-7}
+      BORME_MAX_URLS_PER_RUN: ${BORME_MAX_URLS_PER_RUN:-50}
       SYNC_INTERVAL_SECONDS: ${BORME_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python borme.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
@@ -446,6 +449,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       CDI_SYNC_INTERVAL_SECONDS: ${CDI_SYNC_INTERVAL_SECONDS:-604800}
+      WORKER_NAME: worker-cdi
       WORKER_CMD: python cdi.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
       PYTHONUNBUFFERED: "1"
@@ -469,7 +473,11 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      AEPD_SEED_URLS: ${AEPD_SEED_URLS:?AEPD_SEED_URLS is required}
+      AEPD_SEED_URLS: ${AEPD_SEED_URLS:-}
+      AEPD_DISCOVER_FROM_INDEX: ${AEPD_DISCOVER_FROM_INDEX:-true}
+      AEPD_GUIDES_INDEX_URL: ${AEPD_GUIDES_INDEX_URL:-https://www.aepd.es/guias-y-herramientas/guias}
+      AEPD_MAX_URLS_PER_RUN: ${AEPD_MAX_URLS_PER_RUN:-25}
+      AEPD_DISCOVERY_PAGES: ${AEPD_DISCOVERY_PAGES:-3}
       SYNC_INTERVAL_SECONDS: ${AEPD_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python aepd.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
@@ -523,6 +531,27 @@ services:
       BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_DAILY:-}
       WORKER_CMD: python boe.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
+  cron-boe-diario-daily:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BOE_DIARIO_IDS: ${BOE_DIARIO_IDS:-}
+      BOE_DIARIO_DAYS_BACK: ${BOE_DIARIO_DAYS_BACK:-1}
+      BOE_DIARIO_MAX_IDS_PER_RUN: ${BOE_DIARIO_MAX_IDS_PER_RUN:-10}
+      BOE_DIARIO_FETCH_PDF_FALLBACK: ${BOE_DIARIO_FETCH_PDF_FALLBACK:-true}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_DIARIO_DAILY:-}
+      WORKER_CMD: python boe_diario.py --run-once
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
@@ -641,7 +670,10 @@ services:
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      BORME_SEED_URLS: ${BORME_SEED_URLS:?BORME_SEED_URLS is required}
+      BORME_SEED_URLS: ${BORME_SEED_URLS:-}
+      BORME_DISCOVER_FROM_SUMMARY: ${BORME_DISCOVER_FROM_SUMMARY:-true}
+      BORME_DAYS_BACK: ${BORME_DAYS_BACK:-7}
+      BORME_MAX_URLS_PER_RUN: ${BORME_MAX_URLS_PER_RUN:-50}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BORME_WEEKLY:-}
       WORKER_CMD: python borme.py --run-once
     depends_on:
@@ -726,7 +758,11 @@ services:
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      AEPD_SEED_URLS: ${AEPD_SEED_URLS:?AEPD_SEED_URLS is required}
+      AEPD_SEED_URLS: ${AEPD_SEED_URLS:-}
+      AEPD_DISCOVER_FROM_INDEX: ${AEPD_DISCOVER_FROM_INDEX:-true}
+      AEPD_GUIDES_INDEX_URL: ${AEPD_GUIDES_INDEX_URL:-https://www.aepd.es/guias-y-herramientas/guias}
+      AEPD_MAX_URLS_PER_RUN: ${AEPD_MAX_URLS_PER_RUN:-25}
+      AEPD_DISCOVERY_PAGES: ${AEPD_DISCOVERY_PAGES:-3}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_AEPD_WEEKLY:-}
       WORKER_CMD: python aepd.py --run-once
     depends_on:
@@ -762,6 +798,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_CDI_WEEKLY:-}
+      WORKER_NAME: cron-cdi-weekly
       WORKER_CMD: python cdi.py --run-once
     depends_on:
       postgres:
@@ -796,6 +833,40 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_PSD2_WEEKLY:-}
       WORKER_CMD: python psd2_eba.py --run-once
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
+  official-regulatory-references:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_OFFICIAL_REGULATORY_REFERENCES:-}
+      WORKER_CMD: python official_regulatory_references.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
+  cron-pgc-boe-monthly:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_PGC_BOE_MONTHLY:-}
+      WORKER_CMD: python pgc_boe.py --run-once
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy

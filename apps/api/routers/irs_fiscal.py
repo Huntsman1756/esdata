@@ -449,6 +449,8 @@ async def listar_registros_giin(
     estado: str | None = Query(None, description="Filtrar por estado FATCA: activo, inactivo, suspendido"),
     pais: str | None = Query(None, description="Filtrar por pais de la entidad"),
     tipo: str | None = Query(None, description="Filtrar por tipo: FFI, NFFE, Exempt Beneficial Owner"),
+    limit: int = Query(50, ge=1, le=500, description="Limite de registros devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = ["1=1"]
     params: dict = {}
@@ -474,9 +476,10 @@ async def listar_registros_giin(
                 FROM giin_registry
                 WHERE {where_clause}
                 ORDER BY giin ASC
+                LIMIT :limit OFFSET :offset
                 """.format(where_clause=" AND ".join(filters))
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
 
         registros = [dict(row) for row in rows]
@@ -492,7 +495,15 @@ async def listar_registros_giin(
             params,
         ).scalar()
 
-        return {"registros": registros, "total": total}
+        next_offset = offset + limit if offset + len(registros) < int(total or 0) else None
+        return {
+            "registros": registros,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": next_offset is not None,
+            "next_offset": next_offset,
+        }
 
 
 @router.get(

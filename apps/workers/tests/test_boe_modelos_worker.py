@@ -145,14 +145,14 @@ def test_run_sync_does_not_mark_successful_empty_order_as_partial():
     sync_calls = []
     mock_result = OrdenSyncResult(
         success=True,
-        boe_id="BOE-A-1993-253",
+        boe_id="BOE-A-1993-25359",
         modelo_codigos=[],
         casillas_parsed=[],
         pdf_casillas=[],
         errors=[],
     )
 
-    with patch("boe_modelos_worker.find_orden_boe_ids", return_value=["BOE-A-1993-253"]), \
+    with patch("boe_modelos_worker.find_orden_boe_ids", return_value=["BOE-A-1993-25359"]), \
          patch("boe_modelos_worker.sync_orden_hac_to_db", return_value=mock_result), \
          patch("boe_modelos_worker._log_sync", side_effect=lambda *args, **kwargs: sync_calls.append(args)):
         result = run_sync(mock_engine, run_once=True)

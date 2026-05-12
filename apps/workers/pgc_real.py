@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 
 import httpx
 from bs4 import BeautifulSoup
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -215,6 +215,7 @@ def upsert_marco(conn, marco: dict) -> int:
 def run_sync(worker_name: str = "cron-pgc-real-monthly") -> dict:
     """Sync PGC data from BOE."""
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     sync_start = datetime.now(UTC).isoformat()
     total = 0
     source = "boe"

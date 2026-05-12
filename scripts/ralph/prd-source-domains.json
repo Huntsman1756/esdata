@@ -1,0 +1,148 @@
+{
+  "projectName": "esdata-non-aeat-source-domain-audit",
+  "branchName": "fix/source-domain-mcp-coverage",
+  "userStories": [
+    {
+      "id": "S-00",
+      "title": "Map non-AEAT official source coverage and fail-closed gaps",
+      "priority": 1,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "List BOE, BORME, CNMV, EUR-Lex, FATCA/GIIN, CRS, ESMA/MiCA, PSD2/SEPA, screening and doctrine-source domains.",
+        "Record production row counts, latest worker/job state and API/MCP exposure status.",
+        "Classify each domain as covered, partial, workflow_empty, allowed_empty or configured_but_unavailable.",
+        "Write evidence to docs/source-domain-audit.md."
+      ],
+      "verificationCommand": "test -f docs/source-domain-audit.md && grep -q 'Non-AEAT Source Domain Audit' docs/source-domain-audit.md && grep -q 'GIIN' docs/source-domain-audit.md && echo PASS"
+    },
+    {
+      "id": "S-01",
+      "title": "Expose BORME and key non-AEAT sources through API/MCP safely",
+      "priority": 2,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Mount BORME router in FastAPI.",
+        "Add BORME schemas so OpenAPI import succeeds.",
+        "Expose read-only source tools through HTTP MCP catalog.",
+        "Keep unavailable domains fail-closed through existing availability contract."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_mcp_private.py::test_mcp_catalog_exposes_expected_core_http_operations apps/api/tests/test_mcp_private.py::test_openapi_exposes_borme_router apps/api/tests/test_mcp_private.py::test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key -q"
+    },
+    {
+      "id": "S-02",
+      "title": "Bound source list endpoints before MCP exposure",
+      "priority": 3,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Add limit/offset pagination to /v1/irs-fiscal/giin.",
+        "Add limit/offset pagination to BORME, EUR-Lex, PSD2 ASPSP/AISP/PISP and SEPA list endpoints exposed through MCP.",
+        "Expose pagination metadata in response models where response_model is enforced.",
+        "Test bounded GIIN, EUR-Lex, PSD2 and SEPA responses."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_irs_fiscal.py::TestListarGIIN apps/api/tests/test_eurlex_router.py::test_eurlex_lista_paginada apps/api/tests/test_psd2.py::TestPsd2Aspsp apps/api/tests/test_psd2.py::TestSepaRules -q"
+    },
+    {
+      "id": "S-03",
+      "title": "Deploy source-domain MCP coverage and rerun production gates",
+      "priority": 4,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Deploy commit to VPS.",
+        "Verify /v1/borme returns 200.",
+        "Verify /v1/irs-fiscal/giin?limit=3 returns exactly three rows and pagination metadata.",
+        "Verify MCP tools/list includes non-AEAT source tools.",
+        "Run mcp_validation_suite and mcp_deep_contract_audit on VPS."
+      ],
+      "verificationCommand": "docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000 && python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000'"
+    },
+    {
+      "id": "S-04",
+      "title": "Populate FATCA/CRS international obligations with official provenance",
+      "priority": 5,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "official-regulatory-references loads FATCA, CRS, DAC2 and DAC6 reference rows into obligacion_internacional from official BOE/EUR-Lex sources.",
+        "/v1/internacional/obligaciones returns bounded paginated responses.",
+        "Detail responses expose source_url/source_worker/source_fetched_at from source_revision.",
+        "VPS run writes a fresh sync_log row and leaves stale_workers=0.",
+        "mcp_validation_suite remains ok=true after deployment."
+      ],
+      "verificationCommand": "docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm official-regulatory-references --run-once && curl -sf http://localhost:${API_PORT:-8000}/v1/internacional/obligaciones?limit=3 | jq '.total' && docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000'"
+    },
+    {
+      "id": "S-05",
+      "title": "Review external MCP code and expose EUR-Lex limited evidence explicitly",
+      "priority": 6,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Review EU_compliance_MCP and boe-mcp code for reusable official-source ingestion patterns.",
+        "Document which patterns are safe to adopt and which are rejected as interpretive or non-official.",
+        "Expose EUR-Lex metadata-only records as explicit evidence_limited rather than silent empty text.",
+        "Test /v1/eurlex detail and list responses include coverage_status, verified, completeness, articulos_total and evidence_notice."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_eurlex_router.py -q --basetemp .pytest-tmp"
+    },
+    {
+      "id": "S-06",
+      "title": "Implement EUR-Lex deep article ingestion safe mode",
+      "priority": 7,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Use Publications Office consolidation/RDF flow as primary source for article text.",
+        "Add run budget controls so EURLEX_FETCH_ARTICLES cannot hang a cron run silently.",
+        "If browser fallback is added, keep it opt-in, CELEX allowlisted and validated against WAF challenge pages.",
+        "Persist article counts and quality status so API can distinguish metadata_only, partial and article_text_available.",
+        "Run one bounded VPS ingestion and confirm sync_log row plus articulo/version_articulo growth."
+      ],
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/v1/eurlex?limit=5 | jq '[.documentos[] | {referencia, coverage_status, verified, completeness, articulos_total}]'"
+    },
+    {
+      "id": "S-07",
+      "title": "Assess BOE non-consolidated XML/PDF fallback",
+      "priority": 8,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Map BOE diario XML and PDF fallback needs for BOE-B/BOE-S/BOE-N and BORME-like documents.",
+        "Do not mix non-consolidated PDF extraction with BOE consolidated law rows.",
+        "Document target tables, provenance fields and quality labels before implementation."
+      ],
+      "verificationCommand": "test -f docs/reference-mcp-code-review.md && grep -q 'BOE non-consolidated fallback' docs/reference-mcp-code-review.md && echo PASS"
+    },
+    {
+      "id": "S-08",
+      "title": "Add MCP outputSchema and read-only annotations",
+      "priority": 9,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "HTTP MCP tools/list exposes outputSchema for every exposed tool.",
+        "HTTP MCP tools/list exposes readOnlyHint=true and destructiveHint=false for every read-only ESData tool.",
+        "Stdio tool definitions receive the same contract metadata.",
+        "A focused MCP tools/list test verifies the contract."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_mcp_private.py::test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key -q --basetemp .pytest-tmp"
+    },
+    {
+      "id": "S-09",
+      "title": "Persist EUR-Lex quality counters per CELEX",
+      "priority": 10,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Add migration-owned nullable quality counters to norma for EUR-Lex coverage.",
+        "EUR-Lex worker persists articles_expected, articles_parsed and quality_status when it can measure article coverage.",
+        "EUR-Lex API exposes quality counters in list and detail responses.",
+        "Tests verify router output and worker counter persistence."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_eurlex_router.py apps/workers/tests/test_eurlex.py -q --basetemp .pytest-tmp"
+    }
+  ]
+}

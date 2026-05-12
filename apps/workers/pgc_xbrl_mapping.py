@@ -23,9 +23,9 @@ import os
 from sqlalchemy import create_engine, text
 
 if __package__:
-    from .runtime import get_database_url
+    from .runtime import get_database_url, ensure_database_connection
 else:
-    from runtime import get_database_url
+    from runtime import get_database_url, ensure_database_connection
 
 # ---------------------------------------------------------------------------
 # Mapping dataset: IFRS/ESEF XBRL concepts -> PGC account codes
@@ -399,6 +399,7 @@ def _upsert_mapping(conn, mapping) -> int:
 
 def run_sync(engine=None) -> dict[str, int]:
     engine = engine or create_engine(get_database_url(), future=True)
+    ensure_database_connection(engine)
 
     with engine.begin() as conn:
         mappings_upserted = sum(_upsert_mapping(conn, m) for m in ALL_MAPPINGS)
@@ -412,6 +413,7 @@ def main() -> None:
     args = parser.parse_args()
 
     engine = create_engine(args.db_url or os.getenv("DATABASE_URL") or get_database_url(), future=True)
+    ensure_database_connection(engine)
     run_sync(engine=engine)
 
 

@@ -23,6 +23,7 @@ REQUIRED_SCHEMA = {
         "actualizado_at",
         "origen_metadato",
         "estado_metadato",
+        "completeness_estado",
     },
     "query_audit_log": {
         "entry_id",

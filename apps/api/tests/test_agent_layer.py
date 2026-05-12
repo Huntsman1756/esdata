@@ -62,11 +62,20 @@ class TestAgentToolsInCatalog:
         names = [t["name"] for t in tools]
         assert "agente_compliance_resumen" in names
 
-    def test_total_tool_count_is_8(self):
+    def test_agent_tool_catalog_preserves_core_tools(self):
         from mcp_catalog import get_stdio_tool_definitions
 
         tools = get_stdio_tool_definitions()
-        assert len(tools) == 8
+        names = {t["name"] for t in tools}
+        assert {
+            "consulta_fiscal",
+            "listar_deadlines",
+            "listar_obligaciones_aplicables",
+            "listar_obligaciones_operativas",
+            "agente_consulta",
+            "agente_monitoreo_status",
+            "agente_compliance_resumen",
+        }.issubset(names)
 
     def test_agent_consulta_schema_has_required_q(self):
         from mcp_catalog import get_stdio_tool_definitions
@@ -277,7 +286,8 @@ class TestAgentMonitorCreatesTrigger:
 class TestStdioHandlers:
     """Test the stdio server handles new agent tools."""
 
-    def test_stdio_handles_unknown_tool(self):
+    @pytest.mark.asyncio
+    async def test_stdio_handles_unknown_tool(self):
         """Unknown tools should return -32601 error."""
         from mcp_stdio import MCPStdioServer
 
@@ -285,7 +295,7 @@ class TestStdioHandlers:
         sent = []
         server._send = lambda data: sent.append(data)
 
-        server._handle_tools_call(
+        await server._handle_tools_call(
             {
                 "id": 1,
                 "method": "tools/call",

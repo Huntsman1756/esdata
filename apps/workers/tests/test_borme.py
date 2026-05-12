@@ -1,6 +1,7 @@
 # ruff: noqa: I001
 
 import sys
+from datetime import date
 from pathlib import Path
 
 import httpx
@@ -10,6 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from borme import (
     build_document_payload,
+    discover_borme_pdf_urls,
+    _extract_borme_pdf_urls_from_summary,
     link_documento_empresas,
     run_sync,
     upsert_documento_interpretativo,
@@ -59,6 +62,96 @@ startxref
 505
 %%EOF
 """
+
+
+def test_extract_borme_pdf_urls_from_summary_skips_daily_summary_pdf():
+    payload = {
+        "status": {"code": "200", "text": "ok"},
+        "data": {
+            "sumario": {
+                "diario": [
+                    {
+                        "sumario_diario": {
+                            "identificador": "BORME-S-2026-88",
+                            "url_pdf": {
+                                "texto": "https://www.boe.es/borme/dias/2026/05/11/pdfs/BORME-S-2026-88.pdf"
+                            },
+                        },
+                        "seccion": [
+                            {
+                                "item": [
+                                    {
+                                        "identificador": "BORME-A-2026-88-02",
+                                        "url_pdf": {
+                                            "texto": "https://www.boe.es/borme/dias/2026/05/11/pdfs/BORME-A-2026-88-02.pdf"
+                                        },
+                                    },
+                                    {
+                                        "identificador": "BORME-B-2026-88-02",
+                                        "url_pdf": {
+                                            "texto": "https://www.boe.es/borme/dias/2026/05/11/pdfs/BORME-B-2026-88-02.pdf"
+                                        },
+                                    },
+                                ]
+                            }
+                        ],
+                    }
+                ]
+            }
+        },
+    }
+
+    assert _extract_borme_pdf_urls_from_summary(payload) == [
+        "https://www.boe.es/borme/dias/2026/05/11/pdfs/BORME-A-2026-88-02.pdf",
+        "https://www.boe.es/borme/dias/2026/05/11/pdfs/BORME-B-2026-88-02.pdf",
+    ]
+
+
+def test_discover_borme_pdf_urls_uses_official_summary_api():
+    original_client = httpx.Client
+    seen_urls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_urls.append(str(request.url))
+        return httpx.Response(
+            200,
+            json={
+                "status": {"code": "200", "text": "ok"},
+                "data": {
+                    "sumario": {
+                        "diario": [
+                            {
+                                "seccion": [
+                                    {
+                                        "item": [
+                                            {
+                                                "identificador": "BORME-A-2026-88-02",
+                                                "url_pdf": {
+                                                    "texto": "https://www.boe.es/borme/dias/2026/05/11/pdfs/BORME-A-2026-88-02.pdf"
+                                                },
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+            },
+        )
+
+    with original_client(transport=httpx.MockTransport(handler)) as client:
+        urls = discover_borme_pdf_urls(
+            client,
+            days_back=1,
+            max_urls=10,
+            today=date(2026, 5, 11),
+        )
+
+    assert seen_urls == ["https://www.boe.es/datosabiertos/api/borme/sumario/20260511"]
+    assert urls == [
+        "https://www.boe.es/borme/dias/2026/05/11/pdfs/BORME-A-2026-88-02.pdf"
+    ]
 
 
 def test_build_document_payload_extracts_reference_event_and_text():
@@ -371,20 +464,54 @@ def test_upsert_empresa_accepts_positional_conn_payload():
 
 
 def test_run_sync_empty_seed_urls_returns_error_without_http_calls(monkeypatch):
-    """Verifica que SEED_URLS vacío produce resultado de error sin hacer HTTP.
+    """Explicit empty URL input must write sync telemetry and avoid HTTP."""
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT
+                )
+                """
+            )
+        )
 
-    Este test detecta el bug de workers silentemente vacíos: si SEED_URLS
-    está vacío, el worker debe abortar inmediatamente con processed=0, stored=0
-    y NO debe intentar ninguna llamada HTTP.
-    """
-    mock_client = type("MockClient", (), {"__enter__": lambda self: self, "__exit__": lambda self, *a: None})()
-    monkeypatch.setattr("borme.httpx.Client", lambda *args, **kwargs: mock_client)
+    class MockClient:
+        def __enter__(self):
+            return self
 
-    calls_made = []
+        def __exit__(self, *args):
+            return None
+
+        def get(self, *args, **kwargs):
+            raise AssertionError("No HTTP calls expected with explicit empty seed_urls")
+
+    monkeypatch.setattr("borme.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr("borme.httpx.Client", lambda *args, **kwargs: MockClient())
+
     result = run_sync(seed_urls=[], worker_name="test-worker")
 
     assert result == {"processed": 0, "stored": 0}
-    assert calls_made == [], "No se debe hacer ninguna llamada HTTP con SEED_URLS vacío"
+    with engine.begin() as conn:
+        sync = conn.execute(
+            text(
+                "SELECT worker, status, documentos_processed, documentos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1"
+            )
+        ).fetchone()
+
+    assert sync[0:4] == ("test-worker", "partial", 0, 0)
+    assert "No BORME PDF URLs discovered" in sync[4]
 
 
 def test_run_sync_calls_time_sleep_between_requests(monkeypatch):

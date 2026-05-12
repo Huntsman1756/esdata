@@ -64,7 +64,8 @@ def _create_runtime_schema(engine) -> None:
             nota TEXT,
             actualizado_at TEXT,
             origen_metadato TEXT,
-            estado_metadato TEXT
+            estado_metadato TEXT,
+            completeness_estado TEXT
         )
         """,
         """
@@ -171,6 +172,7 @@ def test_find_schema_issues_reports_missing_modelo_campana_operativa_columns():
     issues = module.find_schema_issues(inspect(engine))
 
     assert set(issues) == {
+        "missing column: modelo_campana_operativa.completeness_estado",
         "missing column: modelo_campana_operativa.estado_metadato",
         "missing column: modelo_campana_operativa.origen_metadato",
     }
@@ -466,7 +468,8 @@ def test_find_schema_issues_reports_missing_runtime_tables():
                     nota TEXT,
                     actualizado_at TEXT,
                     origen_metadato TEXT,
-                    estado_metadato TEXT
+                    estado_metadato TEXT,
+                    completeness_estado TEXT
                 )
                 """
             )

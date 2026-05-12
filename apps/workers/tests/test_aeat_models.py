@@ -19,6 +19,7 @@ from aeat_models import (
     PlaywrightClient,
     _discover_aeat_models,
     _extract_model_name,
+    _infer_impuesto,
     _classify_resource,
     _is_official_model_resource,
     _normalize_aeat_url,
@@ -303,6 +304,123 @@ class TestHttpxClient:
 
 
 class TestFetchModelMetadata:
+    def test_infers_modelo_200_as_is_irnr_even_when_page_has_iva_navigation(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = """
+        <html><body>
+            <nav>IVA IRPF Censos</nav>
+            <h1>Modelo 200. IS. Impuesto sobre Sociedades e Impuesto sobre la Renta de no Residentes.</h1>
+        </body></html>
+        """
+
+        result = aeat_models._fetch_model_metadata(
+            "200",
+            url_info="https://sede.agenciatributaria.gob.es/Sede/impuesto-sociedades/modelo-200.html",
+            portal_client=portal_client,
+        )
+
+        assert result is not None
+        assert result["impuesto"] == "IS/IRNR"
+
+    def test_infers_iva_after_more_specific_tax_families(self):
+        assert _infer_impuesto(
+            "303",
+            "Modelo 303. IVA. Impuesto sobre el Valor Añadido. Autoliquidación.",
+            "https://sede.agenciatributaria.gob.es/Sede/iva/modelo-303.html",
+            "Modelo 303",
+        ) == "IVA"
+
+    def test_inference_uses_code_override_before_noisy_page_text(self):
+        noisy_nav = "IVA IRNR Impuesto sobre la Renta de no Residentes Impuesto sobre Sociedades"
+
+        assert _infer_impuesto(
+            "100",
+            noisy_nav,
+            "https://sede.agenciatributaria.gob.es/Sede/ayuda/modelo-100/index.shtml",
+            "Modelo 100. Impuesto sobre la Renta de las Personas Físicas.",
+        ) == "IRPF"
+        assert _infer_impuesto(
+            "289",
+            noisy_nav,
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI42.shtml",
+            "Modelo 289. Declaración informativa anual de cuentas financieras.",
+        ) == "INFORMATIVO"
+        assert _infer_impuesto(
+            "290",
+            noisy_nav,
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
+            "Modelo 290. Declaración informativa anual de cuentas financieras FATCA.",
+        ) == "INFORMATIVO"
+
+    def test_informative_models_are_not_classified_as_iva_from_nav_noise(self):
+        assert _infer_impuesto(
+            "231",
+            "IVA IRNR Impuesto sobre la Renta de no Residentes Impuesto sobre Sociedades",
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI99.shtml",
+            "Modelo 231. Declaración Informativa. Declaración de información país por país.",
+        ) == "INFORMATIVO"
+
+    def test_applies_known_metadata_override_when_detail_page_describes_parent_model(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = """
+        <html><body>
+            <h1>Modelo 200. IS. Impuesto sobre Sociedades e Impuesto sobre la Renta de no Residentes.</h1>
+        </body></html>
+        """
+
+        result = aeat_models._fetch_model_metadata(
+            "206",
+            url_info="https://sede.agenciatributaria.gob.es/Sede/procedimientos/GE04.shtml",
+            portal_client=portal_client,
+        )
+
+        assert result is not None
+        assert result["nombre"].startswith("Modelo 206.")
+        assert result["impuesto"] == "IS/IRNR"
+        assert result["metadata_override"] is True
+
+    def test_known_metadata_overrides_keep_102_and_206_official_names(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = """
+        <html><body>
+            <h1>Modelo 100. Impuesto sobre la Renta de las Personas Fisicas.</h1>
+            <h2>Modelo 200. Documentos de ingreso o devolucion.</h2>
+        </body></html>
+        """
+
+        model_102 = aeat_models._fetch_model_metadata(
+            "102",
+            url_info=aeat_models.MODEL_METADATA_OVERRIDES["102"]["url_info"],
+            portal_client=portal_client,
+        )
+        model_206 = aeat_models._fetch_model_metadata(
+            "206",
+            url_info=aeat_models.MODEL_METADATA_OVERRIDES["206"]["url_info"],
+            portal_client=portal_client,
+        )
+
+        assert model_102 is not None
+        assert model_102["nombre"] == "Modelo 102. IRPF. Segundo plazo del fraccionamiento de la declaracion anual."
+        assert model_102["url_info"].endswith("descarga-modelo-102.html")
+        assert model_206 is not None
+        assert model_206["nombre"] == (
+            "Modelo 206. IS/IRNR. Documento de ingreso o devolucion. "
+            "(Modelo 200 y 206)."
+        )
+        assert model_206["url_info"].endswith("procedimientoini/GE04.shtml")
+
+    def test_rejects_unexpected_model_code_mismatch_without_override(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = "<html><body><h1>Modelo 100. IRPF.</h1></body></html>"
+
+        result = aeat_models._fetch_model_metadata(
+            "103",
+            url_info="https://sede.agenciatributaria.gob.es/Sede/procedimientoini/example.shtml",
+            portal_client=portal_client,
+        )
+
+        assert result is None
+
     def test_normalizes_provided_url_before_fetching_detail(self):
         portal_client = MagicMock()
         portal_client.fetch_detail.return_value = "<html><body><h1>230 - Modelo 230</h1></body></html>"

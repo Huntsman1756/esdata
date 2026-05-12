@@ -2,7 +2,15 @@
 
 Classification of all Python files in `apps/workers/`.
 
-## TYPE-A: Utility/Helper (not standalone, no service needed)
+Evidence base:
+
+- `apps/workers/*.py`: 82 files, excluding `__init__.py`.
+- `infra/deploy/docker-compose.prod.yml`: 23 worker files wired through Compose services.
+- `infra/deploy/systemd/*.timer`: profiled cron services are timer-driven through `esdata-job@<service>.service`.
+
+## TYPE-A: Utility/Helper
+
+These files are not standalone production jobs and do not need Compose services.
 
 | File | Purpose |
 |------|---------|
@@ -15,44 +23,52 @@ Classification of all Python files in `apps/workers/`.
 | `vocabulary_validation.py` | Document payload sanitization |
 | `scripts/hermes_monitor.py` | Canonical read-only service monitor copied into the worker image as `/app/hermes_monitor.py` for the `hermes` service |
 
-## TYPE-B: Domain Module (imported by others, no service needed)
+## TYPE-B: Domain Module
+
+These modules are imported by other workers and are not standalone services.
 
 | File | Imported By | Purpose |
 |------|-------------|---------|
 | `boe_modelos.py` | `boe_modelos_worker.py` | BOE XML parser for HAC orders |
 | `boe_pdf_parser.py` | `boe_modelos_worker.py` | PDF download and parsing |
-| `document_decomposition.py` | manual/API enrichment flows | Document decomposition helper |
 | `modelos_support.py` | `modelos.py`, `boe_modelos_worker.py` | Casilla/instruction upsert helpers |
-| `official_regulatory_references.py` | Ralph/local reference sync | Official compact regulatory reference loader |
 | `pgc_dataset.py` | `pgc.py` | PGC seed data constants |
 
-## TYPE-C: Standalone Workers (should have docker-compose service)
+## TYPE-C: Standalone Workers
 
-### With Docker Service (19 files)
+These files contain standalone worker code. A production-ready TYPE-C worker must have
+official-source boundaries, run-once verification, retry/telemetry, Compose wiring,
+systemd schedule where applicable, and MCP/API availability semantics.
+
+### With Docker Service (23 files)
 
 | File | Service(s) | Purpose |
 |------|------------|---------|
-| `boe.py` | `worker-boe`, `cron-boe-daily` | BOE legislacion sync |
-| `aeat_models.py` | `worker-modelos`, `cron-modelos-daily` | AEAT portal model discovery |
-| `aeat_current_designs.py` | `cron-aeat-current-daily` | AEAT current 1XX/2XX record designs and 2026 taxpayer calendar |
-| `boe_modelos_worker.py` | `worker-boe-modelos`, `cron-boe-modelos-daily` | BOE->models orchestrator |
-| `dgt.py` | `worker-dgt`, `cron-dgt-weekly` | DGT doctrine scraping |
-| `teac.py` | `worker-teac`, `cron-teac-weekly` | TEAC resolution ingestion |
-| `bdns.py` | `worker-bdns`, `cron-bdns-weekly` | BDNS registry |
-| `borme.py` | `worker-borme`, `cron-borme-weekly` | BORME company extraction |
-| `cnmv.py` | `worker-cnmv`, `cron-cnmv-weekly` | CNMV circulars |
-| `sepblac.py` | `worker-sepblac`, `cron-sepblac-weekly` | SEPBLAC registry |
-| `cendoj.py` | `worker-cendoj`, `cron-cendoj-weekly` | CENDOJ jurisprudence |
-| `eurlex.py` | `worker-eurlex`, `cron-eurlex-weekly` | EUR-Lex EU legislation |
-| `bde.py` | `worker-bde`, `cron-bde-weekly` | BDE registry |
-| `cdi.py` | `worker-cdi` | CDI (convenios doble imposicion) |
+| `aeat_current_designs.py` | `cron-aeat-current-daily` | AEAT current 1XX/2XX record designs and taxpayer calendar |
+| `aeat_models.py` | `worker-aeat`, `worker-modelos`, `cron-modelos-daily` | AEAT portal model discovery |
 | `aepd.py` | `worker-aepd`, `cron-aepd-weekly` | AEPD registry |
-| `regulatory_watch.py` | `cron-regulatory-daily` | Multi-source regulatory monitoring |
+| `bde.py` | `worker-bde`, `cron-bde-weekly` | Banco de Espana registry |
+| `bdns.py` | `worker-bdns`, `cron-bdns-weekly` | BDNS registry |
+| `boe.py` | `worker-boe`, `cron-boe-daily` | BOE legislation sync |
+| `boe_diario.py` | `cron-boe-diario-daily` | BOE diario non-consolidated XML/PDF documents |
+| `boe_modelos_worker.py` | `worker-boe-modelos`, `cron-boe-modelos-daily` | BOE-to-models orchestrator |
+| `borme.py` | `worker-borme`, `cron-borme-weekly` | BORME company extraction |
+| `cdi.py` | `worker-cdi`, `cron-cdi-weekly` | Convenios de doble imposicion |
+| `cendoj.py` | `worker-cendoj`, `cron-cendoj-weekly` | CENDOJ jurisprudence |
+| `cnmv.py` | `worker-cnmv`, `cron-cnmv-weekly` | CNMV circulars |
+| `dgt.py` | `worker-dgt`, `cron-dgt-weekly` | DGT doctrine scraping |
+| `eurlex.py` | `worker-eurlex`, `cron-eurlex-weekly` | EUR-Lex EU legislation |
 | `giin.py` | `cron-giin-monthly` | IRS FATCA FFI/GIIN official monthly CSV ZIP |
-| `ofac_sdn.py` | `cron-ofac-sdn-weekly` | OFAC SDN official XML sanctions list |
 | `mica.py` | `cron-mica-weekly` | ESMA Interim MiCA Register CASP official CSV |
+| `ofac_sdn.py` | `cron-ofac-sdn-weekly` | OFAC SDN official XML sanctions list |
+| `official_regulatory_references.py` | `official-regulatory-references` | Compact official regulatory reference loader |
+| `pgc_boe.py` | `cron-pgc-boe-monthly` | PGC BOE official-source ingestion |
+| `psd2_eba.py` | `cron-psd2-weekly` | PSD2 EBA/BdE registry sync |
+| `regulatory_watch.py` | `cron-regulatory-daily` | Multi-source regulatory monitoring |
+| `sepblac.py` | `worker-sepblac`, `cron-sepblac-weekly` | SEPBLAC registry |
+| `teac.py` | `worker-teac`, `cron-teac-weekly` | TEAC resolution ingestion |
 
-### Existing Worker Modules Not Deployed In Production (38 files)
+### Existing Worker Modules Not Deployed In Production (37 files)
 
 These files contain worker-style code, but they are not production jobs in the
 current Compose/systemd wiring. They must stay documented as `not deployed` or
@@ -62,18 +78,19 @@ and MCP/API availability semantics.
 
 | File | Purpose | Priority |
 |------|---------|----------|
-| `aeat_irnr.py` | IRNR model from AEAT | High |
+| `aeat_irnr.py` | IRNR model and instruction scraping from AEAT | High |
 | `aifmd_ucits.py` | AIFMD/UCITS funds from CNMV | Medium |
-| `consumer_credit.py` | Consumer Credit Directive 2008/48/EC | Medium |
+| `consumer_credit.py` | Consumer Credit Directive 2008/48/EC seed/legacy worker | Medium |
 | `consumer_credit_real.py` | Consumer Credit real EUR-Lex data | Medium |
 | `corporate_sustainability.py` | CSRD sustainability reports | Medium |
 | `crd_brrd_emir.py` | CRD V/BRRD/EMIR regulations | Medium |
-| `csr.py` | CSRD worker with EUR-Lex + company seed data | Medium |
 | `csdr.py` | CSDR regulation | Medium |
-| `dac8.py` | DAC8 directive | High |
+| `csr.py` | CSRD worker with EUR-Lex and company seed data | Medium |
+| `dac8.py` | DAC8 reporting seed/legacy worker | High |
 | `dac8_real.py` | DAC8 real data | High |
 | `dac_directives.py` | DAC directives ingestion | High |
 | `dgt_doctrina.py` | DGT doctrine queue | Medium |
+| `document_decomposition.py` | Document decomposition and lineage enrichment job | Medium |
 | `dora.py` | DORA regulation | Medium |
 | `entity_identity.py` | Entity identity resolution | Low |
 | `fraud.py` | Fraud risk assessment | Medium |
@@ -83,39 +100,45 @@ and MCP/API availability semantics.
 | `mar_mifid.py` | MAR/MiFID data | Medium |
 | `micro_obligations.py` | Micro-obligations seed loader | Low |
 | `mifid_mar_dora.py` | MiFID/MAR/DORA combined | Medium |
-| `modelos.py` | AEAT models sync | High |
-| `pgc.py` | PGC account mapping | Medium |
-| `pgc_boe.py` | PGC BOE official source ingestion | Medium |
-| `pgc_real.py` | Real PGC data | Medium |
+| `modelos.py` | Legacy AEAT models sync path | High |
+| `pbc.py` | PBC regulation | Medium |
+| `pgc.py` | PGC account mapping seed path | Medium |
+| `pgc_real.py` | Real PGC data path | Medium |
 | `pgc_xbrl_mapping.py` | PGC-XBRL mapping | Low |
 | `priips_ownership.py` | PRIIPs ownership | Medium |
 | `prospectos.py` | Prospectus ingestion | Medium |
-| `psd2.py` | PSD2 regulation | Medium |
-| `psd2_eba.py` | PSD2 EBA/BdE registry sync | Medium |
-| `pbc.py` | PBC regulation | Medium |
+| `psd2.py` | PSD2 regulation seed/legacy worker | Medium |
 | `rirnr.py` | RIRNR BOE consolidated regulation ingestion | High |
 | `screening_real.py` | Multi-list screening worker with unofficial/fallback sources | Medium |
 | `sfdr.py` | SFDR data | Medium |
 | `solvency.py` | Solvency data | Medium |
 | `sustainable_finance.py` | SFDR/sustainable finance worker with seed-backed product data | Medium |
 | `xbrl.py` | XBRL from CNMV | Medium |
-| `xbrl_taxonomy.py` | XBRL taxonomy | Low |
+| `xbrl_taxonomy.py` | XBRL taxonomy seed loader | Low |
 
-## TYPE-D: Simple Scripts / Data Loaders (deprecated/dead code)
+## TYPE-D: Deprecated Or Development-Only Loaders
 
-One-shot data loaders with `--run-once` but no `run_sync()`, no heartbeat, no DLQ.
+These are simple one-shot scripts, seed loaders or superseded legal loaders. They are intentionally not production jobs.
 
 | File | Purpose |
 |------|---------|
-| `ley62018.py` | Ley 62/2018 |
-| `ley272014.py` | Ley 27/2014 |
-| `ley222010.py` | Ley 22/2010 |
-| `ley12010.py` | Ley 12/2010 |
-| `ley112021.py` | Ley 11/2021 |
-| `ley222014_lecr.py` | Ley 22/2014 LEGR |
-| `ley13_2023.py` | Ley 13/2023 |
-| `ley112009_socimi.py` | Ley 11/2009 SOCIMI |
-| `rd2172008.py` | RD 217/2008 |
-| `nrv9.py` | NRV9 |
-| `trlmv.py` | TRLMV |
+| `ley62018.py` | Ley 62/2018 legacy loader |
+| `ley272014.py` | Ley 27/2014 legacy loader |
+| `ley222010.py` | Ley 22/2010 legacy loader |
+| `ley12010.py` | Ley 12/2010 legacy loader |
+| `ley112021.py` | Ley 11/2021 legacy loader |
+| `ley222014_lecr.py` | Ley 22/2014 LEGR legacy loader |
+| `ley13_2023.py` | Ley 13/2023 legacy loader |
+| `ley112009_socimi.py` | Ley 11/2009 SOCIMI legacy loader |
+| `rd2172008.py` | RD 217/2008 legacy loader |
+| `nrv9.py` | NRV9 legacy loader |
+| `trlmv.py` | TRLMV legacy loader |
 | `screening.py` | Development-only fictitious screening data |
+
+## Ralph Remediation Backlog
+
+Undeployed TYPE-C modules are not counted as production workers. They are grouped
+in `prd.json.workerRemediationStories` as target/backlog stories and should only
+move into production after a dedicated Ralph iteration proves official sources,
+idempotent writes, sync_log telemetry, retry/dead-letter behavior, systemd/Compose
+wiring, and safe MCP/API availability semantics.

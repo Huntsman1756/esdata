@@ -30,7 +30,7 @@ from change_detection import (
     invalidate_old_embeddings,
     record_revision,
 )
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -201,6 +201,7 @@ def fetch_eurlex_articles(norma, db):
 def run_sync(worker_name: str = "cron-consumer-credit-weekly") -> dict:
     """Sync consumer credit data from EUR-Lex."""
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     sync_start = datetime.now(UTC).isoformat()
     total = 0
     source = "eurlex"

@@ -33,6 +33,27 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-12 - BORME: discovery oficial no debe ser seed-only
+
+- Scope: `apps/workers/borme.py`, `cron-borme-weekly`, tabla `sync_log`.
+- Hallazgo: BORME puede descubrir PDFs individuales desde el endpoint oficial `https://www.boe.es/datosabiertos/api/borme/sumario/YYYYMMDD`; depender solo de `BORME_SEED_URLS` deja el corpus minimo y puede hacer que el worker parezca sano aunque no ingiera nada nuevo.
+- Impacto: si no hay URLs y el worker sale sin `sync_log`, Prometheus/Hermes solo ven stale/silent worker despues, sin causa operacional clara.
+- Regla practica: usar discovery oficial como camino primario, limitar `BORME_DAYS_BACK`/`BORME_MAX_URLS_PER_RUN`, descartar `BORME-S` agregado salvo caso manual, y escribir `sync_log status=partial` cuando no haya URLs. La fuente PDF es oficial, pero la extraccion de empresas/roles sigue siendo heuristica y debe tratarse como `partial/official_best_effort`.
+
+### 2026-05-12 - EUR-Lex deep ingestion debe ir por CELEX allowlist
+
+- Scope: `apps/workers/eurlex.py`, `cron-eurlex-weekly`, `/v1/eurlex`.
+- Hallazgo: el patron reutilizable de MCP externos no es copiar corpus ni usar navegador por defecto, sino presupuestar la ingesta por CELEX y degradar con evidencia limitada cuando no hay articulado. En VPS se probo `EURLEX_FETCH_ARTICLES=true`, `EURLEX_ONLY_CELEX=32014L0065`, `EURLEX_MAX_CELEX_PER_RUN=1`.
+- Impacto: MiFID II ya expone articulado real (`article_text_available`), pero otros CELEX pueden seguir `metadata_only`; el agente no debe extrapolar cobertura global EUR-Lex.
+- Regla practica: cualquier ampliacion EUR-Lex debe anadir CELEXs de forma acotada, revisar `sync_log` (`fetch_errors=0`, `seed_selected=N`) y confirmar `/v1/eurlex/<referencia>` antes de marcar una norma como consultable con texto.
+
+### 2026-05-12 - AEAT PDFs de diseno: parsear solo tablas deterministas
+
+- Scope: `apps/workers/aeat_current_designs.py`, modelos AEAT 1XX/2XX, tabla `modelo_casilla`.
+- Hallazgo: los PDFs oficiales AEAT usan al menos dos formatos parseables con seguridad: tabla `Nº/Posic./Lon/Tipo/Descripcion` y tabla `POSICIONES/NATURALEZA/DESCRIPCION`. En algunos PDFs la naturaleza aparece con punto (`Numerico.`), y debe aceptarse. Otros PDFs son esquemas visuales o documentos de ayuda/normativa sin tabla de campos fiable; no deben convertirse en casillas inventadas.
+- Impacto: sin parser PDF, muchos modelos con recurso oficial quedaban `casillas_total=0`; con parser demasiado agresivo, se poblarian casillas falsas desde manuales, FAQ o diagramas.
+- Regla practica: ampliar el parser solo con patrones oficiales observados y test rojo previo. Si el PDF no tiene filas de diseno deterministas, dejar el modelo como `evidence_limited`/parcial y documentar el residuo.
+
 ### 2026-05-06 - Cron semanales en produccion: `--no-deps` en systemd rompe jobs y `WorkerSilent` no puede usar 48h fijo
 
 - Scope: `infra/deploy/systemd/esdata-job@.service`, `infra/observability/alerts.yml`, VPS Compose/productivo
@@ -55,6 +76,13 @@ Usar notas cortas con este esquema:
 - Hallazgo adicional: cuando `legal-content/.../TXT/XML` devuelve `202` vacio para un CELEX que si existe oficialmente, el worker ya no debe quedarse en `SKIP`. El fallback que funciono de verdad fue: consultar `resource/celex/<CELEX>` en RDF, extraer varias candidatas de `resource/consolidation/...`, probarlas en orden hasta encontrar una manifestacion viva, resolver desde ahi el item XHTML real y solo entonces parsear bloques. Elegir una unica manifestacion "mejor" no basta: varias candidatas revisionadas responden `404`, pero una candidata anterior puede seguir siendo valida y devolver articulado util.
 - Impacto: sin esos tres ajustes, el worker parece seguir bloqueado por upstream/WAF y deja `0` bloques o crashea en Postgres, aunque la fuente oficial ya este devolviendo RDF/XHTML util.
 - Regla practica: para diagnosticar EUR-Lex en VPS, validar el flujo completo dentro del contenedor `cron-eurlex-weekly`: primero `TXT/XML`; si llega vacio o `202`, saltar a `resource/celex/<CELEX>` RDF; de ahi sacar varias candidatas `resource/consolidation/...`; probarlas hasta obtener RDF de manifestacion y item XHTML `DOC_1`; luego exigir `_get_official_consolidation_blocks()` con conteo > 0. Tras este fallback multi-candidato el slice mejoro materialmente: `cron-eurlex-weekly` ya pudo cerrar con `bloques_processed=998`, `articulos_upserted=905`, `rows_processed=998` y la DB quedo con `22` normas EUR-Lex con articulado persistido.
+
+### 2026-05-12 - Repos MCP externos: patrones utiles sin importar datos
+
+- `EU_compliance_MCP` confirma el trap de EUR-Lex: los endpoints publicos pueden devolver desafio AWS WAF en vez de HTML real. Su `ingest-eurlex-browser.ts` usa navegador y valida tamano/contenido; en ESData eso debe ser fallback opt-in, no default, porque el camino preferente sigue siendo Publications Office (`resource/celex` -> `resource/consolidation` -> item XHTML).
+- `anamtb/boe-mcp` aporta un patron util para documentos BOE no consolidados: probar legislacion consolidada, caer a `diario_boe/xml.php?id=...`, y solo si el texto es insuficiente extraer PDF. En ESData debe ir separado de `worker-boe` consolidado para no mezclar calidad de fuentes.
+- Regla nueva de contrato: una norma EUR-Lex con metadata pero sin articulado no puede devolver `texto=""` sin contexto. API/MCP debe marcar `coverage_status=metadata_only`, `verified=false`, `completeness=parcial` y `evidence_notice` con `evidence_limited`.
+- Estado VPS observado en este slice tras despliegues/reset posteriores: `norma.tipo_fuente='eurlex'=32`, pero `articulo=0` y `version_articulo=0`; por tanto S-06 debe reactivar ingesta profunda de forma acotada antes de reclamar corpus EUR-Lex completo.
 
 ### 2026-05-03 - EUR-Lex: `sync_log` ya distingue `unchanged`, `no_index` y `fetch_errors` sin falsear fallos
 
@@ -248,3 +276,31 @@ Usar notas cortas con este esquema:
 - Hallazgo: 4 routers verticales existian como ficheros con SQL real contra `documento_interpretativo`, el manual los listaba como endpoints disponibles, y la doc de arquitectura los mencionaba — pero `main.py` no los importaba porque hacian `from .schemas import DocInterpretativoListResponse` y ese symbol no existia en `apps/api/schemas.py`. Resultado: arranque del API ok, contrato documental falso, violacion silenciosa de S-TIER #16 (vender target-state como implementado). Detectado por inspeccion estatica, no por test, porque no hay test que cargue `main.py` y verifique que los prefijos prometidos en docs estan montados.
 - Impacto: cualquier cliente que siguiese el manual recibia 404 en `/v1/{cnmv,bde,aepd,cendoj}/*`. La trampa es invisible si solo se mira `main.py` (los imports comentados/ausentes parecen intencionales) o solo el router (compila aislado pero falla al importarse).
 - Regla practica: cuando el manual de usuario o `repository-structure.md` listen un prefijo `/v1/<dominio>`, validar en una sola pasada: (1) `grep -n "router" apps/api/main.py` confirma `include_router` para ese prefijo; (2) `python -c "from apps.api.main import app; print([r.path for r in app.router.routes])"` lista todas las rutas reales; (3) si falla import, leer el traceback completo — suele ser un schema faltante en `apps/api/schemas.py`, no un bug del router. Antes de cerrar cualquier sprint que toque routers, ejecutar el paso (2) y diff contra el listado del manual; cualquier divergencia = router fantasma o doc desactualizada.
+
+### 2026-05-12 - `sync_log` productivo y SSH stdin
+
+- Scope: VPS Docker Compose, `sync_log`, scripts Ralph ejecutados por SSH.
+- Hallazgo: el esquema productivo de `sync_log` usa `finished_at`, no `ended_at`. Las consultas de frescura deben usar `COALESCE(finished_at, started_at)`.
+- Impacto: una verificacion con `ended_at` falla aunque la telemetria este sana, generando falso negativo en auditorias de cron/workers.
+- Regla practica: en scripts remotos que se pasan por `ssh ... "bash -s"`, cualquier `docker compose exec -T ...` debe terminar con `< /dev/null`; si no, Compose puede consumir el resto del script desde stdin y truncar la evidencia. Para scripts largos, generar un fichero LF temporal, copiarlo por `scp` y ejecutarlo con `bash`.
+
+### 2026-05-12 - AEPD no debe depender solo de `AEPD_SEED_URLS`
+
+- Scope: `apps/workers/aepd.py`, `apps/workers/tests/test_aepd.py`, `infra/deploy/docker-compose.prod.yml`.
+- Hallazgo: AEPD estaba cableado como seed-only y Compose exigia `AEPD_SEED_URLS`. Si el seed oficial fallaba o quedaba vacio, el worker podia no ampliar corpus real y antes devolvia cero sin `sync_log` explicito.
+- Impacto: el dominio AEPD parecia operativo por tener worker/router, pero el corpus productivo seguia reducido y no habia discovery oficial vivo comparable al de BORME/BOE.
+- Regla practica: usar `https://www.aepd.es/guias-y-herramientas/guias` como discovery oficial acotado para guias/documentos; filtrar externos, filtros, feed y obsoletos; si no hay URLs, registrar `sync_log status=partial`. No afirmar cobertura completa de resoluciones sancionadoras AEPD hasta localizar endpoint oficial estable y probarlo.
+
+### 2026-05-12 - AEAT endpoint-specific truth fields
+
+- Scope: `apps/api/routers/modelos.py`, `apps/api/schemas.py`, `/v1/modelos/aeat/{codigo}`.
+- Hallazgo: un endpoint puede devolver datos reales de modelo/campana y aun asi omitir `verified`, `completeness` y `casillas_total`. Para agentes, esos campos ausentes se leen como `null` y dificultan distinguir evidencia limitada de fallo de datos.
+- Impacto: el mismo modelo podia verse parcial en `/v1/modelos/{codigo}` pero sin contrato de verdad en `/v1/modelos/aeat/{codigo}`, creando discrepancias de prompt/agente aunque la base de datos estuviera sana.
+- Regla practica: cualquier endpoint de detalle de modelo que devuelva recursos oficiales debe exponer tambien el contrato de verdad operativo y la campana real usada para casillas (`casillas_campana`, `casillas_selection_notice`). Tener `casillas_total > 0` no equivale a `verified=true`; solo `completeness_estado='completa'`, `no-casillas-expected` o `deprecated` puede elevar la confianza.
+
+### 2026-05-12 - AEAT evidence_status para agentes
+
+- Scope: `apps/api/routers/modelos.py`, `apps/api/schemas.py`, endpoints `/v1/modelos/{codigo}`, `/aeat/{codigo}`, `/campana-operativa`, `/casillas`.
+- Hallazgo: `verified=false` y `completeness=parcial` son correctos, pero algunos agentes no los traducen de forma consistente a lenguaje de evidencia limitada.
+- Impacto: sin un campo directo, una respuesta con campos oficiales cargados puede ser resumida como si fuera completa para instrucciones u obligatoriedad.
+- Regla practica: las superficies de modelo deben devolver `evidence_status=evidence_limited` y `evidence_notice` cuando el contrato sea parcial. `no-casillas-expected` no significa "sin obligacion"; solo significa ausencia verificada de casillas estructuradas esperadas.

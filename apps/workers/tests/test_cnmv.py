@@ -509,7 +509,7 @@ def test_run_sync_persists_cnmv_document_and_metrics(monkeypatch):
         "BOE-A-2009-133",
         "CNMV",
         "cnmv",
-        "reporting_regulatorio_cnmv",
+        "reporting_regulatorio",
         "circular_cnmv",
     )
     assert sync == ("worker-cnmv", "ok", 1, 1)
@@ -1371,6 +1371,6 @@ def test_run_sync_uses_versioning_and_linking(monkeypatch):
 
 
 def test_run_sync_empty_seed_urls_returns_zero():
-    """SEED_URLS vacío debe devolver processed=0, stored=0 sin hacer HTTP."""
+    """SEED_URLS vacío debe devolver telemetría cero sin hacer HTTP."""
     result = run_sync(seed_urls=[])
-    assert result == {"processed": 0, "stored": 0}
+    assert result == {"processed": 0, "stored": 0, "discovered": 0}

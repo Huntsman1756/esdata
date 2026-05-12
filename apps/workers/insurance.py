@@ -18,7 +18,7 @@ from change_detection import (
     ensure_source_revision_table,
     invalidate_old_embeddings,
 )
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure
+from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -87,6 +87,7 @@ def _fetch_eurlex_text(norma: dict) -> tuple[str, str] | None:
 
 def run_sync(worker_name: str = "cron-insurance-weekly") -> dict:
     engine = create_engine(DATABASE_URL, future=True)
+    ensure_database_connection(engine)
     sync_start = datetime.now(UTC).isoformat()
     total = 0
     source = "eurlex+seed"

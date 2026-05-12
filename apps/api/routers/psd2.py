@@ -29,6 +29,8 @@ insurance_router = APIRouter(prefix="/v1/insurance", tags=["insurance"])
 async def list_psd2_aspsp(
     regulatory_status: str | None = Query(None, description="Estado regulatorio: registered, suspended, revoked"),
     home_member_state: str | None = Query(None, description="Estado miembro: ES, DE, FR, etc."),
+    limit: int = Query(50, ge=1, le=500, description="Limite de resultados"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = ["1=1"]
     params: dict = {}
@@ -48,16 +50,18 @@ async def list_psd2_aspsp(
                 FROM psd2_aspsp p
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
         items = [dict(r) for r in rows]
         count = db.execute(
             text(f"SELECT COUNT(*) FROM psd2_aspsp p WHERE {' AND '.join(filters)}"),
             params,
         ).scalar()
-        return {"items": items, "total": count}
+        next_offset = offset + limit if offset + len(items) < int(count or 0) else None
+        return {"items": items, "total": count, "limit": limit, "offset": offset, "has_more": next_offset is not None, "next_offset": next_offset}
 
 
 @router.get(
@@ -93,6 +97,8 @@ async def get_psd2_aspsp(item_id: int):
 )
 async def list_psd2_aisp(
     status: str | None = Query(None, description="Estado: active, inactive, suspended"),
+    limit: int = Query(50, ge=1, le=500, description="Limite de resultados"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = ["1=1"]
     params: dict = {}
@@ -109,16 +115,18 @@ async def list_psd2_aisp(
                 FROM psd2_aisp a
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
         items = [dict(r) for r in rows]
         count = db.execute(
             text(f"SELECT COUNT(*) FROM psd2_aisp a WHERE {' AND '.join(filters)}"),
             params,
         ).scalar()
-        return {"items": items, "total": count}
+        next_offset = offset + limit if offset + len(items) < int(count or 0) else None
+        return {"items": items, "total": count, "limit": limit, "offset": offset, "has_more": next_offset is not None, "next_offset": next_offset}
 
 
 @router.get(
@@ -154,6 +162,8 @@ async def get_psd2_aisp(item_id: int):
 )
 async def list_psd2_pisp(
     authorization_status: str | None = Query(None, description="Estado: authorized, suspended, revoked"),
+    limit: int = Query(50, ge=1, le=500, description="Limite de resultados"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = ["1=1"]
     params: dict = {}
@@ -170,16 +180,18 @@ async def list_psd2_pisp(
                 FROM psd2_pisp p
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
         items = [dict(r) for r in rows]
         count = db.execute(
             text(f"SELECT COUNT(*) FROM psd2_pisp p WHERE {' AND '.join(filters)}"),
             params,
         ).scalar()
-        return {"items": items, "total": count}
+        next_offset = offset + limit if offset + len(items) < int(count or 0) else None
+        return {"items": items, "total": count, "limit": limit, "offset": offset, "has_more": next_offset is not None, "next_offset": next_offset}
 
 
 @router.get(
@@ -341,6 +353,8 @@ async def get_psd2_incident(item_id: int):
 )
 async def list_sepa_payment_rules(
     payment_type: str | None = Query(None, description="Tipo de pago: SEPA CT, SEPA CCT, SEPA Core, SEPA B2B"),
+    limit: int = Query(50, ge=1, le=500, description="Limite de resultados"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = ["1=1"]
     params: dict = {}
@@ -357,16 +371,18 @@ async def list_sepa_payment_rules(
                 FROM sepa_payment_rule s
                 WHERE {" AND ".join(filters)}
                 ORDER BY id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            params,
+            {**params, "limit": limit, "offset": offset},
         ).mappings()
         items = [dict(r) for r in rows]
         count = db.execute(
             text(f"SELECT COUNT(*) FROM sepa_payment_rule s WHERE {' AND '.join(filters)}"),
             params,
         ).scalar()
-        return {"items": items, "total": count}
+        next_offset = offset + limit if offset + len(items) < int(count or 0) else None
+        return {"items": items, "total": count, "limit": limit, "offset": offset, "has_more": next_offset is not None, "next_offset": next_offset}
 
 
 @router.get(

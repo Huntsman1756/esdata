@@ -89,6 +89,24 @@ class SearchResult(BaseModel):
     rank: float | None = Field(
         default=None, description="Puntuación de relevancia (ts_rank)"
     )
+    fuente_norma: str | None = Field(
+        default=None, description="Referencia de la fuente normativa"
+    )
+    boe_reference: str | None = Field(
+        default=None, description="Identificador BOE cuando la fuente sea BOE"
+    )
+    source_url: str | None = Field(
+        default=None, description="URL oficial trazable del resultado"
+    )
+    chunk_id: int | str | None = Field(
+        default=None, description="Identificador interno del fragmento recuperado"
+    )
+    source_hash: str | None = Field(
+        default=None, description="Hash de trazabilidad del contenido recuperado"
+    )
+    motivo_ranking: str | None = Field(
+        default=None, description="Motivo de ranking o mecanismo de coincidencia"
+    )
     confianza: ConfianzaInfo = Field(description="Información de confianza del dato")
 
 
@@ -112,6 +130,8 @@ class DoctrinaDetail(BaseModel):
         description="Tipo (consulta_vinculante, resolucion_teac, etc.)"
     )
     organismo_emisor: str = Field(description="Organismo emisor (DGT, TEAC, etc.)")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    url_fuente: str | None = Field(default=None, description="URL oficial del documento")
     texto: str = Field(description="Texto completo del documento")
     articulos_relacionados: list[ArticuloRelacionado] = Field(
         default_factory=list, description="Artículos de ley vinculados"
@@ -121,8 +141,13 @@ class DoctrinaDetail(BaseModel):
 
 class DoctrinaSearchResult(BaseModel):
     referencia: str = Field(description="Referencia del documento")
+    numero_consulta: str | None = Field(
+        default=None,
+        description="Numero de consulta DGT cuando el organismo emisor es DGT",
+    )
     tipo_documento: str = Field(description="Tipo de documento")
     organismo_emisor: str = Field(description="Organismo emisor")
+    organo: str | None = Field(default=None, description="Alias operativo del organismo emisor")
     fecha: str | None = Field(
         default=None, description="Fecha del documento (YYYY-MM-DD)"
     )
@@ -250,6 +275,12 @@ class ModeloCasilla(BaseModel):
 class ModeloCasillasResponse(BaseModel):
     codigo: str = Field(description="Codigo del modelo")
     campana: str | None = Field(default=None, description="Campana consultada")
+    campana_activa: str | None = Field(
+        default=None, description="Campana marcada como activa para el modelo"
+    )
+    selection_notice: str | None = Field(
+        default=None, description="Aviso si la campana usada difiere de la activa"
+    )
     casillas: list[ModeloCasilla] = Field(default_factory=list, description="Pagina de casillas devueltas")
     total: int = Field(description="Total de casillas que cumplen los filtros")
     limit: int = Field(description="Tamano de pagina aplicado")
@@ -257,10 +288,18 @@ class ModeloCasillasResponse(BaseModel):
     has_more: bool = Field(description="Si hay mas casillas disponibles")
     next_offset: int | None = Field(default=None, description="Offset para continuar, si hay mas")
     filters: dict = Field(default_factory=dict, description="Filtros aplicados")
-    classification: str = Field(description="confirmado si hay casillas oficiales devueltas; requiere_verificacion si no")
+    classification: str = Field(
+        description=(
+            "confirmado si hay casillas oficiales devueltas; "
+            "sin_casillas_esperadas si el modelo esta verificado como sin casillas "
+            "estructuradas; requiere_verificacion si no"
+        )
+    )
     obligation_notice: str = Field(description="Aviso de que casilla no implica obligatoriedad por supuesto")
     completeness: str = Field(description="Estado de completitud del modelo/campana")
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
     confidence: dict = Field(default_factory=dict, description="Confianza y revision requerida")
 
 
@@ -308,8 +347,21 @@ class ModeloCampanaOperativaResponse(BaseModel):
     presentacion_resumen: str | None = Field(default=None, description="Resumen de presentación")
     origen_metadato: str | None = Field(default=None, description="Origen del metadato")
     estado_metadato: str | None = Field(default=None, description="Estado del metadato")
-    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    completeness_estado: str | None = Field(
+        default=None,
+        description=(
+            "Estado explicito curado para sobrescribir el contrato: completa, parcial, "
+            "no-casillas-expected o deprecated"
+        ),
+    )
+    completeness: str = Field(
+        description=(
+            "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
+        )
+    )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
     fuentes_recomendadas: list["ModeloFuenteOficial"] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
 
 
@@ -345,6 +397,12 @@ class ModeloDetail(BaseModel):
     casillas_offset: int = Field(default=0, description="Offset aplicado a casillas en esta respuesta")
     casillas_has_more: bool = Field(default=False, description="Si hay más casillas disponibles")
     casillas_next_offset: int | None = Field(default=None, description="Offset para continuar casillas")
+    casillas_campana: str | None = Field(
+        default=None, description="Campana usada para devolver casillas"
+    )
+    casillas_selection_notice: str | None = Field(
+        default=None, description="Aviso si las casillas proceden de una campana distinta de la activa"
+    )
     claves: list[ModeloClave] = Field(
         default_factory=list, description="Claves de la campaña activa"
     )
@@ -361,8 +419,14 @@ class ModeloDetail(BaseModel):
         default_factory=list, description="Doctrina relacionada vía artículos"
     )
     doctrina_relacionada_total: int = Field(default=0, description="Total de doctrina relacionada devuelta")
-    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    completeness: str = Field(
+        description=(
+            "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
+        )
+    )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
 
 
 # ---------------------------------------------------------------------------
@@ -679,6 +743,13 @@ class AEATModeloDetail(BaseModel):
     codigo: str = Field(description="Codigo del modelo")
     nombre: str = Field(description="Nombre completo")
     activo: bool = Field(description="Si el modelo sigue activo")
+    completeness: str = Field(description="Contrato de completitud operativo del modelo")
+    verified: bool = Field(description="Si el contrato de completitud permite respuesta autoritativa")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
+    casillas_total: int = Field(default=0, description="Numero de casillas/campos oficiales cargados para la campana consultada")
+    casillas_campana: str | None = Field(default=None, description="Campana usada para contar casillas/campos")
+    casillas_selection_notice: str | None = Field(default=None, description="Aviso si las casillas proceden de una campana distinta")
     campana_actual: AEATCampanaDetail | None = Field(default=None, description="Campana actual con recursos activos")
     historial: list[AEATCampanaDetail] | None = Field(default=None, description="Historial de campanas y versiones si include_history=true")
 
@@ -1130,7 +1201,10 @@ class ChunkCitation(BaseModel):
     source_document: str = Field(description="Documento fuente del chunk")
     article_number: str | None = Field(default=None, description="Numero de articulo si aplica")
     rerank_score: float = Field(description="Puntuacion de reranking")
+    relevance_score: float | None = Field(default=None, description="Puntuacion normalizada de relevancia")
     excerpt: str = Field(description="Vista previa del contenido del chunk")
+    content_preview: str | None = Field(default=None, description="Vista previa estable para clientes MCP/GPT")
+    source_url: str | None = Field(default=None, description="URL oficial de la fuente si esta disponible")
 
 
 class ClaimCitation(BaseModel):
@@ -1152,11 +1226,18 @@ class ObligacionInternacionalItem(BaseModel):
     descripcion: str | None = None
     creado_en: str | None = None
     actualizado_en: str | None = None
+    source_url: str | None = Field(default=None, description="URL oficial registrada en source_revision")
+    source_worker: str | None = Field(default=None, description="Worker que cargo la referencia")
+    source_fetched_at: str | None = Field(default=None, description="Fecha de captura de la fuente")
 
 
 class ObligacionInternacionalListResponse(BaseModel):
     items: list[ObligacionInternacionalItem] = Field(default_factory=list)
     total: int
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class ObligacionInternacionalDetailResponse(BaseModel):
@@ -1184,7 +1265,11 @@ class MCPMinimumResponseContract(BaseModel):
     tool_name: str = Field(description="Nombre estable de la tool o superficie")
     sources: list[dict] = Field(default_factory=list, description="Fuentes o chunks que respaldan la respuesta")
     confidence: dict = Field(description="Confianza operativa de la respuesta")
-    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    completeness: str = Field(
+        description=(
+            "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
+        )
+    )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
 
 
@@ -1262,6 +1347,10 @@ class CASPDetail(BaseModel):
 class CASPListResponse(BaseModel):
     items: list[CASPSummary]
     total: int
+    quality_signal: str | None = Field(default=None, description="official_esma_register | configured_but_unavailable")
+    availability_status: str | None = Field(default=None, description="populated | workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    source_url: str | None = Field(default=None, description="Official source URL for the loaded register")
 
 
 # ---------------------------------------------------------------------------
@@ -1306,6 +1395,9 @@ class CryptoAssetDetail(BaseModel):
 class CryptoAssetListResponse(BaseModel):
     items: list[CryptoAssetSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------
@@ -1358,6 +1450,9 @@ class CryptoTransactionDetail(BaseModel):
 class CryptoTransactionListResponse(BaseModel):
     items: list[CryptoTransactionSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------
@@ -1392,6 +1487,9 @@ class TokenizedAssetDetail(BaseModel):
 class TokenizedAssetListResponse(BaseModel):
     items: list[TokenizedAssetSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------
@@ -1424,6 +1522,9 @@ class WalletCustodianDetail(BaseModel):
 class WalletCustodianListResponse(BaseModel):
     items: list[WalletCustodianSummary]
     total: int
+    availability_status: str | None = Field(default=None, description="workflow_empty | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    message: str | None = Field(default=None, description="Availability explanation when no rows are safe to answer from")
 
 
 # ---------------------------------------------------------------------------
@@ -2995,6 +3096,10 @@ class GiinRegistryDetail(GiinRegistrySummary):
 class GiinRegistryListResponse(BaseModel):
     registros: list[GiinRegistrySummary] = Field(default_factory=list)
     total: int
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class IrsFiscalCheckRequest(BaseModel):
@@ -3771,10 +3876,27 @@ class EurLexListItem(BaseModel):
     ambito: str = Field(description="Ambito EU (mercado_interior, fiscal_ue, ...)")
     fragmento: str = Field(description="Extracto truncado (<=223 chars) del primer articulo vigente")
     url_fuente: str | None = Field(default=None, description="URI ELI EUR-Lex (norma.eli_uri)")
+    articulos_total: int = Field(default=0, description="Numero de articulos/versiones vigentes cargados")
+    coverage_status: str = Field(description="article_text_available | metadata_only")
+    articles_expected: int | None = Field(default=None, description="Conteo esperado de articulos si el worker pudo medirlo")
+    articles_parsed: int | None = Field(default=None, description="Conteo de articulos parseados registrado por el worker")
+    articles_empty_official: int | None = Field(
+        default=None,
+        description="Bloques oficiales EUR-Lex publicados sin cuerpo de texto en la manifestacion vigente",
+    )
+    quality_status: str | None = Field(default=None, description="metadata_only | partial | article_text_available")
+    verified: bool = Field(description="True solo si hay texto oficial de articulado cargado")
+    completeness: str = Field(description="completa | parcial")
+    evidence_notice: str | None = Field(default=None, description="Aviso de evidencia limitada si falta articulado")
 
 
 class EurLexListResponse(BaseModel):
     documentos: list[EurLexListItem]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
 
 
 class EurLexDetail(BaseModel):
@@ -3785,6 +3907,62 @@ class EurLexDetail(BaseModel):
     ambito: str = Field(description="Ambito EU")
     texto: str = Field(description="Concatenacion de articulos vigentes")
     url_fuente: str | None = Field(default=None, description="URI ELI EUR-Lex")
+    articulos_total: int = Field(default=0, description="Numero de articulos/versiones vigentes cargados")
+    coverage_status: str = Field(description="article_text_available | metadata_only")
+    articles_expected: int | None = Field(default=None, description="Conteo esperado de articulos si el worker pudo medirlo")
+    articles_parsed: int | None = Field(default=None, description="Conteo de articulos parseados registrado por el worker")
+    articles_empty_official: int | None = Field(
+        default=None,
+        description="Bloques oficiales EUR-Lex publicados sin cuerpo de texto en la manifestacion vigente",
+    )
+    quality_status: str | None = Field(default=None, description="metadata_only | partial | article_text_available")
+    verified: bool = Field(description="True solo si hay texto oficial de articulado cargado")
+    completeness: str = Field(description="completa | parcial")
+    evidence_notice: str | None = Field(default=None, description="Aviso de evidencia limitada si falta articulado")
+
+
+# --- BORME -----------------------------------------------------------------
+
+class BORMEListItem(BaseModel):
+    referencia: str = Field(description="Referencia oficial del acto/anuncio BORME")
+    fecha: str | None = Field(default=None, description="Fecha del acto/anuncio")
+    titulo: str | None = Field(default=None, description="Titulo detectado")
+    tipo_documento: str | None = Field(default=None, description="Tipo de acto detectado")
+    fragmento: str = Field(description="Extracto truncado del texto oficial")
+    url_fuente: str | None = Field(default=None, description="URL oficial BORME/BOE")
+    row_completeness: str | None = Field(default=None, description="complete | partial")
+    row_provenance: str | None = Field(default=None, description="official_exact | official_best_effort")
+    quality_signal: str | None = Field(default=None, description="partial_heuristic | official_exact")
+
+
+class BORMEListResponse(BaseModel):
+    actos: list[BORMEListItem]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
+    quality_signal: str | None = Field(default=None, description="Overall quality signal for BORME extraction")
+
+
+class BORMEEmpresaRelacionada(BaseModel):
+    id: int
+    nombre: str
+    rol: str | None = None
+    confianza_extraccion: float
+
+
+class BORMEDetail(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    tipo_documento: str | None = None
+    texto: str
+    url_fuente: str | None = None
+    row_completeness: str | None = None
+    row_provenance: str | None = None
+    quality_signal: str | None = None
+    empresas_relacionadas: list[BORMEEmpresaRelacionada] = Field(default_factory=list)
 
 
 # --- documento_interpretativo (cnmv / bde / aepd / cendoj) -----------------
@@ -3800,15 +3978,24 @@ class DocInterpretativoListItem(BaseModel):
     ambito: str = Field(description="Ambito")
     fragmento: str = Field(description="Extracto truncado (<=223 chars)")
     url_fuente: str | None = Field(default=None, description="URL fuente oficial")
+    url_aepd: str | None = Field(default=None, description="Alias de URL fuente AEPD para consumidores MCP")
     organismo_emisor: str | None = Field(default=None, description="Organismo emisor (cendoj)")
     estado_vigencia: str | None = Field(default=None, description="Estado vigencia (cnmv)")
+    fecha_publicacion: str | None = Field(default=None, description="Fecha publicacion (cnmv)")
+    referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
+    boe_referencia: str | None = Field(default=None, description="Alias de referencia BOE para consumidores MCP")
+    url_cnmv: str | None = Field(default=None, description="Alias de URL fuente CNMV/BOE para consumidores MCP")
 
 
 class DocInterpretativoListResponse(BaseModel):
     documentos: list[DocInterpretativoListItem]
+    items: list[DocInterpretativoListItem] = Field(default_factory=list, description="Alias paginado para consumidores MCP/GPT")
     skip: int | None = Field(default=None, description="Offset paginacion (cnmv)")
     limit: int | None = Field(default=None, description="Limite paginacion (cnmv)")
     total: int | None = Field(default=None, description="Total resultados (cnmv)")
+    offset: int | None = Field(default=None, description="Offset paginacion")
+    has_more: bool | None = Field(default=None, description="Si hay mas resultados")
+    next_offset: int | None = Field(default=None, description="Siguiente offset")
 
 
 class DocInterpretativoDetail(BaseModel):
@@ -3819,11 +4006,48 @@ class DocInterpretativoDetail(BaseModel):
     ambito: str
     texto: str
     url_fuente: str | None = None
+    url_aepd: str | None = Field(default=None, description="Alias de URL fuente AEPD para consumidores MCP")
     organismo_emisor: str | None = Field(default=None, description="Organismo emisor (cendoj)")
     estado_vigencia: str | None = Field(default=None, description="Estado vigencia (cnmv)")
     numero_circular: str | None = Field(default=None, description="Numero circular (cnmv)")
     fecha_publicacion: str | None = Field(default=None, description="Fecha publicacion (cnmv)")
     referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
+    boe_referencia: str | None = Field(default=None, description="Alias de referencia BOE para consumidores MCP")
+    url_cnmv: str | None = Field(default=None, description="Alias de URL fuente CNMV/BOE para consumidores MCP")
+
+
+# --- BOE diario non-consolidated documents ---------------------------------
+
+class BOEDiarioListItem(BaseModel):
+    referencia: str = Field(description="Identificador oficial BOE-B/BOE-S/BOE-N")
+    fecha: str | None = Field(default=None, description="Fecha de publicacion")
+    titulo: str | None = Field(default=None, description="Titulo oficial del documento")
+    tipo_documento: str = Field(description="anuncio_boe | suplemento_boe | notificacion_boe")
+    fragmento: str = Field(description="Extracto truncado del texto oficial")
+    url_fuente: str | None = Field(default=None, description="XML o PDF oficial utilizado")
+    row_completeness: str | None = Field(default=None, description="complete | partial")
+    row_provenance: str | None = Field(default=None, description="official_exact | official_best_effort")
+
+
+class BOEDiarioListResponse(BaseModel):
+    documentos: list[BOEDiarioListItem]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
+
+
+class BOEDiarioDetail(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    tipo_documento: str
+    texto: str
+    url_fuente: str | None = None
+    row_completeness: str | None = None
+    row_provenance: str | None = None
+    metadata: dict | str | None = None
 
 
 # --- CNMV-specific link / version surfaces --------------------------------

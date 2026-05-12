@@ -18,6 +18,7 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 from runtime import (
+    ensure_database_connection,
     configure_logging,
     get_database_url,
     get_interval_seconds,
@@ -636,6 +637,7 @@ def main():
     logger.info("Run once: %s", args.run_once)
 
     engine = create_engine(db_url)
+    ensure_database_connection(engine)
     run_sync(engine, run_once=args.run_once)
 
 

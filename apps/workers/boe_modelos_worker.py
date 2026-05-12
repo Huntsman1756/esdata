@@ -377,7 +377,7 @@ def _fetch_hac_normas_xml(client: httpx.Client, normas: list[str]) -> list[_Orde
             "LIRPF": "BOE-A-2006-20764",
             "LIS": "BOE-A-2014-12328",
             "LGT": "BOE-A-2003-23186",
-            "ITPAJD": "BOE-A-1993-253",
+            "ITPAJD": "BOE-A-1993-25359",
         }
         if codigo in known_boe_ids:
             boe_id_match = known_boe_ids[codigo]

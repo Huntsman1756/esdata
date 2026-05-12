@@ -118,6 +118,20 @@ class TestPsd2Aspsp:
             data = resp.json()
             assert "items" in data
             assert data["total"] >= 2
+            assert data["limit"] == 50
+            assert data["offset"] == 0
+
+    @pytest.mark.asyncio
+    async def test_list_aspsp_pagination(self):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/v1/psd2/aspsp?limit=1&offset=0")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert len(data["items"]) == 1
+            assert data["limit"] == 1
+            assert data["offset"] == 0
+            assert data["has_more"] is True
+            assert data["next_offset"] == 1
 
     @pytest.mark.asyncio
     async def test_get_aspsp_404(self):
@@ -230,7 +244,19 @@ class TestSepaRules:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/v1/psd2/sepa-rules")
             assert resp.status_code == 200
-            assert resp.json()["total"] >= 2
+            data = resp.json()
+            assert data["total"] >= 2
+            assert data["limit"] == 50
+
+    @pytest.mark.asyncio
+    async def test_list_sepa_rules_pagination(self):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/v1/psd2/sepa-rules?limit=1")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert len(data["items"]) == 1
+            assert data["limit"] == 1
+            assert data["has_more"] is True
 
     @pytest.mark.asyncio
     async def test_get_sepa_rule_404(self):

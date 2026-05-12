@@ -180,13 +180,16 @@ def _message(item: dict[str, Any], status: str, row_count: int | None) -> str:
 def availability_record(db, item: dict[str, Any]) -> dict[str, Any]:
     row_count = _table_count(db, str(item["table"]))
     status = _availability_status(item, row_count)
+    reason = _reason_for_status(status)
+    if item.get("table") == "suspicious_activity_report" and status == "workflow_empty":
+        reason = "proprietary_to_obligated_entity"
     return {
         "table": item.get("table"),
         "domain": item.get("domain"),
         "row_count": row_count,
         "status": status,
         "availability_status": status,
-        "reason": _reason_for_status(status),
+        "reason": reason,
         "registry_classification": item.get("classification"),
         "official_source_family": item.get("official_source_family"),
         "target_path": item.get("target_path"),

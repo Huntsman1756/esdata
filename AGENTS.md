@@ -20,12 +20,26 @@
 ### Tabla destino por worker
 
 - `articulo` y `version_articulo` (con `created_at`/`updated_at` desde A-09): BOE legislación, poblada por `worker-boe` / `cron-boe-daily`.
+- `documento_interpretativo` con `tipo_fuente='boe_diario'`: BOE diario no consolidado (`BOE-B/S/N`) poblado por `cron-boe-diario-daily`; no se mezcla con `articulo/version_articulo`.
 - `aeat_modelo` + `modelo_campana`/`modelo_casilla`/...: poblada por `worker-aeat-modelos` / `cron-modelos-daily` (script `aeat_models.py`).
 - `modelo_recurso` (RLS habilitada A-06): URLs AEAT cacheadas por `cron-boe-modelos-daily`.
 - `documento_interpretativo`: DGT, CNMV, SEPBLAC, BDE, CENDOJ, AEPD, BORME, BDNS — doctrina/circulares.
 - `source_revision`: cambios detectados por `reg-watch` (cron-regulatory-daily) + metadata ETag/Last-Modified/SHA256 de todos los workers que soportan change-detection. NO hay tabla separada `regulatory_changes` — `source_revision` es la fuente canónica de revisiones regulatorias.
 - `query_audit_log` (append-only via trigger desde migración 0061): invocaciones REST/MCP con `request_id` propagado, `user_id` (o 'anonymous'), `tool_name`, `path`, `retrieved_chunks`, `response_summary`.
 - `sync_log`: telemetría por ejecución de worker (no es la tabla de datos — los datos van a las tablas anteriores).
+
+---
+
+### AEAT 29 remaining models audit (M-00, 2026-05-12)
+
+- Fuente documental viva: `docs/aeat-29-audit.md`.
+- STATUS-A inmediato: `172`, `173` - ZIP oficial AEAT con WSDL/XSD (`Esquemas172.zip`, `Esquemas173.zip`).
+- STATUS-B preliminar: `102`, `146`, `147`, `186`, `206`, `247` - formulario/declaracion sin diseno de registro estructurado localizado.
+- STATUS-D preliminar: `121`, `136`, `140`, `143`, `150`, `221`, `228`, `230`, `239`, `294`, `295` - endpoint dinamico, FAQ/ayuda o PDF esquematico no parseable sin riesgo.
+- STATUS-E/M-03 final: `179`, `231`, `238`, `240`, `241`, `290` resueltos con XSD/ZIP oficiales AEAT y campos `diseno_registro_xsd_campo`; `234`, `235`, `236` reclasificados a STATUS-D porque solo hay ejemplos XML; `233` queda como unico STATUS-E pendiente hasta localizar contrato/plantilla oficial determinista.
+- M-04/M-09 final: `102`, `146`, `147`, `186`, `206`, `247` usan `modelo_campana_operativa.completeness_estado='no-casillas-expected'`; agentes deben tratarlo como ausencia verificada de casillas estructuradas, no como `evidencia limitada`.
+- `deprecated` existe en contrato API/MCP, pero no hay modelo STATUS-C marcado en esta fase sin evidencia oficial.
+- Regla: no poblar `modelo_casilla` desde ejemplos XML, FAQ, normativa o PDF esquematico si no hay tabla/campo determinista.
 
 ---
 
@@ -103,3 +117,9 @@ Consultar por ruta, nunca inyectar contenido completo:
 - `infra/` — Despliegue Docker Compose. Ver `infra/AGENTS.md`
 
 **Flujos cross-domain:** `apps/web` → `apps/api`; `apps/workers` → DB → `apps/api`; `scripts/` fuera del runtime.
+
+---
+
+## Ralph AEAT 29 Audit Notes
+
+- 2026-05-12 M-02: `172` y `173` son `STATUS-A` como inventario XML/XSD oficial, no como casillas visuales numeradas. `apps/workers/aeat_current_designs.py` carga `DeclaracionInformativa172.xsd` y `DeclaracionInformativa173.xsd` desde ZIP oficiales AEAT como `modelo_casilla.tipo_casilla='diseno_registro_xsd_campo'`, con codigo estable por XPath y descripcion con fuente XSD, tipo XSD y cardinalidad. VPS verificado: `172=35`, `173=45`, `xsd_fields=80`, `parse_errors=0`.

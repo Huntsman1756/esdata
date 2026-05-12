@@ -45,8 +45,12 @@ def invalidate_by_type(cache_type: str, reason: str = "manual") -> None:
         invalidate_all(reason)
         return
 
+    cache_type_aliases = {cache_type}
+    if cache_type.endswith("s"):
+        cache_type_aliases.add(cache_type[:-1])
+
     for name, callback in _invalidation_callbacks:
-        if cache_type in name:
+        if any(alias in name for alias in cache_type_aliases):
             try:
                 callback()
                 logger.info("Invalidated cache %s (type: %s)", name, cache_type)

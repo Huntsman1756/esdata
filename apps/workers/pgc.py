@@ -5,10 +5,10 @@ from sqlalchemy import create_engine, text
 
 if __package__:
     from .pgc_dataset import PGC_ACCOUNTS_2021, PGC_AEAT_REFERENCES_2021, PGC_ESTADOS_FINANCIEROS_2021, PGC_MARCO_2021, PGC_NORMAS_2021, PGC_REFERENCIAS_FISCALES_2021
-    from .runtime import get_database_url
+    from .runtime import get_database_url, ensure_database_connection
 else:
     from pgc_dataset import PGC_ACCOUNTS_2021, PGC_AEAT_REFERENCES_2021, PGC_ESTADOS_FINANCIEROS_2021, PGC_MARCO_2021, PGC_NORMAS_2021, PGC_REFERENCIAS_FISCALES_2021
-    from runtime import get_database_url
+    from runtime import get_database_url, ensure_database_connection
 
 PGC_MARCO = PGC_MARCO_2021
 PGC_ACCOUNTS = PGC_ACCOUNTS_2021
@@ -272,6 +272,7 @@ def _upsert_aeat_reference(conn, ref) -> int:
 def run_sync(engine=None, run_once: bool = False) -> dict[str, int]:
     del run_once
     engine = engine or create_engine(get_database_url(), future=True)
+    ensure_database_connection(engine)
 
     with engine.begin() as conn:
         marcos_upserted = _upsert_marco(conn)
@@ -298,6 +299,7 @@ def main() -> None:
     args = parser.parse_args()
 
     engine = create_engine(args.db_url or os.getenv("DATABASE_URL") or get_database_url(), future=True)
+    ensure_database_connection(engine)
     run_sync(engine=engine, run_once=args.run_once)
 
 

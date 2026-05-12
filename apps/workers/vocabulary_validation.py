@@ -10,9 +10,21 @@ unknown taxonomy value.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
+from pathlib import Path
 
-from vocabulary import VOCABULARY, validate_field
+try:
+    from .vocabulary import VOCABULARY, validate_field
+except ImportError:
+    _VOCABULARY_PATH = Path(__file__).with_name("vocabulary.py")
+    _SPEC = importlib.util.spec_from_file_location("_esdata_worker_vocabulary", _VOCABULARY_PATH)
+    if _SPEC is None or _SPEC.loader is None:  # pragma: no cover
+        raise
+    _MODULE = importlib.util.module_from_spec(_SPEC)
+    _SPEC.loader.exec_module(_MODULE)
+    VOCABULARY = _MODULE.VOCABULARY
+    validate_field = _MODULE.validate_field
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ transacciones crypto para DAC8/DAC9.
 import json
 
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from schemas import (
     CASPCreate as CASPCreateSchema,
 )
@@ -55,7 +55,12 @@ from schemas import (
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
+from services.domain_availability import availability_envelope, check_domain
+from routers.retrieval_audit import record_retrieval_query_audit
+
 router = APIRouter(prefix="/v1/mica", tags=["mica"])
+
+ESMA_CASP_REGISTER_URL = "https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica"
 
 
 # ===================================================================
@@ -81,10 +86,26 @@ def _missing_table_error(exc: OperationalError) -> bool:
     return "no such table" in message or "does not exist" in message or "undefined table" in message
 
 
-def _empty_list_on_missing_table(exc: OperationalError):
+def _empty_list_on_missing_table(exc: OperationalError, table: str, domain_label: str):
     if _missing_table_error(exc):
-        return {"items": [], "total": 0}
+        return availability_envelope(None, table, domain_label)
     raise exc
+
+
+def _casp_quality(total: int) -> dict:
+    if total <= 0:
+        return {
+            "quality_signal": "configured_but_unavailable",
+            "availability_status": "configured_but_unavailable",
+            "safe_to_answer": False,
+            "source_url": ESMA_CASP_REGISTER_URL,
+        }
+    return {
+        "quality_signal": "official_esma_register",
+        "availability_status": "populated",
+        "safe_to_answer": True,
+        "source_url": ESMA_CASP_REGISTER_URL,
+    }
 
 
 # ===================================================================
@@ -98,6 +119,7 @@ def _empty_list_on_missing_table(exc: OperationalError):
     response_model=CASPListResponse,
 )
 async def list_casp(
+    request: Request,
     status: str | None = Query(default=None, description="Filtrar por estado: active, suspended, revoked"),
     home_member_state: str | None = Query(default=None, description="Filtrar por estado miembro (ISO 3166-1 alpha-2)"),
     search: str | None = Query(default=None, description="Busqueda por nombre"),
@@ -119,6 +141,19 @@ async def list_casp(
         params["search"] = f"%{search}%"
 
     with db_session() as db:
+        availability = check_domain(db, "casp", "DAC / Crypto / MiCA")
+        if availability is not None:
+            record_retrieval_query_audit(
+                request,
+                path="/v1/mica/casp",
+                query_text=search or "",
+                tool_name="list_casp",
+                items=[],
+                total=0,
+                verified=False,
+                response_summary="availability_status=configured_but_unavailable",
+            )
+            return availability
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
         try:
             rows = db.execute(
@@ -144,9 +179,102 @@ async def list_casp(
                 params,
             ).scalar_one()
         except OperationalError as exc:
-            return _empty_list_on_missing_table(exc)
+            return _empty_list_on_missing_table(exc, "casp", "DAC / Crypto / MiCA")
 
-        return {"items": items, "total": total}
+        response = {"items": items, "total": total, **_casp_quality(total)}
+        record_retrieval_query_audit(
+            request,
+            path="/v1/mica/casp",
+            query_text=search or "",
+            tool_name="list_casp",
+            items=items,
+            total=int(total or 0),
+            verified=bool(items),
+            response_summary=f"total={total}; returned={len(items)}; quality_signal={response['quality_signal']}",
+        )
+        return response
+
+
+@router.get(
+    "/casp/buscar",
+    operation_id="buscar_casp",
+    response_model=CASPListResponse,
+)
+async def buscar_casp(
+    request: Request,
+    q: str | None = Query(default=None, description="Busqueda por nombre o numero de registro"),
+    status: str | None = Query(default=None, description="Filtrar por estado: active, suspended, revoked"),
+    home_member_state: str | None = Query(default=None, description="Filtrar por estado miembro (ISO 3166-1 alpha-2)"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+):
+    """Buscar CASP en el registro ESMA cargado."""
+    conditions = []
+    params = {}
+
+    if q:
+        conditions.append("(name ILIKE :q OR registration_number ILIKE :q)")
+        params["q"] = f"%{q}%"
+    if status:
+        conditions.append("status = :status")
+        params["status"] = status
+    if home_member_state:
+        conditions.append("home_member_state = :home_member_state")
+        params["home_member_state"] = home_member_state
+
+    with db_session() as db:
+        availability = check_domain(db, "casp", "DAC / Crypto / MiCA")
+        if availability is not None:
+            record_retrieval_query_audit(
+                request,
+                path="/v1/mica/casp/buscar",
+                query_text=q or "",
+                tool_name="buscar_casp",
+                items=[],
+                total=0,
+                verified=False,
+                response_summary="availability_status=configured_but_unavailable",
+            )
+            return availability
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
+        try:
+            rows = db.execute(
+                text(
+                    f"""
+                    SELECT id, name, registration_number, home_member_state,
+                           passport_active, services_offered, status
+                    FROM casp
+                    {where}
+                    ORDER BY name
+                    LIMIT :limit OFFSET :offset
+                    """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            ).mappings()
+
+            items = [dict(r) for r in rows]
+            for item in items:
+                item["services_offered"] = _parse_services(item["services_offered"])
+
+            total = db.execute(
+                text(f"SELECT COUNT(*) FROM casp {where}"),
+                params,
+            ).scalar_one()
+        except OperationalError as exc:
+            return _empty_list_on_missing_table(exc, "casp", "DAC / Crypto / MiCA")
+
+    response = {"items": items, "total": total, **_casp_quality(total)}
+    record_retrieval_query_audit(
+        request,
+        path="/v1/mica/casp/buscar",
+        query_text=q or "",
+        tool_name="buscar_casp",
+        items=items,
+        total=int(total or 0),
+        verified=bool(items),
+        response_summary=f"total={total}; returned={len(items)}; quality_signal={response['quality_signal']}",
+    )
+    return response
 
 
 @router.get(
@@ -333,6 +461,9 @@ async def list_crypto_assets(
         params["status"] = status
 
     with db_session() as db:
+        availability = check_domain(db, "crypto_asset", "DAC / Crypto / MiCA")
+        if availability is not None:
+            return availability
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
         try:
             rows = db.execute(
@@ -356,7 +487,7 @@ async def list_crypto_assets(
                 params,
             ).scalar_one()
         except OperationalError as exc:
-            return _empty_list_on_missing_table(exc)
+            return _empty_list_on_missing_table(exc, "crypto_asset", "DAC / Crypto / MiCA")
 
         return {"items": items, "total": total}
 
@@ -466,6 +597,9 @@ async def list_tokenized_assets(
         where = "WHERE " + " AND ".join(conditions)
 
     with db_session() as db:
+        availability = check_domain(db, "tokenized_asset", "DAC / Crypto / MiCA")
+        if availability is not None:
+            return availability
         try:
             rows = db.execute(
                 text(
@@ -488,7 +622,7 @@ async def list_tokenized_assets(
                 params,
             ).scalar_one()
         except OperationalError as exc:
-            return _empty_list_on_missing_table(exc)
+            return _empty_list_on_missing_table(exc, "tokenized_asset", "DAC / Crypto / MiCA")
 
         return {"items": items, "total": total}
 
@@ -552,6 +686,9 @@ async def list_wallet_custodians(
         where = "WHERE " + " AND ".join(conditions)
 
     with db_session() as db:
+        availability = check_domain(db, "wallet_custodian", "DAC / Crypto / MiCA")
+        if availability is not None:
+            return availability
         try:
             rows = db.execute(
                 text(
@@ -574,7 +711,7 @@ async def list_wallet_custodians(
                 params,
             ).scalar_one()
         except OperationalError as exc:
-            return _empty_list_on_missing_table(exc)
+            return _empty_list_on_missing_table(exc, "wallet_custodian", "DAC / Crypto / MiCA")
 
         return {"items": items, "total": total}
 
@@ -639,6 +776,9 @@ async def list_crypto_transactions(
         params["status"] = status
 
     with db_session() as db:
+        availability = check_domain(db, "crypto_transaction", "DAC / Crypto / MiCA")
+        if availability is not None:
+            return availability
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
         try:
             rows = db.execute(
@@ -664,7 +804,7 @@ async def list_crypto_transactions(
                 params,
             ).scalar_one()
         except OperationalError as exc:
-            return _empty_list_on_missing_table(exc)
+            return _empty_list_on_missing_table(exc, "crypto_transaction", "DAC / Crypto / MiCA")
 
         return {"items": items, "total": total}
 

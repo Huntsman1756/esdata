@@ -1,16 +1,26 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import text
 
 from db import db_session
+from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import BORMEDetail, BORMEListResponse
 
 router = APIRouter(prefix="/v1/borme", tags=["borme"])
 
 
+def _quality_signal(row_completeness: str | None, row_provenance: str | None) -> str:
+    if row_completeness == "partial" or row_provenance == "official_best_effort":
+        return "partial_heuristic"
+    return "official_exact"
+
+
 @router.get("", response_model=BORMEListResponse, operation_id="listar_borme")
 async def listar_borme(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo de acto detectado"),
+    limit: int = Query(20, ge=1, le=100, description="Limite de actos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
     filters = [
         "d.organismo_emisor = 'BORME'",
@@ -32,30 +42,63 @@ async def listar_borme(
         rows = db.execute(
             text(
                 """
-                SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente
+                SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente,
+                       row_completeness, row_provenance
                 FROM documento_interpretativo d
                 WHERE {where_clause}
                 ORDER BY fecha DESC, referencia DESC
-                LIMIT 20
+                LIMIT :limit OFFSET :offset
+                """.format(where_clause=" AND ".join(filters))
+            ),
+            {**params, "limit": limit, "offset": offset},
+        ).mappings()
+        total = db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM documento_interpretativo d
+                WHERE {where_clause}
                 """.format(where_clause=" AND ".join(filters))
             ),
             params,
-        ).mappings()
+        ).scalar()
 
-        return {
-            "actos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
+        actos = [
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "tipo_documento": row["tipo_documento"],
+                "fragmento": row["texto"][:220]
+                + ("..." if len(row["texto"]) > 220 else ""),
+                "url_fuente": row["url_fuente"],
+                "row_completeness": row["row_completeness"],
+                "row_provenance": row["row_provenance"],
+                "quality_signal": _quality_signal(row["row_completeness"], row["row_provenance"]),
+            }
+            for row in rows
+        ]
+        next_offset = offset + limit if offset + len(actos) < int(total or 0) else None
+        response = {
+            "actos": actos,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": next_offset is not None,
+            "next_offset": next_offset,
+            "quality_signal": "partial_heuristic",
         }
+        record_retrieval_query_audit(
+            request,
+            path="/v1/borme",
+            query_text=q or "",
+            tool_name="listar_borme",
+            items=actos,
+            total=int(total or 0),
+            verified=False,
+            response_summary=f"total={total}; returned={len(actos)}; quality_signal=partial_heuristic",
+        )
+        return response
 
 
 @router.get("/{referencia:path}", response_model=BORMEDetail, operation_id="get_borme")
@@ -65,7 +108,8 @@ async def get_borme(referencia: str):
             db.execute(
                 text(
                     """
-                    SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente
+                    SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente,
+                           row_completeness, row_provenance
                     FROM documento_interpretativo d
                     WHERE d.organismo_emisor = 'BORME'
                       AND d.tipo_fuente = 'borme'
@@ -105,6 +149,9 @@ async def get_borme(referencia: str):
             "tipo_documento": row["tipo_documento"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
+            "row_completeness": row["row_completeness"],
+            "row_provenance": row["row_provenance"],
+            "quality_signal": _quality_signal(row["row_completeness"], row["row_provenance"]),
             "empresas_relacionadas": [
                 {
                     "id": item["id"],
