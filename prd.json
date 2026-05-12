@@ -19,7 +19,7 @@
       "id": "R-02",
       "title": "VPS hardening - create deploy user, disable root login, confirm UFW and fail2ban",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create and verify deploy user SSH before disabling root",
         "Disable root SSH login and reload sshd",

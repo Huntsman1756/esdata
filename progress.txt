@@ -827,3 +827,16 @@ Accepted risks:
   - none for the 7 advisories; all are fixed by package upgrades.
   - caveat: GitHub Dependabot alerts are still open on main until R-04 merge and GitHub rescan.
 Next: R-02
+=== Iteration R-02 - 2026-05-12T23:50:00+02:00 ===
+Story: R-02 VPS hardening - create deploy user, disable root login, confirm UFW and fail2ban
+Result: PASS
+Evidence:
+  - deploy SSH verified from a new connection with key auth: whoami=deploy.
+  - sudo verified non-interactively: sudo -n whoami=root.
+  - sshd effective config after reload: PermitRootLogin no, PasswordAuthentication no, KbdInteractiveAuthentication no, PubkeyAuthentication yes, port 22.
+  - root SSH verification returns Permission denied (publickey).
+  - UFW active: default deny incoming; allow 22/tcp, 80/tcp, 443/tcp; explicit denies 8080/tcp, 8501/tcp, 8502/tcp; DB is not open publicly.
+  - fail2ban active with sshd jail.
+Accepted risks:
+  - deploy has NOPASSWD sudo for non-root automated deployment; access is key-only and root login is disabled.
+Next: R-03
