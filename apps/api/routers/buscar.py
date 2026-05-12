@@ -55,6 +55,9 @@ def _buscar_comparacion_modelos_aeat(q: str) -> dict | None:
                 "vigente_desde": None,
                 "vigente_hasta": None,
                 "rank": 1.0,
+                "fuente_norma": "AEAT",
+                "source_url": row.get("url_info"),
+                "boe_reference": None,
                 "confianza": {
                     "nivel": 2,
                     "fuentes": [row["url_info"]] if row.get("url_info") else [],

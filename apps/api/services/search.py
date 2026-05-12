@@ -13,6 +13,13 @@ def _build_source_hash(*parts: object) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _boe_article_source_url(boe_id: str | None, numero: object) -> str | None:
+    if not boe_id:
+        return None
+    anchor = "".join(ch for ch in str(numero) if ch.isalnum()).lower()
+    return f"https://www.boe.es/buscar/act.php?id={boe_id}#a{anchor}"
+
+
 def _is_postgres(db) -> bool:
     return db.bind.dialect.name == "postgresql"
 
@@ -374,12 +381,7 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
                 for row in norma_only_rows:
                     codigo = row["codigo"]
                     boe_id = row["boe_id"]
-                    numero_raw = str(row["numero"])
-                    anchor = "".join(ch for ch in numero_raw if ch.isalnum()).lower()
-                    source_url = (
-                        f"https://www.boe.es/buscar/act.php?id={boe_id}#a{anchor}"
-                        if boe_id else None
-                    )
+                    source_url = _boe_article_source_url(boe_id, row["numero"])
                     resultados.append({
                         "tipo": "articulo",
                         "norma": codigo,
@@ -503,11 +505,9 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
             else None,
             "rank": round(float(rank), 4) if rank is not None else None,
             "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
-            "source_url": (
-                f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
-                if row.get("boe_id")
-                else row.get("eli_uri")
-            ),
+            "source_url": _boe_article_source_url(row.get("boe_id"), row["numero"])
+            or row.get("eli_uri"),
+            "boe_reference": row.get("boe_id"),
             "chunk_id": row.get("chunk_id"),
             "source_hash": _build_source_hash(
                 row["codigo"],
@@ -623,11 +623,9 @@ def _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, 
             else None,
             "rank": round(rank, 4) if rank is not None else None,
             "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
-            "source_url": (
-                f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
-                if row.get("boe_id")
-                else row.get("eli_uri")
-            ),
+            "source_url": _boe_article_source_url(row.get("boe_id"), row["numero"])
+            or row.get("eli_uri"),
+            "boe_reference": row.get("boe_id"),
             "chunk_id": None,
             "source_hash": _build_source_hash(
                 row["codigo"],
@@ -698,11 +696,9 @@ def _search_legislacion_sqlite(db, q, norma, fuente, ambito, tipo, vigente_en):
             else None,
             "rank": None,
             "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
-            "source_url": (
-                f"https://www.boe.es/diario_boe/txt.php?id={row['boe_id']}"
-                if row.get("boe_id")
-                else row.get("eli_uri")
-            ),
+            "source_url": _boe_article_source_url(row.get("boe_id"), row["numero"])
+            or row.get("eli_uri"),
+            "boe_reference": row.get("boe_id"),
             "chunk_id": None,
             "source_hash": _build_source_hash(
                 row["codigo"],

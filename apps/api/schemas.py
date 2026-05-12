@@ -89,6 +89,24 @@ class SearchResult(BaseModel):
     rank: float | None = Field(
         default=None, description="Puntuación de relevancia (ts_rank)"
     )
+    fuente_norma: str | None = Field(
+        default=None, description="Referencia de la fuente normativa"
+    )
+    boe_reference: str | None = Field(
+        default=None, description="Identificador BOE cuando la fuente sea BOE"
+    )
+    source_url: str | None = Field(
+        default=None, description="URL oficial trazable del resultado"
+    )
+    chunk_id: int | str | None = Field(
+        default=None, description="Identificador interno del fragmento recuperado"
+    )
+    source_hash: str | None = Field(
+        default=None, description="Hash de trazabilidad del contenido recuperado"
+    )
+    motivo_ranking: str | None = Field(
+        default=None, description="Motivo de ranking o mecanismo de coincidencia"
+    )
     confianza: ConfianzaInfo = Field(description="Información de confianza del dato")
 
 

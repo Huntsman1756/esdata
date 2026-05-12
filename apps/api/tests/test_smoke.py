@@ -262,6 +262,19 @@ async def test_busqueda_full_text():
 
 
 @pytest.mark.asyncio
+async def test_buscar_publico_preserva_trazabilidad_boe():
+    async with _client() as c:
+        r = await c.get("/v1/buscar?q=IVA")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["resultados"]) > 0
+    for res in data["resultados"]:
+        if res["tipo"] == "articulo" and res["norma"] == "LIVA":
+            assert res["boe_reference"] == "BOE-A-1992-28740"
+            assert res["source_url"].startswith("https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a")
+
+
+@pytest.mark.asyncio
 async def test_doctrina_buscar_por_texto():
     async with _client() as c:
         r = await c.get("/v1/doctrina/buscar?q=tipo+reducido")

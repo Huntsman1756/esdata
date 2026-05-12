@@ -185,3 +185,27 @@ Learnings:
 - Regulatory spot checks must validate exact BOE identifiers, not only `BOE-A-*` shape.
 - API list/detail responses need explicit provenance fields; forcing consumers to infer from internal `boe_id` creates avoidable MCP prompt discrepancies.
 Next: A-08
+
+=== Iteration 11 - 2026-05-12T02:38:00+02:00 ===
+Story: A-08 Test all API endpoints
+Verification run: production direct API probes, `verify_mcp_api_local.py`, `mcp_validation_suite.py`, focused local regression tests.
+Result: PASS
+Root cause: the endpoint smoke itself was healthy, but `/v1/buscar` was losing `boe_reference` and `source_url` because `LegislacionSearchResponse` filtered provenance fields from `SearchResult`. This would create MCP/API discrepancy risk even though the endpoint returned results.
+Fix applied: extended `SearchResult` with provenance/ranking fields; preserved `boe_reference` and article-level `source_url` in all legislation search paths; added AEAT comparison `source_url`; added a regression for `/v1/buscar?q=IVA`.
+Production verification:
+- `/health`: `status=ok`, `database=ok`.
+- `/status`: `api=ok`, `database=ok`, 35 workers listed.
+- `/v1/legislacion/LIVA/articulos/1`: text present, `boe_reference=BOE-A-1992-28740`, `source_url=https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a1`.
+- `/v1/buscar?q=IVA`: 10 results; first result `LIVA art. 1` includes `boe_reference=BOE-A-1992-28740` and article source URL.
+- `/v1/mcp`: 404 by design; the real mounted MCP HTTP endpoint is `/mcp`.
+- `verify_mcp_api_local.py --base-url http://127.0.0.1:8000`: 10 passed, 0 failed.
+- `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000`: `ok=true`, 23 checks, 0 failed, including `/mcp` initialize/tools-list.
+Local verification:
+- Focused search/API/MCP tests: 9 passed, 4 warnings.
+- `compileall` over `schemas.py`, `search.py`, and `buscar.py`: PASS.
+Warnings:
+- A full `test_search_legislacion.py` run in the local host environment still has unrelated import-order failures for legalize worker tests (`runtime` resolves to `apps/api/runtime.py` instead of worker runtime). The targeted tests for the changed search contract pass.
+Learnings:
+- Any endpoint with `response_model` can silently strip provenance fields; endpoint smoke must validate not only HTTP 200 but source fields.
+- The PRD wording `/v1/mcp` is stale for this codebase. Contractually, HTTP MCP is mounted at `/mcp`; `/v1/mcp` returning 404 is expected.
+Next: A-09
