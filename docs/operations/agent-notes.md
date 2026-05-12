@@ -33,6 +33,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-12 - AEAT PDFs de diseno: parsear solo tablas deterministas
+
+- Scope: `apps/workers/aeat_current_designs.py`, modelos AEAT 1XX/2XX, tabla `modelo_casilla`.
+- Hallazgo: los PDFs oficiales AEAT usan al menos dos formatos parseables con seguridad: tabla `Nº/Posic./Lon/Tipo/Descripcion` y tabla `POSICIONES/NATURALEZA/DESCRIPCION`. En algunos PDFs la naturaleza aparece con punto (`Numerico.`), y debe aceptarse. Otros PDFs son esquemas visuales o documentos de ayuda/normativa sin tabla de campos fiable; no deben convertirse en casillas inventadas.
+- Impacto: sin parser PDF, muchos modelos con recurso oficial quedaban `casillas_total=0`; con parser demasiado agresivo, se poblarian casillas falsas desde manuales, FAQ o diagramas.
+- Regla practica: ampliar el parser solo con patrones oficiales observados y test rojo previo. Si el PDF no tiene filas de diseno deterministas, dejar el modelo como `evidence_limited`/parcial y documentar el residuo.
+
 ### 2026-05-06 - Cron semanales en produccion: `--no-deps` en systemd rompe jobs y `WorkerSilent` no puede usar 48h fijo
 
 - Scope: `infra/deploy/systemd/esdata-job@.service`, `infra/observability/alerts.yml`, VPS Compose/productivo
