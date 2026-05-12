@@ -47,6 +47,68 @@ def _seed_eurlex_metadata_only():
         db.commit()
 
 
+def _seed_eurlex_mifid2():
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO norma (
+                    codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+                    tipo_documento, ambito, estado_cobertura, vigente_desde,
+                    articles_expected, articles_parsed, articles_empty_official, quality_status
+                )
+                VALUES (
+                    'MIFID2_2014_65',
+                    'Directiva 2014/65/UE sobre los mercados de instrumentos financieros',
+                    'EUR-CELEX-32014L0065',
+                    'https://eur-lex.europa.eu/eli/dir/2014/65/oj',
+                    'ue',
+                    'eurlex',
+                    'directiva',
+                    'mercados_financieros',
+                    'ingestada',
+                    '2014-06-12',
+                    1, 1, 0, 'article_text_available'
+                )
+                ON CONFLICT (codigo) DO UPDATE SET
+                    titulo = excluded.titulo,
+                    boe_id = excluded.boe_id,
+                    eli_uri = excluded.eli_uri,
+                    tipo_fuente = excluded.tipo_fuente,
+                    articles_expected = excluded.articles_expected,
+                    articles_parsed = excluded.articles_parsed,
+                    articles_empty_official = excluded.articles_empty_official,
+                    quality_status = excluded.quality_status
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '1', 'Articulo 1', 'articulo'
+                FROM norma WHERE codigo = 'MIFID2_2014_65'
+                ON CONFLICT (norma_id, numero) DO NOTHING
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta)
+                SELECT a.id,
+                       'Articulo 1. Ambito de aplicacion. La presente Directiva se aplicara a las empresas de servicios de inversion y a los organismos rectores del mercado.',
+                       '2014-06-12',
+                       NULL
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = 'MIFID2_2014_65' AND a.numero = '1'
+                """
+            )
+        )
+        db.commit()
+
+
 @pytest.mark.asyncio
 async def test_eurlex_lista_status_200():
     async with _client() as c:
@@ -135,6 +197,24 @@ async def test_eurlex_lista_filtro_q():
 
 
 @pytest.mark.asyncio
+async def test_eurlex_search_tokenizes_mifid_query_and_alias_route():
+    _seed_eurlex_mifid2()
+
+    async with _client() as c:
+        listing = await c.get("/v1/eurlex?q=MiFID+mercado+instrumentos+financieros")
+        alias = await c.get("/v1/eurlex/buscar?q=MiFID+mercado+instrumentos+financieros")
+
+    assert listing.status_code == 200
+    assert alias.status_code == 200
+    for response in (listing, alias):
+        docs = response.json()["documentos"]
+        assert docs
+        assert docs[0]["referencia"] == "MIFID2_2014_65"
+        assert docs[0]["coverage_status"] == "article_text_available"
+        assert docs[0]["verified"] is True
+
+
+@pytest.mark.asyncio
 async def test_eurlex_lista_filtro_q_no_match():
     async with _client() as c:
         r = await c.get("/v1/eurlex?q=zzzzxzzznoexiste")
@@ -154,7 +234,7 @@ async def test_eurlex_lista_filtro_tipo():
 @pytest.mark.asyncio
 async def test_eurlex_lista_filtro_tipo_no_match():
     async with _client() as c:
-        r = await c.get("/v1/eurlex?tipo=directiva")
+        r = await c.get("/v1/eurlex?tipo=tipo_inexistente")
     docs = r.json()["documentos"]
     assert len(docs) == 0
 

@@ -1,3 +1,5 @@
+import re
+
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query
 from schemas import EurLexDetail, EurLexListResponse
@@ -74,6 +76,10 @@ def _coverage_metadata(
     }
 
 
+def _query_tokens(q: str) -> list[str]:
+    return [token for token in re.findall(r"[A-Za-z0-9]+", q) if len(token) >= 3]
+
+
 @router.get("", response_model=EurLexListResponse, operation_id="listar_eurlex")
 async def listar_eurlex(
     q: str | None = Query(None, description="Filtrar por texto o título"),
@@ -89,19 +95,25 @@ async def listar_eurlex(
     params: dict[str, str] = {}
 
     if q:
-        filters.append(
-            "("
-            "LOWER(COALESCE(n.titulo, '')) LIKE LOWER(:term) "
-            "OR EXISTS ("
-            "  SELECT 1 FROM articulo a "
-            "  JOIN version_articulo va ON va.articulo_id = a.id "
-            "  WHERE a.norma_id = n.id "
-            "    AND va.vigente_hasta IS NULL "
-            "    AND LOWER(va.texto) LIKE LOWER(:term)"
-            ")"
-            ")"
-        )
-        params["term"] = f"%{q}%"
+        tokens = _query_tokens(q)
+        if not tokens:
+            tokens = [q]
+        for index, token in enumerate(tokens):
+            param = f"term_{index}"
+            filters.append(
+                "("
+                f"LOWER(n.codigo) LIKE LOWER(:{param}) "
+                f"OR LOWER(COALESCE(n.titulo, '')) LIKE LOWER(:{param}) "
+                "OR EXISTS ("
+                "  SELECT 1 FROM articulo a "
+                "  JOIN version_articulo va ON va.articulo_id = a.id "
+                "  WHERE a.norma_id = n.id "
+                "    AND va.vigente_hasta IS NULL "
+                f"    AND LOWER(va.texto) LIKE LOWER(:{param})"
+                ")"
+                ")"
+            )
+            params[param] = f"%{token}%"
 
     if tipo:
         filters.append("n.tipo_documento = :tipo")
@@ -187,6 +199,17 @@ async def listar_eurlex(
         "has_more": next_offset is not None,
         "next_offset": next_offset,
     }
+
+
+@router.get("/buscar", response_model=EurLexListResponse, operation_id="buscar_eurlex")
+async def buscar_eurlex(
+    q: str = Query(..., min_length=1, description="Termino de busqueda EUR-Lex"),
+    tipo: str | None = Query(None, description="Filtrar por tipo (directiva, reglamento, decision)"),
+    ambito: str | None = Query(None, description="Filtrar por ambito"),
+    limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
+    offset: int = Query(0, ge=0, description="Offset de paginacion"),
+):
+    return await listar_eurlex(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
 
 
 @router.get("/{referencia:path}", response_model=EurLexDetail, operation_id="get_eurlex")
