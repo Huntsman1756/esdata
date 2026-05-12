@@ -854,3 +854,19 @@ Evidence:
 Accepted risks:
   - Count deltas for articulo and query_audit_log are expected because the latest available backup is from 2026-05-10 and production has received later ingestion/audit writes.
 Next: R-04
+=== Iteration R-04 - 2026-05-13T01:31:00+02:00 ===
+Story: R-04 Merge fix/aeat-29-models-resource-audit to main - with full regression gate
+Result: PASS
+Evidence:
+  - Local full regression gate before merge: 2995 passed, 2 skipped, 34 warnings.
+  - Merged release/v1.0.0 to main with --no-ff: merge commit 3e527427.
+  - Post-merge stale threshold regression found for source-expansion cron jobs and fixed in commit 1b2fd29.
+  - Focused status contract tests after fix: 14 passed.
+  - VPS pulled main and rebuilt API successfully.
+  - VPS /status: api=ok, database=ok, workers_total=36, stale_workers_count=0.
+  - Alertmanager active unsilenced/uninhibited alerts: 0.
+  - mcp_validation_suite.py --read-only --base-url http://api:8000: ok=true, tool_count=70.
+  - GitHub Dependabot open alerts after main rescan/API check: 0, including 0 critical/high.
+Accepted risks:
+  - none.
+Next: R-05

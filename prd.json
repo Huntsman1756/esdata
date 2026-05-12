@@ -45,7 +45,7 @@
       "id": "R-04",
       "title": "Merge fix/aeat-29-models-resource-audit to main - with full regression gate",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Run full test suite before merge",
         "Merge with --no-ff",
