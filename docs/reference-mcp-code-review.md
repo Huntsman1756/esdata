@@ -6,6 +6,7 @@ Repos revisados:
 
 - `https://github.com/Ansvar-Systems/EU_compliance_MCP` / `https://github.com/ansvar-systems/eu_compliance_mcp` en `51b247c`.
 - `https://github.com/anamtb/boe-mcp` en `999f48f`.
+- `https://github.com/ComputingVictor/MCP-BOE` revisado localmente en S-12 como patron de sumarios BOE/BORME, cliente HTTP con retries y modelos Pydantic.
 
 Objetivo: identificar codigo reutilizable como patron tecnico para cerrar gaps regulatorios de ESData sin usar datos comunitarios como fuente de verdad. La regla de ESData se mantiene: solo se persisten datos trazables a fuente oficial.
 
@@ -19,6 +20,7 @@ Objetivo: identificar codigo reutilizable como patron tecnico para cerrar gaps r
 | `EU_compliance_MCP` | Validaciones de calidad del parser | `scripts/ingest-eurlex.ts` valida anexos, definiciones, articulos y longitud antes de aceptar corpus | Incorporable para EUR-Lex: no marcar una norma como completa si no hay conteo esperado o texto suficiente. |
 | `anamtb/boe-mcp` | BOE consolidado + diario XML + PDF fallback | `src/boe/api.ts` intenta legislacion consolidada, cae a `diario_boe/xml.php?id=...`, y si el texto es insuficiente intenta PDF | Util para BOE no consolidado, anuncios `BOE-B/BOE-S/BOE-N` y BORME. ESData BOE cubre legislacion consolidada; S-10 implementa worker/API separado para diario XML/PDF en `documento_interpretativo`. |
 | `anamtb/boe-mcp` | Relaciones BOE anteriores/posteriores | `getBoeRelationships()` lee `buscar/doc.php?id=<id>&xml=1` y extrae referencias | Puede mejorar grafo normativo de ESData si se persiste como relaciones verificadas, no inferidas. |
+| `ComputingVictor/MCP-BOE` | Sumarios BOE/BORME via API oficial y validacion de identificadores | `src/mcp_boe/utils/http_client.py` usa `https://www.boe.es/datosabiertos/api`, endpoints `/boe/sumario` y `/borme/sumario`, timeout y retries para red/5xx; los modelos separan BORME summary/documents | Aplicado en S-12 a ESData BORME: discovery por `datosabiertos/api/borme/sumario/YYYYMMDD`, ingestion solo de PDFs oficiales individuales y `sync_log partial` si no hay URLs. |
 
 ## Comprobacion ESData Actual
 
@@ -57,6 +59,15 @@ Mapa de necesidades:
 | `BOE-S` suplementos | `diario_boe/xml.php?id=<id>` | PDF oficial enlazado en XML | `documento_interpretativo` / `boe_diario_documento` | `partial` salvo estructura XML completa |
 | `BOE-N` notificaciones | `diario_boe/xml.php?id=<id>` | PDF oficial enlazado en XML | `documento_interpretativo` / `boe_diario_documento` | `partial`, no usar como normativa vigente |
 | BORME-like | `diario_borme` / PDF oficial | PDF extraction actual de `apps/workers/borme.py` | `documento_interpretativo`, `empresa`, `documento_empresa` | `partial/official_best_effort` cuando la extraccion societaria es heuristica |
+
+## S-12 BORME official summary discovery
+
+Evaluacion del patron `ComputingVictor/MCP-BOE`:
+
+- Patron aceptado: usar el endpoint oficial `https://www.boe.es/datosabiertos/api/borme/sumario/YYYYMMDD` como discovery primario de PDFs BORME, con limite por ejecucion.
+- Patron rechazado como fuente de verdad: cualquier texto/corpus procedente del repo externo. Solo se usa como referencia de diseno de cliente y separacion BOE/BORME.
+- Contrato de calidad: los PDFs individuales `BORME-A/B-...` se persisten desde `www.boe.es`; la extraccion de empresas/roles sigue siendo heuristica, por lo que el resultado queda `partial/official_best_effort`.
+- Contrato operativo: si el sumario oficial no devuelve PDFs y no hay seeds, el worker debe escribir `sync_log status=partial`, no salir silenciosamente.
 
 Campos de procedencia obligatorios antes de implementar:
 

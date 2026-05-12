@@ -16,7 +16,7 @@ import logging
 import os
 import re
 import time
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from io import BytesIO
 from urllib.parse import urlparse
 
@@ -71,10 +71,32 @@ def _parse_seed_urls(value: str | None) -> list[str]:
 SEED_URLS = _parse_seed_urls(os.getenv("BORME_SEED_URLS"))
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
+BORME_SUMMARY_API_BASE = "https://www.boe.es/datosabiertos/api/borme/sumario"
+DEFAULT_BORME_DAYS_BACK = 7
+DEFAULT_BORME_MAX_URLS_PER_RUN = 50
 
 
 def _normalize_whitespace(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
+
+
+def _env_bool(name: str, default: bool = True) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r; using %s", name, value, default)
+        return default
+    return max(parsed, 0)
 
 
 def _extract_pdf_code(url: str) -> str:
@@ -84,6 +106,99 @@ def _extract_pdf_code(url: str) -> str:
 
     path = urlparse(url).path.rstrip("/").split("/")[-1]
     return path.removesuffix(".pdf") or "BORME-SEED"
+
+
+def _is_official_borme_pdf_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return (
+        parsed.scheme in {"http", "https"}
+        and parsed.netloc in {"www.boe.es", "boe.es"}
+        and parsed.path.startswith("/borme/")
+        and parsed.path.endswith(".pdf")
+    )
+
+
+def _extract_borme_pdf_urls_from_summary(payload: object) -> list[str]:
+    """Extract individual BORME document PDFs from BOE's official summary JSON."""
+    urls: list[str] = []
+    seen: set[str] = set()
+
+    def visit(node: object, current_identifier: str | None = None) -> None:
+        if isinstance(node, dict):
+            identifier = node.get("identificador")
+            if not isinstance(identifier, str):
+                identifier = current_identifier
+
+            url_pdf = node.get("url_pdf")
+            candidate = None
+            if isinstance(url_pdf, dict):
+                texto = url_pdf.get("texto")
+                if isinstance(texto, str):
+                    candidate = texto
+            elif isinstance(url_pdf, str):
+                candidate = url_pdf
+
+            if (
+                candidate
+                and _is_official_borme_pdf_url(candidate)
+                and not str(identifier or "").startswith("BORME-S-")
+                and candidate not in seen
+            ):
+                seen.add(candidate)
+                urls.append(candidate)
+
+            for value in node.values():
+                visit(value, identifier)
+            return
+
+        if isinstance(node, list):
+            for item in node:
+                visit(item, current_identifier)
+
+    visit(payload)
+    return urls
+
+
+def discover_borme_pdf_urls(
+    client: httpx.Client,
+    *,
+    days_back: int,
+    max_urls: int,
+    today: date | None = None,
+) -> list[str]:
+    """Discover recent BORME PDFs through BOE's official open-data summary API."""
+    if days_back <= 0 or max_urls <= 0:
+        return []
+
+    discovered: list[str] = []
+    seen: set[str] = set()
+    reference_date = today or datetime.now(UTC).date()
+
+    for offset in range(days_back):
+        day = reference_date - timedelta(days=offset)
+        url = f"{BORME_SUMMARY_API_BASE}/{day:%Y%m%d}"
+        try:
+            response = client.get(url, headers={"Accept": "application/json"})
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as exc:
+            logger.warning("BORME summary discovery skipped %s: %s", day.isoformat(), exc)
+            continue
+
+        status = payload.get("status", {}) if isinstance(payload, dict) else {}
+        if isinstance(status, dict) and str(status.get("code")) != "200":
+            logger.warning("BORME summary returned non-ok status for %s: %s", day.isoformat(), status)
+            continue
+
+        for pdf_url in _extract_borme_pdf_urls_from_summary(payload):
+            if pdf_url in seen:
+                continue
+            seen.add(pdf_url)
+            discovered.append(pdf_url)
+            if len(discovered) >= max_urls:
+                return discovered
+
+    return discovered
 
 
 def _detect_event_type(text_value: str) -> str:
@@ -345,19 +460,9 @@ def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-borme",
 ) -> dict[str, int]:
-    import logging
-    import os
-
-    logger = logging.getLogger(__name__)
-    urls = seed_urls or SEED_URLS
-    if not urls:
-        logger.error(
-            "SEED_URLS vacío en %s — worker abortado sin ingestión. "
-            "Configura la variable de entorno correspondiente.",
-            worker_name,
-        )
-        return {"processed": 0, "stored": 0}
-
+    urls = list(seed_urls) if seed_urls is not None else []
+    if seed_urls is None and SEED_URLS:
+        urls.extend(SEED_URLS)
     request_delay = float(os.environ.get("WORKER_REQUEST_DELAY", "1.0"))
     processed = 0
     stored = 0
@@ -369,6 +474,42 @@ def run_sync(
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
+            if seed_urls is None and _env_bool("BORME_DISCOVER_FROM_SUMMARY", True):
+                urls = discover_borme_pdf_urls(
+                    client,
+                    days_back=_env_int("BORME_DAYS_BACK", DEFAULT_BORME_DAYS_BACK),
+                    max_urls=_env_int(
+                        "BORME_MAX_URLS_PER_RUN",
+                        DEFAULT_BORME_MAX_URLS_PER_RUN,
+                    ),
+                ) + urls
+
+            deduped_urls = []
+            seen_urls = set()
+            for candidate_url in urls:
+                if candidate_url in seen_urls:
+                    continue
+                seen_urls.add(candidate_url)
+                deduped_urls.append(candidate_url)
+            urls = deduped_urls
+
+            if not urls:
+                error_msg = (
+                    "No BORME PDF URLs discovered from official summary API "
+                    "or configured seeds"
+                )
+                logger.warning("%s - worker=%s", error_msg, worker_name)
+                log_sync(
+                    conn,
+                    worker_name,
+                    "partial",
+                    documentos_processed=0,
+                    documentos_upserted=0,
+                    error_msg=error_msg,
+                    started_at=sync_start,
+                )
+                return {"processed": 0, "stored": 0}
+
             for url in urls:
                 response = client.get(url)
                 response.raise_for_status()

@@ -33,6 +33,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-12 - BORME: discovery oficial no debe ser seed-only
+
+- Scope: `apps/workers/borme.py`, `cron-borme-weekly`, tabla `sync_log`.
+- Hallazgo: BORME puede descubrir PDFs individuales desde el endpoint oficial `https://www.boe.es/datosabiertos/api/borme/sumario/YYYYMMDD`; depender solo de `BORME_SEED_URLS` deja el corpus minimo y puede hacer que el worker parezca sano aunque no ingiera nada nuevo.
+- Impacto: si no hay URLs y el worker sale sin `sync_log`, Prometheus/Hermes solo ven stale/silent worker despues, sin causa operacional clara.
+- Regla practica: usar discovery oficial como camino primario, limitar `BORME_DAYS_BACK`/`BORME_MAX_URLS_PER_RUN`, descartar `BORME-S` agregado salvo caso manual, y escribir `sync_log status=partial` cuando no haya URLs. La fuente PDF es oficial, pero la extraccion de empresas/roles sigue siendo heuristica y debe tratarse como `partial/official_best_effort`.
+
 ### 2026-05-12 - EUR-Lex deep ingestion debe ir por CELEX allowlist
 
 - Scope: `apps/workers/eurlex.py`, `cron-eurlex-weekly`, `/v1/eurlex`.
