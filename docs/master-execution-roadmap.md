@@ -5806,7 +5806,7 @@ En orden de impacto real:
 
 ## Reclamo 2026-05-12 - S-05 revision MCP externos y contrato EUR-Lex limitado
 
-**Estado:** COMPLETADO LOCAL / PENDIENTE DESPLIEGUE VPS.
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
 
 **Archivos principales:** `apps/api/routers/eurlex.py`, `apps/api/schemas.py`, `apps/api/tests/test_eurlex_router.py`, `docs/reference-mcp-code-review.md`, `docs/source-domain-audit.md`, `scripts/ralph/prd-source-domains.json`.
 
@@ -5824,6 +5824,9 @@ En orden de impacto real:
 - Resultado: `21 passed`, `4 warnings`.
 - `python -m ruff check apps/api/routers/eurlex.py apps/api/tests/test_eurlex_router.py --select F,I`
 - Resultado: `All checks passed`.
+- VPS: API reconstruida y recreada con commit `3b75efe`; `/health` devuelve `status=ok`.
+- VPS: `/v1/eurlex?limit=1` devuelve `coverage_status=metadata_only`, `verified=false`, `completeness=parcial`, `articulos_total=0` y `evidence_notice`.
+- VPS: `python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000` dentro del contenedor API devuelve `ok=true`.
 
 **Evidencia VPS previa al cambio:** `norma.tipo_fuente='eurlex'=32`, `articulo=0`, `version_articulo=0`; ultimos `worker-eurlex`/`cron-eurlex-weekly` en `status=ok` con `fetch_articles=False`.
 
