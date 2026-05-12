@@ -71,7 +71,7 @@
       "id": "R-06",
       "title": "Create and push tag v1.0.0",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Main clean and all release commits present",
         "Annotated tag v1.0.0 created and pushed",
