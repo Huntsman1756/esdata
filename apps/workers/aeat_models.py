@@ -56,19 +56,37 @@ AEAT_RESOURCE_FETCH_RETRIES = 3
 
 MODEL_TAX_OVERRIDES = {
     "100": "IRPF",
+    "102": "IRPF",
     "111": "IRPF",
     "115": "IRPF",
     "123": "IRPF/IS/IRNR",
     "124": "IRNR",
     "130": "IRPF",
+    "156": "INFORMATIVO",
+    "159": "INFORMATIVO",
+    "165": "INFORMATIVO",
+    "170": "INFORMATIVO",
+    "171": "INFORMATIVO",
+    "172": "INFORMATIVO",
+    "173": "INFORMATIVO",
+    "179": "INFORMATIVO",
     "180": "IRPF",
+    "181": "INFORMATIVO",
+    "182": "INFORMATIVO",
+    "184": "INFORMATIVO",
+    "185": "INFORMATIVO",
+    "186": "INFORMATIVO",
     "187": "IRPF",
+    "188": "INFORMATIVO",
     "189": "IRPF",
     "190": "IRPF",
+    "192": "INFORMATIVO",
     "193": "IRPF",
     "194": "IRPF/IS",
+    "195": "INFORMATIVO",
     "196": "IRPF",
     "198": "IRPF",
+    "199": "INFORMATIVO",
     "200": "IS/IRNR",
     "202": "IS/IRNR",
     "206": "IS/IRNR",
@@ -76,16 +94,51 @@ MODEL_TAX_OVERRIDES = {
     "211": "IRNR",
     "213": "IRNR",
     "216": "IRNR",
+    "231": "INFORMATIVO",
+    "233": "INFORMATIVO",
+    "234": "INFORMATIVO",
+    "238": "INFORMATIVO",
+    "239": "INFORMATIVO",
+    "240": "INFORMATIVO",
+    "241": "INFORMATIVO",
     "247": "IRNR",
+    "270": "INFORMATIVO",
+    "280": "INFORMATIVO",
+    "281": "INFORMATIVO",
+    "283": "INFORMATIVO",
     "289": "INFORMATIVO",
     "290": "INFORMATIVO",
     "291": "IRNR",
+    "294": "INFORMATIVO",
+    "295": "INFORMATIVO",
     "296": "IRNR",
     "299": "INFORMATIVO",
     "303": "IVA",
     "347": "INFORMATIVO",
     "349": "IVA",
     "390": "IVA",
+}
+
+MODEL_METADATA_OVERRIDES = {
+    "102": {
+        "nombre": "Modelo 102. IRPF. Segundo plazo de la declaracion anual.",
+        "periodo": "anual",
+        "impuesto": "IRPF",
+        "url_info": (
+            "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
+            "calendario-contribuyente/calendario-contribuyente-2026/"
+            "noviembre.html"
+        ),
+    },
+    "206": {
+        "nombre": (
+            "Modelo 206. IS/IRNR. Documento de ingreso o devolucion para "
+            "Impuesto sobre Sociedades e IRNR con establecimiento permanente."
+        ),
+        "periodo": "anual",
+        "impuesto": "IS/IRNR",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/GE04.shtml",
+    },
 }
 
 
@@ -471,6 +524,11 @@ def _extract_model_name(raw_text: str, codigo: str) -> str:
     return f"Modelo {codigo}"
 
 
+def _extract_model_code_from_name(nombre: str) -> str | None:
+    match = re.search(r"\bModelo\s+([0-9]{3})\b", nombre or "", re.IGNORECASE)
+    return match.group(1) if match else None
+
+
 def _infer_impuesto(codigo: str, page_text: str, url_info: str, nombre: str) -> str | None:
     """Infer the tax family from the model detail page without trusting nav noise."""
 
@@ -498,11 +556,20 @@ def _infer_impuesto(codigo: str, page_text: str, url_info: str, nombre: str) -> 
         return "IRNR"
     if "irpf" in compact or "impuesto sobre la renta de las personas fisicas" in compact:
         return "IRPF"
-    if "iva" in compact or "impuesto sobre el valor anadido" in compact or "impuesto sobre el valor añadido" in compact:
-        return "IVA"
     if "declaracion informativa" in compact or "declaración informativa" in compact or "informativo" in compact:
         return "INFORMATIVO"
+    if "iva" in compact or "impuesto sobre el valor anadido" in compact or "impuesto sobre el valor añadido" in compact:
+        return "IVA"
     return None
+
+
+def _apply_model_metadata_override(codigo: str, metadata: dict) -> dict:
+    override = MODEL_METADATA_OVERRIDES.get(codigo)
+    if not override:
+        return metadata
+    merged = {**metadata, **override}
+    merged["metadata_override"] = True
+    return merged
 
 
 def _fetch_model_metadata(
@@ -552,9 +619,18 @@ def _fetch_model_metadata(
         periodo = "anual"
 
     nombre = _extract_model_name(model_soup.get_text(" ", strip=True)[:150], codigo)
+    embedded_code = _extract_model_code_from_name(nombre)
+    if embedded_code and embedded_code != codigo and codigo not in MODEL_METADATA_OVERRIDES:
+        logger.warning(
+            "AEAT detail page for modelo %s appears to describe modelo %s; keeping discovered metadata",
+            codigo,
+            embedded_code,
+        )
+        return None
+
     impuesto = _infer_impuesto(codigo, page_text, url_info, nombre)
 
-    return {
+    return _apply_model_metadata_override(codigo, {
         "codigo": codigo,
         "nombre": nombre,
         "url_info": url_info,
@@ -563,7 +639,7 @@ def _fetch_model_metadata(
         "campana": _infer_campaign(model_soup.get_text(" ", strip=True), url_info),
         "detail_html": model_html,
         "recursos": _extract_model_resources(model_html, url_info),
-    }
+    })
 
 
 def _upsert_aeat_model(conn, codigo: str, nombre: str, url_info: str, periodo: str | None = None, impuesto: str | None = None) -> bool:

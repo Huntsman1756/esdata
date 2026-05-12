@@ -352,6 +352,45 @@ class TestFetchModelMetadata:
             "Modelo 290. Declaración informativa anual de cuentas financieras FATCA.",
         ) == "INFORMATIVO"
 
+    def test_informative_models_are_not_classified_as_iva_from_nav_noise(self):
+        assert _infer_impuesto(
+            "231",
+            "IVA IRNR Impuesto sobre la Renta de no Residentes Impuesto sobre Sociedades",
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI99.shtml",
+            "Modelo 231. Declaración Informativa. Declaración de información país por país.",
+        ) == "INFORMATIVO"
+
+    def test_applies_known_metadata_override_when_detail_page_describes_parent_model(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = """
+        <html><body>
+            <h1>Modelo 200. IS. Impuesto sobre Sociedades e Impuesto sobre la Renta de no Residentes.</h1>
+        </body></html>
+        """
+
+        result = aeat_models._fetch_model_metadata(
+            "206",
+            url_info="https://sede.agenciatributaria.gob.es/Sede/procedimientos/GE04.shtml",
+            portal_client=portal_client,
+        )
+
+        assert result is not None
+        assert result["nombre"].startswith("Modelo 206.")
+        assert result["impuesto"] == "IS/IRNR"
+        assert result["metadata_override"] is True
+
+    def test_rejects_unexpected_model_code_mismatch_without_override(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = "<html><body><h1>Modelo 100. IRPF.</h1></body></html>"
+
+        result = aeat_models._fetch_model_metadata(
+            "103",
+            url_info="https://sede.agenciatributaria.gob.es/Sede/procedimientoini/example.shtml",
+            portal_client=portal_client,
+        )
+
+        assert result is None
+
     def test_normalizes_provided_url_before_fetching_detail(self):
         portal_client = MagicMock()
         portal_client.fetch_detail.return_value = "<html><body><h1>230 - Modelo 230</h1></body></html>"
