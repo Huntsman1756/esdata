@@ -349,7 +349,8 @@ async def get_articulo_historial(request: Request, codigo: str, numero: str):
         rows = db.execute(
             text(
                 """
-                SELECT va.texto, va.vigente_desde, va.vigente_hasta
+                SELECT a.numero, va.texto, va.vigente_desde, va.vigente_hasta,
+                       n.boe_id, n.eli_uri
                 FROM norma n
                 JOIN articulo a ON a.norma_id = n.id
                 JOIN version_articulo va ON va.articulo_id = a.id
@@ -366,12 +367,25 @@ async def get_articulo_historial(request: Request, codigo: str, numero: str):
                 "vigente_hasta": str(row["vigente_hasta"])
                 if row["vigente_hasta"]
                 else None,
+                "boe_reference": row["boe_id"],
+                "source_url": _boe_source_url(
+                    row["boe_id"], _article_anchor(row["numero"])
+                ),
+                "eli_uri": row["eli_uri"],
             }
             for row in rows
         ]
     if not historial:
         raise HTTPException(status_code=404, detail={"error": "Articulo no encontrado"})
-    payload = {"norma": codigo, "numero": numero, "historial": historial}
+    first_item = historial[0]
+    payload = {
+        "norma": codigo,
+        "numero": numero,
+        "boe_reference": first_item.get("boe_reference"),
+        "source_url": first_item.get("source_url"),
+        "eli_uri": first_item.get("eli_uri"),
+        "historial": historial,
+    }
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}/articulos/{numero}/historial",

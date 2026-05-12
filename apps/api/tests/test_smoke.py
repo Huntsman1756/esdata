@@ -167,6 +167,20 @@ async def test_liva_articulo_91_traceability_fields():
 
 
 @pytest.mark.asyncio
+async def test_liva_articulo_historial_traceability_fields():
+    async with _client() as c:
+        r = await c.get("/v1/legislacion/LIVA/articulos/91/historial")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["boe_reference"] == "BOE-A-1992-28740"
+    assert data["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a91"
+    assert len(data["historial"]) >= 1
+    for item in data["historial"]:
+        assert item["boe_reference"] == "BOE-A-1992-28740"
+        assert item["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a91"
+
+
+@pytest.mark.asyncio
 async def test_liva_articulo_91_vigente_en_fecha():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos/91?vigente_en=2020-01-01")

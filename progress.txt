@@ -209,3 +209,24 @@ Learnings:
 - Any endpoint with `response_model` can silently strip provenance fields; endpoint smoke must validate not only HTTP 200 but source fields.
 - The PRD wording `/v1/mcp` is stale for this codebase. Contractually, HTTP MCP is mounted at `/mcp`; `/v1/mcp` returning 404 is expected.
 Next: A-09
+
+=== Iteration 12 - 2026-05-12T02:43:00+02:00 ===
+Story: A-09 MCP tool accuracy spot-check
+Verification run: real production `/mcp` initialize + `tools/call` cases for `get_articulo`, `buscar`, and `get_articulo_historial`.
+Result: PASS
+Root cause: the MCP tool surface was mostly correct after A-08, but `get_articulo_historial` returned historical versions without `boe_reference` or `source_url`, so a historical legal response could not be cited from the tool payload alone.
+Fix applied: added BOE provenance to `/v1/legislacion/{codigo}/articulos/{numero}/historial` at payload and per-history-item level; added local regression test for historial traceability.
+Production verification:
+- `/mcp` handshake returned a session id and initialize returned server `esdata API`.
+- `tools/call get_articulo {"codigo":"LIVA","numero":"1"}` returned text containing `Impuesto sobre el Valor Añadido`, `boe_reference=BOE-A-1992-28740`, `source_url=https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a1`.
+- `tools/call get_articulo {"codigo":"LIVA","numero":"90"}` returned current text with `21 por ciento`, no `18 por ciento`, `vigente_desde=2012-07-15`, `vigente_hasta=null`, and BOE provenance.
+- `tools/call get_articulo {"codigo":"LIVA","numero":"90","vigente_en":"2011-01-01"}` returned historical text with `18 por ciento`, `vigente_desde=2010-07-01`, `vigente_hasta=2012-07-15`, and BOE provenance.
+- `tools/call get_articulo {"codigo":"LIVA","numero":"9999"}` returned `isError=true` with explicit `Articulo no encontrado`.
+- `tools/call buscar {"q":"IVA"}` returned 10 results and every result had `boe_reference` or `source_url`.
+- `tools/call get_articulo_historial {"codigo":"LIVA","numero":"90"}` returned 5 history items; payload and every item had BOE provenance.
+Local verification:
+- `pytest apps/api/tests/test_smoke.py::test_liva_articulo_91_traceability_fields apps/api/tests/test_smoke.py::test_liva_articulo_historial_traceability_fields apps/api/tests/test_smoke.py::test_buscar_publico_preserva_trazabilidad_boe apps/api/tests/test_mcp_private.py::test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key -q --basetemp .pytest-tmp`: 4 passed, 4 warnings.
+- `compileall` over affected API modules: PASS.
+Learnings:
+- Historical endpoints need the same source metadata as current endpoints; otherwise an agent can cite current text but not superseded/current-boundary checks.
+Next: A-10

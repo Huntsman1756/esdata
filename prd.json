@@ -20,7 +20,7 @@
     {"id": "A-06", "title": "DB integrity - FK, NULLs, duplicates", "priority": 9, "phase": "audit", "passes": true},
     {"id": "A-07", "title": "Regulatory data accuracy spot-check", "priority": 10, "phase": "audit", "passes": true},
     {"id": "A-08", "title": "Test all API endpoints", "priority": 11, "phase": "audit", "passes": true},
-    {"id": "A-09", "title": "MCP tool accuracy spot-check", "priority": 12, "phase": "audit", "passes": false},
+    {"id": "A-09", "title": "MCP tool accuracy spot-check", "priority": 12, "phase": "audit", "passes": true},
     {"id": "A-10", "title": "Verify query_audit_log append-only and captures invocations", "priority": 13, "phase": "audit", "passes": false},
     {"id": "A-11", "title": "Prometheus alert rules - verify coverage for all stale workers", "priority": 14, "phase": "audit", "passes": false},
     {"id": "A-12", "title": "Classify undocumented workers - docs/worker-inventory.md", "priority": 15, "phase": "audit", "passes": false},
