@@ -5,13 +5,46 @@ from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from db import db_session
 from main import app
 
 
 def _client():
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+def _seed_eurlex_metadata_only():
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO norma (
+                    codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+                    tipo_documento, ambito, estado_cobertura, vigente_desde
+                )
+                VALUES (
+                    'EUR-Lex-METADATA-ONLY',
+                    'Reglamento UE metadata only test',
+                    'EUR-CELEX-39999R0001',
+                    'https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:39999R0001',
+                    'ue',
+                    'eurlex',
+                    'reglamento',
+                    'mercado_interior',
+                    'ingestada',
+                    '2026-01-01'
+                )
+                ON CONFLICT (codigo) DO UPDATE SET
+                    titulo = excluded.titulo,
+                    eli_uri = excluded.eli_uri,
+                    tipo_fuente = excluded.tipo_fuente
+                """
+            )
+        )
+        db.commit()
 
 
 @pytest.mark.asyncio
@@ -49,6 +82,11 @@ async def test_eurlex_lista_response_model():
         assert "ambito" in item
         assert "fragmento" in item
         assert "url_fuente" in item
+        assert "articulos_total" in item
+        assert "coverage_status" in item
+        assert "verified" in item
+        assert "completeness" in item
+        assert "evidence_notice" in item
 
 
 @pytest.mark.asyncio
@@ -166,6 +204,11 @@ async def test_eurlex_detalle_response_model():
     assert "ambito" in data
     assert "texto" in data
     assert "url_fuente" in data
+    assert data["articulos_total"] >= 1
+    assert data["coverage_status"] == "article_text_available"
+    assert data["verified"] is True
+    assert data["completeness"] == "parcial"
+    assert "Do not claim exhaustive coverage" in data["evidence_notice"]
 
 
 @pytest.mark.asyncio
@@ -202,6 +245,31 @@ async def test_eurlex_detalle_texto_completo_vs_fragmento():
         detalle = await c.get("/v1/eurlex/EUR-Lex-32020R548")
     detalle_data = detalle.json()
     assert len(detalle_data["texto"]) >= 50
+
+
+@pytest.mark.asyncio
+async def test_eurlex_metadata_only_is_evidence_limited():
+    _seed_eurlex_metadata_only()
+
+    async with _client() as c:
+        detalle = await c.get("/v1/eurlex/EUR-Lex-METADATA-ONLY")
+        listado = await c.get("/v1/eurlex?q=metadata%20only")
+
+    detail_data = detalle.json()
+    assert detalle.status_code == 200
+    assert detail_data["texto"] == ""
+    assert detail_data["articulos_total"] == 0
+    assert detail_data["coverage_status"] == "metadata_only"
+    assert detail_data["verified"] is False
+    assert detail_data["completeness"] == "parcial"
+    assert "evidence_limited" in detail_data["evidence_notice"]
+
+    list_item = listado.json()["documentos"][0]
+    assert list_item["referencia"] == "EUR-Lex-METADATA-ONLY"
+    assert list_item["fragmento"] == ""
+    assert list_item["articulos_total"] == 0
+    assert list_item["coverage_status"] == "metadata_only"
+    assert list_item["verified"] is False
 
 
 @pytest.mark.asyncio

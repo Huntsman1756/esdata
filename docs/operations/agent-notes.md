@@ -63,6 +63,13 @@ Usar notas cortas con este esquema:
 - Impacto: sin esos tres ajustes, el worker parece seguir bloqueado por upstream/WAF y deja `0` bloques o crashea en Postgres, aunque la fuente oficial ya este devolviendo RDF/XHTML util.
 - Regla practica: para diagnosticar EUR-Lex en VPS, validar el flujo completo dentro del contenedor `cron-eurlex-weekly`: primero `TXT/XML`; si llega vacio o `202`, saltar a `resource/celex/<CELEX>` RDF; de ahi sacar varias candidatas `resource/consolidation/...`; probarlas hasta obtener RDF de manifestacion y item XHTML `DOC_1`; luego exigir `_get_official_consolidation_blocks()` con conteo > 0. Tras este fallback multi-candidato el slice mejoro materialmente: `cron-eurlex-weekly` ya pudo cerrar con `bloques_processed=998`, `articulos_upserted=905`, `rows_processed=998` y la DB quedo con `22` normas EUR-Lex con articulado persistido.
 
+### 2026-05-12 - Repos MCP externos: patrones utiles sin importar datos
+
+- `EU_compliance_MCP` confirma el trap de EUR-Lex: los endpoints publicos pueden devolver desafio AWS WAF en vez de HTML real. Su `ingest-eurlex-browser.ts` usa navegador y valida tamano/contenido; en ESData eso debe ser fallback opt-in, no default, porque el camino preferente sigue siendo Publications Office (`resource/celex` -> `resource/consolidation` -> item XHTML).
+- `anamtb/boe-mcp` aporta un patron util para documentos BOE no consolidados: probar legislacion consolidada, caer a `diario_boe/xml.php?id=...`, y solo si el texto es insuficiente extraer PDF. En ESData debe ir separado de `worker-boe` consolidado para no mezclar calidad de fuentes.
+- Regla nueva de contrato: una norma EUR-Lex con metadata pero sin articulado no puede devolver `texto=""` sin contexto. API/MCP debe marcar `coverage_status=metadata_only`, `verified=false`, `completeness=parcial` y `evidence_notice` con `evidence_limited`.
+- Estado VPS observado en este slice tras despliegues/reset posteriores: `norma.tipo_fuente='eurlex'=32`, pero `articulo=0` y `version_articulo=0`; por tanto S-06 debe reactivar ingesta profunda de forma acotada antes de reclamar corpus EUR-Lex completo.
+
 ### 2026-05-03 - EUR-Lex: `sync_log` ya distingue `unchanged`, `no_index` y `fetch_errors` sin falsear fallos
 
 - Scope: `apps/workers/eurlex.py`, tabla `sync_log`

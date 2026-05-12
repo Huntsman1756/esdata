@@ -5801,3 +5801,30 @@ En orden de impacto real:
 - Resultado: `68 passed`, `4 warnings`.
 - `ESDATA_API_KEY=dev-key python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8001`
 - Resultado: `ok=true`, empty-domain summary `90` (`53 workflow_empty`, `3 allowed_empty`, `34 configured_but_unavailable`).
+
+---
+
+## Reclamo 2026-05-12 - S-05 revision MCP externos y contrato EUR-Lex limitado
+
+**Estado:** COMPLETADO LOCAL / PENDIENTE DESPLIEGUE VPS.
+
+**Archivos principales:** `apps/api/routers/eurlex.py`, `apps/api/schemas.py`, `apps/api/tests/test_eurlex_router.py`, `docs/reference-mcp-code-review.md`, `docs/source-domain-audit.md`, `scripts/ralph/prd-source-domains.json`.
+
+**Objetivo:** revisar `EU_compliance_MCP` y `anamtb/boe-mcp` como referencias tecnicas para cerrar gaps regulatorios sin usar sus datos como fuente de verdad.
+
+**Resultado:**
+- `EU_compliance_MCP` aporta patrones utiles para EUR-Lex WAF/browser fallback, source registry/freshness y quality counters; se documenta que sus seeds/textos no se importan.
+- `anamtb/boe-mcp` aporta patron BOE consolidado -> diario XML -> PDF fallback para documentos no consolidados; se documenta como backlog separado para no contaminar la legislacion consolidada.
+- `/v1/eurlex` y `/v1/eurlex/{referencia}` ahora exponen `articulos_total`, `coverage_status`, `verified`, `completeness` y `evidence_notice`.
+- Cuando EUR-Lex solo tiene metadata oficial pero no articulado cargado, la API/MCP devuelve `coverage_status=metadata_only`, `verified=false`, `completeness=parcial` y aviso `evidence_limited`, en vez de servir `texto=""` sin contexto.
+- `scripts/ralph/prd-source-domains.json` anade S-06 para ingesta profunda EUR-Lex segura y S-07 para BOE no consolidado/XML/PDF.
+
+**Pruebas ejecutadas:**
+- `PYTHONPATH=.;apps;apps/api;apps/workers python -m pytest apps/api/tests/test_eurlex_router.py -q --basetemp .pytest-tmp`
+- Resultado: `21 passed`, `4 warnings`.
+- `python -m ruff check apps/api/routers/eurlex.py apps/api/tests/test_eurlex_router.py --select F,I`
+- Resultado: `All checks passed`.
+
+**Evidencia VPS previa al cambio:** `norma.tipo_fuente='eurlex'=32`, `articulo=0`, `version_articulo=0`; ultimos `worker-eurlex`/`cron-eurlex-weekly` en `status=ok` con `fetch_articles=False`.
+
+**Siguiente paso:** ejecutar S-06 con un modo de ingesta EUR-Lex acotado por presupuesto de CELEX/tiempo, preferentemente via Publications Office, y desplegar el contrato S-05 en VPS.

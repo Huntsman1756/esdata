@@ -3837,6 +3837,11 @@ class EurLexListItem(BaseModel):
     ambito: str = Field(description="Ambito EU (mercado_interior, fiscal_ue, ...)")
     fragmento: str = Field(description="Extracto truncado (<=223 chars) del primer articulo vigente")
     url_fuente: str | None = Field(default=None, description="URI ELI EUR-Lex (norma.eli_uri)")
+    articulos_total: int = Field(default=0, description="Numero de articulos/versiones vigentes cargados")
+    coverage_status: str = Field(description="article_text_available | metadata_only")
+    verified: bool = Field(description="True solo si hay texto oficial de articulado cargado")
+    completeness: str = Field(description="completa | parcial")
+    evidence_notice: str | None = Field(default=None, description="Aviso de evidencia limitada si falta articulado")
 
 
 class EurLexListResponse(BaseModel):
@@ -3856,6 +3861,11 @@ class EurLexDetail(BaseModel):
     ambito: str = Field(description="Ambito EU")
     texto: str = Field(description="Concatenacion de articulos vigentes")
     url_fuente: str | None = Field(default=None, description="URI ELI EUR-Lex")
+    articulos_total: int = Field(default=0, description="Numero de articulos/versiones vigentes cargados")
+    coverage_status: str = Field(description="article_text_available | metadata_only")
+    verified: bool = Field(description="True solo si hay texto oficial de articulado cargado")
+    completeness: str = Field(description="completa | parcial")
+    evidence_notice: str | None = Field(default=None, description="Aviso de evidencia limitada si falta articulado")
 
 
 # --- BORME -----------------------------------------------------------------

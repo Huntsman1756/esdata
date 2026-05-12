@@ -73,6 +73,48 @@
         "mcp_validation_suite remains ok=true after deployment."
       ],
       "verificationCommand": "docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm official-regulatory-references --run-once && curl -sf http://localhost:${API_PORT:-8000}/v1/internacional/obligaciones?limit=3 | jq '.total' && docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000'"
+    },
+    {
+      "id": "S-05",
+      "title": "Review external MCP code and expose EUR-Lex limited evidence explicitly",
+      "priority": 6,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Review EU_compliance_MCP and boe-mcp code for reusable official-source ingestion patterns.",
+        "Document which patterns are safe to adopt and which are rejected as interpretive or non-official.",
+        "Expose EUR-Lex metadata-only records as explicit evidence_limited rather than silent empty text.",
+        "Test /v1/eurlex detail and list responses include coverage_status, verified, completeness, articulos_total and evidence_notice."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_eurlex_router.py -q --basetemp .pytest-tmp"
+    },
+    {
+      "id": "S-06",
+      "title": "Implement EUR-Lex deep article ingestion safe mode",
+      "priority": 7,
+      "phase": "source-domain-audit",
+      "passes": false,
+      "acceptanceCriteria": [
+        "Use Publications Office consolidation/RDF flow as primary source for article text.",
+        "Add run budget controls so EURLEX_FETCH_ARTICLES cannot hang a cron run silently.",
+        "If browser fallback is added, keep it opt-in, CELEX allowlisted and validated against WAF challenge pages.",
+        "Persist article counts and quality status so API can distinguish metadata_only, partial and article_text_available.",
+        "Run one bounded VPS ingestion and confirm sync_log row plus articulo/version_articulo growth."
+      ],
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/v1/eurlex?limit=5 | jq '[.documentos[] | {referencia, coverage_status, verified, completeness, articulos_total}]'"
+    },
+    {
+      "id": "S-07",
+      "title": "Assess BOE non-consolidated XML/PDF fallback",
+      "priority": 8,
+      "phase": "source-domain-audit",
+      "passes": false,
+      "acceptanceCriteria": [
+        "Map BOE diario XML and PDF fallback needs for BOE-B/BOE-S/BOE-N and BORME-like documents.",
+        "Do not mix non-consolidated PDF extraction with BOE consolidated law rows.",
+        "Document target tables, provenance fields and quality labels before implementation."
+      ],
+      "verificationCommand": "test -f docs/reference-mcp-code-review.md && grep -q 'BOE non-consolidated fallback' docs/reference-mcp-code-review.md && echo PASS"
     }
   ]
 }

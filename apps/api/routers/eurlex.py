@@ -10,6 +10,29 @@ router = APIRouter(prefix="/v1/eurlex", tags=["eurlex"])
 # escribe con `tipo_fuente='eurlex'` y CELEX como `codigo`/`boe_id`.
 
 
+def _coverage_metadata(articulos_total: int) -> dict:
+    if articulos_total > 0:
+        return {
+            "coverage_status": "article_text_available",
+            "verified": True,
+            "completeness": "parcial",
+            "evidence_notice": (
+                "Official EUR-Lex article text is available in ESData, but no "
+                "articles_expected/articles_parsed parity check is recorded yet. "
+                "Do not claim exhaustive coverage."
+            ),
+        }
+    return {
+        "coverage_status": "metadata_only",
+        "verified": False,
+        "completeness": "parcial",
+        "evidence_notice": (
+            "EUR-Lex metadata is loaded, but no official article text is available "
+            "in ESData for this CELEX. Treat answers as evidence_limited."
+        ),
+    }
+
+
 @router.get("", response_model=EurLexListResponse, operation_id="listar_eurlex")
 async def listar_eurlex(
     q: str | None = Query(None, description="Filtrar por texto o título"),
@@ -65,7 +88,14 @@ async def listar_eurlex(
                   AND va.vigente_hasta IS NULL
                 ORDER BY a.id ASC
                 LIMIT 1
-            )                                     AS primer_texto
+            )                                     AS primer_texto,
+            (
+                SELECT COUNT(*)
+                FROM version_articulo va
+                JOIN articulo a ON a.id = va.articulo_id
+                WHERE a.norma_id = n.id
+                  AND va.vigente_hasta IS NULL
+            )                                     AS articulos_total
         FROM norma n
         WHERE {where_clause}
         ORDER BY n.vigente_desde DESC, n.codigo DESC
@@ -83,6 +113,7 @@ async def listar_eurlex(
     for row in rows:
         primer = row["primer_texto"] or ""
         fragmento = primer[:220] + ("..." if len(primer) > 220 else "")
+        articulos_total = int(row["articulos_total"] or 0)
         documentos.append(
             {
                 "referencia": row["referencia"],
@@ -92,6 +123,8 @@ async def listar_eurlex(
                 "ambito": row["ambito"],
                 "fragmento": fragmento,
                 "url_fuente": row["url_fuente"],
+                "articulos_total": articulos_total,
+                **_coverage_metadata(articulos_total),
             }
         )
     next_offset = offset + limit if offset + len(documentos) < int(total or 0) else None
@@ -150,6 +183,7 @@ async def get_eurlex(referencia: str):
         )
 
     texto_completo = "\n\n".join(r["texto"] for r in articulos if r["texto"])
+    articulos_total = len([r for r in articulos if r["texto"]])
 
     return {
         "referencia": norma_row["codigo"],
@@ -159,4 +193,6 @@ async def get_eurlex(referencia: str):
         "ambito": norma_row["ambito"],
         "texto": texto_completo,
         "url_fuente": norma_row["eli_uri"],
+        "articulos_total": articulos_total,
+        **_coverage_metadata(articulos_total),
     }
