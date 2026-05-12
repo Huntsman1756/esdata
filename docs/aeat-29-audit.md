@@ -40,10 +40,21 @@ Regla aplicada: solo se clasifica como `STATUS-A` cuando existe fuente oficial e
 
 | status | modelos | accion siguiente |
 |---|---|---|
-| STATUS-A | 172, 173 | Implementar parser ZIP/XSD en `aeat_current_designs.py` y cargar casillas oficiales. |
+| STATUS-A | 172, 173 | M-02 completado: parser ZIP/XSD implementado en `aeat_current_designs.py`; campos XML oficiales cargados como `diseno_registro_xsd_campo`. |
 | STATUS-B | 102, 146, 147, 186, 206, 247 | Marcar como `no-casillas-expected` solo cuando el contrato DB/API soporte ese valor real; no inventar casillas. |
 | STATUS-D | 121, 136, 140, 143, 150, 221, 228, 230, 239, 294, 295 | Documentar bloqueo; no cargar hasta tener Playwright/contrato endpoint o parser fiable. |
 | STATUS-E | 179, 231, 233, 234, 235, 236, 238, 240, 241, 290 | Auditar formato especifico y escribir parsers solo si el recurso contiene estructura determinista. |
+
+## Resultado M-02
+
+`172` y `173` siguen clasificados como `STATUS-A`, pero el dato cargado es inventario oficial XML/XSD de presentacion telematica, no casillas visuales numeradas. El worker `aeat_current_designs.py` parsea exclusivamente `DeclaracionInformativa{codigo}.xsd` dentro de los ZIP oficiales AEAT y omite `RespuestaDeclaracion*.xsd` y wrappers.
+
+| codigo | source_url | campos cargados | tipo_casilla | evidencia |
+|---|---|---:|---|---|
+| 172 | https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI53/Esquemas172.zip | 35 | `diseno_registro_xsd_campo` | XPath + fuente XSD + tipo XSD + `minOccurs`/`maxOccurs` en `modelo_casilla.descripcion`. |
+| 173 | https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI54/Esquemas173.zip | 45 | `diseno_registro_xsd_campo` | XPath + fuente XSD + tipo XSD + `minOccurs`/`maxOccurs` en `modelo_casilla.descripcion`. |
+
+Verificacion VPS M-02: `cron-aeat-current-daily` cargo `xsd_fields=80`, `parse_errors=0`; SQL productivo devolvio `172 casillas=35` y `173 casillas=45`; API `/v1/modelos/172` y `/v1/modelos/173` expone esos campos; `mcp_validation_suite` queda `ok=true`.
 
 ## Evidencia usada
 

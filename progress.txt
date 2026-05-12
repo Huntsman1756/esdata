@@ -388,3 +388,24 @@ Learnings:
 - `102` y `206` deben permanecer en `MODEL_METADATA_OVERRIDES` porque sus paginas oficiales describen formularios padre (`100`/`200`) o paginas agrupadas.
 - M-01 no carga casillas: ambos son STATUS-B en M-00.
 Next: M-02
+
+=== Iteration 3 - 2026-05-12T08:25:00+02:00 ===
+Story: M-02 Load casillas for STATUS-A models identified in M-00
+Models processed: 172,173
+Result per model:
+  - 172: STATUS-A | casillas loaded: 35 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI53/Esquemas172.zip | reason: ZIP oficial AEAT contiene `DeclaracionInformativa172.xsd`; parser carga campos XML oficiales con XPath, tipo XSD y cardinalidad.
+  - 173: STATUS-A | casillas loaded: 45 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI54/Esquemas173.zip | reason: ZIP oficial AEAT contiene `DeclaracionInformativa173.xsd`; parser carga campos XML oficiales con XPath, tipo XSD y cardinalidad.
+Overall result: PASS
+Verification run:
+- Local: `PYTHONPATH=apps;apps\\workers python -m pytest apps\\workers\\tests\\test_aeat_current_designs.py -q --basetemp .pytest-tmp` -> 9 passed.
+- Local: `python -m compileall apps\\workers\\aeat_current_designs.py apps\\workers\\tests\\test_aeat_current_designs.py` -> PASS.
+- Local official ZIP probe: `172` -> 35 fields, `173` -> 45 fields.
+- VPS deploy: commit `dee2236` desplegado en `/srv/esdata`; `worker-modelos` y `cron-aeat-current-daily` reconstruidos.
+- VPS DB before/after: antes `172=0`, `173=0`; despues `172 casillas=35/xsd_casillas=35`, `173 casillas=45/xsd_casillas=45`.
+- VPS sync_log: latest `worker-aeat-current-designs` id `747`, status `ok`, `xsd_fields=80`, `parse_errors=0`.
+- VPS API probes: `/v1/modelos/172?casillas_limit=2` y `/v1/modelos/173?casillas_limit=2` devuelven `casillas_total=35/45`, primer campo `XSD:DeclaracionInformativa/Cabecera/TipoComunicacion`, `tipo_casilla=diseno_registro_xsd_campo`.
+- VPS health: `/status` devuelve API/database OK y `stale_workers=0`; `mcp_validation_suite.py --read-only --base-url http://api:8000` -> `ok=true`.
+Learnings:
+- `172` y `173` no tienen casillas visuales numeradas cargadas; lo correcto es exponer campos XML oficiales de presentacion telematica.
+- El codigo de campo debe basarse en XPath, no en nombre de elemento suelto, porque hay nombres repetidos en ramas distintas.
+Next: M-03

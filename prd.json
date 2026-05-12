@@ -31,13 +31,13 @@
       "id": "M-02",
       "title": "Load casillas for STATUS-A models identified in M-00",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Implement ZIP/XSD parser for STATUS-A models 172 and 173",
         "Run worker and confirm modelo_casilla rows are loaded",
         "If parsing cannot be done safely, reclassify and document"
       ],
-      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT m.codigo, COUNT(cs.id) AS casillas FROM aeat_modelo m JOIN modelo_campana c ON c.modelo_id=m.id AND c.activa=true LEFT JOIN modelo_casilla cs ON cs.campana_id=c.id WHERE m.codigo IN ('172','173') GROUP BY m.codigo ORDER BY m.codigo;\" && echo 'Verify STATUS-A models have casillas > 0' || echo FAIL"
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT m.codigo, COUNT(cs.id) AS casillas FROM aeat_modelo m JOIN modelo_campana c ON c.modelo_id=m.id AND c.activo=true LEFT JOIN modelo_casilla cs ON cs.campana_id=c.id AND cs.activa=true WHERE m.codigo IN ('172','173') GROUP BY m.codigo ORDER BY m.codigo;\" && echo 'Verify STATUS-A models have casillas > 0' || echo FAIL"
     },
     {
       "id": "M-03",

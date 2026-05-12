@@ -114,3 +114,9 @@ Consultar por ruta, nunca inyectar contenido completo:
 - `infra/` — Despliegue Docker Compose. Ver `infra/AGENTS.md`
 
 **Flujos cross-domain:** `apps/web` → `apps/api`; `apps/workers` → DB → `apps/api`; `scripts/` fuera del runtime.
+
+---
+
+## Ralph AEAT 29 Audit Notes
+
+- 2026-05-12 M-02: `172` y `173` son `STATUS-A` como inventario XML/XSD oficial, no como casillas visuales numeradas. `apps/workers/aeat_current_designs.py` carga `DeclaracionInformativa172.xsd` y `DeclaracionInformativa173.xsd` desde ZIP oficiales AEAT como `modelo_casilla.tipo_casilla='diseno_registro_xsd_campo'`, con codigo estable por XPath y descripcion con fuente XSD, tipo XSD y cardinalidad. VPS verificado: `172=35`, `173=45`, `xsd_fields=80`, `parse_errors=0`.
