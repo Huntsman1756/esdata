@@ -33,6 +33,7 @@ from eurlex import (
     _is_supported_block,
     _parse_block_xml,
     _parse_official_consolidation_html,
+    _selected_seed_normas,
     _yyyymmdd_to_iso,
     fetch_block,
     fetch_index,
@@ -137,6 +138,27 @@ def test_eli_path_invalid():
 def test_yyyymmdd_to_iso():
     assert _yyyymmdd_to_iso("20140912") == "2014-09-12"
     assert _yyyymmdd_to_iso("20220125") == "2022-01-25"
+
+
+def test_selected_seed_normas_filters_allowlist(monkeypatch):
+    monkeypatch.setenv("EURLEX_ONLY_CELEX", "32014L0065")
+    monkeypatch.delenv("EURLEX_CELEX_ALLOWLIST", raising=False)
+    monkeypatch.delenv("EURLEX_MAX_CELEX_PER_RUN", raising=False)
+
+    selected = _selected_seed_normas(eurlex.EURLEX_NORMAS)
+
+    assert [item["boe_id"] for item in selected] == ["EUR-CELEX-32014L0065"]
+
+
+def test_selected_seed_normas_applies_run_budget(monkeypatch):
+    monkeypatch.delenv("EURLEX_ONLY_CELEX", raising=False)
+    monkeypatch.delenv("EURLEX_CELEX_ALLOWLIST", raising=False)
+    monkeypatch.setenv("EURLEX_MAX_CELEX_PER_RUN", "2")
+
+    selected = _selected_seed_normas(eurlex.EURLEX_NORMAS)
+
+    assert len(selected) == 2
+    assert selected == eurlex.EURLEX_NORMAS[:2]
 
 
 def test_parse_index_basic():

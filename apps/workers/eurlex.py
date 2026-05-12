@@ -26,8 +26,14 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from change_detection import (
+    check_content_changed,
+    destination_row_exists,
+    ensure_source_revision_table,
+    invalidate_old_embeddings,
+    record_revision,
+)
 from runtime import (
-    configure_logging,
     ensure_database_connection,
     get_bool_env,
     get_database_url,
@@ -35,14 +41,6 @@ from runtime import (
     handle_worker_failure,
     sleep_with_heartbeat,
     touch_heartbeat,
-    init_sentry,
-)
-from change_detection import (
-    check_content_changed,
-    destination_row_exists,
-    ensure_source_revision_table,
-    invalidate_old_embeddings,
-    record_revision,
 )
 
 EURLEX_BASE = os.getenv(
@@ -268,6 +266,41 @@ def _is_supported_block(titulo: str) -> bool:
 
 def _yyyymmdd_to_iso(value: str) -> str:
     return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+
+
+def _normalize_celex(value: str) -> str:
+    return value.strip().replace("EUR-CELEX-", "").upper()
+
+
+def _csv_env_set(name: str) -> set[str]:
+    raw = os.getenv(name, "")
+    if not raw.strip():
+        return set()
+    return {_normalize_celex(item) for item in raw.split(",") if item.strip()}
+
+
+def _int_env(name: str, default: int = 0) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"  [WARN] Invalid integer for {name}={raw!r}; using {default}")
+        return default
+
+
+def _selected_seed_normas(normas: list[dict]) -> list[dict]:
+    allowlist = _csv_env_set("EURLEX_ONLY_CELEX") or _csv_env_set("EURLEX_CELEX_ALLOWLIST")
+    selected = [
+        norma
+        for norma in normas
+        if not allowlist or _normalize_celex(norma["boe_id"]) in allowlist
+    ]
+    max_docs = _int_env("EURLEX_MAX_CELEX_PER_RUN", 0)
+    if max_docs > 0:
+        selected = selected[:max_docs]
+    return selected
 
 
 # ============================================================
@@ -960,8 +993,32 @@ _SYNC_LOG_BOOTSTRAP_LOGGED: set[str] = set()
 
 
 def _ensure_sync_log_table(conn) -> None:
-    """Garantiza tabla `sync_log` (no-op; schema owned por Alembic)."""
+    """Ensure sync_log exists for SQLite tests; production schema is Alembic-owned."""
     dialect = conn.engine.dialect.name
+    if dialect == "sqlite":
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+        return
     if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
         _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
 
@@ -1048,7 +1105,8 @@ def run_sync(  # noqa: C901
             ensure_source_revision_table(conn)
 
             # Phase 1: Process hardcoded CELEXs
-            for norma_def in EURLEX_NORMAS:
+            seed_normas = _selected_seed_normas(EURLEX_NORMAS)
+            for norma_def in seed_normas:
                 celex = norma_def["boe_id"].replace("EUR-CELEX-", "")
                 vigente_desde = norma_def["vigente_desde"]
                 upsert_norma(conn, norma_def, vigente_desde)
@@ -1190,7 +1248,7 @@ def run_sync(  # noqa: C901
             summary_msg = (
                 f"summary: unchanged={skipped_unchanged}; no_index={skipped_no_index}; "
                 f"fetch_errors={fetch_errors}; fetch_articles={fetch_articles}; "
-                f"discovery_enabled={discovery_enabled}"
+                f"discovery_enabled={discovery_enabled}; seed_selected={len(seed_normas)}"
             )
             log_status = "partial" if fetch_errors else "ok"
             log_sync(
