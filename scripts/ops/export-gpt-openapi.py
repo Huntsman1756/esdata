@@ -38,6 +38,8 @@ INCLUDE_PATHS = {
     "/v1/doctrina/{referencia}",
     "/v1/boe-diario",
     "/v1/boe-diario/{referencia}",
+    "/v1/cnmv/buscar",
+    "/v1/cnmv/{referencia}",
     "/v1/modelos",
     "/v1/modelos/{codigo}",
     "/v1/modelos/{codigo}/casillas",
@@ -70,6 +72,9 @@ INCLUDE_SCHEMAS = {
     "BOEDiarioListResponse",
     "BOEDiarioListItem",
     "BOEDiarioDetail",
+    "DocInterpretativoListResponse",
+    "DocInterpretativoListItem",
+    "DocInterpretativoDetail",
     "HTTPValidationError",
     "ValidationError",
 }

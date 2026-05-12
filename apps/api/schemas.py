@@ -3961,6 +3961,10 @@ class DocInterpretativoListItem(BaseModel):
     url_fuente: str | None = Field(default=None, description="URL fuente oficial")
     organismo_emisor: str | None = Field(default=None, description="Organismo emisor (cendoj)")
     estado_vigencia: str | None = Field(default=None, description="Estado vigencia (cnmv)")
+    fecha_publicacion: str | None = Field(default=None, description="Fecha publicacion (cnmv)")
+    referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
+    boe_referencia: str | None = Field(default=None, description="Alias de referencia BOE para consumidores MCP")
+    url_cnmv: str | None = Field(default=None, description="Alias de URL fuente CNMV/BOE para consumidores MCP")
 
 
 class DocInterpretativoListResponse(BaseModel):
@@ -3983,6 +3987,8 @@ class DocInterpretativoDetail(BaseModel):
     numero_circular: str | None = Field(default=None, description="Numero circular (cnmv)")
     fecha_publicacion: str | None = Field(default=None, description="Fecha publicacion (cnmv)")
     referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
+    boe_referencia: str | None = Field(default=None, description="Alias de referencia BOE para consumidores MCP")
+    url_cnmv: str | None = Field(default=None, description="Alias de URL fuente CNMV/BOE para consumidores MCP")
 
 
 # --- BOE diario non-consolidated documents ---------------------------------

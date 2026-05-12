@@ -3366,6 +3366,146 @@
         }
       }
     },
+    "/v1/cnmv/buscar": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Buscar Cnmv",
+        "operationId": "buscar_cnmv",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ambito regulatorio",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ambito regulatorio"
+          },
+          {
+            "name": "tipo_documento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de documento",
+              "title": "Tipo Documento"
+            },
+            "description": "Filtrar por tipo de documento"
+          },
+          {
+            "name": "vigencia",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado de vigencia",
+              "title": "Vigencia"
+            },
+            "description": "Filtrar por estado de vigencia"
+          },
+          {
+            "name": "regulacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por regulacion EU/ES relacionada",
+              "title": "Regulacion"
+            },
+            "description": "Filtrar por regulacion EU/ES relacionada"
+          },
+          {
+            "name": "obligacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de obligacion",
+              "title": "Obligacion"
+            },
+            "description": "Filtrar por tipo de obligacion"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Skip"
+            },
+            "description": "Offset de paginacion"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Numero de resultados",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Numero de resultados"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Campo de ordenacion",
+              "default": "fecha",
+              "title": "Order By"
+            },
+            "description": "Campo de ordenacion"
+          },
+          {
+            "name": "order_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Direccion de ordenacion",
+              "default": "desc",
+              "title": "Order Dir"
+            },
+            "description": "Direccion de ordenacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/cnmv/{referencia}/versions": {
       "get": {
         "tags": [
@@ -4027,6 +4167,18 @@
             "type": "string",
             "title": "Url Fuente"
           },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal"
+          },
           "empresas_relacionadas": {
             "items": {
               "$ref": "#/components/schemas/BORMEEmpresaRelacionada"
@@ -4100,6 +4252,21 @@
             "type": "string",
             "title": "Url Fuente",
             "description": "URL oficial BORME/BOE"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal",
+            "description": "partial_heuristic | official_exact"
           }
         },
         "type": "object",
@@ -4137,6 +4304,11 @@
           "next_offset": {
             "type": "integer",
             "title": "Next Offset"
+          },
+          "quality_signal": {
+            "type": "string",
+            "title": "Quality Signal",
+            "description": "Overall quality signal for BORME extraction"
           }
         },
         "type": "object",
@@ -4644,6 +4816,16 @@
             "type": "string",
             "title": "Referencia Boe",
             "description": "Referencia BOE (cnmv)"
+          },
+          "boe_referencia": {
+            "type": "string",
+            "title": "Boe Referencia",
+            "description": "Alias de referencia BOE para consumidores MCP"
+          },
+          "url_cnmv": {
+            "type": "string",
+            "title": "Url Cnmv",
+            "description": "Alias de URL fuente CNMV/BOE para consumidores MCP"
           }
         },
         "type": "object",
@@ -4701,6 +4883,26 @@
             "type": "string",
             "title": "Estado Vigencia",
             "description": "Estado vigencia (cnmv)"
+          },
+          "fecha_publicacion": {
+            "type": "string",
+            "title": "Fecha Publicacion",
+            "description": "Fecha publicacion (cnmv)"
+          },
+          "referencia_boe": {
+            "type": "string",
+            "title": "Referencia Boe",
+            "description": "Referencia BOE (cnmv)"
+          },
+          "boe_referencia": {
+            "type": "string",
+            "title": "Boe Referencia",
+            "description": "Alias de referencia BOE para consumidores MCP"
+          },
+          "url_cnmv": {
+            "type": "string",
+            "title": "Url Cnmv",
+            "description": "Alias de URL fuente CNMV/BOE para consumidores MCP"
           }
         },
         "type": "object",
@@ -4759,6 +4961,16 @@
             "type": "string",
             "title": "Organismo Emisor",
             "description": "Organismo emisor (DGT, TEAC, etc.)"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha del documento (YYYY-MM-DD)"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "URL oficial del documento"
           },
           "texto": {
             "type": "string",
@@ -4850,6 +5062,11 @@
             "title": "Referencia",
             "description": "Referencia del documento"
           },
+          "numero_consulta": {
+            "type": "string",
+            "title": "Numero Consulta",
+            "description": "Numero de consulta DGT cuando el organismo emisor es DGT"
+          },
           "tipo_documento": {
             "type": "string",
             "title": "Tipo Documento",
@@ -4859,6 +5076,11 @@
             "type": "string",
             "title": "Organismo Emisor",
             "description": "Organismo emisor"
+          },
+          "organo": {
+            "type": "string",
+            "title": "Organo",
+            "description": "Alias operativo del organismo emisor"
           },
           "fecha": {
             "type": "string",
@@ -6063,6 +6285,16 @@
             "title": "Verified",
             "description": "Si la respuesta queda verificada con base suficiente"
           },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status",
+            "description": "Estado de evidencia para consumo por agentes"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso operativo sobre limites de evidencia"
+          },
           "fuentes_recomendadas": {
             "items": {
               "$ref": "#/components/schemas/ModeloFuenteOficial"
@@ -6078,7 +6310,9 @@
           "nombre",
           "impuesto",
           "completeness",
-          "verified"
+          "verified",
+          "evidence_status",
+          "evidence_notice"
         ],
         "title": "ModeloCampanaOperativaResponse"
       },
@@ -6202,6 +6436,16 @@
             "title": "Verified",
             "description": "Si la respuesta queda verificada con base suficiente"
           },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status",
+            "description": "Estado de evidencia para consumo por agentes"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso operativo sobre limites de evidencia"
+          },
           "confidence": {
             "type": "object",
             "title": "Confidence",
@@ -6218,7 +6462,9 @@
           "classification",
           "obligation_notice",
           "completeness",
-          "verified"
+          "verified",
+          "evidence_status",
+          "evidence_notice"
         ],
         "title": "ModeloCasillasResponse"
       },
@@ -6447,6 +6693,16 @@
             "type": "boolean",
             "title": "Verified",
             "description": "Si la respuesta queda verificada con base suficiente"
+          },
+          "evidence_status": {
+            "type": "string",
+            "title": "Evidence Status",
+            "description": "Estado de evidencia para consumo por agentes"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso operativo sobre limites de evidencia"
           }
         },
         "type": "object",
@@ -6455,7 +6711,9 @@
           "nombre",
           "impuesto",
           "completeness",
-          "verified"
+          "verified",
+          "evidence_status",
+          "evidence_notice"
         ],
         "title": "ModeloDetail"
       },

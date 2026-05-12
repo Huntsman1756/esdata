@@ -59,6 +59,7 @@ HTTP_MCP_OPERATIONS = [
     "listar_boe_diario",
     "get_boe_diario",
     "listar_cnmv",
+    "buscar_cnmv",
     "get_cnmv",
     "get_cnmv_versions",
     "get_cnmv_regulation_links",
