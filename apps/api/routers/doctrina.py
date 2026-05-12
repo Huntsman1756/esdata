@@ -1,3 +1,5 @@
+import re
+
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -95,6 +97,45 @@ def _build_doctrina_audit_chunks(result: dict) -> list[dict]:
         }
         for item in result.get("resultados", [])
     ]
+
+
+def _doctrina_result_payload(row, fragmento: str) -> dict:
+    organismo = row["organismo_emisor"]
+    referencia = row["referencia"]
+    return {
+        "referencia": referencia,
+        "numero_consulta": referencia if organismo == "DGT" else None,
+        "tipo_documento": row["tipo_documento"],
+        "organismo_emisor": organismo,
+        "organo": organismo,
+        "fecha": str(row["fecha"]) if row["fecha"] else None,
+        "titulo": row["titulo"],
+        "nivel_enlace": float(row["nivel_enlace"] or 0),
+        "norma": row["norma"],
+        "numero": row["numero"],
+        "fragmento": fragmento,
+        "source_url": row.get("url_fuente"),
+    }
+
+
+def _looks_like_doctrina_reference(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Z]\d{4}-\d{2}", value.strip(), flags=re.IGNORECASE))
+
+
+def _normalize_doctrina_results(q: str, results: list[dict]) -> list[dict]:
+    exact_reference = q.strip().upper()
+    seen: set[str] = set()
+    normalized: list[dict] = []
+    for item in results:
+        referencia = str(item.get("referencia") or "")
+        referencia_key = referencia.upper()
+        if _looks_like_doctrina_reference(q) and referencia_key != exact_reference:
+            continue
+        if referencia_key in seen:
+            continue
+        seen.add(referencia_key)
+        normalized.append(item)
+    return normalized
 
 
 def _record_doctrina_query_audit(
@@ -257,19 +298,14 @@ def _buscar_doctrina_pg(db, q, tipo, desde, organismo_emisor):
             elif chunk_texto:
                 fragmento = chunk_texto[:220] + ("..." if len(chunk_texto) > 220 else "")
 
-            results.append({
-                "referencia": row["referencia"],
-                "tipo_documento": row["tipo_documento"],
-                "organismo_emisor": row["organismo_emisor"],
-                "fecha": str(row["fecha"]) if row["fecha"] else None,
-                "titulo": row["titulo"],
-                "nivel_enlace": float(row["nivel_enlace"] or 0),
-                "norma": row["norma"],
-                "numero": row["numero"],
-                "fragmento": fragmento or "",
-                "source_url": row.get("url_fuente"),
-            })
+            results.append(_doctrina_result_payload(row, fragmento or ""))
 
+        results = _normalize_doctrina_results(q, results)
+
+        if not results:
+            return _buscar_doctrina_pg_fallback(
+                db, q, tipo, desde, organismo_emisor, params, use_ts_rank
+            )
         return {"q": q, "resultados": results}
 
     except Exception:
@@ -347,20 +383,11 @@ def _buscar_doctrina_pg_fallback(db, q, tipo, desde, organismo_emisor, params, u
             chunk_rank = float(chunk_rank)
 
         texto = row["texto"] or ""
-        results.append({
-            "referencia": row["referencia"],
-            "tipo_documento": row["tipo_documento"],
-            "organismo_emisor": row["organismo_emisor"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "nivel_enlace": float(row["nivel_enlace"] or 0),
-            "norma": row["norma"],
-            "numero": row["numero"],
-            "fragmento": _build_fragment(texto, q) if texto else "",
-            "source_url": row.get("url_fuente"),
-        })
+        results.append(
+            _doctrina_result_payload(row, _build_fragment(texto, q) if texto else "")
+        )
 
-    return {"q": q, "resultados": results}
+    return {"q": q, "resultados": _normalize_doctrina_results(q, results)}
 
 
 def _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor):
@@ -410,20 +437,13 @@ def _buscar_doctrina_sqlite(db, q, tipo, desde, organismo_emisor):
     results = []
     for row in rows:
         texto = row["texto"] or ""
-        results.append({
-            "referencia": row["referencia"],
-            "tipo_documento": row["tipo_documento"],
-            "organismo_emisor": row["organismo_emisor"],
-            "fecha": str(row["fecha"]) if row["fecha"] else None,
-            "titulo": row["titulo"],
-            "nivel_enlace": float(row["nivel_enlace"] or 0),
-            "norma": row["norma"],
-            "numero": row["numero"],
-            "fragmento": texto[:220] + ("..." if len(texto) > 220 else ""),
-            "source_url": row.get("url_fuente"),
-        })
+        results.append(
+            _doctrina_result_payload(
+                row, texto[:220] + ("..." if len(texto) > 220 else "")
+            )
+        )
 
-    return {"q": q, "resultados": results}
+    return {"q": q, "resultados": _normalize_doctrina_results(q, results)}
 
 
 @router.get(
@@ -442,6 +462,8 @@ async def get_doctrina(request: Request, referencia: str):
                     d.referencia,
                     d.tipo_documento,
                     d.organismo_emisor,
+                    d.fecha,
+                    d.url_fuente,
                     d.texto
                 FROM documento_interpretativo d
                 WHERE d.referencia = :referencia
@@ -485,6 +507,8 @@ async def get_doctrina(request: Request, referencia: str):
             "referencia": row["referencia"],
             "tipo_documento": row["tipo_documento"],
             "organismo_emisor": row["organismo_emisor"],
+            "fecha": str(row["fecha"]) if row["fecha"] else None,
+            "url_fuente": row["url_fuente"],
             "texto": row["texto"],
             "articulos_relacionados": [
                 {

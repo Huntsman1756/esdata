@@ -130,6 +130,8 @@ class DoctrinaDetail(BaseModel):
         description="Tipo (consulta_vinculante, resolucion_teac, etc.)"
     )
     organismo_emisor: str = Field(description="Organismo emisor (DGT, TEAC, etc.)")
+    fecha: str | None = Field(default=None, description="Fecha del documento (YYYY-MM-DD)")
+    url_fuente: str | None = Field(default=None, description="URL oficial del documento")
     texto: str = Field(description="Texto completo del documento")
     articulos_relacionados: list[ArticuloRelacionado] = Field(
         default_factory=list, description="Artículos de ley vinculados"
@@ -139,8 +141,13 @@ class DoctrinaDetail(BaseModel):
 
 class DoctrinaSearchResult(BaseModel):
     referencia: str = Field(description="Referencia del documento")
+    numero_consulta: str | None = Field(
+        default=None,
+        description="Numero de consulta DGT cuando el organismo emisor es DGT",
+    )
     tipo_documento: str = Field(description="Tipo de documento")
     organismo_emisor: str = Field(description="Organismo emisor")
+    organo: str | None = Field(default=None, description="Alias operativo del organismo emisor")
     fecha: str | None = Field(
         default=None, description="Fecha del documento (YYYY-MM-DD)"
     )
