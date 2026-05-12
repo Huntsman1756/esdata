@@ -146,3 +146,21 @@ Learnings:
 - A sync_log verification must be per worker/service, not only a global row count, when persistent workers run concurrently.
 - Cron wrappers that reuse persistent scripts need explicit WORKER_NAME to avoid invisible cron telemetry.
 Next: A-06
+
+=== Iteration 9 - 2026-05-12T02:18:00+02:00 ===
+Story: A-06 DB integrity - FK, NULLs, duplicates
+Verification run: cat scripts/integrity-check.sql | docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -
+Result: PASS
+Root cause: the existing integrity script was not production-reliable. It referenced stale columns (documento_interpretativo.articulo_id and articulo.texto), did not set ON_ERROR_STOP, and the original grep-based verifier could fail on harmless headers or miss SQL errors.
+Fix applied: rewrote scripts/integrity-check.sql against the live schema with ON_ERROR_STOP, validated FK constraints, explicit orphan scans, generic NOT NULL scans, critical empty-text checks, logical key checks, and non-blocking warnings for known partial data.
+Production verification:
+- Blocking findings: 0.
+- Foreign-key constraints: all validated; explicit orphan scans returned 0.
+- Logical keys checked: articulo(norma_id, numero), aeat_modelo(codigo), documento_interpretativo(referencia), modelo_articulo(modelo_id, articulo_id), modelo_articulo(modelo_id, norma, numero), modelo_campana(modelo_id, campana), modelo_casilla(campana_id, codigo): 0 duplicates.
+- Critical content checks returned 0 blocking rows.
+- Non-blocking warnings: 6 TEAC documento_interpretativo rows with empty texto are allowed only because row_completeness is partial and url_fuente preserves the official source; 75 aeat_modelo rows have empty periodo because periodo is nullable and not every AEAT model exposes cadence.
+- Legacy grep compatibility check over script output returned PASS.
+Learnings:
+- SQL audit scripts must fail on SQL errors; otherwise stale schema references create false confidence.
+- Partial official-source rows should be surfaced as warnings, not silently counted as complete authoritative content.
+Next: A-07
