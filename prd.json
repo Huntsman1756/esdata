@@ -43,7 +43,7 @@
       "id": "M-03",
       "title": "Handle STATUS-E models — automatable non-PDF sources",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Audit STATUS-E models 179,231,233,234,235,236,238,240,241,290",
         "Write targeted parsers only for deterministic structured formats",
@@ -92,7 +92,7 @@
       "passes": false,
       "acceptanceCriteria": [
         "290 remains verified=false/completeness=parcial until full source is found",
-        "Existing six fallback fields are described as partial official evidence"
+        "Official FATCA XSD fields are exposed as partial official evidence, without claiming obligation or full operational completeness"
       ],
       "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/290 | jq '{verified: .verified, completeness: .completeness, casillas: .casillas_total}' && echo 'Verify partial 290 contract' || echo FAIL"
     },

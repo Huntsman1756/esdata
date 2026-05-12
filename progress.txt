@@ -409,3 +409,28 @@ Learnings:
 - `172` y `173` no tienen casillas visuales numeradas cargadas; lo correcto es exponer campos XML oficiales de presentacion telematica.
 - El codigo de campo debe basarse en XPath, no en nombre de elemento suelto, porque hay nombres repetidos en ramas distintas.
 Next: M-03
+
+=== Iteration 4 - 2026-05-12T18:40:00+02:00 ===
+Story: M-03 Handle STATUS-E models - automatable non-PDF sources
+Models processed: 179,231,233,234,235,236,238,240,241,290
+Result per model:
+  - 179: STATUS-A | casillas loaded: 47 | source: https://sede.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/ddii/enol/ws/DeclaracionInformativa.xsd | reason: XSD oficial directo parseado como campos XML.
+  - 231: STATUS-A | casillas loaded: 59 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI41/WS/231_XSD-2.0_WSDL-2-0-1.zip | reason: ZIP oficial WSDL/XSD parseado con raiz Presentation.
+  - 233: STATUS-E | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-199-282/modelo-233.html | reason: ayuda tecnica oficial; no se localizo contrato/plantilla no autenticado y determinista.
+  - 234: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI46-GI47-GI48/Ejemplos_XML_M234_235_236_Manual.zip | reason: ZIP oficial solo con ejemplos XML; no prueba contrato completo.
+  - 235: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI46-GI47-GI48/Ejemplos_XML_M234_235_236_Manual.zip | reason: misma fuente que 234, ejemplos insuficientes.
+  - 236: STATUS-D | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI46-GI47-GI48/Ejemplos_XML_M234_235_236_Manual.zip | reason: misma fuente que 234, ejemplos insuficientes.
+  - 238: STATUS-A | casillas loaded: 153 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI52/WS/238_XSD-V1.0_WSDL-V1.0.zip | reason: ZIP oficial WSDL/XSD parseado con raiz Presentation.
+  - 240: STATUS-A | casillas loaded: 36 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI60/Servicio_Web/Modelo_240_Comunicacion_Declarante_XSD_WSDL.zip | reason: ZIP oficial WSDL/XSD parseado con raiz M240Presentacion.
+  - 241: STATUS-A | casillas loaded: 403 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI59/Servicio_Web/Modelo_241_GIR_Globe_-_XSD_V1_1-WSDL_1_1.zip | reason: ZIP oficial WSDL/XSD parseado con raiz Presentation.
+  - 290: STATUS-A | casillas loaded: 152 | source: https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI38/Ayuda/XSD_WSDL/290_XSD_2.0_WSDL_2.1.1.zip | reason: ZIP oficial FATCA WSDL/XSD parseado; contrato MCP sigue parcial para no afirmar obligatoriedad.
+Overall result: PASS
+Verification run:
+- Local: `PYTHONPATH=apps;apps\\workers python -m pytest apps\\workers\\tests\\test_aeat_current_designs.py -q --basetemp .pytest-tmp` -> 12 passed.
+- Local: `python -m compileall apps\\workers\\aeat_current_designs.py apps\\workers\\tests\\test_aeat_current_designs.py` -> PASS.
+- VPS: `cron-aeat-current-daily` ejecuciones id 748 e id 750; `xsd_fields=212+638`, `parse_errors=0`.
+- VPS SQL/API: `179=47`, `231=59`, `238=153`, `240=36`, `241=403`, `290=152`, todos `tipo_casilla=diseno_registro_xsd_campo`.
+Learnings:
+- Ejemplos XML no son contrato completo; `234/235/236` quedan STATUS-D aunque haya ZIP oficial.
+- `290` deja de depender del fallback de 6 campos, pero conserva `verified=false/completeness=parcial` porque el XSD no prueba por si solo aplicabilidad completa.
+Next: M-04
