@@ -484,6 +484,11 @@ async def get_modelo(
             if operativa_row and operativa_row.get("estado_metadato")
             else None
         )
+        explicit_completeness = (
+            operativa_row["completeness_estado"]
+            if operativa_row and operativa_row.get("completeness_estado")
+            else None
+        )
 
         all_norm_rows = list(list_modelo_normativa(db, codigo))
         norm_rows = all_norm_rows[:related_limit]
@@ -503,6 +508,7 @@ async def get_modelo(
             has_instructions=bool(instrucciones),
             has_casillas=bool(casillas),
             metadata_state=estado_metadato,
+            explicit_completeness=explicit_completeness,
         )
 
         payload = {
@@ -684,7 +690,20 @@ async def get_modelo_casillas(
             completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             payload["completeness"] = completeness
             payload["verified"] = verified
-            payload["confidence"] = {"score": 0.0, "label": "baja", "review_required": True}
+            if completeness == "no-casillas-expected":
+                payload["classification"] = "sin_casillas_esperadas"
+                payload["obligation_notice"] = (
+                    "ESData tiene verificado que este modelo no dispone de casillas "
+                    "estructuradas esperadas en la campana consultada. No inferir "
+                    "obligatoriedad por supuesto concreto."
+                )
+                payload["confidence"] = {
+                    "score": 0.9,
+                    "label": "alta",
+                    "review_required": False,
+                }
+            else:
+                payload["confidence"] = {"score": 0.0, "label": "baja", "review_required": True}
             _record_modelo_query_audit(
                 request,
                 path=f"/v1/modelos/{codigo}/casillas",
@@ -718,6 +737,20 @@ async def get_modelo_casillas(
         casillas = [dict(r) for r in rows]
         has_more = offset + len(casillas) < total
 
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
+        classification = "confirmado" if casillas else "requiere_verificacion"
+        obligation_notice = (
+            "Las casillas devueltas son campos oficiales del modelo/campana. "
+            "No implican por si solas que una casilla sea obligatoria para un supuesto concreto."
+        )
+        if not casillas and completeness == "no-casillas-expected":
+            classification = "sin_casillas_esperadas"
+            obligation_notice = (
+                "ESData tiene verificado que este modelo no dispone de casillas "
+                "estructuradas esperadas en la campana consultada. No inferir "
+                "obligatoriedad por supuesto concreto."
+            )
+
         payload = {
             "codigo": codigo,
             "campana": camp_row["campana"],
@@ -730,13 +763,9 @@ async def get_modelo_casillas(
             "has_more": has_more,
             "next_offset": offset + len(casillas) if has_more else None,
             "filters": filters,
-            "classification": "confirmado" if casillas else "requiere_verificacion",
-            "obligation_notice": (
-                "Las casillas devueltas son campos oficiales del modelo/campana. "
-                "No implican por si solas que una casilla sea obligatoria para un supuesto concreto."
-            ),
+            "classification": classification,
+            "obligation_notice": obligation_notice,
         }
-        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
         payload["completeness"] = completeness
         payload["verified"] = verified
         payload["confidence"] = {

@@ -481,6 +481,146 @@ def _seed_modelo_with_empty_active_campaign_and_historical_casillas(codigo: str 
         )
 
 
+def _seed_modelo_with_explicit_completeness(
+    *,
+    codigo: str,
+    nombre: str,
+    completeness_estado: str,
+    has_casilla: bool = False,
+    activo: int = 1,
+) -> None:
+    from db import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS modelo_campana_operativa (
+                    campana_id INTEGER PRIMARY KEY,
+                    categoria_obligado TEXT,
+                    frecuencia_presentacion TEXT,
+                    ventana_presentacion TEXT,
+                    canal_presentacion TEXT,
+                    obligados_resumen TEXT,
+                    plazo_resumen TEXT,
+                    presentacion_resumen TEXT,
+                    norma_base TEXT,
+                    nota TEXT,
+                    origen_metadato TEXT,
+                    estado_metadato TEXT,
+                    completeness_estado TEXT,
+                    actualizado_at TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info, activo)
+                VALUES (:codigo, :nombre, 'anual', 'INFORMATIVO', :url_info, 1)
+                ON CONFLICT(codigo) DO UPDATE SET
+                    nombre = excluded.nombre,
+                    periodo = excluded.periodo,
+                    impuesto = excluded.impuesto,
+                    url_info = excluded.url_info,
+                    activo = 1
+                """
+            ),
+            {
+                "codigo": codigo,
+                "nombre": nombre,
+                "url_info": f"https://sede.agenciatributaria.gob.es/modelo-{codigo}",
+            },
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana (modelo_id, campana, activo, url_instrucciones)
+                SELECT id, '2025', :activo, :url_instrucciones
+                FROM aeat_modelo
+                WHERE codigo = :codigo
+                ON CONFLICT(modelo_id, campana) DO UPDATE SET
+                    activo = excluded.activo,
+                    url_instrucciones = excluded.url_instrucciones
+                """
+            ),
+            {
+                "codigo": codigo,
+                "activo": activo,
+                "url_instrucciones": f"https://sede.agenciatributaria.gob.es/modelo-{codigo}-2025",
+            },
+        )
+        campana_id = conn.execute(
+            text(
+                """
+                SELECT mc.id
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = :codigo AND mc.campana = '2025'
+                """
+            ),
+            {"codigo": codigo},
+        ).scalar_one()
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana_operativa (
+                    campana_id,
+                    categoria_obligado,
+                    obligados_resumen,
+                    plazo_resumen,
+                    presentacion_resumen,
+                    nota,
+                    origen_metadato,
+                    estado_metadato,
+                    completeness_estado
+                )
+                VALUES (
+                    :campana_id,
+                    'declaracion_informativa',
+                    'Fuente AEAT verificada para prueba',
+                    'Plazo segun sede AEAT',
+                    'Presentacion segun sede AEAT',
+                    'Metadato operativo curado para test',
+                    'seed_curado',
+                    'curado',
+                    :completeness_estado
+                )
+                ON CONFLICT(campana_id) DO UPDATE SET
+                    categoria_obligado = excluded.categoria_obligado,
+                    obligados_resumen = excluded.obligados_resumen,
+                    plazo_resumen = excluded.plazo_resumen,
+                    presentacion_resumen = excluded.presentacion_resumen,
+                    nota = excluded.nota,
+                    origen_metadato = excluded.origen_metadato,
+                    estado_metadato = excluded.estado_metadato,
+                    completeness_estado = excluded.completeness_estado
+                """
+            ),
+            {"campana_id": campana_id, "completeness_estado": completeness_estado},
+        )
+        if has_casilla:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO modelo_casilla
+                        (campana_id, codigo, etiqueta, descripcion, tipo_casilla, pagina, orden)
+                    VALUES
+                        (:campana_id, 'XSD:Test/Campo', 'Campo XSD de prueba', 'Campo oficial de prueba', 'diseno_registro_xsd_campo', NULL, 1)
+                    ON CONFLICT(campana_id, codigo) DO UPDATE SET
+                        etiqueta = excluded.etiqueta,
+                        descripcion = excluded.descripcion,
+                        tipo_casilla = excluded.tipo_casilla,
+                        pagina = excluded.pagina,
+                        orden = excluded.orden,
+                        activa = 1
+                    """
+                ),
+                {"campana_id": campana_id},
+            )
+
+
 @pytest.mark.asyncio
 async def test_modelo_100_casillas_are_paginated_and_truth_labeled():
     _seed_many_modelo_100_casillas(12)
@@ -594,3 +734,68 @@ async def test_modelo_detail_reports_casillas_fallback_campaign_transparently():
     assert data["casillas_total"] == 1
     assert data["verified"] is False
     assert "campana activa 2013 no tiene casillas" in data["casillas_selection_notice"]
+
+
+@pytest.mark.asyncio
+async def test_modelo_no_casillas_expected_is_verified_without_fake_fields():
+    _seed_modelo_with_explicit_completeness(
+        codigo="146",
+        nombre="Modelo 146. IRPF. Pensionistas con dos o mas pagadores.",
+        completeness_estado="no-casillas-expected",
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        detail_response = await client.get("/v1/modelos/146", params={"casillas_limit": 5})
+        casillas_response = await client.get("/v1/modelos/146/casillas", params={"limit": 5})
+        operativa_response = await client.get("/v1/modelos/146/campana-operativa")
+
+    assert detail_response.status_code == 200
+    assert casillas_response.status_code == 200
+    assert operativa_response.status_code == 200
+
+    detail = detail_response.json()
+    casillas = casillas_response.json()
+    operativa = operativa_response.json()
+
+    assert detail["casillas_total"] == 0
+    assert detail["completeness"] == "no-casillas-expected"
+    assert detail["verified"] is True
+    assert casillas["classification"] == "sin_casillas_esperadas"
+    assert casillas["total"] == 0
+    assert casillas["confidence"]["review_required"] is False
+    assert operativa["completeness_estado"] == "no-casillas-expected"
+    assert operativa["completeness"] == "no-casillas-expected"
+    assert operativa["verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_modelo_deprecated_contract_is_explicit_and_verified():
+    _seed_modelo_with_explicit_completeness(
+        codigo="295",
+        nombre="Modelo 295. Clientes con posicion inversora en IIC espanolas.",
+        completeness_estado="deprecated",
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        detail_response = await client.get("/v1/modelos/295", params={"casillas_limit": 5})
+        operativa_response = await client.get("/v1/modelos/295/campana-operativa")
+
+    assert detail_response.status_code == 200
+    assert operativa_response.status_code == 200
+
+    detail = detail_response.json()
+    operativa = operativa_response.json()
+
+    assert detail["completeness"] == "deprecated"
+    assert detail["verified"] is True
+    assert operativa["completeness_estado"] == "deprecated"
+    assert operativa["completeness"] == "deprecated"
+    assert operativa["verified"] is True

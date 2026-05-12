@@ -57,7 +57,35 @@ def _infer_categoria_obligado(codigo: str, impuesto: str | None, obligados: str 
     return None
 
 
-def _build_truth_contract(*, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None) -> tuple[str, bool]:
+EXPLICIT_COMPLETENESS_STATES = {
+    "completa",
+    "parcial",
+    "no-casillas-expected",
+    "deprecated",
+}
+
+
+def _normalize_explicit_completeness(value: str | None) -> str | None:
+    normalized = (value or "").strip().lower()
+    return normalized if normalized in EXPLICIT_COMPLETENESS_STATES else None
+
+
+def _build_truth_contract(
+    *,
+    has_instructions: bool,
+    has_casillas: bool,
+    metadata_state: str | None = None,
+    explicit_completeness: str | None = None,
+) -> tuple[str, bool]:
+    explicit_state = _normalize_explicit_completeness(explicit_completeness)
+    if explicit_state == "deprecated":
+        return "deprecated", True
+    if explicit_state == "no-casillas-expected":
+        return "no-casillas-expected", True
+    if explicit_state == "parcial":
+        return "parcial", False
+    if explicit_state == "completa":
+        return "completa", True
     if not has_instructions or not has_casillas:
         return "parcial", False
     if metadata_state in {None, "inferido"}:
@@ -66,12 +94,17 @@ def _build_truth_contract(*, has_instructions: bool, has_casillas: bool, metadat
 
 
 def build_modelo_truth_contract(
-    *, has_instructions: bool, has_casillas: bool, metadata_state: str | None = None
+    *,
+    has_instructions: bool,
+    has_casillas: bool,
+    metadata_state: str | None = None,
+    explicit_completeness: str | None = None,
 ) -> tuple[str, bool]:
     return _build_truth_contract(
         has_instructions=has_instructions,
         has_casillas=has_casillas,
         metadata_state=metadata_state,
+        explicit_completeness=explicit_completeness,
     )
 
 
@@ -94,10 +127,16 @@ def get_modelo_runtime_truth_contract(
         if operativa_row and operativa_row.get("estado_metadato")
         else None
     )
+    explicit_completeness = (
+        operativa_row["completeness_estado"]
+        if operativa_row and operativa_row.get("completeness_estado")
+        else None
+    )
     return build_modelo_truth_contract(
         has_instructions=has_instructions,
         has_casillas=has_casillas,
         metadata_state=metadata_state,
+        explicit_completeness=explicit_completeness,
     )
 
 
@@ -117,7 +156,8 @@ def get_modelo_campana_operativa_row(db, campana_id: int):
                     norma_base,
                     nota,
                     origen_metadato,
-                    estado_metadato
+                    estado_metadato,
+                    completeness_estado
                 FROM modelo_campana_operativa
                 WHERE campana_id = :campana_id
                 LIMIT 1
@@ -922,10 +962,16 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
         if operativa_row and operativa_row.get("estado_metadato")
         else None
     )
+    explicit_completeness = (
+        operativa_row["completeness_estado"]
+        if operativa_row and operativa_row.get("completeness_estado")
+        else None
+    )
     completeness, verified = build_modelo_truth_contract(
         has_instructions=bool(instrucciones),
         has_casillas=bool(casillas),
         metadata_state=estado_metadato,
+        explicit_completeness=explicit_completeness,
     )
 
     return {
@@ -944,6 +990,7 @@ def get_modelo_campana_operativa(db, codigo: str, campana: str | None = None):
         "presentacion_resumen": presentacion_payload,
         "origen_metadato": origen_metadato,
         "estado_metadato": estado_metadato,
+        "completeness_estado": explicit_completeness,
         "completeness": completeness,
         "verified": verified,
         "fuentes_recomendadas": (fuentes or {}).get("fuentes_oficiales", []),

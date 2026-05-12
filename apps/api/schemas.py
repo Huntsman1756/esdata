@@ -281,7 +281,13 @@ class ModeloCasillasResponse(BaseModel):
     has_more: bool = Field(description="Si hay mas casillas disponibles")
     next_offset: int | None = Field(default=None, description="Offset para continuar, si hay mas")
     filters: dict = Field(default_factory=dict, description="Filtros aplicados")
-    classification: str = Field(description="confirmado si hay casillas oficiales devueltas; requiere_verificacion si no")
+    classification: str = Field(
+        description=(
+            "confirmado si hay casillas oficiales devueltas; "
+            "sin_casillas_esperadas si el modelo esta verificado como sin casillas "
+            "estructuradas; requiere_verificacion si no"
+        )
+    )
     obligation_notice: str = Field(description="Aviso de que casilla no implica obligatoriedad por supuesto")
     completeness: str = Field(description="Estado de completitud del modelo/campana")
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
@@ -332,7 +338,18 @@ class ModeloCampanaOperativaResponse(BaseModel):
     presentacion_resumen: str | None = Field(default=None, description="Resumen de presentación")
     origen_metadato: str | None = Field(default=None, description="Origen del metadato")
     estado_metadato: str | None = Field(default=None, description="Estado del metadato")
-    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    completeness_estado: str | None = Field(
+        default=None,
+        description=(
+            "Estado explicito curado para sobrescribir el contrato: completa, parcial, "
+            "no-casillas-expected o deprecated"
+        ),
+    )
+    completeness: str = Field(
+        description=(
+            "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
+        )
+    )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
     fuentes_recomendadas: list["ModeloFuenteOficial"] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
 
@@ -391,7 +408,11 @@ class ModeloDetail(BaseModel):
         default_factory=list, description="Doctrina relacionada vía artículos"
     )
     doctrina_relacionada_total: int = Field(default=0, description="Total de doctrina relacionada devuelta")
-    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    completeness: str = Field(
+        description=(
+            "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
+        )
+    )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
 
 
@@ -1214,7 +1235,11 @@ class MCPMinimumResponseContract(BaseModel):
     tool_name: str = Field(description="Nombre estable de la tool o superficie")
     sources: list[dict] = Field(default_factory=list, description="Fuentes o chunks que respaldan la respuesta")
     confidence: dict = Field(description="Confianza operativa de la respuesta")
-    completeness: str = Field(description="Estado de completitud: completa o parcial")
+    completeness: str = Field(
+        description=(
+            "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
+        )
+    )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
 
 
