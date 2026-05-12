@@ -328,6 +328,23 @@ Learnings:
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
 
+=== Iteration 9 - 2026-05-12T19:53:00+02:00 ===
+Story: Q-09 MiCA / ESMA - verify configured_but_unavailable domains respond correctly
+Queries tested: 7
+Results: correct=3 honest_limit=4 incorrect=0
+Incorrect answers found: none
+Fixes applied: added `/v1/mica/casp/buscar` with `quality_signal=official_esma_register`, `availability_status=populated`, `safe_to_answer=true`, and official ESMA MiCA register source URL when CASP rows are loaded; empty MiCA/DAC8 workflow tables now return explicit availability envelopes instead of bare empty lists.
+Evidence:
+- Local tests: `pytest apps/api/tests/test_mica.py apps/api/tests/test_domain_availability.py::test_empty_domain_router_uses_explicit_availability_status apps/api/tests/test_mcp_private.py::test_mcp_catalog_exposes_expected_core_http_operations scripts/tests/test_verify_doc_artifacts.py -q --basetemp .pytest-tmp` -> 25 passed.
+- Official source: ESMA MiCA page states the interim MiCA register is published as CSV files, includes authorised crypto-asset service providers (Title V), and was last updated 4 May 2026.
+- VPS `/v1/mica/casp/buscar?q=BBVA&limit=3` -> `total=1`, `quality_signal=official_esma_register`, `availability_status=populated`, `safe_to_answer=true`, first row `BBVA`, LEI `K8MS7FD7N5Z2WQ51AZ71`, home member state `ES`.
+- VPS `/v1/mica/casp/buscar?q=crypto` -> `total=6`, `quality_signal=official_esma_register`, `availability_status=populated`.
+- VPS empty MiCA tables: `crypto_asset` and `crypto_transaction` return `workflow_empty`; `tokenized_asset` and `wallet_custodian` return `configured_but_unavailable`; all have `safe_to_answer=false` and empty `items`.
+- VPS `/v1/mica/casp/buscar?q=circular%20CNMV&limit=1` -> `total=0`, no CNMV substitution.
+- VPS GPT OpenAPI includes `/v1/mica/casp/buscar`.
+- VPS `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`.
+Next: Q-10
+
 === Iteration Q-06 - 2026-05-12T21:05:00+02:00 ===
 Story: Q-06 EUR-Lex / MiFID II - verify real article content is returned
 Queries tested: 4

@@ -113,7 +113,7 @@
                             "id":  "Q-09",
                             "title":  "MiCA / ESMA - verify configured_but_unavailable domains respond correctly",
                             "priority":  9,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "CASP ESMA loaded data must return real rows if present",
                                                        "Empty MiCA tables must return configured_but_unavailable",
