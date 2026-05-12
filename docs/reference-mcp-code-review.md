@@ -39,12 +39,48 @@ Conclusion: EUR-Lex ya no esta limitado a metadata para todos los registros; MiF
 4. BOE diario/PDF fallback se tratara como nuevo worker o extension acotada para documentos no consolidados. Debe etiquetar el origen como XML diario o PDF, no mezclarlo con legislacion consolidada.
 5. El siguiente gap de contrato MCP no es mas scraping: es output schema y metadatos de calidad/frescura por herramienta.
 
+## S-07 BOE non-consolidated fallback
+
+Evaluacion del patron `anamtb/boe-mcp`:
+
+- Patron aceptable: probar primero la API de legislacion consolidada para normas `BOE-A` ya integrables en `norma/articulo/version_articulo`; si no existe texto consolidado o el identificador es `BOE-B`, `BOE-S` o `BOE-N`, consultar `https://www.boe.es/diario_boe/xml.php?id=<BOE-ID>`.
+- Patron aceptable con etiqueta de calidad: si el XML diario no incluye texto suficiente, usar `url_pdf`/`url_archivo` del XML como fallback PDF. La construccion heuristica de PDF solo debe aceptarse si se valida HTTP 200, `Content-Type` PDF y hash de contenido.
+- Patron rechazado como default: `fetchExternalUrl` sobre enlaces externos encontrados dentro del BOE. Puede servir a una herramienta manual futura, pero no debe poblar corpus oficial sin allowlist por organismo y tipo documental.
+- Patron rechazado para el corpus consolidado: insertar anuncios, licitaciones, suplementos, notificaciones o PDFs no consolidados en `articulo/version_articulo`.
+
+Mapa de necesidades:
+
+| Tipo BOE | Fuente primaria | Fallback | Tabla destino | Calidad inicial |
+| --- | --- | --- | --- | --- |
+| `BOE-A` legislacion consolidable | `datosabiertos/api/legislacion-consolidada` | XML diario solo si falta el texto consolidado | `norma`, `articulo`, `version_articulo` solo para articulado consolidado; `documento_interpretativo` si no hay articulado | `complete/official_exact` para consolidado; `partial/official_best_effort` para XML/PDF no consolidado |
+| `BOE-B` anuncios | `diario_boe/xml.php?id=<id>` | PDF oficial enlazado en XML | `documento_interpretativo` con `tipo_fuente='boe_diario'` o tabla futura `boe_diario_documento` | XML: `complete/official_exact` si texto completo; PDF: `partial/official_best_effort` |
+| `BOE-S` suplementos | `diario_boe/xml.php?id=<id>` | PDF oficial enlazado en XML | `documento_interpretativo` / `boe_diario_documento` | `partial` salvo estructura XML completa |
+| `BOE-N` notificaciones | `diario_boe/xml.php?id=<id>` | PDF oficial enlazado en XML | `documento_interpretativo` / `boe_diario_documento` | `partial`, no usar como normativa vigente |
+| BORME-like | `diario_borme` / PDF oficial | PDF extraction actual de `apps/workers/borme.py` | `documento_interpretativo`, `empresa`, `documento_empresa` | `partial/official_best_effort` cuando la extraccion societaria es heuristica |
+
+Campos de procedencia obligatorios antes de implementar:
+
+- `referencia`: identificador BOE/BORME exacto (`BOE-B-YYYY-NNNNN`, `BOE-S-...`, `BOE-N-...`, `BORME-...`).
+- `url_fuente`: URL oficial usada para responder; XML si el texto viene del XML, PDF si el texto viene del PDF.
+- `source_revision`: `worker_name`, `source_entity_tipo`, `source_entity_id`, `source_url`, `content_hash_sha256`, `fetched_at` para cada XML/PDF descargado.
+- `row_completeness`: `complete` solo si el XML oficial contiene texto suficiente y estructurado; `partial` para PDF OCR/text extraction o estructura no articulada.
+- `row_provenance`: `official_exact` para XML estructurado oficial; `official_best_effort` para texto extraido de PDF o campos mercantiles heurísticos.
+- `metadata`: debe incluir `source_format` (`boe_daily_xml`, `boe_pdf`, `borme_pdf`), `extraction_method`, `text_length`, `pdf_url`, `xml_url`, `content_hash` y cualquier aviso de truncado.
+
+Implementacion recomendada:
+
+1. Crear `worker-boe-diario` / `cron-boe-diario-daily` o una extension separada de `boe.py` que escriba en `documento_interpretativo`; no mezclar con `worker-boe` consolidado.
+2. Exponer endpoints/MCP como `listar_boe_diario` y `get_boe_diario`, con filtros por `boe_id`, fecha, seccion y tipo (`BOE-B/S/N`).
+3. Mantener `/v1/legislacion/*` y herramientas de articulado solo para `norma/articulo/version_articulo`.
+4. Activar `document_decomposition.py` despues de ingesta si se necesita retrieval por fragmentos, conservando `documento_origen_tipo='documento_interpretativo'`.
+5. Anadir tests con fixtures XML/PDF oficiales pequenos: XML completo, XML sin texto suficiente, PDF enlazado, 404/No encontrado, y caso `BOE-B` que nunca debe crear filas en `articulo`.
+
 ## Backlog Derivado
 
 | ID | Prioridad | Historia | Resultado esperado |
 | --- | ---: | --- | --- |
 | S-05 | 1 | EUR-Lex quality contract | Exponer `metadata_only` / `article_text_available`, `verified`, `completeness` y `evidence_notice` en API/MCP. |
 | S-06 | 2 | EUR-Lex deep ingestion safe mode | Implementado: ingesta por allowlist CELEX y presupuesto por ejecucion; MiFID II cargado en VPS con 93 articulos/versiones. Pendiente de expansion: lotes adicionales y quality counters esperados/parsing por CELEX. |
-| S-07 | 3 | BOE non-consolidated fallback | Ingerir BOE diario/XML y PDF para documentos no consolidados con procedencia separada. |
+| S-07 | 3 | BOE non-consolidated fallback | Evaluado y documentado: XML/PDF no consolidado debe ir a `documento_interpretativo` o tabla `boe_diario_documento`, nunca a `articulo/version_articulo`; implementacion queda como historia separada. |
 | S-08 | 4 | MCP output schemas | Anadir `outputSchema`/anotaciones read-only a herramientas MCP expuestas. |
 | S-09 | 5 | EU source registry quality counters | Persistir `articles_expected`, `articles_parsed` y `quality_status` por CELEX cuando el worker pueda medirlo. |

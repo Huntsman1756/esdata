@@ -108,7 +108,7 @@
       "title": "Assess BOE non-consolidated XML/PDF fallback",
       "priority": 8,
       "phase": "source-domain-audit",
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Map BOE diario XML and PDF fallback needs for BOE-B/BOE-S/BOE-N and BORME-like documents.",
         "Do not mix non-consolidated PDF extraction with BOE consolidated law rows.",
