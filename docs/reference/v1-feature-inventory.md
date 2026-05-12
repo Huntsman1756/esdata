@@ -329,6 +329,8 @@ Documentation warning:
 | `worker-cdi` / `cron-cdi-weekly` | continuous + weekly | implemented | CDI/DTA conventions into IRS DTA convention tables. |
 | `worker-aepd` / `cron-aepd-weekly` | continuous + weekly | implemented | AEPD documents. |
 | `cron-regulatory-daily` | daily | implemented | Watches BOE, AEAT, EUR-Lex, AEPD, BDE, DGT into `source_revision`. |
+| `official-regulatory-references` | weekly | implemented | Loads compact official regulatory references and records sync telemetry. |
+| `cron-pgc-boe-monthly` | monthly | implemented | PGC BOE official-source ingestion. |
 | `cron-psd2-weekly` | weekly | partial | EBA primary unavailable in artifact; uses BdE-verified fallback. |
 | `cron-giin-monthly` | monthly | implemented | IRS FATCA GIIN. |
 | `cron-ofac-sdn-weekly` | weekly | implemented/partial | OFAC SDN only, official XML source. |
@@ -360,11 +362,13 @@ Examples include:
 - `ley*.py`
 - `mar_mifid.py`
 - `mifid_mar_dora.py`
-- `official_regulatory_references.py`
 - `pbc.py`
-- `pgc*.py`
+- `pgc.py`
+- `pgc_real.py`
+- `pgc_xbrl_mapping.py`
 - `priips_ownership.py`
 - `prospectos.py`
+- `psd2.py`
 - `rirnr.py`
 - `screening.py`
 - `screening_real.py`

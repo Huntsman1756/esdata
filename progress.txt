@@ -266,3 +266,20 @@ Learnings:
 - Prometheus and Alertmanager ports are intentionally not published to the host; rule inspection must run inside their containers.
 - The generic `WorkerSilent` rule is correct because worker-specific coverage comes from API-exported metric labels, not hardcoded alert expressions.
 Next: A-12
+
+=== Iteration 15 - 2026-05-12T02:56:00+02:00 ===
+Story: A-12 Classify undocumented workers - docs/worker-inventory.md
+Verification run: worker inventory regression tests and deploy-doc tests.
+Result: PASS
+Root cause: the existing inventory had drift after later cron wiring: `official_regulatory_references.py`, `pgc_boe.py`, and `psd2_eba.py` were no longer undeployed/import-only, and `document_decomposition.py` was worker-style code rather than an imported production module.
+Fix applied: rewrote `docs/worker-inventory.md` with current evidence: 82 `apps/workers/*.py` files, 22 deployed worker files wired by 37 Compose services, 37 standalone worker modules not deployed in production, 12 deprecated/development-only loaders, plus the canonical Hermes monitor script. Added `scripts/tests/test_worker_inventory.py` to prevent future drift and added grouped `workerRemediationStories` to `prd.json` for undeployed TYPE-C modules.
+Local verification:
+- `python -m pytest scripts/tests/test_worker_inventory.py scripts/tests/test_deploy_hetzner.py -q --basetemp .pytest-tmp`: 26 passed.
+- `python -m compileall -q scripts/tests/test_worker_inventory.py`: PASS.
+- Acceptance check `docs/worker-inventory.md` exists and contains `TYPE-` classifications: PASS.
+Warnings:
+- `python scripts/maintenance/verify-doc-artifacts.py` still reports pre-existing broad documentation drift/artifact lint findings unrelated to this inventory slice, plus the newly touched file is now line-wrapped to avoid adding new line-length debt.
+Learnings:
+- Worker inventory must be derived from `WORKER_CMD` in Compose, not from old roadmap claims.
+- Undeployed worker-style modules are product backlog, not production jobs, even when they have tests or `run_sync()`.
+Next: A-13

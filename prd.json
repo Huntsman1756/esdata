@@ -23,8 +23,78 @@
     {"id": "A-09", "title": "MCP tool accuracy spot-check", "priority": 12, "phase": "audit", "passes": true},
     {"id": "A-10", "title": "Verify query_audit_log append-only and captures invocations", "priority": 13, "phase": "audit", "passes": true},
     {"id": "A-11", "title": "Prometheus alert rules - verify coverage for all stale workers", "priority": 14, "phase": "audit", "passes": true},
-    {"id": "A-12", "title": "Classify undocumented workers - docs/worker-inventory.md", "priority": 15, "phase": "audit", "passes": false},
+    {"id": "A-12", "title": "Classify undocumented workers - docs/worker-inventory.md", "priority": 15, "phase": "audit", "passes": true},
     {"id": "A-13", "title": "Seed AEAT models - populate Hacienda tables", "priority": 16, "phase": "audit", "passes": false},
     {"id": "A-14", "title": "Final population report - all compliance tables", "priority": 17, "phase": "audit", "passes": false}
+  ],
+  "workerRemediationStories": [
+    {
+      "id": "W-C-01",
+      "title": "Assess and wire high-priority AEAT/IRNR/DAC standalone workers",
+      "status": "backlog",
+      "files": ["aeat_irnr.py", "dac8.py", "dac8_real.py", "dac_directives.py", "modelos.py", "rirnr.py"],
+      "acceptanceCriteria": [
+        "Official source URLs verified and documented",
+        "Run-once execution writes sync_log",
+        "Compose/systemd wiring added only when production-safe",
+        "MCP/API availability remains fail-closed until data is verified"
+      ]
+    },
+    {
+      "id": "W-C-02",
+      "title": "Assess and wire capital-markets standalone workers",
+      "status": "backlog",
+      "files": ["aifmd_ucits.py", "crd_brrd_emir.py", "csdr.py", "dora.py", "mar_mifid.py", "mifid_mar_dora.py", "priips_ownership.py", "prospectos.py", "xbrl.py", "xbrl_taxonomy.py"],
+      "acceptanceCriteria": [
+        "Official CNMV/EUR-Lex/ESMA source boundaries verified",
+        "Idempotent writes and sync_log telemetry proven",
+        "Cron/systemd schedules justified by publication cadence",
+        "Domain availability metadata updated before exposing answers"
+      ]
+    },
+    {
+      "id": "W-C-03",
+      "title": "Assess and wire sustainability and insurance standalone workers",
+      "status": "backlog",
+      "files": ["corporate_sustainability.py", "csr.py", "insurance.py", "sfdr.py", "solvency.py", "sustainable_finance.py"],
+      "acceptanceCriteria": [
+        "EU/Spanish official sources verified",
+        "Seed-only data separated from official ingested data",
+        "No compliance answer exposed as verified until evidence is complete"
+      ]
+    },
+    {
+      "id": "W-C-04",
+      "title": "Assess and wire banking, PBC and screening standalone workers",
+      "status": "backlog",
+      "files": ["consumer_credit.py", "consumer_credit_real.py", "fraud.py", "pbc.py", "psd2.py", "screening_real.py"],
+      "acceptanceCriteria": [
+        "Official source precedence documented",
+        "Unofficial or fallback sources quarantined from authoritative answers",
+        "Retries, dead-letter behavior and stale warnings verified"
+      ]
+    },
+    {
+      "id": "W-C-05",
+      "title": "Assess and wire enrichment standalone workers",
+      "status": "backlog",
+      "files": ["dgt_doctrina.py", "document_decomposition.py", "entity_identity.py", "jurisprudencia.py", "legalize_es.py", "micro_obligations.py"],
+      "acceptanceCriteria": [
+        "Clear ownership of target tables documented",
+        "Runtime role separated from helper/import-only modules",
+        "No local or derived content treated as authoritative source text"
+      ]
+    },
+    {
+      "id": "W-C-06",
+      "title": "Assess and wire PGC standalone workers",
+      "status": "backlog",
+      "files": ["pgc.py", "pgc_real.py", "pgc_xbrl_mapping.py"],
+      "acceptanceCriteria": [
+        "Relationship with deployed pgc_boe.py is documented",
+        "Duplicate table writes avoided",
+        "Only official BOE-backed PGC data is exposed as verified"
+      ]
+    }
   ]
 }
