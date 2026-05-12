@@ -39,6 +39,12 @@ Este documento replica el criterio aplicado a modelos AEAT: una fuente queda mar
 ## Evidencia Freshness / Gates
 
 - `/status`: API OK, DB OK, `stale_workers=0`.
-- `mcp_validation_suite.py --read-only --base-url http://api:8000`: `ok=true`, 36 tools antes de ampliar catalogo.
-- `mcp_deep_contract_audit.py --base-url http://api:8000`: `ok=true`, 163 tablas, 56 FK, 90 tablas vacias clasificadas sin `unknown`.
-- Tras ampliar catalogo MCP, debe repetirse en VPS y el conteo de tools debe aumentar de forma esperada.
+- Probes VPS tras despliegue `b2cc8812`:
+  - `/v1/borme?limit=1&offset=0`: `200`, `total=1`, `actos_len=1`.
+  - `/v1/eurlex?limit=2&offset=0`: `200`, `total=32`, `documentos_len=2`, `has_more=true`.
+  - `/v1/irs-fiscal/giin?limit=3&offset=0`: `200`, `total=508593`, `registros_len=3`, `next_offset=3`.
+  - `/v1/psd2/aspsp?limit=2`, `/aisp?limit=2`, `/pisp?limit=2`: `200`, respuestas paginadas.
+  - `/v1/psd2/sepa-rules?limit=1`: `200`, `total=2`, `has_more=true`.
+  - `/v1/screening/entries?codigo=EU_SANCTIONS`: `configured_but_unavailable`, `safe_to_answer=false`.
+- `mcp_validation_suite.py --read-only --base-url http://api:8000`: `ok=true`, `tool_count=63`.
+- `mcp_deep_contract_audit.py --base-url http://api:8000`: `ok=true`, 163 tablas, 56 FK, 90 tablas vacias clasificadas sin `unknown`, `expected_operations=63`, `tools_returned=63`.

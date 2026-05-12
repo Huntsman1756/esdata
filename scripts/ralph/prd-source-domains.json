@@ -49,7 +49,7 @@
       "title": "Deploy source-domain MCP coverage and rerun production gates",
       "priority": 4,
       "phase": "source-domain-audit",
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Deploy commit to VPS.",
         "Verify /v1/borme returns 200.",
