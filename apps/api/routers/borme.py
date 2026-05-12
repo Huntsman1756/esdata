@@ -7,6 +7,12 @@ from schemas import BORMEDetail, BORMEListResponse
 router = APIRouter(prefix="/v1/borme", tags=["borme"])
 
 
+def _quality_signal(row_completeness: str | None, row_provenance: str | None) -> str:
+    if row_completeness == "partial" or row_provenance == "official_best_effort":
+        return "partial_heuristic"
+    return "official_exact"
+
+
 @router.get("", response_model=BORMEListResponse, operation_id="listar_borme")
 async def listar_borme(
     q: str | None = Query(None, description="Filtrar por texto o título"),
@@ -34,7 +40,8 @@ async def listar_borme(
         rows = db.execute(
             text(
                 """
-                SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente
+                SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente,
+                       row_completeness, row_provenance
                 FROM documento_interpretativo d
                 WHERE {where_clause}
                 ORDER BY fecha DESC, referencia DESC
@@ -63,6 +70,9 @@ async def listar_borme(
                 "fragmento": row["texto"][:220]
                 + ("..." if len(row["texto"]) > 220 else ""),
                 "url_fuente": row["url_fuente"],
+                "row_completeness": row["row_completeness"],
+                "row_provenance": row["row_provenance"],
+                "quality_signal": _quality_signal(row["row_completeness"], row["row_provenance"]),
             }
             for row in rows
         ]
@@ -74,6 +84,7 @@ async def listar_borme(
             "offset": offset,
             "has_more": next_offset is not None,
             "next_offset": next_offset,
+            "quality_signal": "partial_heuristic",
         }
 
 
@@ -84,7 +95,8 @@ async def get_borme(referencia: str):
             db.execute(
                 text(
                     """
-                    SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente
+                    SELECT referencia, fecha, titulo, tipo_documento, texto, url_fuente,
+                           row_completeness, row_provenance
                     FROM documento_interpretativo d
                     WHERE d.organismo_emisor = 'BORME'
                       AND d.tipo_fuente = 'borme'
@@ -124,6 +136,9 @@ async def get_borme(referencia: str):
             "tipo_documento": row["tipo_documento"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
+            "row_completeness": row["row_completeness"],
+            "row_provenance": row["row_provenance"],
+            "quality_signal": _quality_signal(row["row_completeness"], row["row_provenance"]),
             "empresas_relacionadas": [
                 {
                     "id": item["id"],

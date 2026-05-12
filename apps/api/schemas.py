@@ -3904,6 +3904,9 @@ class BORMEListItem(BaseModel):
     tipo_documento: str | None = Field(default=None, description="Tipo de acto detectado")
     fragmento: str = Field(description="Extracto truncado del texto oficial")
     url_fuente: str | None = Field(default=None, description="URL oficial BORME/BOE")
+    row_completeness: str | None = Field(default=None, description="complete | partial")
+    row_provenance: str | None = Field(default=None, description="official_exact | official_best_effort")
+    quality_signal: str | None = Field(default=None, description="partial_heuristic | official_exact")
 
 
 class BORMEListResponse(BaseModel):
@@ -3913,6 +3916,7 @@ class BORMEListResponse(BaseModel):
     offset: int | None = None
     has_more: bool | None = None
     next_offset: int | None = None
+    quality_signal: str | None = Field(default=None, description="Overall quality signal for BORME extraction")
 
 
 class BORMEEmpresaRelacionada(BaseModel):
@@ -3929,6 +3933,9 @@ class BORMEDetail(BaseModel):
     tipo_documento: str | None = None
     texto: str
     url_fuente: str | None = None
+    row_completeness: str | None = None
+    row_provenance: str | None = None
+    quality_signal: str | None = None
     empresas_relacionadas: list[BORMEEmpresaRelacionada] = Field(default_factory=list)
 
 
