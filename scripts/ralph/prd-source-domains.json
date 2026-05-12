@@ -93,7 +93,7 @@
       "title": "Implement EUR-Lex deep article ingestion safe mode",
       "priority": 7,
       "phase": "source-domain-audit",
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Use Publications Office consolidation/RDF flow as primary source for article text.",
         "Add run budget controls so EURLEX_FETCH_ARTICLES cannot hang a cron run silently.",

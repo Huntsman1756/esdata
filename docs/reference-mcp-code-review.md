@@ -22,14 +22,14 @@ Objetivo: identificar codigo reutilizable como patron tecnico para cerrar gaps r
 
 ## Comprobacion ESData Actual
 
-Produccion VPS verificada el 2026-05-12:
+Produccion VPS verificada el 2026-05-12 tras S-06:
 
 - `norma.tipo_fuente='eurlex'`: `32` normas.
-- Articulos EUR-Lex: `0`.
-- Versiones EUR-Lex: `0`.
-- Ultimos `worker-eurlex` / `cron-eurlex-weekly`: `status=ok`, `fetch_articles=False`, `discovery_enabled=False`.
+- Articulos EUR-Lex: `93` para la ingesta acotada de MiFID II (`CELEX 32014L0065`).
+- Versiones EUR-Lex: `93`.
+- Ultimo `cron-eurlex-weekly` probado en VPS: `status=ok`, `rows_processed=93`, `fetch_articles=True`, `seed_selected=1`, `fetch_errors=0`.
 
-Conclusion: EUR-Lex esta sano como metadata oficial, pero no como corpus profundo de articulado. Antes de este cambio, `/v1/eurlex/{referencia}` podia devolver `texto=""` sin un aviso explicito de evidencia limitada. Eso se corrige en el contrato API/MCP con `coverage_status`, `verified`, `completeness`, `articulos_total` y `evidence_notice`.
+Conclusion: EUR-Lex ya no esta limitado a metadata para todos los registros; MiFID II tiene articulado real cargado desde fuente oficial y el resto de CELEX sigue degradando a `metadata_only`/`evidence_limited` cuando no hay articulos. Antes de S-05, `/v1/eurlex/{referencia}` podia devolver `texto=""` sin aviso explicito; ahora el contrato API/MCP separa `coverage_status`, `verified`, `completeness`, `articulos_total` y `evidence_notice`.
 
 ## Decisiones
 
@@ -44,8 +44,7 @@ Conclusion: EUR-Lex esta sano como metadata oficial, pero no como corpus profund
 | ID | Prioridad | Historia | Resultado esperado |
 | --- | ---: | --- | --- |
 | S-05 | 1 | EUR-Lex quality contract | Exponer `metadata_only` / `article_text_available`, `verified`, `completeness` y `evidence_notice` en API/MCP. |
-| S-06 | 2 | EUR-Lex deep ingestion safe mode | Activar ingesta de articulado por lotes pequenos usando Publications Office y, solo si hace falta, browser fallback validado. |
+| S-06 | 2 | EUR-Lex deep ingestion safe mode | Implementado: ingesta por allowlist CELEX y presupuesto por ejecucion; MiFID II cargado en VPS con 93 articulos/versiones. Pendiente de expansion: lotes adicionales y quality counters esperados/parsing por CELEX. |
 | S-07 | 3 | BOE non-consolidated fallback | Ingerir BOE diario/XML y PDF para documentos no consolidados con procedencia separada. |
 | S-08 | 4 | MCP output schemas | Anadir `outputSchema`/anotaciones read-only a herramientas MCP expuestas. |
 | S-09 | 5 | EU source registry quality counters | Persistir `articles_expected`, `articles_parsed` y `quality_status` por CELEX cuando el worker pueda medirlo. |
-

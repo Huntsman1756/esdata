@@ -33,6 +33,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-12 - EUR-Lex deep ingestion debe ir por CELEX allowlist
+
+- Scope: `apps/workers/eurlex.py`, `cron-eurlex-weekly`, `/v1/eurlex`.
+- Hallazgo: el patron reutilizable de MCP externos no es copiar corpus ni usar navegador por defecto, sino presupuestar la ingesta por CELEX y degradar con evidencia limitada cuando no hay articulado. En VPS se probo `EURLEX_FETCH_ARTICLES=true`, `EURLEX_ONLY_CELEX=32014L0065`, `EURLEX_MAX_CELEX_PER_RUN=1`.
+- Impacto: MiFID II ya expone articulado real (`article_text_available`), pero otros CELEX pueden seguir `metadata_only`; el agente no debe extrapolar cobertura global EUR-Lex.
+- Regla practica: cualquier ampliacion EUR-Lex debe anadir CELEXs de forma acotada, revisar `sync_log` (`fetch_errors=0`, `seed_selected=N`) y confirmar `/v1/eurlex/<referencia>` antes de marcar una norma como consultable con texto.
+
 ### 2026-05-12 - AEAT PDFs de diseno: parsear solo tablas deterministas
 
 - Scope: `apps/workers/aeat_current_designs.py`, modelos AEAT 1XX/2XX, tabla `modelo_casilla`.
