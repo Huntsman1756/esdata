@@ -100,7 +100,7 @@
                             "id":  "Q-08",
                             "title":  "CNMV - verify circular/document responses are traceable to official CNMV source",
                             "priority":  8,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Call CNMV endpoint for loaded document",
                                                        "Response must include titulo, fecha_publicacion, url_cnmv or boe_referencia",

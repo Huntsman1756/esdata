@@ -400,6 +400,44 @@ Verification run:
 - VPS: API rebuilt from commit `4524887`; `/health` ok; DGT probes above PASS.
 Next: Q-08
 
+=== Iteration Q-08 - 2026-05-12T21:35:00+02:00 ===
+Story: Q-08 CNMV - verify circular/document responses are traceable to official CNMV source
+Queries tested: 5
+Results: correct=4 honest_limit=1 incorrect=0
+Incorrect answers found: none after fix
+Root cause:
+- CNMV had real loaded documents in `/v1/cnmv`, but the sprint/API contract expected `/v1/cnmv/buscar`, which returned 404.
+- List responses did not expose direct aliases for `url_cnmv`, `boe_referencia` or `fecha_publicacion`, making MCP/GPT consumers do extra inference.
+Fixes applied:
+- Added `/v1/cnmv/buscar` alias with operation_id `buscar_cnmv`.
+- Added traceability aliases to CNMV list/detail responses: `fecha_publicacion`, `referencia_boe`, `boe_referencia`, `url_cnmv`.
+- Added `buscar_cnmv` to MCP catalog and regenerated GPT Actions OpenAPI specs.
+Evidence:
+- QUERY: GET /v1/cnmv/buscar?q=circular&limit=1
+  DOMAIN: CNMV
+  RESPONSE: total=65, first=BOE-A-2025-14700, tipo_documento=circular_cnmv, boe_referencia=BOE-A-2025-14700, url_cnmv=https://www.boe.es/boe/dias/2025/07/16/pdfs/BOE-A-2025-14700.pdf.
+  OFFICIAL SOURCE: BOE official PDF for CNMV Circular 3/2025 returns HTTP 200, application/pdf.
+  VERDICT: CORRECT
+- QUERY: GET /v1/cnmv/{referencia}
+  DOMAIN: CNMV
+  RESPONSE: detail preserves `fecha_publicacion`, `url_fuente`, `url_cnmv`, `boe_referencia`, `referencia_boe`.
+  OFFICIAL SOURCE: same BOE official PDF URL.
+  VERDICT: CORRECT
+- QUERY: GET /gpt-actions/modelos/openapi.json
+  DOMAIN: GPT Actions
+  RESPONSE: path `/v1/cnmv/buscar` present.
+  VERDICT: CORRECT
+- QUERY: mcp_validation_suite read-only
+  DOMAIN: MCP contract
+  RESPONSE: ok=true.
+  VERDICT: CORRECT
+Verification run:
+- Local RED then GREEN: `pytest apps/api/tests/test_cnmv_router.py apps/api/tests/test_mcp_private.py::test_mcp_catalog_exposes_expected_core_http_operations scripts/tests/test_verify_doc_artifacts.py -q --basetemp .pytest-tmp` -> 15 passed.
+- VPS: API rebuilt from commit `2d1bdf5`; CNMV probes above PASS.
+Notes:
+- `verify-doc-artifacts.py` still reports pre-existing repository-wide docs/env drift unrelated to Q-08; focused tests for generated OpenAPI artifacts pass.
+Next: Q-09
+
 === Iteration Q-04 - 2026-05-12T18:49:00+02:00 ===
 Story: Q-04 BOE search - verify ranked results are legally correct and not contaminated
 Queries tested: 5
