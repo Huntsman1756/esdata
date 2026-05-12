@@ -367,3 +367,20 @@ Learnings:
 - 294/295 deben quedarse bloqueados salvo parser especifico de PDF esquematico; el texto extraido no ofrece tabla fiable.
 - 234/235/236 aportan ejemplos XML, no XSD completo observado; no son suficientes para afirmar completitud.
 Next: M-01
+
+=== Iteration 2 - 2026-05-12T16:45:00+02:00 ===
+Story: M-01 Fix modelo 102 and 206 nombre contamination + load casillas if available
+Models processed: 102,206
+Result per model:
+  - 102: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-100-mode-declaracion-documentos-devolucion_/descarga-modelo-102.html | reason: override fijado a `Modelo 102. IRPF. Segundo plazo del fraccionamiento de la declaracion anual.`; no hay diseno de registro propio segun M-00
+  - 206: STATUS-B | casillas loaded: 0 | source: https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml | reason: override fijado a `Modelo 206. IS/IRNR. Documento de ingreso o devolucion. (Modelo 200 y 206).`; AEAT lo agrupa con 200 y no hay diseno independiente
+Overall result: PASS
+Verification run:
+- Local red/green: test nuevo fallo con override antiguo y pasa tras cambio.
+- `PYTHONPATH=apps;apps\\workers python -m pytest apps\\workers\\tests\\test_aeat_models.py::TestFetchModelMetadata -q --basetemp .pytest-tmp` -> 10 passed.
+- `python -m compileall apps\\workers\\aeat_models.py apps\\workers\\tests\\test_aeat_models.py` -> PASS.
+- Suite completa `apps\\workers\\tests\\test_aeat_models.py` mantiene 2 fallos preexistentes ajenos a M-01 en tests de `run_sync` con SQLite sin tablas `aeat_modelo`/`sync_dead_letter`; no se mezclan en esta historia.
+Learnings:
+- `102` y `206` deben permanecer en `MODEL_METADATA_OVERRIDES` porque sus paginas oficiales describen formularios padre (`100`/`200`) o paginas agrupadas.
+- M-01 no carga casillas: ambos son STATUS-B en M-00.
+Next: M-02

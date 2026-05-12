@@ -19,7 +19,7 @@
       "id": "M-01",
       "title": "Fix modelo 102 and 206 nombre contamination + load casillas if available",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "102: official AEAT name is segundo plazo fraccionamiento IRPF",
         "206: official AEAT name is IS/IRNR document of ingreso/devolucion tied to model 200",

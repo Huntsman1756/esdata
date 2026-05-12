@@ -379,6 +379,36 @@ class TestFetchModelMetadata:
         assert result["impuesto"] == "IS/IRNR"
         assert result["metadata_override"] is True
 
+    def test_known_metadata_overrides_keep_102_and_206_official_names(self):
+        portal_client = MagicMock()
+        portal_client.fetch_detail.return_value = """
+        <html><body>
+            <h1>Modelo 100. Impuesto sobre la Renta de las Personas Fisicas.</h1>
+            <h2>Modelo 200. Documentos de ingreso o devolucion.</h2>
+        </body></html>
+        """
+
+        model_102 = aeat_models._fetch_model_metadata(
+            "102",
+            url_info=aeat_models.MODEL_METADATA_OVERRIDES["102"]["url_info"],
+            portal_client=portal_client,
+        )
+        model_206 = aeat_models._fetch_model_metadata(
+            "206",
+            url_info=aeat_models.MODEL_METADATA_OVERRIDES["206"]["url_info"],
+            portal_client=portal_client,
+        )
+
+        assert model_102 is not None
+        assert model_102["nombre"] == "Modelo 102. IRPF. Segundo plazo del fraccionamiento de la declaracion anual."
+        assert model_102["url_info"].endswith("descarga-modelo-102.html")
+        assert model_206 is not None
+        assert model_206["nombre"] == (
+            "Modelo 206. IS/IRNR. Documento de ingreso o devolucion. "
+            "(Modelo 200 y 206)."
+        )
+        assert model_206["url_info"].endswith("procedimientoini/GE04.shtml")
+
     def test_rejects_unexpected_model_code_mismatch_without_override(self):
         portal_client = MagicMock()
         portal_client.fetch_detail.return_value = "<html><body><h1>Modelo 100. IRPF.</h1></body></html>"

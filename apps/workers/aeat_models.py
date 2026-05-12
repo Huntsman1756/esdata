@@ -121,23 +121,24 @@ MODEL_TAX_OVERRIDES = {
 
 MODEL_METADATA_OVERRIDES = {
     "102": {
-        "nombre": "Modelo 102. IRPF. Segundo plazo de la declaracion anual.",
+        "nombre": "Modelo 102. IRPF. Segundo plazo del fraccionamiento de la declaracion anual.",
         "periodo": "anual",
         "impuesto": "IRPF",
         "url_info": (
-            "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
-            "calendario-contribuyente/calendario-contribuyente-2026/"
-            "noviembre.html"
+            "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/"
+            "impuesto-sobre-renta-personas-fisicas/"
+            "modelo-100-mode-declaracion-documentos-devolucion_/"
+            "descarga-modelo-102.html"
         ),
     },
     "206": {
         "nombre": (
-            "Modelo 206. IS/IRNR. Documento de ingreso o devolucion para "
-            "Impuesto sobre Sociedades e IRNR con establecimiento permanente."
+            "Modelo 206. IS/IRNR. Documento de ingreso o devolucion. "
+            "(Modelo 200 y 206)."
         ),
         "periodo": "anual",
         "impuesto": "IS/IRNR",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/GE04.shtml",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml",
     },
 }
 
