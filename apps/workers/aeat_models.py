@@ -836,18 +836,14 @@ def _try_acquire_sync_lock(conn) -> bool:
 @contextmanager
 def _hold_sync_lock(engine):
     if engine.dialect.name != "postgresql":
-        yield True
+        with engine.connect() as conn:
+            yield _try_acquire_sync_lock(conn)
         return
 
     lock_conn = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
     acquired = False
     try:
-        acquired = bool(
-            lock_conn.execute(
-                text("SELECT pg_try_advisory_lock(:lock_key)"),
-                {"lock_key": AEAT_SYNC_LOCK_KEY},
-            ).scalar()
-        )
+        acquired = _try_acquire_sync_lock(lock_conn)
         yield acquired
     finally:
         try:
@@ -1045,17 +1041,21 @@ def _get_existing_codes(conn) -> set[str]:
 
 
 def _get_seeded_models(conn) -> list[dict]:
-    rows = conn.execute(
-        text(
-            """
-            SELECT codigo, nombre, url_info
-            FROM aeat_modelo
-            WHERE activo = true
-              AND url_info IS NOT NULL
-            ORDER BY codigo
-            """
-        )
-    ).fetchall()
+    try:
+        rows = conn.execute(
+            text(
+                """
+                SELECT codigo, nombre, url_info
+                FROM aeat_modelo
+                WHERE activo = true
+                  AND url_info IS NOT NULL
+                ORDER BY codigo
+                """
+            )
+        ).fetchall()
+    except Exception as exc:
+        logger.warning("Failed to load seeded AEAT models: %s", exc)
+        return []
     return [
         {"codigo": row.codigo, "nombre": row.nombre or f"Modelo {row.codigo}", "url_info": row.url_info}
         for row in rows
@@ -1088,7 +1088,7 @@ def run_sync(engine, run_once: bool = False, force_playwright: bool = False):
                                 conn,
                                 started_at,
                                 datetime.now(UTC),
-                                "skipped",
+                                "partial",
                                 stats,
                                 "AEAT sync already in progress",
                             )

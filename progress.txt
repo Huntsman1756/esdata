@@ -811,3 +811,19 @@ Incorrect answers found: none
 Fixes applied: docs/accuracy-report.md added; prd verification command corrected to inspect numeric incorrect column rather than matching the header text.
 Verification: docs/accuracy-report.md table present; numeric incorrect column has no non-zero rows; overall verified-answer confidence 100%.
 Next: COMPLETE
+=== Iteration R-01 - 2026-05-12T23:40:00+02:00 ===
+Story: R-01 Audit all GitHub vulnerabilities - triage and fix CRITICAL and HIGH
+Result: PASS-WITH-CAVEAT
+Evidence:
+  - Dependabot open alerts triaged: next HIGH CVE-2026-44574; torch CRITICAL CVE-2025-32434 in API/workers; torch MEDIUM CVE-2025-3730 in API/workers; torch LOW CVE-2025-2953 in API/workers.
+  - Fixed release branch pins: next 15.5.18, eslint-config-next 15.5.18, torch 2.8.0+cpu in API and workers.
+  - npm audit --audit-level=high: found 0 vulnerabilities.
+  - npm test: 1 passed.
+  - pip dry-run for torch 2.8.0+cpu + sentence-transformers 4.1.0 resolved successfully.
+  - API focused tests: 31 passed.
+  - Worker AEAT tests: 62 passed after lock/fallback hardening.
+  - compileall apps/api apps/workers: OK.
+Accepted risks:
+  - none for the 7 advisories; all are fixed by package upgrades.
+  - caveat: GitHub Dependabot alerts are still open on main until R-04 merge and GitHub rescan.
+Next: R-02

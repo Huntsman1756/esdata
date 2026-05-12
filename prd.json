@@ -1,204 +1,109 @@
 {
-    "projectName":  "esdata-quality-accuracy-sprint",
-    "branchName":  "fix/quality-accuracy-sprint",
-    "userStories":  [
-                        {
-                            "id":  "Q-01",
-                            "title":  "AEAT modelos - verify verified=true model responses and endpoint truth contract",
-                            "priority":  1,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Check whether any AEAT model has explicit verified=true and completeness=completa with casillas_total \u003e 0",
-                                                       "Call GET /v1/modelos/aeat/\u003ccodigo\u003e for 145, 196, 270, 283, 303",
-                                                       "Endpoint must expose verified, completeness, and casillas_total instead of silent nulls",
-                                                       "If no verified=true/completa model exists, record HONEST-LIMIT rather than upgrading confidence",
-                                                       "Compare source provenance against official AEAT resource URLs already stored for each model",
-                                                       "Do not mark any model authoritative unless the explicit completeness contract supports it"
-                                                   ],
-                            "verificationCommand":  "for C in 145 196 270 283 303; do echo \"=== Modelo $C ===\"; curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/$C | jq \u0027{codigo, verified, completeness, casillas_total}\u0027; done \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-02",
-                            "title":  "AEAT modelos - verify parcial and no-casillas-expected responses are honest",
-                            "priority":  2,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Pick 3 models with completeness=parcial",
-                                                       "Pick 3 models with completeness=no-casillas-expected",
-                                                       "Parcial responses must include explicit evidence-limited semantics and never invented fields",
-                                                       "No-casillas-expected responses must explain that no structured casillas are expected",
-                                                       "290 must not claim to describe how to fill the full FATCA form"
-                                                   ],
-                            "verificationCommand":  "curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/290 | jq \u0027{verified, completeness, casillas_total}\u0027 \u0026\u0026 curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/102 | jq \u0027{verified, completeness}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-03",
-                            "title":  "BOE legislacion consolidada - verify 5 article queries return correct BOE text",
-                            "priority":  3,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Query LIVA art.1, LIVA art.4, LGT art.1, LIRPF art.1, LIS art.1",
-                                                       "Compare response text against official BOE consolidated text",
-                                                       "Check BOE-A identifier and current consolidated version",
-                                                       "Flag stale or wrong text before marking pass"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/legislacion/LIVA/articulos/1\u0027 | jq \u0027{id, boe_referencia, texto: .texto[:200]}\u0027 \u0026\u0026 curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/legislacion/LGT/articulos/1\u0027 | jq \u0027{id, boe_referencia, texto: .texto[:200]}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-04",
-                            "title":  "BOE search - verify ranked results are legally correct and not contaminated",
-                            "priority":  4,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Run 5 fiscal/legal search queries",
-                                                       "Top results must come from the correct law/domain",
-                                                       "No repealed provision is returned as current",
-                                                       "Every result must include source_url or boe_referencia"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/buscar?q=tipo+impositivo+IVA+general\u0027 | jq \u0027.results | {ley, boe_referencia, score}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-05",
-                            "title":  "BORME - verify heuristic/partial responses are clearly marked as such",
-                            "priority":  5,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Call BORME endpoint or search for BORME data",
-                                                       "Response must include partial/heuristic signal",
-                                                       "At least one real BORME document must be returned",
-                                                       "BORME data must not bleed into BOE consolidated legislation"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/borme?limit=1\u0027 | jq \u0027{total, items}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-06",
-                            "title":  "EUR-Lex / MiFID II - verify real article content is returned",
-                            "priority":  6,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "MiFID II must return real article content, not metadata_only",
-                                                       "CELEX identifier must be 32014L0065",
-                                                       "Other EUR-Lex entries without articulado must remain limited",
-                                                       "EUR-Lex must not mix with BOE national legislation"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/eurlex/buscar?q=MiFID+mercado+instrumentos+financieros\u0027 | jq \u0027.results | {celex, titulo, quality}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-07",
-                            "title":  "DGT doctrina - verify consultas vinculantes return correct traceable data",
-                            "priority":  7,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Query DGT doctrine by topic or V-number",
-                                                       "Each result must have numero_consulta, fecha, organo=DGT",
-                                                       "Pick one and verify against official DGT/PETETE source",
-                                                       "DGT must not mix with BOE articulado"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/doctrina/buscar?q=IVA\u0027 | jq \u0027{total: .total, first: .results | {numero_consulta, fecha, organo}}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-08",
-                            "title":  "CNMV - verify circular/document responses are traceable to official CNMV source",
-                            "priority":  8,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Call CNMV endpoint for loaded document",
-                                                       "Response must include titulo, fecha_publicacion, url_cnmv or boe_referencia",
-                                                       "Verify at least one result against cnmv.es",
-                                                       "CNMV must not bleed into ESMA or MiCA"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/cnmv/buscar?q=circular\u0027 | jq \u0027{total: .total, first: .results | {titulo, url_cnmv, fecha}}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-09",
-                            "title":  "MiCA / ESMA - verify configured_but_unavailable domains respond correctly",
-                            "priority":  9,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "CASP ESMA loaded data must return real rows if present",
-                                                       "Empty MiCA tables must return configured_but_unavailable",
-                                                       "No MiCA endpoint may substitute unrelated data"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/mica/casp/buscar?q=crypto\u0027 | jq \u0027{total: .total, quality: .quality_signal}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-10",
-                            "title":  "AEPD - verify 25 real documents are returned with correct traceable metadata",
-                            "priority":  10,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "AEPD endpoint must expose at least 25 documents",
-                                                       "Each sampled document must have titulo, fecha, url_aepd or boe_referencia",
-                                                       "Pick one and verify at aepd.es",
-                                                       "AEPD must not bleed into BOE legislation"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/aepd?limit=3\u0027 | jq \u0027{total, items}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-11",
-                            "title":  "FATCA / CRS - verify evidence_limited responses are honest and traceable",
-                            "priority":  11,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "FATCA queries return official AEAT/BOE/EUR-Lex references if loaded",
-                                                       "CRS queries return CRS-related content if loaded",
-                                                       "Procedure-complete queries must say evidence_limited when limited",
-                                                       "No FATCA or CRS answer may invent filing instructions"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/buscar?q=FATCA+cuenta+financiera\u0027 | jq \u0027.results | {fuente, quality, boe_referencia}\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-12",
-                            "title":  "Cross-domain contamination check - verify domains do not bleed into each other",
-                            "priority":  12,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "tipo IVA must return LIVA",
-                                                       "modelo 303 must return AEAT modelos",
-                                                       "circular CNMV must return CNMV",
-                                                       "MiFID II articulo 1 must return EUR-Lex",
-                                                       "GDPR AEPD must return AEPD or EUR-Lex GDPR"
-                                                   ],
-                            "verificationCommand":  "curl -sf \u0027http://localhost:${API_PORT:-8000}/v1/buscar?q=tipo+IVA+21%25\u0027 | jq \u0027[.results[] | {fuente, ley}] | unique_by(.fuente)\u0027 \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-13",
-                            "title":  "Audit trail - verify query_audit_log captures all Q-01 to Q-12 test calls",
-                            "priority":  13,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "query_audit_log must have entries for calls made during this sprint",
-                                                       "Each entry has tool_name or endpoint, input, output_summary, timestamp",
-                                                       "Append-only UPDATE attempt must fail",
-                                                       "A verified=true call must trace to DB row and official source"
-                                                   ],
-                            "verificationCommand":  "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*), MAX(created_at) FROM query_audit_log;\" \u0026\u0026 echo PASS"
-                        },
-                        {
-                            "id":  "Q-14",
-                            "title":  "Observability - confirm 0 FIRING alerts and all workers have recent sync_log",
-                            "priority":  14,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Alertmanager has 0 FIRING alerts",
-                                                       "Prometheus WorkerSilent has no stale workers",
-                                                       "Every active worker has sync_log within expected cadence",
-                                                       "Fix or document any stale worker"
-                                                   ],
-                            "verificationCommand":  "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT worker, MAX(COALESCE(finished_at, started_at)) AS last_run, SUM(errors) AS errors FROM sync_log WHERE COALESCE(finished_at, started_at) \u003e NOW() - INTERVAL \u00277 days\u0027 GROUP BY worker ORDER BY last_run DESC;\" \u0026\u0026 echo \u0027Verify no active worker missing\u0027 || echo FAIL"
-                        },
-                        {
-                            "id":  "Q-15",
-                            "title":  "Accuracy confidence score - compute and document per domain",
-                            "priority":  15,
-                            "passes":  true,
-                            "acceptanceCriteria":  [
-                                                       "Record queries_tested, correct, honest_limit, incorrect per domain",
-                                                       "Any incorrect verified=true answer is a blocker",
-                                                       "Write final table to docs/accuracy-report.md",
-                                                       "Overall confidence must be \u003e= 95 percent on verified=true answers"
-                                                   ],
-                            "verificationCommand":  "test -f docs/accuracy-report.md && grep -c '|' docs/accuracy-report.md | grep -vE '^0$' && ! awk -F'|' 'NR>2 && $5 ~ /[1-9]/ {bad=1} END{exit bad}' docs/accuracy-report.md && echo PASS || echo FAIL-INCORRECT-ANSWERS-REMAIN"
-                        }
-                    ]
+  "projectName": "esdata-release-v1",
+  "branchName": "release/v1.0.0",
+  "userStories": [
+    {
+      "id": "R-01",
+      "title": "Audit all GitHub vulnerabilities - triage and fix CRITICAL and HIGH",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "List all 7 vulnerabilities with package, severity, current version, patched version, action and risk decision",
+        "Fix every CRITICAL and HIGH advisory with available patches",
+        "Assess MODERATE and LOW advisories and fix when covered by the same safe upgrade",
+        "Document all findings in docs/security-audit.md"
+      ],
+      "verificationCommand": "gh api /repos/Huntsman1756/esdata/dependabot/alerts --jq '[.[] | select(.state==\"open\" and (.security_vulnerability.severity==\"critical\" or .security_vulnerability.severity==\"high\"))] | length' 2>/dev/null | grep '^0$' && echo PASS || echo 'FAIL or default branch still awaiting merge scan'"
+    },
+    {
+      "id": "R-02",
+      "title": "VPS hardening - create deploy user, disable root login, confirm UFW and fail2ban",
+      "priority": 2,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Create and verify deploy user SSH before disabling root",
+        "Disable root SSH login and reload sshd",
+        "Confirm UFW active with DB port closed externally",
+        "Confirm fail2ban active and monitoring SSH"
+      ],
+      "verificationCommand": "ssh deploy@${VPS_HOST} 'echo deploy-user-ok' && ssh -o PasswordAuthentication=no root@${VPS_HOST} 'echo' 2>&1 | grep -i 'Permission denied\\|Connection refused' && echo PASS || echo FAIL-CHECK-SSH-MANUALLY"
+    },
+    {
+      "id": "R-03",
+      "title": "Test backup restore - not just backup existence",
+      "priority": 3,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Locate latest DB backup",
+        "Restore into non-production test database",
+        "Compare core row counts against production backup time",
+        "Drop restore test DB after verification"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d esdata_restore_test -tAc 'SELECT COUNT(*) FROM aeat_modelo' 2>/dev/null | grep -vE '^0$' && echo PASS || echo 'FAIL or test DB not found'"
+    },
+    {
+      "id": "R-04",
+      "title": "Merge fix/aeat-29-models-resource-audit to main - with full regression gate",
+      "priority": 4,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Run full test suite before merge",
+        "Merge with --no-ff",
+        "Run mcp_validation_suite on VPS after merge",
+        "Confirm /status API OK, DB OK, stale_workers=0"
+      ],
+      "verificationCommand": "git log --oneline -3 main && curl -sf http://localhost:${API_PORT:-8000}/status | jq '{api, db, stale_workers}' && echo PASS"
+    },
+    {
+      "id": "R-05",
+      "title": "Write RELEASE.md - honest contract language, not marketing",
+      "priority": 5,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Document trusted domains",
+        "Document limited-evidence domains",
+        "Document non-covered domains",
+        "Define response contracts and known limitations"
+      ],
+      "verificationCommand": "test -f RELEASE.md && grep -c 'verified\\|evidence_limited\\|configured_but_unavailable\\|parcial' RELEASE.md | awk '{print ($1 >= 4) ? \"PASS\" : \"FAIL-MISSING-CONTRACT-LANGUAGE\"}'"
+    },
+    {
+      "id": "R-06",
+      "title": "Create and push tag v1.0.0",
+      "priority": 6,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Main clean and all release commits present",
+        "Annotated tag v1.0.0 created and pushed",
+        "Remote tag verified",
+        "mcp_validation_suite and /status green after tag"
+      ],
+      "verificationCommand": "git ls-remote --tags origin | grep -q 'refs/tags/v1.0.0' && curl -sf http://localhost:${API_PORT:-8000}/status | jq '.api' | grep -q 'ok\\|OK' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "R-07",
+      "title": "Set up weekly accuracy review schedule - BOE, AEAT, EUR-Lex, CNMV, ESMA",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Create weekly accuracy check script",
+        "Check freshness thresholds per domain",
+        "Install Monday 08:00 Europe/Madrid cron on VPS",
+        "Exit non-zero when stale threshold fails"
+      ],
+      "verificationCommand": "test -f scripts/weekly-accuracy-check.sh && bash scripts/weekly-accuracy-check.sh && echo PASS || echo FAIL"
+    },
+    {
+      "id": "R-08",
+      "title": "Final smoke test - 10 real queries across all live domains post-release",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Run 10 production queries across AEAT, BOE, DGT, CNMV, AEPD, EUR-Lex and /status",
+        "All 10 must pass after v1.0.0 tag",
+        "Any failure blocks release"
+      ],
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.api' | grep -q 'ok\\|OK' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/303 | jq '.verified' | grep -q 'true' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/290 | jq '.completeness' | grep -q 'parcial' && echo 'CORE SMOKE PASS - run full 10-query suite manually'"
+    }
+  ]
 }
