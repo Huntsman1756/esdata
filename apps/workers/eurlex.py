@@ -904,37 +904,49 @@ def _count_parsed_articles(conn, codigo: str) -> int:
     )
 
 
-def _quality_status(expected: int | None, parsed: int) -> str:
+def _quality_status(expected: int | None, parsed: int, empty_official: int = 0) -> str:
     if parsed <= 0:
         return "metadata_only"
-    if expected is not None and expected > parsed:
+    if expected is not None and expected > parsed + empty_official:
         return "partial"
     return "article_text_available"
 
 
-def update_eurlex_quality(conn, codigo: str, expected: int | None) -> None:
+def update_eurlex_quality(
+    conn,
+    codigo: str,
+    expected: int | None,
+    empty_official: int = 0,
+) -> None:
     if not _eurlex_quality_columns_available(conn):
         return
     parsed = _count_parsed_articles(conn, codigo)
+    has_empty_official = "articles_empty_official" in _table_columns(conn, "norma")
+    set_empty_official = (
+        ", articles_empty_official = :empty_official" if has_empty_official else ""
+    )
+    params = {
+        "codigo": codigo,
+        "expected": expected,
+        "parsed": parsed,
+        "quality_status": _quality_status(expected, parsed, empty_official),
+        "checked_at": datetime.now(UTC).isoformat(),
+        "empty_official": empty_official,
+    }
     conn.execute(
         text(
-            """
+            f"""
             UPDATE norma
             SET articles_expected = :expected,
                 articles_parsed = :parsed,
                 quality_status = :quality_status,
                 quality_checked_at = :checked_at
+                {set_empty_official}
             WHERE codigo = :codigo
               AND tipo_fuente = 'eurlex'
             """
         ),
-        {
-            "codigo": codigo,
-            "expected": expected,
-            "parsed": parsed,
-            "quality_status": _quality_status(expected, parsed),
-            "checked_at": datetime.now(UTC).isoformat(),
-        },
+        params,
     )
 
 
@@ -1202,6 +1214,7 @@ def run_sync(  # noqa: C901
                     update_eurlex_quality(conn, norma_def["codigo"], None)
                     continue
                 expected_articles = sum(1 for item in index if _is_supported_block(item["titulo"]))
+                empty_official_articles = 0
 
                 for item in index:
                     if not _is_supported_block(item["titulo"]):
@@ -1215,6 +1228,8 @@ def run_sync(  # noqa: C901
                         bloque = fetch_block_from_corpus(celex)
                         if not bloque:
                             continue
+                    if not bloque.texto:
+                        empty_official_articles += 1
 
                     change = check_content_changed(
                         conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
@@ -1244,7 +1259,12 @@ def run_sync(  # noqa: C901
                     articulos_upserted += 1
 
                     time.sleep(1)  # Rate limit EUR-Lex REST
-                update_eurlex_quality(conn, norma_def["codigo"], expected_articles)
+                update_eurlex_quality(
+                    conn,
+                    norma_def["codigo"],
+                    expected_articles,
+                    empty_official=empty_official_articles,
+                )
 
             # Phase 2: SPARQL discovery for new CELEXs
             existing_celexs = set()
@@ -1293,6 +1313,7 @@ def run_sync(  # noqa: C901
                         index = fetch_index(client, celex)
                         if index:
                             expected_articles = sum(1 for item in index if _is_supported_block(item["titulo"]))
+                            empty_official_articles = 0
                             for item in index:
                                 if not _is_supported_block(item["titulo"]):
                                     bloques_fetched += 1
@@ -1303,6 +1324,8 @@ def run_sync(  # noqa: C901
                                     bloque = fetch_block_from_corpus(celex)
                                     if not bloque:
                                         continue
+                                if not bloque.texto:
+                                    empty_official_articles += 1
                                 change = check_content_changed(
                                     conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                                 )
@@ -1323,7 +1346,12 @@ def run_sync(  # noqa: C901
                                 bloques_fetched += 1
                                 articulos_upserted += 1
                                 time.sleep(1)
-                            update_eurlex_quality(conn, f"EURLEX-{celex}", expected_articles)
+                            update_eurlex_quality(
+                                conn,
+                                f"EURLEX-{celex}",
+                                expected_articles,
+                                empty_official=empty_official_articles,
+                            )
                         else:
                             skipped_no_index += 1
                             update_eurlex_quality(conn, f"EURLEX-{celex}", None)

@@ -20,6 +20,7 @@
 ### Tabla destino por worker
 
 - `articulo` y `version_articulo` (con `created_at`/`updated_at` desde A-09): BOE legislación, poblada por `worker-boe` / `cron-boe-daily`.
+- `documento_interpretativo` con `tipo_fuente='boe_diario'`: BOE diario no consolidado (`BOE-B/S/N`) poblado por `cron-boe-diario-daily`; no se mezcla con `articulo/version_articulo`.
 - `aeat_modelo` + `modelo_campana`/`modelo_casilla`/...: poblada por `worker-aeat-modelos` / `cron-modelos-daily` (script `aeat_models.py`).
 - `modelo_recurso` (RLS habilitada A-06): URLs AEAT cacheadas por `cron-boe-modelos-daily`.
 - `documento_interpretativo`: DGT, CNMV, SEPBLAC, BDE, CENDOJ, AEPD, BORME, BDNS — doctrina/circulares.

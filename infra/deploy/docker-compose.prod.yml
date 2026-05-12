@@ -530,6 +530,27 @@ services:
     networks:
       - esdata-internal
 
+  cron-boe-diario-daily:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BOE_DIARIO_IDS: ${BOE_DIARIO_IDS:-}
+      BOE_DIARIO_DAYS_BACK: ${BOE_DIARIO_DAYS_BACK:-1}
+      BOE_DIARIO_MAX_IDS_PER_RUN: ${BOE_DIARIO_MAX_IDS_PER_RUN:-10}
+      BOE_DIARIO_FETCH_PDF_FALLBACK: ${BOE_DIARIO_FETCH_PDF_FALLBACK:-true}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_DIARIO_DAILY:-}
+      WORKER_CMD: python boe_diario.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
   cron-dgt-weekly:
     <<: *cron-hardening
     build:

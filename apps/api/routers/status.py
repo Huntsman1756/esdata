@@ -40,6 +40,7 @@ WORKER_CANONICAL_NAMES = {
 WORKER_THRESHOLDS_HOURS = {
     "worker-boe": 25,
     "cron-boe-daily": 25,
+    "cron-boe-diario-daily": 25,
     "worker-dgt": 24 * 8,
     "cron-dgt-weekly": 24 * 8,
     "worker-teac": 24 * 8,

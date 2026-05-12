@@ -56,6 +56,8 @@ HTTP_MCP_OPERATIONS = [
     # Fuentes oficiales no-AEAT expuestas para consulta directa
     "listar_borme",
     "get_borme",
+    "listar_boe_diario",
+    "get_boe_diario",
     "listar_cnmv",
     "get_cnmv",
     "get_cnmv_versions",
@@ -127,6 +129,8 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "list_domain_availability"
     if path.startswith("/v1/borme"):
         return "listar_borme"
+    if path.startswith("/v1/boe-diario"):
+        return "listar_boe_diario"
     if path.startswith("/v1/cnmv"):
         return "listar_cnmv"
     if path.startswith("/v1/eurlex"):

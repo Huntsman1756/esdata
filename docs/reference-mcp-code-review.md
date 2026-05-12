@@ -17,7 +17,7 @@ Objetivo: identificar codigo reutilizable como patron tecnico para cerrar gaps r
 | `EU_compliance_MCP` | Registro de fuentes y frescura por CELEX | `scripts/check-updates.ts` trata `source_registry` como fuente de verdad y marca `UPDATE AVAILABLE`, `INCOMPLETE` o `MANUAL CHECK REQUIRED` | Encaja con `source_revision` y `/v1/sources/freshness`. Falta llevar el concepto de `articles_expected/articles_parsed/quality_status` a EUR-Lex para distinguir metadata-only de articulado completo. |
 | `EU_compliance_MCP` | Catalogo MCP centralizado con anotaciones read-only | `src/tools/registry.ts` centraliza tool definitions y anade `readOnlyHint/destructiveHint` | ESData ya centraliza `HTTP_MCP_OPERATIONS`, pero el deep audit sigue avisando que faltan `outputSchema` en 63 tools. El patron sirve para fase de contrato MCP. |
 | `EU_compliance_MCP` | Validaciones de calidad del parser | `scripts/ingest-eurlex.ts` valida anexos, definiciones, articulos y longitud antes de aceptar corpus | Incorporable para EUR-Lex: no marcar una norma como completa si no hay conteo esperado o texto suficiente. |
-| `anamtb/boe-mcp` | BOE consolidado + diario XML + PDF fallback | `src/boe/api.ts` intenta legislacion consolidada, cae a `diario_boe/xml.php?id=...`, y si el texto es insuficiente intenta PDF | Util para BOE no consolidado, anuncios `BOE-B/BOE-S/BOE-N` y BORME. ESData BOE cubre legislacion consolidada; falta una historia separada para diario/PDF no consolidado con procedencia y marca de extraccion. |
+| `anamtb/boe-mcp` | BOE consolidado + diario XML + PDF fallback | `src/boe/api.ts` intenta legislacion consolidada, cae a `diario_boe/xml.php?id=...`, y si el texto es insuficiente intenta PDF | Util para BOE no consolidado, anuncios `BOE-B/BOE-S/BOE-N` y BORME. ESData BOE cubre legislacion consolidada; S-10 implementa worker/API separado para diario XML/PDF en `documento_interpretativo`. |
 | `anamtb/boe-mcp` | Relaciones BOE anteriores/posteriores | `getBoeRelationships()` lee `buscar/doc.php?id=<id>&xml=1` y extrae referencias | Puede mejorar grafo normativo de ESData si se persiste como relaciones verificadas, no inferidas. |
 
 ## Comprobacion ESData Actual
@@ -29,7 +29,7 @@ Produccion VPS verificada el 2026-05-12 tras S-06:
 - Versiones EUR-Lex: `93`.
 - Ultimo `cron-eurlex-weekly` probado en VPS: `status=ok`, `rows_processed=93`, `fetch_articles=True`, `seed_selected=1`, `fetch_errors=0`.
 
-Conclusion: EUR-Lex ya no esta limitado a metadata para todos los registros; MiFID II tiene articulado real cargado desde fuente oficial y el resto de CELEX sigue degradando a `metadata_only`/`evidence_limited` cuando no hay articulos. Antes de S-05, `/v1/eurlex/{referencia}` podia devolver `texto=""` sin aviso explicito; ahora el contrato API/MCP separa `coverage_status`, `verified`, `completeness`, `articulos_total` y `evidence_notice`.
+Conclusion: EUR-Lex ya no esta limitado a metadata para todos los registros; MiFID II tiene articulado real cargado desde fuente oficial y el resto de CELEX sigue degradando a `metadata_only`/`evidence_limited` cuando no hay articulos. Antes de S-05, `/v1/eurlex/{referencia}` podia devolver `texto=""` sin aviso explicito; ahora el contrato API/MCP separa `coverage_status`, `verified`, `completeness`, `articulos_total` y `evidence_notice`. S-10 reconcilia el desfase observado en MiFID II: `Artículo 95 bis` existe en la manifestacion oficial vigente de EUR-Lex como encabezado sin cuerpo, por lo que se expone `articles_empty_official=1` y no se inventa texto.
 
 ## Decisiones
 
@@ -67,10 +67,10 @@ Campos de procedencia obligatorios antes de implementar:
 - `row_provenance`: `official_exact` para XML estructurado oficial; `official_best_effort` para texto extraido de PDF o campos mercantiles heurísticos.
 - `metadata`: debe incluir `source_format` (`boe_daily_xml`, `boe_pdf`, `borme_pdf`), `extraction_method`, `text_length`, `pdf_url`, `xml_url`, `content_hash` y cualquier aviso de truncado.
 
-Implementacion recomendada:
+Implementacion S-10:
 
-1. Crear `worker-boe-diario` / `cron-boe-diario-daily` o una extension separada de `boe.py` que escriba en `documento_interpretativo`; no mezclar con `worker-boe` consolidado.
-2. Exponer endpoints/MCP como `listar_boe_diario` y `get_boe_diario`, con filtros por `boe_id`, fecha, seccion y tipo (`BOE-B/S/N`).
+1. `apps/workers/boe_diario.py` / `cron-boe-diario-daily` escribe `BOE-B/S/N` en `documento_interpretativo`; no mezcla anuncios ni PDFs con `worker-boe` consolidado.
+2. Endpoints/MCP `listar_boe_diario` y `get_boe_diario` exponen documentos `tipo_fuente='boe_diario'`, con filtros por texto y tipo (`anuncio_boe`, `suplemento_boe`, `notificacion_boe`).
 3. Mantener `/v1/legislacion/*` y herramientas de articulado solo para `norma/articulo/version_articulo`.
 4. Activar `document_decomposition.py` despues de ingesta si se necesita retrieval por fragmentos, conservando `documento_origen_tipo='documento_interpretativo'`.
 5. Anadir tests con fixtures XML/PDF oficiales pequenos: XML completo, XML sin texto suficiente, PDF enlazado, 404/No encontrado, y caso `BOE-B` que nunca debe crear filas en `articulo`.
@@ -81,6 +81,7 @@ Implementacion recomendada:
 | --- | ---: | --- | --- |
 | S-05 | 1 | EUR-Lex quality contract | Exponer `metadata_only` / `article_text_available`, `verified`, `completeness` y `evidence_notice` en API/MCP. |
 | S-06 | 2 | EUR-Lex deep ingestion safe mode | Implementado: ingesta por allowlist CELEX y presupuesto por ejecucion; MiFID II cargado en VPS con 93 articulos/versiones. Pendiente de expansion: lotes adicionales y quality counters esperados/parsing por CELEX. |
-| S-07 | 3 | BOE non-consolidated fallback | Evaluado y documentado: XML/PDF no consolidado debe ir a `documento_interpretativo` o tabla `boe_diario_documento`, nunca a `articulo/version_articulo`; implementacion queda como historia separada. |
+| S-07 | 3 | BOE non-consolidated fallback | Evaluado y documentado: XML/PDF no consolidado debe ir a `documento_interpretativo` o tabla `boe_diario_documento`, nunca a `articulo/version_articulo`. |
 | S-08 | 4 | MCP output schemas | Implementado: herramientas HTTP y stdio se enriquecen con `outputSchema` tipo objeto y anotaciones `readOnlyHint=true`, `destructiveHint=false`. |
 | S-09 | 5 | EU source registry quality counters | Implementado para EUR-Lex en `norma`: `articles_expected`, `articles_parsed`, `quality_status`, `quality_checked_at`; API list/detail los expone. |
+| S-10 | 6 | MiFID II empty official block + BOE diario | Implementado: `articles_empty_official` reconcilia encabezados oficiales sin cuerpo en EUR-Lex; `boe_diario.py`, `/v1/boe-diario` y MCP `listar_boe_diario/get_boe_diario` cubren BOE diario XML/PDF separado. |

@@ -5,7 +5,7 @@ Classification of all Python files in `apps/workers/`.
 Evidence base:
 
 - `apps/workers/*.py`: 82 files, excluding `__init__.py`.
-- `infra/deploy/docker-compose.prod.yml`: 22 worker files wired through 37 Compose services.
+- `infra/deploy/docker-compose.prod.yml`: 23 worker files wired through Compose services.
 - `infra/deploy/systemd/*.timer`: profiled cron services are timer-driven through `esdata-job@<service>.service`.
 
 ## TYPE-A: Utility/Helper
@@ -40,7 +40,7 @@ These files contain standalone worker code. A production-ready TYPE-C worker mus
 official-source boundaries, run-once verification, retry/telemetry, Compose wiring,
 systemd schedule where applicable, and MCP/API availability semantics.
 
-### With Docker Service (22 files)
+### With Docker Service (23 files)
 
 | File | Service(s) | Purpose |
 |------|------------|---------|
@@ -50,6 +50,7 @@ systemd schedule where applicable, and MCP/API availability semantics.
 | `bde.py` | `worker-bde`, `cron-bde-weekly` | Banco de Espana registry |
 | `bdns.py` | `worker-bdns`, `cron-bdns-weekly` | BDNS registry |
 | `boe.py` | `worker-boe`, `cron-boe-daily` | BOE legislation sync |
+| `boe_diario.py` | `cron-boe-diario-daily` | BOE diario non-consolidated XML/PDF documents |
 | `boe_modelos_worker.py` | `worker-boe-modelos`, `cron-boe-modelos-daily` | BOE-to-models orchestrator |
 | `borme.py` | `worker-borme`, `cron-borme-weekly` | BORME company extraction |
 | `cdi.py` | `worker-cdi`, `cron-cdi-weekly` | Convenios de doble imposicion |

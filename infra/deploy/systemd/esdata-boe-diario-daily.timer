@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata BOE diario non-consolidated daily sync
+
+[Timer]
+OnCalendar=*-*-* 06:30:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-boe-diario-daily.service
+
+[Install]
+WantedBy=timers.target

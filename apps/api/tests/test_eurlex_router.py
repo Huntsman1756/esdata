@@ -281,6 +281,56 @@ async def test_eurlex_metadata_only_is_evidence_limited():
 
 
 @pytest.mark.asyncio
+async def test_eurlex_reconciles_official_empty_article_blocks():
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                UPDATE norma
+                SET articles_expected = 2,
+                    articles_parsed = 1,
+                    articles_empty_official = 1,
+                    quality_status = 'article_text_available'
+                WHERE codigo = 'EUR-Lex-32020R548'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '95 bis', 'Articulo 95 bis', 'articulo'
+                FROM norma WHERE codigo = 'EUR-Lex-32020R548'
+                ON CONFLICT (norma_id, numero) DO NOTHING
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta)
+                SELECT a.id, '', '2026-06-06', NULL
+                FROM articulo a
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = 'EUR-Lex-32020R548' AND a.numero = '95 bis'
+                """
+            )
+        )
+        db.commit()
+
+    async with _client() as c:
+        detalle = await c.get("/v1/eurlex/EUR-Lex-32020R548")
+
+    data = detalle.json()
+    assert detalle.status_code == 200
+    assert data["articles_expected"] == 2
+    assert data["articles_parsed"] == 1
+    assert data["articles_empty_official"] == 1
+    assert data["quality_status"] == "article_text_available"
+    assert "official empty blocks" in data["evidence_notice"]
+
+
+@pytest.mark.asyncio
 async def test_eurlex_lista_orden_desc():
     async with _client() as c:
         r = await c.get("/v1/eurlex")

@@ -10,11 +10,11 @@ Usage:
     python scripts/ops/export-gpt-openapi.py --output docs/openapi-gpt.json
 """
 
-import json
 import argparse
-from pathlib import Path
+import json
 import sys
 from copy import deepcopy
+from pathlib import Path
 
 # Allow importing from apps/api
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
@@ -35,6 +35,8 @@ INCLUDE_PATHS = {
     "/v1/legislacion/{codigo}/articulos/{numero}",
     "/v1/doctrina/buscar",
     "/v1/doctrina/{referencia}",
+    "/v1/boe-diario",
+    "/v1/boe-diario/{referencia}",
     "/v1/modelos",
     "/v1/modelos/{codigo}",
     "/v1/modelos/{codigo}/casillas",
@@ -64,6 +66,9 @@ INCLUDE_SCHEMAS = {
     "ModeloCampana",
     "DoctrinaRelacionada",
     "DoctrinaViaArticulo",
+    "BOEDiarioListResponse",
+    "BOEDiarioListItem",
+    "BOEDiarioDetail",
     "HTTPValidationError",
     "ValidationError",
 }

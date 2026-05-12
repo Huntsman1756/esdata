@@ -118,6 +118,7 @@ STATEMENTS = [
         vigente_desde TEXT NOT NULL,
         articles_expected INTEGER,
         articles_parsed INTEGER,
+        articles_empty_official INTEGER,
         quality_status TEXT,
         quality_checked_at TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -159,7 +160,10 @@ STATEMENTS = [
         estado_vigencia TEXT,
         numero_circular TEXT,
         fecha_publicacion TEXT,
-        referencia_boe TEXT
+        referencia_boe TEXT,
+        metadata TEXT,
+        row_completeness TEXT,
+        row_provenance TEXT
     )
     """,
     """

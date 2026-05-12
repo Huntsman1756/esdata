@@ -873,6 +873,110 @@
         },
         "description": "Return freshness and ingestion status for official source families. Use this before answering currency-sensitive questions about tax models, deadlines, legislation, doctrine, or regulatory updates."
       }
+    },
+    "/v1/boe-diario": {
+      "get": {
+        "tags": [
+          "boe-diario"
+        ],
+        "summary": "Listar Boe Diario",
+        "operationId": "listar_boe_diario",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o titulo",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "anuncio_boe | suplemento_boe | notificacion_boe",
+              "title": "Tipo"
+            },
+            "description": "anuncio_boe | suplemento_boe | notificacion_boe"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BOEDiarioListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/boe-diario/{referencia}": {
+      "get": {
+        "tags": [
+          "boe-diario"
+        ],
+        "summary": "Get Boe Diario",
+        "operationId": "get_boe_diario",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BOEDiarioDetail"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [
@@ -954,6 +1058,150 @@
           "confianza_enlace"
         ],
         "title": "ArticuloRelacionado"
+      },
+      "BOEDiarioDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "texto"
+        ],
+        "title": "BOEDiarioDetail"
+      },
+      "BOEDiarioListItem": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Identificador oficial BOE-B/BOE-S/BOE-N"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha",
+            "description": "Fecha de publicacion"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo",
+            "description": "Titulo oficial del documento"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento",
+            "description": "anuncio_boe | suplemento_boe | notificacion_boe"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento",
+            "description": "Extracto truncado del texto oficial"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente",
+            "description": "XML o PDF oficial utilizado"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "fragmento"
+        ],
+        "title": "BOEDiarioListItem"
+      },
+      "BOEDiarioListResponse": {
+        "properties": {
+          "documentos": {
+            "items": {
+              "$ref": "#/components/schemas/BOEDiarioListItem"
+            },
+            "type": "array",
+            "title": "Documentos"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documentos"
+        ],
+        "title": "BOEDiarioListResponse"
       },
       "ChunkCitation": {
         "properties": {
@@ -1451,6 +1699,16 @@
             "title": "Campana",
             "description": "Campana consultada"
           },
+          "campana_activa": {
+            "type": "string",
+            "title": "Campana Activa",
+            "description": "Campana marcada como activa para el modelo"
+          },
+          "selection_notice": {
+            "type": "string",
+            "title": "Selection Notice",
+            "description": "Aviso si la campana usada difiere de la activa"
+          },
           "casillas": {
             "items": {
               "$ref": "#/components/schemas/ModeloCasilla"
@@ -1492,7 +1750,7 @@
           "classification": {
             "type": "string",
             "title": "Classification",
-            "description": "confirmado si hay casillas oficiales devueltas; requiere_verificacion si no"
+            "description": "confirmado si hay casillas oficiales devueltas; sin_casillas_esperadas si el modelo esta verificado como sin casillas estructuradas; requiere_verificacion si no"
           },
           "obligation_notice": {
             "type": "string",
@@ -1679,6 +1937,16 @@
             "title": "Casillas Next Offset",
             "description": "Offset para continuar casillas"
           },
+          "casillas_campana": {
+            "type": "string",
+            "title": "Casillas Campana",
+            "description": "Campana usada para devolver casillas"
+          },
+          "casillas_selection_notice": {
+            "type": "string",
+            "title": "Casillas Selection Notice",
+            "description": "Aviso si las casillas proceden de una campana distinta de la activa"
+          },
           "claves": {
             "items": {
               "$ref": "#/components/schemas/ModeloClave"
@@ -1738,7 +2006,7 @@
           "completeness": {
             "type": "string",
             "title": "Completeness",
-            "description": "Estado de completitud: completa o parcial"
+            "description": "Estado de completitud: completa, parcial, no-casillas-expected o deprecated"
           },
           "verified": {
             "type": "boolean",
@@ -2213,6 +2481,46 @@
             "type": "number",
             "title": "Rank",
             "description": "Puntuación de relevancia (ts_rank)"
+          },
+          "fuente_norma": {
+            "type": "string",
+            "title": "Fuente Norma",
+            "description": "Referencia de la fuente normativa"
+          },
+          "boe_reference": {
+            "type": "string",
+            "title": "Boe Reference",
+            "description": "Identificador BOE cuando la fuente sea BOE"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial trazable del resultado"
+          },
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id",
+            "description": "Identificador interno del fragmento recuperado"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "Hash de trazabilidad del contenido recuperado"
+          },
+          "motivo_ranking": {
+            "type": "string",
+            "title": "Motivo Ranking",
+            "description": "Motivo de ranking o mecanismo de coincidencia"
           },
           "confianza": {
             "$ref": "#/components/schemas/ConfianzaInfo",

@@ -3841,6 +3841,10 @@ class EurLexListItem(BaseModel):
     coverage_status: str = Field(description="article_text_available | metadata_only")
     articles_expected: int | None = Field(default=None, description="Conteo esperado de articulos si el worker pudo medirlo")
     articles_parsed: int | None = Field(default=None, description="Conteo de articulos parseados registrado por el worker")
+    articles_empty_official: int | None = Field(
+        default=None,
+        description="Bloques oficiales EUR-Lex publicados sin cuerpo de texto en la manifestacion vigente",
+    )
     quality_status: str | None = Field(default=None, description="metadata_only | partial | article_text_available")
     verified: bool = Field(description="True solo si hay texto oficial de articulado cargado")
     completeness: str = Field(description="completa | parcial")
@@ -3868,6 +3872,10 @@ class EurLexDetail(BaseModel):
     coverage_status: str = Field(description="article_text_available | metadata_only")
     articles_expected: int | None = Field(default=None, description="Conteo esperado de articulos si el worker pudo medirlo")
     articles_parsed: int | None = Field(default=None, description="Conteo de articulos parseados registrado por el worker")
+    articles_empty_official: int | None = Field(
+        default=None,
+        description="Bloques oficiales EUR-Lex publicados sin cuerpo de texto en la manifestacion vigente",
+    )
     quality_status: str | None = Field(default=None, description="metadata_only | partial | article_text_available")
     verified: bool = Field(description="True solo si hay texto oficial de articulado cargado")
     completeness: str = Field(description="completa | parcial")
@@ -3948,6 +3956,40 @@ class DocInterpretativoDetail(BaseModel):
     numero_circular: str | None = Field(default=None, description="Numero circular (cnmv)")
     fecha_publicacion: str | None = Field(default=None, description="Fecha publicacion (cnmv)")
     referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
+
+
+# --- BOE diario non-consolidated documents ---------------------------------
+
+class BOEDiarioListItem(BaseModel):
+    referencia: str = Field(description="Identificador oficial BOE-B/BOE-S/BOE-N")
+    fecha: str | None = Field(default=None, description="Fecha de publicacion")
+    titulo: str | None = Field(default=None, description="Titulo oficial del documento")
+    tipo_documento: str = Field(description="anuncio_boe | suplemento_boe | notificacion_boe")
+    fragmento: str = Field(description="Extracto truncado del texto oficial")
+    url_fuente: str | None = Field(default=None, description="XML o PDF oficial utilizado")
+    row_completeness: str | None = Field(default=None, description="complete | partial")
+    row_provenance: str | None = Field(default=None, description="official_exact | official_best_effort")
+
+
+class BOEDiarioListResponse(BaseModel):
+    documentos: list[BOEDiarioListItem]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
+
+
+class BOEDiarioDetail(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    tipo_documento: str
+    texto: str
+    url_fuente: str | None = None
+    row_completeness: str | None = None
+    row_provenance: str | None = None
+    metadata: dict | str | None = None
 
 
 # --- CNMV-specific link / version surfaces --------------------------------

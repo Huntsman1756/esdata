@@ -14,9 +14,11 @@ def _coverage_metadata(
     articulos_total: int,
     articles_expected: int | None = None,
     articles_parsed: int | None = None,
+    articles_empty_official: int | None = None,
     quality_status: str | None = None,
 ) -> dict:
     effective_parsed = articles_parsed if articles_parsed is not None else articulos_total
+    effective_empty = articles_empty_official or 0
     effective_status = quality_status
     if not effective_status:
         effective_status = "article_text_available" if effective_parsed > 0 else "metadata_only"
@@ -28,11 +30,18 @@ def _coverage_metadata(
             "Do not claim exhaustive coverage."
         )
         if articles_expected is not None and articles_parsed is not None:
-            if articles_expected > articles_parsed:
+            if articles_expected > articles_parsed + effective_empty:
                 notice = (
                     "Official EUR-Lex article text is partially available in ESData. "
                     "articles_parsed is lower than articles_expected; treat coverage "
                     "as partial and do not claim exhaustive coverage."
+                )
+            elif effective_empty > 0:
+                notice = (
+                    "Official EUR-Lex article text is available in ESData. "
+                    "Some official empty blocks were reconciled because the current "
+                    "EUR-Lex manifestation exposes a heading without body text. "
+                    "Still verify legal conclusions against cited source text."
                 )
             else:
                 notice = (
@@ -44,6 +53,7 @@ def _coverage_metadata(
             "coverage_status": "article_text_available",
             "articles_expected": articles_expected,
             "articles_parsed": articles_parsed,
+            "articles_empty_official": articles_empty_official,
             "quality_status": effective_status,
             "verified": True,
             "completeness": "parcial",
@@ -53,6 +63,7 @@ def _coverage_metadata(
         "coverage_status": "metadata_only",
         "articles_expected": articles_expected,
         "articles_parsed": articles_parsed,
+        "articles_empty_official": articles_empty_official,
         "quality_status": effective_status,
         "verified": False,
         "completeness": "parcial",
@@ -128,6 +139,7 @@ async def listar_eurlex(
             )                                     AS articulos_total,
             n.articles_expected                   AS articles_expected,
             n.articles_parsed                     AS articles_parsed,
+            n.articles_empty_official             AS articles_empty_official,
             n.quality_status                      AS quality_status
         FROM norma n
         WHERE {where_clause}
@@ -161,6 +173,7 @@ async def listar_eurlex(
                     articulos_total,
                     row["articles_expected"],
                     row["articles_parsed"],
+                    row["articles_empty_official"],
                     row["quality_status"],
                 ),
             }
@@ -193,6 +206,7 @@ async def get_eurlex(referencia: str):
                         eli_uri,
                         articles_expected,
                         articles_parsed,
+                        articles_empty_official,
                         quality_status
                     FROM norma
                     WHERE tipo_fuente = 'eurlex'
@@ -246,6 +260,7 @@ async def get_eurlex(referencia: str):
             articulos_total,
             norma_row["articles_expected"],
             norma_row["articles_parsed"],
+            norma_row["articles_empty_official"],
             norma_row["quality_status"],
         ),
     }
