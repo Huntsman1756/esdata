@@ -210,6 +210,20 @@ def _query_mentions_corporate_tax(query_norm: str) -> bool:
     )
 
 
+def _exact_legal_anchor(q: str) -> tuple[str, str] | None:
+    query_norm = _normalize_for_priority(q)
+    if (
+        "iva" in query_norm
+        and all(term in query_norm for term in ("tipo", "impositivo", "general"))
+    ):
+        return ("LIVA", "90")
+
+    if "base imponible" in query_norm and _query_mentions_corporate_tax(query_norm):
+        return ("LIS", "10")
+
+    return None
+
+
 def _legal_priority_boost(
     q: str,
     codigo: object,
@@ -398,6 +412,82 @@ def _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params):
             f"va.vigente_desde <= '{escaped_vig}' AND (va.vigente_hasta IS NULL OR va.vigente_hasta >= '{escaped_vig}')"
         )
     return filters
+
+
+def _fetch_exact_anchor_candidate_pg(db, q: str, norma: str | None, vigente_en: str | None) -> list[dict]:
+    anchor = _exact_legal_anchor(q)
+    if anchor is None:
+        return []
+
+    anchor_codigo, anchor_numero = anchor
+    if norma is not None:
+        requested = _NORMA_ALIASES.get(norma.upper(), norma)
+        if requested != anchor_codigo:
+            return []
+
+    params = {"codigo": anchor_codigo, "numero": anchor_numero}
+    vig_filter = ""
+    if vigente_en is not None:
+        vig_filter = (
+            " AND v2.vigente_desde <= :vigente_en "
+            "AND (v2.vigente_hasta IS NULL OR v2.vigente_hasta >= :vigente_en)"
+        )
+        params["vigente_en"] = vigente_en
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT n.codigo, a.id AS doc_id, a.numero, a.tipo,
+                   va.texto, va.vigente_desde, va.vigente_hasta,
+                   n.boe_id, n.eli_uri
+            FROM articulo a
+            JOIN norma n ON n.id = a.norma_id
+            JOIN version_articulo va ON va.articulo_id = a.id
+            WHERE n.codigo = :codigo
+              AND a.numero = :numero
+              AND va.vigente_desde = (
+                  SELECT MAX(v2.vigente_desde)
+                  FROM version_articulo v2
+                  WHERE v2.articulo_id = a.id
+                  {vig_filter}
+              )
+            LIMIT 1
+            """
+        ),
+        params,
+    ).mappings().all()
+
+    results = []
+    for row in rows:
+        source_url = _boe_article_source_url(row.get("boe_id"), row["numero"]) or row.get("eli_uri")
+        results.append({
+            "doc_id": int(row["doc_id"]),
+            "tipo": row["tipo"],
+            "norma": row["codigo"],
+            "numero": row["numero"],
+            "texto": row["texto"],
+            "fragmento": _build_fragment(row["texto"], q),
+            "vigente_desde": str(row["vigente_desde"]),
+            "vigente_hasta": str(row["vigente_hasta"]) if row["vigente_hasta"] else None,
+            "rank": 0.0,
+            "fuente_norma": row.get("boe_id") or row.get("eli_uri"),
+            "source_url": source_url,
+            "boe_reference": row.get("boe_id"),
+            "chunk_id": None,
+            "source_hash": _build_source_hash(
+                row["codigo"],
+                row["numero"],
+                row["texto"],
+                row.get("boe_id") or row.get("eli_uri"),
+            ),
+            "motivo_ranking": "exact_legal_anchor",
+            "confianza": {
+                "nivel": 1,
+                "fuentes": [f"{row['codigo']} art. {row['numero']}"],
+                "aviso": None,
+            },
+        })
+    return results
 
 
 def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
@@ -632,8 +722,17 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     # Always merge version_articulo candidates. Some exact BOE anchors are not
     # chunked yet; using chunk search exclusively can hide short authoritative
     # articles behind long related provisions.
+    exact_anchor_results = _fetch_exact_anchor_candidate_pg(db, q, norma, vigente_en)
     if not results:
-        results = _search_version_articulo_pg(db, q, norma, fuente, ambito, tipo, vigente_en, params, vig_subquery_params)
+        results = _apply_legal_priority(
+            q,
+            _merge_search_results(
+                _search_version_articulo_pg(
+                    db, q, norma, fuente, ambito, tipo, vigente_en, params, vig_subquery_params, apply_priority=False
+                ),
+                exact_anchor_results,
+            ),
+        )
     else:
         fallback_results = _search_version_articulo_pg(
             db,
@@ -647,7 +746,7 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
             vig_subquery_params,
             apply_priority=False,
         )
-        results = _apply_legal_priority(q, _merge_search_results(results, fallback_results))
+        results = _apply_legal_priority(q, _merge_search_results(results, fallback_results, exact_anchor_results))
 
     return {
         "q": q,

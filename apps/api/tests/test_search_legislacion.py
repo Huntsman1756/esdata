@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "workers"))
 from services.search import (
     _apply_legal_priority,
     _chunk_rank_boost,
+    _exact_legal_anchor,
     _legal_priority_boost,
     _merge_search_results,
     _search_legislacion_pg,
@@ -58,6 +59,9 @@ class TestLegalPriorityBoost:
         )
 
         assert boost_10 > boost_da
+
+    def test_exact_anchor_detects_corporate_tax_base_article(self):
+        assert _exact_legal_anchor("base imponible Impuesto Sociedades") == ("LIS", "10")
 
     def test_apply_legal_priority_reorders_close_legal_results(self):
         results = [
