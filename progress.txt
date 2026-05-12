@@ -164,3 +164,24 @@ Learnings:
 - SQL audit scripts must fail on SQL errors; otherwise stale schema references create false confidence.
 - Partial official-source rows should be surfaced as warnings, not silently counted as complete authoritative content.
 Next: A-07
+
+=== Iteration 10 - 2026-05-12T02:28:00+02:00 ===
+Story: A-07 Regulatory data accuracy spot-check
+Verification run: focused BOE/ITPAJD tests locally, BOE worker/API rebuild on VPS, DB quality checks, authenticated API probes.
+Result: PASS
+Root cause: ITPAJD was mapped to `BOE-A-1993-253`, which is not the consolidated ITPAJD text. Production had a misleading `norma` row with 0 articles for ITPAJD until the BOE worker was rerun with the correct official identifier.
+Fix applied: corrected ITPAJD to `BOE-A-1993-25359` in BOE workers, seed data, API fixtures, and tests; aligned the fallback ELI/vigencia metadata; added API-level traceability on `/v1/legislacion` and `/v1/legislacion/{codigo}` via `boe_reference`, `source_url`, and `vigente_desde`.
+Production verification:
+- VPS BOE worker ingested ITPAJD from official BOE API: 75 blocks processed; DB now has `ITPAJD | BOE-A-1993-25359 | 1993-10-21 | 67 articulos`.
+- `worker-boe` and `api` containers healthy after rebuild/recreate.
+- Authenticated `/v1/legislacion/ITPAJD` returns `boe_id=BOE-A-1993-25359`, `boe_reference=BOE-A-1993-25359`, `source_url=https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359`, `vigente_desde=1993-10-21`.
+- Authenticated `/v1/legislacion/ITPAJD/articulos/7` returns `boe_reference=BOE-A-1993-25359`, `source_url=https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359#a7`, and text containing `transmisiones onerosas`.
+- BOE corpus quality counts: bad BOE reference format 0; missing `created_at` 0; missing `vigente_desde` 0; missing `boe_bloque_id` 0; empty BOE article text 0.
+Local verification:
+- `python -m pytest apps/workers/tests/test_boe.py apps/workers/tests/test_boe_modelos_worker.py -q --basetemp .pytest-tmp`: 43 passed.
+- `PYTHONPATH=... python -m pytest scripts/tests/test_seed_boe.py apps/api/tests/test_smoke.py::test_legislacion_expone_itpajd_con_clasificacion -q --basetemp .pytest-tmp`: 18 passed, 4 warnings.
+- `python -m compileall -q apps/api/routers/legislacion.py scripts/data/seed_boe.py apps/workers/boe.py apps/workers/boe_modelos_worker.py`: PASS.
+Learnings:
+- Regulatory spot checks must validate exact BOE identifiers, not only `BOE-A-*` shape.
+- API list/detail responses need explicit provenance fields; forcing consumers to infer from internal `boe_id` creates avoidable MCP prompt discrepancies.
+Next: A-08

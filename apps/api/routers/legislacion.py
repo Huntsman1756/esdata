@@ -8,6 +8,18 @@ from sqlalchemy import text
 router = APIRouter(prefix="/v1/legislacion", tags=["legislacion"])
 
 
+def _boe_source_url(boe_id: str | None, anchor: str | None = None) -> str | None:
+    if not boe_id:
+        return None
+    base_url = f"https://www.boe.es/buscar/act.php?id={boe_id}"
+    return f"{base_url}#{anchor}" if anchor else base_url
+
+
+def _article_anchor(numero: str) -> str:
+    normalized = "".join(ch for ch in str(numero) if ch.isalnum()).lower()
+    return f"a{normalized}"
+
+
 def _record_legislacion_query_audit(
     request: Request,
     *,
@@ -58,8 +70,9 @@ async def list_legislacion(
     result = []
     for row in rows:
         item = dict(row)
-        item["boe_reference"] = item.pop("boe_id", None)
-        # eli_uri stays as-is (already in select)
+        boe_id = item.get("boe_id")
+        item["boe_reference"] = boe_id
+        item["source_url"] = _boe_source_url(boe_id)
         result.append(item)
     has_more = offset + len(result) < total
     return {
@@ -116,7 +129,8 @@ async def get_norma(request: Request, codigo: str):
             db.execute(
                 text(
                     """
-                SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente, tipo_documento, ambito, estado_cobertura
+                SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+                       tipo_documento, ambito, estado_cobertura, vigente_desde
                 FROM norma
                 WHERE codigo = :codigo
                 """
@@ -129,6 +143,12 @@ async def get_norma(request: Request, codigo: str):
     if not row:
         raise HTTPException(status_code=404, detail={"error": "Norma no encontrada"})
     payload = dict(row)
+    boe_id = payload.get("boe_id")
+    payload["boe_reference"] = boe_id
+    payload["source_url"] = _boe_source_url(boe_id)
+    payload["vigente_desde"] = (
+        str(payload["vigente_desde"]) if payload.get("vigente_desde") else None
+    )
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}",
@@ -138,8 +158,8 @@ async def get_norma(request: Request, codigo: str):
             {
                 "norma": payload["codigo"],
                 "title": payload["titulo"],
-                "source_url": payload.get("eli_uri"),
-                "referencia": payload.get("boe_id"),
+                "source_url": payload.get("source_url") or payload.get("eli_uri"),
+                "referencia": payload.get("boe_reference"),
             }
         ],
         response_summary=f"norma={payload['codigo']}",
@@ -205,12 +225,7 @@ async def list_articulos(
     articulos = []
     for row in rows:
         boe_id = row["boe_id"]
-        numero_raw = str(row["numero"])
-        anchor = "".join(ch for ch in numero_raw if ch.isalnum()).lower()
-        source_url = (
-            f"https://www.boe.es/buscar/act.php?id={boe_id}#a{anchor}"
-            if boe_id else None
-        )
+        source_url = _boe_source_url(boe_id, _article_anchor(row["numero"]))
         articulos.append({
             "numero": row["numero"],
             "titulo": row["titulo"],
@@ -290,9 +305,7 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
     boe_id = row["boe_id"]
     # Deep-link to the specific article within the consolidated norma on boe.es.
     # BOE uses `#a<numero>` anchors for each article in the consolidated text.
-    numero_raw = str(row["numero"])
-    anchor_fragment = "".join(ch for ch in numero_raw if ch.isalnum()).lower()
-    source_url = f"https://www.boe.es/buscar/act.php?id={boe_id}#a{anchor_fragment}" if boe_id else None
+    source_url = _boe_source_url(boe_id, _article_anchor(row["numero"]))
 
     payload = {
         "norma": row["codigo"],

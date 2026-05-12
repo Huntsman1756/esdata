@@ -2010,14 +2010,14 @@ STATEMENTS = [
     VALUES (
         'ITPAJD',
         'Texto refundido del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados',
-        'BOE-A-1993-253',
+        'BOE-A-1993-25359',
         'https://www.boe.es/eli/es/rdlg/1993/09/24/1/con',
         'es',
         'boe',
         'real_decreto_legislativo',
         'tributario',
         'ingestada',
-        '1993-09-25'
+        '1993-10-21'
     )
     """,
     """

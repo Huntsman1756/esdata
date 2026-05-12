@@ -56,7 +56,7 @@ DEFAULT_NORMAS = {
     "LIRPF": "BOE-A-2006-20764",
     "LIS": "BOE-A-2014-12328",
     "LGT": "BOE-A-2003-23186",
-    "ITPAJD": "BOE-A-1993-253",
+    "ITPAJD": "BOE-A-1993-25359",
     # Added 2026-05-09 per audit: compliance domains gap
     "LEY10_2010": "BOE-A-2010-6737",       # Ley 10/2010 Prevencion blanqueo capitales (SEPBLAC)
     "RDL19_2018": "BOE-A-2018-16036",      # RDL 19/2018 Servicios de pago — implementa PSD2 en Espana

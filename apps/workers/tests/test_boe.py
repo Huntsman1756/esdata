@@ -129,11 +129,11 @@ def test_parse_metadata_uses_per_code_classification_for_itpajd():
         ]
     }
 
-    metadata = parse_metadata("ITPAJD", "BOE-A-1993-253", payload)
+    metadata = parse_metadata("ITPAJD", "BOE-A-1993-25359", payload)
 
     assert metadata == NormaMetadata(
         codigo="ITPAJD",
-        boe_id="BOE-A-1993-253",
+        boe_id="BOE-A-1993-25359",
         titulo="Real Decreto Legislativo 1/1993, de 24 de septiembre, por el que se aprueba el texto refundido de la Ley del Impuesto sobre Transmisiones Patrimoniales y Actos Juridicos Documentados.",
         eli_uri="https://www.boe.es/eli/es/rdlg/1993/09/24/1",
         jurisdiccion="es",
@@ -165,7 +165,7 @@ def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
 def test_default_normas_include_itpajd():
     from boe import DEFAULT_NORMAS
 
-    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-253"
+    assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-25359"
 
 
 def test_run_sync_ingests_itpajd_article_and_version():
@@ -190,7 +190,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
             return False
 
         def get(self, url, headers=None):
-            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+            if url.endswith("/id/BOE-A-1993-25359/metadatos"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -202,7 +202,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/indice"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -218,13 +218,13 @@ def test_run_sync_ingests_itpajd_article_and_version():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/bloque/a7"):
                 return FakeResponse(
                     text_data="""
                     <response>
                       <data>
                         <bloque id="a7" tipo="precepto" titulo="Artículo 7">
-                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                          <version id_norma="BOE-A-1993-25359" fecha_publicacion="19930925" fecha_vigencia="19930925">
                             <p class="articulo">Artículo 7. Operaciones societarias.</p>
                             <p class="parrafo">Uno. Son operaciones societarias sujetas las previstas en esta norma.</p>
                           </version>
@@ -262,7 +262,7 @@ def test_run_sync_ingests_itpajd_article_and_version():
 
     assert norma == (
         "ITPAJD",
-        "BOE-A-1993-253",
+        "BOE-A-1993-25359",
         "real_decreto_legislativo",
         "tributario",
         "ingestada",
@@ -302,7 +302,7 @@ def test_run_sync_does_not_fetch_remote_blocks_inside_transaction():
         def get(self, url, headers=None):
             if "/texto/indice" in url or "/texto/bloque/" in url:
                 self.transaction_states.append(self.engine.in_transaction)
-            if url.endswith("/id/BOE-A-1993-253/metadatos"):
+            if url.endswith("/id/BOE-A-1993-25359/metadatos"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -314,7 +314,7 @@ def test_run_sync_does_not_fetch_remote_blocks_inside_transaction():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/indice"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/indice"):
                 return FakeResponse(
                     json_data={
                         "data": [
@@ -330,13 +330,13 @@ def test_run_sync_does_not_fetch_remote_blocks_inside_transaction():
                         ]
                     }
                 )
-            if url.endswith("/id/BOE-A-1993-253/texto/bloque/a7"):
+            if url.endswith("/id/BOE-A-1993-25359/texto/bloque/a7"):
                 return FakeResponse(
                     text_data="""
                     <response>
                       <data>
                         <bloque id="a7" tipo="precepto" titulo="Artículo 7">
-                          <version id_norma="BOE-A-1993-253" fecha_publicacion="19930925" fecha_vigencia="19930925">
+                          <version id_norma="BOE-A-1993-25359" fecha_publicacion="19930925" fecha_vigencia="19930925">
                             <p class="articulo">Artículo 7. Operaciones societarias.</p>
                           </version>
                         </bloque>

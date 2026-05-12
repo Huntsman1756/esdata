@@ -18,7 +18,7 @@
     {"id": "A-04", "title": "Smoke test all persistent workers", "priority": 7, "phase": "audit", "passes": true},
     {"id": "A-05", "title": "Run all cron jobs once - verify sync_log entries", "priority": 8, "phase": "audit", "passes": true},
     {"id": "A-06", "title": "DB integrity - FK, NULLs, duplicates", "priority": 9, "phase": "audit", "passes": true},
-    {"id": "A-07", "title": "Regulatory data accuracy spot-check", "priority": 10, "phase": "audit", "passes": false},
+    {"id": "A-07", "title": "Regulatory data accuracy spot-check", "priority": 10, "phase": "audit", "passes": true},
     {"id": "A-08", "title": "Test all API endpoints", "priority": 11, "phase": "audit", "passes": false},
     {"id": "A-09", "title": "MCP tool accuracy spot-check", "priority": 12, "phase": "audit", "passes": false},
     {"id": "A-10", "title": "Verify query_audit_log append-only and captures invocations", "priority": 13, "phase": "audit", "passes": false},

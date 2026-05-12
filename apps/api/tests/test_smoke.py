@@ -221,10 +221,22 @@ async def test_legislacion_expone_itpajd_con_clasificacion():
     assert norma["tipo_documento"] == "real_decreto_legislativo"
     assert norma["ambito"] == "tributario"
     assert norma["estado_cobertura"] == "ingestada"
+    assert norma["boe_id"] == "BOE-A-1993-25359"
+    assert norma["boe_reference"] == "BOE-A-1993-25359"
+    assert norma["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359"
 
-    assert detalle.json()["tipo_documento"] == "real_decreto_legislativo"
-    assert detalle.json()["estado_cobertura"] == "ingestada"
-    assert "transmisiones" in articulo.json()["texto"].lower()
+    detalle_json = detalle.json()
+    assert detalle_json["tipo_documento"] == "real_decreto_legislativo"
+    assert detalle_json["estado_cobertura"] == "ingestada"
+    assert detalle_json["boe_id"] == "BOE-A-1993-25359"
+    assert detalle_json["boe_reference"] == "BOE-A-1993-25359"
+    assert detalle_json["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359"
+    assert detalle_json["vigente_desde"] == "1993-10-21"
+
+    articulo_json = articulo.json()
+    assert articulo_json["boe_reference"] == "BOE-A-1993-25359"
+    assert articulo_json["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-1993-25359#a7"
+    assert "transmisiones" in articulo_json["texto"].lower()
 
 
 @pytest.mark.asyncio
