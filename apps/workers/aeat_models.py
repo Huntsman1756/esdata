@@ -54,6 +54,40 @@ PLAYWRIGHT_BROWSERS_PATH = "/tmp/ms-playwright"
 AEAT_SYNC_LOCK_KEY = 88420031
 AEAT_RESOURCE_FETCH_RETRIES = 3
 
+MODEL_TAX_OVERRIDES = {
+    "100": "IRPF",
+    "111": "IRPF",
+    "115": "IRPF",
+    "123": "IRPF/IS/IRNR",
+    "124": "IRNR",
+    "130": "IRPF",
+    "180": "IRPF",
+    "187": "IRPF",
+    "189": "IRPF",
+    "190": "IRPF",
+    "193": "IRPF",
+    "194": "IRPF/IS",
+    "196": "IRPF",
+    "198": "IRPF",
+    "200": "IS/IRNR",
+    "202": "IS/IRNR",
+    "206": "IS/IRNR",
+    "210": "IRNR",
+    "211": "IRNR",
+    "213": "IRNR",
+    "216": "IRNR",
+    "247": "IRNR",
+    "289": "INFORMATIVO",
+    "290": "INFORMATIVO",
+    "291": "IRNR",
+    "296": "IRNR",
+    "299": "INFORMATIVO",
+    "303": "IVA",
+    "347": "INFORMATIVO",
+    "349": "IVA",
+    "390": "IVA",
+}
+
 
 class FallbackRequired(RuntimeError):
     """Signal that the HTTP client cannot retrieve usable portal HTML."""
@@ -440,7 +474,10 @@ def _extract_model_name(raw_text: str, codigo: str) -> str:
 def _infer_impuesto(codigo: str, page_text: str, url_info: str, nombre: str) -> str | None:
     """Infer the tax family from the model detail page without trusting nav noise."""
 
-    compact = re.sub(r"\s+", " ", " ".join((codigo, page_text or "", url_info or "", nombre or "")).lower())
+    if codigo in MODEL_TAX_OVERRIDES:
+        return MODEL_TAX_OVERRIDES[codigo]
+
+    compact = re.sub(r"\s+", " ", " ".join((codigo, url_info or "", nombre or "")).lower())
     is_sociedades = (
         "impuesto sobre sociedades" in compact
         or "impuesto sociedades" in compact
@@ -463,8 +500,8 @@ def _infer_impuesto(codigo: str, page_text: str, url_info: str, nombre: str) -> 
         return "IRPF"
     if "iva" in compact or "impuesto sobre el valor anadido" in compact or "impuesto sobre el valor añadido" in compact:
         return "IVA"
-    if "informacion" in compact or "informativo" in compact:
-        return "informacion"
+    if "declaracion informativa" in compact or "declaración informativa" in compact or "informativo" in compact:
+        return "INFORMATIVO"
     return None
 
 

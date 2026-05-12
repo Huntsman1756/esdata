@@ -330,6 +330,28 @@ class TestFetchModelMetadata:
             "Modelo 303",
         ) == "IVA"
 
+    def test_inference_uses_code_override_before_noisy_page_text(self):
+        noisy_nav = "IVA IRNR Impuesto sobre la Renta de no Residentes Impuesto sobre Sociedades"
+
+        assert _infer_impuesto(
+            "100",
+            noisy_nav,
+            "https://sede.agenciatributaria.gob.es/Sede/ayuda/modelo-100/index.shtml",
+            "Modelo 100. Impuesto sobre la Renta de las Personas Físicas.",
+        ) == "IRPF"
+        assert _infer_impuesto(
+            "289",
+            noisy_nav,
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI42.shtml",
+            "Modelo 289. Declaración informativa anual de cuentas financieras.",
+        ) == "INFORMATIVO"
+        assert _infer_impuesto(
+            "290",
+            noisy_nav,
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
+            "Modelo 290. Declaración informativa anual de cuentas financieras FATCA.",
+        ) == "INFORMATIVO"
+
     def test_normalizes_provided_url_before_fetching_detail(self):
         portal_client = MagicMock()
         portal_client.fetch_detail.return_value = "<html><body><h1>230 - Modelo 230</h1></body></html>"
