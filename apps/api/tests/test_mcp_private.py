@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from main import app
 from mcp_security import reset_mcp_rate_limit_state
 
-
 API_DIR = Path(__file__).resolve().parents[1]
 
 
@@ -247,6 +246,7 @@ async def test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key():
         assert tools.status_code == 200
 
         names = {tool["name"] for tool in tools.json()["result"]["tools"]}
+        returned_tools = tools.json()["result"]["tools"]
         assert "buscar" in names
         assert "list_modelos" in names
         assert "list_domain_availability" in names
@@ -257,6 +257,9 @@ async def test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key():
         assert "listar_registros_giin" in names
         assert "list_casp" in names
         assert "screening_entries" in names
+        assert all(tool.get("outputSchema", {}).get("type") == "object" for tool in returned_tools)
+        assert all(tool.get("annotations", {}).get("readOnlyHint") is True for tool in returned_tools)
+        assert all(tool.get("annotations", {}).get("destructiveHint") is False for tool in returned_tools)
 
 
 @pytest.mark.asyncio

@@ -82,5 +82,5 @@ Implementacion recomendada:
 | S-05 | 1 | EUR-Lex quality contract | Exponer `metadata_only` / `article_text_available`, `verified`, `completeness` y `evidence_notice` en API/MCP. |
 | S-06 | 2 | EUR-Lex deep ingestion safe mode | Implementado: ingesta por allowlist CELEX y presupuesto por ejecucion; MiFID II cargado en VPS con 93 articulos/versiones. Pendiente de expansion: lotes adicionales y quality counters esperados/parsing por CELEX. |
 | S-07 | 3 | BOE non-consolidated fallback | Evaluado y documentado: XML/PDF no consolidado debe ir a `documento_interpretativo` o tabla `boe_diario_documento`, nunca a `articulo/version_articulo`; implementacion queda como historia separada. |
-| S-08 | 4 | MCP output schemas | Anadir `outputSchema`/anotaciones read-only a herramientas MCP expuestas. |
+| S-08 | 4 | MCP output schemas | Implementado: herramientas HTTP y stdio se enriquecen con `outputSchema` tipo objeto y anotaciones `readOnlyHint=true`, `destructiveHint=false`. |
 | S-09 | 5 | EU source registry quality counters | Persistir `articles_expected`, `articles_parsed` y `quality_status` por CELEX cuando el worker pueda medirlo. |

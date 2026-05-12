@@ -1,9 +1,7 @@
 import httpx
 from fastapi_mcp import FastApiMCP
-
+from mcp_catalog import HTTP_MCP_OPERATIONS, apply_http_tool_contract
 from mcp_request_context import get_mcp_request_id, get_mcp_user_id, mcp_internal_request
-
-from mcp_catalog import HTTP_MCP_OPERATIONS
 
 
 def mount_mcp(app) -> None:
@@ -29,6 +27,7 @@ def mount_mcp(app) -> None:
         include_operations=HTTP_MCP_OPERATIONS,
         headers=["authorization", "x-request-id", "x-user-id"],
     )
+    apply_http_tool_contract(mcp.tools)
     mcp.mount_http(mount_path="/mcp")
     app.state._mcp = mcp
     app.state._mcp_http_transport = mcp._http_transport

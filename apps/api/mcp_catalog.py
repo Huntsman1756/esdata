@@ -2,6 +2,24 @@ from __future__ import annotations
 
 from typing import Any
 
+DEFAULT_MCP_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": True,
+    "description": (
+        "JSON object returned by the underlying ESData read-only endpoint. "
+        "Tool calls may serialize this object in text content depending on transport."
+    ),
+}
+
+DEFAULT_MCP_READ_ONLY_ANNOTATIONS: dict[str, bool] = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    # Every retrieval is semantically read-only, but audit logging means repeated
+    # calls are not strictly side-effect-free at infrastructure level.
+    "idempotentHint": False,
+    "openWorldHint": False,
+}
+
 
 HTTP_MCP_OPERATIONS = [
     # Legislacion
@@ -128,8 +146,35 @@ def infer_query_audit_tool_name(path: str) -> str:
     return "http_request"
 
 
+def enrich_dict_tool_contract(tool: dict[str, Any]) -> dict[str, Any]:
+    """Add MCP contract metadata to a dict-based tool definition."""
+    enriched = dict(tool)
+    enriched.setdefault("outputSchema", DEFAULT_MCP_OUTPUT_SCHEMA)
+    annotations = dict(DEFAULT_MCP_READ_ONLY_ANNOTATIONS)
+    annotations.update(enriched.get("annotations") or {})
+    enriched["annotations"] = annotations
+    return enriched
+
+
+def enrich_stdio_tool_contract(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add output schema and read-only annotations to stdio tool definitions."""
+    return [enrich_dict_tool_contract(tool) for tool in tools]
+
+
+def apply_http_tool_contract(tools: list[Any]) -> None:
+    """Mutate FastApiMCP Tool objects with ESData's read-only contract."""
+    from mcp import types
+
+    annotations = types.ToolAnnotations(**DEFAULT_MCP_READ_ONLY_ANNOTATIONS)
+    for tool in tools:
+        if getattr(tool, "outputSchema", None) is None:
+            tool.outputSchema = DEFAULT_MCP_OUTPUT_SCHEMA
+        if getattr(tool, "annotations", None) is None:
+            tool.annotations = annotations
+
+
 def get_stdio_tool_definitions() -> list[dict[str, Any]]:
-    return [
+    return enrich_stdio_tool_contract([
         {
             "name": "consulta_fiscal",
             "description": (
@@ -274,4 +319,4 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
                 "required": [],
             },
         },
-    ]
+    ])
