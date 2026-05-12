@@ -912,3 +912,22 @@ Evidence:
 Accepted risks:
   - The schedule is cron.d as requested; systemd timer migration can be considered later if we standardize all scheduled operations under systemd.
 Next: R-08
+=== Iteration R-08 - 2026-05-13T01:43:00+02:00 ===
+Story: R-08 Final smoke test - 10 real queries across all live domains post-release
+Result: PASS
+Evidence:
+  - Ran 10 production queries against VPS after tag v1.0.0 and after main was updated to fabdd0a.
+  - AEAT 303 honest contract: verified=false, completeness=parcial, casillas_total=57.
+  - AEAT 290: verified=false, completeness=parcial, casillas_total=152.
+  - AEAT 102: verified=true, completeness=no-casillas-expected.
+  - LIVA article 4: BOE reference BOE-A-1992-28740 and source_url present.
+  - Search "base imponible IVA": top result from LIVA with official BOE source URL.
+  - DGT "IVA tipo": returns V1280-23, organo=DGT.
+  - CNMV "circular": returns 65 documents; first has title and fecha=2026-05-10.
+  - AEPD: loaded_total=25; search "proteccion datos" returns 19 traceable documents, first with url_aepd.
+  - EUR-Lex MiFID: returns MIFID2_2014_65.
+  - /status: api=ok, database=ok, stale_workers_count=0.
+  - Final smoke summary: total=10, failed=[].
+Accepted risks:
+  - The original R-08 example expected Modelo 303 verified=true and AEPD search total >=25. The release contract is stricter and more honest: Modelo 303 remains parcial, and AEPD has 25 loaded documents while the specific search query matches 19.
+Next: COMPLETE

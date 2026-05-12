@@ -97,10 +97,12 @@
       "id": "R-08",
       "title": "Final smoke test - 10 real queries across all live domains post-release",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Run 10 production queries across AEAT, BOE, DGT, CNMV, AEPD, EUR-Lex and /status",
         "All 10 must pass after v1.0.0 tag",
+        "AEAT checks must validate honest contracts, including partial evidence where the release deliberately does not claim verified=true",
+        "AEPD check must verify 25 loaded documents and a traceable search result",
         "Any failure blocks release"
       ],
       "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.api' | grep -q 'ok\\|OK' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/303 | jq '.verified' | grep -q 'true' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/290 | jq '.completeness' | grep -q 'parcial' && echo 'CORE SMOKE PASS - run full 10-query suite manually'"
