@@ -289,14 +289,15 @@ def run_sync(worker_name: str = WORKER_NAME) -> dict[str, int]:
                         boe_id,
                         fetch_pdf_fallback=fetch_pdf,
                     )
-                    upsert_documento_interpretativo(conn, doc)
-                    record_revision(
-                        conn,
-                        worker_name,
-                        "documento_interpretativo",
-                        doc.referencia,
-                        doc.texto or doc.referencia,
-                    )
+                    with conn.begin_nested():
+                        upsert_documento_interpretativo(conn, doc)
+                        record_revision(
+                            conn,
+                            worker_name,
+                            "documento_interpretativo",
+                            doc.referencia,
+                            doc.texto or doc.referencia,
+                        )
                     upserted += 1
                     time.sleep(0.2)
                 except Exception as exc:
