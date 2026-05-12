@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import text
 
 from db import db_session
+from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import BORMEDetail, BORMEListResponse
 
 router = APIRouter(prefix="/v1/borme", tags=["borme"])
@@ -15,6 +16,7 @@ def _quality_signal(row_completeness: str | None, row_provenance: str | None) ->
 
 @router.get("", response_model=BORMEListResponse, operation_id="listar_borme")
 async def listar_borme(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo de acto detectado"),
     limit: int = Query(20, ge=1, le=100, description="Limite de actos devueltos"),
@@ -77,7 +79,7 @@ async def listar_borme(
             for row in rows
         ]
         next_offset = offset + limit if offset + len(actos) < int(total or 0) else None
-        return {
+        response = {
             "actos": actos,
             "total": total,
             "limit": limit,
@@ -86,6 +88,17 @@ async def listar_borme(
             "next_offset": next_offset,
             "quality_signal": "partial_heuristic",
         }
+        record_retrieval_query_audit(
+            request,
+            path="/v1/borme",
+            query_text=q or "",
+            tool_name="listar_borme",
+            items=actos,
+            total=int(total or 0),
+            verified=False,
+            response_summary=f"total={total}; returned={len(actos)}; quality_signal=partial_heuristic",
+        )
+        return response
 
 
 @router.get("/{referencia:path}", response_model=BORMEDetail, operation_id="get_borme")

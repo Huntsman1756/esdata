@@ -8,7 +8,7 @@ transacciones crypto para DAC8/DAC9.
 import json
 
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from schemas import (
     CASPCreate as CASPCreateSchema,
 )
@@ -56,6 +56,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from services.domain_availability import availability_envelope, check_domain
+from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/mica", tags=["mica"])
 
@@ -118,6 +119,7 @@ def _casp_quality(total: int) -> dict:
     response_model=CASPListResponse,
 )
 async def list_casp(
+    request: Request,
     status: str | None = Query(default=None, description="Filtrar por estado: active, suspended, revoked"),
     home_member_state: str | None = Query(default=None, description="Filtrar por estado miembro (ISO 3166-1 alpha-2)"),
     search: str | None = Query(default=None, description="Busqueda por nombre"),
@@ -141,6 +143,16 @@ async def list_casp(
     with db_session() as db:
         availability = check_domain(db, "casp", "DAC / Crypto / MiCA")
         if availability is not None:
+            record_retrieval_query_audit(
+                request,
+                path="/v1/mica/casp",
+                query_text=search or "",
+                tool_name="list_casp",
+                items=[],
+                total=0,
+                verified=False,
+                response_summary="availability_status=configured_but_unavailable",
+            )
             return availability
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
         try:
@@ -169,7 +181,18 @@ async def list_casp(
         except OperationalError as exc:
             return _empty_list_on_missing_table(exc, "casp", "DAC / Crypto / MiCA")
 
-        return {"items": items, "total": total, **_casp_quality(total)}
+        response = {"items": items, "total": total, **_casp_quality(total)}
+        record_retrieval_query_audit(
+            request,
+            path="/v1/mica/casp",
+            query_text=search or "",
+            tool_name="list_casp",
+            items=items,
+            total=int(total or 0),
+            verified=bool(items),
+            response_summary=f"total={total}; returned={len(items)}; quality_signal={response['quality_signal']}",
+        )
+        return response
 
 
 @router.get(
@@ -178,6 +201,7 @@ async def list_casp(
     response_model=CASPListResponse,
 )
 async def buscar_casp(
+    request: Request,
     q: str | None = Query(default=None, description="Busqueda por nombre o numero de registro"),
     status: str | None = Query(default=None, description="Filtrar por estado: active, suspended, revoked"),
     home_member_state: str | None = Query(default=None, description="Filtrar por estado miembro (ISO 3166-1 alpha-2)"),
@@ -201,6 +225,16 @@ async def buscar_casp(
     with db_session() as db:
         availability = check_domain(db, "casp", "DAC / Crypto / MiCA")
         if availability is not None:
+            record_retrieval_query_audit(
+                request,
+                path="/v1/mica/casp/buscar",
+                query_text=q or "",
+                tool_name="buscar_casp",
+                items=[],
+                total=0,
+                verified=False,
+                response_summary="availability_status=configured_but_unavailable",
+            )
             return availability
         where = "WHERE " + " AND ".join(conditions) if conditions else ""
         try:
@@ -229,7 +263,18 @@ async def buscar_casp(
         except OperationalError as exc:
             return _empty_list_on_missing_table(exc, "casp", "DAC / Crypto / MiCA")
 
-    return {"items": items, "total": total, **_casp_quality(total)}
+    response = {"items": items, "total": total, **_casp_quality(total)}
+    record_retrieval_query_audit(
+        request,
+        path="/v1/mica/casp/buscar",
+        query_text=q or "",
+        tool_name="buscar_casp",
+        items=items,
+        total=int(total or 0),
+        verified=bool(items),
+        response_summary=f"total={total}; returned={len(items)}; quality_signal={response['quality_signal']}",
+    )
+    return response
 
 
 @router.get(

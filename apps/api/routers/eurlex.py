@@ -1,7 +1,8 @@
 import re
 
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import EurLexDetail, EurLexListResponse
 from sqlalchemy import text
 
@@ -96,6 +97,7 @@ def _query_tokens(q: str) -> list[str]:
 
 @router.get("", response_model=EurLexListResponse, operation_id="listar_eurlex")
 async def listar_eurlex(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo (directiva, reglamento, decision)"),
     ambito: str | None = Query(
@@ -205,7 +207,7 @@ async def listar_eurlex(
             }
         )
     next_offset = offset + limit if offset + len(documentos) < int(total or 0) else None
-    return {
+    response = {
         "documentos": documentos,
         "total": total,
         "limit": limit,
@@ -213,17 +215,29 @@ async def listar_eurlex(
         "has_more": next_offset is not None,
         "next_offset": next_offset,
     }
+    path = request.url.path
+    record_retrieval_query_audit(
+        request,
+        path=path,
+        query_text=q or "",
+        tool_name="buscar_eurlex" if path.endswith("/buscar") else "listar_eurlex",
+        items=documentos,
+        total=int(total or 0),
+        verified=any(item.get("verified") for item in documentos),
+    )
+    return response
 
 
 @router.get("/buscar", response_model=EurLexListResponse, operation_id="buscar_eurlex")
 async def buscar_eurlex(
+    request: Request,
     q: str = Query(..., min_length=1, description="Termino de busqueda EUR-Lex"),
     tipo: str | None = Query(None, description="Filtrar por tipo (directiva, reglamento, decision)"),
     ambito: str | None = Query(None, description="Filtrar por ambito"),
     limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
     offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
-    return await listar_eurlex(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
+    return await listar_eurlex(request=request, q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
 
 
 @router.get("/{referencia:path}", response_model=EurLexDetail, operation_id="get_eurlex")

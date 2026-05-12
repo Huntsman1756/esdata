@@ -1,5 +1,6 @@
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import (
     CNMVObligationLinkResponse,
     CNMVRegulationLinkResponse,
@@ -46,6 +47,7 @@ def _cnmv_list_payload(row) -> dict:
 
 @router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_cnmv")
 async def listar_cnmv(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     ambito: str | None = Query(None, description="Filtrar por ámbito regulatorio"),
     tipo_documento: str | None = Query(None, description="Filtrar por tipo de documento"),
@@ -130,16 +132,28 @@ async def listar_cnmv(
 
         total = total_rows["cnt"] if total_rows else 0
 
-        return {
+        response = {
             "documentos": docs,
             "skip": skip,
             "limit": limit,
             "total": total,
         }
+        path = request.url.path
+        record_retrieval_query_audit(
+            request,
+            path=path,
+            query_text=q or "",
+            tool_name="buscar_cnmv" if path.endswith("/buscar") else "listar_cnmv",
+            items=docs,
+            total=int(total or 0),
+            verified=bool(docs),
+        )
+        return response
 
 
 @router.get("/buscar", response_model=DocInterpretativoListResponse, operation_id="buscar_cnmv")
 async def buscar_cnmv(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o titulo"),
     ambito: str | None = Query(None, description="Filtrar por ambito regulatorio"),
     tipo_documento: str | None = Query(None, description="Filtrar por tipo de documento"),
@@ -152,6 +166,7 @@ async def buscar_cnmv(
     order_dir: str = Query("desc", description="Direccion de ordenacion"),
 ):
     return await listar_cnmv(
+        request=request,
         q=q,
         ambito=ambito,
         tipo_documento=tipo_documento,

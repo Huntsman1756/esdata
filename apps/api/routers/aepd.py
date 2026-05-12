@@ -2,7 +2,8 @@ import re
 import unicodedata
 
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
 from sqlalchemy import text
 
@@ -146,24 +147,46 @@ async def _listar_aepd_response(
 
 @router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_aepd")
 async def listar_aepd(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o titulo"),
     tipo: str | None = Query(None, description="Filtrar por tipo (guia_aepd, resolucion_aepd, instruccion_aepd)"),
     ambito: str | None = Query(None, description="Filtrar por ambito (proteccion_datos, derechos_ar, ficheros_datos, cookies)"),
     limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
     offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
-    return await _listar_aepd_response(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
+    response = await _listar_aepd_response(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
+    record_retrieval_query_audit(
+        request,
+        path="/v1/aepd",
+        query_text=q or "",
+        tool_name="listar_aepd",
+        items=response["documentos"],
+        total=response["total"],
+        verified=bool(response["documentos"]),
+    )
+    return response
 
 
 @router.get("/buscar", response_model=DocInterpretativoListResponse, operation_id="buscar_aepd")
 async def buscar_aepd(
+    request: Request,
     q: str = Query(..., min_length=1, description="Filtrar por texto o titulo"),
     tipo: str | None = Query(None, description="Filtrar por tipo"),
     ambito: str | None = Query(None, description="Filtrar por ambito"),
     limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
     offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
-    return await _listar_aepd_response(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
+    response = await _listar_aepd_response(q=q, tipo=tipo, ambito=ambito, limit=limit, offset=offset)
+    record_retrieval_query_audit(
+        request,
+        path="/v1/aepd/buscar",
+        query_text=q,
+        tool_name="buscar_aepd",
+        items=response["documentos"],
+        total=response["total"],
+        verified=bool(response["documentos"]),
+    )
+    return response
 
 
 @router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_aepd")
