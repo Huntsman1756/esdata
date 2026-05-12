@@ -141,6 +141,42 @@ def test_extract_xsd_zip_fields_from_declaracion_informativa_schema():
     assert "maxOccurs: 1" in fields[0]["descripcion"]
 
 
+def test_extract_direct_xsd_fields_from_declaracion_informativa_schema():
+    xsd = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+               targetNamespace="https://example.test">
+      <xs:complexType name="DeclaracionInformativa">
+        <xs:sequence>
+          <xs:element name="Cabecera">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="Modelo" type="xs:string"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:schema>
+    """
+
+    fields = worker.extract_xsd_fields(xsd.encode("utf-8"), "DeclaracionInformativa.xsd")
+
+    assert fields == [
+        {
+            "codigo": "XSD:DeclaracionInformativa/Cabecera/Modelo",
+            "etiqueta": "DeclaracionInformativa > Cabecera > Modelo",
+            "descripcion": (
+                "XPath: /DeclaracionInformativa/Cabecera/Modelo; "
+                "Fuente XSD: DeclaracionInformativa.xsd; Tipo XSD: xs:string; "
+                "minOccurs: 1; maxOccurs: 1"
+            ),
+            "tipo_casilla": "diseno_registro_xsd_campo",
+            "pagina": None,
+            "orden": 1,
+        }
+    ]
+
+
 def test_extract_xsd_zip_fields_resolves_presentation_imported_types():
     presentation = """<?xml version="1.0" encoding="UTF-8"?>
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -200,6 +236,33 @@ def test_extract_xsd_zip_fields_resolves_presentation_imported_types():
     assert fields[0]["tipo_casilla"] == "diseno_registro_xsd_campo"
     assert "Documentacion: Identificador del mensaje" in fields[0]["descripcion"]
     assert "minOccurs: 0" in fields[3]["descripcion"]
+
+
+def test_extract_xsd_zip_fields_accepts_spanish_presentacion_root():
+    xsd = """<?xml version="1.0" encoding="UTF-8"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="M240Presentacion">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="Cabecera">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="CodigoPresentacion" type="xs:string"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zipped:
+        zipped.writestr("M240CDNtnlPresentacion_v1.1.xsd", xsd)
+
+    fields = worker.extract_xsd_zip_fields(buffer.getvalue())
+
+    assert fields[0]["codigo"] == "XSD:M240Presentacion/Cabecera/CodigoPresentacion"
 
 
 def test_extract_pdf_text_fields_from_numbered_design_table():

@@ -56,6 +56,14 @@ SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI54.shtml",
     },
     {
+        "codigo": "179",
+        "label": "Modelo 179 - DeclaracionInformativa.xsd servicio web cesion viviendas turisticas",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/ddii/enol/ws/DeclaracionInformativa.xsd",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "xsd",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI44.shtml",
+    },
+    {
         "codigo": "231",
         "label": "Modelo 231 - Esquema XSD y WSDL de presentacion pais por pais",
         "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI41/WS/231_XSD-2.0_WSDL-2-0-1.zip",
@@ -70,6 +78,30 @@ SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
         "tipo_recurso": "diseno_registro_xsd",
         "formato": "zip",
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI52.shtml",
+    },
+    {
+        "codigo": "240",
+        "label": "Modelo 240 - Esquema XSD y WSDL comunicacion declarante impuesto complementario",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI60/Servicio_Web/Modelo_240_Comunicacion_Declarante_XSD_WSDL.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI60.shtml",
+    },
+    {
+        "codigo": "241",
+        "label": "Modelo 241 - Esquema XSD y WSDL declaracion informativa impuesto complementario",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI59/Servicio_Web/Modelo_241_GIR_Globe_-_XSD_V1_1-WSDL_1_1.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI59.shtml",
+    },
+    {
+        "codigo": "290",
+        "label": "Modelo 290 - Esquema XSD y WSDL FATCA presentacion",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI38/Ayuda/XSD_WSDL/290_XSD_2.0_WSDL_2.1.1.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
     },
 ]
 CALENDAR_ANNUAL_URL = (
@@ -292,6 +324,10 @@ def _is_zip_format(url: str) -> bool:
     return url.lower().split("?", 1)[0].endswith(".zip")
 
 
+def _is_xsd_format(url: str) -> bool:
+    return url.lower().split("?", 1)[0].endswith(".xsd")
+
+
 def _cell_text(value) -> str:
     if value is None:
         return ""
@@ -450,6 +486,25 @@ def _build_xsd_complex_type_registry(roots: list[ET.Element]) -> dict[str, ET.El
     return complex_types
 
 
+def _xsd_presentation_root_element_name(root: ET.Element) -> str | None:
+    element_names = [
+        element.attrib.get("name")
+        for element in root.findall(f"{XSD_NAMESPACE}element")
+        if element.attrib.get("name")
+    ]
+    for preferred in ("Presentation", "Presentacion", "M240Presentacion"):
+        if preferred in element_names:
+            return preferred
+    return next(
+        (
+            name
+            for name in element_names
+            if re.search(r"present(?:ation|acion)", name, flags=re.IGNORECASE)
+        ),
+        None,
+    )
+
+
 def _extract_xsd_fields_from_schema(
     root: ET.Element,
     xsd_name: str,
@@ -566,19 +621,31 @@ def extract_xsd_zip_fields(payload: bytes) -> list[dict]:
         presentation_names = [
             name
             for name in xsd_payloads
-            if re.search(r"Presentation[^/]*\.xsd$", name, flags=re.IGNORECASE)
+            if re.search(r"(Presentation|Presentacion)[^/]*\.xsd$", name, flags=re.IGNORECASE)
         ]
         for xsd_name in sorted(presentation_names):
+            root_element_name = _xsd_presentation_root_element_name(xsd_payloads[xsd_name])
+            if not root_element_name:
+                continue
             fields.extend(
                 _extract_xsd_fields_from_schema(
                     xsd_payloads[xsd_name],
                     xsd_name.rsplit("/", 1)[-1],
                     complex_types=complex_types,
                     root_complex_type=None,
-                    root_element_name="Presentation",
+                    root_element_name=root_element_name,
                 )
             )
     return fields
+
+
+def extract_xsd_fields(payload: bytes, source_name: str = "DeclaracionInformativa.xsd") -> list[dict]:
+    root = ET.fromstring(payload)
+    return _extract_xsd_fields_from_schema(
+        root,
+        source_name,
+        root_complex_type="DeclaracionInformativa",
+    )
 
 
 _PDF_NATURE_WORDS = {
@@ -921,6 +988,9 @@ def run_sync(engine) -> dict:
                         stats["pdf_fields"] += _upsert_design_fields(conn, campana_id, fields)
                     elif _is_zip_format(link["url"]):
                         fields = extract_xsd_zip_fields(payload)
+                        stats["xsd_fields"] += _upsert_design_fields(conn, campana_id, fields)
+                    elif _is_xsd_format(link["url"]):
+                        fields = extract_xsd_fields(payload, link["url"].rsplit("/", 1)[-1])
                         stats["xsd_fields"] += _upsert_design_fields(conn, campana_id, fields)
                 except Exception as exc:
                     stats["parse_errors"] += 1
