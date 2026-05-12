@@ -35,7 +35,7 @@
                             "id":  "Q-03",
                             "title":  "BOE legislacion consolidada - verify 5 article queries return correct BOE text",
                             "priority":  3,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Query LIVA art.1, LIVA art.4, LGT art.1, LIRPF art.1, LIS art.1",
                                                        "Compare response text against official BOE consolidated text",

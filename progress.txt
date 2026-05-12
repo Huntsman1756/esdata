@@ -365,6 +365,22 @@ Learnings:
 - `verified=false` is machine-readable but not enough for agent UX; `evidence_status=evidence_limited` makes the fail-closed behavior explicit.
 Next: Q-03
 
+=== Iteration 3 - 2026-05-12T18:30:00+02:00 ===
+Story: Q-03 BOE legislacion consolidada - verify 5 article queries return correct BOE text
+Queries tested: 5
+Results: correct=5 honest_limit=0 incorrect=0
+Incorrect answers found: none
+Fixes applied: none
+Evidence:
+- `GET /v1/legislacion/LIVA/articulos/1` -> `boe_reference=BOE-A-1992-28740`, source `https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740#a1`, text starts `Articulo 1. Naturaleza del impuesto...`; BOE consolidated source lines show the same article title and VAT nature/scope text.
+- `GET /v1/legislacion/LIVA/articulos/4` -> `boe_reference=BOE-A-1992-28740`, source `...#a4`, text starts `Articulo 4. Hecho imponible...`; BOE consolidated source lines show the same title and onerous supplies/services text.
+- `GET /v1/legislacion/LGT/articulos/1` -> `boe_reference=BOE-A-2003-23186`, source `https://www.boe.es/buscar/act.php?id=BOE-A-2003-23186#a1`, matches BOE article 1 object/scope text.
+- `GET /v1/legislacion/LIRPF/articulos/1` -> `boe_reference=BOE-A-2006-20764`, source `https://www.boe.es/buscar/act.php?id=BOE-A-2006-20764#a1`, matches BOE article 1 nature of IRPF text.
+- `GET /v1/legislacion/LIS/articulos/1` -> `boe_reference=BOE-A-2014-12328`, source `https://www.boe.es/buscar/act.php?id=BOE-A-2014-12328#a1`, matches BOE article 1 nature of Corporate Income Tax text.
+Learnings:
+- The article endpoint exposes `boe_reference` (English key), not `boe_referencia`; validation scripts must use the actual schema key.
+Next: Q-04
+
 === Iteration 1 - 2026-05-12T16:20:00+02:00 ===
 Story: M-00 Pre-audit: map all 29 models to source type before touching any code
 Models processed: 102,121,136,140,143,146,147,150,172,173,179,186,206,221,228,230,231,233,234,235,236,238,239,240,241,247,290,294,295
