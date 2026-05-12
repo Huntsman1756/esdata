@@ -324,7 +324,8 @@ def run_sync(
                     max_urls=_env_int("AEPD_MAX_URLS_PER_RUN", DEFAULT_AEPD_MAX_URLS_PER_RUN),
                     max_pages=_env_int("AEPD_DISCOVERY_PAGES", DEFAULT_AEPD_DISCOVERY_PAGES),
                 )
-                urls = [*discovered, *urls]
+                if discovered:
+                    urls = discovered
 
             urls = list(dict.fromkeys(urls))
             if not urls:

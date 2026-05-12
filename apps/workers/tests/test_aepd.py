@@ -311,6 +311,65 @@ def test_run_sync_rehydrates_missing_document_when_revision_exists(monkeypatch):
     assert count == 1
 
 
+def test_run_sync_uses_seed_urls_only_when_discovery_is_empty(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+    original_client = httpx.Client
+    requested_urls: list[str] = []
+
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE documento_interpretativo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo_documento TEXT NOT NULL,
+                organismo_emisor TEXT NOT NULL,
+                jurisdiccion TEXT NOT NULL,
+                tipo_fuente TEXT NOT NULL,
+                ambito TEXT NOT NULL,
+                referencia TEXT UNIQUE NOT NULL,
+                fecha TEXT NOT NULL,
+                titulo TEXT,
+                texto TEXT NOT NULL,
+                url_fuente TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE sync_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                worker TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                status TEXT NOT NULL,
+                bloques_processed INTEGER,
+                articulos_upserted INTEGER,
+                documentos_processed INTEGER,
+                documentos_upserted INTEGER,
+                doctrina_links_created INTEGER,
+                error_msg TEXT
+            )
+        """))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested_urls.append(str(request.url))
+        if str(request.url) == "https://www.aepd.es/guias-y-herramientas/guias":
+            return httpx.Response(200, content=AEPD_INDEX_HTML)
+        return httpx.Response(200, content=MINIMAL_AEPD_PDF)
+
+    monkeypatch.setattr("aepd.SEED_URLS", ["https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673"])
+    monkeypatch.setenv("AEPD_MAX_URLS_PER_RUN", "1")
+    monkeypatch.setenv("AEPD_DISCOVERY_PAGES", "1")
+    monkeypatch.setattr("aepd.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "aepd.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = run_sync()
+
+    assert result == {"processed": 1, "stored": 1, "errors": 0}
+    assert "https://www.aepd.es/documento/declaracion-institucional-autoridades-aniversario-RGPD.pdf" in requested_urls
+    assert "https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673" not in requested_urls
+
+
 def test_run_sync_empty_seed_urls_writes_partial_sync_log(monkeypatch):
     """Empty URLs must be explicit telemetry, not a silent success."""
     engine = create_engine("sqlite:///:memory:", future=True)
