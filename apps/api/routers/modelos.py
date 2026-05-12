@@ -336,11 +336,16 @@ async def get_modelo_aeat(
                 "codigo": model_row["codigo"],
                 "nombre": model_row["nombre"],
                 "activo": bool(model_row["activo"]),
+                "completeness": "parcial",
+                "verified": False,
+                "casillas_total": 0,
                 "campana_actual": None,
                 "historial": [] if include_history else None,
             }
 
         campana_actual = campanas[0]
+        completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana=campana)
+        casillas_total = count_campaign_casillas(db, campana_actual["id"])
         campana_actual_payload = {
             "campana": campana_actual["campana"],
             "activo": bool(campana_actual["activo"]),
@@ -369,6 +374,9 @@ async def get_modelo_aeat(
             "codigo": model_row["codigo"],
             "nombre": model_row["nombre"],
             "activo": bool(model_row["activo"]),
+            "completeness": completeness,
+            "verified": verified,
+            "casillas_total": casillas_total,
             "campana_actual": campana_actual_payload,
             "historial": historial_payload,
         }

@@ -793,6 +793,9 @@ async def test_modelo_aeat_detalle_solo_activos_por_defecto():
     assert r.status_code == 200
     data = r.json()
     assert data["codigo"] == "100"
+    assert data["completeness"] == "parcial"
+    assert data["verified"] is False
+    assert data["casillas_total"] == 1
     assert data["campana_actual"]["campana"] == "2025"
     assert len(data["campana_actual"]["recursos"]) == 1
     assert data["historial"] is None

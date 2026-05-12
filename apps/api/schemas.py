@@ -730,6 +730,9 @@ class AEATModeloDetail(BaseModel):
     codigo: str = Field(description="Codigo del modelo")
     nombre: str = Field(description="Nombre completo")
     activo: bool = Field(description="Si el modelo sigue activo")
+    completeness: str = Field(description="Contrato de completitud operativo del modelo")
+    verified: bool = Field(description="Si el contrato de completitud permite respuesta autoritativa")
+    casillas_total: int = Field(default=0, description="Numero de casillas/campos oficiales cargados para la campana consultada")
     campana_actual: AEATCampanaDetail | None = Field(default=None, description="Campana actual con recursos activos")
     historial: list[AEATCampanaDetail] | None = Field(default=None, description="Historial de campanas y versiones si include_history=true")
 

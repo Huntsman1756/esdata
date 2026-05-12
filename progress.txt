@@ -328,6 +328,23 @@ Learnings:
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
 
+=== Iteration 1 - 2026-05-12T17:22:00+02:00 ===
+Story: Q-01 AEAT modelos - verify verified=true model responses and endpoint truth contract
+Queries tested: 5
+Results: correct=0 honest_limit=5 incorrect=0
+Incorrect answers found: none
+Fixes applied:
+- `/v1/modelos/aeat/{codigo}` now exposes `completeness`, `verified`, and `casillas_total`, matching the truth contract already exposed by `/v1/modelos/{codigo}`.
+- No AEAT model campaign in production currently has explicit `completeness_estado='completa'`; Q-01 therefore closes as HONEST-LIMIT rather than upgrading confidence.
+Evidence:
+- Production DB check: `modelo_campana_operativa.completeness_estado` has `no-casillas-expected=6`, `NULL=11`, `completa=0`.
+- API sample after the contract fix must return non-null truth fields for `145`, `196`, `270`, `283`, `303`.
+- Official AEAT source URLs recorded in `modelo_recurso`: 145 `dr145v20.pdf`, 196 `DR_Mod_196_2023.pdf`, 270 `270_HAP_2368_2013.pdf`, 283 `DR_Modelo_283.pdf`, 303 `modelos-300-399.html` / instructions page.
+Learnings:
+- `casillas_total > 0` is evidence that official fields were loaded, not evidence that the model is authoritative for every operational question.
+- Endpoint-specific null truth fields are a quality defect because agents cannot distinguish limited evidence from missing metadata.
+Next: Q-02
+
 === Iteration 1 - 2026-05-12T16:20:00+02:00 ===
 Story: M-00 Pre-audit: map all 29 models to source type before touching any code
 Models processed: 102,121,136,140,143,146,147,150,172,173,179,186,206,221,228,230,231,233,234,235,236,238,239,240,241,247,290,294,295

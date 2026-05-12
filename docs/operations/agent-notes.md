@@ -290,3 +290,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: AEPD estaba cableado como seed-only y Compose exigia `AEPD_SEED_URLS`. Si el seed oficial fallaba o quedaba vacio, el worker podia no ampliar corpus real y antes devolvia cero sin `sync_log` explicito.
 - Impacto: el dominio AEPD parecia operativo por tener worker/router, pero el corpus productivo seguia reducido y no habia discovery oficial vivo comparable al de BORME/BOE.
 - Regla practica: usar `https://www.aepd.es/guias-y-herramientas/guias` como discovery oficial acotado para guias/documentos; filtrar externos, filtros, feed y obsoletos; si no hay URLs, registrar `sync_log status=partial`. No afirmar cobertura completa de resoluciones sancionadoras AEPD hasta localizar endpoint oficial estable y probarlo.
+
+### 2026-05-12 - AEAT endpoint-specific truth fields
+
+- Scope: `apps/api/routers/modelos.py`, `apps/api/schemas.py`, `/v1/modelos/aeat/{codigo}`.
+- Hallazgo: un endpoint puede devolver datos reales de modelo/campana y aun asi omitir `verified`, `completeness` y `casillas_total`. Para agentes, esos campos ausentes se leen como `null` y dificultan distinguir evidencia limitada de fallo de datos.
+- Impacto: el mismo modelo podia verse parcial en `/v1/modelos/{codigo}` pero sin contrato de verdad en `/v1/modelos/aeat/{codigo}`, creando discrepancias de prompt/agente aunque la base de datos estuviera sana.
+- Regla practica: cualquier endpoint de detalle de modelo que devuelva recursos oficiales debe exponer tambien el contrato de verdad operativo. Tener `casillas_total > 0` no equivale a `verified=true`; solo `completeness_estado='completa'`, `no-casillas-expected` o `deprecated` puede elevar la confianza.
