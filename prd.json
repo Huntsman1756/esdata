@@ -84,7 +84,7 @@
       "id": "R-07",
       "title": "Set up weekly accuracy review schedule - BOE, AEAT, EUR-Lex, CNMV, ESMA",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create weekly accuracy check script",
         "Check freshness thresholds per domain",

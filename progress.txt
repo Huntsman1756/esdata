@@ -898,3 +898,17 @@ Evidence:
 Accepted risks:
   - R-06 tracking metadata is committed after the tag; the release tag itself points at the shipped R-05 code and RELEASE.md.
 Next: R-07
+=== Iteration R-07 - 2026-05-13T01:36:00+02:00 ===
+Story: R-07 Set up weekly accuracy review schedule - BOE, AEAT, EUR-Lex, CNMV, ESMA
+Result: PASS
+Evidence:
+  - Added scripts/weekly-accuracy-check.sh with read-only mcp_validation_suite and DB freshness checks.
+  - Domains checked: BOE <=72h, AEAT <=168h, EUR-Lex <=720h, CNMV <=192h, ESMA/MiCA <=192h.
+  - Script exits 1 if any domain is stale; exits 2 for missing compose/env prerequisites.
+  - Local syntax check: bash -n scripts/weekly-accuracy-check.sh passed.
+  - VPS manual run passed: mcp_validation_suite ok=true; AEAT age 0.24h, BOE 0.11h, CNMV 0.12h, ESMA/MiCA 26.09h, EUR-Lex 0.25h; all OK.
+  - Installed /etc/cron.d/esdata-weekly-accuracy with CRON_TZ=Europe/Madrid, Monday 08:00, user deploy.
+  - Log target /var/log/esdata-weekly.log exists and cron service is active.
+Accepted risks:
+  - The schedule is cron.d as requested; systemd timer migration can be considered later if we standardize all scheduled operations under systemd.
+Next: R-08
