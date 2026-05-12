@@ -84,6 +84,9 @@ async def test_eurlex_lista_response_model():
         assert "url_fuente" in item
         assert "articulos_total" in item
         assert "coverage_status" in item
+        assert "articles_expected" in item
+        assert "articles_parsed" in item
+        assert "quality_status" in item
         assert "verified" in item
         assert "completeness" in item
         assert "evidence_notice" in item
@@ -206,6 +209,9 @@ async def test_eurlex_detalle_response_model():
     assert "url_fuente" in data
     assert data["articulos_total"] >= 1
     assert data["coverage_status"] == "article_text_available"
+    assert "articles_expected" in data
+    assert "articles_parsed" in data
+    assert "quality_status" in data
     assert data["verified"] is True
     assert data["completeness"] == "parcial"
     assert "Do not claim exhaustive coverage" in data["evidence_notice"]
@@ -260,6 +266,7 @@ async def test_eurlex_metadata_only_is_evidence_limited():
     assert detail_data["texto"] == ""
     assert detail_data["articulos_total"] == 0
     assert detail_data["coverage_status"] == "metadata_only"
+    assert detail_data["quality_status"] == "metadata_only"
     assert detail_data["verified"] is False
     assert detail_data["completeness"] == "parcial"
     assert "evidence_limited" in detail_data["evidence_notice"]
@@ -269,6 +276,7 @@ async def test_eurlex_metadata_only_is_evidence_limited():
     assert list_item["fragmento"] == ""
     assert list_item["articulos_total"] == 0
     assert list_item["coverage_status"] == "metadata_only"
+    assert list_item["quality_status"] == "metadata_only"
     assert list_item["verified"] is False
 
 

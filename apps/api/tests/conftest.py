@@ -116,6 +116,10 @@ STATEMENTS = [
         regulacion_relacionada TEXT,
         estado_cobertura TEXT NOT NULL,
         vigente_desde TEXT NOT NULL,
+        articles_expected INTEGER,
+        articles_parsed INTEGER,
+        quality_status TEXT,
+        quality_checked_at TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
     """,

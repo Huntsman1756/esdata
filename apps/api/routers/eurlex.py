@@ -10,20 +10,50 @@ router = APIRouter(prefix="/v1/eurlex", tags=["eurlex"])
 # escribe con `tipo_fuente='eurlex'` y CELEX como `codigo`/`boe_id`.
 
 
-def _coverage_metadata(articulos_total: int) -> dict:
-    if articulos_total > 0:
+def _coverage_metadata(
+    articulos_total: int,
+    articles_expected: int | None = None,
+    articles_parsed: int | None = None,
+    quality_status: str | None = None,
+) -> dict:
+    effective_parsed = articles_parsed if articles_parsed is not None else articulos_total
+    effective_status = quality_status
+    if not effective_status:
+        effective_status = "article_text_available" if effective_parsed > 0 else "metadata_only"
+
+    if effective_status == "article_text_available" or effective_parsed > 0:
+        notice = (
+            "Official EUR-Lex article text is available in ESData, but no "
+            "articles_expected/articles_parsed parity check is recorded yet. "
+            "Do not claim exhaustive coverage."
+        )
+        if articles_expected is not None and articles_parsed is not None:
+            if articles_expected > articles_parsed:
+                notice = (
+                    "Official EUR-Lex article text is partially available in ESData. "
+                    "articles_parsed is lower than articles_expected; treat coverage "
+                    "as partial and do not claim exhaustive coverage."
+                )
+            else:
+                notice = (
+                    "Official EUR-Lex article text is available in ESData and the "
+                    "latest worker run recorded articles_parsed >= articles_expected. "
+                    "Still verify legal conclusions against cited source text."
+                )
         return {
             "coverage_status": "article_text_available",
+            "articles_expected": articles_expected,
+            "articles_parsed": articles_parsed,
+            "quality_status": effective_status,
             "verified": True,
             "completeness": "parcial",
-            "evidence_notice": (
-                "Official EUR-Lex article text is available in ESData, but no "
-                "articles_expected/articles_parsed parity check is recorded yet. "
-                "Do not claim exhaustive coverage."
-            ),
+            "evidence_notice": notice,
         }
     return {
         "coverage_status": "metadata_only",
+        "articles_expected": articles_expected,
+        "articles_parsed": articles_parsed,
+        "quality_status": effective_status,
         "verified": False,
         "completeness": "parcial",
         "evidence_notice": (
@@ -95,7 +125,10 @@ async def listar_eurlex(
                 JOIN articulo a ON a.id = va.articulo_id
                 WHERE a.norma_id = n.id
                   AND va.vigente_hasta IS NULL
-            )                                     AS articulos_total
+            )                                     AS articulos_total,
+            n.articles_expected                   AS articles_expected,
+            n.articles_parsed                     AS articles_parsed,
+            n.quality_status                      AS quality_status
         FROM norma n
         WHERE {where_clause}
         ORDER BY n.vigente_desde DESC, n.codigo DESC
@@ -124,7 +157,12 @@ async def listar_eurlex(
                 "fragmento": fragmento,
                 "url_fuente": row["url_fuente"],
                 "articulos_total": articulos_total,
-                **_coverage_metadata(articulos_total),
+                **_coverage_metadata(
+                    articulos_total,
+                    row["articles_expected"],
+                    row["articles_parsed"],
+                    row["quality_status"],
+                ),
             }
         )
     next_offset = offset + limit if offset + len(documentos) < int(total or 0) else None
@@ -145,7 +183,17 @@ async def get_eurlex(referencia: str):
             db.execute(
                 text(
                     """
-                    SELECT id, codigo, vigente_desde, titulo, tipo_documento, ambito, eli_uri
+                    SELECT
+                        id,
+                        codigo,
+                        vigente_desde,
+                        titulo,
+                        tipo_documento,
+                        ambito,
+                        eli_uri,
+                        articles_expected,
+                        articles_parsed,
+                        quality_status
                     FROM norma
                     WHERE tipo_fuente = 'eurlex'
                       AND codigo = :referencia
@@ -194,5 +242,10 @@ async def get_eurlex(referencia: str):
         "texto": texto_completo,
         "url_fuente": norma_row["eli_uri"],
         "articulos_total": articulos_total,
-        **_coverage_metadata(articulos_total),
+        **_coverage_metadata(
+            articulos_total,
+            norma_row["articles_expected"],
+            norma_row["articles_parsed"],
+            norma_row["quality_status"],
+        ),
     }

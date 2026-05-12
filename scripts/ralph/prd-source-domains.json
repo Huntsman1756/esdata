@@ -129,6 +129,20 @@
         "A focused MCP tools/list test verifies the contract."
       ],
       "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_mcp_private.py::test_mcp_http_end_to_end_initialize_and_tools_list_with_api_key -q --basetemp .pytest-tmp"
+    },
+    {
+      "id": "S-09",
+      "title": "Persist EUR-Lex quality counters per CELEX",
+      "priority": 10,
+      "phase": "source-domain-audit",
+      "passes": true,
+      "acceptanceCriteria": [
+        "Add migration-owned nullable quality counters to norma for EUR-Lex coverage.",
+        "EUR-Lex worker persists articles_expected, articles_parsed and quality_status when it can measure article coverage.",
+        "EUR-Lex API exposes quality counters in list and detail responses.",
+        "Tests verify router output and worker counter persistence."
+      ],
+      "verificationCommand": "PYTHONPATH='.;apps;apps/api;apps/workers' pytest apps/api/tests/test_eurlex_router.py apps/workers/tests/test_eurlex.py -q --basetemp .pytest-tmp"
     }
   ]
 }

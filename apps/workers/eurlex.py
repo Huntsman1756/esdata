@@ -859,6 +859,85 @@ def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
     )
 
 
+def _table_columns(conn, table: str) -> set[str]:
+    dialect = conn.engine.dialect.name
+    if dialect == "sqlite":
+        rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+        return {row[1] for row in rows}
+    rows = conn.execute(
+        text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = :table
+            """
+        ),
+        {"table": table},
+    ).fetchall()
+    return {row[0] for row in rows}
+
+
+def _eurlex_quality_columns_available(conn) -> bool:
+    columns = _table_columns(conn, "norma")
+    return {"articles_expected", "articles_parsed", "quality_status", "quality_checked_at"} <= columns
+
+
+def _count_parsed_articles(conn, codigo: str) -> int:
+    return int(
+        conn.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM version_articulo va
+                JOIN articulo a ON a.id = va.articulo_id
+                JOIN norma n ON n.id = a.norma_id
+                WHERE n.codigo = :codigo
+                  AND n.tipo_fuente = 'eurlex'
+                  AND va.vigente_hasta IS NULL
+                  AND COALESCE(va.texto, '') <> ''
+                """
+            ),
+            {"codigo": codigo},
+        ).scalar()
+        or 0
+    )
+
+
+def _quality_status(expected: int | None, parsed: int) -> str:
+    if parsed <= 0:
+        return "metadata_only"
+    if expected is not None and expected > parsed:
+        return "partial"
+    return "article_text_available"
+
+
+def update_eurlex_quality(conn, codigo: str, expected: int | None) -> None:
+    if not _eurlex_quality_columns_available(conn):
+        return
+    parsed = _count_parsed_articles(conn, codigo)
+    conn.execute(
+        text(
+            """
+            UPDATE norma
+            SET articles_expected = :expected,
+                articles_parsed = :parsed,
+                quality_status = :quality_status,
+                quality_checked_at = :checked_at
+            WHERE codigo = :codigo
+              AND tipo_fuente = 'eurlex'
+            """
+        ),
+        {
+            "codigo": codigo,
+            "expected": expected,
+            "parsed": parsed,
+            "quality_status": _quality_status(expected, parsed),
+            "checked_at": datetime.now(UTC).isoformat(),
+        },
+    )
+
+
 def _eli_path(boe_id: str) -> str:
     """Convert EUR-CELEX-32014L0065 -> reg/2014/65/oj or dir/2014/65/oj.
 
@@ -1113,13 +1192,16 @@ def run_sync(  # noqa: C901
                 normas_upserted += 1
 
                 if not fetch_articles:
+                    update_eurlex_quality(conn, norma_def["codigo"], None)
                     continue
 
                 index = fetch_index(client, celex)
                 if not index:
                     print(f"  [SKIP] {celex} has no index")
                     skipped_no_index += 1
+                    update_eurlex_quality(conn, norma_def["codigo"], None)
                     continue
+                expected_articles = sum(1 for item in index if _is_supported_block(item["titulo"]))
 
                 for item in index:
                     if not _is_supported_block(item["titulo"]):
@@ -1162,6 +1244,7 @@ def run_sync(  # noqa: C901
                     articulos_upserted += 1
 
                     time.sleep(1)  # Rate limit EUR-Lex REST
+                update_eurlex_quality(conn, norma_def["codigo"], expected_articles)
 
             # Phase 2: SPARQL discovery for new CELEXs
             existing_celexs = set()
@@ -1209,6 +1292,7 @@ def run_sync(  # noqa: C901
 
                         index = fetch_index(client, celex)
                         if index:
+                            expected_articles = sum(1 for item in index if _is_supported_block(item["titulo"]))
                             for item in index:
                                 if not _is_supported_block(item["titulo"]):
                                     bloques_fetched += 1
@@ -1239,8 +1323,10 @@ def run_sync(  # noqa: C901
                                 bloques_fetched += 1
                                 articulos_upserted += 1
                                 time.sleep(1)
+                            update_eurlex_quality(conn, f"EURLEX-{celex}", expected_articles)
                         else:
                             skipped_no_index += 1
+                            update_eurlex_quality(conn, f"EURLEX-{celex}", None)
                 except Exception:
                     fetch_errors += 1
                     print(f"  [SKIP] Could not process new CELEX {celex}")

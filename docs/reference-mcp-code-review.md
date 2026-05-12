@@ -83,4 +83,4 @@ Implementacion recomendada:
 | S-06 | 2 | EUR-Lex deep ingestion safe mode | Implementado: ingesta por allowlist CELEX y presupuesto por ejecucion; MiFID II cargado en VPS con 93 articulos/versiones. Pendiente de expansion: lotes adicionales y quality counters esperados/parsing por CELEX. |
 | S-07 | 3 | BOE non-consolidated fallback | Evaluado y documentado: XML/PDF no consolidado debe ir a `documento_interpretativo` o tabla `boe_diario_documento`, nunca a `articulo/version_articulo`; implementacion queda como historia separada. |
 | S-08 | 4 | MCP output schemas | Implementado: herramientas HTTP y stdio se enriquecen con `outputSchema` tipo objeto y anotaciones `readOnlyHint=true`, `destructiveHint=false`. |
-| S-09 | 5 | EU source registry quality counters | Persistir `articles_expected`, `articles_parsed` y `quality_status` por CELEX cuando el worker pueda medirlo. |
+| S-09 | 5 | EU source registry quality counters | Implementado para EUR-Lex en `norma`: `articles_expected`, `articles_parsed`, `quality_status`, `quality_checked_at`; API list/detail los expone. |

@@ -39,6 +39,7 @@ from eurlex import (
     fetch_index,
     log_sync,
     parse_index,
+    update_eurlex_quality,
 )
 
 
@@ -159,6 +160,74 @@ def test_selected_seed_normas_applies_run_budget(monkeypatch):
 
     assert len(selected) == 2
     assert selected == eurlex.EURLEX_NORMAS[:2]
+
+
+def test_update_eurlex_quality_records_parity_counters():
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE,
+                    tipo_fuente TEXT,
+                    articles_expected INTEGER,
+                    articles_parsed INTEGER,
+                    quality_status TEXT,
+                    quality_checked_at TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER,
+                    numero TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE version_articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    articulo_id INTEGER,
+                    texto TEXT,
+                    vigente_hasta TEXT
+                )
+                """
+            )
+        )
+        conn.execute(text("INSERT INTO norma (codigo, tipo_fuente) VALUES ('MIFID2_2014_65', 'eurlex')"))
+        conn.execute(text("INSERT INTO articulo (norma_id, numero) VALUES (1, '1'), (1, '2')"))
+        conn.execute(
+            text(
+                """
+                INSERT INTO version_articulo (articulo_id, texto, vigente_hasta)
+                VALUES (1, 'Texto oficial 1', NULL), (2, 'Texto oficial 2', NULL)
+                """
+            )
+        )
+
+        update_eurlex_quality(conn, "MIFID2_2014_65", expected=2)
+
+        row = conn.execute(
+            text(
+                """
+                SELECT articles_expected, articles_parsed, quality_status, quality_checked_at
+                FROM norma WHERE codigo='MIFID2_2014_65'
+                """
+            )
+        ).one()
+        assert row[0] == 2
+        assert row[1] == 2
+        assert row[2] == "article_text_available"
+        assert row[3] is not None
 
 
 def test_parse_index_basic():
