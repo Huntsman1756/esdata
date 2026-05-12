@@ -122,3 +122,27 @@ Production verification:
 Warnings:
 - The smoke method should be documented as cron-equivalent services, not direct `--run-once` args on persistent worker services.
 Next: A-05
+
+=== Iteration 8 - 2026-05-12T02:06:00+02:00 ===
+Story: A-05 Run all cron jobs once - verify sync_log entries
+Verification run: VPS docker compose run on every profiled cron service, corrected with per-worker sync_log checks after global-count contamination was detected.
+Result: PASS
+Root cause: 21 cron services already wrote telemetry, but cron-cdi-weekly processed official AEAT/Hacienda CDI data and exited 0 without writing sync_log. The first audit method used global sync_log deltas, which was insufficient because persistent workers were writing concurrently.
+Fix applied: added CDI sync_log telemetry with WORKER_NAME support, set worker-cdi and cron-cdi-weekly names in Compose, added unit tests for CDI telemetry, rebuilt/recreated worker-cdi, and reran cron-cdi-weekly on VPS.
+Production verification:
+- VPS cron-cdi-weekly before/after worker-specific sync_log count: BEFORE=0 AFTER=1 DELTA=1, exit 0.
+- Latest cron-cdi-weekly row: id=680, status=ok, rows_processed=86, errors=0, summary includes with_boe=82, with_firma=82, with_pdfs=84, with_vigencia=73.
+- Recreated worker-cdi; latest worker-cdi row: id=681, status=ok, rows_processed=86, errors=0.
+- Final per-worker telemetry matrix: 22/22 cron services PASS, including service-to-worker mappings for cron-aeat-current-daily -> worker-aeat-current-designs and cron-boe-modelos-daily -> worker-boe-modelos.
+- Alertmanager: amtool query alertname=WorkerSilent returned no active alerts.
+Local verification:
+- python -m pytest apps/workers/tests/test_cdi.py -q --basetemp .pytest-tmp: 2 passed.
+- python -m compileall -q apps/workers/cdi.py: PASS.
+- python -m pytest scripts/tests/test_deploy_hetzner.py -q --basetemp .pytest-tmp: 23 passed.
+Warnings:
+- cron-boe-daily can exceed short audit timeouts because it pulls many BOE consolidated text blocks. With a 7200s audit timeout it completed successfully and wrote ok sync_log rows.
+- cron-boe-modelos-daily latest status is partial because some model resources are unavailable upstream, but it wrote sync_log and exited safely.
+Learnings:
+- A sync_log verification must be per worker/service, not only a global row count, when persistent workers run concurrently.
+- Cron wrappers that reuse persistent scripts need explicit WORKER_NAME to avoid invisible cron telemetry.
+Next: A-06

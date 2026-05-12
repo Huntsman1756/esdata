@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 import httpx
@@ -52,6 +53,7 @@ HACIENDA_URL = (
 
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("CDI_SYNC_INTERVAL_SECONDS", 604800)
+WORKER_NAME = os.getenv("WORKER_NAME", "worker-cdi")
 USER_AGENT = "Mozilla/5.0 (compatible; esdata/cdi-worker/7.0; fiscal compliance)"
 HEADERS = {"User-Agent": USER_AGENT}
 
@@ -376,6 +378,7 @@ def parse_aeat_country_page(html: str, country: dict) -> dict:
 
 def discover_and_sync() -> dict:
     """Main sync: parse Hacienda table, supplement with AEAT pages, update DB."""
+    started_at = datetime.now(UTC)
     stats = {
         "conventions_upserted": 0,
         "errors": 0,
@@ -402,6 +405,7 @@ def discover_and_sync() -> dict:
             if not hacienda_html:
                 logger.error("Could not fetch Hacienda CDI table")
                 stats["errors"] += 1
+                _write_sync_log(engine, started_at, stats)
                 return stats
 
             conventions = parse_hacienda_table(hacienda_html)
@@ -471,11 +475,17 @@ def discover_and_sync() -> dict:
                     logger.error("Error processing %s: %s", conv["pais"], exc, exc_info=True)
                     stats["errors"] += 1
 
+        _write_sync_log(engine, started_at, stats)
         return stats
 
     except Exception as exc:
         logger.error("CDI sync failed: %s", exc, exc_info=True)
         stats["errors"] += 1
+        if "engine" in locals():
+            try:
+                _write_sync_log(engine, started_at, stats, status="error", error_msg=str(exc))
+            except Exception as log_exc:
+                logger.error("Failed to write CDI sync_log: %s", log_exc)
         return stats
 
 
@@ -569,6 +579,51 @@ def _upsert_convention(engine, data: dict) -> None:
         conn.commit()
         logger.debug("Upserted: %s (firma=%s vigencia=%s pdfs=%d)",
                      pais, data.get("fecha_firma"), data.get("fecha_vigencia"), len(all_pdfs))
+
+
+def _write_sync_log(
+    engine,
+    started_at: datetime,
+    stats: dict,
+    *,
+    status: str | None = None,
+    error_msg: str | None = None,
+) -> None:
+    """Write CDI worker telemetry to sync_log."""
+    final_status = status
+    if final_status is None:
+        if stats.get("errors", 0) == 0:
+            final_status = "ok"
+        elif stats.get("conventions_upserted", 0) > 0:
+            final_status = "partial"
+        else:
+            final_status = "error"
+
+    summary = error_msg or "summary: " + json.dumps(stats, ensure_ascii=False, sort_keys=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO sync_log (
+                    worker, started_at, finished_at, status,
+                    rows_processed, errors, error_msg
+                )
+                VALUES (
+                    :worker, :started_at, :finished_at, :status,
+                    :rows_processed, :errors, :error_msg
+                )
+                """
+            ),
+            {
+                "worker": WORKER_NAME,
+                "started_at": started_at,
+                "finished_at": datetime.now(UTC),
+                "status": final_status,
+                "rows_processed": stats.get("conventions_upserted", 0),
+                "errors": stats.get("errors", 0),
+                "error_msg": summary[:5000],
+            },
+        )
 
 
 def main():

@@ -446,6 +446,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       CDI_SYNC_INTERVAL_SECONDS: ${CDI_SYNC_INTERVAL_SECONDS:-604800}
+      WORKER_NAME: worker-cdi
       WORKER_CMD: python cdi.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
       PYTHONUNBUFFERED: "1"
@@ -762,6 +763,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_CDI_WEEKLY:-}
+      WORKER_NAME: cron-cdi-weekly
       WORKER_CMD: python cdi.py --run-once
     depends_on:
       postgres:
