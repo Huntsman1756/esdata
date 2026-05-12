@@ -138,7 +138,7 @@
                             "id":  "Q-11",
                             "title":  "FATCA / CRS - verify evidence_limited responses are honest and traceable",
                             "priority":  11,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "FATCA queries return official AEAT/BOE/EUR-Lex references if loaded",
                                                        "CRS queries return CRS-related content if loaded",

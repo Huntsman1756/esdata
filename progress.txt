@@ -361,6 +361,21 @@ Evidence:
 - VPS GPT OpenAPI includes `/v1/aepd/buscar`; `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`.
 Next: Q-11
 
+=== Iteration 11 - 2026-05-12T20:16:00+02:00 ===
+Story: Q-11 FATCA / CRS - verify evidence_limited responses are honest and traceable
+Queries tested: 5
+Results: correct=2 honest_limit=3 incorrect=0
+Incorrect answers found: none
+Fixes applied: unverified abstentions now force `review_required=true` and `faithfulness_score=0.0`, avoiding the contradictory state `NO VERIFICADO` with review disabled or high faithfulness.
+Evidence:
+- Local tests: `pytest apps/api/tests/test_mcp_truth_regressions.py apps/api/tests/test_consulta_fail_closed.py apps/api/tests/test_reranker.py::test_grounding_abstention_rejects_results_when_a_query_term_is_missing_from_all_results -q --basetemp .pytest-tmp` -> 7 passed.
+- VPS `/v1/consulta?q=como presentar FATCA modelo 290 clientes estadounidenses` -> `total_resultados=0`, `NO VERIFICADO`, `review_required=true`, `faithfulness_score=0.0`, `faithfulness_label=baja`.
+- VPS `/v1/consulta?q=CRS DAC2 modelo 289 cuentas financieras` -> same safe abstention contract.
+- VPS `/v1/modelos/289?casillas_limit=3` -> `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, `casillas_total=7`.
+- VPS `/v1/modelos/290?casillas_limit=3` -> `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, `casillas_total=152`.
+- VPS `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` -> `ok=true`.
+Next: Q-12
+
 === Iteration Q-06 - 2026-05-12T21:05:00+02:00 ===
 Story: Q-06 EUR-Lex / MiFID II - verify real article content is returned
 Queries tested: 4
