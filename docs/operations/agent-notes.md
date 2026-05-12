@@ -297,3 +297,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: un endpoint puede devolver datos reales de modelo/campana y aun asi omitir `verified`, `completeness` y `casillas_total`. Para agentes, esos campos ausentes se leen como `null` y dificultan distinguir evidencia limitada de fallo de datos.
 - Impacto: el mismo modelo podia verse parcial en `/v1/modelos/{codigo}` pero sin contrato de verdad en `/v1/modelos/aeat/{codigo}`, creando discrepancias de prompt/agente aunque la base de datos estuviera sana.
 - Regla practica: cualquier endpoint de detalle de modelo que devuelva recursos oficiales debe exponer tambien el contrato de verdad operativo y la campana real usada para casillas (`casillas_campana`, `casillas_selection_notice`). Tener `casillas_total > 0` no equivale a `verified=true`; solo `completeness_estado='completa'`, `no-casillas-expected` o `deprecated` puede elevar la confianza.
+
+### 2026-05-12 - AEAT evidence_status para agentes
+
+- Scope: `apps/api/routers/modelos.py`, `apps/api/schemas.py`, endpoints `/v1/modelos/{codigo}`, `/aeat/{codigo}`, `/campana-operativa`, `/casillas`.
+- Hallazgo: `verified=false` y `completeness=parcial` son correctos, pero algunos agentes no los traducen de forma consistente a lenguaje de evidencia limitada.
+- Impacto: sin un campo directo, una respuesta con campos oficiales cargados puede ser resumida como si fuera completa para instrucciones u obligatoriedad.
+- Regla practica: las superficies de modelo deben devolver `evidence_status=evidence_limited` y `evidence_notice` cuando el contrato sea parcial. `no-casillas-expected` no significa "sin obligacion"; solo significa ausencia verificada de casillas estructuradas esperadas.

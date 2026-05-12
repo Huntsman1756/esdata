@@ -49,6 +49,37 @@ def _date_to_str(value):
     return str(value) if value is not None else None
 
 
+def _modelo_evidence_status(completeness: str, verified: bool) -> str:
+    if completeness == "parcial" or not verified:
+        return "evidence_limited"
+    if completeness == "no-casillas-expected":
+        return "no_casillas_expected"
+    if completeness == "deprecated":
+        return "deprecated"
+    return "verified"
+
+
+def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
+    if completeness == "no-casillas-expected":
+        return (
+            "ESData tiene verificado que este modelo no dispone de casillas "
+            "estructuradas esperadas en la campana consultada. No inferir "
+            "obligatoriedad por supuesto concreto."
+        )
+    if completeness == "deprecated":
+        return (
+            "ESData tiene verificado que este modelo no esta vigente o queda "
+            "clasificado como deprecated. No presentarlo como modelo actual."
+        )
+    if completeness == "parcial" or not verified:
+        return (
+            "Evidencia limitada: ESData expone solo los campos/fuentes oficiales "
+            "cargados para este modelo y no prueba instrucciones completas, "
+            "obligatoriedad ni aplicabilidad a un supuesto concreto."
+        )
+    return "ESData tiene evidencia suficiente para el contrato operativo declarado."
+
+
 def _record_modelo_query_audit(
     request: Request,
     *,
@@ -338,6 +369,8 @@ async def get_modelo_aeat(
                 "activo": bool(model_row["activo"]),
                 "completeness": "parcial",
                 "verified": False,
+                "evidence_status": _modelo_evidence_status("parcial", False),
+                "evidence_notice": _modelo_evidence_notice("parcial", False),
                 "casillas_total": 0,
                 "casillas_campana": None,
                 "casillas_selection_notice": None,
@@ -380,6 +413,8 @@ async def get_modelo_aeat(
             "activo": bool(model_row["activo"]),
             "completeness": completeness,
             "verified": verified,
+            "evidence_status": _modelo_evidence_status(completeness, verified),
+            "evidence_notice": _modelo_evidence_notice(completeness, verified),
             "casillas_total": casillas_total,
             "casillas_campana": casillas_camp_row["campana"] if casillas_camp_row else None,
             "casillas_selection_notice": casillas_selection["selection_notice"],
@@ -562,6 +597,8 @@ async def get_modelo(
             "doctrina_relacionada_total": len(doctrina_relacionada),
             "completeness": completeness,
             "verified": verified,
+            "evidence_status": _modelo_evidence_status(completeness, verified),
+            "evidence_notice": _modelo_evidence_notice(completeness, verified),
         }
         _record_modelo_query_audit(
             request,
@@ -704,6 +741,8 @@ async def get_modelo_casillas(
             completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)
             payload["completeness"] = completeness
             payload["verified"] = verified
+            payload["evidence_status"] = _modelo_evidence_status(completeness, verified)
+            payload["evidence_notice"] = _modelo_evidence_notice(completeness, verified)
             if completeness == "no-casillas-expected":
                 payload["classification"] = "sin_casillas_esperadas"
                 payload["obligation_notice"] = (
@@ -782,6 +821,8 @@ async def get_modelo_casillas(
         }
         payload["completeness"] = completeness
         payload["verified"] = verified
+        payload["evidence_status"] = _modelo_evidence_status(completeness, verified)
+        payload["evidence_notice"] = _modelo_evidence_notice(completeness, verified)
         payload["confidence"] = {
             "score": 0.9 if verified else 0.5 if payload["casillas"] else 0.0,
             "label": "alta" if verified else "media" if payload["casillas"] else "baja",
@@ -1047,6 +1088,10 @@ async def get_campana_operativa_modelo(
             raise HTTPException(
                 status_code=404, detail={"error": f"Modelo {codigo} no encontrado"}
             )
+        completeness = payload["completeness"]
+        verified = bool(payload["verified"])
+        payload["evidence_status"] = _modelo_evidence_status(completeness, verified)
+        payload["evidence_notice"] = _modelo_evidence_notice(completeness, verified)
         return payload
 
 

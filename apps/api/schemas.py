@@ -291,6 +291,8 @@ class ModeloCasillasResponse(BaseModel):
     obligation_notice: str = Field(description="Aviso de que casilla no implica obligatoriedad por supuesto")
     completeness: str = Field(description="Estado de completitud del modelo/campana")
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
     confidence: dict = Field(default_factory=dict, description="Confianza y revision requerida")
 
 
@@ -351,6 +353,8 @@ class ModeloCampanaOperativaResponse(BaseModel):
         )
     )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
     fuentes_recomendadas: list["ModeloFuenteOficial"] = Field(default_factory=list, description="Fuentes oficiales recomendadas")
 
 
@@ -414,6 +418,8 @@ class ModeloDetail(BaseModel):
         )
     )
     verified: bool = Field(description="Si la respuesta queda verificada con base suficiente")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
 
 
 # ---------------------------------------------------------------------------
@@ -732,6 +738,8 @@ class AEATModeloDetail(BaseModel):
     activo: bool = Field(description="Si el modelo sigue activo")
     completeness: str = Field(description="Contrato de completitud operativo del modelo")
     verified: bool = Field(description="Si el contrato de completitud permite respuesta autoritativa")
+    evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
+    evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
     casillas_total: int = Field(default=0, description="Numero de casillas/campos oficiales cargados para la campana consultada")
     casillas_campana: str | None = Field(default=None, description="Campana usada para contar casillas/campos")
     casillas_selection_notice: str | None = Field(default=None, description="Aviso si las casillas proceden de una campana distinta")

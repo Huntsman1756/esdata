@@ -644,6 +644,8 @@ async def test_modelo_100_casillas_are_paginated_and_truth_labeled():
     assert data["next_offset"] == 5
     assert data["classification"] == "confirmado"
     assert data["verified"] is False
+    assert data["evidence_status"] == "evidence_limited"
+    assert "Evidencia limitada" in data["evidence_notice"]
     assert data["confidence"]["review_required"] is True
     assert "No implican" in data["obligation_notice"]
 
@@ -667,6 +669,9 @@ async def test_modelo_detail_limits_embedded_casillas_for_agent_clients():
     assert data["codigo"] == "100"
     assert len(data["casillas"]) == 5
     assert data["casillas_total"] >= 13
+    assert data["verified"] is False
+    assert data["evidence_status"] == "evidence_limited"
+    assert "Evidencia limitada" in data["evidence_notice"]
     assert data["casillas_limit"] == 5
     assert data["casillas_offset"] == 0
     assert data["casillas_has_more"] is True
@@ -733,6 +738,8 @@ async def test_modelo_detail_reports_casillas_fallback_campaign_transparently():
     assert data["casillas_campana"] == "2025"
     assert data["casillas_total"] == 1
     assert data["verified"] is False
+    assert data["evidence_status"] == "evidence_limited"
+    assert "Evidencia limitada" in data["evidence_notice"]
     assert "campana activa 2013 no tiene casillas" in data["casillas_selection_notice"]
 
 
@@ -753,6 +760,8 @@ async def test_modelo_aeat_detail_reports_casillas_fallback_campaign_transparent
     assert data["casillas_campana"] == "2025"
     assert data["casillas_total"] == 1
     assert data["verified"] is False
+    assert data["evidence_status"] == "evidence_limited"
+    assert "Evidencia limitada" in data["evidence_notice"]
     assert "campana activa 2013 no tiene casillas" in data["casillas_selection_notice"]
 
 
@@ -784,8 +793,12 @@ async def test_modelo_no_casillas_expected_is_verified_without_fake_fields():
     assert detail["casillas_total"] == 0
     assert detail["completeness"] == "no-casillas-expected"
     assert detail["verified"] is True
+    assert detail["evidence_status"] == "no_casillas_expected"
+    assert "no dispone de casillas estructuradas esperadas" in detail["evidence_notice"]
     assert casillas["classification"] == "sin_casillas_esperadas"
     assert casillas["total"] == 0
+    assert casillas["evidence_status"] == "no_casillas_expected"
+    assert "no dispone de casillas estructuradas esperadas" in casillas["evidence_notice"]
     assert casillas["confidence"]["review_required"] is False
     assert operativa["completeness_estado"] == "no-casillas-expected"
     assert operativa["completeness"] == "no-casillas-expected"
@@ -816,6 +829,8 @@ async def test_modelo_deprecated_contract_is_explicit_and_verified():
 
     assert detail["completeness"] == "deprecated"
     assert detail["verified"] is True
+    assert detail["evidence_status"] == "deprecated"
+    assert "deprecated" in detail["evidence_notice"]
     assert operativa["completeness_estado"] == "deprecated"
     assert operativa["completeness"] == "deprecated"
     assert operativa["verified"] is True
