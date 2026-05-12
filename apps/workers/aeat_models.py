@@ -437,6 +437,37 @@ def _extract_model_name(raw_text: str, codigo: str) -> str:
     return f"Modelo {codigo}"
 
 
+def _infer_impuesto(codigo: str, page_text: str, url_info: str, nombre: str) -> str | None:
+    """Infer the tax family from the model detail page without trusting nav noise."""
+
+    compact = re.sub(r"\s+", " ", " ".join((codigo, page_text or "", url_info or "", nombre or "")).lower())
+    is_sociedades = (
+        "impuesto sobre sociedades" in compact
+        or "impuesto sociedades" in compact
+        or "/is/" in compact
+        or "modelo 200" in compact
+    )
+    is_irnr = (
+        "impuesto sobre la renta de no residentes" in compact
+        or "renta de no residentes" in compact
+        or "irnr" in compact
+        or "/no-residentes/" in compact
+    )
+    if is_sociedades and is_irnr:
+        return "IS/IRNR"
+    if is_sociedades:
+        return "IS"
+    if is_irnr:
+        return "IRNR"
+    if "irpf" in compact or "impuesto sobre la renta de las personas fisicas" in compact:
+        return "IRPF"
+    if "iva" in compact or "impuesto sobre el valor anadido" in compact or "impuesto sobre el valor añadido" in compact:
+        return "IVA"
+    if "informacion" in compact or "informativo" in compact:
+        return "informacion"
+    return None
+
+
 def _fetch_model_metadata(
     codigo: str,
     url_info: str | None = None,
@@ -483,21 +514,12 @@ def _fetch_model_metadata(
     elif "anual" in page_text:
         periodo = "anual"
 
-    impuesto = None
-    if "irpf" in page_text:
-        impuesto = "IRPF"
-    elif "iva" in page_text:
-        impuesto = "IVA"
-    elif "is" in page_text or "impuesto sociedades" in page_text:
-        impuesto = "IS"
-    elif "irnr" in page_text:
-        impuesto = "IRNR"
-    elif "informacion" in page_text or "informativo" in page_text:
-        impuesto = "informacion"
+    nombre = _extract_model_name(model_soup.get_text(" ", strip=True)[:150], codigo)
+    impuesto = _infer_impuesto(codigo, page_text, url_info, nombre)
 
     return {
         "codigo": codigo,
-        "nombre": _extract_model_name(model_soup.get_text(" ", strip=True)[:150], codigo),
+        "nombre": nombre,
         "url_info": url_info,
         "periodo": periodo,
         "impuesto": impuesto,
