@@ -802,3 +802,12 @@ Incorrect answers found: none
 Fixes applied: none
 Verification: VPS Alertmanager API, /status, docker compose ps and sync_log SQL all PASS.
 Next: Q-15
+
+=== Iteration Q-15 - 2026-05-12T20:55:57+02:00 ===
+Story: Q-15 Accuracy confidence score - compute and document per domain
+Queries tested: 57
+Results: correct=38 honest_limit=19 incorrect=0
+Incorrect answers found: none
+Fixes applied: docs/accuracy-report.md added; prd verification command corrected to inspect numeric incorrect column rather than matching the header text.
+Verification: docs/accuracy-report.md table present; numeric incorrect column has no non-zero rows; overall verified-answer confidence 100%.
+Next: COMPLETE

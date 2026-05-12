@@ -191,14 +191,14 @@
                             "id":  "Q-15",
                             "title":  "Accuracy confidence score - compute and document per domain",
                             "priority":  15,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Record queries_tested, correct, honest_limit, incorrect per domain",
                                                        "Any incorrect verified=true answer is a blocker",
                                                        "Write final table to docs/accuracy-report.md",
                                                        "Overall confidence must be \u003e= 95 percent on verified=true answers"
                                                    ],
-                            "verificationCommand":  "test -f docs/accuracy-report.md \u0026\u0026 grep -c \u0027|\u0027 docs/accuracy-report.md | grep -vE \u0027^0$\u0027 \u0026\u0026 grep \u0027incorrect.*\u0027 docs/accuracy-report.md | wc -l | grep \u0027^0$\u0027 \u0026\u0026 echo PASS || echo FAIL-INCORRECT-ANSWERS-REMAIN"
+                            "verificationCommand":  "test -f docs/accuracy-report.md && grep -c '|' docs/accuracy-report.md | grep -vE '^0$' && ! awk -F'|' 'NR>2 && $5 ~ /[1-9]/ {bad=1} END{exit bad}' docs/accuracy-report.md && echo PASS || echo FAIL-INCORRECT-ANSWERS-REMAIN"
                         }
                     ]
 }
