@@ -325,6 +325,55 @@ def test_extract_pdf_text_fields_accepts_nature_with_trailing_dot():
     assert fields[2]["etiqueta"] == "NIF DEL DECLARANTE"
 
 
+def test_extract_pdf_text_fields_from_model_296_logical_design_sample():
+    text = """
+    Diseños lógicos M296 2024
+    TIPO DE REGISTRO 1: REGISTRO DEL DECLARANTE
+    POSICIONES NATURALEZA DESCRIPCIÓN DE LOS CAMPOS
+    1 Numérico TIPO DE REGISTRO
+    2-4 Numérico MODELO DECLARACIÓN
+    5-8 Numérico EJERCICIO
+    9-17 Alfanumérico NIF DEL DECLARANTE
+    TIPO DE REGISTRO 2: REGISTRO DE PERCEPTOR
+    18-57 Alfanumérico APELLIDOS Y NOMBRE O RAZÓN SOCIAL
+    122-124 Alfabético CLAVE
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert len(fields) == 6
+    assert fields[0]["codigo"] == "DRPDF:POS:1"
+    assert fields[3]["etiqueta"] == "NIF DEL DECLARANTE"
+    assert fields[5]["etiqueta"] == "CLAVE"
+    assert "Posiciones: 122-124" in fields[5]["descripcion"]
+
+
+def test_delete_existing_design_fields_only_removes_design_rows():
+    class FakeResult:
+        rowcount = 3
+
+    class FakeConn:
+        def __init__(self):
+            self.statement = ""
+            self.params = None
+
+        def execute(self, statement, params):
+            self.statement = str(statement)
+            self.params = params
+            return FakeResult()
+
+    conn = FakeConn()
+
+    deleted = worker._delete_existing_design_fields(conn, 123)
+
+    assert deleted == 3
+    assert conn.params == {"campana_id": 123}
+    assert "DELETE FROM modelo_casilla" in conn.statement
+    assert "diseno_registro_campo" in conn.statement
+    assert "diseno_registro_xsd_campo" in conn.statement
+    assert "tipo_casilla IN" in conn.statement
+
+
 def test_is_pdf_format_detects_official_design_pdf_urls():
     assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.pdf")
     assert worker._is_pdf_format("https://sede.agenciatributaria.gob.es/static_files/dr196.PDF?download=1")

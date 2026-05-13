@@ -1126,3 +1126,17 @@ Source URLs used:
 Result: PASS
 Caveat if any: local Docker Compose could not query DB because DATABASE_URL is not set in this local shell; production counts must be checked in D-01 before mutating modelo_casilla.
 Next: D-01
+=== Iteration D-01 - 2026-05-13T11:27:00+02:00 ===
+Story: D-01 Load Modelo 296 complete design - IRNR no residentes
+Models processed: 296
+Source format: PDF design-register table
+Fields loaded per model: local parser probe only, 296=114 fields extracted from official AEAT PDF; production DB load pending.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos_24/DR_296_2024.pdf
+Result: BLOCKED-AWAITING-VPS-DB-VERIFICATION
+Caveat if any: code is prepared to replace existing partial design-register rows for modelo 296, but `deploy@212.227.227.64` currently denies publickey and local Compose lacks DATABASE_URL, so the required production `modelo_casilla` count check cannot run yet.
+Local verification:
+  - `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 14 passed.
+  - `python -m compileall apps/workers/aeat_current_designs.py` => OK.
+  - Real AEAT PDF probe => 114 extracted fields, including `NIF DEL DECLARANTE` and `CLAVE`.
+Next: restore SSH access, run D-01 worker on VPS, then mark D-01 passes=true if 296 active campaign has >10 official design fields.

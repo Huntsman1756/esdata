@@ -38,6 +38,11 @@ DESIGN_INDEX_URLS = [
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-100-199.html",
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-200-299.html",
 ]
+FORCE_RELOAD_DESIGN_MODELS = {
+    # D-01: Modelo 296 previously had seed/partial design fields. The official
+    # 2024 PDF is deterministic, so replace stale design-register rows.
+    "296",
+}
 SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
     {
         "codigo": "172",
@@ -807,6 +812,20 @@ def _campaign_has_fields(conn, campana_id: int) -> bool:
     )
 
 
+def _delete_existing_design_fields(conn, campana_id: int) -> int:
+    result = conn.execute(
+        text(
+            """
+            DELETE FROM modelo_casilla
+            WHERE campana_id = :campana_id
+              AND tipo_casilla IN ('diseno_registro_campo', 'diseno_registro_xsd_campo')
+            """
+        ),
+        {"campana_id": campana_id},
+    )
+    return int(result.rowcount or 0)
+
+
 def _upsert_design_fields(conn, campana_id: int, fields: list[dict]) -> int:
     count = 0
     for field in fields:
@@ -983,7 +1002,17 @@ def run_sync(engine) -> dict:
             else:
                 stats["resources_stored"] += 1
 
-            if not _campaign_has_fields(conn, campana_id):
+            has_fields = _campaign_has_fields(conn, campana_id)
+            if has_fields and link["codigo"] in FORCE_RELOAD_DESIGN_MODELS:
+                deleted = _delete_existing_design_fields(conn, campana_id)
+                if deleted:
+                    logger.info(
+                        "Replacing existing AEAT design fields with current official source",
+                        extra={"codigo": link["codigo"], "deleted_fields": deleted, "url": link["url"]},
+                    )
+                has_fields = False
+
+            if not has_fields:
                 try:
                     if _is_spreadsheet_format(link["url"]):
                         fields = extract_spreadsheet_fields(payload)
