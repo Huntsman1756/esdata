@@ -1,111 +1,92 @@
 {
-  "projectName": "esdata-release-v1",
-  "branchName": "release/v1.0.0",
+  "projectName": "esdata-worker-cadence-hardening",
+  "branchName": "fix/worker-cadence-hardening",
   "userStories": [
     {
-      "id": "R-01",
-      "title": "Audit all GitHub vulnerabilities - triage and fix CRITICAL and HIGH",
+      "id": "W-01",
+      "title": "Inventory: list every worker and its real expected cadence",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "List all 7 vulnerabilities with package, severity, current version, patched version, action and risk decision",
-        "Fix every CRITICAL and HIGH advisory with available patches",
-        "Assess MODERATE and LOW advisories and fix when covered by the same safe upgrade",
-        "Document all findings in docs/security-audit.md"
+        "Query sync_log for all distinct worker names ever seen",
+        "Query /status for all workers currently registered",
+        "Cross-reference with all cron entries: /etc/cron.d/, crontab -l for all users, docker-compose cron services",
+        "For each worker produce: name | trigger_type | real_cadence | current_threshold | match",
+        "Write full inventory to docs/worker-cadence-inventory.md",
+        "Flag every worker where match=NO"
       ],
-      "verificationCommand": "gh api /repos/Huntsman1756/esdata/dependabot/alerts --jq '[.[] | select(.state==\"open\" and (.security_vulnerability.severity==\"critical\" or .security_vulnerability.severity==\"high\"))] | length' 2>/dev/null | grep '^0$' && echo PASS || echo 'FAIL or default branch still awaiting merge scan'"
+      "verificationCommand": "test -f docs/worker-cadence-inventory.md && grep -c 'NO' docs/worker-cadence-inventory.md; echo 'Above is count of mismatches - document all, fix in W-02'"
     },
     {
-      "id": "R-02",
-      "title": "VPS hardening - create deploy user, disable root login, confirm UFW and fail2ban",
+      "id": "W-02",
+      "title": "Declare explicit expected_cadence_hours for every worker in config",
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Create and verify deploy user SSH before disabling root",
-        "Disable root SSH login and reload sshd",
-        "Confirm UFW active with DB port closed externally",
-        "Confirm fail2ban active and monitoring SSH"
+        "Locate where worker stale thresholds are defined",
+        "For each worker flagged match=NO in W-01: update its threshold to match real cadence",
+        "Add a comment per worker with real schedule",
+        "No worker should use a generic default threshold if its real schedule is known",
+        "After fix: /status stale_workers_count must be 0",
+        "Prometheus WorkerSilent alert rule must reference per-worker thresholds via exported status"
       ],
-      "verificationCommand": "ssh deploy@${VPS_HOST} 'echo deploy-user-ok' && ssh -o PasswordAuthentication=no root@${VPS_HOST} 'echo' 2>&1 | grep -i 'Permission denied\\|Connection refused' && echo PASS || echo FAIL-CHECK-SSH-MANUALLY"
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.stale_workers_count' | grep '^0$' && echo PASS || echo FAIL-STALE-WORKERS-NONZERO"
     },
     {
-      "id": "R-03",
-      "title": "Test backup restore - not just backup existence",
+      "id": "W-03",
+      "title": "Write automated cadence test - catches misconfiguration at deploy time",
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Locate latest DB backup",
-        "Restore into non-production test database",
-        "Compare core row counts against production backup time",
-        "Drop restore test DB after verification"
+        "Create apps/api/tests/test_worker_cadence.py",
+        "Every worker in cadence config has explicit expected_cadence_hours > 0",
+        "expected_cadence_hours matches cron schedule in infra/",
+        "stale threshold is >= expected_cadence_hours * 1.5",
+        "No worker uses 0 or None cadence",
+        "Test fails if cadence config is missing any active worker"
       ],
-      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d esdata_restore_test -tAc 'SELECT COUNT(*) FROM aeat_modelo' 2>/dev/null | grep -vE '^0$' && echo PASS || echo 'FAIL or test DB not found'"
+      "verificationCommand": "pytest apps/api/tests/test_worker_cadence.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
-      "id": "R-04",
-      "title": "Merge fix/aeat-29-models-resource-audit to main - with full regression gate",
+      "id": "W-04",
+      "title": "Add new worker registration gate - new workers must declare cadence or fail deploy",
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Run full test suite before merge",
-        "Merge with --no-ff",
-        "Run mcp_validation_suite on VPS after merge",
-        "Confirm /status API OK, DB OK, stale_workers=0"
+        "In worker bootstrap or /status handler, unknown worker cadence logs a warning",
+        "CI cadence test must pass before deploy",
+        "scripts/weekly-accuracy-check.sh verifies no worker is missing cadence declaration",
+        "New workers added without cadence declaration fail loudly"
       ],
-      "verificationCommand": "git log --oneline -3 main && curl -sf http://localhost:${API_PORT:-8000}/status | jq '{api, db, stale_workers}' && echo PASS"
+      "verificationCommand": "bash scripts/weekly-accuracy-check.sh 2>&1 | grep -i 'cadence\\|stale\\|worker' | tail -10 && echo PASS"
     },
     {
-      "id": "R-05",
-      "title": "Write RELEASE.md - honest contract language, not marketing",
+      "id": "W-05",
+      "title": "Verify Alertmanager silence rules are clean after threshold corrections",
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Document trusted domains",
-        "Document limited-evidence domains",
-        "Document non-covered domains",
-        "Define response contracts and known limitations"
+        "Check Alertmanager for active silences",
+        "Delete any silence created as a workaround for threshold mismatch after W-02",
+        "After cleanup: 0 active silences unless documented",
+        "Document retained silences in docs/alertmanager-silences.md"
       ],
-      "verificationCommand": "test -f RELEASE.md && grep -c 'verified\\|evidence_limited\\|configured_but_unavailable\\|parcial' RELEASE.md | awk '{print ($1 >= 4) ? \"PASS\" : \"FAIL-MISSING-CONTRACT-LANGUAGE\"}'"
+      "verificationCommand": "curl -sf http://localhost:9093/api/v2/silences | jq '[.[] | select(.status.state==\"active\")] | length' | grep '^0$' && echo PASS || echo 'FAIL or document retained silences'"
     },
     {
-      "id": "R-06",
-      "title": "Create and push tag v1.0.0",
+      "id": "W-06",
+      "title": "Final verification - 0 false positives across full weekly cycle simulation",
       "priority": 6,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Main clean and all release commits present",
-        "Annotated tag v1.0.0 created and pushed",
-        "Remote tag verified",
-        "mcp_validation_suite and /status green after tag"
+        "Simulate all workers running on declared schedule",
+        "Run mcp_validation_suite.py and require ok=true",
+        "Check Alertmanager: 0 FIRING, 0 active silences unless documented",
+        "/status: stale_workers_count=0",
+        "Run test_worker_cadence.py",
+        "Write final summary to progress.txt"
       ],
-      "verificationCommand": "git ls-remote --tags origin | grep -q 'refs/tags/v1.0.0' && curl -sf http://localhost:${API_PORT:-8000}/status | jq '.api' | grep -q 'ok\\|OK' && echo PASS || echo FAIL"
-    },
-    {
-      "id": "R-07",
-      "title": "Set up weekly accuracy review schedule - BOE, AEAT, EUR-Lex, CNMV, ESMA",
-      "priority": 7,
-      "passes": true,
-      "acceptanceCriteria": [
-        "Create weekly accuracy check script",
-        "Check freshness thresholds per domain",
-        "Install Monday 08:00 Europe/Madrid cron on VPS",
-        "Exit non-zero when stale threshold fails"
-      ],
-      "verificationCommand": "test -f scripts/weekly-accuracy-check.sh && bash scripts/weekly-accuracy-check.sh && echo PASS || echo FAIL"
-    },
-    {
-      "id": "R-08",
-      "title": "Final smoke test - 10 real queries across all live domains post-release",
-      "priority": 8,
-      "passes": true,
-      "acceptanceCriteria": [
-        "Run 10 production queries across AEAT, BOE, DGT, CNMV, AEPD, EUR-Lex and /status",
-        "All 10 must pass after v1.0.0 tag",
-        "AEAT checks must validate honest contracts, including partial evidence where the release deliberately does not claim verified=true",
-        "AEPD check must verify 25 loaded documents and a traceable search result",
-        "Any failure blocks release"
-      ],
-      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.api' | grep -q 'ok\\|OK' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/303 | jq '.verified' | grep -q 'true' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/290 | jq '.completeness' | grep -q 'parcial' && echo 'CORE SMOKE PASS - run full 10-query suite manually'"
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '{stale_workers_count, api, db}' | grep -q '\"stale_workers_count\": 0' && pytest apps/api/tests/test_worker_cadence.py -q 2>&1 | grep -E 'passed' && echo PASS || echo FAIL"
     }
   ]
 }

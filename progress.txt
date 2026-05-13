@@ -948,3 +948,16 @@ Evidence:
 Accepted risks:
   - none.
 Next: monitor for RESOLVED notification from Telegram if Alertmanager sends it.
+=== Iteration W-01 - 2026-05-13T05:44:00+02:00 ===
+Story: W-01 Inventory: list every worker and its real expected cadence
+Result: PASS
+Evidence:
+  - Queried production sync_log: 37 distinct worker names.
+  - Queried production /status: 36 registered worker entries.
+  - Cross-referenced installed systemd timers, /etc/cron.d, deploy/root crontabs and Docker Compose cron services.
+  - Wrote docs/worker-cadence-inventory.md with 38 rows including historical aliases and the scheduler-only cron-boe-modelos-daily note.
+  - Flagged NO rows for all workers whose current threshold is below the new 1.5x cadence policy or depends on default threshold behavior.
+  - Direct root-cause class found: cron-regulatory-daily is present in /status via sync_log but has no explicit threshold; weekly/monthly thresholds are also too tight for the new buffer policy.
+Accepted risks:
+  - W-01 is inventory-only by design; no thresholds changed in this iteration.
+Next: W-02
