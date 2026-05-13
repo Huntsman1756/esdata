@@ -53,7 +53,7 @@
       "id": "F-05",
       "title": "Add TRLIRNR to mcp_validation_suite and mcp_deep_contract_audit",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Validation suite checks TRLIRNR and IRNR alias",
         "Deep audit checks TRLIRNR verified response and LIVA 163 sexvicies"

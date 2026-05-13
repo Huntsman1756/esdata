@@ -617,6 +617,80 @@ def audit_eurlex_esma_market_contracts(base_url: str) -> CheckResult:
     )
 
 
+def audit_boe_core_legislation_contracts(base_url: str) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {"articles_checked": []}
+    article_checks = [
+        {
+            "name": "trlirnr_article_14",
+            "path": "/v1/legislacion/TRLIRNR/articulos/14",
+            "expected_norma": "TRLIRNR",
+            "expected_numero": "14",
+            "expected_boe": "BOE-A-2004-4527",
+            "required_text": "Rentas exentas",
+        },
+        {
+            "name": "irnr_alias_article_14",
+            "path": "/v1/legislacion/IRNR/articulos/14",
+            "expected_norma": "TRLIRNR",
+            "expected_numero": "14",
+            "expected_boe": "BOE-A-2004-4527",
+            "required_text": "Rentas exentas",
+        },
+        {
+            "name": "liva_article_163_sexvicies",
+            "path": "/v1/legislacion/LIVA/articulos/163%20sexvicies",
+            "expected_norma": "LIVA",
+            "expected_numero": "163 sexvicies",
+            "expected_boe": "BOE-A-1992-28740",
+            "required_text": None,
+        },
+    ]
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        for check in article_checks:
+            status_code, payload, text_preview = _get_json(client, check["path"])
+            text_value = (payload or {}).get("texto") or ""
+            source_url = (payload or {}).get("source_url") or ""
+            record = {
+                "name": check["name"],
+                "path": check["path"],
+                "status_code": status_code,
+                "norma": (payload or {}).get("norma"),
+                "numero": (payload or {}).get("numero"),
+                "boe_reference": (payload or {}).get("boe_reference"),
+                "verified": (payload or {}).get("verified"),
+                "completeness": (payload or {}).get("completeness"),
+                "text_length": len(text_value),
+                "source_url": source_url,
+            }
+            details["articles_checked"].append(record)
+            if status_code != 200 or not payload:
+                failures.append({"check": check["name"], "reason": "endpoint_failed", "response": text_preview})
+                continue
+            if payload.get("norma") != check["expected_norma"] or payload.get("numero") != check["expected_numero"]:
+                failures.append({"check": check["name"], "reason": "article_identity_mismatch", "record": record})
+            if payload.get("boe_reference") != check["expected_boe"]:
+                failures.append({"check": check["name"], "reason": "boe_reference_mismatch", "record": record})
+            if payload.get("verified") is not True or payload.get("completeness") != "completa":
+                failures.append({"check": check["name"], "reason": "not_verified_complete", "record": record})
+            if len(text_value) < 50:
+                failures.append({"check": check["name"], "reason": "missing_real_text", "record": record})
+            required_text = check.get("required_text")
+            if required_text and required_text.lower() not in text_value.lower():
+                failures.append({"check": check["name"], "reason": "required_text_missing", "required_text": required_text, "record": record})
+            if not source_url.startswith(f"https://www.boe.es/buscar/act.php?id={check['expected_boe']}"):
+                failures.append({"check": check["name"], "reason": "not_official_boe_sourced", "record": record})
+
+    return CheckResult(
+        "boe_core_legislation_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
 def audit_semantic_suite(base_url: str) -> CheckResult:
     sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
     from mcp_validation_suite import run_read_only_suite  # type: ignore
@@ -642,6 +716,7 @@ def run_audit(base_url: str, database_url: str) -> dict[str, Any]:
         audit_domain_availability(base_url, registry),
         audit_mcp_tools(base_url),
         audit_actions_openapi(base_url),
+        audit_boe_core_legislation_contracts(base_url),
         audit_eurlex_esma_market_contracts(base_url),
         audit_semantic_suite(base_url),
     ]

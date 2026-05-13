@@ -351,6 +351,19 @@ Evidence:
   - Local verification: `python -m pytest apps/api/tests/test_boe_completeness.py -v` => `1 passed`.
   - Production BOE ID counts: TRLIRNR=66, LIVA=228, LGT=319, LIRPF=175, LIS=180, ITPAJD=67.
 Next: F-05
+=== Iteration F-05 - 2026-05-13T19:25:00+02:00 ===
+Story: F-05 Add TRLIRNR to mcp_validation_suite and mcp_deep_contract_audit
+Queries tested: 3 direct BOE article contracts plus full MCP suites
+Results: correct=3 honest_limit=0 incorrect=0
+Incorrect answers found: none
+Fixes applied:
+  - `/v1/legislacion/{codigo}/articulos/{numero}` now exposes `verified=true` and `completeness=completa` for consolidated BOE article responses.
+  - `mcp_validation_suite.py` checks TRLIRNR article 14, IRNR alias article 14, and LIVA article `163 sexvicies`.
+  - `mcp_deep_contract_audit.py` adds `boe_core_legislation_contracts`.
+Evidence:
+  - VPS validation suite: `ok=true`; new BOE checks all returned HTTP 200 with official BOE references.
+  - VPS deep contract audit: `ok=true`; `boe_core_legislation_contracts` checked TRLIRNR, IRNR alias and LIVA 163 sexvicies with no failures.
+Next: F-06
 === Iteration F-01 - 2026-05-13T18:44:26+02:00 ===
 Story: F-01 Load TRLIRNR complete from BOE-A-2004-4527
 Sources accessed:

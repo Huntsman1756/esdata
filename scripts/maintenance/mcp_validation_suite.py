@@ -433,6 +433,41 @@ def _validate_eurlex_market_article(expected_celex: str) -> Any:
     return validator
 
 
+def _validate_legislation_article(
+    expected_norma: str,
+    expected_numero: str,
+    expected_boe_reference: str,
+    *,
+    required_text: str | None = None,
+) -> Any:
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        text_value = payload.get("texto") or ""
+        source_url = payload.get("source_url") or ""
+        details = {
+            "norma": payload.get("norma"),
+            "numero": payload.get("numero"),
+            "boe_reference": payload.get("boe_reference"),
+            "verified": payload.get("verified"),
+            "completeness": payload.get("completeness"),
+            "text_length": len(text_value),
+            "source_url": source_url,
+        }
+        ok = (
+            payload.get("norma") == expected_norma
+            and payload.get("numero") == expected_numero
+            and payload.get("boe_reference") == expected_boe_reference
+            and payload.get("verified") is True
+            and payload.get("completeness") == "completa"
+            and len(text_value) > 50
+            and source_url.startswith(f"https://www.boe.es/buscar/act.php?id={expected_boe_reference}")
+        )
+        if required_text is not None:
+            ok = ok and required_text.lower() in text_value.lower()
+        return ok, details
+
+    return validator
+
+
 def _validate_esma_mifir_schema_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     items = payload.get("items") or []
     details = {
@@ -579,6 +614,47 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         checks.append(_check_get(client, "/status"))
         checks.append(_check_mcp_transport(client))
         checks.append(_check_get(client, "/v1/legislacion/LIVA/articulos/90", "21 por ciento"))
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/legislacion/TRLIRNR/articulos/14",
+                {},
+                _validate_legislation_article(
+                    "TRLIRNR",
+                    "14",
+                    "BOE-A-2004-4527",
+                    required_text="Rentas exentas",
+                ),
+                "trlirnr_article_14_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/legislacion/IRNR/articulos/14",
+                {},
+                _validate_legislation_article(
+                    "TRLIRNR",
+                    "14",
+                    "BOE-A-2004-4527",
+                    required_text="Rentas exentas",
+                ),
+                "irnr_alias_article_14_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/legislacion/LIVA/articulos/163%20sexvicies",
+                {},
+                _validate_legislation_article(
+                    "LIVA",
+                    "163 sexvicies",
+                    "BOE-A-1992-28740",
+                ),
+                "liva_article_163_sexvicies_official_contract",
+            )
+        )
         checks.append(
             _check_json_contract(
                 client,

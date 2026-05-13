@@ -329,6 +329,8 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
         "boe_reference": boe_id,
         "source_url": source_url,
         "eli_uri": row["eli_uri"],
+        "verified": True,
+        "completeness": "completa",
         "confianza": {
             "nivel": 1,
             "fuentes": [f"{row['codigo']} art. {row['numero']}"],
