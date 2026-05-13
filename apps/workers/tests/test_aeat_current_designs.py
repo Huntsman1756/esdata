@@ -276,6 +276,17 @@ def test_supplemental_links_include_modelo_289_official_xsd_zip():
     assert "agenciatributaria.gob.es" in link["url"]
 
 
+def test_supplemental_links_include_modelo_303_official_design_xlsx():
+    links = {link["codigo"]: link for link in worker.SUPPLEMENTAL_CURRENT_DESIGN_LINKS}
+
+    link = links["303"]
+
+    assert link["tipo_recurso"] == "diseno_registro"
+    assert link["formato"] == "xlsx"
+    assert link["url"].endswith("DR303e26v101.xlsx")
+    assert "modelos-300-399.html" in link["source_index"]
+
+
 def test_extract_pdf_text_fields_from_numbered_design_table():
     text = """
     Descripcion de hoja DISENO DE REGISTRO

@@ -123,6 +123,14 @@ SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
         "formato": "zip",
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
     },
+    {
+        "codigo": "303",
+        "label": "Modelo 303 - Diseno de registro IVA autoliquidacion 2026",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_300_399/archivos_26/DR303e26v101.xlsx",
+        "tipo_recurso": "diseno_registro",
+        "formato": "xlsx",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-300-399.html",
+    },
 ]
 # STATUS-D (M-06): modelos 234, 235 y 236 solo tienen ZIP oficial con ejemplos XML
 # (`Ejemplos_XML_M234_235_236_Manual.zip`). No se cargan porque un ejemplo no es un
