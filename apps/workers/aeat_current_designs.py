@@ -104,6 +104,18 @@ SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI59.shtml",
     },
     {
+        "codigo": "289",
+        "label": "Modelo 289 - Esquema XSD y WSDL CRS/DAC2 presentacion",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI42/Ayuda/XSD_WSDL/289_XSD_2.0_WSDL_2.0.1.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": (
+            "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/"
+            "impuestos-tasas/declaraciones-informativas/modelo-289-decla_____ras-ambito-asistencia-mutua/"
+            "informacion-sobre-presentacion-mediante-web-service.html"
+        ),
+    },
+    {
         "codigo": "290",
         "label": "Modelo 290 - Esquema XSD y WSDL FATCA presentacion",
         "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI38/Ayuda/XSD_WSDL/290_XSD_2.0_WSDL_2.1.1.zip",

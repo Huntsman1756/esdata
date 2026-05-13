@@ -265,6 +265,17 @@ def test_extract_xsd_zip_fields_accepts_spanish_presentacion_root():
     assert fields[0]["codigo"] == "XSD:M240Presentacion/Cabecera/CodigoPresentacion"
 
 
+def test_supplemental_links_include_modelo_289_official_xsd_zip():
+    links = {link["codigo"]: link for link in worker.SUPPLEMENTAL_CURRENT_DESIGN_LINKS}
+
+    link = links["289"]
+
+    assert link["tipo_recurso"] == "diseno_registro_xsd"
+    assert link["formato"] == "zip"
+    assert link["url"].endswith("289_XSD_2.0_WSDL_2.0.1.zip")
+    assert "agenciatributaria.gob.es" in link["url"]
+
+
 def test_extract_pdf_text_fields_from_numbered_design_table():
     text = """
     Descripcion de hoja DISENO DE REGISTRO
