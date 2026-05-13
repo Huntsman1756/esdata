@@ -1326,3 +1326,21 @@ Verification:
   - API: both return `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`.
   - Formal verification command: `111 casillas: 63`, `115 casillas: 37` => PASS.
 Next: D-12
+=== Iteration D-12 - 2026-05-13T14:20:00+02:00 ===
+Story: D-12 Sweep: load all remaining models with official docs in priority range
+Models processed: 196, 290 plus priority STATUS-A sweep
+Source format: PDF design-register table, ZIP XSD/WSDL, previously loaded XLS/XLSX/PDF/XSD sources
+Fields loaded per model: no new load required in D-12; all priority STATUS-A models now have official fields loaded.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_23/DR_Mod_196_2023.pdf
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI38/Ayuda/XSD_WSDL/290_XSD_2.0_WSDL_2.1.1.zip
+Result: PASS-WITH-CAVEAT
+Caveat if any: 100 is `verified=true`/`completa`; remaining priority models mostly stay `verified=false`/`parcial` because official design fields alone do not prove complete instructions or applicability rules.
+Verification:
+  - Local parser probe: `196=62` PDF fields, `290=152` XSD fields.
+  - SQL 100-299 numeric sweep: `total=88`, `loaded=65`.
+  - Priority STATUS-A counts: 100=2521, 111=63, 115=37, 123=44, 124=39, 187=50, 193=71, 196=62, 198=72, 200=6807, 216=47, 289=134, 290=152, 296=124.
+  - Modelo 303 outside 100-299: `303=432`.
+  - API spot-check: `196 verified=false`, `completeness=parcial`, `casillas_total=62`; `290 verified=false`, `completeness=parcial`, `casillas_total=152`.
+  - `docs/aeat-docs-map.md` updated with D-12 final status table.
+Next: D-13

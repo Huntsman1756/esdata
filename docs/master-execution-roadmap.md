@@ -6121,3 +6121,28 @@ En orden de impacto real:
 - Verificacion formal D-11: `PASS`.
 
 **Siguiente paso:** D-12 sweep de modelos STATUS-A restantes en el mapa documental.
+
+---
+
+## Reclamo 2026-05-13 - D-12 Sweep STATUS-A AEAT completado
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `docs/aeat-docs-map.md`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cerrar el barrido de modelos prioritarios `STATUS-A` del mapa documental AEAT, verificando que ninguno queda sin campos oficiales cargados.
+
+**Resultado:**
+- Todos los modelos prioritarios `STATUS-A` del mapa tienen campos oficiales cargados en produccion.
+- 196 esta reconciliado: `62` campos desde PDF logico oficial AEAT.
+- 290 esta reconciliado: `152` campos desde ZIP XSD/WSDL oficial FATCA.
+- 303, aunque fuera del rango 100-299, queda cubierto con `432` campos desde XLSX oficial 300-399.
+- `docs/aeat-docs-map.md` incluye ahora una tabla final D-12 con conteo y contrato API por modelo.
+
+**Pruebas ejecutadas:**
+- Probe local: `196=62`, `290=152`.
+- VPS SQL 100-299 numerico: `total=88`, `loaded=65`.
+- VPS SQL priority STATUS-A: todos con `casillas > 0`.
+- API spot-check: 196 y 290 devuelven conteos correctos y contrato parcial.
+
+**Siguiente paso:** D-13 informe final de cobertura documental y validaciones MCP.

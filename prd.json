@@ -154,7 +154,7 @@
       "id": "D-12",
       "title": "Sweep: load all remaining models with official docs in priority range",
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "From docs/aeat-docs-map.md, process STATUS-A models not already covered",
         "Batch by format type and never mix parser logic",

@@ -60,3 +60,25 @@ Regla D-00: `STATUS-A` significa fuente oficial determinista candidata a carga; 
 ## Siguiente Historia
 
 D-01 debe centrarse solo en el modelo 296. Antes de cargar, comprobar schema real con `\d modelo_casilla` en Docker y decidir si la trazabilidad por campo vive en `modelo_casilla.descripcion`, `modelo_recurso`, `source_revision` o requiere migracion. No marcar `verified=true` por el simple hecho de tener mas campos; solo hacerlo si el contrato de completitud definido para el modelo queda satisfecho.
+
+## Resultado D-12
+
+Todos los modelos prioritarios `STATUS-A` del mapa tienen campos oficiales cargados y trazables en produccion. Los modelos que siguen con contrato API `parcial` lo hacen por ausencia de instrucciones completas, metadata operativa o reglas de aplicabilidad estructuradas, no por ausencia de diseno oficial.
+
+| codigo | casillas produccion | fuente cargada | contrato API |
+|---|---:|---|---|
+| 100 | 2521 | XSD + diccionarios AEAT 2025 | `verified=true`, `completa` |
+| 111 | 63 | XLS AEAT | `verified=false`, `parcial` |
+| 115 | 37 | XLS AEAT | `verified=false`, `parcial` |
+| 123 | 44 | XLS AEAT | `verified=false`, `parcial` |
+| 124 | 39 | XLSX AEAT | `verified=false`, `parcial` |
+| 187 | 50 | PDF logico AEAT | `verified=false`, `parcial` |
+| 193 | 71 | PDF logico AEAT | `verified=false`, `parcial` |
+| 196 | 62 | PDF logico AEAT | `verified=false`, `parcial` |
+| 198 | 72 | PDF logico AEAT | `verified=false`, `parcial` |
+| 200 | 6807 | XLS + anexos AEAT | `verified=false`, `parcial` |
+| 216 | 47 | XLSX AEAT | `verified=false`, `parcial` |
+| 289 | 134 | ZIP XSD/WSDL AEAT | `verified=false`, `parcial` |
+| 290 | 152 | ZIP XSD/WSDL AEAT | `verified=false`, `parcial` |
+| 296 | 124 | PDF logico AEAT | `verified=false`, `parcial` |
+| 303 | 432 | XLSX AEAT 300-399 | `verified=false`, `parcial` |
