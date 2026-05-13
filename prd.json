@@ -83,7 +83,7 @@
       "id": "E-06",
       "title": "Load ESMA MiFIR reporting documents - RTS 22, ITS, Q&A",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Load ESMA reporting document metadata",
         "Extract validation rules only if structured",

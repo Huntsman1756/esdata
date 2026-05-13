@@ -18,6 +18,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import httpx
+import openpyxl
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -43,6 +44,14 @@ ESMA_TR_SCHEMA_ZIP_URL = (
     "https://www.esma.europa.eu/sites/default/files/library/"
     "esma65-8-2598_annex_2_mifir_transaction_reporting_iso20022_xml_schemas.zip"
 )
+ESMA_TR_TECHNICAL_INSTRUCTIONS_URL = (
+    "https://www.esma.europa.eu/sites/default/files/library/"
+    "esma65-8-2356_mifir_transaction_reporting_technical_reporting_instructions.pdf"
+)
+ESMA_TR_VALIDATION_RULES_URL = (
+    "https://www.esma.europa.eu/sites/default/files/library/"
+    "esma65-8-2594_annex_1_mifir_transaction_reporting_validation_rules.xlsx"
+)
 XSD_NS = {"xs": "http://www.w3.org/2001/XMLSchema"}
 
 
@@ -51,6 +60,59 @@ class SchemaDownload:
     source_url: str
     zip_hash: str
     files: list[tuple[str, bytes, str]]
+
+
+@dataclass(frozen=True)
+class ReportingDocument:
+    tipo: str
+    titulo: str
+    referencia: str
+    url_esma: str
+    fecha_publicacion: str | None
+    source_hash: str
+    verified: bool
+    completeness: str
+    content: bytes
+
+
+ESMA_MIFIR_DOCUMENTS: tuple[tuple[str, str, str, str, str | None, bool, str], ...] = (
+    (
+        "HUB",
+        "ESMA MiFIR Reporting hub",
+        "ESMA MiFIR Reporting",
+        ESMA_TR_SCHEMA_PAGE,
+        None,
+        True,
+        "parcial",
+    ),
+    (
+        "SCHEMA",
+        "Transaction Reporting XML Schema 1.1.0",
+        "ESMA65-8-2598",
+        ESMA_TR_SCHEMA_ZIP_URL,
+        "2019-09-23",
+        True,
+        "completa",
+    ),
+    (
+        "INSTRUCTIONS",
+        "MiFIR Transaction Reporting Technical Reporting Instructions",
+        "ESMA65-8-2356",
+        ESMA_TR_TECHNICAL_INSTRUCTIONS_URL,
+        "2018-05-29",
+        True,
+        "parcial",
+    ),
+    (
+        "VALIDATION_RULES",
+        "Transaction Reporting Validation Rules - 2022 update",
+        "ESMA65-8-2594",
+        ESMA_TR_VALIDATION_RULES_URL,
+        "2022-05-31",
+        True,
+        "completa",
+    ),
+)
 
 
 def fetch_schema_zip(url: str = ESMA_TR_SCHEMA_ZIP_URL) -> SchemaDownload:
@@ -66,6 +128,27 @@ def fetch_schema_zip(url: str = ESMA_TR_SCHEMA_ZIP_URL) -> SchemaDownload:
     if not files:
         raise RuntimeError("Official ESMA ZIP contains no XSD files")
     return SchemaDownload(source_url=str(response.url), zip_hash=zip_hash, files=files)
+
+
+def fetch_reporting_documents() -> list[ReportingDocument]:
+    documents: list[ReportingDocument] = []
+    for tipo, titulo, referencia, url, fecha_publicacion, verified, completeness in ESMA_MIFIR_DOCUMENTS:
+        response = httpx.get(url, follow_redirects=True, timeout=60.0)
+        response.raise_for_status()
+        documents.append(
+            ReportingDocument(
+                tipo=tipo,
+                titulo=titulo,
+                referencia=referencia,
+                url_esma=str(response.url),
+                fecha_publicacion=fecha_publicacion,
+                source_hash=hashlib.md5(response.content).hexdigest(),
+                verified=verified,
+                completeness=completeness,
+                content=response.content,
+            )
+        )
+    return documents
 
 
 def _local_name(value: str | None) -> str | None:
@@ -140,6 +223,41 @@ def parse_xsd_fields(download: SchemaDownload) -> list[dict]:
     return fields
 
 
+def parse_validation_rules_xlsx(document: ReportingDocument) -> list[dict]:
+    workbook = openpyxl.load_workbook(io.BytesIO(document.content), data_only=True, read_only=True)
+    if "TransactionDataValidations" not in workbook.sheetnames:
+        raise RuntimeError("ESMA validation XLSX missing TransactionDataValidations sheet")
+    worksheet = workbook["TransactionDataValidations"]
+    rules: list[dict] = []
+    for row in worksheet.iter_rows(min_row=2, values_only=True):
+        if not row or row[0] is None:
+            continue
+        codigo = str(row[0]).strip()
+        field_no = "" if row[1] is None else str(row[1]).strip()
+        field_name = "" if row[2] is None else str(row[2]).strip()
+        validation_text = "" if row[5] is None else " ".join(str(row[5]).split())
+        implementation = "" if row[6] is None else str(row[6]).strip()
+        error_code = "" if row[7] is None else str(row[7]).strip()
+        error_text = "" if row[8] is None else " ".join(str(row[8]).split())
+        description = validation_text or error_text or f"Validation rule {codigo}"
+        severity = "ERROR" if error_code or implementation in {"Application", "XML schema"} else "WARNING"
+        rules.append(
+            {
+                "codigo": codigo[:50],
+                "descripcion": description,
+                "campo_afectado": f"{field_no} {field_name}".strip()[:200] or None,
+                "severidad": severity,
+                "rts_referencia": None,
+                "source_url": document.url_esma,
+                "source_hash": document.source_hash,
+                "capture_date": date.today().isoformat(),
+            }
+        )
+    if not rules:
+        raise RuntimeError("ESMA validation XLSX produced zero validation rules")
+    return rules
+
+
 def assert_esma_schema_tables(conn) -> None:
     assert_table_exists(
         conn,
@@ -150,6 +268,16 @@ def assert_esma_schema_tables(conn) -> None:
         conn,
         "esma_schema_field",
         required_columns=("schema_id", "nombre_campo", "source_url", "source_hash", "capture_date"),
+    )
+    assert_table_exists(
+        conn,
+        "esma_reporting_document",
+        required_columns=("tipo", "titulo", "referencia", "url_esma", "source_hash", "capture_date"),
+    )
+    assert_table_exists(
+        conn,
+        "esma_validation_rule",
+        required_columns=("codigo", "descripcion", "source_url", "source_hash", "capture_date"),
     )
 
 
@@ -210,6 +338,63 @@ def upsert_transaction_reporting_schema(conn, download: SchemaDownload, fields: 
     return len(fields)
 
 
+def upsert_reporting_documents(conn, documents: list[ReportingDocument]) -> int:
+    for document in documents:
+        conn.execute(text("DELETE FROM esma_reporting_document WHERE url_esma = :url_esma"), {"url_esma": document.url_esma})
+    for document in documents:
+        conn.execute(
+            text(
+                """
+                INSERT INTO esma_reporting_document (
+                    tipo, titulo, referencia, url_esma, fecha_publicacion,
+                    source_hash, capture_date, dominio, verified,
+                    completeness, updated_at
+                )
+                VALUES (
+                    :tipo, :titulo, :referencia, :url_esma, :fecha_publicacion,
+                    :source_hash, :capture_date, 'MIFIR', :verified,
+                    :completeness, now()
+                )
+                """
+            ),
+            {
+                "tipo": document.tipo,
+                "titulo": document.titulo,
+                "referencia": document.referencia,
+                "url_esma": document.url_esma,
+                "fecha_publicacion": date.fromisoformat(document.fecha_publicacion) if document.fecha_publicacion else None,
+                "source_hash": document.source_hash,
+                "capture_date": date.today().isoformat(),
+                "verified": document.verified,
+                "completeness": document.completeness,
+            },
+        )
+    return len(documents)
+
+
+def replace_validation_rules(conn, rules: list[dict], source_url: str) -> int:
+    conn.execute(text("DELETE FROM esma_validation_rule WHERE source_url = :source_url"), {"source_url": source_url})
+    for rule in rules:
+        conn.execute(
+            text(
+                """
+                INSERT INTO esma_validation_rule (
+                    codigo, descripcion, campo_afectado, severidad,
+                    rts_referencia, source_url, source_hash,
+                    capture_date, updated_at
+                )
+                VALUES (
+                    :codigo, :descripcion, :campo_afectado, :severidad,
+                    :rts_referencia, :source_url, :source_hash,
+                    :capture_date, now()
+                )
+                """
+            ),
+            rule,
+        )
+    return len(rules)
+
+
 def run_once(worker_name: str = "worker-esma-mifir-reporting") -> dict:
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine, logger=logger)
@@ -217,11 +402,23 @@ def run_once(worker_name: str = "worker-esma-mifir-reporting") -> dict:
     try:
         download = fetch_schema_zip()
         fields = parse_xsd_fields(download)
+        documents = fetch_reporting_documents()
+        validation_document = next(document for document in documents if document.tipo == "VALIDATION_RULES")
+        validation_rules = parse_validation_rules_xlsx(validation_document)
         with engine.begin() as conn:
             assert_esma_schema_tables(conn)
-            count = upsert_transaction_reporting_schema(conn, download, fields)
+            field_count = upsert_transaction_reporting_schema(conn, download, fields)
+            document_count = upsert_reporting_documents(conn, documents)
+            rule_count = replace_validation_rules(conn, validation_rules, validation_document.url_esma)
             _ensure_sync_log_table(conn)
-            log_sync(conn, worker_name, "ok", documentos_processed=len(download.files), articulos=count, started_at=sync_start)
+            log_sync(
+                conn,
+                worker_name,
+                "ok",
+                documentos_processed=document_count,
+                articulos=field_count + rule_count,
+                started_at=sync_start,
+            )
     except Exception as exc:
         if not handle_worker_failure(engine, "esma_mifir_reporting", "TRANSACTION_REPORTING", "sync_schema", exc):
             logger.warning("ESMA MiFIR reporting sync moved to dead-letter")
@@ -232,7 +429,13 @@ def run_once(worker_name: str = "worker-esma-mifir-reporting") -> dict:
         except Exception as log_exc:
             logger.warning("Failed to write ESMA MiFIR reporting error log: %s", log_exc)
         raise
-    return {"worker": worker_name, "files": len(download.files), "fields": count}
+    return {
+        "worker": worker_name,
+        "files": len(download.files),
+        "fields": field_count,
+        "documents": document_count,
+        "validation_rules": rule_count,
+    }
 
 
 def main() -> None:
@@ -245,7 +448,11 @@ def main() -> None:
     interval = args.interval or SYNC_INTERVAL_SECONDS
     if args.run_once:
         result = run_once()
-        print(f"[run-once] ESMA MiFIR reporting: files={result['files']} fields={result['fields']}")
+        print(
+            "[run-once] ESMA MiFIR reporting: "
+            f"files={result['files']} fields={result['fields']} "
+            f"documents={result['documents']} validation_rules={result['validation_rules']}"
+        )
         return
 
     while True:

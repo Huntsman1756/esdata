@@ -1,11 +1,14 @@
 """Tests for ESMA MiFIR transaction reporting schema loader."""
 
 import sys
+from io import BytesIO
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from worker_esma_mifir_reporting import SchemaDownload, parse_xsd_fields
+from openpyxl import Workbook
+
+from worker_esma_mifir_reporting import ReportingDocument, SchemaDownload, parse_validation_rules_xlsx, parse_xsd_fields
 
 
 def test_parse_xsd_fields_extracts_elements_and_lengths():
@@ -43,3 +46,66 @@ def test_parse_xsd_fields_extracts_elements_and_lengths():
     opt = fields[2]
     assert opt["obligatorio"] is False
     assert "max=unbounded" in opt["formato"]
+
+
+def test_parse_validation_rules_xlsx_extracts_structured_rules():
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "TransactionDataValidations"
+    worksheet.append(
+        [
+            "Rule ID",
+            "Field no",
+            "FIELD",
+            "CONTENT TO BE REPORTED",
+            "FORMAT AND STANDARDS TO BE USED FOR REPORTING",
+            "Validation rule",
+            "Implementation",
+            "Error code",
+            "Error text",
+            "Set",
+        ]
+    )
+    worksheet.append(
+        [
+            "005",
+            "2",
+            "Transaction Reference Number",
+            "",
+            "",
+            "Reference must be unique for the executing firm.",
+            "Application",
+            "CON-023",
+            "Duplicate transaction reference number",
+            "1",
+        ]
+    )
+    xlsx_buffer = BytesIO()
+    workbook.save(xlsx_buffer)
+
+    document = ReportingDocument(
+        tipo="VALIDATION_RULES",
+        titulo="Transaction Reporting Validation Rules",
+        referencia="ESMA65-8-2594",
+        url_esma="https://www.esma.europa.eu/rules.xlsx",
+        fecha_publicacion="2022-05-31",
+        source_hash="hash",
+        verified=True,
+        completeness="completa",
+        content=xlsx_buffer.getvalue(),
+    )
+
+    rules = parse_validation_rules_xlsx(document)
+
+    assert rules == [
+        {
+            "codigo": "005",
+            "descripcion": "Reference must be unique for the executing firm.",
+            "campo_afectado": "2 Transaction Reference Number",
+            "severidad": "ERROR",
+            "rts_referencia": None,
+            "source_url": "https://www.esma.europa.eu/rules.xlsx",
+            "source_hash": "hash",
+            "capture_date": rules[0]["capture_date"],
+        }
+    ]

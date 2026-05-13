@@ -1498,3 +1498,27 @@ Verification:
   - Formal verification: `MiFIR TR fields: 168` => `PASS`.
 Caveat: E-05 loads the authoritative XSD structure only. It does not infer RTS 22 validation rules or filing obligations from prose; reporting documents and validation rules remain E-06.
 Next: E-06
+=== Iteration E-06 - 2026-05-13T14:40:00+02:00 ===
+Story: E-06 Load ESMA MiFIR reporting documents - RTS 22, ITS, Q&A
+Sources accessed:
+  - https://www.esma.europa.eu/data-reporting/mifir-reporting
+  - https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2598_annex_2_mifir_transaction_reporting_iso20022_xml_schemas.zip
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2356_mifir_transaction_reporting_technical_reporting_instructions.pdf
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2594_annex_1_mifir_transaction_reporting_validation_rules.xlsx
+Records loaded:
+  - esma_reporting_document=4 for dominio=MIFIR
+  - esma_validation_rule=223 from the structured `TransactionDataValidations` XLSX sheet
+Source hashes:
+  - MD5 stored per document in `esma_reporting_document.source_hash`.
+  - MD5 of validation XLSX stored in every `esma_validation_rule.source_hash`.
+Result: PASS
+Verification:
+  - Local parser probe: `documents=4`, `rules=223`.
+  - Unit tests: `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q` => `2 passed`.
+  - VPS worker run: `[run-once] ESMA MiFIR reporting: files=4 fields=168 documents=4 validation_rules=223`.
+  - SQL production: document rows by type = HUB, SCHEMA, INSTRUCTIONS, VALIDATION_RULES.
+  - SQL production: validation rule count for `ESMA65-8-2594` = 223.
+  - Formal verification: `SELECT COUNT(*) FROM esma_reporting_document WHERE dominio='MIFIR'` returned `4` and `PASS`.
+Caveat: PDFs are metadata-only (`completeness=parcial`) because prose is not parsed into rules. Only the official structured XLSX validation rules are loaded as `esma_validation_rule`.
+Next: E-07

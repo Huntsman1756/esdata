@@ -6207,3 +6207,28 @@ En orden de impacto real:
 **Caveat:** E-05 cubre estructura XSD oficial, no reglas de validacion RTS 22 ni instrucciones de cumplimentacion. Esas fuentes se inventarian/cargan en E-06 si son estructuradas.
 
 **Siguiente paso:** E-06 cargar metadatos oficiales de MiFIR reporting ESMA, extrayendo reglas solo si hay fuente estructurada.
+
+---
+
+## Reclamo 2026-05-13 - E-06 Documentos MiFIR Reporting ESMA cargados
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/worker_esma_mifir_reporting.py`, `apps/workers/tests/test_worker_esma_mifir_reporting.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar metadatos oficiales del hub MiFIR Reporting de ESMA y extraer reglas solo desde fuentes estructuradas.
+
+**Resultado:**
+- `esma_reporting_document` contiene `4` documentos oficiales para `dominio=MIFIR`: hub, schema ZIP, instrucciones PDF y validation rules XLSX.
+- `esma_validation_rule` contiene `223` reglas desde la hoja estructurada `TransactionDataValidations` del XLSX oficial `ESMA65-8-2594`.
+- Los documentos PDF quedan como metadata-only (`completeness=parcial`), sin inferir reglas desde prosa.
+- El worker registra telemetria en `sync_log` como `worker-esma-mifir-reporting`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/worker_esma_mifir_reporting.py`
+- `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q`
+- Probe local: `documents=4`, `rules=223`.
+- VPS worker: `[run-once] ESMA MiFIR reporting: files=4 fields=168 documents=4 validation_rules=223`.
+- VPS SQL: `esma_reporting_document WHERE dominio='MIFIR' = 4`; `esma_validation_rule` para `ESMA65-8-2594 = 223`.
+
+**Siguiente paso:** E-07 cargar metadata FIRDS y piloto acotado, sin cargar FULINS completo.
