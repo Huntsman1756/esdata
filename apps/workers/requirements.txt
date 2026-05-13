@@ -10,4 +10,4 @@ xlrd==2.0.1
 torch==2.8.0+cpu
 sentence-transformers==4.1.0
 numpy==2.2.6
-sentry-sdk==2.26.1
+sentry-sdk==2.59.0
