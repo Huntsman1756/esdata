@@ -34,7 +34,7 @@
       "id": "E-02",
       "title": "Load EUR-Lex MiFIR full articulado - CELEX 32014R0600",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Download official EUR-Lex MiFIR text",
         "Parse all articles into eurlex_act/eurlex_article",

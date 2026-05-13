@@ -1411,3 +1411,24 @@ Verification:
   - Production `/status`: api=ok, database=ok.
 Caveat: production API container was not restarted because no API code path uses these tables yet; this story is migration-only. No source data was loaded.
 Next: E-02
+=== Iteration E-02 - 2026-05-13T16:25:00+02:00 ===
+Story: E-02 Load EUR-Lex MiFIR full articulado - CELEX 32014R0600
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/ES/TXT/XML/?uri=CELEX:32014R0600
+  - http://publications.europa.eu/resource/celex/32014R0600
+  - http://publications.europa.eu/resource/consolidation/2014R0600%2F20251123_0100010.SPA.xhtml.CL2014R0600ES0100010.0001.html
+Records loaded:
+  - eurlex_act=1 for CELEX 32014R0600
+  - eurlex_article=93 for CELEX 32014R0600
+Source hashes:
+  - MiFIR consolidated HTML: MD5 stored in `eurlex_act.source_hash` and every article row.
+Result: PASS
+Verification:
+  - Local parser probe: CELEX 32014R0600 returned 93 article blocks from official Publications Office consolidation.
+  - VPS worker run: `[run-once] EUR-Lex market: acts=1 articles=93`.
+  - SQL production: `32014R0600 verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: `eurlex_article` count for MiFIR = 93.
+  - SQL production: article 1 contains real text beginning `Objeto y ambito de aplicacion`.
+  - `sync_log`: `worker-eurlex-market status=ok articulos_upserted=93`.
+Caveat: E-02 loads data only. Dedicated `/v1/eurlex/market/...` endpoints are still scheduled for E-11.
+Next: E-03
