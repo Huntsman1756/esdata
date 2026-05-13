@@ -6070,3 +6070,30 @@ En orden de impacto real:
 - Verificacion formal D-09: `200 casillas: 6807` => `PASS`.
 
 **Siguiente paso:** D-10 Modelo 303, verificar IVA contra XLSX oficial 300-399.
+
+---
+
+## Reclamo 2026-05-13 - D-10 Modelo 303 diseno oficial AEAT cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/aeat_current_designs.py`, `apps/workers/tests/test_aeat_current_designs.py`, `prd.json`, `progress.txt`.
+
+**Objetivo:** cubrir el gap del Modelo 303, que tenia recursos oficiales localizados pero `0` casillas en produccion.
+
+**Resultado:**
+- Se anadio el XLSX oficial `DR303e26v101.xlsx` como fuente suplementaria de diseno, fuera del indice 100-299.
+- El parser XLSX extrae `432` campos deterministas.
+- Produccion pasa de `303 casillas_total=0` a `303 casillas_total=432`, todas `diseno_registro_campo`.
+- `modelo_recurso` conserva trazabilidad oficial: `tipo_recurso=diseno_registro`, `formato=xlsx`, `row_provenance=official_exact`.
+- La API responde `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque el diseno oficial no prueba por si solo instrucciones completas ni reglas de obligacion/cumplimentacion.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q`
+- Resultado: `18 passed`.
+- Probe local contra XLSX oficial: `432` campos.
+- VPS worker: `spreadsheet_fields=432`, `parse_errors=0`.
+- VPS SQL/API: `303 casillas_total=432`, contrato parcial.
+- Verificacion formal D-10: `303 casillas: 432` => `PASS`.
+
+**Siguiente paso:** D-11 Modelos 111 y 115, verificar disenos oficiales de retenciones.

@@ -132,7 +132,7 @@
       "id": "D-10",
       "title": "Verify and complete Modelo 303 - IVA autoliquidacion",
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify 303 coverage against official 300-399 XLSX",
         "Reload if current data is seed/partial without source traceability"

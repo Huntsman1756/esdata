@@ -1287,3 +1287,25 @@ Verification:
   - API: `200 verified=false`, `completeness=parcial`, `casillas_total=6807`, `evidence_status=evidence_limited`.
   - Formal verification command: `200 casillas: 6807` => PASS.
 Next: D-10
+=== Iteration D-10 - 2026-05-13T13:55:00+02:00 ===
+Story: D-10 Verify and complete Modelo 303 - IVA autoliquidacion
+Models processed: 303
+Source format: XLSX design-register table
+Fields loaded per model: production loaded 303=432 official design fields; previous production count was 0.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_300_399/archivos_26/DR303e26v101.xlsx
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-300-399.html
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and operational metadata are not yet structured; no filing obligation or field-obligation rules are inferred from the design alone.
+Fix applied:
+  - Added Modelo 303 official XLSX design source as a supplemental worker source outside the 100-299 index range.
+  - Added test coverage to ensure the 303 supplemental source remains registered.
+Verification:
+  - Local tests: `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 18 passed.
+  - Local parser probe on official XLSX => 432 fields.
+  - VPS worker run: `spreadsheet_fields=432`, `parse_errors=0`.
+  - SQL production: `303 casillas_total=432`, `diseno_registro_campo=432`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=xlsx`, `row_provenance=official_exact`.
+  - API: `303 verified=false`, `completeness=parcial`, `casillas_total=432`, `evidence_status=evidence_limited`.
+  - Formal verification command: `303 casillas: 432` => PASS.
+Next: D-11
