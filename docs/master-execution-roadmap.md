@@ -6405,3 +6405,20 @@ En orden de impacto real:
 **Caveat:** no hay full FIRDS/FULINS ni FITRS completo; quedan explicitamente fuera del contrato autoritativo.
 
 **Siguiente paso:** sprint completo; no quedan historias pendientes en `prd.json`.
+
+---
+
+## Decision 2026-05-13 - ESMA reference data scope
+
+**Estado:** DECISION ACTIVA.
+
+**Decision:** no cargar FIRDS/FULINS completo ni replicar datasets masivos de datos reales ESMA salvo decision futura explicita. El valor del MCP para ESMA markets se centra en:
+- textos regulatorios EUR-Lex oficiales;
+- schemas XSD vigentes de reporting;
+- reglas de validacion estructuradas;
+- metadata RTS/ITS/Q&A trazable;
+- registros oficiales pequenos y relevantes, como CASP y DLT infrastructures.
+
+**Motivo:** FULINS diario puede requerir decenas o cientos de GB para historico operativo. Para el caso de uso actual no aporta tanto como los esquemas de validacion y reglas de reporte, y aumentaria coste, mantenimiento y riesgo de stale data.
+
+**Implicacion:** `worker-esma-firds` queda como metadata/piloto acotado para probar contrato `evidence_limited`; no debe evolucionar a cobertura autoritativa de instrumentos sin un nuevo sprint con estimacion de almacenamiento, particionado, retencion y presupuesto operacional.

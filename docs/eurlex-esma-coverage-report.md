@@ -55,7 +55,9 @@ Los endpoints nuevos exponen `verified`, `completeness` y `quality_signal`:
 
 ## Limites conocidos
 
-- FIRDS full historical FULINS ingestion is not loaded. Loading it requires a separate capacity decision, partitioning strategy, and storage estimate.
+- Product decision: ESMA market coverage prioritizes current official reporting schemas, validation rules, RTS/ITS metadata, and regulatory text. It does not aim to replicate ESMA reference-data datasets.
+- FIRDS full historical FULINS ingestion is intentionally out of scope. It is a capacity and product decision, not a bug. Loading it would require a separate storage estimate, partitioning strategy, retention policy, and operational budget.
+- The current FIRDS DLTINS sample is only a pipeline proof and contract test for `evidence_limited` behavior. It must not be expanded into an authoritative instrument database without a new approved sprint.
 - FITRS transparency results are registered but not populated.
 - ESMA prose PDFs are stored as document metadata unless a structured table/workbook/schema is available.
 - Transaction reporting fields come from XSD definitions. RTS/prose interpretation is not inferred unless a structured official source provides it.
