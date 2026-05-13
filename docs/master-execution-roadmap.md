@@ -6097,3 +6097,27 @@ En orden de impacto real:
 - Verificacion formal D-10: `303 casillas: 432` => `PASS`.
 
 **Siguiente paso:** D-11 Modelos 111 y 115, verificar disenos oficiales de retenciones.
+
+---
+
+## Reclamo 2026-05-13 - D-11 Modelos 111 y 115 disenos oficiales verificados
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** verificar que los Modelos 111 y 115 estan cubiertos por hojas oficiales AEAT y no por datos semilla sin trazabilidad.
+
+**Resultado:**
+- Modelo 111: produccion tiene `63` campos `diseno_registro_campo` desde `dr111e16v18.xls`.
+- Modelo 115: produccion tiene `37` campos `diseno_registro_campo` desde `DR115e15v13.xls`.
+- `modelo_recurso` conserva trazabilidad oficial para ambos con `row_provenance=official_exact`.
+- La API mantiene contrato parcial para ambos: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque no se han estructurado instrucciones completas ni reglas de aplicabilidad.
+
+**Pruebas ejecutadas:**
+- Probe local contra XLS oficiales: `111=63`, `115=37`.
+- VPS SQL: `111 casillas_total=63`, `115 casillas_total=37`.
+- API: `/v1/modelos/aeat/111` y `/v1/modelos/aeat/115` devuelven conteos correctos y contrato parcial.
+- Verificacion formal D-11: `PASS`.
+
+**Siguiente paso:** D-12 sweep de modelos STATUS-A restantes en el mapa documental.

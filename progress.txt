@@ -1309,3 +1309,20 @@ Verification:
   - API: `303 verified=false`, `completeness=parcial`, `casillas_total=432`, `evidence_status=evidence_limited`.
   - Formal verification command: `303 casillas: 432` => PASS.
 Next: D-11
+=== Iteration D-11 - 2026-05-13T14:05:00+02:00 ===
+Story: D-11 Verify and complete Modelos 111 and 115
+Models processed: 111, 115
+Source format: XLS design-register tables
+Fields loaded per model: no new load required; production already has 111=63 and 115=37 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos/dr111e16v18.xls
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos/DR115e15v13.xls
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe: `111=63` fields, `115=37` fields.
+  - SQL production: `111 casillas_total=63`, `115 casillas_total=37`, all `diseno_registro_campo`.
+  - `modelo_recurso`: both have `tipo_recurso=diseno_registro`, official AEAT URLs, `row_provenance=official_exact`.
+  - API: both return `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`.
+  - Formal verification command: `111 casillas: 63`, `115 casillas: 37` => PASS.
+Next: D-12
