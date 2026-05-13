@@ -97,7 +97,7 @@
       "id": "D-07",
       "title": "Load Modelo 289 complete design - CRS/DAC2 cuentas financieras",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Use official 289 XSD/WSDL and technical manual pages",
         "Parse deterministic XSD elements",

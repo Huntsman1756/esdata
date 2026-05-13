@@ -5997,3 +5997,29 @@ En orden de impacto real:
 - Verificacion formal D-06: `PASS`.
 
 **Siguiente paso:** D-07 Modelo 289, revisar CRS/DAC2 y mantener contrato parcial si el XSD solo cubre mensaje tecnico.
+
+---
+
+## Reclamo 2026-05-13 - D-07 Modelo 289 XSD oficial AEAT cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/aeat_current_designs.py`, `apps/workers/tests/test_aeat_current_designs.py`, `prd.json`, `progress.txt`.
+
+**Objetivo:** cubrir el gap documental del Modelo 289 CRS/DAC2 usando el ZIP oficial XSD/WSDL publicado por AEAT.
+
+**Resultado:**
+- Se anadio el ZIP oficial `289_XSD_2.0_WSDL_2.0.1.zip` como fuente suplementaria de diseno XSD.
+- El parser XSD extrae `127` campos deterministas del esquema de presentacion.
+- Produccion queda con `289 casillas_total=134`, incluyendo `127` campos `diseno_registro_xsd_campo`.
+- `modelo_recurso` conserva trazabilidad oficial: `tipo_recurso=diseno_registro_xsd`, `formato=zip`, `row_provenance=official_exact`.
+- El contrato API sigue honesto: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque el XSD cubre estructura tecnica del mensaje, no instrucciones completas ni reglas de aplicabilidad CRS/DAC2.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q`
+- Resultado: `17 passed`.
+- Probe local contra ZIP oficial: `127` campos XSD.
+- VPS worker: `xsd_fields=127`, `parse_errors=0`.
+- VPS SQL/API: `289 casillas_total=134`, contrato parcial.
+
+**Siguiente paso:** D-08 Modelo 100, verificar procedencia oficial de IRPF y cobertura masiva de casillas.

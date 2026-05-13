@@ -1230,3 +1230,24 @@ Verification:
   - API: `123 verified=false`, `completeness=parcial`, `casillas_total=44`; `124 verified=false`, `completeness=parcial`, `casillas_total=39`.
   - Formal verification command: `123 casillas: 44`, `124 casillas: 39` => PASS.
 Next: D-07
+=== Iteration D-07 - 2026-05-13T13:20:00+02:00 ===
+Story: D-07 Load Modelo 289 complete design - CRS/DAC2 cuentas financieras
+Models processed: 289
+Source format: ZIP XSD/WSDL
+Fields loaded per model: production loaded 289=127 official XSD fields; 134 casillas total including existing functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-289-decla_____ras-ambito-asistencia-mutua/informacion-sobre-presentacion-mediante-web-service.html
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI42/Ayuda/XSD_WSDL/289_XSD_2.0_WSDL_2.0.1.zip
+Result: PASS-WITH-CAVEAT
+Caveat if any: official XSD fields are loaded and traceable, but API remains `verified=false`, `completeness=parcial` because the XSD proves technical message structure, not complete procedural filing guidance or applicability rules.
+Fix applied:
+  - Added Modelo 289 official XSD/WSDL ZIP as a supplemental current design source.
+  - Added test coverage to ensure the 289 supplemental source remains registered.
+Verification:
+  - Local tests: `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 17 passed.
+  - Local official ZIP probe: 127 XSD fields.
+  - VPS worker run: `xsd_fields=127`, `parse_errors=0`.
+  - SQL production: `289 casillas_total=134`, `diseno_registro_xsd_campo=127`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro_xsd`, `formato=zip`, `row_provenance=official_exact`.
+  - API: `289 verified=false`, `completeness=parcial`, `casillas_total=134`, `evidence_status=evidence_limited`.
+Next: D-08
