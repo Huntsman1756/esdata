@@ -1361,3 +1361,25 @@ Verification:
   - VPS mcp_deep_contract_audit: ok=true.
 Caveat if any: most priority models remain `verified=false`/`parcial` by design because official design fields do not prove complete filing instructions, obligatoriedad or applicability rules.
 Next: AEAT full documentation sprint complete.
+=== Iteration E-00 - 2026-05-13T15:20:00+02:00 ===
+Story: E-00 Map all official EUR-Lex and ESMA sources for market regulation domains
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014L0065
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:32014R0600
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:32023R1114
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R0858
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:32014R0596
+  - https://www.esma.europa.eu/data-reporting/mifir-reporting
+  - https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110
+  - https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds
+  - https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_fitrs
+  - https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/dlt-pilot-regime
+  - https://www.esma.europa.eu/document/list-authorised-dlt-market-infrastructures
+Records loaded: none
+Result: PASS
+Verification:
+  - `docs/eurlex-esma-market-coverage-map.md` exists.
+  - Local marker count for `STATUS-|CELEX|ESMA` = 31, above threshold 10.
+  - `prd.json` parses as valid JSON.
+Caveat: source map only; no schema, worker, API or data load work is performed until E-01.
+Next: E-01
