@@ -106,6 +106,14 @@ docker compose --env-file /etc/esdata/esdata.env \
 0 3 * * * find /srv/backups/esdata -name "*.gz" -mtime +7 -delete
 ```
 
+### Backup offsite
+
+El backup local no es suficiente para produccion: si se pierde la maquina o el
+proveedor, se pierde tambien el backup. El backup offsite diario se gestiona con
+`scripts/backup-offsite.sh` y un remoto `rclone` configurado fuera del repo.
+
+Ver [offsite-backup.md](./offsite-backup.md).
+
 ### En Windows (Task Scheduler / PowerShell)
 
 ```powershell

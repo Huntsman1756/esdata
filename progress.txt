@@ -1094,3 +1094,19 @@ Evidence:
 Accepted risks:
   - Full production run remains pending until SSH access is restored; current local verification covers script syntax and domain coverage, not live DB freshness values.
 Next: P-06
+=== Iteration P-06 - 2026-05-13T07:12:30+02:00 ===
+Story: P-06 Configure offsite immutable backup - second provider, 30-day retention
+Result: BLOCKED-AWAITING-OFFSITE-REMOTE
+Evidence:
+  - Added scripts/backup-offsite.sh with strict Bash mode, temporary directory cleanup, required ESDATA_BACKUP_REMOTE, Docker Compose pg_dump custom-format dump, rclone upload, remote-size verification, 30-day retention pruning, and last-success timestamp at /var/lib/esdata/last_offsite_backup.
+  - Added infra/deploy/cron/esdata-offsite-backup for daily 02:00 Europe/Madrid execution as deploy user using /etc/esdata/offsite-backup.env.
+  - Added docs/operations/runbooks/offsite-backup.md with setup, manual verification and restore-drill procedure.
+  - Linked offsite backup runbook from docs/operations/runbooks/backup-restore.md.
+  - Added scripts/tests/test_backup_offsite.py.
+  - Verification passed: pytest scripts/tests/test_backup_offsite.py -q => 3 passed.
+  - Verification passed: bash -n scripts/backup-offsite.sh and bash -n scripts/weekly-accuracy-check.sh.
+  - Verification passed: no provider secret-name patterns in scripts/infra/offsite runbook.
+  - Expected guard verified: scripts/backup-offsite.sh --check-config fails until ESDATA_BACKUP_REMOTE is configured.
+Accepted risks:
+  - P-06 cannot be marked passes=true yet: no offsite provider/rclone remote credentials are available in the repo, and SSH to deploy@212.227.227.64 is currently denied by publickey. A real upload and remote-size verification must be run on the VPS before this story closes.
+Next: P-06 after offsite remote is configured, then P-07 restore drill.
