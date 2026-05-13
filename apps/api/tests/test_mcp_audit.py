@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
@@ -13,11 +14,13 @@ from pathlib import Path
 import pytest
 import requests
 
+from apps.api.tests.conftest import TEST_DB_PATH
+
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-from services.query_audit import QueryAuditService, reset_query_audit_service
+from services.query_audit import reset_query_audit_service
 
 
 def _free_tcp_port() -> int:
@@ -31,6 +34,10 @@ async def _uvicorn_server(**env_overrides):
     previous = {key: os.environ.get(key) for key in env_overrides}
     port = _free_tcp_port()
     env = os.environ.copy()
+    env["APP_ENV"] = "test"
+    env["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
+    env["ESDATA_API_KEY"] = "test-secret-key"
+    env["ESDATA_ALLOW_INSECURE_TEST_AUTH"] = "true"
     env.update(env_overrides)
 
     process = subprocess.Popen(
@@ -71,6 +78,24 @@ def setup_function():
 
 def teardown_function():
     reset_query_audit_service()
+
+
+def _audit_entries_for_request_id(request_id: str) -> list[sqlite3.Row]:
+    connection = sqlite3.connect(TEST_DB_PATH)
+    connection.row_factory = sqlite3.Row
+    try:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM query_audit_log
+            WHERE request_id = ?
+            ORDER BY created_at ASC
+            """,
+            (request_id,),
+        ).fetchall()
+    finally:
+        connection.close()
+    return rows
 
 
 @pytest.mark.asyncio
@@ -138,11 +163,10 @@ async def test_mcp_consulta_persists_audit_entry_with_request_id_correlation():
     assert payload.get("result")
     assert payload["result"].get("isError") is not True
 
-    service = QueryAuditService()
-    entries = service.get_by_request_id("req-mcp-audit-001")
+    entries = _audit_entries_for_request_id("req-mcp-audit-001")
 
     assert len(entries) == 1
     entry = entries[0]
-    assert entry.path == "/v1/buscar"
-    assert "tipo reducido iva" in entry.query_text.lower()
-    assert entry.response_summary
+    assert entry["path"] == "/v1/buscar"
+    assert "tipo reducido iva" in entry["query_text"].lower()
+    assert entry["response_summary"]

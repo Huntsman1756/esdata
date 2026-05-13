@@ -27,7 +27,7 @@ def _article_anchor(numero: str) -> str:
 
 def _resolve_norma_codigo(codigo: str) -> str:
     normalized = codigo.strip().upper()
-    return NORMA_ALIASES.get(normalized, normalized)
+    return NORMA_ALIASES.get(normalized, codigo.strip())
 
 
 def _record_legislacion_query_audit(
@@ -135,6 +135,7 @@ async def get_cobertura():
 @router.get("/{codigo}", operation_id="get_norma")
 async def get_norma(request: Request, codigo: str):
     canonical_codigo = _resolve_norma_codigo(codigo)
+    lookup_codigo = canonical_codigo.upper()
     with db_session() as db:
         row = (
             db.execute(
@@ -143,10 +144,10 @@ async def get_norma(request: Request, codigo: str):
                 SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
                        tipo_documento, ambito, estado_cobertura, vigente_desde
                 FROM norma
-                WHERE codigo = :codigo
+                WHERE UPPER(codigo) = :codigo
                 """
                 ),
-                {"codigo": canonical_codigo},
+                {"codigo": lookup_codigo},
             )
             .mappings()
             .first()
@@ -188,8 +189,9 @@ async def list_articulos(
     offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
     canonical_codigo = _resolve_norma_codigo(codigo)
-    filters = ["n.codigo = :codigo"]
-    params = {"codigo": canonical_codigo}
+    lookup_codigo = canonical_codigo.upper()
+    filters = ["UPPER(n.codigo) = :codigo"]
+    params = {"codigo": lookup_codigo}
 
     if tipo is not None:
         filters.append("a.tipo = :tipo")
@@ -225,8 +227,8 @@ async def list_articulos(
         )
         if not rows:
             existe_norma = db.execute(
-                text("SELECT 1 FROM norma WHERE codigo = :codigo"),
-                {"codigo": canonical_codigo},
+                text("SELECT 1 FROM norma WHERE UPPER(codigo) = :codigo"),
+                {"codigo": lookup_codigo},
             ).first()
             if not existe_norma:
                 raise HTTPException(
@@ -248,7 +250,7 @@ async def list_articulos(
         })
     has_more = offset + len(articulos) < total
     payload = {
-        "norma": canonical_codigo,
+        "norma": rows[0]["norma_codigo"] if rows else canonical_codigo,
         "articulos": articulos,
         "total": total,
         "limit": limit,
@@ -279,8 +281,9 @@ async def list_articulos(
 @router.get("/{codigo}/articulos/{numero}", operation_id="get_articulo")
 async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: str | None = None):
     canonical_codigo = _resolve_norma_codigo(codigo)
-    filters = ["n.codigo = :codigo", "a.numero = :numero"]
-    params = {"codigo": canonical_codigo, "numero": numero}
+    lookup_codigo = canonical_codigo.upper()
+    filters = ["UPPER(n.codigo) = :codigo", "a.numero = :numero"]
+    params = {"codigo": lookup_codigo, "numero": numero}
 
     if vigente_en is not None:
         filters.append(
@@ -361,6 +364,7 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
 )
 async def get_articulo_historial(request: Request, codigo: str, numero: str):
     canonical_codigo = _resolve_norma_codigo(codigo)
+    lookup_codigo = canonical_codigo.upper()
     with db_session() as db:
         rows = db.execute(
             text(
@@ -370,11 +374,11 @@ async def get_articulo_historial(request: Request, codigo: str, numero: str):
                 FROM norma n
                 JOIN articulo a ON a.norma_id = n.id
                 JOIN version_articulo va ON va.articulo_id = a.id
-                WHERE n.codigo = :codigo AND a.numero = :numero
+                WHERE UPPER(n.codigo) = :codigo AND a.numero = :numero
                 ORDER BY va.vigente_desde DESC
                 """
             ),
-            {"codigo": canonical_codigo, "numero": numero},
+            {"codigo": lookup_codigo, "numero": numero},
         ).mappings()
         historial = [
             {

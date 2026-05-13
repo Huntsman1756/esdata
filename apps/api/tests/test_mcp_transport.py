@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
@@ -13,7 +14,7 @@ from pathlib import Path
 import pytest
 import requests
 
-from services.query_audit import QueryAuditService
+from apps.api.tests.conftest import TEST_DB_PATH
 
 
 API_DIR = Path(__file__).resolve().parents[1]
@@ -32,6 +33,10 @@ async def _uvicorn_server(**env_overrides):
     previous = {key: os.environ.get(key) for key in env_overrides}
     port = _free_tcp_port()
     env = os.environ.copy()
+    env["APP_ENV"] = "test"
+    env["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
+    env["ESDATA_API_KEY"] = "test-secret-key"
+    env["ESDATA_ALLOW_INSECURE_TEST_AUTH"] = "true"
     env.update(env_overrides)
 
     process = subprocess.Popen(
@@ -130,14 +135,32 @@ def _run_mcp_busqueda_call(port: int, request_id: str):
     assert payload["result"].get("isError") is not True
 
 
+def _audit_entries_for_request_id(request_id: str) -> list[sqlite3.Row]:
+    connection = sqlite3.connect(TEST_DB_PATH)
+    connection.row_factory = sqlite3.Row
+    try:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM query_audit_log
+            WHERE request_id = ?
+            ORDER BY created_at ASC
+            """,
+            (request_id,),
+        ).fetchall()
+    finally:
+        connection.close()
+    return rows
+
+
 @pytest.mark.asyncio
 async def test_mcp_transport_first_request_persists_audit_row():
     async with _uvicorn_server(MCP_API_KEY="test-mcp-key", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
         _run_mcp_busqueda_call(port, "req-mcp-transport-001")
 
-    entries = QueryAuditService().get_by_request_id("req-mcp-transport-001")
+    entries = _audit_entries_for_request_id("req-mcp-transport-001")
     assert len(entries) == 1
-    assert entries[0].path == "/v1/buscar"
+    assert entries[0]["path"] == "/v1/buscar"
 
 
 @pytest.mark.asyncio
@@ -145,6 +168,6 @@ async def test_mcp_transport_second_request_also_persists_audit_row():
     async with _uvicorn_server(MCP_API_KEY="test-mcp-key", MCP_RATE_LIMIT_PER_MINUTE="20") as port:
         _run_mcp_busqueda_call(port, "req-mcp-transport-002")
 
-    entries = QueryAuditService().get_by_request_id("req-mcp-transport-002")
+    entries = _audit_entries_for_request_id("req-mcp-transport-002")
     assert len(entries) == 1
-    assert entries[0].path == "/v1/buscar"
+    assert entries[0]["path"] == "/v1/buscar"
