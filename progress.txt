@@ -327,6 +327,25 @@ Learnings:
 - Production `sync_log` uses `finished_at`, not `ended_at`; verification scripts must use `COALESCE(finished_at, started_at)`.
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
+=== Iteration F-01 - 2026-05-13T18:44:26+02:00 ===
+Story: F-01 Load TRLIRNR complete from BOE-A-2004-4527
+Sources accessed:
+  - https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527
+  - https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2004-4527/metadatos
+  - https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2004-4527/texto/indice
+Records loaded:
+  - norma: TRLIRNR / BOE-A-2004-4527 / real_decreto_legislativo / tributario
+  - articulo: 66 rows for TRLIRNR
+  - version_articulo: official consolidated BOE block versions loaded by worker-boe
+Result: PASS
+Verification:
+  - Local pytest: `python -m pytest apps/workers/tests/test_boe.py::test_parse_metadata_uses_per_code_classification_for_trlirnr apps/workers/tests/test_boe.py::test_default_normas_include_itpajd -q` => 2 passed.
+  - VPS worker run: `BOE_LEGISLACION_NORMAS=TRLIRNR WORKER_REQUEST_DELAY=0 worker-boe python boe.py --run-once` => 75 BOE blocks processed, 75 upserts attempted.
+  - VPS SQL: `SELECT COUNT(*) FROM articulo WHERE norma_id=(SELECT id FROM norma WHERE codigo='TRLIRNR')` => 66.
+  - VPS API: `/v1/legislacion/TRLIRNR/articulos/14` returns BOE-A-2004-4527, source_url `https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527#a14`, text_len=16942.
+Caveat:
+  - `/v1/legislacion/IRNR/articulos/14` still returns 404; aliasing is F-02 and was intentionally not mixed into F-01.
+Next: F-02
 
 === Iteration 9 - 2026-05-12T19:53:00+02:00 ===
 Story: Q-09 MiCA / ESMA - verify configured_but_unavailable domains respond correctly

@@ -50,7 +50,7 @@
 | Variable | Requerida | Default | Estado | Uso |
 |----------|-----------|---------|--------|-----|
 | `BOE_API_BASE` | No | `https://www.boe.es/datosabiertos/api/legislacion-consolidada` | `runtime deploy` | Worker BOE + cron |
-| `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | `runtime deploy` | Worker BOE + cron |
+| `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | `runtime deploy` | Worker BOE + cron |
 | `BOE_SYNC_INTERVAL_SECONDS` | No | `3600` | `runtime deploy` | Worker BOE |
 | `BDNS_SEED_URLS` | Si | | `runtime deploy` | Worker BDNS + cron |
 | `BDNS_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BDNS |

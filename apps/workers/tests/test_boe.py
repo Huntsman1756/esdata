@@ -145,6 +145,33 @@ def test_parse_metadata_uses_per_code_classification_for_itpajd():
     )
 
 
+def test_parse_metadata_uses_per_code_classification_for_trlirnr():
+    payload = {
+        "data": [
+            {
+                "titulo": "Real Decreto Legislativo 5/2004, de 5 de marzo, por el que se aprueba el texto refundido de la Ley del Impuesto sobre la Renta de no Residentes.",
+                "fecha_vigencia": "20040313",
+                "url_eli": "https://www.boe.es/eli/es/rdlg/2004/03/05/5",
+            }
+        ]
+    }
+
+    metadata = parse_metadata("TRLIRNR", "BOE-A-2004-4527", payload)
+
+    assert metadata == NormaMetadata(
+        codigo="TRLIRNR",
+        boe_id="BOE-A-2004-4527",
+        titulo="Real Decreto Legislativo 5/2004, de 5 de marzo, por el que se aprueba el texto refundido de la Ley del Impuesto sobre la Renta de no Residentes.",
+        eli_uri="https://www.boe.es/eli/es/rdlg/2004/03/05/5",
+        jurisdiccion="es",
+        tipo_fuente="boe",
+        tipo_documento="real_decreto_legislativo",
+        ambito="tributario",
+        estado_cobertura="ingestada",
+        vigente_desde="2004-03-13",
+    )
+
+
 def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
     payload = {
         "data": [
@@ -166,6 +193,7 @@ def test_default_normas_include_itpajd():
     from boe import DEFAULT_NORMAS
 
     assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-25359"
+    assert DEFAULT_NORMAS["TRLIRNR"] == "BOE-A-2004-4527"
 
 
 def test_run_sync_ingests_itpajd_article_and_version():
