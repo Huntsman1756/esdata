@@ -1082,3 +1082,15 @@ Evidence:
 Accepted risks:
   - Full VPS cron execution was not run in this iteration because current SSH access to deploy@212.227.227.64 is denied by publickey. The existing cron invokes weekly-accuracy-check.sh, so the deployed script will run the deep audit after sync.
 Next: P-05
+=== Iteration P-05 - 2026-05-13T07:06:34+02:00 ===
+Story: P-05 Extend freshness check to all 11 pending domains
+Result: PASS-WITH-CAVEAT
+Evidence:
+  - Extended scripts/weekly-accuracy-check.sh freshness SQL from 5 domains to 16 domain groups.
+  - Added BORME, DGT/TEAC, AEPD, BDE, BDNS, SEPBLAC, CENDOJ, FATCA/GIIN, OFAC, CDI and PGC.
+  - Missing sync_log rows now return INFO rather than STALE, so configured-but-inactive domains do not create false WorkerSilent alerts.
+  - Local syntax verification passed: bash -n scripts/weekly-accuracy-check.sh.
+  - Static coverage check sees 19 worker references in the freshness matrix, above the >=11 acceptance threshold.
+Accepted risks:
+  - Full production run remains pending until SSH access is restored; current local verification covers script syntax and domain coverage, not live DB freshness values.
+Next: P-06

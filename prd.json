@@ -59,14 +59,14 @@
       "id": "P-05",
       "title": "Extend freshness check to all 11 pending domains",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Add freshness checks for BORME, DGT/TEAC, AEPD, BDE, BDNS, SEPBLAC, CENDOJ, FATCA/GIIN, OFAC, CDI, PGC",
         "Use domain-specific stale thresholds",
         "Inactive domains with no sync_log rows log INFO, not STALE",
         "weekly-accuracy-check.sh covers all target domains"
       ],
-      "verificationCommand": "grep -c 'worker-' scripts/weekly-accuracy-check.sh | awk '{print ($1 >= 11) ? \"PASS\" : \"FAIL-NOT-ALL-DOMAINS-COVERED\"}'"
+      "verificationCommand": "bash -n scripts/weekly-accuracy-check.sh && grep -c 'worker-' scripts/weekly-accuracy-check.sh | awk '{print ($1 >= 11) ? \"PASS\" : \"FAIL-NOT-ALL-DOMAINS-COVERED\"}'"
     },
     {
       "id": "P-06",
