@@ -325,6 +325,29 @@ def test_extract_pdf_text_fields_accepts_nature_with_trailing_dot():
     assert fields[2]["etiqueta"] == "NIF DEL DECLARANTE"
 
 
+def test_extract_pdf_text_fields_rejects_lowercase_nature_noise():
+    text = """
+    POSICIONES NATURALEZA DESCRIPCION DE LOS CAMPOS
+    224 a 235 correspondientes al registro de tipo 2)
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert fields == []
+
+
+def test_extract_pdf_text_fields_accepts_mixed_case_nature_abbreviation():
+    text = """
+    POSICIONES NATURALEZA DESCRIPCION DE LOS CAMPOS
+    1 Num TIPO DE REGISTRO.
+    2-4 AN MODELO DECLARACION.
+    """
+
+    fields = worker.extract_pdf_text_fields(text)
+
+    assert [field["codigo"] for field in fields] == ["DRPDF:POS:1", "DRPDF:POS:2-4"]
+
+
 def test_extract_pdf_text_fields_from_model_296_logical_design_sample():
     text = """
     Diseños lógicos M296 2024

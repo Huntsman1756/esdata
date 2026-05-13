@@ -42,6 +42,9 @@ FORCE_RELOAD_DESIGN_MODELS = {
     # D-01: Modelo 296 previously had seed/partial design fields. The official
     # 2024 PDF is deterministic, so replace stale design-register rows.
     "296",
+    # D-04: Modelo 198 had one false-positive PDF row extracted from narrative
+    # text; reload after stricter PDF nature detection.
+    "198",
 }
 SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
     {
@@ -685,6 +688,16 @@ def _normalize_pdf_word(value: str) -> str:
     )
 
 
+def _is_pdf_nature(value: str, *, allow_lowercase_abbreviation: bool) -> bool:
+    cleaned = value.strip().rstrip(".")
+    normalized = _normalize_pdf_word(cleaned)
+    if normalized not in _PDF_NATURE_WORDS:
+        return False
+    if not allow_lowercase_abbreviation and len(cleaned) <= 3 and cleaned == cleaned.lower():
+        return False
+    return True
+
+
 def _clean_pdf_label(value: str) -> str:
     label = " ".join(value.split())
     marker = re.search(
@@ -742,7 +755,7 @@ def extract_pdf_text_fields(text_value: str) -> list[dict]:
         numbered_match = numbered_row.match(line)
         if numbered_match:
             number, position, length, field_type, label = numbered_match.groups()
-            if _normalize_pdf_word(field_type) in _PDF_NATURE_WORDS:
+            if _is_pdf_nature(field_type, allow_lowercase_abbreviation=True):
                 _append_pdf_field(
                     fields,
                     seen_codes,
@@ -756,7 +769,7 @@ def extract_pdf_text_fields(text_value: str) -> list[dict]:
         if not positions_match:
             continue
         positions, nature, label = positions_match.groups()
-        if _normalize_pdf_word(nature) not in _PDF_NATURE_WORDS:
+        if not _is_pdf_nature(nature, allow_lowercase_abbreviation=False):
             continue
         cleaned_positions = re.sub(r"\s+", "", positions)
         _append_pdf_field(
