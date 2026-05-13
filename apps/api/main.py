@@ -266,24 +266,37 @@ for router in (
 mount_mcp(app)
 
 
-def _resolve_gpt_openapi_path(current_file: Path | None = None) -> Path:
+def _resolve_docs_artifact_path(
+    artifact_name: str,
+    current_file: Path | None = None,
+) -> Path:
     resolved = (current_file or Path(__file__)).resolve()
     search_roots = [resolved.parent, *resolved.parents]
 
     for root in search_roots:
-        candidate = root / "docs" / "openapi-gpt.json"
+        candidate = root / "docs" / artifact_name
         if candidate.exists():
             return candidate
 
-    return resolved.parent / "docs" / "openapi-gpt.json"
+    return resolved.parent / "docs" / artifact_name
+
+
+def _resolve_gpt_openapi_path(current_file: Path | None = None) -> Path:
+    return _resolve_docs_artifact_path("openapi-gpt.json", current_file)
 
 
 _GPT_OPENAPI_PATH = _resolve_gpt_openapi_path()
+_GPT_ACTIONS_30_OPENAPI_PATH = _resolve_docs_artifact_path("openapi-gpt-actions-30.json")
 
 
 @app.get("/gpt-actions/modelos/openapi.json", include_in_schema=False)
 def gpt_actions_openapi():
     return _load_gpt_actions_spec()
+
+
+@app.get("/gpt-actions/core/openapi.json", include_in_schema=False)
+def gpt_actions_core_openapi():
+    return _load_gpt_actions_core_spec()
 
 
 @app.get("/privacy", include_in_schema=False, response_class=HTMLResponse)
@@ -309,6 +322,13 @@ def _load_gpt_actions_spec() -> dict:
     import json
 
     with _GPT_OPENAPI_PATH.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _load_gpt_actions_core_spec() -> dict:
+    import json
+
+    with _GPT_ACTIONS_30_OPENAPI_PATH.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 

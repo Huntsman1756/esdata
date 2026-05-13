@@ -83,23 +83,27 @@ Debe existir un endpoint publico controlado, por ejemplo:
 
 Opciones ya presentes en el repo:
 
-- spec reducida servida por la API en `/gpt-actions/modelos/openapi.json`
+- spec compatible con el limite de Custom GPT servida por la API en `/gpt-actions/core/openapi.json`
+- `docs/openapi-gpt-actions-30.json`
+- `docs/openapi-gpt-actions-30-3.0.json`
+- spec completa MCP/Actions servida por la API en `/gpt-actions/modelos/openapi.json`
 - `docs/openapi-gpt.json`
 - `docs/openapi-gpt-3.0.json`
 
 Contrato recomendado para Custom GPT / Business Actions:
 
 - base URL HTTPS publica del backend
-- spec `OpenAPI 3.1` desde `/gpt-actions/modelos/openapi.json` o `docs/openapi-gpt.json`
+- spec `OpenAPI 3.1` desde `/gpt-actions/core/openapi.json` o `docs/openapi-gpt-actions-30.json`
 - auth por API key dedicada, enviada como cabecera `X-API-Key`
 
 Recomendacion:
 
-- usar spec reducida para Actions
+- usar la spec `actions-30` para el builder de Custom GPT, porque el builder limita el numero de operaciones
 
 Ejemplo verificado en VPS Arsys:
 
-- spec URL: `https://api.desuscribir.es/gpt-actions/modelos/openapi.json`
+- spec URL para Custom GPT: `https://api.desuscribir.es/gpt-actions/core/openapi.json`
+- spec completa para auditoria interna: `https://api.desuscribir.es/gpt-actions/modelos/openapi.json`
 - privacy URL: `https://api.desuscribir.es/privacy`
 - auth en builder: cabecera `X-API-Key` con valor `ESDATA_API_KEY`
 - no usar `/mcp` para ChatGPT

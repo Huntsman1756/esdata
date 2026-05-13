@@ -39,6 +39,8 @@ DOCS_DIR = ROOT / "docs"
 ARTIFACTS = [
     DOCS_DIR / "openapi-gpt.json",
     DOCS_DIR / "openapi-gpt-3.0.json",
+    DOCS_DIR / "openapi-gpt-actions-30.json",
+    DOCS_DIR / "openapi-gpt-actions-30-3.0.json",
     DOCS_DIR / "openapi-gpt-minimal-modelos.json",
     DOCS_DIR / "openapi-gpt-clipboard.json",
 ]
@@ -92,6 +94,20 @@ def expected_payload_for_artifact(path: Path) -> dict | None:
     if path.name == "openapi-gpt-3.0.json":
         with contextlib.redirect_stdout(io.StringIO()):
             return export_module.export(openapi_version="3.0.3", output_path=None)
+    if path.name == "openapi-gpt-actions-30.json":
+        with contextlib.redirect_stdout(io.StringIO()):
+            return export_module.export(
+                openapi_version=None,
+                output_path=None,
+                profile="actions30",
+            )
+    if path.name == "openapi-gpt-actions-30-3.0.json":
+        with contextlib.redirect_stdout(io.StringIO()):
+            return export_module.export(
+                openapi_version="3.0.3",
+                output_path=None,
+                profile="actions30",
+            )
     return None
 
 
