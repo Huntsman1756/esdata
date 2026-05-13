@@ -313,8 +313,31 @@ def _simplify_for_gpt(node):
                             replacement[key] = value
                     node.clear()
                     node.update(replacement)
+                else:
+                    variant_types = {
+                        item.get("type")
+                        for item in non_null
+                        if isinstance(item, dict) and isinstance(item.get("type"), str)
+                    }
+                    preserved = {
+                        key: value
+                        for key, value in node.items()
+                        if key not in {"anyOf", "oneOf", "allOf"}
+                    }
+                    if "object" in variant_types:
+                        preserved.setdefault("type", "object")
+                        preserved.setdefault("additionalProperties", True)
+                    elif "array" in variant_types:
+                        preserved.setdefault("type", "array")
+                        preserved.setdefault("items", {"type": "string"})
+                    else:
+                        preserved.setdefault("type", "string")
+                    node.clear()
+                    node.update(preserved)
 
         if node.get("type") == ["string", "null"]:
+            node["type"] = "string"
+        if node.get("type") == "null":
             node["type"] = "string"
 
         for key, value in list(node.items()):
