@@ -1591,3 +1591,23 @@ Verification:
   - Formal verification command returned `PASS`.
 Caveat: Non-CASP MiCA tables remain fail-closed/workflow-empty until an official structured source is mapped and parsed in a separate story.
 Next: E-10
+=== Iteration E-10 - 2026-05-13T15:23:24+02:00 ===
+Story: E-10 Create workers for EUR-Lex and ESMA scheduled refresh
+Sources accessed:
+  - Existing official EUR-Lex market loader sources for CELEX 32014L0065, 32014R0600, 32023R1114, 32022R0858
+  - Existing official ESMA MiFIR reporting, FIRDS and DLT worker sources
+Records loaded:
+  - sync_log fresh run: worker-eurlex-market documents=4 articles=353
+  - sync_log fresh run: worker-esma-mifir-reporting documents=4 articles_upserted=391
+  - sync_log fresh run: worker-esma-firds documents=14 articles_upserted=1000
+  - sync_log fresh run: worker-esma-dlt documents=1 articles_upserted=81
+Result: PASS
+Verification:
+  - Added scheduled Compose cron services: cron-eurlex-market-monthly, cron-esma-mifir-reporting-weekly, cron-esma-firds-daily, cron-esma-dlt-weekly.
+  - Added systemd timers and enabled them on VPS: EUR-Lex monthly, ESMA MiFIR weekly, ESMA FIRDS daily, ESMA DLT weekly.
+  - Added `worker-eurlex-market`, `worker-esma-mifir-reporting`, `worker-esma-firds`, `worker-esma-dlt` to canonical cadence registry.
+  - `/status` reports all four market workers with `stale=false` and `cadence_declared=true`.
+  - Local test: `python -m pytest apps/api/tests/test_worker_cadence.py -q` => `5 passed`.
+  - Formal verification command returned `3` and `PASS`.
+Caveat: cron service names are aliases to the `worker-*` sync_log names; registering cron service names as independent `/status` workers would create false `never_run` alerts.
+Next: E-11

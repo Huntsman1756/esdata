@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata ESMA MiFIR reporting weekly sync
+
+[Timer]
+OnCalendar=Mon *-*-* 04:05:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-esma-mifir-reporting-weekly.service
+
+[Install]
+WantedBy=timers.target

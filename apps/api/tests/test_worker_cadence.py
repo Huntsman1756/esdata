@@ -26,6 +26,10 @@ COMPOSE_FILE = REPO_ROOT / "infra" / "deploy" / "docker-compose.prod.yml"
 
 SCHEDULER_SERVICE_TO_STATUS_WORKER = {
     "cron-boe-modelos-daily": "worker-boe-modelos",
+    "cron-eurlex-market-monthly": "worker-eurlex-market",
+    "cron-esma-mifir-reporting-weekly": "worker-esma-mifir-reporting",
+    "cron-esma-firds-daily": "worker-esma-firds",
+    "cron-esma-dlt-weekly": "worker-esma-dlt",
 }
 
 EXPECTED_SYNC_LOG_WORKERS = {
@@ -64,6 +68,10 @@ EXPECTED_SYNC_LOG_WORKERS = {
     "worker-cnmv",
     "worker-dgt",
     "worker-eurlex",
+    "worker-eurlex-market",
+    "worker-esma-dlt",
+    "worker-esma-firds",
+    "worker-esma-mifir-reporting",
     "worker-modelos",
     "worker-sepblac",
     "worker-teac",

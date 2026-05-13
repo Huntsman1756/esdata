@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata ESMA DLT infrastructures weekly sync
+
+[Timer]
+OnCalendar=Mon *-*-* 04:35:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-esma-dlt-weekly.service
+
+[Install]
+WantedBy=timers.target

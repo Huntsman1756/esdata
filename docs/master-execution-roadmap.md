@@ -6262,3 +6262,35 @@ En orden de impacto real:
 - VPS SQL: `FIRDS files: 14, instruments: 1000` => `PASS`.
 
 **Siguiente paso:** E-08 cargar o documentar infraestructuras autorizadas DLT publicadas por ESMA.
+
+---
+
+## Reclamo 2026-05-13 - E-10 Workers EUR-Lex/ESMA programados
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/eurlex_market.py`, `apps/workers/worker_eurlex_market.py`, `apps/api/services/worker_cadence.py`, `apps/api/tests/test_worker_cadence.py`, `apps/config/workers.py`, `infra/deploy/docker-compose.prod.yml`, `infra/deploy/systemd/esdata-eurlex-market-monthly.timer`, `infra/deploy/systemd/esdata-esma-mifir-reporting-weekly.timer`, `infra/deploy/systemd/esdata-esma-firds-daily.timer`, `infra/deploy/systemd/esdata-esma-dlt-weekly.timer`, `prd.json`, `progress.txt`.
+
+**Objetivo:** dejar los loaders EUR-Lex market, ESMA MiFIR reporting, ESMA FIRDS y ESMA DLT como jobs programados con cadencia explicita y telemetria `sync_log`.
+
+**Resultado:**
+- Se anadio `worker_eurlex_market.py` como entrypoint programable del loader dedicado EUR-Lex market.
+- `eurlex_market.py` refresca ahora `32014L0065` (MiFID II), `32014R0600` (MiFIR), `32023R1114` (MiCA) y `32022R0858` (DLT Pilot).
+- Se anadieron servicios Compose cron: `cron-eurlex-market-monthly`, `cron-esma-mifir-reporting-weekly`, `cron-esma-firds-daily`, `cron-esma-dlt-weekly`.
+- Se anadieron e instalaron timers systemd equivalentes en VPS.
+- La fuente canonica de `/status` declara cadencia para `worker-eurlex-market`, `worker-esma-mifir-reporting`, `worker-esma-firds` y `worker-esma-dlt`.
+- Los nombres `cron-*` quedan como alias, no como workers independientes, para evitar falsos `never_run`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/eurlex_market.py apps/workers/worker_eurlex_market.py apps/api/services/worker_cadence.py apps/config/workers.py`
+- `python -m pytest apps/api/tests/test_worker_cadence.py -q` => `5 passed`.
+- Verification E-10: `test -f ... && grep ... apps/config/workers.py` => `PASS`.
+- VPS timers habilitados: siguiente FIRDS diario `2026-05-14 04:20 CEST`; MiFIR/DLT semanales `2026-05-18`; EUR-Lex market mensual `2026-06-04`.
+- VPS cron runs manuales:
+  - `worker-eurlex-market`: `documents=4`, `articles=353`.
+  - `worker-esma-mifir-reporting`: `documents=4`, `articles_upserted=391`.
+  - `worker-esma-firds`: `documents=14`, `articles_upserted=1000`.
+  - `worker-esma-dlt`: `documents=1`, `articles_upserted=81`.
+- `/status`: los cuatro workers nuevos tienen `stale=false` y `cadence_declared=true`.
+
+**Siguiente paso:** E-11 exponer endpoints API/MCP para EUR-Lex market, ESMA MiFIR schema, FIRDS y DLT.

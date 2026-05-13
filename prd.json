@@ -130,7 +130,7 @@
       "id": "E-10",
       "title": "Create workers for EUR-Lex and ESMA scheduled refresh",
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create scheduled workers for EUR-Lex market texts, ESMA MiFIR reporting and ESMA FIRDS metadata",
         "Register cadence and sync_log telemetry"
