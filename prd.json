@@ -30,7 +30,7 @@
       "id": "F-03",
       "title": "Fix LIVA article name typo: 163 sexvivies -> 163 sexvicies",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Correct the LIVA article numero typo with a targeted update",
         "Verify only 163 sexvicies remains"

@@ -327,6 +327,18 @@ Learnings:
 - Production `sync_log` uses `finished_at`, not `ended_at`; verification scripts must use `COALESCE(finished_at, started_at)`.
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
+=== Iteration F-03 - 2026-05-13T19:05:00+02:00 ===
+Story: F-03 Fix LIVA article name typo: 163 sexvivies -> 163 sexvicies
+Queries tested: 2
+Results: correct=2 honest_limit=0 incorrect=0
+Incorrect answers found: LIVA article identifier typo `163 sexvivies`
+Fixes applied:
+  - Production DB targeted update changed `articulo.numero` and title from `163 sexvivies` to official `163 sexvicies`.
+  - Added Alembic migration `20260513_0076_liva_163_sexvicies_typo.py` so future environments reproduce the correction.
+Evidence:
+  - SQL after update returns only `163 sexvicies` for LIVA `%sexvi%` lookup.
+  - `/v1/legislacion/LIVA/articulos/163%20sexvicies` returns HTTP 200 with `boe_reference=BOE-A-1992-28740`.
+Next: F-04
 === Iteration F-01 - 2026-05-13T18:44:26+02:00 ===
 Story: F-01 Load TRLIRNR complete from BOE-A-2004-4527
 Sources accessed:
