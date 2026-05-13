@@ -327,6 +327,24 @@ Learnings:
 - Production `sync_log` uses `finished_at`, not `ended_at`; verification scripts must use `COALESCE(finished_at, started_at)`.
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
+=== Iteration F-06 - 2026-05-13T19:40:00+02:00 ===
+Story: F-06 Final verification
+Result: PASS
+Evidence:
+  - Local full suite: `python -m pytest apps/ -q --basetemp .pytest-tmp` => `3030 passed, 2 skipped, 34 warnings`.
+  - Fixed an additional regression found by the full suite: legislation lookup now preserves mixed-case DB codes such as `EUR-Lex-*` while resolving aliases case-insensitively.
+  - Hardened MCP spawned-server audit tests to read the exact SQLite DB used by the Uvicorn subprocess, avoiding cross-test service singleton contamination.
+  - VPS deployed commit `2ccb005`.
+  - Production `mcp_validation_suite.py --read-only --base-url http://api:8000` => `ok=true`.
+  - Production `mcp_deep_contract_audit.py --base-url http://api:8000` => `ok=true`.
+  - Production TRLIRNR article 14: `norma=TRLIRNR`, `boe_reference=BOE-A-2004-4527`, `verified=true`, `completeness=completa`, `text_len=16942`.
+  - Production IRNR alias article 14 returns the same TRLIRNR text and contract.
+  - Production LIVA article `163 sexvicies`: only the corrected numero remains; endpoint returns `verified=true`, `completeness=completa`.
+  - Production `/status`: `api=ok`, `database=ok`, `workers_total=40`, `stale_count=0`.
+  - Alertmanager active unsilenced alerts: `0`.
+Accepted risks:
+  - none
+Next: COMPLETE
 === Iteration F-03 - 2026-05-13T19:05:00+02:00 ===
 Story: F-03 Fix LIVA article name typo: 163 sexvivies -> 163 sexvicies
 Queries tested: 2
