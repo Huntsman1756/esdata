@@ -1,0 +1,38 @@
+{
+  "model": "gpt-5.5",
+  "input": "Use $esdata-mcp-truth-contract and $esdata-tax-obligation-review to answer the user's ESData MCP tax question.",
+  "tools": [
+    {
+      "type": "shell",
+      "environment": {
+        "type": "container_auto",
+        "skills": [
+          {
+            "type": "file",
+            "path": "packages/esdata-chatgpt-skills/zips/esdata-mcp-truth-contract.zip"
+          },
+          {
+            "type": "file",
+            "path": "packages/esdata-chatgpt-skills/zips/esdata-tax-obligation-review.zip"
+          },
+          {
+            "type": "file",
+            "path": "packages/esdata-chatgpt-skills/zips/esdata-sociedad-valores-review.zip"
+          },
+          {
+            "type": "file",
+            "path": "packages/esdata-chatgpt-skills/zips/esdata-fatca-crs-review.zip"
+          },
+          {
+            "type": "file",
+            "path": "packages/esdata-chatgpt-skills/zips/esdata-regulatory-monitoring.zip"
+          },
+          {
+            "type": "file",
+            "path": "packages/esdata-chatgpt-skills/zips/esdata-kyc-aml-review.zip"
+          }
+        ]
+      }
+    }
+  ]
+}

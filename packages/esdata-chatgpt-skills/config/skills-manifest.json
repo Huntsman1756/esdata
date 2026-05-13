@@ -7,6 +7,14 @@
     "skills": "Skills provide workflow, cold-start questions, output structure, and human review gates. They are not legal or tax authority.",
     "search_discovery": "SearXNG or web search may only create discovery candidates. A worker must verify and load candidates before use as evidence."
   },
+  "openai_best_practices": {
+    "skill_shape": "Each skill is a directory with a required SKILL.md, optional references, and optional agents/openai.yaml metadata.",
+    "progressive_disclosure": "Core instructions stay in SKILL.md; detailed contract notes live in references only where useful.",
+    "focused_scope": "Each skill has one primary workflow: truth contract, tax review, sociedad de valores review, FATCA/CRS, regulatory monitoring, or KYC/AML.",
+    "zip_distribution": "Each skill is packaged as an individual zip with SKILL.md at the archive root, and the bundle zip includes skills, zips, and config.",
+    "codex_install": "See config/codex-install.md for repository or user skill discovery locations.",
+    "api_mounting": "See config/responses-api-skills-example.json for a shell-tool skill mounting example."
+  },
   "recommended_install_order": [
     "esdata-mcp-truth-contract",
     "esdata-tax-obligation-review",
