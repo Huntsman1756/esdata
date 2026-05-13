@@ -107,7 +107,7 @@
       "id": "E-08",
       "title": "Load ESMA DLT authorised market infrastructures",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Load structured DLT infrastructure list if published",
         "If zero authorisations exist, document configured_but_unavailable honestly"

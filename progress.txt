@@ -1545,3 +1545,25 @@ Verification:
   - Formal verification: `PASS`.
 Volume notes: full FULINS historical ingestion remains explicitly out of scope; E-07 proves the DLTINS metadata/download/parser pipeline only.
 Next: E-08
+=== Iteration E-08 - 2026-05-13T14:55:00+02:00 ===
+Story: E-08 Load ESMA DLT authorised market infrastructures
+Sources accessed:
+  - https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/dlt-pilot-regime
+  - https://www.esma.europa.eu/sites/default/files/2026-01/Authorised_DLT_Market_Infrastructures.pdf
+Records loaded:
+  - esma_reporting_document=1 for dominio=DLT
+  - esma_dlt_market_infrastructure=6
+  - esma_dlt_exemption=75
+Source hashes:
+  - Authorised_DLT_Market_Infrastructures.pdf: 0c2c034d579839f0e5ee49fb0fed5367
+Result: PASS
+Verification:
+  - Official ESMA DLT Pilot page confirms ESMA publishes the authorised DLT market infrastructure list.
+  - The worker downloads the official PDF, extracts text with pypdf, validates every configured official row against the extracted text, and only then writes rows.
+  - VPS worker run: `[run-once] ESMA DLT: infrastructures=6 exemptions=75 source_hash=0c2c034d579839f0e5ee49fb0fed5367`.
+  - SQL production: 6 infrastructures, all `verified=true` and `completeness=completa`.
+  - SQL production includes current official rows for CSD Prague, 21X AG, 360X AG, UAB Axiology DLT, LISE SA, and Securitize Europe Brokerage and Markets SV SA.
+  - `sync_log`: `worker-esma-dlt status=ok documentos_processed=1 articulos_upserted=81`.
+  - Formal verification: `SELECT COUNT(*) FROM esma_dlt_market_infrastructure` returned `6` and `PASS`.
+Caveat: E-08 stores the official list and exemptions from the current ESMA PDF. It does not infer lower thresholds beyond the PDF table (`n/a` in current source), and future PDF structure changes intentionally fail validation until reviewed.
+Next: E-09
