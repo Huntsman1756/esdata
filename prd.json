@@ -21,7 +21,7 @@
       "id": "W-02",
       "title": "Declare explicit expected_cadence_hours for every worker in config",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Locate where worker stale thresholds are defined",
         "For each worker flagged match=NO in W-01: update its threshold to match real cadence",

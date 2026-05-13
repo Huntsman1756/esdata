@@ -8,6 +8,7 @@ from middleware.metrics import (
     record_worker_metrics,
     record_worker_sync_summary,
 )
+from services.worker_cadence import WORKER_CADENCE_ALIASES, WORKER_CADENCE_CONFIG
 from sqlalchemy import text
 
 
@@ -31,48 +32,9 @@ def _build_modelos_status(db) -> dict:
 
 router = APIRouter()
 
-WORKER_CANONICAL_NAMES = {
-    "modelos": "worker-modelos",
-    "worker-aeat-modelos": "worker-modelos",
-    "worker-aeat-current-designs": "cron-aeat-current-daily",
-}
-
 WORKER_THRESHOLDS_HOURS = {
-    "worker-boe": 25,
-    "cron-boe-daily": 25,
-    "cron-boe-diario-daily": 25,
-    "worker-dgt": 24 * 8,
-    "cron-dgt-weekly": 24 * 8,
-    "worker-teac": 24 * 8,
-    "cron-teac-weekly": 24 * 8,
-    "worker-modelos": 26,
-    "cron-modelos-daily": 26,
-    "cron-aeat-current-daily": 26,
-    "worker-boe-modelos": 26,
-    "worker-bdns": 24 * 8,
-    "cron-bdns-weekly": 24 * 8,
-    "worker-borme": 24 * 8,
-    "cron-borme-weekly": 24 * 8,
-    "worker-cnmv": 24 * 8,
-    "cron-cnmv-weekly": 24 * 8,
-    "worker-sepblac": 24 * 8,
-    "cron-sepblac-weekly": 24 * 8,
-    "worker-cendoj": 24 * 8,
-    "cron-cendoj-weekly": 24 * 8,
-    "worker-eurlex": 24 * 8,
-    "cron-eurlex-weekly": 24 * 8,
-    "worker-bde": 24 * 8,
-    "cron-bde-weekly": 24 * 8,
-    "worker-cdi": 24 * 8,
-    "cron-cdi-weekly": 24 * 8,
-    "worker-aepd": 24 * 8,
-    "cron-aepd-weekly": 24 * 8,
-    "cron-psd2-weekly": 24 * 8,
-    "official-regulatory-references": 24 * 8,
-    "cron-pgc-boe-monthly": 24 * 40,
-    "cron-giin-monthly": 24 * 40,
-    "cron-ofac-sdn-weekly": 24 * 8,
-    "cron-mica-weekly": 24 * 8,
+    worker: config["stale_threshold_hours"]
+    for worker, config in WORKER_CADENCE_CONFIG.items()
 }
 
 
@@ -99,11 +61,11 @@ def _is_stale(worker: str, finished_at) -> bool:
 
     now = datetime.now(UTC)
     age_hours = (now - finished_at_dt).total_seconds() / 3600
-    return age_hours > WORKER_THRESHOLDS_HOURS.get(worker, 25)
+    return age_hours > WORKER_THRESHOLDS_HOURS[worker]
 
 
 def _canonical_worker_name(worker: str) -> str:
-    return WORKER_CANONICAL_NAMES.get(worker, worker)
+    return WORKER_CADENCE_ALIASES.get(worker, worker)
 
 
 def _parse_sync_summary(error_msg: str | None) -> dict[str, int] | None:

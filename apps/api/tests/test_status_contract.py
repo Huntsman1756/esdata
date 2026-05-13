@@ -302,6 +302,18 @@ async def test_status_keeps_giin_monthly_cron_healthy_with_twenty_day_lag():
     assert worker["stale"] is False
 
 
+def test_all_status_thresholds_have_one_and_half_cadence_buffer():
+    from routers.status import WORKER_CADENCE_CONFIG
+
+    too_tight = {
+        worker: (config["expected_cadence_hours"], config["stale_threshold_hours"])
+        for worker, config in WORKER_CADENCE_CONFIG.items()
+        if config["stale_threshold_hours"] < config["expected_cadence_hours"] * 1.5
+    }
+
+    assert too_tight == {}
+
+
 @pytest.mark.asyncio
 async def test_status_exposes_structured_sync_log_summary_fields():
     app, _ = _get_app_and_engine()

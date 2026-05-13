@@ -961,3 +961,17 @@ Evidence:
 Accepted risks:
   - W-01 is inventory-only by design; no thresholds changed in this iteration.
 Next: W-02
+=== Iteration W-02 - 2026-05-13T06:02:00+02:00 ===
+Story: W-02 Declare explicit expected_cadence_hours for every worker in config
+Result: PASS
+Evidence:
+  - Added canonical cadence registry in apps/api/services/worker_cadence.py.
+  - /status now derives WORKER_THRESHOLDS_HOURS from WORKER_CADENCE_CONFIG instead of maintaining an ad hoc threshold dict.
+  - Added explicit real schedule comments and stale thresholds for all active /status workers.
+  - Daily thresholds raised to 36h, weekly thresholds to 252h, monthly thresholds to 1080h; worker-boe remains explicit 1h loop with 25h operational threshold.
+  - cron-regulatory-daily no longer depends on the 25h default; it has explicit 36h threshold.
+  - Historical aliases remain canonicalized via WORKER_CADENCE_ALIASES.
+  - Local verification: apps/api/tests/test_status_contract.py => 16 passed.
+Accepted risks:
+  - none.
+Next: W-03
