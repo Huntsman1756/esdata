@@ -931,3 +931,20 @@ Evidence:
 Accepted risks:
   - The original R-08 example expected Modelo 303 verified=true and AEPD search total >=25. The release contract is stricter and more honest: Modelo 303 remains parcial, and AEPD has 25 loaded documents while the specific search query matches 19.
 Next: COMPLETE
+=== Hotfix - 2026-05-13T05:22:00+02:00 ===
+Story: WorkerSilent false positive for cron-cdi-weekly
+Result: PASS
+Evidence:
+  - Telegram alert at 04:04 Europe/Madrid reported WorkerSilent for cron-cdi-weekly.
+  - Root cause: cron-cdi-weekly had a successful sync_log row but /status lacked a weekly threshold for cron-cdi-weekly, so it fell back to the 25h default.
+  - Production sync_log evidence: cron-cdi-weekly status=ok, rows_processed=86, errors=0, finished_at=2026-05-12T00:03:48Z.
+  - systemd evidence: esdata-cdi-weekly.timer active, next run 2026-05-18 00:29:24 Europe/Madrid.
+  - Fix: added weekly thresholds for worker-cdi and cron-cdi-weekly.
+  - Local verification: apps/api/tests/test_status_contract.py => 15 passed.
+  - VPS deployed API at commit 589026d.
+  - Post-deploy /status: cron-cdi-weekly stale=false, worker-cdi stale=false, stale_workers_count=0.
+  - Post-deploy mcp_validation_suite.py --read-only --base-url http://api:8000: ok=true.
+  - Post-deploy Alertmanager active unsilenced/uninhibited alerts: 0.
+Accepted risks:
+  - none.
+Next: monitor for RESOLVED notification from Telegram if Alertmanager sends it.
