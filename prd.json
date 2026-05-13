@@ -73,7 +73,7 @@
       "id": "D-05",
       "title": "Load Modelo 187 complete design - acciones y participaciones IIC",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Parse official 187 PDF design-register table",
         "Load only deterministic fields",

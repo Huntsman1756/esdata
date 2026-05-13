@@ -1197,3 +1197,19 @@ Verification:
   - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
   - API: `198 verified=false`, `completeness=parcial`, `casillas_total=72`, `evidence_status=evidence_limited`.
 Next: D-05
+=== Iteration D-05 - 2026-05-13T12:55:00+02:00 ===
+Story: D-05 Load Modelo 187 complete design - acciones y participaciones IIC
+Models processed: 187
+Source format: PDF design-register table
+Fields loaded per model: no new load required; production already has 187=42 official design fields plus 8 functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_187_2022.pdf
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe on official PDF => 42 fields, lowercase-noise fields=0.
+  - SQL production: `187 casillas_total=50`, `diseno_registro_campo=42`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+  - API: `187 verified=false`, `completeness=parcial`, `casillas_total=50`, `evidence_status=evidence_limited`.
+  - Formal verification command: `187 casillas: 50` => PASS.
+Next: D-06

@@ -5949,3 +5949,27 @@ En orden de impacto real:
 - VPS: `docker compose ... run --rm worker-modelos python aeat_current_designs.py --run-once` devuelve `pdf_fields=178`, `parse_errors=0`.
 
 **Siguiente paso:** D-05 Modelo 187, verificar/recargar diseno oficial de acciones y participaciones IIC.
+
+---
+
+## Reclamo 2026-05-13 - D-05 Modelo 187 diseno oficial AEAT verificado
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** confirmar si el Modelo 187 necesitaba nueva carga documental o si la produccion ya contenia el diseno oficial determinista de AEAT.
+
+**Resultado:**
+- Produccion ya contiene el PDF oficial AEAT del Modelo 187 como `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+- Probe local contra el PDF oficial extrae `42` campos deterministas sin falsos positivos de naturaleza en minuscula.
+- Produccion tiene `187 casillas_total=50`, con `42` campos `diseno_registro_campo`.
+- El contrato API sigue honesto: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque no hay instrucciones completas ni reglas de aplicabilidad estructuradas.
+
+**Pruebas ejecutadas:**
+- Probe local contra `https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_187_2022.pdf`.
+- VPS SQL: `187 casillas_total=50`, `diseno_registro_campo=42`.
+- API: `/v1/modelos/aeat/187` devuelve `casillas_total=50` y contrato parcial.
+- Verificacion formal D-05: `187 casillas: 50` => `PASS`.
+
+**Siguiente paso:** D-06 Modelos 123 y 124, verificar/recargar disenos oficiales de retenciones.
