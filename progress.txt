@@ -1476,3 +1476,25 @@ Verification:
   - Formal verification: `DLT Pilot articles: 19` => `PASS`.
 Caveat: EUR-Lex Spanish consolidation manifestation returned 404 for this act, so E-04 loaded the official Spanish DOUE/OJ text (`JOL_2022_151_R_0001.SPA`). Dedicated API endpoints remain E-11.
 Next: E-05
+=== Iteration E-05 - 2026-05-13T14:30:00+02:00 ===
+Story: E-05 Load ESMA MiFIR Transaction Reporting XML Schema 1.1.0
+Sources accessed:
+  - https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2598_annex_2_mifir_transaction_reporting_iso20022_xml_schemas.zip
+Records loaded:
+  - esma_schema=1 for ESMA MiFIR Transaction Reporting ISO 20022 XML Schemas version 1.1.0
+  - esma_schema_field=168
+Source hashes:
+  - ZIP MD5 stored in `esma_schema.source_hash`.
+  - Per-XSD MD5 stored in every `esma_schema_field.source_hash`, with `source_url` using `#<xsd filename>`.
+Result: PASS
+Verification:
+  - Local parser probe: official ESMA ZIP returned 4 XSD files and 168 deterministic `xs:element` records.
+  - Unit test: `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q` => `1 passed`.
+  - VPS worker run: `[run-once] ESMA MiFIR reporting: files=4 fields=168`.
+  - SQL production: `TRANSACTION_REPORTING verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: field count for `TRANSACTION_REPORTING` = 168.
+  - `sync_log`: `worker-esma-mifir-reporting status=ok documentos_processed=4 articulos_upserted=168`.
+  - Formal verification: `MiFIR TR fields: 168` => `PASS`.
+Caveat: E-05 loads the authoritative XSD structure only. It does not infer RTS 22 validation rules or filing obligations from prose; reporting documents and validation rules remain E-06.
+Next: E-06

@@ -71,7 +71,7 @@
       "id": "E-05",
       "title": "Load ESMA MiFIR Transaction Reporting XML Schema 1.1.0",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Download official ESMA transaction reporting ZIP/XSD",
         "Parse XSD elements as schema fields",

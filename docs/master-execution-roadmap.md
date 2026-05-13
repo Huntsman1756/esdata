@@ -6180,3 +6180,30 @@ En orden de impacto real:
 - VPS SQL: `DLT Pilot articles: 19` => `PASS`.
 
 **Siguiente paso:** E-05 cargar el XML Schema oficial ESMA MiFIR Transaction Reporting 1.1.0.
+
+---
+
+## Reclamo 2026-05-13 - E-05 ESMA MiFIR Transaction Reporting XSD cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/worker_esma_mifir_reporting.py`, `apps/workers/tests/test_worker_esma_mifir_reporting.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar el ZIP/XSD oficial de ESMA para MiFIR Transaction Reporting XML Schema 1.1.0 en `esma_schema` y `esma_schema_field`.
+
+**Resultado:**
+- Se anadio un loader sin DDL runtime para descargar `esma65-8-2598_annex_2_mifir_transaction_reporting_iso20022_xml_schemas.zip`.
+- Produccion tiene `1` schema `TRANSACTION_REPORTING`, version `1.1.0`, `verified=true`, `completeness=completa`.
+- Produccion tiene `168` campos XSD deterministicos desde `4` ficheros `.xsd`.
+- `esma_schema.source_hash` conserva el MD5 del ZIP y cada campo conserva MD5 del XSD concreto en `esma_schema_field.source_hash`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/worker_esma_mifir_reporting.py`
+- `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q`
+- Probe local: `files=4`, `fields=168`, `zip_hash_len=32`.
+- VPS worker: `[run-once] ESMA MiFIR reporting: files=4 fields=168`.
+- VPS SQL: `MiFIR TR fields: 168` => `PASS`.
+
+**Caveat:** E-05 cubre estructura XSD oficial, no reglas de validacion RTS 22 ni instrucciones de cumplimentacion. Esas fuentes se inventarian/cargan en E-06 si son estructuradas.
+
+**Siguiente paso:** E-06 cargar metadatos oficiales de MiFIR reporting ESMA, extrayendo reglas solo si hay fuente estructurada.
