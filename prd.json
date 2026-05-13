@@ -20,7 +20,7 @@
       "id": "D-01",
       "title": "Load Modelo 296 complete design - IRNR no residentes",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Download official AEAT Modelo 296 2024 design PDF",
         "Extract deterministic fields with position, nature/type, name and description",
