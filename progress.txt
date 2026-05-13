@@ -1611,3 +1611,26 @@ Verification:
   - Formal verification command returned `3` and `PASS`.
 Caveat: cron service names are aliases to the `worker-*` sync_log names; registering cron service names as independent `/status` workers would create false `never_run` alerts.
 Next: E-11
+=== Iteration E-11 - 2026-05-13T15:31:30+02:00 ===
+Story: E-11 Expose EUR-Lex and ESMA endpoints in API and MCP
+Sources accessed:
+  - Production DB tables populated by E-02 to E-10: eurlex_act, eurlex_article, esma_schema, esma_schema_field, esma_firds_file, esma_firds_instrument, esma_dlt_market_infrastructure
+Records exposed:
+  - /v1/eurlex/market/acts: total=4, verified=true, completeness=completa
+  - /v1/eurlex/market/32014R0600/articulos/1: real MiFIR article text, text_len=6528
+  - /v1/esma/mifir/schemas: total=1, verified=true, completeness=completa
+  - /v1/esma/mifir/transaction-reporting/fields: total=168, verified=true, completeness=completa
+  - /v1/esma/firds/files: total=14, verified=false, completeness=parcial
+  - /v1/esma/firds/instruments: total=1000, verified=false, completeness=parcial
+  - /v1/esma/dlt/infrastructures: total=6, verified=true, completeness=completa
+Result: PASS
+Verification:
+  - Added routers: eurlex_market, esma_mifir, esma_firds, esma_dlt.
+  - Registered routers in FastAPI with `/v1/eurlex/market/*` before generic `/v1/eurlex/{referencia}` to avoid route shadowing.
+  - Local import check: `APP_ENV=test ... python -c "import main"` => import-ok.
+  - VPS API rebuilt and restarted.
+  - Smoke endpoints returned expected totals/contracts with API key.
+  - query_audit_log contains entries for `/v1/eurlex/market/*` and `/v1/esma/*`.
+  - Formal verification equivalent with API key returned `PASS` (`acts=4`, `schemas=1`).
+Caveat: FIRDS endpoints intentionally return `verified=false`/`parcial` because only DLTINS metadata plus a bounded sample is loaded; absence of an ISIN is not authoritative.
+Next: E-12

@@ -6294,3 +6294,46 @@ En orden de impacto real:
 - `/status`: los cuatro workers nuevos tienen `stale=false` y `cadence_declared=true`.
 
 **Siguiente paso:** E-11 exponer endpoints API/MCP para EUR-Lex market, ESMA MiFIR schema, FIRDS y DLT.
+
+---
+
+## Reclamo 2026-05-13 - E-11 Endpoints EUR-Lex/ESMA market expuestos
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/api/routers/eurlex_market.py`, `apps/api/routers/esma_mifir.py`, `apps/api/routers/esma_firds.py`, `apps/api/routers/esma_dlt.py`, `apps/api/main.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** exponer por API los datos cargados en E-02 a E-10 con contratos de confianza y auditoria de retrieval.
+
+**Resultado:**
+- Nuevo router `/v1/eurlex/market`:
+  - `GET /v1/eurlex/market/acts`
+  - `GET /v1/eurlex/market/{celex}/articulos/{numero}`
+- Nuevo router `/v1/esma/mifir`:
+  - `GET /v1/esma/mifir/schemas`
+  - `GET /v1/esma/mifir/transaction-reporting/fields`
+- Nuevo router `/v1/esma/firds`:
+  - `GET /v1/esma/firds/files`
+  - `GET /v1/esma/firds/instruments`
+- Nuevo router `/v1/esma/dlt`:
+  - `GET /v1/esma/dlt/infrastructures`
+- Todas las respuestas incluyen `verified`, `completeness` y `quality_signal`.
+- Todas las rutas registran `query_audit_log`.
+- La ruta especifica `/v1/eurlex/market/*` queda registrada antes del detalle generico `/v1/eurlex/{referencia}` para evitar shadowing.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/api/routers/eurlex_market.py apps/api/routers/esma_mifir.py apps/api/routers/esma_firds.py apps/api/routers/esma_dlt.py apps/api/main.py`
+- `APP_ENV=test ESDATA_API_KEY=... MCP_API_KEY=... python -c "import main"` => `import-ok`.
+- VPS smoke:
+  - `/v1/eurlex/market/acts` => `total=4`, `verified=true`, `completeness=completa`.
+  - `/v1/eurlex/market/32014R0600/articulos/1` => texto real MiFIR, `text_len=6528`.
+  - `/v1/esma/mifir/schemas` => `total=1`, `verified=true`, `completeness=completa`.
+  - `/v1/esma/mifir/transaction-reporting/fields?limit=3` => `total=168`.
+  - `/v1/esma/firds/files?limit=3` => `total=14`, `verified=false`, `completeness=parcial`.
+  - `/v1/esma/firds/instruments?limit=3` => `total=1000`, `verified=false`, `completeness=parcial`.
+  - `/v1/esma/dlt/infrastructures` => `total=6`, `verified=true`, `completeness=completa`.
+- VPS SQL `query_audit_log`: entradas confirmadas para `/v1/eurlex/market/*` y `/v1/esma/*`.
+
+**Caveat:** FIRDS sigue siendo piloto parcial; no debe usarse para afirmar ausencia/presencia exhaustiva de instrumentos.
+
+**Siguiente paso:** E-12 ampliar `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para cubrir los nuevos endpoints y contratos.

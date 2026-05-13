@@ -141,7 +141,7 @@
       "id": "E-11",
       "title": "Expose EUR-Lex and ESMA endpoints in API and MCP",
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Expose market EUR-Lex, ESMA MiFIR schema, FIRDS and DLT endpoints",
         "All endpoints include verified/completeness and query audit"
