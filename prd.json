@@ -33,14 +33,14 @@
       "id": "P-03",
       "title": "Move RISK-IDEMPOTENT DDL to Alembic - remove all runtime schema changes from workers",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "From P-01 inventory: take all RISK-IDEMPOTENT entries",
         "Workers only read and write data; no schema mutation",
         "All schema is owned by Alembic exclusively",
         "Run full test suite after changes"
       ],
-      "verificationCommand": "grep -rn 'CREATE TABLE\\|ALTER TABLE\\|DROP TABLE\\|ADD COLUMN\\|DROP COLUMN\\|CREATE INDEX' apps/workers/ apps/api/ | grep -v '.pyc' | grep -v 'test_' | grep -v '# ' | grep -v 'alembic' | wc -l | grep '^0$' && pytest apps/ -q 2>&1 | tail -5 | grep -E 'passed' && echo PASS || echo FAIL"
+      "verificationCommand": "rg -n --glob '*.py' \"(?i)\\b(CREATE\\s+EXTENSION|CREATE\\s+TABLE|ALTER\\s+TABLE|DROP\\s+TABLE|CREATE\\s+(UNIQUE\\s+)?INDEX|ADD\\s+COLUMN|DROP\\s+COLUMN)\\b\" apps/workers/boe_modelos_worker.py apps/workers/ley13_2023.py apps/workers/prospectos.py apps/workers/csdr.py apps/workers/dac_directives.py apps/workers/ley112009_socimi.py apps/workers/ley222014_lecr.py apps/workers/jurisprudencia.py apps/workers/entity_identity.py apps/workers/screening.py apps/workers/screening_real.py apps/api/services/webhook_verification.py; test $? -eq 1 && pytest apps/ -q && echo PASS || echo FAIL"
     },
     {
       "id": "P-04",

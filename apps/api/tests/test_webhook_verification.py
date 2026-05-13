@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -21,6 +22,25 @@ from services.webhook_verification import (
     record_webhook_event,
     verify_webhook_signature,
 )
+
+
+@pytest.fixture(autouse=True)
+def webhook_events_table():
+    from db import engine
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS webhook_events (
+                    event_id TEXT PRIMARY KEY,
+                    event_type TEXT NOT NULL,
+                    processed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+        )
+        conn.execute(text("DELETE FROM webhook_events"))
 
 
 class TestComputeSignature:

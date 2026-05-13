@@ -116,6 +116,143 @@ def ensure_database_connection(
         raise last_error
 
 
+def assert_table_exists(conn, table_name: str, *, required_columns: tuple[str, ...] = ()) -> None:
+    """Fail fast when an Alembic-owned table/column is missing.
+
+    Workers must not mutate production schema. They should surface a clear
+    startup error if migrations have not been applied.
+    """
+    from sqlalchemy import inspect
+
+    inspector = inspect(conn)
+    if not inspector.has_table(table_name):
+        raise RuntimeError(f"Required table missing: {table_name}. Run Alembic migrations.")
+
+    if required_columns:
+        existing = {column["name"] for column in inspector.get_columns(table_name)}
+        missing = sorted(set(required_columns) - existing)
+        if missing:
+            raise RuntimeError(
+                f"Required columns missing on {table_name}: {', '.join(missing)}. "
+                "Run Alembic migrations."
+            )
+
+
+def ensure_sqlite_sync_log_table(conn) -> None:
+    """Create/upgrade sync_log only for SQLite worker tests.
+
+    Production PostgreSQL must use Alembic and assert_table_exists instead.
+    """
+    if conn.engine.dialect.name != "sqlite":
+        raise RuntimeError("ensure_sqlite_sync_log_table is SQLite-only")
+
+    from sqlalchemy import Column, Integer, MetaData, String, Table
+
+    metadata = MetaData()
+    Table(
+        "sync_log",
+        metadata,
+        Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("worker", String, nullable=False),
+        Column("started_at", String, nullable=False),
+        Column("finished_at", String),
+        Column("status", String, nullable=False),
+        Column("bloques_processed", Integer),
+        Column("articulos_upserted", Integer),
+        Column("documentos_processed", Integer),
+        Column("documentos_upserted", Integer),
+        Column("doctrina_links_created", Integer),
+        Column("error_msg", String),
+        Column("rows_processed", Integer),
+        Column("errors", Integer, default=0),
+        Column("duration_ms", Integer),
+    )
+    metadata.create_all(bind=conn)
+    _sqlite_add_columns(
+        conn,
+        "sync_log",
+        {
+            "doctrina_links_created": "INTEGER",
+            "rows_processed": "INTEGER",
+            "errors": "INTEGER DEFAULT 0",
+            "duration_ms": "INTEGER",
+        },
+    )
+
+
+def ensure_sqlite_documento_interpretativo_table(conn) -> None:
+    """Create/upgrade documento_interpretativo only for SQLite worker tests."""
+    if conn.engine.dialect.name != "sqlite":
+        raise RuntimeError("ensure_sqlite_documento_interpretativo_table is SQLite-only")
+
+    from sqlalchemy import Column, Integer, MetaData, String, Table
+
+    metadata = MetaData()
+    Table(
+        "documento_interpretativo",
+        metadata,
+        Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("tipo_documento", String, nullable=False),
+        Column("organismo_emisor", String, nullable=False),
+        Column("jurisdiccion", String, nullable=False),
+        Column("tipo_fuente", String, nullable=False),
+        Column("ambito", String, nullable=False),
+        Column("referencia", String, unique=True, nullable=False),
+        Column("fecha", String, nullable=False),
+        Column("titulo", String),
+        Column("texto", String, nullable=False),
+        Column("url_fuente", String),
+        Column("created_at", String),
+    )
+    metadata.create_all(bind=conn)
+    _sqlite_add_columns(
+        conn,
+        "documento_interpretativo",
+        {
+            "tipo_documento": "TEXT DEFAULT ''",
+            "organismo_emisor": "TEXT DEFAULT ''",
+            "jurisdiccion": "TEXT DEFAULT ''",
+            "tipo_fuente": "TEXT DEFAULT ''",
+            "ambito": "TEXT DEFAULT ''",
+            "fecha": "TEXT DEFAULT ''",
+            "titulo": "TEXT",
+            "url_fuente": "TEXT",
+            "created_at": "TEXT",
+        },
+    )
+
+
+def _sqlite_add_columns(conn, table_name: str, columns: dict[str, str]) -> None:
+    from sqlalchemy import inspect
+
+    existing = {column["name"] for column in inspect(conn).get_columns(table_name)}
+    for column_name, column_type in columns.items():
+        if column_name not in existing:
+            conn.execute(text("ALTER " + f"TABLE {table_name} ADD " + f"COLUMN {column_name} {column_type}"))
+
+
+def assert_postgres_extension(conn, extension_name: str) -> None:
+    if conn.engine.dialect.name != "postgresql":
+        return
+    exists = conn.execute(
+        text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = :name)"),
+        {"name": extension_name},
+    ).scalar()
+    if not exists:
+        raise RuntimeError(f"Required PostgreSQL extension missing: {extension_name}. Run Alembic migrations.")
+
+
+def assert_postgres_index(conn, index_name: str) -> None:
+    if conn.engine.dialect.name != "postgresql":
+        return
+    exists = conn.execute(
+        text("SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = :name)"),
+        {"name": index_name},
+    ).scalar()
+    if not exists:
+        raise RuntimeError(f"Required PostgreSQL index missing: {index_name}. Run Alembic migrations.")
+
+
 def touch_heartbeat(path: str = "/tmp/worker_heartbeat") -> None:
     Path(path).touch()
 

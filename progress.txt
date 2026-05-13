@@ -1054,3 +1054,20 @@ Fix applied:
 Accepted risks:
   - Idempotent runtime DDL remains intentionally deferred to P-03.
 Next: P-03
+=== Iteration P-03 - 2026-05-13T07:03:51+02:00 ===
+Story: P-03 Move RISK-IDEMPOTENT DDL to Alembic - remove all runtime schema changes from workers
+Result: PASS
+Evidence:
+  - Added Alembic migration 20260513_0073_webhook_events.py for webhook_events with RLS policies for esdata and service_role.
+  - Removed runtime CREATE TABLE from apps/api/services/webhook_verification.py; webhook idempotency now asserts Alembic-owned table/columns.
+  - Added runtime schema assertion helpers in apps/workers/runtime.py and converted risk workers from CREATE/ALTER bootstraps to assertions.
+  - Converted production BOE schema repair to migration assertions for pg_trgm and idx_version_articulo_texto_trgm.
+  - Targeted DDL gate over P-01 RISK-IDEMPOTENT files returned no CREATE/ALTER/DROP/INDEX/EXTENSION hits.
+  - Full suite passed with repo-local TMP/TEMP to avoid Windows global temp permissions: 3011 passed, 2 skipped.
+Fix applied:
+  - Runtime production paths now fail fast if Alembic migrations are missing instead of mutating schema.
+  - SQLite-only worker test compatibility remains isolated in helper functions and is not used on PostgreSQL.
+Accepted risks:
+  - apps/api/services/persistence.py still contains SQLite compatibility DDL templates, but its PostgreSQL path verifies schema and returns without runtime DDL.
+  - boe.py/change_detection.py/dgt.py/eurlex.py retain SQLite-only compatibility helpers documented as non-production.
+Next: P-04

@@ -26,6 +26,9 @@ from xml.etree import ElementTree as ET
 
 import httpx
 from runtime import (
+    assert_postgres_extension,
+    assert_postgres_index,
+    assert_table_exists,
     ensure_database_connection,
     sleep_with_heartbeat,
     touch_heartbeat,
@@ -842,25 +845,18 @@ def _ensure_schema(conn) -> None:
         return
 
     if dialect == "postgresql":
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-
-        idx_exists = conn.execute(
-            text(
-                """
-            SELECT EXISTS (
-                SELECT 1 FROM pg_indexes
-                WHERE indexname = 'idx_version_articulo_texto_trgm'
-            )
-            """
-            )
-        ).scalar()
-
-        if not idx_exists:
-            conn.execute(
-                text(
-                    "CREATE INDEX idx_version_articulo_texto_trgm ON version_articulo USING gin (texto gin_trgm_ops)"
-                )
-            )
+        for table_name in (
+            "norma",
+            "articulo",
+            "version_articulo",
+            "materia",
+            "articulo_materia",
+            "documento_interpretativo",
+            "documento_articulo",
+        ):
+            assert_table_exists(conn, table_name)
+        assert_postgres_extension(conn, "pg_trgm")
+        assert_postgres_index(conn, "idx_version_articulo_texto_trgm")
 
 
 def _sqlite_columns(conn, table_name: str) -> set[str]:

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from fastapi import HTTPException, Request, status
+from sqlalchemy import inspect
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 WEBHOOK_SECRET_ENV: Final = "WEBHOOK_SECRET"
 WEBHOOK_IDEMPOTENCY_TABLE: Final = "webhook_events"
+WEBHOOK_REQUIRED_COLUMNS: Final = {"event_id", "event_type", "processed_at"}
 
 
 def _get_webhook_secret() -> str:
@@ -74,15 +76,9 @@ def check_idempotency(db: Session, event_id: str) -> bool:
     Returns True if event is a duplicate (already processed).
     Returns False if event is new (should be processed).
 
-    Creates idempotency tracking table if it does not exist.
+    Requires the Alembic-owned idempotency tracking table to exist.
     """
-    db.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {WEBHOOK_IDEMPOTENCY_TABLE} (
-            event_id    TEXT PRIMARY KEY,
-            event_type  TEXT NOT NULL,
-            processed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    """))
+    _assert_webhook_events_table(db)
 
     result = db.execute(
         text(f"SELECT 1 FROM {WEBHOOK_IDEMPOTENCY_TABLE} WHERE event_id = :eid"),
@@ -94,6 +90,22 @@ def check_idempotency(db: Session, event_id: str) -> bool:
         return True
 
     return False
+
+
+def _assert_webhook_events_table(db: Session) -> None:
+    bind = db.get_bind()
+    inspector = inspect(bind)
+    if not inspector.has_table(WEBHOOK_IDEMPOTENCY_TABLE):
+        raise RuntimeError(
+            f"Required table missing: {WEBHOOK_IDEMPOTENCY_TABLE}. Run Alembic migrations."
+        )
+    existing = {column["name"] for column in inspector.get_columns(WEBHOOK_IDEMPOTENCY_TABLE)}
+    missing = sorted(WEBHOOK_REQUIRED_COLUMNS - existing)
+    if missing:
+        raise RuntimeError(
+            f"Required columns missing on {WEBHOOK_IDEMPOTENCY_TABLE}: {', '.join(missing)}. "
+            "Run Alembic migrations."
+        )
 
 
 def record_webhook_event(db: Session, event: WebhookEvent) -> None:
