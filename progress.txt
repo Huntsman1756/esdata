@@ -1177,3 +1177,23 @@ Verification:
   - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
   - API: `193 verified=false`, `completeness=parcial`, `casillas_total=71`, `evidence_status=evidence_limited`.
 Next: D-04
+=== Iteration D-04 - 2026-05-13T12:45:00+02:00 ===
+Story: D-04 Load Modelo 198 complete design - operaciones con activos financieros
+Models processed: 198
+Source format: PDF design-register table
+Fields loaded per model: production reloaded 198=64 official design fields; 72 casillas total including existing functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_198_2024.pdf
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and parser noise was removed, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Fix applied:
+  - Hardened PDF nature detection so lowercase narrative fragments like `224 a 235...` are not parsed as fields.
+  - Added targeted parser tests for lowercase noise rejection and valid `Num`/`AN` abbreviations.
+Verification:
+  - Local tests: `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 16 passed.
+  - Local official PDF probe: 64 fields, lowercase-noise fields=0.
+  - VPS worker run: `pdf_fields=178`, `parse_errors=0` (198=64 plus forced 296=114).
+  - SQL production: `198 casillas_total=72`, `diseno_registro_campo=64`, `lowercase_noise=0`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+  - API: `198 verified=false`, `completeness=parcial`, `casillas_total=72`, `evidence_status=evidence_limited`.
+Next: D-05

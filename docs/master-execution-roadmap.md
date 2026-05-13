@@ -5923,3 +5923,29 @@ En orden de impacto real:
 **Evidencia VPS previa al cambio:** `norma.tipo_fuente='eurlex'=32`, `articulo=0`, `version_articulo=0`; ultimos `worker-eurlex`/`cron-eurlex-weekly` en `status=ok` con `fetch_articles=False`.
 
 **Siguiente paso:** ejecutar S-06 con un modo de ingesta EUR-Lex acotado por presupuesto de CELEX/tiempo, preferentemente via Publications Office, y desplegar el contrato S-05 en VPS.
+
+---
+
+## Reclamo 2026-05-13 - D-04 Modelo 198 diseno oficial AEAT recargado sin ruido
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/aeat_current_designs.py`, `apps/workers/tests/test_aeat_current_designs.py`, `prd.json`, `progress.txt`.
+
+**Objetivo:** cerrar la cobertura documental del Modelo 198 usando el PDF oficial AEAT y corregir un falso positivo del parser que interpretaba texto narrativo en minuscula como naturaleza de campo.
+
+**Resultado:**
+- `worker-modelos` fuerza recarga de los campos de diseno del Modelo 198 desde el PDF oficial AEAT 2024.
+- El parser PDF rechaza abreviaturas de naturaleza en minuscula cuando procesa tablas por posiciones, evitando campos espurios como `224 a 235 correspondientes al registro de tipo 2)`.
+- Se mantienen abreviaturas validas de naturaleza (`Num`, `AN`) y tablas numeradas existentes.
+- Produccion queda con `198 casillas_total=72`, `diseno_registro_campo=64`, `lowercase_noise=0`.
+- `modelo_recurso` conserva trazabilidad oficial: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`, URL AEAT.
+- Contrato API sigue honesto: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque las instrucciones completas y reglas de aplicabilidad no estan estructuradas.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q`
+- Resultado: `16 passed`.
+- Probe local contra PDF oficial AEAT del 198: `64` campos y `0` falsos positivos `Naturaleza: a`.
+- VPS: `docker compose ... run --rm worker-modelos python aeat_current_designs.py --run-once` devuelve `pdf_fields=178`, `parse_errors=0`.
+
+**Siguiente paso:** D-05 Modelo 187, verificar/recargar diseno oficial de acciones y participaciones IIC.

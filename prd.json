@@ -61,7 +61,7 @@
       "id": "D-04",
       "title": "Load Modelo 198 complete design - operaciones con activos financieros",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Parse official 198 PDF design-register table",
         "Load operation fields and deterministic claves",
