@@ -1522,3 +1522,26 @@ Verification:
   - Formal verification: `SELECT COUNT(*) FROM esma_reporting_document WHERE dominio='MIFIR'` returned `4` and `PASS`.
 Caveat: PDFs are metadata-only (`completeness=parcial`) because prose is not parsed into rules. Only the official structured XLSX validation rules are loaded as `esma_validation_rule`.
 Next: E-07
+=== Iteration E-07 - 2026-05-13T14:50:00+02:00 ===
+Story: E-07 Load FIRDS file list and metadata - pilot only
+Sources accessed:
+  - https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds
+  - https://registers.esma.europa.eu/solr/esma_registers_firds_files/select
+  - https://firds.esma.europa.eu/firds/DLTINS_20260513_02of02.zip
+Records loaded:
+  - esma_firds_file=14 recent DLTINS metadata rows
+  - esma_firds_instrument=1000 pilot sample rows from one DLTINS file
+Source hashes:
+  - ESMA Solr checksum stored as `esma_firds_file.source_hash`.
+  - Downloaded pilot ZIP MD5 verified against ESMA checksum and stored on file/instrument rows.
+Result: PASS
+Verification:
+  - Local parser probe: recent DLTINS files=14; selected pilot `DLTINS_20260513_02of02.zip`; sample parse returned instruments.
+  - Unit test: `python -m pytest apps/workers/tests/test_worker_esma_firds.py -q` => `1 passed`.
+  - VPS worker run: `[run-once] ESMA FIRDS: files=14 instruments=1000 pilot=DLTINS_20260513_02of02.zip`.
+  - SQL production: `FIRDS files: 14, instruments: 1000`.
+  - SQL production: pilot file `downloaded=true`, `processed=true`, `size_bytes=14685323`, `hash_len=32`.
+  - `sync_log`: `worker-esma-firds status=ok documentos_processed=14 articulos_upserted=1000`.
+  - Formal verification: `PASS`.
+Volume notes: full FULINS historical ingestion remains explicitly out of scope; E-07 proves the DLTINS metadata/download/parser pipeline only.
+Next: E-08

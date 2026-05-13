@@ -95,7 +95,7 @@
       "id": "E-07",
       "title": "Load FIRDS file list and metadata - pilot only",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Load FIRDS file metadata",
         "Pilot one recent delta file only",

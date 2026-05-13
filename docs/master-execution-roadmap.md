@@ -6232,3 +6232,29 @@ En orden de impacto real:
 - VPS SQL: `esma_reporting_document WHERE dominio='MIFIR' = 4`; `esma_validation_rule` para `ESMA65-8-2594 = 223`.
 
 **Siguiente paso:** E-07 cargar metadata FIRDS y piloto acotado, sin cargar FULINS completo.
+
+---
+
+## Reclamo 2026-05-13 - E-07 FIRDS DLTINS metadata y piloto cargados
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/worker_esma_firds.py`, `apps/workers/tests/test_worker_esma_firds.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar metadata oficial FIRDS y probar un pipeline acotado con DLTINS, sin cargar FULINS completo.
+
+**Resultado:**
+- Se anadio loader para el endpoint Solr oficial `esma_registers_firds_files`.
+- Produccion tiene `14` filas `esma_firds_file` de tipo `DLTINS` para los ultimos dias.
+- Produccion tiene `1000` instrumentos de muestra desde un unico ZIP delta `DLTINS_20260513_02of02.zip`.
+- El ZIP piloto se verifico contra checksum MD5 publicado por ESMA.
+- `esma_firds_file`/`esma_firds_instrument` quedan `verified=false`/`completeness=parcial` por diseno: es un piloto, no cobertura completa FIRDS.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/worker_esma_firds.py`
+- `python -m pytest apps/workers/tests/test_worker_esma_firds.py -q`
+- Probe local: `files=14`, pilot ZIP `14685323` bytes.
+- VPS worker: `[run-once] ESMA FIRDS: files=14 instruments=1000 pilot=DLTINS_20260513_02of02.zip`.
+- VPS SQL: `FIRDS files: 14, instruments: 1000` => `PASS`.
+
+**Siguiente paso:** E-08 cargar o documentar infraestructuras autorizadas DLT publicadas por ESMA.
