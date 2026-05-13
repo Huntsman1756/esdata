@@ -51,7 +51,7 @@
       "id": "W-04",
       "title": "Add new worker registration gate - new workers must declare cadence or fail deploy",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "In worker bootstrap or /status handler, unknown worker cadence logs a warning",
         "CI cadence test must pass before deploy",

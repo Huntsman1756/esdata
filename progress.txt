@@ -989,3 +989,18 @@ Evidence:
 Accepted risks:
   - none.
 Next: W-04
+=== Iteration W-04 - 2026-05-13T06:42:00+02:00 ===
+Story: W-04 Add new worker registration gate - new workers must declare cadence or fail deploy
+Result: PASS
+Evidence:
+  - /status now logs a warning and marks a worker stale when sync_log contains a canonical worker missing from WORKER_CADENCE_CONFIG.
+  - /status response includes cadence_declared=false for unknown workers, making the failure observable.
+  - Added regression test for unknown worker cadence: apps/api/tests/test_status_contract.py.
+  - scripts/weekly-accuracy-check.sh now compares distinct sync_log workers against WORKER_CADENCE_CONFIG, aliases, and explicit exclusions.
+  - CI already runs the full apps/api test suite, so apps/api/tests/test_worker_cadence.py is part of the push gate.
+  - Local verification: apps/api/tests/test_status_contract.py + apps/api/tests/test_worker_cadence.py => 22 passed.
+  - VPS deployed commit 92696a6.
+  - VPS weekly accuracy check passed: mcp_validation_suite ok=true, worker_cadence_declared=37/37, worker_cadence_missing=0, all domain freshness checks OK.
+Accepted risks:
+  - none.
+Next: W-05
