@@ -118,7 +118,7 @@
       "id": "E-09",
       "title": "Harden CASP/MiCA register - verify existing data and fill gaps",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify CASP source freshness and provenance",
         "Reload if stale",

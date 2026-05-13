@@ -1567,3 +1567,27 @@ Verification:
   - Formal verification: `SELECT COUNT(*) FROM esma_dlt_market_infrastructure` returned `6` and `PASS`.
 Caveat: E-08 stores the official list and exemptions from the current ESMA PDF. It does not infer lower thresholds beyond the PDF table (`n/a` in current source), and future PDF structure changes intentionally fail validation until reviewed.
 Next: E-09
+=== Iteration E-09 - 2026-05-13T15:05:00+02:00 ===
+Story: E-09 Harden CASP/MiCA register - verify existing data and fill gaps
+Sources accessed:
+  - https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica
+  - https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv
+Records loaded:
+  - casp=192 official ESMA CASP rows after upsert de-duplication
+Source hashes:
+  - CASPS.csv: one MD5 source hash persisted on every verified CASP row
+Result: PASS
+Verification:
+  - Official ESMA MiCA page states the Interim MiCA Register is a weekly CSV publication and shows `Last update: 4 May 2026`.
+  - Added Alembic migration `20260513_0075_casp_source_traceability.py` for `casp.source_url`, `source_hash`, `capture_date`, `verified`, and `completeness`.
+  - Updated `apps/workers/mica.py` to persist source URL/hash/capture date and mark official CASP rows `verified=true`, `completeness=completa`.
+  - Unit test: `python -m pytest apps/workers/tests/test_worker_mica.py -q` => `5 passed`.
+  - VPS migration: `alembic upgrade head` applied `20260513_0075_casp_source_traceability`.
+  - VPS worker run: `cron-mica-weekly` discovered `CASPS.csv`, processed `194` CSV rows and synced `194` rows; DB de-duplicates to `192` CASP entities.
+  - SQL production: `SELECT COUNT(*), MAX(capture_date) FROM casp WHERE verified=true` returned `192 | 2026-05-13`.
+  - API CASP search: `/v1/mica/casp/buscar?q=crypto` returns `total=6`, `quality_signal=official_esma_register`, `safe_to_answer=true`.
+  - API non-CASP MiCA: `/v1/mica/crypto-assets` remains `workflow_empty`, `safe_to_answer=false`; no substitute data is invented.
+  - `sync_log`: latest `cron-mica-weekly status=ok documentos_processed=194 documentos_upserted=194`.
+  - Formal verification command returned `PASS`.
+Caveat: Non-CASP MiCA tables remain fail-closed/workflow-empty until an official structured source is mapped and parsed in a separate story.
+Next: E-10

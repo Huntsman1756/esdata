@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import re
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -58,7 +59,7 @@ def _csv_text_to_rows(content: bytes) -> list[dict]:
     return rows
 
 
-def fetch_esma_casp(url: str | None = None) -> tuple[list[dict], str]:
+def fetch_esma_casp(url: str | None = None) -> tuple[list[dict], str, str]:
     """Fetch CASP rows from the official ESMA interim MiCA CSV."""
 
     source_url = url or discover_esma_casp_csv()
@@ -76,8 +77,10 @@ def fetch_esma_casp(url: str | None = None) -> tuple[list[dict], str]:
             response.raise_for_status()
 
     rows = _csv_text_to_rows(response.content)
+    source_hash = hashlib.md5(response.content).hexdigest()
+    source_url = str(response.url)
     logger.info("ESMA returned %d CASP rows from %s", len(rows), source_url)
-    return rows, source_url
+    return rows, source_url, source_hash
 
 
 def normalize_casp(raw: dict) -> dict:
@@ -102,7 +105,7 @@ def normalize_casp(raw: dict) -> dict:
     }
 
 
-def upsert_casp(db, casp: dict) -> None:
+def upsert_casp(db, casp: dict, source_url: str, source_hash: str) -> None:
     """Insertar o actualizar un CASP en la BD."""
     services_json = json.dumps(casp["services_offered"])
     casp_columns = {column["name"] for column in inspect(db).get_columns("casp")}
@@ -125,6 +128,16 @@ def upsert_casp(db, casp: dict) -> None:
         ]
         if "updated_at" in casp_columns:
             update_parts.append("updated_at = CURRENT_TIMESTAMP")
+        if "source_url" in casp_columns:
+            update_parts.append("source_url = :source_url")
+        if "source_hash" in casp_columns:
+            update_parts.append("source_hash = :source_hash")
+        if "capture_date" in casp_columns:
+            update_parts.append("capture_date = :capture_date")
+        if "verified" in casp_columns:
+            update_parts.append("verified = true")
+        if "completeness" in casp_columns:
+            update_parts.append("completeness = 'completa'")
         db.execute(
             text(
                 f"UPDATE casp SET {', '.join(update_parts)} WHERE id = :id"
@@ -135,19 +148,55 @@ def upsert_casp(db, casp: dict) -> None:
                 "passport_active": casp["passport_active"],
                 "services_offered": services_json,
                 "status": casp["status"],
+                "source_url": source_url,
+                "source_hash": source_hash,
+                "capture_date": date.today().isoformat(),
             },
         )
     else:
+        insert_columns = [
+            "name",
+            "registration_number",
+            "home_member_state",
+            "passport_active",
+            "services_offered",
+            "status",
+        ]
+        insert_values = [
+            ":name",
+            ":registration_number",
+            ":home_member_state",
+            ":passport_active",
+            ":services_offered",
+            ":status",
+        ]
+        insert_params = {**casp, "services_offered": services_json}
+        if "source_url" in casp_columns:
+            insert_columns.append("source_url")
+            insert_values.append(":source_url")
+            insert_params["source_url"] = source_url
+        if "source_hash" in casp_columns:
+            insert_columns.append("source_hash")
+            insert_values.append(":source_hash")
+            insert_params["source_hash"] = source_hash
+        if "capture_date" in casp_columns:
+            insert_columns.append("capture_date")
+            insert_values.append(":capture_date")
+            insert_params["capture_date"] = date.today().isoformat()
+        if "verified" in casp_columns:
+            insert_columns.append("verified")
+            insert_values.append("true")
+        if "completeness" in casp_columns:
+            insert_columns.append("completeness")
+            insert_values.append("'completa'")
         db.execute(
             text(
-                """
-                INSERT INTO casp (name, registration_number, home_member_state,
-                                  passport_active, services_offered, status)
-                VALUES (:name, :registration_number, :home_member_state,
-                        :passport_active, :services_offered, :status)
+                f"""
+                INSERT INTO casp ({', '.join(insert_columns)})
+                VALUES ({', '.join(insert_values)})
                 """
             ),
-            {**casp, "services_offered": services_json},
+            insert_params,
         )
 
 
@@ -161,14 +210,14 @@ def run_once() -> None:
     synced = 0
 
     try:
-        casps_raw, source_url = fetch_esma_casp()
+        casps_raw, source_url, source_hash = fetch_esma_casp()
         with engine.begin() as conn:
             for raw in casps_raw:
                 normalized = normalize_casp(raw)
                 if not normalized["name"] or not normalized["registration_number"]:
                     logger.warning("Skipping CASP entry with empty name: %s", raw)
                     continue
-                upsert_casp(conn, normalized)
+                upsert_casp(conn, normalized, source_url, source_hash)
                 synced += 1
             _ensure_sync_log_table(conn)
             log_sync(
