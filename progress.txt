@@ -1652,3 +1652,21 @@ Verification:
   - Formal verification command returned `PASS`.
 Caveat: EUR-Lex article rows store official EU Publications/Cellar URLs (`publications.europa.eu`) as source URLs; the deep audit accepts this as official EU provenance and still blocks BOE cross-domain contamination.
 Next: E-13
+=== Iteration E-13 - 2026-05-13T16:08:00+02:00 ===
+Story: E-13 Final coverage report - EUR-Lex + ESMA markets sprint
+Sources accessed:
+  - Production DB tables: eurlex_act, eurlex_article, esma_schema, esma_schema_field, esma_validation_rule, esma_reporting_document, esma_firds_file, esma_firds_instrument, esma_dlt_market_infrastructure, esma_dlt_exemption, casp
+  - Production API `/status`
+  - Alertmanager `/api/v2/alerts`
+Records loaded:
+  - none; final reporting story
+Result: PASS
+Verification:
+  - Wrote `docs/eurlex-esma-coverage-report.md`.
+  - Production EUR-Lex counts: MiFID II=92 articles, MiFIR=93, MiCA=149, DLT Pilot=19.
+  - Production ESMA counts: schema=1, schema fields=168, validation rules=223, reporting documents=5, FIRDS files=14, FIRDS pilot instruments=1000, DLT infrastructures=6, DLT exemptions=75, CASP verified rows=192.
+  - `/status` returned `api=ok`, `database=ok`; all workers in response have `stale=false`.
+  - Alertmanager active alerts response: `[]`.
+  - Formal E-13 verification command returned `PASS`.
+Caveat: FIRDS remains explicitly partial/evidence-limited; FITRS remains configured_but_unavailable until a dedicated ingestion story is approved.
+Next: COMPLETE

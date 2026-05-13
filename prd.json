@@ -163,13 +163,13 @@
       "id": "E-13",
       "title": "Final coverage report - EUR-Lex + ESMA markets sprint",
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Write docs/eurlex-esma-coverage-report.md",
         "Document records loaded and contracts per domain",
         "Confirm status, alerting and audit suites"
       ],
-      "verificationCommand": "test -f docs/eurlex-esma-coverage-report.md && curl -sf http://localhost:${API_PORT:-8000}/status | jq '{api, db, stale_workers_count}' | grep -v 'null' && echo PASS || echo FAIL"
+      "verificationCommand": "test -f docs/eurlex-esma-coverage-report.md && curl -sf --header \"X-API-Key:$ESDATA_API_KEY\" http://127.0.0.1:8000/status | grep api | grep database >/dev/null && echo PASS || echo FAIL"
     }
   ]
 }

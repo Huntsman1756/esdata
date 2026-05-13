@@ -6369,3 +6369,39 @@ En orden de impacto real:
 **Caveat:** EUR-Lex usa URLs oficiales Cellar de `publications.europa.eu` en varios registros; se consideran fuente oficial EU, no contaminacion de dominio.
 
 **Siguiente paso:** E-13 informe final de cobertura EUR-Lex/ESMA markets y verificacion final.
+
+---
+
+## Reclamo 2026-05-13 - E-13 Informe final EUR-Lex/ESMA markets
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `docs/eurlex-esma-coverage-report.md`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cerrar el sprint con un informe de cobertura, contratos por dominio y verificacion final de estado.
+
+**Resultado:**
+- Informe final creado en `docs/eurlex-esma-coverage-report.md`.
+- Cobertura autoritativa documentada:
+  - MiFID II `32014L0065`: 92 articulos.
+  - MiFIR `32014R0600`: 93 articulos.
+  - MiCA `32023R1114`: 149 articulos.
+  - DLT Pilot `32022R0858`: 19 articulos.
+  - ESMA transaction reporting XSD: 1 schema, 168 fields.
+  - ESMA validation rules: 223 reglas estructuradas.
+  - ESMA DLT register: 6 infraestructuras y 75 exenciones.
+  - ESMA CASP register: 192 filas verificadas.
+- Cobertura parcial documentada:
+  - FIRDS: 14 ficheros DLTINS y 1000 instrumentos piloto, `evidence_limited`.
+  - FITRS: `configured_but_unavailable`.
+
+**Pruebas ejecutadas:**
+- SQL VPS de conteos finales por tabla/dominio.
+- `/status`: `api=ok`, `database=ok`, workers sin `stale=true`.
+- Alertmanager: `/api/v2/alerts` devolvio `[]`.
+- E-12 suites finales seguian en verde: `mcp_validation_suite` y `mcp_deep_contract_audit` con `"ok": true`.
+- Verification E-13 => `PASS`.
+
+**Caveat:** no hay full FIRDS/FULINS ni FITRS completo; quedan explicitamente fuera del contrato autoritativo.
+
+**Siguiente paso:** sprint completo; no quedan historias pendientes en `prd.json`.
