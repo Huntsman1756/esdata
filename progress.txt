@@ -1029,3 +1029,15 @@ Evidence:
 Accepted risks:
   - none.
 Next: COMPLETE
+=== Iteration P-01 - 2026-05-13T06:45:03+02:00 ===
+Story: P-01 Audit: inventory all DDL statements in boe_modelos_worker.py and other workers
+Result: PASS
+Evidence:
+  - Runtime DDL scan executed over apps/workers and apps/api, excluding test fixtures.
+  - Wrote docs/ddl-runtime-audit.md with 21 grouped findings: 0 RISK-DESTRUCTIVE, 15 RISK-IDEMPOTENT, 6 SAFE.
+  - Confirmed boe_modelos_worker.py still has idempotent runtime sync_log creation covered by Alembic; this is a P-03 removal candidate, not destructive DDL.
+  - Confirmed webhook_events is the highest-priority unmigrated table gap: runtime CREATE TABLE IF NOT EXISTS, no Alembic migration found, needs RLS/migration in P-03.
+  - Confirmed apps/api/services/persistence.py is production-safe: PostgreSQL path verifies governance schema and returns; DDL template remains SQLite compatibility only.
+Accepted risks:
+  - P-01 is audit-only by design; no runtime code changed in this iteration.
+Next: P-02

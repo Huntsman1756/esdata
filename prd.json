@@ -1,92 +1,126 @@
 {
-  "projectName": "esdata-worker-cadence-hardening",
-  "branchName": "fix/worker-cadence-hardening",
+  "projectName": "esdata-risk-reduction",
+  "branchName": "fix/risk-reduction",
   "userStories": [
     {
-      "id": "W-01",
-      "title": "Inventory: list every worker and its real expected cadence",
+      "id": "P-01",
+      "title": "Audit: inventory all DDL statements in boe_modelos_worker.py and other workers",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "Query sync_log for all distinct worker names ever seen",
-        "Query /status for all workers currently registered",
-        "Cross-reference with all cron entries: /etc/cron.d/, crontab -l for all users, docker-compose cron services",
-        "For each worker produce: name | trigger_type | real_cadence | current_threshold | match",
-        "Write full inventory to docs/worker-cadence-inventory.md",
-        "Flag every worker where match=NO"
+        "Grep entire codebase for runtime DDL in apps/workers and apps/api",
+        "For each hit: record file, line, statement, and whether it is idempotent",
+        "Classify each as SAFE, RISK-IDEMPOTENT, or RISK-DESTRUCTIVE",
+        "Write inventory to docs/ddl-runtime-audit.md",
+        "Do not change runtime code in this story"
       ],
-      "verificationCommand": "test -f docs/worker-cadence-inventory.md && grep -c 'NO' docs/worker-cadence-inventory.md; echo 'Above is count of mismatches - document all, fix in W-02'"
+      "verificationCommand": "test -f docs/ddl-runtime-audit.md && grep -cE 'SAFE|RISK' docs/ddl-runtime-audit.md | grep -vE '^0$' && echo PASS || echo FAIL-NO-AUDIT-DOC"
     },
     {
-      "id": "W-02",
-      "title": "Declare explicit expected_cadence_hours for every worker in config",
+      "id": "P-02",
+      "title": "Move RISK-DESTRUCTIVE DDL from workers to Alembic migrations",
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Locate where worker stale thresholds are defined",
-        "For each worker flagged match=NO in W-01: update its threshold to match real cadence",
-        "Add a comment per worker with real schedule",
-        "No worker should use a generic default threshold if its real schedule is known",
-        "After fix: /status stale_workers_count must be 0",
-        "Prometheus WorkerSilent alert rule must reference per-worker thresholds via exported status"
+        "From P-01 inventory: take all RISK-DESTRUCTIVE entries",
+        "Create reviewed Alembic migrations for current schema state",
+        "Run migrations on a test DB before production",
+        "Remove destructive runtime DDL and replace with startup assertions"
       ],
-      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.stale_workers_count' | grep '^0$' && echo PASS || echo FAIL-STALE-WORKERS-NONZERO"
+      "verificationCommand": "grep -rn 'CREATE TABLE\\|ALTER TABLE\\|DROP TABLE' apps/workers/boe_modelos_worker.py 2>/dev/null | grep -v '# ' | wc -l | grep '^0$' && alembic history | head -5 && echo PASS || echo FAIL-DDL-STILL-IN-WORKER"
     },
     {
-      "id": "W-03",
-      "title": "Write automated cadence test - catches misconfiguration at deploy time",
+      "id": "P-03",
+      "title": "Move RISK-IDEMPOTENT DDL to Alembic - remove all runtime schema changes from workers",
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Create apps/api/tests/test_worker_cadence.py",
-        "Every worker in cadence config has explicit expected_cadence_hours > 0",
-        "expected_cadence_hours matches cron schedule in infra/",
-        "stale threshold is >= expected_cadence_hours * 1.5",
-        "No worker uses 0 or None cadence",
-        "Test fails if cadence config is missing any active worker"
+        "From P-01 inventory: take all RISK-IDEMPOTENT entries",
+        "Workers only read and write data; no schema mutation",
+        "All schema is owned by Alembic exclusively",
+        "Run full test suite after changes"
       ],
-      "verificationCommand": "pytest apps/api/tests/test_worker_cadence.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "verificationCommand": "grep -rn 'CREATE TABLE\\|ALTER TABLE\\|DROP TABLE\\|ADD COLUMN\\|DROP COLUMN\\|CREATE INDEX' apps/workers/ apps/api/ | grep -v '.pyc' | grep -v 'test_' | grep -v '# ' | grep -v 'alembic' | wc -l | grep '^0$' && pytest apps/ -q 2>&1 | tail -5 | grep -E 'passed' && echo PASS || echo FAIL"
     },
     {
-      "id": "W-04",
-      "title": "Add new worker registration gate - new workers must declare cadence or fail deploy",
+      "id": "P-04",
+      "title": "Schedule mcp_deep_contract_audit.py in weekly cron alongside accuracy check",
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "In worker bootstrap or /status handler, unknown worker cadence logs a warning",
-        "CI cadence test must pass before deploy",
-        "scripts/weekly-accuracy-check.sh verifies no worker is missing cadence declaration",
-        "New workers added without cadence declaration fail loudly"
+        "Verify scripts/mcp_deep_contract_audit.py runs cleanly",
+        "Add it to scripts/weekly-accuracy-check.sh after mcp_validation_suite",
+        "Ensure cron invokes the weekly check with audit output",
+        "Test-run weekly accuracy check"
       ],
-      "verificationCommand": "bash scripts/weekly-accuracy-check.sh 2>&1 | grep -i 'cadence\\|stale\\|worker' | tail -10 && echo PASS"
+      "verificationCommand": "bash scripts/weekly-accuracy-check.sh 2>&1 | grep -i 'deep.*audit\\|contract.*audit' && echo PASS || echo FAIL-DEEP-AUDIT-NOT-IN-WEEKLY"
     },
     {
-      "id": "W-05",
-      "title": "Verify Alertmanager silence rules are clean after threshold corrections",
+      "id": "P-05",
+      "title": "Extend freshness check to all 11 pending domains",
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Check Alertmanager for active silences",
-        "Delete any silence created as a workaround for threshold mismatch after W-02",
-        "After cleanup: 0 active silences unless documented",
-        "Document retained silences in docs/alertmanager-silences.md"
+        "Add freshness checks for BORME, DGT/TEAC, AEPD, BDE, BDNS, SEPBLAC, CENDOJ, FATCA/GIIN, OFAC, CDI, PGC",
+        "Use domain-specific stale thresholds",
+        "Inactive domains with no sync_log rows log INFO, not STALE",
+        "weekly-accuracy-check.sh covers all target domains"
       ],
-      "verificationCommand": "curl -sf http://localhost:9093/api/v2/silences | jq '[.[] | select(.status.state==\"active\")] | length' | grep '^0$' && echo PASS || echo 'FAIL or document retained silences'"
+      "verificationCommand": "grep -c 'worker-' scripts/weekly-accuracy-check.sh | awk '{print ($1 >= 11) ? \"PASS\" : \"FAIL-NOT-ALL-DOMAINS-COVERED\"}'"
     },
     {
-      "id": "W-06",
-      "title": "Final verification - 0 false positives across full weekly cycle simulation",
+      "id": "P-06",
+      "title": "Configure offsite immutable backup - second provider, 30-day retention",
       "priority": 6,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Simulate all workers running on declared schedule",
-        "Run mcp_validation_suite.py and require ok=true",
-        "Check Alertmanager: 0 FIRING, 0 active silences unless documented",
-        "/status: stale_workers_count=0",
-        "Run test_worker_cadence.py",
-        "Write final summary to progress.txt"
+        "Choose a second provider outside the VPS provider",
+        "Create scripts/backup-offsite.sh",
+        "Upload, verify remote size, prune older than 30 days",
+        "No credentials stored in repo"
       ],
-      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '{stale_workers_count, api, db}' | grep -q '\"stale_workers_count\": 0' && pytest apps/api/tests/test_worker_cadence.py -q 2>&1 | grep -E 'passed' && echo PASS || echo FAIL"
+      "verificationCommand": "bash scripts/backup-offsite.sh && echo PASS || echo FAIL-BACKUP-SCRIPT-ERROR"
+    },
+    {
+      "id": "P-07",
+      "title": "Test offsite backup restore - not just upload existence",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Download most recent offsite backup",
+        "Restore to esdata_offsite_test, never production",
+        "Verify key row counts",
+        "Drop test DB after verification and document evidence"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -tAc 'SELECT COUNT(*) FROM aeat_modelo' esdata_offsite_test 2>/dev/null | grep -vE '^[0-9]$' && echo PASS || echo 'FAIL or test DB not found'"
+    },
+    {
+      "id": "P-08",
+      "title": "Add backup offsite status to /status and weekly accuracy check",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Add last_offsite_backup_age_hours to /status",
+        "weekly-accuracy-check.sh fails if backup is stale",
+        "backup-offsite.sh writes last successful timestamp",
+        "/status shows backup freshness alongside api/db/stale workers"
+      ],
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.last_offsite_backup_age_hours' | grep -vE '^null$' && echo PASS || echo FAIL-BACKUP-STATUS-NOT-IN-STATUS-ENDPOINT"
+    },
+    {
+      "id": "P-09",
+      "title": "Final verification - all risk items closed, tests green, system clean",
+      "priority": 9,
+      "passes": false,
+      "acceptanceCriteria": [
+        "0 runtime DDL in workers",
+        "Deep contract audit scheduled",
+        "Freshness covers all target domains",
+        "Offsite backup status is exposed",
+        "Tests and mcp_validation_suite are green",
+        "Write docs/risk-reduction-report.md"
+      ],
+      "verificationCommand": "pytest apps/ -q 2>&1 | tail -3 | grep -E 'passed' && curl -sf http://localhost:${API_PORT:-8000}/status | jq '{api, db, stale_workers_count, last_offsite_backup_age_hours}' | grep -v 'null' && echo PASS || echo FAIL"
     }
   ]
 }
