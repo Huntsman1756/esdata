@@ -47,7 +47,7 @@
       "id": "E-03",
       "title": "Load EUR-Lex MiCA full articulado - CELEX 32023R1114",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Download official EUR-Lex MiCA text",
         "Parse articles and recitals safely",

@@ -1432,3 +1432,24 @@ Verification:
   - `sync_log`: `worker-eurlex-market status=ok articulos_upserted=93`.
 Caveat: E-02 loads data only. Dedicated `/v1/eurlex/market/...` endpoints are still scheduled for E-11.
 Next: E-03
+=== Iteration E-03 - 2026-05-13T16:40:00+02:00 ===
+Story: E-03 Load EUR-Lex MiCA full articulado - CELEX 32023R1114
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/ES/TXT/XML/?uri=CELEX:32023R1114
+  - http://publications.europa.eu/resource/celex/32023R1114
+  - http://publications.europa.eu/resource/consolidation/2023R1114%2F20240109_0010030.SPA.xhtml.CL2023R1114ES0010030.0001.html
+Records loaded:
+  - eurlex_act=1 for CELEX 32023R1114
+  - eurlex_article=149 for CELEX 32023R1114
+Source hashes:
+  - MiCA consolidated HTML: MD5 stored in `eurlex_act.source_hash` and every article row.
+Result: PASS
+Verification:
+  - Local parser probe: CELEX 32023R1114 returned 149 article blocks from official Publications Office consolidation.
+  - VPS worker run: `[run-once] EUR-Lex market: acts=1 articles=149`.
+  - SQL production: `32023R1114 verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: `eurlex_article` count for MiCA = 149.
+  - SQL production: article 1 contains real text beginning `Objeto`.
+  - `sync_log`: latest `worker-eurlex-market status=ok articulos_upserted=149`.
+Caveat: E-03 loads MiCA legal text. CASP register hardening remains E-09 and dedicated API endpoints remain E-11.
+Next: E-04
