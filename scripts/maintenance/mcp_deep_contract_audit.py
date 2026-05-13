@@ -325,18 +325,20 @@ def audit_domain_availability(base_url: str, registry: dict[str, Any]) -> CheckR
 
 
 def _mcp_session(client: httpx.Client) -> tuple[str | None, dict[str, Any]]:
-    handshake = _request_with_retry(
-        client,
+    # /mcp opens an SSE stream; read headers only and close immediately.
+    with client.stream(
         "GET",
         "/mcp",
         headers={"Accept": "text/event-stream", **_mcp_headers()},
-    )
-    session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get("Mcp-Session-Id")
-    details = {
-        "handshake_status_code": handshake.status_code,
-        "has_session_id": bool(session_id),
-    }
-    return session_id, details
+    ) as handshake:
+        session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get(
+            "Mcp-Session-Id"
+        )
+        details = {
+            "handshake_status_code": handshake.status_code,
+            "has_session_id": bool(session_id),
+        }
+        return session_id, details
 
 
 def audit_mcp_tools(base_url: str) -> CheckResult:
