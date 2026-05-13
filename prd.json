@@ -59,7 +59,7 @@
       "id": "E-04",
       "title": "Load EUR-Lex DLT Pilot Regulation - CELEX 32022R0858",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Download official EUR-Lex DLT Pilot text",
         "Parse articles into dedicated EUR-Lex market tables",

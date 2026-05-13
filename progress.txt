@@ -1453,3 +1453,26 @@ Verification:
   - `sync_log`: latest `worker-eurlex-market status=ok articulos_upserted=149`.
 Caveat: E-03 loads MiCA legal text. CASP register hardening remains E-09 and dedicated API endpoints remain E-11.
 Next: E-04
+=== Iteration E-04 - 2026-05-13T14:20:00+02:00 ===
+Story: E-04 Load EUR-Lex DLT Pilot Regulation - CELEX 32022R0858
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/ES/TXT/XML/?uri=CELEX:32022R0858
+  - http://publications.europa.eu/resource/celex/32022R0858
+  - http://publications.europa.eu/resource/oj/JOL_2022_151_R_0001.SPA
+  - http://publications.europa.eu/resource/cellar/b563a601-e245-11ec-a534-01aa75ed71a1.0023.03/DOC_1
+Records loaded:
+  - eurlex_act=1 for CELEX 32022R0858
+  - eurlex_article=19 for CELEX 32022R0858
+Source hashes:
+  - DLT Pilot Spanish Official Journal HTML: MD5 stored in `eurlex_act.source_hash` and every article row.
+Result: PASS
+Verification:
+  - Local parser probe first caught and fixed a wrong-candidate risk: CELEX 32022R0858 RDF also links CSDR 2014R0909 consolidations, so the loader now filters candidates by CELEX token.
+  - Local parser probe: CELEX 32022R0858 returned 19 Spanish article blocks from the official DOUE/OJ expression.
+  - VPS worker run: `[run-once] EUR-Lex market: acts=1 articles=19`.
+  - SQL production: `32022R0858 verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: `eurlex_article` count for DLT Pilot = 19.
+  - SQL production: article 1 contains real Spanish text beginning `El presente Reglamento establece los requisitos aplicables...`.
+  - Formal verification: `DLT Pilot articles: 19` => `PASS`.
+Caveat: EUR-Lex Spanish consolidation manifestation returned 404 for this act, so E-04 loaded the official Spanish DOUE/OJ text (`JOL_2022_151_R_0001.SPA`). Dedicated API endpoints remain E-11.
+Next: E-05

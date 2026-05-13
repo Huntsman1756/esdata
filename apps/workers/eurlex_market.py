@@ -91,6 +91,40 @@ def _date_or_none(value: str | None) -> date | None:
     return date.fromisoformat(value)
 
 
+def _consolidation_token(celex: str) -> str:
+    """Return the Publications Office consolidation token for a CELEX act."""
+
+    return celex[1:] if len(celex) > 1 and celex[0].isdigit() else celex
+
+
+def _candidate_belongs_to_act(manifestation_url: str, celex: str) -> bool:
+    token = _consolidation_token(celex)
+    return f"/resource/consolidation/{token}%2F" in manifestation_url
+
+
+def _manifestation_url_variants(manifestation_url: str) -> list[str]:
+    """Return official manifestation URL variants in preferred order."""
+
+    return [manifestation_url]
+
+
+def _extract_spanish_oj_expression_urls(rdf_text: str) -> list[str]:
+    root = _parse_rdf(rdf_text)
+    candidates: list[str] = []
+    for elem in root.iter():
+        for value in elem.attrib.values():
+            resource = value.strip()
+            if "/resource/oj/" in resource and resource.endswith(".SPA"):
+                candidates.append(resource)
+    return sorted(set(candidates))
+
+
+def _parse_rdf(rdf_text: str):
+    import xml.etree.ElementTree as ET
+
+    return ET.fromstring(rdf_text)  # noqa: S314
+
+
 def _discover_manifestation_urls(client: httpx.Client, celex: str) -> list[str]:
     notice_response = client.get(
         f"{EURLEX_BASE}/legal-content/ES/TXT/XML/?uri=CELEX:{celex}",
@@ -106,7 +140,7 @@ def _discover_manifestation_urls(client: httpx.Client, celex: str) -> list[str]:
         else []
     )
     if manifestation_urls:
-        return manifestation_urls
+        return [url for url in manifestation_urls if _candidate_belongs_to_act(url, celex)]
 
     celex_response = client.get(
         f"http://publications.europa.eu/resource/celex/{celex}",
@@ -115,7 +149,39 @@ def _discover_manifestation_urls(client: httpx.Client, celex: str) -> list[str]:
         timeout=30.0,
     )
     celex_response.raise_for_status()
-    return _extract_consolidation_manifestation_urls_from_celex_rdf(celex_response.text)
+    return [
+        url
+        for url in _extract_consolidation_manifestation_urls_from_celex_rdf(celex_response.text)
+        if _candidate_belongs_to_act(url, celex)
+    ]
+
+
+def _download_original_oj_act(client: httpx.Client, act: MarketAct) -> DownloadedAct | None:
+    """Download the Spanish Official Journal text when no ES consolidation exists."""
+
+    celex_response = client.get(
+        f"http://publications.europa.eu/resource/celex/{act.celex}",
+        headers={"Accept": OFFICIAL_RDF_ACCEPT},
+        follow_redirects=True,
+        timeout=30.0,
+    )
+    celex_response.raise_for_status()
+    for oj_url in _extract_spanish_oj_expression_urls(celex_response.text):
+        html_response = client.get(
+            oj_url,
+            headers={"Accept": "text/html, application/xhtml+xml"},
+            follow_redirects=True,
+            timeout=60.0,
+        )
+        html_response.raise_for_status()
+        return DownloadedAct(
+            act=act,
+            source_url=str(html_response.url),
+            source_hash=hashlib.md5(html_response.content).hexdigest(),
+            vigente_desde=act.fecha_publicacion or "",
+            html=html_response.content.decode("utf-8", errors="replace"),
+        )
+    return None
 
 
 def download_market_act(act: MarketAct) -> DownloadedAct:
@@ -124,44 +190,93 @@ def download_market_act(act: MarketAct) -> DownloadedAct:
     with httpx.Client(timeout=60.0, follow_redirects=True) as client:
         last_error: Exception | None = None
         for manifestation_url in _discover_manifestation_urls(client, act.celex):
-            try:
-                manifestation = client.get(
-                    manifestation_url,
-                    headers={"Accept": OFFICIAL_RDF_ACCEPT},
-                    follow_redirects=True,
-                    timeout=30.0,
-                )
-                manifestation.raise_for_status()
-                item_url = _extract_consolidation_item_url(manifestation.text)
-                if not item_url:
-                    continue
+            for variant_url in _manifestation_url_variants(manifestation_url):
+                try:
+                    manifestation = client.get(
+                        variant_url,
+                        headers={"Accept": OFFICIAL_RDF_ACCEPT},
+                        follow_redirects=True,
+                        timeout=30.0,
+                    )
+                    manifestation.raise_for_status()
+                    item_url = _extract_consolidation_item_url(manifestation.text) or variant_url
 
-                html_response = client.get(
-                    item_url,
-                    headers={"Accept": "text/html, application/xhtml+xml"},
-                    follow_redirects=True,
-                    timeout=60.0,
-                )
-                html_response.raise_for_status()
-                source_hash = hashlib.md5(html_response.content).hexdigest()
-                vigente_desde = manifestation_url.rstrip("/").split("/")[-2]
-                if len(vigente_desde) == 8 and vigente_desde.isdigit():
-                    vigente_desde = f"{vigente_desde[:4]}-{vigente_desde[4:6]}-{vigente_desde[6:8]}"
-                else:
-                    vigente_desde = ""
-                return DownloadedAct(
-                    act=act,
-                    source_url=item_url,
-                    source_hash=source_hash,
-                    vigente_desde=vigente_desde,
-                    html=html_response.text,
-                )
-            except Exception as exc:
-                last_error = exc
-                continue
+                    html_response = client.get(
+                        item_url,
+                        headers={"Accept": "text/html, application/xhtml+xml"},
+                        follow_redirects=True,
+                        timeout=60.0,
+                    )
+                    html_response.raise_for_status()
+                    source_hash = hashlib.md5(html_response.content).hexdigest()
+                    vigente_desde = manifestation_url.rstrip("/").split("/")[-2]
+                    if len(vigente_desde) == 8 and vigente_desde.isdigit():
+                        vigente_desde = f"{vigente_desde[:4]}-{vigente_desde[4:6]}-{vigente_desde[6:8]}"
+                    else:
+                        vigente_desde = ""
+                    return DownloadedAct(
+                        act=act,
+                        source_url=str(html_response.url),
+                        source_hash=source_hash,
+                        vigente_desde=vigente_desde,
+                        html=html_response.text,
+                    )
+                except Exception as exc:
+                    last_error = exc
+                    continue
+        original_oj = _download_original_oj_act(client, act)
+        if original_oj is not None:
+            return original_oj
         if last_error is not None:
             raise last_error
     raise RuntimeError(f"No official consolidated manifestation found for CELEX {act.celex}")
+
+
+def _normalized_bs4_text(node) -> str:
+    from html import unescape
+
+    return " ".join(unescape(node.get_text(" ", strip=True)).split())
+
+
+def _parse_official_oj_html(download: DownloadedAct) -> list[dict]:
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return []
+
+    soup = BeautifulSoup(download.html, "html.parser")
+    articles: list[dict] = []
+    for heading in soup.select("div.eli-subdivision > p.oj-ti-art"):
+        parent = heading.parent
+        if parent is None:
+            continue
+        title_text = _normalized_bs4_text(heading)
+        if not title_text.startswith("Artículo"):
+            continue
+        numero = title_text.replace("Artículo", "", 1).strip()
+        title_node = parent.select_one("div.eli-title p.oj-sti-art")
+        titulo = _normalized_bs4_text(title_node) if title_node else title_text
+        paragraphs: list[str] = []
+        for node in parent.find_all("p"):
+            classes = set(node.get("class") or [])
+            if "oj-ti-art" in classes or "oj-sti-art" in classes:
+                continue
+            text_value = _normalized_bs4_text(node)
+            if text_value:
+                paragraphs.append(text_value)
+        texto = " ".join(paragraphs).strip()
+        if numero and texto:
+            articles.append(
+                {
+                    "numero": numero,
+                    "titulo": titulo,
+                    "texto": texto,
+                    "url_eurlex": download.source_url,
+                    "source_hash": download.source_hash,
+                    "capture_date": date.today().isoformat(),
+                }
+            )
+    return articles
 
 
 def parse_articles(download: DownloadedAct) -> list[dict]:
@@ -184,6 +299,8 @@ def parse_articles(download: DownloadedAct) -> list[dict]:
         for block in blocks
         if block.tipo_articulo == "articulo" and block.numero and block.texto.strip()
     ]
+    if not articles:
+        articles = _parse_official_oj_html(download)
     if not articles:
         raise RuntimeError(f"Official EUR-Lex parse returned zero articles for {download.act.celex}")
     return articles
@@ -311,7 +428,7 @@ def main() -> None:
     args = parser.parse_args()
 
     init_sentry("eurlex_market")
-    selected = [_celex.upper() for _celex in args.celex] if args.celex else None
+    selected = [_celex.strip().upper() for _celex in args.celex] if args.celex else None
     interval = args.interval or SYNC_INTERVAL_SECONDS
 
     if args.run_once:

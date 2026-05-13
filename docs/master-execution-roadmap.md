@@ -6156,3 +6156,27 @@ En orden de impacto real:
 - API spot-check: 196 y 290 devuelven conteos correctos y contrato parcial.
 
 **Siguiente paso:** D-13 informe final de cobertura documental y validaciones MCP.
+
+---
+
+## Reclamo 2026-05-13 - E-04 DLT Pilot EUR-Lex cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/eurlex_market.py`, `apps/workers/tests/test_eurlex_market.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar el articulado oficial del Reglamento DLT Pilot `CELEX 32022R0858` en las tablas dedicadas `eurlex_act` y `eurlex_article`.
+
+**Resultado:**
+- El loader filtra las manifestaciones de Publications Office por token CELEX para no aceptar consolidaciones de actos modificados (`2014R0909`) como si fueran `32022R0858`.
+- Para DLT Pilot, EUR-Lex no expone una manifestacion consolidada espanola valida (`.SPA.xhtml` devuelve 404), asi que se usa la expresion oficial espanola del DOUE `JOL_2022_151_R_0001.SPA`.
+- Produccion tiene `32022R0858` con `verified=true`, `completeness=completa`, `source_hash` MD5 y `capture_date=2026-05-13`.
+- `eurlex_article` contiene `19` articulos oficiales en espanol para DLT Pilot.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_eurlex_market.py -q`
+- Probe local: `32022R0858` devuelve `19` articulos desde `http://publications.europa.eu/resource/cellar/b563a601-e245-11ec-a534-01aa75ed71a1.0023.03/DOC_1`.
+- VPS worker: `[run-once] EUR-Lex market: acts=1 articles=19`.
+- VPS SQL: `DLT Pilot articles: 19` => `PASS`.
+
+**Siguiente paso:** E-05 cargar el XML Schema oficial ESMA MiFIR Transaction Reporting 1.1.0.
