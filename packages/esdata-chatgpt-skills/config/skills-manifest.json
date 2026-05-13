@@ -1,0 +1,68 @@
+{
+  "package": "esdata-chatgpt-skills",
+  "version": "1.0.0",
+  "purpose": "Skills for using ESData MCP as an official evidence layer while keeping reasoning, workflow, and human review gates outside the MCP core.",
+  "source_policy": {
+    "mcp_core": "Only official, loaded, traceable ESData evidence may support authoritative claims.",
+    "skills": "Skills provide workflow, cold-start questions, output structure, and human review gates. They are not legal or tax authority.",
+    "search_discovery": "SearXNG or web search may only create discovery candidates. A worker must verify and load candidates before use as evidence."
+  },
+  "recommended_install_order": [
+    "esdata-mcp-truth-contract",
+    "esdata-tax-obligation-review",
+    "esdata-sociedad-valores-review",
+    "esdata-fatca-crs-review",
+    "esdata-regulatory-monitoring",
+    "esdata-kyc-aml-review"
+  ],
+  "skills": [
+    {
+      "name": "esdata-mcp-truth-contract",
+      "zip": "../zips/esdata-mcp-truth-contract.zip",
+      "use_for": "Global evidence/reasoning separation and verified/completeness handling."
+    },
+    {
+      "name": "esdata-tax-obligation-review",
+      "zip": "../zips/esdata-tax-obligation-review.zip",
+      "use_for": "Spanish AEAT model, casilla, and tax obligation analysis."
+    },
+    {
+      "name": "esdata-sociedad-valores-review",
+      "zip": "../zips/esdata-sociedad-valores-review.zip",
+      "use_for": "Sociedad de valores resident/non-resident, CNMV, MiFID, AEAT, FATCA/CRS questions."
+    },
+    {
+      "name": "esdata-fatca-crs-review",
+      "zip": "../zips/esdata-fatca-crs-review.zip",
+      "use_for": "FATCA/CRS/Modelos 289/290 evidence-limited workflows."
+    },
+    {
+      "name": "esdata-regulatory-monitoring",
+      "zip": "../zips/esdata-regulatory-monitoring.zip",
+      "use_for": "Regulatory digest, source monitoring, verified changes and discovery staging."
+    },
+    {
+      "name": "esdata-kyc-aml-review",
+      "zip": "../zips/esdata-kyc-aml-review.zip",
+      "use_for": "KYC/AML onboarding triage with ESData evidence and compliance review gates."
+    }
+  ],
+  "reference_repos_reviewed": [
+    "https://github.com/anthropics/claude-for-legal",
+    "https://github.com/anthropics/financial-services",
+    "https://github.com/searxng/searxng"
+  ],
+  "adapted_patterns": [
+    "human review gate before legal, tax, filing, reporting, or client-facing reliance",
+    "cold-start context gathering before applicability conclusions",
+    "draft subject to professional review",
+    "rules-grid KYC workflow",
+    "regulatory feed digest with verified/discovery separation"
+  ],
+  "not_adapted": [
+    "external corpus as authority",
+    "SearXNG results as direct evidence",
+    "vendor-specific paid financial data connectors",
+    "Claude-specific plugin runtime assumptions"
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ESData Sociedad Valores"
+  short_description: "Sociedad de valores regulatory review"
+  default_prompt: "Use $esdata-sociedad-valores-review to analyze a sociedad de valores compliance question with ESData."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ESData KYC AML Review"
+  short_description: "KYC/AML checklist with ESData evidence"
+  default_prompt: "Use $esdata-kyc-aml-review to triage KYC/AML gaps with evidence and human review gates."

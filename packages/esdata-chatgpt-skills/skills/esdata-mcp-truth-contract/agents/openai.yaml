@@ -1,0 +1,4 @@
+interface:
+  display_name: "ESData Truth Contract"
+  short_description: "Use ESData verified/completeness contracts"
+  default_prompt: "Use $esdata-mcp-truth-contract to separate ESData evidence from agent reasoning."
