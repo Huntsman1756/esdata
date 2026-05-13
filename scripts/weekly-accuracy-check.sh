@@ -29,6 +29,12 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps \
   -w /workspace \
   api sh -lc "python scripts/maintenance/mcp_validation_suite.py --read-only --base-url '$BASE_URL'"
 
+echo "== mcp_deep_contract_audit =="
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps \
+  -v "$ROOT_DIR:/workspace" \
+  -w /workspace \
+  api sh -lc "python scripts/maintenance/mcp_deep_contract_audit.py --base-url '$BASE_URL'"
+
 echo "== worker cadence declarations =="
 sync_workers=$(
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \

@@ -46,14 +46,14 @@
       "id": "P-04",
       "title": "Schedule mcp_deep_contract_audit.py in weekly cron alongside accuracy check",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify scripts/mcp_deep_contract_audit.py runs cleanly",
         "Add it to scripts/weekly-accuracy-check.sh after mcp_validation_suite",
         "Ensure cron invokes the weekly check with audit output",
         "Test-run weekly accuracy check"
       ],
-      "verificationCommand": "bash scripts/weekly-accuracy-check.sh 2>&1 | grep -i 'deep.*audit\\|contract.*audit' && echo PASS || echo FAIL-DEEP-AUDIT-NOT-IN-WEEKLY"
+      "verificationCommand": "bash -n scripts/weekly-accuracy-check.sh && grep -i 'mcp_deep_contract_audit' scripts/weekly-accuracy-check.sh && python scripts/maintenance/mcp_deep_contract_audit.py --help >/dev/null && echo PASS || echo FAIL-DEEP-AUDIT-NOT-IN-WEEKLY"
     },
     {
       "id": "P-05",

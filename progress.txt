@@ -1071,3 +1071,14 @@ Accepted risks:
   - apps/api/services/persistence.py still contains SQLite compatibility DDL templates, but its PostgreSQL path verifies schema and returns without runtime DDL.
   - boe.py/change_detection.py/dgt.py/eurlex.py retain SQLite-only compatibility helpers documented as non-production.
 Next: P-04
+=== Iteration P-04 - 2026-05-13T07:05:17+02:00 ===
+Story: P-04 Schedule mcp_deep_contract_audit.py in weekly cron alongside accuracy check
+Result: PASS-WITH-CAVEAT
+Evidence:
+  - scripts/weekly-accuracy-check.sh now runs scripts/maintenance/mcp_deep_contract_audit.py immediately after mcp_validation_suite inside the API container.
+  - Local syntax verification passed: bash -n scripts/weekly-accuracy-check.sh.
+  - Local contract audit CLI is present and parses arguments: python scripts/maintenance/mcp_deep_contract_audit.py --help.
+  - Verification grep confirms mcp_deep_contract_audit is wired into weekly-accuracy-check.sh.
+Accepted risks:
+  - Full VPS cron execution was not run in this iteration because current SSH access to deploy@212.227.227.64 is denied by publickey. The existing cron invokes weekly-accuracy-check.sh, so the deployed script will run the deep audit after sync.
+Next: P-05
