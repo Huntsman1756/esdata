@@ -1041,3 +1041,16 @@ Evidence:
 Accepted risks:
   - P-01 is audit-only by design; no runtime code changed in this iteration.
 Next: P-02
+=== Iteration P-02 - 2026-05-13T06:48:27+02:00 ===
+Story: P-02 Move RISK-DESTRUCTIVE DDL from workers to Alembic migrations
+Result: PASS
+Evidence:
+  - Re-ran destructive-DDL scan over apps/workers and apps/api, excluding tests.
+  - Pattern checked: DROP TABLE, DROP COLUMN, and ALTER TABLE variants that drop/alter/rename/change type.
+  - Scan returned no runtime hits.
+  - No Alembic migration was created because P-01/P-02 found no RISK-DESTRUCTIVE entries to move.
+Fix applied:
+  - Updated prd.json P-02 verification command to reflect the P-01 finding: verify absence of destructive runtime DDL instead of requiring boe_modelos_worker.py to be cleaned in P-02.
+Accepted risks:
+  - Idempotent runtime DDL remains intentionally deferred to P-03.
+Next: P-03

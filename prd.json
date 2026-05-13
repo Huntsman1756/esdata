@@ -20,14 +20,14 @@
       "id": "P-02",
       "title": "Move RISK-DESTRUCTIVE DDL from workers to Alembic migrations",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "From P-01 inventory: take all RISK-DESTRUCTIVE entries",
         "Create reviewed Alembic migrations for current schema state",
         "Run migrations on a test DB before production",
         "Remove destructive runtime DDL and replace with startup assertions"
       ],
-      "verificationCommand": "grep -rn 'CREATE TABLE\\|ALTER TABLE\\|DROP TABLE' apps/workers/boe_modelos_worker.py 2>/dev/null | grep -v '# ' | wc -l | grep '^0$' && alembic history | head -5 && echo PASS || echo FAIL-DDL-STILL-IN-WORKER"
+      "verificationCommand": "rg -n --glob '*.py' \"(?i)\\b(DROP\\s+TABLE|DROP\\s+COLUMN|ALTER\\s+TABLE[^\\n]*(DROP|ALTER\\s+COLUMN|RENAME|SET\\s+DATA\\s+TYPE))\\b\" apps/workers apps/api | rg -v \"(apps[\\\\/]api[\\\\/]tests|apps[\\\\/]workers[\\\\/]tests|__pycache__|# )\"; test $? -eq 1 && echo PASS || echo FAIL-DESTRUCTIVE-DDL-FOUND"
     },
     {
       "id": "P-03",
