@@ -5973,3 +5973,27 @@ En orden de impacto real:
 - Verificacion formal D-05: `187 casillas: 50` => `PASS`.
 
 **Siguiente paso:** D-06 Modelos 123 y 124, verificar/recargar disenos oficiales de retenciones.
+
+---
+
+## Reclamo 2026-05-13 - D-06 Modelos 123 y 124 disenos oficiales AEAT verificados
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** verificar la cobertura documental de los Modelos 123 y 124, relevantes para retenciones y rendimientos de capital mobiliario.
+
+**Resultado:**
+- Modelo 123: produccion tiene `44` campos `diseno_registro_campo` desde el XLS oficial AEAT `DR123e24.xls`.
+- Modelo 124: produccion tiene `39` campos `diseno_registro_campo` desde el XLSX oficial AEAT `124v01e2020_v1.07.xlsx`.
+- `modelo_recurso` contiene trazabilidad oficial para ambos: `tipo_recurso=diseno_registro`, URL AEAT, `row_provenance=official_exact`.
+- El contrato API sigue honesto: ambos responden `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque no se han estructurado instrucciones completas ni reglas de aplicabilidad.
+
+**Pruebas ejecutadas:**
+- Probe local contra XLS/XLSX oficiales: `123=44`, `124=39`.
+- VPS SQL: `123 casillas_total=44`, `124 casillas_total=39`.
+- API: `/v1/modelos/aeat/123` y `/v1/modelos/aeat/124` devuelven contrato parcial con conteo correcto.
+- Verificacion formal D-06: `PASS`.
+
+**Siguiente paso:** D-07 Modelo 289, revisar CRS/DAC2 y mantener contrato parcial si el XSD solo cubre mensaje tecnico.

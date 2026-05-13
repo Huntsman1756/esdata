@@ -85,7 +85,7 @@
       "id": "D-06",
       "title": "Load Modelo 123 and 124 complete designs - retenciones IS/IRPF",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Parse official 123 XLS and 124 XLSX",
         "Load deterministic fields for both models",

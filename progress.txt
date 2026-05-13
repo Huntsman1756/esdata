@@ -1213,3 +1213,20 @@ Verification:
   - API: `187 verified=false`, `completeness=parcial`, `casillas_total=50`, `evidence_status=evidence_limited`.
   - Formal verification command: `187 casillas: 50` => PASS.
 Next: D-06
+=== Iteration D-06 - 2026-05-13T13:05:00+02:00 ===
+Story: D-06 Load Modelo 123 and 124 complete designs - retenciones IS/IRPF
+Models processed: 123, 124
+Source format: XLS, XLSX design-register tables
+Fields loaded per model: no new load required; production already has 123=44 and 124=39 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_24/DR123e24.xls
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_20/124v01e2020_v1.07.xlsx
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe: `123=44` fields, `124=39` fields.
+  - SQL production: `123 casillas_total=44`, `124 casillas_total=39`, all `diseno_registro_campo`.
+  - `modelo_recurso`: both have `tipo_recurso=diseno_registro`, official AEAT URLs, `row_provenance=official_exact`.
+  - API: `123 verified=false`, `completeness=parcial`, `casillas_total=44`; `124 verified=false`, `completeness=parcial`, `casillas_total=39`.
+  - Formal verification command: `123 casillas: 44`, `124 casillas: 39` => PASS.
+Next: D-07
