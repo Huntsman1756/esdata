@@ -467,6 +467,154 @@ def audit_actions_openapi(base_url: str) -> CheckResult:
     )
 
 
+def audit_eurlex_esma_market_contracts(base_url: str) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {
+        "eurlex_articles_checked": [],
+        "esma_checks": {},
+    }
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        for celex in ("32014R0600", "32023R1114", "32022R0858"):
+            status_code, payload, text_preview = _get_json(client, f"/v1/eurlex/market/{celex}/articulos/1")
+            record = {
+                "celex": celex,
+                "status_code": status_code,
+                "verified": payload.get("verified") if payload else None,
+                "completeness": payload.get("completeness") if payload else None,
+                "quality_signal": payload.get("quality_signal") if payload else None,
+                "text_length": len((payload or {}).get("texto") or ""),
+                "source_url": (payload or {}).get("source_url"),
+            }
+            details["eurlex_articles_checked"].append(record)
+            source_url = record["source_url"] or ""
+            if status_code != 200 or not payload:
+                failures.append({"check": "eurlex_market_article", "celex": celex, "reason": "endpoint_failed", "response": text_preview})
+                continue
+            if payload.get("celex") != celex:
+                failures.append({"check": "eurlex_market_article", "celex": celex, "reason": "celex_mismatch", "payload_celex": payload.get("celex")})
+            if payload.get("verified") is not True or payload.get("completeness") != "completa":
+                failures.append({"check": "eurlex_market_article", "celex": celex, "reason": "not_authoritative_complete", "record": record})
+            if len(payload.get("texto") or "") < 100:
+                failures.append({"check": "eurlex_market_article", "celex": celex, "reason": "missing_real_text", "record": record})
+            official_eu_source = (
+                "eur-lex.europa.eu" in source_url
+                or "publications.europa.eu" in source_url
+            )
+            if not official_eu_source:
+                failures.append({"check": "eurlex_market_article", "celex": celex, "reason": "not_official_eu_sourced", "source_url": source_url})
+            if "boe.es" in source_url.lower():
+                failures.append({"check": "eurlex_market_article", "celex": celex, "reason": "cross_domain_contamination", "source_url": source_url})
+
+        market_checks = [
+            (
+                "esma_schema",
+                "/v1/esma/mifir/schemas",
+                {},
+                lambda payload: (
+                    payload.get("total", 0) >= 1
+                    and payload.get("verified") is True
+                    and payload.get("completeness") == "completa"
+                    and payload.get("quality_signal") == "official_esma_schema"
+                    and all(item.get("source_url") and item.get("source_hash") for item in payload.get("items") or [])
+                ),
+            ),
+            (
+                "esma_transaction_reporting_fields",
+                "/v1/esma/mifir/transaction-reporting/fields",
+                {"limit": 5, "offset": 0},
+                lambda payload: (
+                    payload.get("total", 0) > 0
+                    and payload.get("verified") is True
+                    and payload.get("completeness") == "completa"
+                    and payload.get("quality_signal") == "official_esma_xsd"
+                    and all(
+                        item.get("source_url")
+                        and item.get("source_hash")
+                        and item.get("quality_signal") == "official_esma_xsd"
+                        for item in payload.get("items") or []
+                    )
+                ),
+            ),
+            (
+                "esma_firds_files_partial",
+                "/v1/esma/firds/files",
+                {"limit": 5, "offset": 0},
+                lambda payload: (
+                    payload.get("total", 0) > 0
+                    and payload.get("verified") is False
+                    and payload.get("completeness") == "parcial"
+                    and payload.get("quality_signal") == "evidence_limited_firds_pilot"
+                ),
+            ),
+            (
+                "esma_firds_unknown_isin_fail_closed",
+                "/v1/esma/firds/instruments",
+                {"isin": "ZZZZZZZZZZZZ", "limit": 5, "offset": 0},
+                lambda payload: (
+                    payload.get("total") == 0
+                    and payload.get("items") == []
+                    and payload.get("verified") is False
+                    and payload.get("safe_to_answer") is False
+                    and "absence is not authoritative" in (payload.get("evidence_notice") or "")
+                ),
+            ),
+            (
+                "esma_dlt_register_or_empty",
+                "/v1/esma/dlt/infrastructures",
+                {"limit": 10, "offset": 0},
+                lambda payload: (
+                    (
+                        payload.get("total", 0) > 0
+                        and payload.get("verified") is True
+                        and payload.get("completeness") == "completa"
+                        and payload.get("quality_signal") == "official_esma_dlt_register"
+                    )
+                    or (
+                        payload.get("total") == 0
+                        and payload.get("quality_signal") == "configured_but_unavailable"
+                        and payload.get("safe_to_answer") is False
+                    )
+                ),
+            ),
+            (
+                "esma_casp_register",
+                "/v1/mica/casp/buscar",
+                {"q": "crypto", "limit": 5, "offset": 0},
+                lambda payload: (
+                    payload.get("total", 0) > 0
+                    and payload.get("quality_signal") == "official_esma_register"
+                    and payload.get("availability_status") == "populated"
+                    and payload.get("safe_to_answer") is True
+                ),
+            ),
+        ]
+        for name, path, params, predicate in market_checks:
+            status_code, payload, text_preview = _get_json(client, path, params)
+            details["esma_checks"][name] = {
+                "path": path,
+                "params": params,
+                "status_code": status_code,
+                "total": payload.get("total") if payload else None,
+                "verified": payload.get("verified") if payload else None,
+                "completeness": payload.get("completeness") if payload else None,
+                "quality_signal": payload.get("quality_signal") if payload else None,
+                "safe_to_answer": payload.get("safe_to_answer") if payload else None,
+            }
+            if status_code != 200 or not payload:
+                failures.append({"check": name, "reason": "endpoint_failed", "response": text_preview})
+            elif not predicate(payload):
+                failures.append({"check": name, "reason": "contract_failed", "details": details["esma_checks"][name]})
+
+    return CheckResult(
+        "eurlex_esma_market_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
 def audit_semantic_suite(base_url: str) -> CheckResult:
     sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
     from mcp_validation_suite import run_read_only_suite  # type: ignore
@@ -492,6 +640,7 @@ def run_audit(base_url: str, database_url: str) -> dict[str, Any]:
         audit_domain_availability(base_url, registry),
         audit_mcp_tools(base_url),
         audit_actions_openapi(base_url),
+        audit_eurlex_esma_market_contracts(base_url),
         audit_semantic_suite(base_url),
     ]
     return {

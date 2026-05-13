@@ -403,6 +403,175 @@ def _validate_obligaciones_aplicables_contract(payload: dict[str, Any]) -> tuple
     return ok, details
 
 
+def _validate_eurlex_market_article(expected_celex: str) -> Any:
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        text_value = payload.get("texto") or ""
+        details = {
+            "celex": payload.get("celex"),
+            "numero": payload.get("numero"),
+            "verified": payload.get("verified"),
+            "completeness": payload.get("completeness"),
+            "quality_signal": payload.get("quality_signal"),
+            "text_length": len(text_value),
+            "source_url_present": bool(payload.get("source_url")),
+            "source_hash_present": bool(payload.get("source_hash")),
+            "capture_date_present": bool(payload.get("capture_date")),
+        }
+        ok = (
+            payload.get("celex") == expected_celex
+            and payload.get("numero") == "1"
+            and payload.get("verified") is True
+            and payload.get("completeness") == "completa"
+            and payload.get("quality_signal") == "official_eurlex_text"
+            and len(text_value) > 100
+            and "metadata_only" not in text_value.lower()
+            and bool(payload.get("source_url"))
+            and bool(payload.get("source_hash"))
+            and bool(payload.get("capture_date"))
+        )
+        return ok, details
+
+    return validator
+
+
+def _validate_esma_mifir_schema_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    items = payload.get("items") or []
+    details = {
+        "total": payload.get("total"),
+        "returned": len(items),
+        "verified": payload.get("verified"),
+        "completeness": payload.get("completeness"),
+        "quality_signal": payload.get("quality_signal"),
+        "sources_present": sum(1 for item in items if item.get("source_url") and item.get("source_hash")),
+    }
+    ok = (
+        isinstance(items, list)
+        and payload.get("total", 0) >= 1
+        and payload.get("verified") is True
+        and payload.get("completeness") == "completa"
+        and payload.get("quality_signal") == "official_esma_schema"
+        and all(item.get("source_url") and item.get("source_hash") for item in items)
+    )
+    return ok, details
+
+
+def _validate_esma_mifir_fields_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    items = payload.get("items") or []
+    details = {
+        "total": payload.get("total"),
+        "returned": len(items),
+        "verified": payload.get("verified"),
+        "completeness": payload.get("completeness"),
+        "quality_signal": payload.get("quality_signal"),
+        "sources_present": sum(1 for item in items if item.get("source_url") and item.get("source_hash")),
+        "descriptions_present": sum(1 for item in items if item.get("descripcion")),
+    }
+    ok = (
+        isinstance(items, list)
+        and payload.get("total", 0) > 0
+        and 0 < len(items) <= payload.get("limit", 0)
+        and payload.get("verified") is True
+        and payload.get("completeness") == "completa"
+        and payload.get("quality_signal") == "official_esma_xsd"
+        and all(item.get("source_url") and item.get("source_hash") for item in items)
+        and all(item.get("quality_signal") == "official_esma_xsd" for item in items)
+    )
+    return ok, details
+
+
+def _validate_esma_firds_files_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    items = payload.get("items") or []
+    details = {
+        "total": payload.get("total"),
+        "returned": len(items),
+        "verified": payload.get("verified"),
+        "completeness": payload.get("completeness"),
+        "quality_signal": payload.get("quality_signal"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+        "sources_present": sum(1 for item in items if item.get("source_url") and item.get("source_hash")),
+    }
+    ok = (
+        isinstance(items, list)
+        and payload.get("total", 0) > 0
+        and payload.get("verified") is False
+        and payload.get("completeness") == "parcial"
+        and payload.get("quality_signal") == "evidence_limited_firds_pilot"
+        and payload.get("safe_to_answer") is True
+        and all(item.get("source_url") and item.get("source_hash") for item in items)
+    )
+    return ok, details
+
+
+def _validate_esma_firds_unknown_isin_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    details = {
+        "total": payload.get("total"),
+        "returned": len(payload.get("items") or []),
+        "verified": payload.get("verified"),
+        "completeness": payload.get("completeness"),
+        "quality_signal": payload.get("quality_signal"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+        "evidence_notice": payload.get("evidence_notice"),
+    }
+    ok = (
+        payload.get("total") == 0
+        and payload.get("items") == []
+        and payload.get("verified") is False
+        and payload.get("completeness") == "parcial"
+        and payload.get("quality_signal") == "evidence_limited_firds_pilot"
+        and payload.get("safe_to_answer") is False
+        and "absence is not authoritative" in (payload.get("evidence_notice") or "")
+    )
+    return ok, details
+
+
+def _validate_esma_dlt_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    items = payload.get("items") or []
+    details = {
+        "total": payload.get("total"),
+        "returned": len(items),
+        "verified": payload.get("verified"),
+        "completeness": payload.get("completeness"),
+        "quality_signal": payload.get("quality_signal"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+    }
+    if payload.get("total") == 0:
+        ok = (
+            items == []
+            and payload.get("verified") is False
+            and payload.get("quality_signal") == "configured_but_unavailable"
+            and payload.get("safe_to_answer") is False
+        )
+    else:
+        ok = (
+            payload.get("verified") is True
+            and payload.get("completeness") == "completa"
+            and payload.get("quality_signal") == "official_esma_dlt_register"
+            and payload.get("safe_to_answer") is True
+            and all(item.get("source_url") and item.get("source_hash") for item in items)
+        )
+    return ok, details
+
+
+def _validate_casp_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    items = payload.get("items") or []
+    details = {
+        "total": payload.get("total"),
+        "returned": len(items),
+        "quality_signal": payload.get("quality_signal"),
+        "availability_status": payload.get("availability_status"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+        "source_url": payload.get("source_url"),
+    }
+    ok = (
+        payload.get("total", 0) > 0
+        and payload.get("quality_signal") == "official_esma_register"
+        and payload.get("availability_status") == "populated"
+        and payload.get("safe_to_answer") is True
+        and bool(payload.get("source_url"))
+    )
+    return ok, details
+
+
 def run_read_only_suite(base_url: str) -> dict[str, Any]:
     base_url = base_url.rstrip("/")
     checks: list[dict[str, Any]] = []
@@ -521,6 +690,74 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"tipo_entidad": "sociedad_valores", "limite": 1, "offset": 0},
                 _validate_obligaciones_aplicables_contract,
                 "obligaciones_aplicables_profile_contract",
+            )
+        )
+        for celex, name in [
+            ("32014R0600", "eurlex_mifir_article_1_official_text"),
+            ("32023R1114", "eurlex_mica_article_1_official_text"),
+            ("32022R0858", "eurlex_dlt_pilot_article_1_official_text"),
+        ]:
+            checks.append(
+                _check_json_contract(
+                    client,
+                    f"/v1/eurlex/market/{celex}/articulos/1",
+                    {},
+                    _validate_eurlex_market_article(celex),
+                    name,
+                )
+            )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/esma/mifir/schemas",
+                {},
+                _validate_esma_mifir_schema_contract,
+                "esma_mifir_schema_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/esma/mifir/transaction-reporting/fields",
+                {"limit": 5, "offset": 0},
+                _validate_esma_mifir_fields_contract,
+                "esma_mifir_transaction_reporting_fields_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/esma/firds/files",
+                {"limit": 5, "offset": 0},
+                _validate_esma_firds_files_contract,
+                "esma_firds_files_evidence_limited_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/esma/firds/instruments",
+                {"isin": "ZZZZZZZZZZZZ", "limit": 5, "offset": 0},
+                _validate_esma_firds_unknown_isin_contract,
+                "esma_firds_unknown_isin_fail_closed_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/esma/dlt/infrastructures",
+                {"limit": 10, "offset": 0},
+                _validate_esma_dlt_contract,
+                "esma_dlt_infrastructure_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/mica/casp/buscar",
+                {"q": "crypto", "limit": 5, "offset": 0},
+                _validate_casp_contract,
+                "esma_casp_register_official_contract",
             )
         )
 

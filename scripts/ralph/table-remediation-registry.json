@@ -9,12 +9,12 @@
     "local_only": true
   },
   "summary": {
-    "total_tables": 163,
-    "populated": 73,
+    "total_tables": 175,
+    "populated": 84,
     "blocker": 0,
     "derived_blocker": 0,
     "workflow_empty": 53,
-    "allowed_empty": 3,
+    "allowed_empty": 4,
     "unclassified": 0,
     "configured_but_unavailable": 34
   },
@@ -1811,6 +1811,138 @@
       "action": "Verify provenance and freshness in later gate stories.",
       "rls_enabled": true,
       "verification_sql": "SELECT count(*) FROM public.\"xbrl_taxonomy\";"
+    },
+    {
+      "table": "eurlex_act",
+      "row_count": 4,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "EUR-Lex and EU Publications official source",
+      "target_path": "apps/workers/worker_eurlex_market.py",
+      "action": "Market-regulation act metadata loaded from official EUR-Lex/Cellar source with source_hash and capture_date.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"eurlex_act\";"
+    },
+    {
+      "table": "eurlex_article",
+      "row_count": 353,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "EUR-Lex and EU Publications official source",
+      "target_path": "apps/workers/worker_eurlex_market.py",
+      "action": "MiFID II, MiFIR, MiCA and DLT Pilot article text loaded from official EUR-Lex/Cellar source.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"eurlex_article\";"
+    },
+    {
+      "table": "esma_reporting_document",
+      "row_count": 5,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA official reporting and DLT pages",
+      "target_path": "apps/workers/worker_esma_mifir_reporting.py",
+      "action": "ESMA MiFIR/DLT reporting documents loaded as official metadata; prose PDFs remain metadata-only unless structured.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_reporting_document\";"
+    },
+    {
+      "table": "esma_schema",
+      "row_count": 1,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA official XSD schema source",
+      "target_path": "apps/workers/worker_esma_mifir_reporting.py",
+      "action": "Official ESMA transaction reporting schema metadata loaded with source_hash and capture_date.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_schema\";"
+    },
+    {
+      "table": "esma_schema_field",
+      "row_count": 168,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA official XSD schema source",
+      "target_path": "apps/workers/worker_esma_mifir_reporting.py",
+      "action": "Official ESMA transaction reporting XSD fields loaded without inferring fields from prose.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_schema_field\";"
+    },
+    {
+      "table": "esma_validation_rule",
+      "row_count": 223,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA official structured validation rules",
+      "target_path": "apps/workers/worker_esma_mifir_reporting.py",
+      "action": "Structured ESMA MiFIR validation rules loaded only from official parseable workbook source.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_validation_rule\";"
+    },
+    {
+      "table": "esma_firds_file",
+      "row_count": 14,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA FIRDS official register files",
+      "target_path": "apps/workers/worker_esma_firds.py",
+      "action": "Recent ESMA FIRDS DLTINS file metadata loaded; full FULINS historical ingestion is intentionally out of scope.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_firds_file\";"
+    },
+    {
+      "table": "esma_firds_instrument",
+      "row_count": 1000,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA FIRDS official register files",
+      "target_path": "apps/workers/worker_esma_firds.py",
+      "action": "Bounded DLTINS pilot sample loaded; API must expose evidence_limited and never treat absence as authoritative.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_firds_instrument\";"
+    },
+    {
+      "table": "esma_fitrs_result",
+      "row_count": 0,
+      "classification": "configured_but_unavailable",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA FITRS official register files",
+      "target_path": "apps/workers/worker_esma_firds.py",
+      "action": "FITRS table is reserved for a future structured transparency-result ingestion; fail closed until populated.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_fitrs_result\";"
+    },
+    {
+      "table": "esma_dlt_market_infrastructure",
+      "row_count": 6,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA official DLT Pilot register PDF",
+      "target_path": "apps/workers/worker_esma_dlt.py",
+      "action": "Authorised DLT market infrastructures loaded from official ESMA list after source-text validation.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_dlt_market_infrastructure\";"
+    },
+    {
+      "table": "esma_dlt_exemption",
+      "row_count": 75,
+      "classification": "populated",
+      "domain": "EUR-Lex / ESMA Markets",
+      "official_source_family": "ESMA official DLT Pilot register PDF",
+      "target_path": "apps/workers/worker_esma_dlt.py",
+      "action": "DLT Pilot exemptions loaded from official ESMA list with source URL and capture date.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"esma_dlt_exemption\";"
+    },
+    {
+      "table": "webhook_events",
+      "row_count": 0,
+      "classification": "allowed_empty",
+      "domain": "Operational / Audit / Webhooks",
+      "official_source_family": "not_applicable_workflow_or_operational",
+      "target_path": "apps/api",
+      "action": "Operational idempotency table; may be empty if no webhook has been received.",
+      "rls_enabled": true,
+      "verification_sql": "SELECT count(*) FROM public.\"webhook_events\";"
     }
   ]
 }

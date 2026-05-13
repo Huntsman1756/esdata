@@ -6337,3 +6337,35 @@ En orden de impacto real:
 **Caveat:** FIRDS sigue siendo piloto parcial; no debe usarse para afirmar ausencia/presencia exhaustiva de instrumentos.
 
 **Siguiente paso:** E-12 ampliar `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para cubrir los nuevos endpoints y contratos.
+
+---
+
+## Reclamo 2026-05-13 - E-12 Suites de validacion EUR-Lex/ESMA market
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `scripts/maintenance/mcp_validation_suite.py`, `scripts/maintenance/mcp_deep_contract_audit.py`, `scripts/ralph/table-remediation-registry.json`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** hacer que las suites de mantenimiento detecten regresiones en los nuevos dominios EUR-Lex market y ESMA markets, incluyendo fail-closed de FIRDS parcial.
+
+**Resultado:**
+- `mcp_validation_suite.py` cubre ahora:
+  - MiFIR `32014R0600`, MiCA `32023R1114` y DLT Pilot `32022R0858` articulo 1 con texto real, `verified=true`, `completeness=completa`, `source_url`, `source_hash` y `capture_date`.
+  - ESMA MiFIR schema oficial (`total=1`) y campos XSD (`total=168`).
+  - FIRDS como `verified=false`, `completeness=parcial`, `quality_signal=evidence_limited_firds_pilot`.
+  - ISIN desconocido en FIRDS como `safe_to_answer=false` y aviso de ausencia no autoritativa.
+  - DLT infrastructures y CASP register con fuente oficial.
+- `mcp_deep_contract_audit.py` incluye `eurlex_esma_market_contracts`, que verifica texto real, fuente oficial EU (`eur-lex.europa.eu` o `publications.europa.eu`) y bloqueo de contaminacion BOE.
+- `table-remediation-registry.json` incluye las 12 tablas nuevas para que el audit de registry y `/v1/domain-availability` esten alineados.
+- API VPS reconstruida y reiniciada para embeber el registry actualizado.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile scripts/maintenance/mcp_validation_suite.py scripts/maintenance/mcp_deep_contract_audit.py`
+- `python -m json.tool scripts/ralph/table-remediation-registry.json`
+- VPS `mcp_validation_suite.py --read-only --base-url http://api:8000` => `"ok": true`.
+- VPS `mcp_deep_contract_audit.py --base-url http://api:8000` => `"ok": true`.
+- Verification E-12 equivalente en VPS => `PASS`.
+
+**Caveat:** EUR-Lex usa URLs oficiales Cellar de `publications.europa.eu` en varios registros; se consideran fuente oficial EU, no contaminacion de dominio.
+
+**Siguiente paso:** E-13 informe final de cobertura EUR-Lex/ESMA markets y verificacion final.

@@ -1634,3 +1634,21 @@ Verification:
   - Formal verification equivalent with API key returned `PASS` (`acts=4`, `schemas=1`).
 Caveat: FIRDS endpoints intentionally return `verified=false`/`parcial` because only DLTINS metadata plus a bounded sample is loaded; absence of an ISIN is not authoritative.
 Next: E-12
+=== Iteration E-12 - 2026-05-13T15:50:00+02:00 ===
+Story: E-12 Expand mcp_validation_suite and mcp_deep_contract_audit for new domains
+Sources accessed:
+  - Production API endpoints added in E-11
+  - Production DB registry via scripts/ralph/table-remediation-registry.json
+Records loaded:
+  - none; read-only validation story
+Result: PASS
+Verification:
+  - Added validation suite checks for MiFIR, MiCA and DLT Pilot article text, ESMA MiFIR schema, transaction-reporting XSD fields, FIRDS evidence-limited files and unknown-ISIN fail-closed behavior, DLT infrastructures, and CASP official register.
+  - Added explicit deep audit check `eurlex_esma_market_contracts`.
+  - Updated Ralph table registry to include 12 newly live tables: eurlex_act, eurlex_article, esma_reporting_document, esma_schema, esma_schema_field, esma_validation_rule, esma_firds_file, esma_firds_instrument, esma_fitrs_result, esma_dlt_market_infrastructure, esma_dlt_exemption, webhook_events.
+  - Rebuilt/restarted VPS API so `/v1/domain-availability` uses the updated registry.
+  - VPS `mcp_validation_suite.py --read-only --base-url http://api:8000` returned `"ok": true`.
+  - VPS `mcp_deep_contract_audit.py --base-url http://api:8000` returned `"ok": true`.
+  - Formal verification command returned `PASS`.
+Caveat: EUR-Lex article rows store official EU Publications/Cellar URLs (`publications.europa.eu`) as source URLs; the deep audit accepts this as official EU provenance and still blocks BOE cross-domain contamination.
+Next: E-13
