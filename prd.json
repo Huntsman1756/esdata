@@ -121,7 +121,7 @@
       "id": "D-09",
       "title": "Verify and complete Modelo 200 - Impuesto Sociedades",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify 200 coverage and provenance against official XLS",
         "Reload if seed/provenance gap is found"

@@ -6046,3 +6046,27 @@ En orden de impacto real:
 - Verificacion formal D-08: `100 casillas: 2521` => `PASS`.
 
 **Siguiente paso:** D-09 Modelo 200, verificar Impuesto sobre Sociedades contra XLS oficial.
+
+---
+
+## Reclamo 2026-05-13 - D-09 Modelo 200 diseno oficial verificado con contrato parcial
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** verificar la cobertura del Modelo 200 de Impuesto sobre Sociedades contra el XLS oficial AEAT 2025 y anexos.
+
+**Resultado:**
+- Produccion contiene `200 casillas_total=6807`, todas como `diseno_registro_campo`.
+- Probe local contra `DR200e25.xls` extrae `6807` campos, coincidiendo con produccion.
+- `modelo_recurso` contiene el XLS oficial y anexos oficiales AEAT con `row_provenance=official_exact`.
+- La API devuelve `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`. Esta clasificacion es correcta por contrato: hay diseno de registro oficial, pero no instrucciones completas ni metadata operativa estructurada suficiente para elevarlo a guia autoritativa de presentacion.
+
+**Pruebas ejecutadas:**
+- Probe local contra XLS oficial AEAT: `6807` campos.
+- VPS SQL: `200 casillas_total=6807`.
+- API: `/v1/modelos/aeat/200` devuelve `casillas_total=6807` y contrato parcial.
+- Verificacion formal D-09: `200 casillas: 6807` => `PASS`.
+
+**Siguiente paso:** D-10 Modelo 303, verificar IVA contra XLSX oficial 300-399.

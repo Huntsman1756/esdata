@@ -1269,3 +1269,21 @@ Verification:
   - API: `100 verified=true`, `completeness=completa`, `casillas_total=2521`, `evidence_status=verified`.
   - Formal verification command: `100 casillas: 2521` => PASS.
 Next: D-09
+=== Iteration D-09 - 2026-05-13T13:40:00+02:00 ===
+Story: D-09 Verify and complete Modelo 200 - Impuesto Sociedades
+Models processed: 200
+Source format: XLS + XLSX anexos oficiales
+Fields loaded per model: no new load required; production already has 200=6807 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos_25/DR200e25.xls
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_Resto_Mod/archivos/dr200inf_2015.xlsx
+  - additional official AEAT anexos listed in `modelo_recurso`
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because the active campaign lacks complete structured instructions/operational metadata; the contract logic intentionally does not promote casillas-only evidence to authoritative filing guidance.
+Verification:
+  - Local parser probe on official XLS => 6807 fields.
+  - SQL production: `200 casillas_total=6807`, all `diseno_registro_campo`.
+  - `modelo_recurso`: main XLS and annexes have official AEAT URLs and `row_provenance=official_exact`.
+  - API: `200 verified=false`, `completeness=parcial`, `casillas_total=6807`, `evidence_status=evidence_limited`.
+  - Formal verification command: `200 casillas: 6807` => PASS.
+Next: D-10
