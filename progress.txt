@@ -975,3 +975,17 @@ Evidence:
 Accepted risks:
   - none.
 Next: W-03
+=== Iteration W-03 - 2026-05-13T06:18:00+02:00 ===
+Story: W-03 Write automated cadence test - catches misconfiguration at deploy time
+Result: PASS
+Evidence:
+  - Added apps/api/tests/test_worker_cadence.py.
+  - Test asserts /status thresholds are derived from WORKER_CADENCE_CONFIG.
+  - Test asserts every configured worker has positive expected_cadence_hours and stale_threshold_hours >= expected_cadence_hours * 1.5.
+  - Test asserts every known sync_log worker is configured, aliased, or explicitly excluded.
+  - Test cross-checks infra/deploy/systemd/*.timer cadences against WORKER_CADENCE_CONFIG.
+  - Test cross-checks persistent worker intervals in infra/deploy/docker-compose.prod.yml against WORKER_CADENCE_CONFIG.
+  - Local verification: apps/api/tests/test_worker_cadence.py => 5 passed.
+Accepted risks:
+  - none.
+Next: W-04

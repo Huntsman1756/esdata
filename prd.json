@@ -36,7 +36,7 @@
       "id": "W-03",
       "title": "Write automated cadence test - catches misconfiguration at deploy time",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create apps/api/tests/test_worker_cadence.py",
         "Every worker in cadence config has explicit expected_cadence_hours > 0",
