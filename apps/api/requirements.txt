@@ -12,6 +12,6 @@ fastapi-mcp==0.4.0
 torch==2.8.0+cpu
 sentence-transformers==4.1.0
 prometheus-client==0.23.1
-sentry-sdk[fastapi]==2.26.1
+sentry-sdk[fastapi]==2.59.0
 psutil==7.0.0
 redis==5.2.1
