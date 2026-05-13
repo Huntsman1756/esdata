@@ -10,7 +10,7 @@ httpx==0.28.1
 fastapi-mcp==0.4.0
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.8.0+cpu
-sentence-transformers==4.1.0
+sentence-transformers==5.5.0
 prometheus-client==0.23.1
 sentry-sdk[fastapi]==2.26.1
 psutil==7.0.0
