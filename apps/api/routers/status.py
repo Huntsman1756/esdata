@@ -63,6 +63,8 @@ WORKER_THRESHOLDS_HOURS = {
     "cron-eurlex-weekly": 24 * 8,
     "worker-bde": 24 * 8,
     "cron-bde-weekly": 24 * 8,
+    "worker-cdi": 24 * 8,
+    "cron-cdi-weekly": 24 * 8,
     "worker-aepd": 24 * 8,
     "cron-aepd-weekly": 24 * 8,
     "cron-psd2-weekly": 24 * 8,
