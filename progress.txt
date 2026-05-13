@@ -1110,3 +1110,19 @@ Evidence:
 Accepted risks:
   - P-06 cannot be marked passes=true yet: no offsite provider/rclone remote credentials are available in the repo, and SSH to deploy@212.227.227.64 is currently denied by publickey. A real upload and remote-size verification must be run on the VPS before this story closes.
 Next: P-06 after offsite remote is configured, then P-07 restore drill.
+=== Iteration D-00 - 2026-05-13T11:05:00+02:00 ===
+Story: D-00 Pre-sprint: map available AEAT design documents for all priority models
+Models processed: 100, 111, 115, 123, 124, 187, 193, 196, 198, 200, 216, 289, 290, 296, 303
+Source format: XSD/properties, XLS, XLSX, PDF design-register table, ZIP XSD/WSDL, technical help HTML
+Fields loaded per model: none in this story; D-00 is research/map only.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-100-199.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-200-299.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-300-399.html
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-289-decla_____ras-ambito-asistencia-mutua/informacion-sobre-presentacion-mediante-web-service.html
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/informacion-sobre-presentacion-mediante-web-service.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-291-347/modelo-296-formulario.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-291-347/modelo-296-fichero.html
+Result: PASS
+Caveat if any: local Docker Compose could not query DB because DATABASE_URL is not set in this local shell; production counts must be checked in D-01 before mutating modelo_casilla.
+Next: D-01

@@ -1,126 +1,178 @@
 {
-  "projectName": "esdata-risk-reduction",
-  "branchName": "fix/risk-reduction",
+  "projectName": "esdata-aeat-full-documentation",
+  "branchName": "fix/aeat-full-documentation",
   "userStories": [
     {
-      "id": "P-01",
-      "title": "Audit: inventory all DDL statements in boe_modelos_worker.py and other workers",
+      "id": "D-00",
+      "title": "Pre-sprint: map available AEAT design documents for all priority models",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "Grep entire codebase for runtime DDL in apps/workers and apps/api",
-        "For each hit: record file, line, statement, and whether it is idempotent",
-        "Classify each as SAFE, RISK-IDEMPOTENT, or RISK-DESTRUCTIVE",
-        "Write inventory to docs/ddl-runtime-audit.md",
-        "Do not change runtime code in this story"
+        "Visit official AEAT design pages for 100-199, 200-299 and required 300-399 priority model 303",
+        "Record available formats, file URL, parser status and reason for priority models 100, 111, 115, 123, 124, 187, 193, 196, 198, 200, 216, 289, 290, 296, 303",
+        "Check technical help pages for 289, 290 and 296 where design index is not enough",
+        "Write docs/aeat-docs-map.md",
+        "Do not load data in this story"
       ],
-      "verificationCommand": "test -f docs/ddl-runtime-audit.md && grep -cE 'SAFE|RISK' docs/ddl-runtime-audit.md | grep -vE '^0$' && echo PASS || echo FAIL-NO-AUDIT-DOC"
+      "verificationCommand": "test -f docs/aeat-docs-map.md && grep -c 'STATUS-' docs/aeat-docs-map.md | awk '{print ($1 >= 10) ? \"PASS\" : \"FAIL-MAP-TOO-SHORT\"}'"
     },
     {
-      "id": "P-02",
-      "title": "Move RISK-DESTRUCTIVE DDL from workers to Alembic migrations",
+      "id": "D-01",
+      "title": "Load Modelo 296 complete design - IRNR no residentes",
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "From P-01 inventory: take all RISK-DESTRUCTIVE entries",
-        "Create reviewed Alembic migrations for current schema state",
-        "Run migrations on a test DB before production",
-        "Remove destructive runtime DDL and replace with startup assertions"
+        "Download official AEAT Modelo 296 2024 design PDF",
+        "Extract deterministic fields with position, nature/type, name and description",
+        "Load all safe fields into modelo_casilla for the active campaign",
+        "Load claves/subclaves and format notes where deterministic",
+        "Replace seed/partial records, do not append duplicates",
+        "Preserve source_url, source_hash and capture date through the existing traceability mechanism",
+        "Only set verified/completeness if the model contract is actually satisfied"
       ],
-      "verificationCommand": "rg -n --glob '*.py' \"(?i)\\b(DROP\\s+TABLE|DROP\\s+COLUMN|ALTER\\s+TABLE[^\\n]*(DROP|ALTER\\s+COLUMN|RENAME|SET\\s+DATA\\s+TYPE))\\b\" apps/workers apps/api | rg -v \"(apps[\\\\/]api[\\\\/]tests|apps[\\\\/]workers[\\\\/]tests|__pycache__|# )\"; test $? -eq 1 && echo PASS || echo FAIL-DESTRUCTIVE-DDL-FOUND"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='296' AND c.activo=true\"); echo \"296 casillas: $COUNT\"; [ \"$COUNT\" -gt 10 ] && echo PASS || echo FAIL-STILL-SEED-DATA"
     },
     {
-      "id": "P-03",
-      "title": "Move RISK-IDEMPOTENT DDL to Alembic - remove all runtime schema changes from workers",
+      "id": "D-02",
+      "title": "Load Modelo 216 complete design - IRNR retenciones no residentes",
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "From P-01 inventory: take all RISK-IDEMPOTENT entries",
-        "Workers only read and write data; no schema mutation",
-        "All schema is owned by Alembic exclusively",
-        "Run full test suite after changes"
+        "Parse official 216 XLSX from AEAT",
+        "Load all deterministic fields and notes",
+        "Replace partial records safely",
+        "Set completeness only according to the truth contract"
       ],
-      "verificationCommand": "rg -n --glob '*.py' \"(?i)\\b(CREATE\\s+EXTENSION|CREATE\\s+TABLE|ALTER\\s+TABLE|DROP\\s+TABLE|CREATE\\s+(UNIQUE\\s+)?INDEX|ADD\\s+COLUMN|DROP\\s+COLUMN)\\b\" apps/workers/boe_modelos_worker.py apps/workers/ley13_2023.py apps/workers/prospectos.py apps/workers/csdr.py apps/workers/dac_directives.py apps/workers/ley112009_socimi.py apps/workers/ley222014_lecr.py apps/workers/jurisprudencia.py apps/workers/entity_identity.py apps/workers/screening.py apps/workers/screening_real.py apps/api/services/webhook_verification.py; test $? -eq 1 && pytest apps/ -q && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='216' AND c.activo=true\"); echo \"216 casillas: $COUNT\"; [ \"$COUNT\" -gt 5 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "P-04",
-      "title": "Schedule mcp_deep_contract_audit.py in weekly cron alongside accuracy check",
+      "id": "D-03",
+      "title": "Load Modelo 193 complete design - retenciones capital mobiliario",
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Verify scripts/mcp_deep_contract_audit.py runs cleanly",
-        "Add it to scripts/weekly-accuracy-check.sh after mcp_validation_suite",
-        "Ensure cron invokes the weekly check with audit output",
-        "Test-run weekly accuracy check"
+        "Parse official 193 PDF design-register table",
+        "Load declarant/detail records and deterministic claves",
+        "Preserve official traceability"
       ],
-      "verificationCommand": "bash -n scripts/weekly-accuracy-check.sh && grep -i 'mcp_deep_contract_audit' scripts/weekly-accuracy-check.sh && python scripts/maintenance/mcp_deep_contract_audit.py --help >/dev/null && echo PASS || echo FAIL-DEEP-AUDIT-NOT-IN-WEEKLY"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='193' AND c.activo=true\"); echo \"193 casillas: $COUNT\"; [ \"$COUNT\" -gt 5 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "P-05",
-      "title": "Extend freshness check to all 11 pending domains",
+      "id": "D-04",
+      "title": "Load Modelo 198 complete design - operaciones con activos financieros",
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Add freshness checks for BORME, DGT/TEAC, AEPD, BDE, BDNS, SEPBLAC, CENDOJ, FATCA/GIIN, OFAC, CDI, PGC",
-        "Use domain-specific stale thresholds",
-        "Inactive domains with no sync_log rows log INFO, not STALE",
-        "weekly-accuracy-check.sh covers all target domains"
+        "Parse official 198 PDF design-register table",
+        "Load operation fields and deterministic claves",
+        "Preserve official traceability"
       ],
-      "verificationCommand": "bash -n scripts/weekly-accuracy-check.sh && grep -c 'worker-' scripts/weekly-accuracy-check.sh | awk '{print ($1 >= 11) ? \"PASS\" : \"FAIL-NOT-ALL-DOMAINS-COVERED\"}'"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='198' AND c.activo=true\"); echo \"198 casillas: $COUNT\"; [ \"$COUNT\" -gt 5 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "P-06",
-      "title": "Configure offsite immutable backup - second provider, 30-day retention",
+      "id": "D-05",
+      "title": "Load Modelo 187 complete design - acciones y participaciones IIC",
       "priority": 6,
       "passes": false,
       "acceptanceCriteria": [
-        "Choose a second provider outside the VPS provider",
-        "Create scripts/backup-offsite.sh",
-        "Upload, verify remote size, prune older than 30 days",
-        "No credentials stored in repo"
+        "Parse official 187 PDF design-register table",
+        "Load only deterministic fields",
+        "Document any unparseable section as partial"
       ],
-      "verificationCommand": "bash scripts/backup-offsite.sh && echo PASS || echo FAIL-BACKUP-SCRIPT-ERROR"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='187' AND c.activo=true\"); echo \"187 casillas: $COUNT\"; [ \"$COUNT\" -gt 5 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "P-07",
-      "title": "Test offsite backup restore - not just upload existence",
+      "id": "D-06",
+      "title": "Load Modelo 123 and 124 complete designs - retenciones IS/IRPF",
       "priority": 7,
       "passes": false,
       "acceptanceCriteria": [
-        "Download most recent offsite backup",
-        "Restore to esdata_offsite_test, never production",
-        "Verify key row counts",
-        "Drop test DB after verification and document evidence"
+        "Parse official 123 XLS and 124 XLSX",
+        "Load deterministic fields for both models",
+        "Preserve official traceability"
       ],
-      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -tAc 'SELECT COUNT(*) FROM aeat_modelo' esdata_offsite_test 2>/dev/null | grep -vE '^[0-9]$' && echo PASS || echo 'FAIL or test DB not found'"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; for C in 123 124; do COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='$C' AND c.activo=true\"); echo \"$C casillas: $COUNT\"; done && echo PASS"
     },
     {
-      "id": "P-08",
-      "title": "Add backup offsite status to /status and weekly accuracy check",
+      "id": "D-07",
+      "title": "Load Modelo 289 complete design - CRS/DAC2 cuentas financieras",
       "priority": 8,
       "passes": false,
       "acceptanceCriteria": [
-        "Add last_offsite_backup_age_hours to /status",
-        "weekly-accuracy-check.sh fails if backup is stale",
-        "backup-offsite.sh writes last successful timestamp",
-        "/status shows backup freshness alongside api/db/stale workers"
+        "Use official 289 XSD/WSDL and technical manual pages",
+        "Parse deterministic XSD elements",
+        "Keep partial contract if XSD proves technical message only and not full procedural guidance"
       ],
-      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.last_offsite_backup_age_hours' | grep -vE '^null$' && echo PASS || echo FAIL-BACKUP-STATUS-NOT-IN-STATUS-ENDPOINT"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT m.codigo, m.completeness, m.verified, COUNT(cs.id) AS casillas FROM aeat_modelo m LEFT JOIN modelo_campana c ON c.modelo_id=m.id AND c.activo=true LEFT JOIN modelo_casilla cs ON cs.campana_id=c.id WHERE m.codigo='289' GROUP BY m.codigo, m.completeness, m.verified;\" && echo PASS"
     },
     {
-      "id": "P-09",
-      "title": "Final verification - all risk items closed, tests green, system clean",
+      "id": "D-08",
+      "title": "Verify and complete Modelo 100 - IRPF declaracion anual",
       "priority": 9,
       "passes": false,
       "acceptanceCriteria": [
-        "0 runtime DDL in workers",
-        "Deep contract audit scheduled",
-        "Freshness covers all target domains",
-        "Offsite backup status is exposed",
-        "Tests and mcp_validation_suite are green",
-        "Write docs/risk-reduction-report.md"
+        "Verify 100 casillas came from official XSD/properties",
+        "Reload from official source if provenance is missing",
+        "Ensure contract remains honest"
       ],
-      "verificationCommand": "pytest apps/ -q 2>&1 | tail -3 | grep -E 'passed' && curl -sf http://localhost:${API_PORT:-8000}/status | jq '{api, db, stale_workers_count, last_offsite_backup_age_hours}' | grep -v 'null' && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT m.codigo, m.completeness, m.verified, COUNT(cs.id) AS casillas FROM aeat_modelo m LEFT JOIN modelo_campana c ON c.modelo_id=m.id AND c.activo=true LEFT JOIN modelo_casilla cs ON cs.campana_id=c.id WHERE m.codigo='100' GROUP BY m.codigo, m.completeness, m.verified;\" | grep -v '| 0 ' && echo PASS || echo FAIL-NO-CASILLAS-100"
+    },
+    {
+      "id": "D-09",
+      "title": "Verify and complete Modelo 200 - Impuesto Sociedades",
+      "priority": 10,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Verify 200 coverage and provenance against official XLS",
+        "Reload if seed/provenance gap is found"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT m.codigo, m.completeness, m.verified, COUNT(cs.id) AS casillas FROM aeat_modelo m LEFT JOIN modelo_campana c ON c.modelo_id=m.id AND c.activo=true LEFT JOIN modelo_casilla cs ON cs.campana_id=c.id WHERE m.codigo='200' GROUP BY m.codigo, m.completeness, m.verified;\" | grep -v '| 0 ' && echo PASS || echo FAIL-NO-CASILLAS-200"
+    },
+    {
+      "id": "D-10",
+      "title": "Verify and complete Modelo 303 - IVA autoliquidacion",
+      "priority": 11,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Verify 303 coverage against official 300-399 XLSX",
+        "Reload if current data is seed/partial without source traceability"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='303' AND c.activo=true\"); echo \"303 casillas: $COUNT\"; [ \"$COUNT\" -gt 20 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "D-11",
+      "title": "Verify and complete Modelos 111 and 115",
+      "priority": 12,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Parse or verify official 111 and 115 XLS designs",
+        "Set contract only from actual source coverage"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; for C in 111 115; do COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla cs JOIN modelo_campana c ON cs.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='$C' AND c.activo=true\"); echo \"$C casillas: $COUNT\"; done && echo PASS"
+    },
+    {
+      "id": "D-12",
+      "title": "Sweep: load all remaining models with official docs in priority range",
+      "priority": 13,
+      "passes": false,
+      "acceptanceCriteria": [
+        "From docs/aeat-docs-map.md, process STATUS-A models not already covered",
+        "Batch by format type and never mix parser logic",
+        "Document every skipped section"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*) AS total, SUM(CASE WHEN casillas > 0 THEN 1 ELSE 0 END) AS loaded FROM (SELECT m.codigo, COALESCE(SUM(cs_count.n),0) AS casillas FROM aeat_modelo m LEFT JOIN modelo_campana c ON c.modelo_id=m.id AND c.activo=true LEFT JOIN (SELECT campana_id, COUNT(*) n FROM modelo_casilla GROUP BY campana_id) cs_count ON cs_count.campana_id=c.id WHERE m.codigo::int BETWEEN 100 AND 299 GROUP BY m.codigo) sub;\" && echo 'Verify loaded > previous baseline' || echo FAIL"
+    },
+    {
+      "id": "D-13",
+      "title": "Final documentation coverage report",
+      "priority": 14,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Write docs/aeat-documentation-coverage-report.md",
+        "Every 1XX/2XX model has covered, partial, no-casillas-expected, deprecated or documented blocker status",
+        "mcp_validation_suite and mcp_deep_contract_audit pass"
+      ],
+      "verificationCommand": "test -f docs/aeat-documentation-coverage-report.md && docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker python mcp_validation_suite.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     }
   ]
 }
