@@ -346,6 +346,21 @@ Verification:
 Caveat:
   - `/v1/legislacion/IRNR/articulos/14` still returns 404; aliasing is F-02 and was intentionally not mixed into F-01.
 Next: F-02
+=== Iteration F-02 - 2026-05-13T18:52:00+02:00 ===
+Story: F-02 Add IRNR alias so TRLIRNR is reachable by both identifiers
+Sources accessed:
+  - Existing production TRLIRNR corpus loaded from BOE-A-2004-4527 in F-01
+Records loaded:
+  - none; router alias and test fixture only
+Result: PASS
+Verification:
+  - Local pytest: `python -m pytest apps/api/tests/test_smoke.py::test_legislacion_irnr_alias_resuelve_trlirnr -q` => 1 passed.
+  - VPS API rebuilt and restarted.
+  - VPS `/v1/legislacion/IRNR/articulos/14` returns HTTP 200, canonical `norma=TRLIRNR`, BOE reference `BOE-A-2004-4527`.
+  - VPS `/v1/legislacion/TRLIRNR/articulos/14` returns the same text prefix as the alias endpoint.
+Caveat:
+  - `IRNR` is an API alias only; the canonical DB code remains `TRLIRNR`.
+Next: F-03
 
 === Iteration 9 - 2026-05-12T19:53:00+02:00 ===
 Story: Q-09 MiCA / ESMA - verify configured_but_unavailable domains respond correctly

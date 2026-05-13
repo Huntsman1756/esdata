@@ -2070,6 +2070,24 @@ STATEMENTS = [
         '1995-03-28'
     )
     """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'TRLIRNR',
+        'Real Decreto Legislativo 5/2004, por el que se aprueba el texto refundido de la Ley del Impuesto sobre la Renta de no Residentes',
+        'BOE-A-2004-4527',
+        'https://www.boe.es/eli/es/rdlg/2004/03/05/5',
+        'es',
+        'boe',
+        'real_decreto_legislativo',
+        'tributario',
+        'ingestada',
+        '2004-03-13'
+    )
+    """,
     # --- LIVA 91: fixture de test con texto realista del BOE ---
     # Este no es un placeholder de producción; el worker BOE ingesta el texto real.
     # Aquí usamos un extracto representativo para que los tests verifiquen búsqueda y estructura.
@@ -2120,6 +2138,11 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM norma WHERE codigo = 'RIRNR'
     """,
     """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '14', 'Rentas exentas', 'articulo'
+    FROM norma WHERE codigo = 'TRLIRNR'
+    """,
+    """
     INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
     SELECT a.id, 'Articulo 7. Son transmisiones patrimoniales sujetas:
 1. Las transmisiones onerosas por actos inter vivos de toda clase de bienes y derechos.
@@ -2168,6 +2191,14 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE n.codigo = 'RIRNR' AND a.numero = '35'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 14. Rentas exentas. Estaran exentas determinadas rentas obtenidas sin mediacion de establecimiento permanente conforme al texto refundido de la Ley del Impuesto sobre la Renta de no Residentes.',
+    '2004-03-13', NULL, 'a14'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'TRLIRNR' AND a.numero = '14'
     """,
     # --- Materias (taxonomía curada) ---
     """

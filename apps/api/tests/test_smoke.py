@@ -297,6 +297,23 @@ async def test_legislacion_expone_itpajd_con_clasificacion():
 
 
 @pytest.mark.asyncio
+async def test_legislacion_irnr_alias_resuelve_trlirnr():
+    async with _client() as c:
+        alias_response = await c.get("/v1/legislacion/IRNR/articulos/14")
+        canonical_response = await c.get("/v1/legislacion/TRLIRNR/articulos/14")
+
+    assert alias_response.status_code == 200
+    assert canonical_response.status_code == 200
+    alias_data = alias_response.json()
+    canonical_data = canonical_response.json()
+    assert alias_data["norma"] == "TRLIRNR"
+    assert alias_data["numero"] == "14"
+    assert alias_data["texto"] == canonical_data["texto"]
+    assert alias_data["boe_reference"] == "BOE-A-2004-4527"
+    assert alias_data["source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527#a14"
+
+
+@pytest.mark.asyncio
 async def test_legislacion_lista_articulos_filtra_por_tipo():
     async with _client() as c:
         r = await c.get("/v1/legislacion/LIVA/articulos?tipo=articulo")

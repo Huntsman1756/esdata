@@ -19,7 +19,7 @@
       "id": "F-02",
       "title": "Add IRNR alias so TRLIRNR is reachable by both identifiers",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Resolve IRNR as an alias for TRLIRNR in legislation routes",
         "Verify /v1/legislacion/IRNR/articulos/14 returns the same text as TRLIRNR"
