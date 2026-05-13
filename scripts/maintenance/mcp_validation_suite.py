@@ -114,22 +114,21 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         **_mcp_headers(),
     }
     try:
-        handshake = _request_with_retry(client, "GET", "/mcp", headers=headers)
+        # /mcp opens an SSE stream; do not wait for the response body to finish.
+        with client.stream("GET", "/mcp", headers=headers) as handshake:
+            session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get(
+                "Mcp-Session-Id"
+            )
+            check["handshake_status_code"] = handshake.status_code
+            check["has_session_id"] = bool(session_id)
+            if not session_id:
+                check["error"] = "missing_mcp_session_id"
+                return check
+            if handshake.status_code not in {200, 400}:
+                check["error"] = f"unexpected_handshake_status: {handshake.status_code}"
+                return check
     except httpx.HTTPError as exc:
         check["error"] = f"handshake_failed: {exc}"
-        return check
-
-    session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get("Mcp-Session-Id")
-    check["handshake_status_code"] = handshake.status_code
-    check["has_session_id"] = bool(session_id)
-    if not session_id:
-        check["error"] = handshake.text[:500] if handshake.status_code != 200 else "missing_mcp_session_id"
-        return check
-    if handshake.status_code not in {200, 400}:
-        check["error"] = handshake.text[:500]
-        return check
-    if handshake.status_code == 400 and "Missing session ID" not in handshake.text:
-        check["error"] = handshake.text[:500]
         return check
 
     rpc_headers = {
