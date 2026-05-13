@@ -1162,3 +1162,18 @@ Verification:
   - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=xlsx`, `row_provenance=official_exact`.
   - API: `216 verified=false`, `completeness=parcial`, `casillas_total=47`, `evidence_status=evidence_limited`.
 Next: D-03
+=== Iteration D-03 - 2026-05-13T12:34:00+02:00 ===
+Story: D-03 Load Modelo 193 complete design - retenciones capital mobiliario
+Models processed: 193
+Source format: PDF design-register table
+Fields loaded per model: no new load required; production already has 193=59 official design fields plus 12 functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_193_2025.pdf
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present, but API remains `verified=false`, `completeness=parcial` because instructions and complete claves/subclaves are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe on official PDF => 59 fields.
+  - SQL production: `193 casillas_total=71`, `diseno_registro_campo=59`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+  - API: `193 verified=false`, `completeness=parcial`, `casillas_total=71`, `evidence_status=evidence_limited`.
+Next: D-04

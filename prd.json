@@ -49,7 +49,7 @@
       "id": "D-03",
       "title": "Load Modelo 193 complete design - retenciones capital mobiliario",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Parse official 193 PDF design-register table",
         "Load declarant/detail records and deterministic claves",
