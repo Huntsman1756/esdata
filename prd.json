@@ -64,7 +64,7 @@
       "id": "W-05",
       "title": "Verify Alertmanager silence rules are clean after threshold corrections",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Check Alertmanager for active silences",
         "Delete any silence created as a workaround for threshold mismatch after W-02",

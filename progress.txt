@@ -1004,3 +1004,14 @@ Evidence:
 Accepted risks:
   - none.
 Next: W-05
+=== Iteration W-05 - 2026-05-13T06:48:00+02:00 ===
+Story: W-05 Verify Alertmanager silence rules are clean after threshold corrections
+Result: PASS
+Evidence:
+  - VPS Alertmanager /api/v2/silences returned [].
+  - Active silences: 0.
+  - No retained silence exists for old WorkerSilent threshold false positives.
+  - Added docs/alertmanager-silences.md documenting the zero-silence state and verification command.
+Accepted risks:
+  - none.
+Next: W-06
