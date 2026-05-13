@@ -1344,3 +1344,20 @@ Verification:
   - API spot-check: `196 verified=false`, `completeness=parcial`, `casillas_total=62`; `290 verified=false`, `completeness=parcial`, `casillas_total=152`.
   - `docs/aeat-docs-map.md` updated with D-12 final status table.
 Next: D-13
+=== Iteration D-13 - 2026-05-13T14:45:00+02:00 ===
+Story: D-13 Final documentation coverage report
+Models processed: all numeric AEAT 100-299 plus priority 303
+Source format: report/reconciliation from production DB, AEAT docs map and MCP contract suites
+Fields loaded per model: no new load required; D-13 reconciles final state.
+Source URLs used:
+  - docs/aeat-docs-map.md final STATUS-A table
+  - official AEAT source URLs already stored in modelo_recurso during D-01 to D-12
+Result: PASS
+Verification:
+  - SQL production 100-299: total=88, loaded=65, zero=23.
+  - Priority STATUS-A coverage: 15/15 models have official fields loaded (100, 111, 115, 123, 124, 187, 193, 196, 198, 200, 216, 289, 290, 296, 303).
+  - Zero-casilla models documented with no-casillas-expected, deprecated/legacy, STATUS-D or STATUS-E reason in docs/aeat-documentation-coverage-report.md.
+  - VPS mcp_validation_suite: ok=true.
+  - VPS mcp_deep_contract_audit: ok=true.
+Caveat if any: most priority models remain `verified=false`/`parcial` by design because official design fields do not prove complete filing instructions, obligatoriedad or applicability rules.
+Next: AEAT full documentation sprint complete.

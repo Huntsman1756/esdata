@@ -166,7 +166,7 @@
       "id": "D-13",
       "title": "Final documentation coverage report",
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Write docs/aeat-documentation-coverage-report.md",
         "Every 1XX/2XX model has covered, partial, no-casillas-expected, deprecated or documented blocker status",
