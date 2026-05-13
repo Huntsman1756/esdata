@@ -1147,3 +1147,18 @@ VPS verification:
   - SQL: `296 casillas_total=124`, `diseno_registro_campo=114`.
   - API: `296 verified=false`, `completeness=parcial`, `casillas_total=124`, `evidence_status=evidence_limited`.
 Next: D-02
+=== Iteration D-02 - 2026-05-13T12:28:00+02:00 ===
+Story: D-02 Load Modelo 216 complete design - IRNR retenciones no residentes
+Models processed: 216
+Source format: XLSX design-register table
+Fields loaded per model: no new load required; production already has 216=47 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos_24/216e2024.xlsx
+Result: PASS-WITH-CAVEAT
+Caveat if any: `modelo_recurso` and `modelo_casilla` prove official design fields, but API remains `verified=false`, `completeness=parcial` because D-02 does not prove full instructions or applicability/obligation rules.
+Verification:
+  - Local parser probe on official XLSX => 47 fields.
+  - SQL production: `216 casillas_total=47`, `diseno_registro_campo=47`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=xlsx`, `row_provenance=official_exact`.
+  - API: `216 verified=false`, `completeness=parcial`, `casillas_total=47`, `evidence_status=evidence_limited`.
+Next: D-03

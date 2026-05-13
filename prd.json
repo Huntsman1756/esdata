@@ -36,7 +36,7 @@
       "id": "D-02",
       "title": "Load Modelo 216 complete design - IRNR retenciones no residentes",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Parse official 216 XLSX from AEAT",
         "Load all deterministic fields and notes",
