@@ -1015,3 +1015,17 @@ Evidence:
 Accepted risks:
   - none.
 Next: W-06
+=== Iteration W-06 - 2026-05-13T06:58:00+02:00 ===
+Story: W-06 Final verification - 0 false positives across full weekly cycle simulation
+Result: PASS
+Evidence:
+  - Local cadence test: apps/api/tests/test_worker_cadence.py => 5 passed.
+  - VPS /status with API key: api=ok, database=ok, stale_workers_count=0, workers_total=36.
+  - Cadence simulation from production sync_log against WORKER_CADENCE_CONFIG: cadence_checked=37, cadence_issues=0.
+  - VPS mcp_validation_suite.py --read-only --base-url http://api:8000: ok=true, tool_count=70.
+  - Alertmanager active unsilenced/uninhibited alerts: 0.
+  - Alertmanager active silences: 0.
+  - Worker cadence false-positive class closed: every sync_log worker is configured, aliased, or explicitly excluded; thresholds match real cadence with 1.5x buffer.
+Accepted risks:
+  - none.
+Next: COMPLETE
