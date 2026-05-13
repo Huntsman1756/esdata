@@ -29,6 +29,50 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps \
   -w /workspace \
   api sh -lc "python scripts/maintenance/mcp_validation_suite.py --read-only --base-url '$BASE_URL'"
 
+echo "== worker cadence declarations =="
+sync_workers=$(
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
+    psql -U "${POSTGRES_USER:-esdata}" -d "${POSTGRES_DB:-esdata}" -tA -c \
+      "SELECT DISTINCT worker FROM sync_log ORDER BY worker"
+)
+
+declared_workers=$(
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps \
+    -v "$ROOT_DIR:/workspace" \
+    -w /workspace \
+    api sh -lc "PYTHONPATH=/workspace/apps/api python - <<'PY'
+from services.worker_cadence import (
+    WORKER_CADENCE_ALIASES,
+    WORKER_CADENCE_CONFIG,
+    WORKER_CADENCE_EXCLUDED,
+)
+
+declared = set(WORKER_CADENCE_CONFIG)
+declared.update(WORKER_CADENCE_ALIASES)
+declared.update(WORKER_CADENCE_EXCLUDED)
+for worker in sorted(declared):
+    print(worker)
+PY"
+)
+
+missing_cadence=()
+while IFS= read -r worker; do
+  [[ -z "${worker:-}" ]] && continue
+  if ! grep -Fxq "$worker" <<< "$declared_workers"; then
+    missing_cadence+=("$worker")
+  fi
+done <<< "$sync_workers"
+
+sync_worker_count=$(grep -cve '^[[:space:]]*$' <<< "$sync_workers" || true)
+declared_worker_count=$((sync_worker_count - ${#missing_cadence[@]}))
+echo "worker_cadence_declared=$declared_worker_count/$sync_worker_count"
+echo "worker_cadence_missing=${#missing_cadence[@]}"
+
+if [[ "${#missing_cadence[@]}" -ne 0 ]]; then
+  printf 'FAIL: workers missing cadence declaration: %s\n' "${missing_cadence[*]}" >&2
+  exit 1
+fi
+
 echo "== source freshness =="
 sql=$(cat <<'SQL'
 WITH checks(domain, threshold_hours, workers) AS (

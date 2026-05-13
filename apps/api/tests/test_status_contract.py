@@ -315,6 +315,25 @@ def test_all_status_thresholds_have_one_and_half_cadence_buffer():
 
 
 @pytest.mark.asyncio
+async def test_status_warns_and_marks_unknown_worker_without_cadence_stale(caplog):
+    app, _ = _get_app_and_engine()
+    _seed_sync_log(
+        "worker-new-source",
+        finished_at=datetime.now(UTC) - timedelta(minutes=5),
+        status="ok",
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/status")
+
+    assert response.status_code == 200
+    worker = response.json()["workers"]["worker-new-source"]
+    assert worker["stale"] is True
+    assert worker["cadence_declared"] is False
+    assert "has no cadence declaration" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_status_exposes_structured_sync_log_summary_fields():
     app, _ = _get_app_and_engine()
     _seed_sync_log(

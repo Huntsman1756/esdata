@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import UTC, datetime
 
@@ -10,6 +11,8 @@ from middleware.metrics import (
 )
 from services.worker_cadence import WORKER_CADENCE_ALIASES, WORKER_CADENCE_CONFIG
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 
 def _build_modelos_status(db) -> dict:
@@ -151,7 +154,15 @@ def _build_status_payload():
         for row in rows:
             worker = row["worker"]
             canonical_worker = _canonical_worker_name(worker)
-            stale = _is_stale(canonical_worker, row["finished_at"])
+            has_declared_cadence = canonical_worker in WORKER_THRESHOLDS_HOURS
+            if has_declared_cadence:
+                stale = _is_stale(canonical_worker, row["finished_at"])
+            else:
+                stale = True
+                logger.warning(
+                    "Worker %s has no cadence declaration; marking stale",
+                    canonical_worker,
+                )
             finished_at = _coerce_datetime(row["finished_at"])
             started_at = _coerce_datetime(row["started_at"])
 
@@ -184,6 +195,7 @@ def _build_status_payload():
                 "error": row["error_msg"],
                 "sync_summary": sync_summary,
                 "stale": stale,
+                "cadence_declared": has_declared_cadence,
             }
 
     return result
