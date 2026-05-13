@@ -41,7 +41,7 @@
       "id": "F-04",
       "title": "Write BOE completeness test by BOE ID",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create apps/api/tests/test_boe_completeness.py",
         "Fail on zero articles for core BOE laws",

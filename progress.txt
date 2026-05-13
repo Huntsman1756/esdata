@@ -339,6 +339,18 @@ Evidence:
   - SQL after update returns only `163 sexvicies` for LIVA `%sexvi%` lookup.
   - `/v1/legislacion/LIVA/articulos/163%20sexvicies` returns HTTP 200 with `boe_reference=BOE-A-1992-28740`.
 Next: F-04
+=== Iteration F-04 - 2026-05-13T19:16:00+02:00 ===
+Story: F-04 Write BOE completeness test by BOE ID
+Queries tested: 6
+Results: correct=6 honest_limit=0 incorrect=0
+Incorrect answers found: none
+Fixes applied:
+  - Added `apps/api/tests/test_boe_completeness.py`.
+  - Registered pytest marker `boe_completeness`.
+Evidence:
+  - Local verification: `python -m pytest apps/api/tests/test_boe_completeness.py -v` => `1 passed`.
+  - Production BOE ID counts: TRLIRNR=66, LIVA=228, LGT=319, LIRPF=175, LIS=180, ITPAJD=67.
+Next: F-05
 === Iteration F-01 - 2026-05-13T18:44:26+02:00 ===
 Story: F-01 Load TRLIRNR complete from BOE-A-2004-4527
 Sources accessed:
