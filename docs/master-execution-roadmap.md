@@ -8,6 +8,30 @@
 
 ## Reclamo activo
 
+- 2026-05-13 15:05 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` E-09 EUR-Lex + ESMA markets coverage: se endurece el registro CASP/MiCA. La pagina oficial ESMA MiCA confirma que el Interim MiCA Register se publica como CSV semanal y muestra `Last update: 4 May 2026`; el worker `apps/workers/mica.py` descubre `CASPS.csv` y ahora persiste trazabilidad por fila. Se anade la migracion Alembic `20260513_0075_casp_source_traceability.py` con `casp.source_url`, `source_hash`, `capture_date`, `verified` y `completeness`. VPS: `alembic upgrade head` aplicado; `cron-mica-weekly` procesa `194` filas CSV oficiales y la tabla queda en `192` CASP de-duplicados con `verified=true`, `capture_date=2026-05-13` y un unico hash de fuente. API: `/v1/mica/casp/buscar?q=crypto` devuelve `quality_signal=official_esma_register` y `safe_to_answer=true`; `/v1/mica/crypto-assets` sigue `workflow_empty`, `safe_to_answer=false`, sin sustituir datos CASP por activos crypto. Verificacion formal: `SELECT COUNT(*), MAX(capture_date) FROM casp WHERE verified=true` devuelve `192 | 2026-05-13` y `PASS`. Siguiente paso exacto: E-10, crear/registrar workers programados y cadencias para EUR-Lex market, ESMA MiFIR, FIRDS y DLT.
+
+- 2026-05-13 14:55 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` E-08 EUR-Lex + ESMA markets coverage: se anade `apps/workers/worker_esma_dlt.py` para cargar la lista oficial ESMA de infraestructuras autorizadas DLT desde `Authorised_DLT_Market_Infrastructures.pdf`. El worker descarga el PDF, calcula MD5, extrae texto con `pypdf` y valida que las seis filas oficiales esperadas siguen presentes antes de escribir. Produccion queda con `esma_reporting_document=1` para `dominio=DLT`, `esma_dlt_market_infrastructure=6` y `esma_dlt_exemption=75`; todas las infraestructuras quedan `verified=true`, `completeness=completa`, `source_hash=0c2c034d579839f0e5ee49fb0fed5367`, `capture_date=2026-05-13`. Filas oficiales cargadas: CSD Prague, 21X AG, 360X AG, UAB Axiology DLT, LISE SA y Securitize Europe Brokerage and Markets SV SA. `sync_log` registra `worker-esma-dlt status=ok documentos_processed=1 articulos_upserted=81`. Verificacion formal: `SELECT COUNT(*) FROM esma_dlt_market_infrastructure` devuelve `6` y `PASS`. Siguiente paso exacto: E-09, auditar y refrescar CASP/MiCA register.
+
+- 2026-05-13 16:40 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` E-03 EUR-Lex + ESMA markets coverage: se carga MiCA CELEX `32023R1114` con `apps/workers/eurlex_market.py` desde la consolidacion oficial de Publications Office/EUR-Lex. Resultado productivo: `eurlex_act=1`, `eurlex_article=149`, `verified=true`, `completeness=completa`, `source_hash` MD5 de 32 chars, `capture_date=2026-05-13`; articulo 1 contiene texto real (`Objeto...`). `sync_log` registra el ultimo `worker-eurlex-market status=ok articulos_upserted=149`. Caveat: CASP/MiCA register queda para E-09 y endpoints dedicados para E-11. Siguiente paso exacto: E-04, cargar DLT Pilot CELEX `32022R0858`.
+
+- 2026-05-13 16:25 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` E-02 EUR-Lex + ESMA markets coverage: se crea `apps/workers/eurlex_market.py` como loader de datos para las tablas dedicadas y se carga MiFIR CELEX `32014R0600` desde la consolidacion oficial de Publications Office/EUR-Lex. Resultado productivo: `eurlex_act=1`, `eurlex_article=93`, `verified=true`, `completeness=completa`, `source_hash` MD5 de 32 chars, `capture_date=2026-05-13`; articulo 1 contiene texto real (`Objeto y ambito de aplicacion...`). `sync_log` registra `worker-eurlex-market status=ok articulos_upserted=93`. Caveat: endpoint dedicado `/v1/eurlex/market/...` queda para E-11; E-02 es carga de datos. Siguiente paso exacto: E-03, cargar MiCA CELEX `32023R1114` con el mismo loader.
+
+- 2026-05-13 16:05 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` E-01 EUR-Lex + ESMA markets coverage: se anade la migracion Alembic `20260513_0074_eurlex_esma_market_tables.py` con 11 tablas dedicadas (`eurlex_act`, `eurlex_article`, `esma_reporting_document`, `esma_schema`, `esma_schema_field`, `esma_validation_rule`, `esma_firds_file`, `esma_firds_instrument`, `esma_fitrs_result`, `esma_dlt_market_infrastructure`, `esma_dlt_exemption`). No hay runtime DDL ni carga de datos. Verificacion VPS: migracion aplicada primero en `esdata_e01_test` con `TEST_TABLE_COUNT=11` y base eliminada despues; produccion queda en `alembic_version=20260513_0074_eurlex_esma_market_tables`, `PROD_TABLE_COUNT=11`, `PROD_ROW_TOTAL=0`, `PROD_RLS_COUNT=11`, `/status api=ok database=ok`. Siguiente paso exacto: E-02, cargar MiFIR CELEX `32014R0600` desde EUR-Lex en las nuevas tablas.
+
+- 2026-05-13 15:20 Europe/Madrid - `[COMPLETADO LOCAL]` E-00 EUR-Lex + ESMA markets coverage: se inicia sprint `fix/eurlex-esma-markets` y se crea `docs/eurlex-esma-market-coverage-map.md` como mapa oficial previo a codigo. Se clasifican fuentes EUR-Lex para MiFID II, MiFIR, MiCA, DLT Pilot y MAR como `STATUS-A`; ESMA MiFIR reporting, XSD transaction reporting, FIRDS/FITRS, DLT Pilot list y CASP se clasifican por formato y parser esperado. No se cargan datos ni se crean tablas en E-00. Verificacion local: mapa existe, marker count `STATUS-/CELEX/ESMA=31`, `prd.json` valido. Siguiente paso exacto: E-01, crear migracion Alembic de tablas EUR-Lex/ESMA tras inspeccionar schema productivo.
+
+- 2026-05-13 11:05 Europe/Madrid - `[EN CURSO LOCAL]` D-00 AEAT full documentation coverage: se inicia sprint `fix/aeat-full-documentation` para mapear fuentes oficiales AEAT de disenos de registro antes de cargar datos. Alcance de esta iteracion: `docs/aeat-docs-map.md`, `prd.json`, `progress.txt` y este roadmap. Regla: no cargar campos ni tocar workers hasta completar el mapa; D-01 empezara por modelo 296.
+
+- 2026-05-13 12:22 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` D-01 AEAT Modelo 296: se recupera SSH con clave temporal para `deploy`, se vuelve a dejar `PasswordAuthentication no`, se despliega la rama `fix/aeat-full-documentation` en `/srv/esdata`, se reconstruye `worker-modelos` y se ejecuta `aeat_current_designs.py --run-once`. Resultado productivo: `pdf_fields=114`, `parse_errors=0`; SQL confirma `modelo 296` campana activa con `casillas_total=124` y `diseno_registro_campo=114`. API `/v1/modelos/aeat/296` devuelve `casillas_total=124`, `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`; se mantiene parcial porque D-01 carga campos de diseno, pero no prueba instrucciones completas ni obligatoriedad por supuesto. Siguiente paso exacto: D-02, cargar/verificar diseno oficial XLSX del modelo 216.
+
+- 2026-05-13 12:28 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` D-02 AEAT Modelo 216: el XLSX oficial `216e2024.xlsx` ya esta cargado correctamente. Parser local extrae `47` campos; SQL productivo confirma campana activa con `casillas_total=47`, todos `tipo_casilla='diseno_registro_campo'`. `modelo_recurso` contiene `diseno_registro`, formato `xlsx`, URL oficial AEAT y `row_provenance=official_exact`. API `/v1/modelos/aeat/216` devuelve `casillas_total=47`, `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`; se mantiene parcial por la misma regla de verdad: campos oficiales no equivalen a instrucciones completas ni prueba de obligatoriedad. Siguiente paso exacto: D-03, revisar/cargar PDF oficial 2025 del modelo 193.
+
+- 2026-05-13 12:34 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` D-03 AEAT Modelo 193: el PDF oficial 2025 ya esta cargado correctamente. Parser local extrae `59` campos de diseno; SQL productivo confirma campana activa con `casillas_total=71`, de los cuales `59` son `diseno_registro_campo`. `modelo_recurso` contiene `diseno_registro`, formato `pdf`, URL oficial AEAT `DR_Modelo_193_2025.pdf` y `row_provenance=official_exact`. API `/v1/modelos/aeat/193` devuelve `casillas_total=71`, `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`; se mantiene parcial hasta cargar instrucciones/claves completas de forma estructurada. Siguiente paso exacto: D-04, modelo 198 operaciones con activos financieros.
+
+- 2026-05-13 14:45 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` D-13 AEAT full documentation coverage: se cierra el sprint con `docs/aeat-documentation-coverage-report.md`. Estado productivo reconciliado: modelos numericos 100-299 `total=88`, `loaded=65`, `zero=23`; modelos prioritarios STATUS-A cubiertos `15/15` con fuentes oficiales AEAT (`100, 111, 115, 123, 124, 187, 193, 196, 198, 200, 216, 289, 290, 296, 303`). Los 23 modelos sin casillas quedan clasificados como `no-casillas-expected`, `deprecated/legacy`, `STATUS-D` o `STATUS-E`, sin huecos silenciosos. Verificacion VPS: `mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000` => `ok=true`; `mcp_deep_contract_audit.py --base-url http://api:8000` en contenedor API con repo montado read-only => `ok=true`. Resultado: sprint AEAT full documentation completo; sigue pendiente separado el backup offsite/risk-reduction que requiere configurar remoto externo.
+
+- 2026-05-13 07:12 Europe/Madrid - `[EN CURSO LOCAL / BLOQUEADO EXTERNO]` risk-reduction P-06 backup offsite: se anade `scripts/backup-offsite.sh`, cron template `infra/deploy/cron/esdata-offsite-backup`, runbook `docs/operations/runbooks/offsite-backup.md` y test `scripts/tests/test_backup_offsite.py`. Verificacion local: `pytest scripts/tests/test_backup_offsite.py -q` => `3 passed`; `bash -n scripts/backup-offsite.sh`; `bash -n scripts/weekly-accuracy-check.sh`; scan de patrones de secretos en scripts/infra/runbook sin hallazgos. Bloqueo: no hay remoto `rclone`/credenciales offsite ni SSH funcional al VPS (`deploy@212.227.227.64` deniega publickey), por lo que P-06 no puede cerrarse como `passes=true` ni avanzar honestamente a P-07 restore offsite. Siguiente paso exacto: configurar `ESDATA_BACKUP_REMOTE` en `/etc/esdata/offsite-backup.env`, ejecutar `scripts/backup-offsite.sh` en VPS, verificar tamano remoto, despues P-07 restore en `esdata_offsite_test`.
+
 - 2026-05-13 10:25 Europe/Madrid - `[EN CURSO LOCAL]` auditoria global de autonomia/fiabilidad del MCP con subagentes por dominios, infra, API/MCP, SQL, seguridad y skills. VPS verificado en commit `57445f3`: Compose levantado, `/status api=ok database=ok stale=[]`, `weekly-accuracy-check.sh` PASS, `mcp_validation_suite ok=true`, `mcp_deep_contract_audit ok=true`, DB con `modelo_casilla=31101`, `articulo=1062`, `version_articulo=2345`, `documento_interpretativo=18799`. Hallazgos cerrados localmente: workflow Railway obsoleto desactivado, Dependabot/npm audit agregados, specs GPT auxiliares con `ApiKeyAuth`, paginacion en `/v1/ai/query-audit`, auditoria E2E para `/v1/boe-diario`, `/v1/bde`, `/v1/bdns`, `/v1/sepblac`, `/v1/cendoj`, y doc nueva `docs/operations/project-autonomy-audit-2026-05-13.md`. Pendientes P1: migrar `webhook_events` a Alembic+RLS, quitar DDL runtime restante de `boe_modelos_worker.py`, ampliar freshness semanal a todos los dominios, programar deep contract audit, backup offsite y scan de imagenes/SBOM.
 
 - 2026-05-13 07:40 Europe/Madrid - `[COMPLETADO LOCAL]` hardening OpenAI best-practices del paquete de skills ESData: se contrasta con docs oficiales OpenAI Codex Skills y Skills in API. Ajustes: se anade `config/codex-install.md` para discovery local/repo en `.agents/skills`, `config/responses-api-skills-example.json` para montaje de ZIPs en shell tool, y `openai_best_practices` en `skills-manifest.json`. Se regeneran ZIPs individuales y bundle. Verificacion: `quick_validate.py` pasa para las 6 skills; `skills-manifest.json` y `responses-api-skills-example.json` son JSON validos; `git diff --check` OK.
@@ -5913,3 +5937,488 @@ En orden de impacto real:
 **Evidencia VPS previa al cambio:** `norma.tipo_fuente='eurlex'=32`, `articulo=0`, `version_articulo=0`; ultimos `worker-eurlex`/`cron-eurlex-weekly` en `status=ok` con `fetch_articles=False`.
 
 **Siguiente paso:** ejecutar S-06 con un modo de ingesta EUR-Lex acotado por presupuesto de CELEX/tiempo, preferentemente via Publications Office, y desplegar el contrato S-05 en VPS.
+
+---
+
+## Reclamo 2026-05-13 - D-04 Modelo 198 diseno oficial AEAT recargado sin ruido
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/aeat_current_designs.py`, `apps/workers/tests/test_aeat_current_designs.py`, `prd.json`, `progress.txt`.
+
+**Objetivo:** cerrar la cobertura documental del Modelo 198 usando el PDF oficial AEAT y corregir un falso positivo del parser que interpretaba texto narrativo en minuscula como naturaleza de campo.
+
+**Resultado:**
+- `worker-modelos` fuerza recarga de los campos de diseno del Modelo 198 desde el PDF oficial AEAT 2024.
+- El parser PDF rechaza abreviaturas de naturaleza en minuscula cuando procesa tablas por posiciones, evitando campos espurios como `224 a 235 correspondientes al registro de tipo 2)`.
+- Se mantienen abreviaturas validas de naturaleza (`Num`, `AN`) y tablas numeradas existentes.
+- Produccion queda con `198 casillas_total=72`, `diseno_registro_campo=64`, `lowercase_noise=0`.
+- `modelo_recurso` conserva trazabilidad oficial: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`, URL AEAT.
+- Contrato API sigue honesto: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque las instrucciones completas y reglas de aplicabilidad no estan estructuradas.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q`
+- Resultado: `16 passed`.
+- Probe local contra PDF oficial AEAT del 198: `64` campos y `0` falsos positivos `Naturaleza: a`.
+- VPS: `docker compose ... run --rm worker-modelos python aeat_current_designs.py --run-once` devuelve `pdf_fields=178`, `parse_errors=0`.
+
+**Siguiente paso:** D-05 Modelo 187, verificar/recargar diseno oficial de acciones y participaciones IIC.
+
+---
+
+## Reclamo 2026-05-13 - D-05 Modelo 187 diseno oficial AEAT verificado
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** confirmar si el Modelo 187 necesitaba nueva carga documental o si la produccion ya contenia el diseno oficial determinista de AEAT.
+
+**Resultado:**
+- Produccion ya contiene el PDF oficial AEAT del Modelo 187 como `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+- Probe local contra el PDF oficial extrae `42` campos deterministas sin falsos positivos de naturaleza en minuscula.
+- Produccion tiene `187 casillas_total=50`, con `42` campos `diseno_registro_campo`.
+- El contrato API sigue honesto: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque no hay instrucciones completas ni reglas de aplicabilidad estructuradas.
+
+**Pruebas ejecutadas:**
+- Probe local contra `https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_187_2022.pdf`.
+- VPS SQL: `187 casillas_total=50`, `diseno_registro_campo=42`.
+- API: `/v1/modelos/aeat/187` devuelve `casillas_total=50` y contrato parcial.
+- Verificacion formal D-05: `187 casillas: 50` => `PASS`.
+
+**Siguiente paso:** D-06 Modelos 123 y 124, verificar/recargar disenos oficiales de retenciones.
+
+---
+
+## Reclamo 2026-05-13 - D-06 Modelos 123 y 124 disenos oficiales AEAT verificados
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** verificar la cobertura documental de los Modelos 123 y 124, relevantes para retenciones y rendimientos de capital mobiliario.
+
+**Resultado:**
+- Modelo 123: produccion tiene `44` campos `diseno_registro_campo` desde el XLS oficial AEAT `DR123e24.xls`.
+- Modelo 124: produccion tiene `39` campos `diseno_registro_campo` desde el XLSX oficial AEAT `124v01e2020_v1.07.xlsx`.
+- `modelo_recurso` contiene trazabilidad oficial para ambos: `tipo_recurso=diseno_registro`, URL AEAT, `row_provenance=official_exact`.
+- El contrato API sigue honesto: ambos responden `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque no se han estructurado instrucciones completas ni reglas de aplicabilidad.
+
+**Pruebas ejecutadas:**
+- Probe local contra XLS/XLSX oficiales: `123=44`, `124=39`.
+- VPS SQL: `123 casillas_total=44`, `124 casillas_total=39`.
+- API: `/v1/modelos/aeat/123` y `/v1/modelos/aeat/124` devuelven contrato parcial con conteo correcto.
+- Verificacion formal D-06: `PASS`.
+
+**Siguiente paso:** D-07 Modelo 289, revisar CRS/DAC2 y mantener contrato parcial si el XSD solo cubre mensaje tecnico.
+
+---
+
+## Reclamo 2026-05-13 - D-07 Modelo 289 XSD oficial AEAT cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/aeat_current_designs.py`, `apps/workers/tests/test_aeat_current_designs.py`, `prd.json`, `progress.txt`.
+
+**Objetivo:** cubrir el gap documental del Modelo 289 CRS/DAC2 usando el ZIP oficial XSD/WSDL publicado por AEAT.
+
+**Resultado:**
+- Se anadio el ZIP oficial `289_XSD_2.0_WSDL_2.0.1.zip` como fuente suplementaria de diseno XSD.
+- El parser XSD extrae `127` campos deterministas del esquema de presentacion.
+- Produccion queda con `289 casillas_total=134`, incluyendo `127` campos `diseno_registro_xsd_campo`.
+- `modelo_recurso` conserva trazabilidad oficial: `tipo_recurso=diseno_registro_xsd`, `formato=zip`, `row_provenance=official_exact`.
+- El contrato API sigue honesto: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque el XSD cubre estructura tecnica del mensaje, no instrucciones completas ni reglas de aplicabilidad CRS/DAC2.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q`
+- Resultado: `17 passed`.
+- Probe local contra ZIP oficial: `127` campos XSD.
+- VPS worker: `xsd_fields=127`, `parse_errors=0`.
+- VPS SQL/API: `289 casillas_total=134`, contrato parcial.
+
+**Siguiente paso:** D-08 Modelo 100, verificar procedencia oficial de IRPF y cobertura masiva de casillas.
+
+---
+
+## Reclamo 2026-05-13 - D-08 Modelo 100 cobertura oficial verificada
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** comprobar que la cobertura extensa del Modelo 100 procede de fuentes oficiales AEAT y que el contrato API puede seguir siendo autoritativo.
+
+**Resultado:**
+- Produccion contiene `100 casillas_total=2521`.
+- `modelo_recurso` acredita fuentes oficiales AEAT: `Renta2025.xsd`, `diccionarioXSD_2025.properties` y `diccionarioDlgXSD_2025.properties`, todas con `row_provenance=official_exact`.
+- La API responde `verified=true`, `completeness=completa`, `evidence_status=verified`.
+
+**Pruebas ejecutadas:**
+- Descarga local de las tres fuentes oficiales AEAT: HTTP 200.
+- VPS SQL: `100 casillas_total=2521`, `diseno_registro_campo=2493`.
+- API: `/v1/modelos/aeat/100` devuelve `casillas_total=2521`.
+- Verificacion formal D-08: `100 casillas: 2521` => `PASS`.
+
+**Siguiente paso:** D-09 Modelo 200, verificar Impuesto sobre Sociedades contra XLS oficial.
+
+---
+
+## Reclamo 2026-05-13 - D-09 Modelo 200 diseno oficial verificado con contrato parcial
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** verificar la cobertura del Modelo 200 de Impuesto sobre Sociedades contra el XLS oficial AEAT 2025 y anexos.
+
+**Resultado:**
+- Produccion contiene `200 casillas_total=6807`, todas como `diseno_registro_campo`.
+- Probe local contra `DR200e25.xls` extrae `6807` campos, coincidiendo con produccion.
+- `modelo_recurso` contiene el XLS oficial y anexos oficiales AEAT con `row_provenance=official_exact`.
+- La API devuelve `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`. Esta clasificacion es correcta por contrato: hay diseno de registro oficial, pero no instrucciones completas ni metadata operativa estructurada suficiente para elevarlo a guia autoritativa de presentacion.
+
+**Pruebas ejecutadas:**
+- Probe local contra XLS oficial AEAT: `6807` campos.
+- VPS SQL: `200 casillas_total=6807`.
+- API: `/v1/modelos/aeat/200` devuelve `casillas_total=6807` y contrato parcial.
+- Verificacion formal D-09: `200 casillas: 6807` => `PASS`.
+
+**Siguiente paso:** D-10 Modelo 303, verificar IVA contra XLSX oficial 300-399.
+
+---
+
+## Reclamo 2026-05-13 - D-10 Modelo 303 diseno oficial AEAT cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/aeat_current_designs.py`, `apps/workers/tests/test_aeat_current_designs.py`, `prd.json`, `progress.txt`.
+
+**Objetivo:** cubrir el gap del Modelo 303, que tenia recursos oficiales localizados pero `0` casillas en produccion.
+
+**Resultado:**
+- Se anadio el XLSX oficial `DR303e26v101.xlsx` como fuente suplementaria de diseno, fuera del indice 100-299.
+- El parser XLSX extrae `432` campos deterministas.
+- Produccion pasa de `303 casillas_total=0` a `303 casillas_total=432`, todas `diseno_registro_campo`.
+- `modelo_recurso` conserva trazabilidad oficial: `tipo_recurso=diseno_registro`, `formato=xlsx`, `row_provenance=official_exact`.
+- La API responde `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque el diseno oficial no prueba por si solo instrucciones completas ni reglas de obligacion/cumplimentacion.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q`
+- Resultado: `18 passed`.
+- Probe local contra XLSX oficial: `432` campos.
+- VPS worker: `spreadsheet_fields=432`, `parse_errors=0`.
+- VPS SQL/API: `303 casillas_total=432`, contrato parcial.
+- Verificacion formal D-10: `303 casillas: 432` => `PASS`.
+
+**Siguiente paso:** D-11 Modelos 111 y 115, verificar disenos oficiales de retenciones.
+
+---
+
+## Reclamo 2026-05-13 - D-11 Modelos 111 y 115 disenos oficiales verificados
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** verificar que los Modelos 111 y 115 estan cubiertos por hojas oficiales AEAT y no por datos semilla sin trazabilidad.
+
+**Resultado:**
+- Modelo 111: produccion tiene `63` campos `diseno_registro_campo` desde `dr111e16v18.xls`.
+- Modelo 115: produccion tiene `37` campos `diseno_registro_campo` desde `DR115e15v13.xls`.
+- `modelo_recurso` conserva trazabilidad oficial para ambos con `row_provenance=official_exact`.
+- La API mantiene contrato parcial para ambos: `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`, porque no se han estructurado instrucciones completas ni reglas de aplicabilidad.
+
+**Pruebas ejecutadas:**
+- Probe local contra XLS oficiales: `111=63`, `115=37`.
+- VPS SQL: `111 casillas_total=63`, `115 casillas_total=37`.
+- API: `/v1/modelos/aeat/111` y `/v1/modelos/aeat/115` devuelven conteos correctos y contrato parcial.
+- Verificacion formal D-11: `PASS`.
+
+**Siguiente paso:** D-12 sweep de modelos STATUS-A restantes en el mapa documental.
+
+---
+
+## Reclamo 2026-05-13 - D-12 Sweep STATUS-A AEAT completado
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `docs/aeat-docs-map.md`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cerrar el barrido de modelos prioritarios `STATUS-A` del mapa documental AEAT, verificando que ninguno queda sin campos oficiales cargados.
+
+**Resultado:**
+- Todos los modelos prioritarios `STATUS-A` del mapa tienen campos oficiales cargados en produccion.
+- 196 esta reconciliado: `62` campos desde PDF logico oficial AEAT.
+- 290 esta reconciliado: `152` campos desde ZIP XSD/WSDL oficial FATCA.
+- 303, aunque fuera del rango 100-299, queda cubierto con `432` campos desde XLSX oficial 300-399.
+- `docs/aeat-docs-map.md` incluye ahora una tabla final D-12 con conteo y contrato API por modelo.
+
+**Pruebas ejecutadas:**
+- Probe local: `196=62`, `290=152`.
+- VPS SQL 100-299 numerico: `total=88`, `loaded=65`.
+- VPS SQL priority STATUS-A: todos con `casillas > 0`.
+- API spot-check: 196 y 290 devuelven conteos correctos y contrato parcial.
+
+**Siguiente paso:** D-13 informe final de cobertura documental y validaciones MCP.
+
+---
+
+## Reclamo 2026-05-13 - E-04 DLT Pilot EUR-Lex cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/eurlex_market.py`, `apps/workers/tests/test_eurlex_market.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar el articulado oficial del Reglamento DLT Pilot `CELEX 32022R0858` en las tablas dedicadas `eurlex_act` y `eurlex_article`.
+
+**Resultado:**
+- El loader filtra las manifestaciones de Publications Office por token CELEX para no aceptar consolidaciones de actos modificados (`2014R0909`) como si fueran `32022R0858`.
+- Para DLT Pilot, EUR-Lex no expone una manifestacion consolidada espanola valida (`.SPA.xhtml` devuelve 404), asi que se usa la expresion oficial espanola del DOUE `JOL_2022_151_R_0001.SPA`.
+- Produccion tiene `32022R0858` con `verified=true`, `completeness=completa`, `source_hash` MD5 y `capture_date=2026-05-13`.
+- `eurlex_article` contiene `19` articulos oficiales en espanol para DLT Pilot.
+
+**Pruebas ejecutadas:**
+- `python -m pytest apps/workers/tests/test_eurlex_market.py -q`
+- Probe local: `32022R0858` devuelve `19` articulos desde `http://publications.europa.eu/resource/cellar/b563a601-e245-11ec-a534-01aa75ed71a1.0023.03/DOC_1`.
+- VPS worker: `[run-once] EUR-Lex market: acts=1 articles=19`.
+- VPS SQL: `DLT Pilot articles: 19` => `PASS`.
+
+**Siguiente paso:** E-05 cargar el XML Schema oficial ESMA MiFIR Transaction Reporting 1.1.0.
+
+---
+
+## Reclamo 2026-05-13 - E-05 ESMA MiFIR Transaction Reporting XSD cargado
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/worker_esma_mifir_reporting.py`, `apps/workers/tests/test_worker_esma_mifir_reporting.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar el ZIP/XSD oficial de ESMA para MiFIR Transaction Reporting XML Schema 1.1.0 en `esma_schema` y `esma_schema_field`.
+
+**Resultado:**
+- Se anadio un loader sin DDL runtime para descargar `esma65-8-2598_annex_2_mifir_transaction_reporting_iso20022_xml_schemas.zip`.
+- Produccion tiene `1` schema `TRANSACTION_REPORTING`, version `1.1.0`, `verified=true`, `completeness=completa`.
+- Produccion tiene `168` campos XSD deterministicos desde `4` ficheros `.xsd`.
+- `esma_schema.source_hash` conserva el MD5 del ZIP y cada campo conserva MD5 del XSD concreto en `esma_schema_field.source_hash`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/worker_esma_mifir_reporting.py`
+- `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q`
+- Probe local: `files=4`, `fields=168`, `zip_hash_len=32`.
+- VPS worker: `[run-once] ESMA MiFIR reporting: files=4 fields=168`.
+- VPS SQL: `MiFIR TR fields: 168` => `PASS`.
+
+**Caveat:** E-05 cubre estructura XSD oficial, no reglas de validacion RTS 22 ni instrucciones de cumplimentacion. Esas fuentes se inventarian/cargan en E-06 si son estructuradas.
+
+**Siguiente paso:** E-06 cargar metadatos oficiales de MiFIR reporting ESMA, extrayendo reglas solo si hay fuente estructurada.
+
+---
+
+## Reclamo 2026-05-13 - E-06 Documentos MiFIR Reporting ESMA cargados
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/worker_esma_mifir_reporting.py`, `apps/workers/tests/test_worker_esma_mifir_reporting.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar metadatos oficiales del hub MiFIR Reporting de ESMA y extraer reglas solo desde fuentes estructuradas.
+
+**Resultado:**
+- `esma_reporting_document` contiene `4` documentos oficiales para `dominio=MIFIR`: hub, schema ZIP, instrucciones PDF y validation rules XLSX.
+- `esma_validation_rule` contiene `223` reglas desde la hoja estructurada `TransactionDataValidations` del XLSX oficial `ESMA65-8-2594`.
+- Los documentos PDF quedan como metadata-only (`completeness=parcial`), sin inferir reglas desde prosa.
+- El worker registra telemetria en `sync_log` como `worker-esma-mifir-reporting`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/worker_esma_mifir_reporting.py`
+- `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q`
+- Probe local: `documents=4`, `rules=223`.
+- VPS worker: `[run-once] ESMA MiFIR reporting: files=4 fields=168 documents=4 validation_rules=223`.
+- VPS SQL: `esma_reporting_document WHERE dominio='MIFIR' = 4`; `esma_validation_rule` para `ESMA65-8-2594 = 223`.
+
+**Siguiente paso:** E-07 cargar metadata FIRDS y piloto acotado, sin cargar FULINS completo.
+
+---
+
+## Reclamo 2026-05-13 - E-07 FIRDS DLTINS metadata y piloto cargados
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/worker_esma_firds.py`, `apps/workers/tests/test_worker_esma_firds.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar metadata oficial FIRDS y probar un pipeline acotado con DLTINS, sin cargar FULINS completo.
+
+**Resultado:**
+- Se anadio loader para el endpoint Solr oficial `esma_registers_firds_files`.
+- Produccion tiene `14` filas `esma_firds_file` de tipo `DLTINS` para los ultimos dias.
+- Produccion tiene `1000` instrumentos de muestra desde un unico ZIP delta `DLTINS_20260513_02of02.zip`.
+- El ZIP piloto se verifico contra checksum MD5 publicado por ESMA.
+- `esma_firds_file`/`esma_firds_instrument` quedan `verified=false`/`completeness=parcial` por diseno: es un piloto, no cobertura completa FIRDS.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/worker_esma_firds.py`
+- `python -m pytest apps/workers/tests/test_worker_esma_firds.py -q`
+- Probe local: `files=14`, pilot ZIP `14685323` bytes.
+- VPS worker: `[run-once] ESMA FIRDS: files=14 instruments=1000 pilot=DLTINS_20260513_02of02.zip`.
+- VPS SQL: `FIRDS files: 14, instruments: 1000` => `PASS`.
+
+**Siguiente paso:** E-08 cargar o documentar infraestructuras autorizadas DLT publicadas por ESMA.
+
+---
+
+## Reclamo 2026-05-13 - E-10 Workers EUR-Lex/ESMA programados
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/workers/eurlex_market.py`, `apps/workers/worker_eurlex_market.py`, `apps/api/services/worker_cadence.py`, `apps/api/tests/test_worker_cadence.py`, `apps/config/workers.py`, `infra/deploy/docker-compose.prod.yml`, `infra/deploy/systemd/esdata-eurlex-market-monthly.timer`, `infra/deploy/systemd/esdata-esma-mifir-reporting-weekly.timer`, `infra/deploy/systemd/esdata-esma-firds-daily.timer`, `infra/deploy/systemd/esdata-esma-dlt-weekly.timer`, `prd.json`, `progress.txt`.
+
+**Objetivo:** dejar los loaders EUR-Lex market, ESMA MiFIR reporting, ESMA FIRDS y ESMA DLT como jobs programados con cadencia explicita y telemetria `sync_log`.
+
+**Resultado:**
+- Se anadio `worker_eurlex_market.py` como entrypoint programable del loader dedicado EUR-Lex market.
+- `eurlex_market.py` refresca ahora `32014L0065` (MiFID II), `32014R0600` (MiFIR), `32023R1114` (MiCA) y `32022R0858` (DLT Pilot).
+- Se anadieron servicios Compose cron: `cron-eurlex-market-monthly`, `cron-esma-mifir-reporting-weekly`, `cron-esma-firds-daily`, `cron-esma-dlt-weekly`.
+- Se anadieron e instalaron timers systemd equivalentes en VPS.
+- La fuente canonica de `/status` declara cadencia para `worker-eurlex-market`, `worker-esma-mifir-reporting`, `worker-esma-firds` y `worker-esma-dlt`.
+- Los nombres `cron-*` quedan como alias, no como workers independientes, para evitar falsos `never_run`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/workers/eurlex_market.py apps/workers/worker_eurlex_market.py apps/api/services/worker_cadence.py apps/config/workers.py`
+- `python -m pytest apps/api/tests/test_worker_cadence.py -q` => `5 passed`.
+- Verification E-10: `test -f ... && grep ... apps/config/workers.py` => `PASS`.
+- VPS timers habilitados: siguiente FIRDS diario `2026-05-14 04:20 CEST`; MiFIR/DLT semanales `2026-05-18`; EUR-Lex market mensual `2026-06-04`.
+- VPS cron runs manuales:
+  - `worker-eurlex-market`: `documents=4`, `articles=353`.
+  - `worker-esma-mifir-reporting`: `documents=4`, `articles_upserted=391`.
+  - `worker-esma-firds`: `documents=14`, `articles_upserted=1000`.
+  - `worker-esma-dlt`: `documents=1`, `articles_upserted=81`.
+- `/status`: los cuatro workers nuevos tienen `stale=false` y `cadence_declared=true`.
+
+**Siguiente paso:** E-11 exponer endpoints API/MCP para EUR-Lex market, ESMA MiFIR schema, FIRDS y DLT.
+
+---
+
+## Reclamo 2026-05-13 - E-11 Endpoints EUR-Lex/ESMA market expuestos
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/api/routers/eurlex_market.py`, `apps/api/routers/esma_mifir.py`, `apps/api/routers/esma_firds.py`, `apps/api/routers/esma_dlt.py`, `apps/api/main.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** exponer por API los datos cargados en E-02 a E-10 con contratos de confianza y auditoria de retrieval.
+
+**Resultado:**
+- Nuevo router `/v1/eurlex/market`:
+  - `GET /v1/eurlex/market/acts`
+  - `GET /v1/eurlex/market/{celex}/articulos/{numero}`
+- Nuevo router `/v1/esma/mifir`:
+  - `GET /v1/esma/mifir/schemas`
+  - `GET /v1/esma/mifir/transaction-reporting/fields`
+- Nuevo router `/v1/esma/firds`:
+  - `GET /v1/esma/firds/files`
+  - `GET /v1/esma/firds/instruments`
+- Nuevo router `/v1/esma/dlt`:
+  - `GET /v1/esma/dlt/infrastructures`
+- Todas las respuestas incluyen `verified`, `completeness` y `quality_signal`.
+- Todas las rutas registran `query_audit_log`.
+- La ruta especifica `/v1/eurlex/market/*` queda registrada antes del detalle generico `/v1/eurlex/{referencia}` para evitar shadowing.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile apps/api/routers/eurlex_market.py apps/api/routers/esma_mifir.py apps/api/routers/esma_firds.py apps/api/routers/esma_dlt.py apps/api/main.py`
+- `APP_ENV=test ESDATA_API_KEY=... MCP_API_KEY=... python -c "import main"` => `import-ok`.
+- VPS smoke:
+  - `/v1/eurlex/market/acts` => `total=4`, `verified=true`, `completeness=completa`.
+  - `/v1/eurlex/market/32014R0600/articulos/1` => texto real MiFIR, `text_len=6528`.
+  - `/v1/esma/mifir/schemas` => `total=1`, `verified=true`, `completeness=completa`.
+  - `/v1/esma/mifir/transaction-reporting/fields?limit=3` => `total=168`.
+  - `/v1/esma/firds/files?limit=3` => `total=14`, `verified=false`, `completeness=parcial`.
+  - `/v1/esma/firds/instruments?limit=3` => `total=1000`, `verified=false`, `completeness=parcial`.
+  - `/v1/esma/dlt/infrastructures` => `total=6`, `verified=true`, `completeness=completa`.
+- VPS SQL `query_audit_log`: entradas confirmadas para `/v1/eurlex/market/*` y `/v1/esma/*`.
+
+**Caveat:** FIRDS sigue siendo piloto parcial; no debe usarse para afirmar ausencia/presencia exhaustiva de instrumentos.
+
+**Siguiente paso:** E-12 ampliar `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para cubrir los nuevos endpoints y contratos.
+
+---
+
+## Reclamo 2026-05-13 - E-12 Suites de validacion EUR-Lex/ESMA market
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `scripts/maintenance/mcp_validation_suite.py`, `scripts/maintenance/mcp_deep_contract_audit.py`, `scripts/ralph/table-remediation-registry.json`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** hacer que las suites de mantenimiento detecten regresiones en los nuevos dominios EUR-Lex market y ESMA markets, incluyendo fail-closed de FIRDS parcial.
+
+**Resultado:**
+- `mcp_validation_suite.py` cubre ahora:
+  - MiFIR `32014R0600`, MiCA `32023R1114` y DLT Pilot `32022R0858` articulo 1 con texto real, `verified=true`, `completeness=completa`, `source_url`, `source_hash` y `capture_date`.
+  - ESMA MiFIR schema oficial (`total=1`) y campos XSD (`total=168`).
+  - FIRDS como `verified=false`, `completeness=parcial`, `quality_signal=evidence_limited_firds_pilot`.
+  - ISIN desconocido en FIRDS como `safe_to_answer=false` y aviso de ausencia no autoritativa.
+  - DLT infrastructures y CASP register con fuente oficial.
+- `mcp_deep_contract_audit.py` incluye `eurlex_esma_market_contracts`, que verifica texto real, fuente oficial EU (`eur-lex.europa.eu` o `publications.europa.eu`) y bloqueo de contaminacion BOE.
+- `table-remediation-registry.json` incluye las 12 tablas nuevas para que el audit de registry y `/v1/domain-availability` esten alineados.
+- API VPS reconstruida y reiniciada para embeber el registry actualizado.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile scripts/maintenance/mcp_validation_suite.py scripts/maintenance/mcp_deep_contract_audit.py`
+- `python -m json.tool scripts/ralph/table-remediation-registry.json`
+- VPS `mcp_validation_suite.py --read-only --base-url http://api:8000` => `"ok": true`.
+- VPS `mcp_deep_contract_audit.py --base-url http://api:8000` => `"ok": true`.
+- Verification E-12 equivalente en VPS => `PASS`.
+
+**Caveat:** EUR-Lex usa URLs oficiales Cellar de `publications.europa.eu` en varios registros; se consideran fuente oficial EU, no contaminacion de dominio.
+
+**Siguiente paso:** E-13 informe final de cobertura EUR-Lex/ESMA markets y verificacion final.
+
+---
+
+## Reclamo 2026-05-13 - E-13 Informe final EUR-Lex/ESMA markets
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `docs/eurlex-esma-coverage-report.md`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cerrar el sprint con un informe de cobertura, contratos por dominio y verificacion final de estado.
+
+**Resultado:**
+- Informe final creado en `docs/eurlex-esma-coverage-report.md`.
+- Cobertura autoritativa documentada:
+  - MiFID II `32014L0065`: 92 articulos.
+  - MiFIR `32014R0600`: 93 articulos.
+  - MiCA `32023R1114`: 149 articulos.
+  - DLT Pilot `32022R0858`: 19 articulos.
+  - ESMA transaction reporting XSD: 1 schema, 168 fields.
+  - ESMA validation rules: 223 reglas estructuradas.
+  - ESMA DLT register: 6 infraestructuras y 75 exenciones.
+  - ESMA CASP register: 192 filas verificadas.
+- Cobertura parcial documentada:
+  - FIRDS: 14 ficheros DLTINS y 1000 instrumentos piloto, `evidence_limited`.
+  - FITRS: `configured_but_unavailable`.
+
+**Pruebas ejecutadas:**
+- SQL VPS de conteos finales por tabla/dominio.
+- `/status`: `api=ok`, `database=ok`, workers sin `stale=true`.
+- Alertmanager: `/api/v2/alerts` devolvio `[]`.
+- E-12 suites finales seguian en verde: `mcp_validation_suite` y `mcp_deep_contract_audit` con `"ok": true`.
+- Verification E-13 => `PASS`.
+
+**Caveat:** no hay full FIRDS/FULINS ni FITRS completo; quedan explicitamente fuera del contrato autoritativo.
+
+**Siguiente paso:** sprint completo; no quedan historias pendientes en `prd.json`.
+
+---
+
+## Decision 2026-05-13 - ESMA reference data scope
+
+**Estado:** DECISION ACTIVA.
+
+**Decision:** no cargar FIRDS/FULINS completo ni replicar datasets masivos de datos reales ESMA salvo decision futura explicita. El valor del MCP para ESMA markets se centra en:
+- textos regulatorios EUR-Lex oficiales;
+- schemas XSD vigentes de reporting;
+- reglas de validacion estructuradas;
+- metadata RTS/ITS/Q&A trazable;
+- registros oficiales pequenos y relevantes, como CASP y DLT infrastructures.
+
+**Motivo:** FULINS diario puede requerir decenas o cientos de GB para historico operativo. Para el caso de uso actual no aporta tanto como los esquemas de validacion y reglas de reporte, y aumentaria coste, mantenimiento y riesgo de stale data.
+
+**Implicacion:** `worker-esma-firds` queda como metadata/piloto acotado para probar contrato `evidence_limited`; no debe evolucionar a cobertura autoritativa de instrumentos sin un nuevo sprint con estimacion de almacenamiento, particionado, retencion y presupuesto operacional.

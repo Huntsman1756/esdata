@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy import create_engine, text
 
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
+from runtime import assert_table_exists, get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 
 BOE_API_BASE = os.getenv(
     "BOE_API_BASE",
@@ -118,26 +118,10 @@ def fetch_block(client: httpx.Client, boe_id: str, block_id: str) -> BloqueTexto
 
 
 def _ensure_sync_log_table(conn) -> None:
-    conn.execute(
-        text(
-            """
-            CREATE TABLE IF NOT EXISTS sync_log (
-                id SERIAL PRIMARY KEY,
-                worker TEXT NOT NULL,
-                started_at TIMESTAMPTZ NOT NULL,
-                finished_at TIMESTAMPTZ,
-                status TEXT NOT NULL,
-                bloques_processed INTEGER,
-                articulos_upserted INTEGER,
-                documentos_processed INTEGER,
-                documentos_upserted INTEGER,
-                error_msg TEXT,
-                rows_processed INTEGER,
-                errors INTEGER DEFAULT 0,
-                duration_ms INTEGER
-            )
-            """
-        )
+    assert_table_exists(
+        conn,
+        "sync_log",
+        required_columns=("worker", "started_at", "finished_at", "status", "rows_processed", "errors", "duration_ms"),
     )
 
 

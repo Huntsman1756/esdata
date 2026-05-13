@@ -267,6 +267,20 @@ async def test_gpt_action_spec_endpoint(seeded_db):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_gpt_action_core_spec_endpoint_stays_under_builder_limit(seeded_db):
+    """Core GPT Actions spec stays below the Custom GPT operation limit."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.get("/gpt-actions/core/openapi.json")
+    assert r.status_code == 200
+    data = r.json()
+    operation_count = sum(len(methods) for methods in data["paths"].values())
+    assert operation_count <= 30
+    assert data["components"]["securitySchemes"]["ApiKeyAuth"]["name"] == "X-API-Key"
+    assert "/v1/modelos/{codigo}" in data["paths"]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_privacy_policy_endpoint(seeded_db):
     """Privacy policy endpoint serves HTML."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

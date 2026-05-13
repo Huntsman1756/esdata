@@ -77,6 +77,22 @@ first batch should be:
 4. Remaining workers with local `_ensure_*` table creation for migration-owned
    tables should be converted to assertions or shared helpers.
 
+## P-03 resolution
+
+Implemented on 2026-05-13:
+
+- Added migration `20260513_0073_webhook_events.py` so `webhook_events` is
+  Alembic-owned and RLS-protected.
+- Removed runtime table creation from `apps/api/services/webhook_verification.py`;
+  it now asserts the migration-owned table and columns exist.
+- Converted production schema bootstrap paths in the RISK-IDEMPOTENT workers to
+  `assert_table_exists`, `assert_postgres_extension`, and `assert_postgres_index`.
+- Kept SQLite-only test compatibility in explicit helpers under
+  `apps/workers/runtime.py`; these are not used by PostgreSQL production paths.
+- Verification: targeted DDL gate over all RISK-IDEMPOTENT files returned no
+  runtime DDL hits, and the full app test suite passed with `3011 passed,
+  2 skipped`.
+
 ## Notes
 
 - The scan included `CREATE EXTENSION` in addition to the requested table/index

@@ -1,126 +1,175 @@
 {
-  "projectName": "esdata-risk-reduction",
-  "branchName": "fix/risk-reduction",
+  "projectName": "esdata-eurlex-esma-markets",
+  "branchName": "fix/eurlex-esma-markets",
   "userStories": [
     {
-      "id": "P-01",
-      "title": "Audit: inventory all DDL statements in boe_modelos_worker.py and other workers",
+      "id": "E-00",
+      "title": "Map all official EUR-Lex and ESMA sources for market regulation domains",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "Grep entire codebase for runtime DDL in apps/workers and apps/api",
-        "For each hit: record file, line, statement, and whether it is idempotent",
-        "Classify each as SAFE, RISK-IDEMPOTENT, or RISK-DESTRUCTIVE",
-        "Write inventory to docs/ddl-runtime-audit.md",
-        "Do not change runtime code in this story"
+        "Document official sources for MiFID II, MiFIR, MiCA, DLT Pilot and MAR",
+        "Document ESMA MiFIR reporting hub, transaction reporting schemas, FIRDS/FITRS registers and DLT Pilot page",
+        "For each source record url, format, size/update notes and STATUS-A/D/E classification",
+        "Write docs/eurlex-esma-market-coverage-map.md",
+        "Flag which CELEX texts already have articulado loaded and which ESMA schemas are new",
+        "Do not load data in this story"
       ],
-      "verificationCommand": "test -f docs/ddl-runtime-audit.md && grep -cE 'SAFE|RISK' docs/ddl-runtime-audit.md | grep -vE '^0$' && echo PASS || echo FAIL-NO-AUDIT-DOC"
+      "verificationCommand": "test -f docs/eurlex-esma-market-coverage-map.md && grep -cE 'STATUS-|CELEX|ESMA' docs/eurlex-esma-market-coverage-map.md | awk '{print ($1 >= 10) ? \"PASS\" : \"FAIL-MAP-TOO-SHORT\"}'"
     },
     {
-      "id": "P-02",
-      "title": "Move RISK-DESTRUCTIVE DDL from workers to Alembic migrations",
+      "id": "E-01",
+      "title": "Alembic migrations for all new EUR-Lex and ESMA tables",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "From P-01 inventory: take all RISK-DESTRUCTIVE entries",
-        "Create reviewed Alembic migrations for current schema state",
-        "Run migrations on a test DB before production",
-        "Remove destructive runtime DDL and replace with startup assertions"
+        "Check existing schema before migration",
+        "Create Alembic migration for missing eurlex/esma tables",
+        "Do not use runtime DDL",
+        "Apply to test DB before production"
       ],
-      "verificationCommand": "grep -rn 'CREATE TABLE\\|ALTER TABLE\\|DROP TABLE' apps/workers/boe_modelos_worker.py 2>/dev/null | grep -v '# ' | wc -l | grep '^0$' && alembic history | head -5 && echo PASS || echo FAIL-DDL-STILL-IN-WORKER"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('eurlex_act','eurlex_article','esma_reporting_document','esma_schema','esma_schema_field','esma_validation_rule','esma_firds_file','esma_firds_instrument','esma_fitrs_result','esma_dlt_market_infrastructure','esma_dlt_exemption')\"); [ \"$COUNT\" -eq 11 ] && alembic heads | grep -q '20260513_0074_eurlex_esma_market_tables' && echo PASS || echo FAIL-TABLES-MISSING"
     },
     {
-      "id": "P-03",
-      "title": "Move RISK-IDEMPOTENT DDL to Alembic - remove all runtime schema changes from workers",
+      "id": "E-02",
+      "title": "Load EUR-Lex MiFIR full articulado - CELEX 32014R0600",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "From P-01 inventory: take all RISK-IDEMPOTENT entries",
-        "Workers only read and write data; no schema mutation",
-        "All schema is owned by Alembic exclusively",
-        "Run full test suite after changes"
+        "Download official EUR-Lex MiFIR text",
+        "Parse all articles into eurlex_act/eurlex_article",
+        "Store source_url, source_hash and capture_date",
+        "Expose real article text through API/MCP"
       ],
-      "verificationCommand": "grep -rn 'CREATE TABLE\\|ALTER TABLE\\|DROP TABLE\\|ADD COLUMN\\|DROP COLUMN\\|CREATE INDEX' apps/workers/ apps/api/ | grep -v '.pyc' | grep -v 'test_' | grep -v '# ' | grep -v 'alembic' | wc -l | grep '^0$' && pytest apps/ -q 2>&1 | tail -5 | grep -E 'passed' && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM eurlex_article WHERE act_id=(SELECT id FROM eurlex_act WHERE celex='32014R0600')\"); echo \"MiFIR articles: $COUNT\"; [ \"$COUNT\" -gt 10 ] && echo PASS || echo FAIL-NO-MIFIR-ARTICLES"
     },
     {
-      "id": "P-04",
-      "title": "Schedule mcp_deep_contract_audit.py in weekly cron alongside accuracy check",
+      "id": "E-03",
+      "title": "Load EUR-Lex MiCA full articulado - CELEX 32023R1114",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "Verify scripts/mcp_deep_contract_audit.py runs cleanly",
-        "Add it to scripts/weekly-accuracy-check.sh after mcp_validation_suite",
-        "Ensure cron invokes the weekly check with audit output",
-        "Test-run weekly accuracy check"
+        "Download official EUR-Lex MiCA text",
+        "Parse articles and recitals safely",
+        "Store traceability and mark complete only when article coverage is complete"
       ],
-      "verificationCommand": "bash scripts/weekly-accuracy-check.sh 2>&1 | grep -i 'deep.*audit\\|contract.*audit' && echo PASS || echo FAIL-DEEP-AUDIT-NOT-IN-WEEKLY"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM eurlex_article WHERE act_id=(SELECT id FROM eurlex_act WHERE celex='32023R1114')\"); echo \"MiCA articles: $COUNT\"; [ \"$COUNT\" -gt 50 ] && echo PASS || echo FAIL-NO-MICA-ARTICLES"
     },
     {
-      "id": "P-05",
-      "title": "Extend freshness check to all 11 pending domains",
+      "id": "E-04",
+      "title": "Load EUR-Lex DLT Pilot Regulation - CELEX 32022R0858",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "Add freshness checks for BORME, DGT/TEAC, AEPD, BDE, BDNS, SEPBLAC, CENDOJ, FATCA/GIIN, OFAC, CDI, PGC",
-        "Use domain-specific stale thresholds",
-        "Inactive domains with no sync_log rows log INFO, not STALE",
-        "weekly-accuracy-check.sh covers all target domains"
+        "Download official EUR-Lex DLT Pilot text",
+        "Parse articles into dedicated EUR-Lex market tables",
+        "Preserve full source traceability"
       ],
-      "verificationCommand": "grep -c 'worker-' scripts/weekly-accuracy-check.sh | awk '{print ($1 >= 11) ? \"PASS\" : \"FAIL-NOT-ALL-DOMAINS-COVERED\"}'"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM eurlex_article WHERE act_id=(SELECT id FROM eurlex_act WHERE celex='32022R0858')\"); echo \"DLT Pilot articles: $COUNT\"; [ \"$COUNT\" -gt 10 ] && echo PASS || echo FAIL-NO-DLT-ARTICLES"
     },
     {
-      "id": "P-06",
-      "title": "Configure offsite immutable backup - second provider, 30-day retention",
+      "id": "E-05",
+      "title": "Load ESMA MiFIR Transaction Reporting XML Schema 1.1.0",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "Choose a second provider outside the VPS provider",
-        "Create scripts/backup-offsite.sh",
-        "Upload, verify remote size, prune older than 30 days",
-        "No credentials stored in repo"
+        "Download official ESMA transaction reporting ZIP/XSD",
+        "Parse XSD elements as schema fields",
+        "Never infer fields from prose"
       ],
-      "verificationCommand": "bash scripts/backup-offsite.sh && echo PASS || echo FAIL-BACKUP-SCRIPT-ERROR"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM esma_schema_field sf JOIN esma_schema s ON sf.schema_id=s.id WHERE s.dominio='TRANSACTION_REPORTING'\"); echo \"MiFIR TR fields: $COUNT\"; [ \"$COUNT\" -gt 0 ] && echo PASS || echo FAIL-NO-MIFIR-SCHEMA-FIELDS"
     },
     {
-      "id": "P-07",
-      "title": "Test offsite backup restore - not just upload existence",
+      "id": "E-06",
+      "title": "Load ESMA MiFIR reporting documents - RTS 22, ITS, Q&A",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "Download most recent offsite backup",
-        "Restore to esdata_offsite_test, never production",
-        "Verify key row counts",
-        "Drop test DB after verification and document evidence"
+        "Load ESMA reporting document metadata",
+        "Extract validation rules only if structured",
+        "Keep unstructured PDFs as metadata/evidence_limited"
       ],
-      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -tAc 'SELECT COUNT(*) FROM aeat_modelo' esdata_offsite_test 2>/dev/null | grep -vE '^[0-9]$' && echo PASS || echo 'FAIL or test DB not found'"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*) FROM esma_reporting_document WHERE dominio='MIFIR';\" && echo PASS"
     },
     {
-      "id": "P-08",
-      "title": "Add backup offsite status to /status and weekly accuracy check",
+      "id": "E-07",
+      "title": "Load FIRDS file list and metadata - pilot only",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "Add last_offsite_backup_age_hours to /status",
-        "weekly-accuracy-check.sh fails if backup is stale",
-        "backup-offsite.sh writes last successful timestamp",
-        "/status shows backup freshness alongside api/db/stale workers"
+        "Load FIRDS file metadata",
+        "Pilot one recent delta file only",
+        "Do not load full FULINS history without separate capacity decision"
       ],
-      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/status | jq '.last_offsite_backup_age_hours' | grep -vE '^null$' && echo PASS || echo FAIL-BACKUP-STATUS-NOT-IN-STATUS-ENDPOINT"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; FILE_COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM esma_firds_file'); INSTR_COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM esma_firds_instrument'); echo \"FIRDS files: $FILE_COUNT, instruments: $INSTR_COUNT\"; [ \"$FILE_COUNT\" -gt 0 ] && echo PASS || echo FAIL-NO-FIRDS-DATA"
     },
     {
-      "id": "P-09",
-      "title": "Final verification - all risk items closed, tests green, system clean",
+      "id": "E-08",
+      "title": "Load ESMA DLT authorised market infrastructures",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
-        "0 runtime DDL in workers",
-        "Deep contract audit scheduled",
-        "Freshness covers all target domains",
-        "Offsite backup status is exposed",
-        "Tests and mcp_validation_suite are green",
-        "Write docs/risk-reduction-report.md"
+        "Load structured DLT infrastructure list if published",
+        "If zero authorisations exist, document configured_but_unavailable honestly"
       ],
-      "verificationCommand": "pytest apps/ -q 2>&1 | tail -3 | grep -E 'passed' && curl -sf http://localhost:${API_PORT:-8000}/status | jq '{api, db, stale_workers_count, last_offsite_backup_age_hours}' | grep -v 'null' && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*) FROM esma_dlt_market_infrastructure;\" && echo PASS"
+    },
+    {
+      "id": "E-09",
+      "title": "Harden CASP/MiCA register - verify existing data and fill gaps",
+      "priority": 10,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Verify CASP source freshness and provenance",
+        "Reload if stale",
+        "Keep non-CASP MiCA tables fail-closed unless official structured data exists"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*), MAX(capture_date) FROM casp WHERE verified=true;\" && echo PASS"
+    },
+    {
+      "id": "E-10",
+      "title": "Create workers for EUR-Lex and ESMA scheduled refresh",
+      "priority": 11,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Create scheduled workers for EUR-Lex market texts, ESMA MiFIR reporting and ESMA FIRDS metadata",
+        "Register cadence and sync_log telemetry"
+      ],
+      "verificationCommand": "test -f apps/workers/worker_eurlex_market.py && test -f apps/workers/worker_esma_mifir_reporting.py && test -f apps/workers/worker_esma_firds.py && grep -c 'worker-eurlex-market\\|worker-esma-mifir\\|worker-esma-firds' apps/config/workers.py | grep -vE '^0$' && echo PASS || echo FAIL-WORKERS-MISSING"
+    },
+    {
+      "id": "E-11",
+      "title": "Expose EUR-Lex and ESMA endpoints in API and MCP",
+      "priority": 12,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Expose market EUR-Lex, ESMA MiFIR schema, FIRDS and DLT endpoints",
+        "All endpoints include verified/completeness and query audit"
+      ],
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/v1/eurlex/market/acts | jq '.total' | grep -vE '^0$' && curl -sf http://localhost:${API_PORT:-8000}/v1/esma/mifir/schemas | jq '.total' && echo PASS || echo FAIL-ENDPOINTS-NOT-RESPONDING"
+    },
+    {
+      "id": "E-12",
+      "title": "Expand mcp_validation_suite and mcp_deep_contract_audit for new domains",
+      "priority": 13,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Add MiFIR/MiCA/DLT/ESMA/FIRDS checks to both suites",
+        "Validate fail-closed behavior for incomplete FIRDS/DLT data"
+      ],
+      "verificationCommand": "cd /srv/esdata/infra/deploy && docker compose --env-file /etc/esdata/esdata.env -f docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000' | grep 'ok.*true' && docker compose --env-file /etc/esdata/esdata.env -f docker-compose.prod.yml run --rm --no-deps -v /srv/esdata:/workspace -w /workspace api sh -lc 'python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000' | grep 'ok.*true' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "E-13",
+      "title": "Final coverage report - EUR-Lex + ESMA markets sprint",
+      "priority": 14,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Write docs/eurlex-esma-coverage-report.md",
+        "Document records loaded and contracts per domain",
+        "Confirm status, alerting and audit suites"
+      ],
+      "verificationCommand": "test -f docs/eurlex-esma-coverage-report.md && curl -sf --header \"X-API-Key:$ESDATA_API_KEY\" http://127.0.0.1:8000/status | grep api | grep database >/dev/null && echo PASS || echo FAIL"
     }
   ]
 }

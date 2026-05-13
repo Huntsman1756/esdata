@@ -56,6 +56,8 @@ from boe_pdf_parser import download_and_parse_boe_pdf
 from modelos_support import upsert_casillas, upsert_instructions
 
 from runtime import (
+    assert_table_exists,
+
     ensure_database_connection,
 
     handle_worker_failure,
@@ -164,27 +166,12 @@ def _normalize_casilla_code(codigo: str) -> str:
 
 
 def _ensure_sync_log_table(conn) -> None:
-    """Ensure sync_log table exists. Uses session-level operations only."""
-    try:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS sync_log (
-                id SERIAL PRIMARY KEY,
-                worker VARCHAR(100) NOT NULL,
-                started_at TIMESTAMP NOT NULL,
-                finished_at TIMESTAMP,
-                status VARCHAR(50),
-                bloques_processed INTEGER DEFAULT 0,
-                articulos_upserted INTEGER DEFAULT 0,
-                filas_procesadas INTEGER DEFAULT 0,
-                errores INTEGER DEFAULT 0,
-                documentos_procesados INTEGER DEFAULT 0,
-                documentos_insertados INTEGER DEFAULT 0,
-                doctrina_enlaces INTEGER DEFAULT 0,
-                error_msg TEXT
-            )
-        """))
-    except Exception:
-        pass
+    """Assert sync_log exists; production schema is Alembic-owned."""
+    assert_table_exists(
+        conn,
+        "sync_log",
+        required_columns=("worker", "started_at", "finished_at", "status", "rows_processed", "errors"),
+    )
 
 
 def _log_sync(conn, worker: str, status: str, stats: dict, error_msg: str = None) -> None:

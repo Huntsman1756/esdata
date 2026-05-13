@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata EUR-Lex market acts monthly sync
+
+[Timer]
+OnCalendar=*-*-04 03:00:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-eurlex-market-monthly.service
+
+[Install]
+WantedBy=timers.target

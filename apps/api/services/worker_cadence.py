@@ -288,6 +288,38 @@ WORKER_CADENCE_CONFIG: dict[str, WorkerCadence] = {
         "cron_expression": "Mon *-*-* 03:35:00 Europe/Madrid",
         "notes": "ESMA MiCA CASP scheduled cron.",
     },
+    # real schedule: systemd monthly day 4 03:00 Europe/Madrid = 720 hours
+    "worker-eurlex-market": {
+        "trigger": "cron_monthly",
+        "expected_cadence_hours": 720,
+        "stale_threshold_hours": 1080,
+        "cron_expression": "*-*-04 03:00:00 Europe/Madrid",
+        "notes": "Dedicated EUR-Lex market acts refresh for MiFID II, MiFIR, MiCA and DLT Pilot.",
+    },
+    # real schedule: systemd weekly Monday 04:05 Europe/Madrid = 168 hours
+    "worker-esma-mifir-reporting": {
+        "trigger": "cron_weekly",
+        "expected_cadence_hours": 168,
+        "stale_threshold_hours": 252,
+        "cron_expression": "Mon *-*-* 04:05:00 Europe/Madrid",
+        "notes": "ESMA MiFIR transaction reporting schemas, reporting documents and validation rules.",
+    },
+    # real schedule: systemd daily 04:20 Europe/Madrid = 24 hours
+    "worker-esma-firds": {
+        "trigger": "cron_daily",
+        "expected_cadence_hours": 24,
+        "stale_threshold_hours": 36,
+        "cron_expression": "*-*-* 04:20:00 Europe/Madrid",
+        "notes": "ESMA FIRDS DLTINS file metadata and bounded pilot sample refresh.",
+    },
+    # real schedule: systemd weekly Monday 04:35 Europe/Madrid = 168 hours
+    "worker-esma-dlt": {
+        "trigger": "cron_weekly",
+        "expected_cadence_hours": 168,
+        "stale_threshold_hours": 252,
+        "cron_expression": "Mon *-*-* 04:35:00 Europe/Madrid",
+        "notes": "ESMA DLT authorised market infrastructures official PDF refresh.",
+    },
     # real schedule: systemd monthly day 2 02:00 Europe/Madrid = 720 hours
     "cron-giin-monthly": {
         "trigger": "cron_monthly",
@@ -311,6 +343,10 @@ WORKER_CADENCE_ALIASES = {
     "modelos": "worker-modelos",
     "worker-aeat-modelos": "worker-modelos",
     "worker-aeat-current-designs": "cron-aeat-current-daily",
+    "cron-eurlex-market-monthly": "worker-eurlex-market",
+    "cron-esma-mifir-reporting-weekly": "worker-esma-mifir-reporting",
+    "cron-esma-firds-daily": "worker-esma-firds",
+    "cron-esma-dlt-weekly": "worker-esma-dlt",
 }
 
 

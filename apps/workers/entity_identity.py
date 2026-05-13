@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 import httpx
 from sqlalchemy import create_engine, text
 
-from runtime import get_database_url, get_interval_seconds, ensure_database_connection
+from runtime import assert_table_exists, get_database_url, get_interval_seconds, ensure_database_connection
 
 
 GLEIF_API_BASE = "https://api.gleif.io/api/v1"
@@ -47,36 +47,10 @@ def _normalize_name(name: str) -> str:
 
 
 def _ensure_entity_tables(engine) -> None:
-    """Asegura que las tablas existen (idempotente, para workers sin alembic)."""
+    """Assert entity identity tables exist; schema is Alembic-owned."""
     with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS entity_identifiers (
-                id SERIAL PRIMARY KEY,
-                empresa_id INTEGER NOT NULL REFERENCES empresa(id),
-                lei TEXT,
-                nombre_legal TEXT,
-                pais CHAR(2),
-                estado TEXT NOT NULL DEFAULT 'active',
-                vigencia_desde DATE,
-                vigencia_hasta DATE,
-                vlei_status TEXT,
-                vlei_cred_url TEXT,
-                fuente_ref TEXT,
-                created_at TIMESTAMPTZ DEFAULT now(),
-                UNIQUE (empresa_id, lei)
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS entity_aliases (
-                id SERIAL PRIMARY KEY,
-                empresa_id INTEGER NOT NULL REFERENCES empresa(id),
-                alias TEXT NOT NULL,
-                alias_normalizado TEXT NOT NULL,
-                fuente TEXT NOT NULL,
-                confianza NUMERIC(3,2) NOT NULL DEFAULT 0.0,
-                created_at TIMESTAMPTZ DEFAULT now()
-            )
-        """))
+        assert_table_exists(conn, "entity_identifiers", required_columns=("empresa_id", "lei", "nombre_legal"))
+        assert_table_exists(conn, "entity_aliases", required_columns=("empresa_id", "alias", "alias_normalizado"))
 
 
 def _get_empresas_sin_lei(engine) -> list[dict]:

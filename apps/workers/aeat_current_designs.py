@@ -38,6 +38,14 @@ DESIGN_INDEX_URLS = [
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-100-199.html",
     "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-200-299.html",
 ]
+FORCE_RELOAD_DESIGN_MODELS = {
+    # D-01: Modelo 296 previously had seed/partial design fields. The official
+    # 2024 PDF is deterministic, so replace stale design-register rows.
+    "296",
+    # D-04: Modelo 198 had one false-positive PDF row extracted from narrative
+    # text; reload after stricter PDF nature detection.
+    "198",
+}
 SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
     {
         "codigo": "172",
@@ -96,12 +104,32 @@ SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI59.shtml",
     },
     {
+        "codigo": "289",
+        "label": "Modelo 289 - Esquema XSD y WSDL CRS/DAC2 presentacion",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI42/Ayuda/XSD_WSDL/289_XSD_2.0_WSDL_2.0.1.zip",
+        "tipo_recurso": "diseno_registro_xsd",
+        "formato": "zip",
+        "source_index": (
+            "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/"
+            "impuestos-tasas/declaraciones-informativas/modelo-289-decla_____ras-ambito-asistencia-mutua/"
+            "informacion-sobre-presentacion-mediante-web-service.html"
+        ),
+    },
+    {
         "codigo": "290",
         "label": "Modelo 290 - Esquema XSD y WSDL FATCA presentacion",
         "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI38/Ayuda/XSD_WSDL/290_XSD_2.0_WSDL_2.1.1.zip",
         "tipo_recurso": "diseno_registro_xsd",
         "formato": "zip",
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
+    },
+    {
+        "codigo": "303",
+        "label": "Modelo 303 - Diseno de registro IVA autoliquidacion 2026",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_300_399/archivos_26/DR303e26v101.xlsx",
+        "tipo_recurso": "diseno_registro",
+        "formato": "xlsx",
+        "source_index": "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-300-399.html",
     },
 ]
 # STATUS-D (M-06): modelos 234, 235 y 236 solo tienen ZIP oficial con ejemplos XML
@@ -680,6 +708,16 @@ def _normalize_pdf_word(value: str) -> str:
     )
 
 
+def _is_pdf_nature(value: str, *, allow_lowercase_abbreviation: bool) -> bool:
+    cleaned = value.strip().rstrip(".")
+    normalized = _normalize_pdf_word(cleaned)
+    if normalized not in _PDF_NATURE_WORDS:
+        return False
+    if not allow_lowercase_abbreviation and len(cleaned) <= 3 and cleaned == cleaned.lower():
+        return False
+    return True
+
+
 def _clean_pdf_label(value: str) -> str:
     label = " ".join(value.split())
     marker = re.search(
@@ -737,7 +775,7 @@ def extract_pdf_text_fields(text_value: str) -> list[dict]:
         numbered_match = numbered_row.match(line)
         if numbered_match:
             number, position, length, field_type, label = numbered_match.groups()
-            if _normalize_pdf_word(field_type) in _PDF_NATURE_WORDS:
+            if _is_pdf_nature(field_type, allow_lowercase_abbreviation=True):
                 _append_pdf_field(
                     fields,
                     seen_codes,
@@ -751,7 +789,7 @@ def extract_pdf_text_fields(text_value: str) -> list[dict]:
         if not positions_match:
             continue
         positions, nature, label = positions_match.groups()
-        if _normalize_pdf_word(nature) not in _PDF_NATURE_WORDS:
+        if not _is_pdf_nature(nature, allow_lowercase_abbreviation=False):
             continue
         cleaned_positions = re.sub(r"\s+", "", positions)
         _append_pdf_field(
@@ -805,6 +843,20 @@ def _campaign_has_fields(conn, campana_id: int) -> bool:
             {"campana_id": campana_id},
         ).fetchone()
     )
+
+
+def _delete_existing_design_fields(conn, campana_id: int) -> int:
+    result = conn.execute(
+        text(
+            """
+            DELETE FROM modelo_casilla
+            WHERE campana_id = :campana_id
+              AND tipo_casilla IN ('diseno_registro_campo', 'diseno_registro_xsd_campo')
+            """
+        ),
+        {"campana_id": campana_id},
+    )
+    return int(result.rowcount or 0)
 
 
 def _upsert_design_fields(conn, campana_id: int, fields: list[dict]) -> int:
@@ -983,7 +1035,17 @@ def run_sync(engine) -> dict:
             else:
                 stats["resources_stored"] += 1
 
-            if not _campaign_has_fields(conn, campana_id):
+            has_fields = _campaign_has_fields(conn, campana_id)
+            if has_fields and link["codigo"] in FORCE_RELOAD_DESIGN_MODELS:
+                deleted = _delete_existing_design_fields(conn, campana_id)
+                if deleted:
+                    logger.info(
+                        "Replacing existing AEAT design fields with current official source",
+                        extra={"codigo": link["codigo"], "deleted_fields": deleted, "url": link["url"]},
+                    )
+                has_fields = False
+
+            if not has_fields:
                 try:
                     if _is_spreadsheet_format(link["url"]):
                         fields = extract_spreadsheet_fields(payload)

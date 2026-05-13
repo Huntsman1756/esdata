@@ -24,7 +24,7 @@ from urllib.request import urlopen
 
 import httpx
 from bs4 import BeautifulSoup
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
+from runtime import assert_table_exists, get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = get_database_url()
@@ -327,46 +327,10 @@ def _normalize_name(name: str) -> str:
 
 
 def _ensure_screening_tables(engine) -> None:
-    """Ensure screening tables exist."""
+    """Assert screening tables exist; schema is Alembic-owned."""
     with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS screening_lists (
-                id SERIAL PRIMARY KEY,
-                codigo TEXT NOT NULL UNIQUE,
-                nombre TEXT NOT NULL,
-                tipo TEXT NOT NULL CHECK (tipo IN ('sanctions', 'pep', 'watchlist')),
-                organismo TEXT NOT NULL,
-                pais CHAR(2),
-                url_fuente TEXT,
-                descripcion TEXT,
-                actualizada DATE,
-                activo BOOLEAN NOT NULL DEFAULT true,
-                created_at TIMESTAMPTZ DEFAULT now()
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS screening_entries (
-                id SERIAL PRIMARY KEY,
-                list_id INTEGER NOT NULL REFERENCES screening_lists(id),
-                entidad_id TEXT NOT NULL,
-                nombre TEXT NOT NULL,
-                nombre_normalizado TEXT NOT NULL,
-                tipo_entidad TEXT NOT NULL CHECK (tipo_entidad IN ('person', 'entity', 'vessel', 'aircraft')),
-                pais CHAR(2),
-                nif TEXT,
-                fecha_nacimiento DATE,
-                aliases TEXT[],
-                categorias TEXT[],
-                descripcion TEXT,
-                fecha_sancion DATE,
-                fecha_alta DATE,
-                fecha_baja DATE,
-                activo BOOLEAN NOT NULL DEFAULT true,
-                metadata_json JSONB,
-                created_at TIMESTAMPTZ DEFAULT now(),
-                UNIQUE (list_id, entidad_id)
-            )
-        """))
+        assert_table_exists(conn, "screening_lists", required_columns=("codigo", "nombre", "tipo"))
+        assert_table_exists(conn, "screening_entries", required_columns=("list_id", "entidad_id", "nombre"))
 
 
 def fetch_ofac_sdn(urls=None):

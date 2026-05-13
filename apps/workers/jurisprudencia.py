@@ -27,7 +27,12 @@ import httpx
 from sqlalchemy import create_engine, text
 
 from boe import _ensure_sync_log_table, log_sync
-from runtime import handle_worker_failure, ensure_database_connection
+from runtime import (
+    assert_table_exists,
+    ensure_database_connection,
+    ensure_sqlite_documento_interpretativo_table,
+    handle_worker_failure,
+)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -367,29 +372,14 @@ def upsert_jurisprudencia_documento(conn, record: JurisprudenciaRecord) -> int:
 # Schema helpers
 # ===========================================================================
 def _ensure_documento_interpretativo(conn):
-    """Ensure the documento_interpretativo table exists (it should already)."""
-    dialect = conn.dialect.name
-    id_type = "SERIAL PRIMARY KEY" if dialect == "postgresql" else "INTEGER PRIMARY KEY"
-    ts_default = "now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"
-    conn.execute(
-        text(
-            f"""
-        CREATE TABLE IF NOT EXISTS documento_interpretativo (
-            id {id_type},
-            tipo_documento TEXT NOT NULL,
-            organismo_emisor TEXT NOT NULL,
-            jurisdiccion TEXT NOT NULL,
-            tipo_fuente TEXT NOT NULL,
-            ambito TEXT NOT NULL,
-            referencia TEXT UNIQUE NOT NULL,
-            fecha DATE NOT NULL,
-            titulo TEXT,
-            texto TEXT NOT NULL,
-            url_fuente TEXT,
-            created_at TIMESTAMPTZ DEFAULT {ts_default}
-        )
-        """
-        )
+    """Assert documento_interpretativo exists; schema is Alembic-owned."""
+    if conn.engine.dialect.name == "sqlite":
+        ensure_sqlite_documento_interpretativo_table(conn)
+        return
+    assert_table_exists(
+        conn,
+        "documento_interpretativo",
+        required_columns=("referencia", "texto", "tipo_fuente", "organismo_emisor"),
     )
 
 

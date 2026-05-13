@@ -29,6 +29,12 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps \
   -w /workspace \
   api sh -lc "python scripts/maintenance/mcp_validation_suite.py --read-only --base-url '$BASE_URL'"
 
+echo "== mcp_deep_contract_audit =="
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps \
+  -v "$ROOT_DIR:/workspace" \
+  -w /workspace \
+  api sh -lc "python scripts/maintenance/mcp_deep_contract_audit.py --base-url '$BASE_URL'"
+
 echo "== worker cadence declarations =="
 sync_workers=$(
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
@@ -79,9 +85,20 @@ WITH checks(domain, threshold_hours, workers) AS (
   VALUES
     ('BOE', 72::numeric, ARRAY['worker-boe','cron-boe-daily','cron-boe-diario-daily']),
     ('AEAT', 168::numeric, ARRAY['worker-modelos','cron-modelos-daily','cron-aeat-current-daily','worker-boe-modelos']),
-    ('EUR-Lex', 720::numeric, ARRAY['worker-eurlex','cron-eurlex-weekly']),
+    ('AEPD', 252::numeric, ARRAY['worker-aepd','cron-aepd-weekly']),
+    ('BDE', 36::numeric, ARRAY['worker-bde','cron-bde-weekly']),
+    ('BDNS', 252::numeric, ARRAY['worker-bdns','cron-bdns-weekly']),
+    ('BORME', 252::numeric, ARRAY['worker-borme','cron-borme-weekly']),
+    ('CDI', 252::numeric, ARRAY['worker-cdi','cron-cdi-weekly']),
+    ('CENDOJ', 252::numeric, ARRAY['worker-cendoj','cron-cendoj-weekly']),
     ('CNMV', 192::numeric, ARRAY['worker-cnmv','cron-cnmv-weekly']),
-    ('ESMA/MiCA', 192::numeric, ARRAY['cron-mica-weekly'])
+    ('DGT/TEAC', 252::numeric, ARRAY['worker-dgt','cron-dgt-weekly','worker-teac','cron-teac-weekly']),
+    ('ESMA/MiCA', 2160::numeric, ARRAY['worker-mica','cron-mica-weekly','cron-esma-quarterly']),
+    ('EUR-Lex', 2160::numeric, ARRAY['worker-eurlex','cron-eurlex-weekly','cron-eurlex-quarterly']),
+    ('FATCA/GIIN', 720::numeric, ARRAY['worker-giin','cron-giin-monthly']),
+    ('OFAC', 720::numeric, ARRAY['worker-ofac-sdn','cron-ofac-sdn-weekly','cron-ofac-monthly']),
+    ('PGC', 720::numeric, ARRAY['worker-pgc','worker-pgc-boe','cron-pgc-boe-monthly']),
+    ('SEPBLAC', 252::numeric, ARRAY['worker-sepblac','cron-sepblac-weekly'])
 ),
 latest AS (
   SELECT
@@ -104,7 +121,7 @@ SELECT
   END AS age_hours,
   threshold_hours::text AS threshold_hours,
   CASE
-    WHEN last_updated IS NULL THEN 'STALE'
+    WHEN last_updated IS NULL THEN 'INFO'
     WHEN (EXTRACT(EPOCH FROM (NOW() - last_updated)) / 3600) > threshold_hours THEN 'STALE'
     ELSE 'OK'
   END AS status
@@ -125,7 +142,7 @@ stale=0
 while IFS='|' read -r domain last_updated age_hours threshold_hours status; do
   [[ -z "${domain:-}" ]] && continue
   printf '%-10s | %-32s | %-9s | %-9s | %s\n' "$domain" "$last_updated" "$age_hours" "$threshold_hours" "$status"
-  if [[ "$status" != "OK" ]]; then
+  if [[ "$status" == "STALE" ]]; then
     stale=1
   fi
 done <<< "$rows"

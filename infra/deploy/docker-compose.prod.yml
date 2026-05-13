@@ -924,6 +924,74 @@ services:
     networks:
       - esdata-internal
 
+  cron-eurlex-market-monthly:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_EURLEX_MARKET_MONTHLY:-}
+      WORKER_CMD: python worker_eurlex_market.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
+  cron-esma-mifir-reporting-weekly:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_ESMA_MIFIR_REPORTING_WEEKLY:-}
+      WORKER_CMD: python worker_esma_mifir_reporting.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
+  cron-esma-firds-daily:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_ESMA_FIRDS_DAILY:-}
+      WORKER_CMD: python worker_esma_firds.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
+  cron-esma-dlt-weekly:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_ESMA_DLT_WEEKLY:-}
+      WORKER_CMD: python worker_esma_dlt.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
   hermes:
     build:
       context: ../..

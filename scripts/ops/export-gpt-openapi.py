@@ -8,6 +8,7 @@ Usage:
     python scripts/ops/export-gpt-openapi.py                  # default: 3.1.0
     python scripts/ops/export-gpt-openapi.py --openapi 3.0.3  # force 3.0.x
     python scripts/ops/export-gpt-openapi.py --output docs/openapi-gpt.json
+    python scripts/ops/export-gpt-openapi.py --profile actions30 --output docs/openapi-gpt-actions-30.json
 """
 
 import argparse
@@ -312,8 +313,31 @@ def _simplify_for_gpt(node):
                             replacement[key] = value
                     node.clear()
                     node.update(replacement)
+                else:
+                    variant_types = {
+                        item.get("type")
+                        for item in non_null
+                        if isinstance(item, dict) and isinstance(item.get("type"), str)
+                    }
+                    preserved = {
+                        key: value
+                        for key, value in node.items()
+                        if key not in {"anyOf", "oneOf", "allOf"}
+                    }
+                    if "object" in variant_types:
+                        preserved.setdefault("type", "object")
+                        preserved.setdefault("additionalProperties", True)
+                    elif "array" in variant_types:
+                        preserved.setdefault("type", "array")
+                        preserved.setdefault("items", {"type": "string"})
+                    else:
+                        preserved.setdefault("type", "string")
+                    node.clear()
+                    node.update(preserved)
 
         if node.get("type") == ["string", "null"]:
+            node["type"] = "string"
+        if node.get("type") == "null":
             node["type"] = "string"
 
         for key, value in list(node.items()):
@@ -326,9 +350,16 @@ def _simplify_for_gpt(node):
             _simplify_for_gpt(item)
 
 
-def export(openapi_version: str | None = None, output_path: str | None = None):
+def export(
+    openapi_version: str | None = None,
+    output_path: str | None = None,
+    profile: str = "full",
+):
     spec = app.openapi()
-    included_operation_ids = set(HTTP_MCP_OPERATIONS)
+    if profile not in {"full", "actions30"}:
+        raise ValueError(f"Unsupported GPT OpenAPI profile: {profile}")
+
+    included_operation_ids = set(HTTP_MCP_OPERATIONS) if profile == "full" else set()
 
     # Filter paths
     filtered_paths = {}
@@ -391,13 +422,20 @@ def export(openapi_version: str | None = None, output_path: str | None = None):
     if openapi_version and openapi_version.startswith("3.0"):
         curated = _downgrade_to_30(curated)
 
+    operation_count = sum(len(methods) for methods in curated["paths"].values())
+    if profile == "actions30" and operation_count > 30:
+        raise RuntimeError(
+            f"actions30 profile exported {operation_count} operations; maximum is 30"
+        )
+
     if output_path:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(curated, f, indent=2, ensure_ascii=False)
         print(f"Written {output_path} ({curated['openapi']})")
         print(
-            f"  {len(curated['paths'])} paths, {len(curated['components']['schemas'])} schemas"
+            f"  {len(curated['paths'])} paths, {operation_count} operations, "
+            f"{len(curated['components']['schemas'])} schemas"
         )
     else:
         print(json.dumps(curated, indent=2, ensure_ascii=False))
@@ -411,8 +449,14 @@ def main():
     )
     parser.add_argument("--openapi", default=None, help="OpenAPI version (e.g. 3.0.3)")
     parser.add_argument("--output", default=None, help="Output file path")
+    parser.add_argument(
+        "--profile",
+        choices=["full", "actions30"],
+        default="full",
+        help="Export profile: full MCP HTTP projection or <=30-operation GPT Actions core",
+    )
     args = parser.parse_args()
-    export(openapi_version=args.openapi, output_path=args.output)
+    export(openapi_version=args.openapi, output_path=args.output, profile=args.profile)
 
 
 if __name__ == "__main__":

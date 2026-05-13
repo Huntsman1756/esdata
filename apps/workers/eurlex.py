@@ -34,6 +34,7 @@ from change_detection import (
     record_revision,
 )
 from runtime import (
+    assert_table_exists,
     ensure_database_connection,
     get_bool_env,
     get_database_url,
@@ -1112,6 +1113,11 @@ def _ensure_sync_log_table(conn) -> None:
         return
     if dialect not in _SYNC_LOG_BOOTSTRAP_LOGGED:
         _SYNC_LOG_BOOTSTRAP_LOGGED.add(dialect)
+    assert_table_exists(
+        conn,
+        "sync_log",
+        required_columns=("worker", "started_at", "finished_at", "status", "rows_processed", "errors", "duration_ms"),
+    )
 
 
 def log_sync(

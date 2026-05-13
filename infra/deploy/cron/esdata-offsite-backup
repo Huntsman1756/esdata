@@ -1,0 +1,5 @@
+CRON_TZ=Europe/Madrid
+
+# Offsite immutable backup. Requires host rclone config and ESDATA_BACKUP_REMOTE
+# in /etc/esdata/offsite-backup.env. Credentials must never live in this repo.
+0 2 * * * deploy . /etc/esdata/offsite-backup.env && /srv/esdata/scripts/backup-offsite.sh >> /var/log/esdata-backup.log 2>&1

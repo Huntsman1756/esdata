@@ -13,6 +13,7 @@ class MockResponse:
     def __init__(self, text: str | None = None, content: bytes | None = None):
         self.text = text or ""
         self.content = content if content is not None else self.text.encode("utf-8")
+        self.url = "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv"
 
     def raise_for_status(self):
         return None
@@ -45,7 +46,12 @@ def _create_mica_tables(conn) -> None:
                 passport_active BOOLEAN NOT NULL DEFAULT FALSE,
                 services_offered TEXT,
                 status TEXT NOT NULL DEFAULT 'active',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source_url TEXT,
+                source_hash TEXT,
+                capture_date DATE,
+                verified BOOLEAN NOT NULL DEFAULT FALSE,
+                completeness TEXT NOT NULL DEFAULT 'parcial'
             )
             """
         )
@@ -167,10 +173,11 @@ def test_fetch_esma_casp_parses_current_csv(monkeypatch):
         lambda **kwargs: MockClient([MockResponse(content=csv_content.encode("utf-8-sig"))]),
     )
 
-    rows, source = fetch_esma_casp("https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv")
+    rows, source, source_hash = fetch_esma_casp("https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv")
     normalized = normalize_casp(rows[0])
 
     assert source.endswith("CASPS.csv")
+    assert len(source_hash) == 32
     assert normalized["name"] == "Bybit"
     assert normalized["registration_number"] == "5299005V5GBSN2A4C303"
     assert normalized["home_member_state"] == "AT"
@@ -198,6 +205,7 @@ def test_run_once_persists_casp_entities(monkeypatch):
                 }
             ],
             "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv",
+            "sourcehash",
         ),
     )
 
@@ -214,6 +222,13 @@ def test_run_once_persists_casp_entities(monkeypatch):
         assert custodian_count == 0
         tx_count = conn.execute(text("SELECT COUNT(*) FROM crypto_transaction")).scalar()
         assert tx_count == 0
+        source_row = conn.execute(
+            text("SELECT source_url, source_hash, verified, completeness FROM casp WHERE name = 'Bitso'")
+        ).mappings().one()
+        assert source_row["source_url"].endswith("CASPS.csv")
+        assert source_row["source_hash"] == "sourcehash"
+        assert bool(source_row["verified"]) is True
+        assert source_row["completeness"] == "completa"
 
 
 def test_services_offered_serialized_as_json(monkeypatch):
@@ -236,6 +251,7 @@ def test_services_offered_serialized_as_json(monkeypatch):
                 }
             ],
             "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv",
+            "sourcehash",
         ),
     )
 
@@ -275,6 +291,7 @@ def test_upsert_idempotent(monkeypatch):
                 }
             ],
             "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv",
+            "sourcehash",
         ),
     )
 

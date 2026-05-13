@@ -1041,3 +1041,632 @@ Evidence:
 Accepted risks:
   - P-01 is audit-only by design; no runtime code changed in this iteration.
 Next: P-02
+=== Iteration P-02 - 2026-05-13T06:48:27+02:00 ===
+Story: P-02 Move RISK-DESTRUCTIVE DDL from workers to Alembic migrations
+Result: PASS
+Evidence:
+  - Re-ran destructive-DDL scan over apps/workers and apps/api, excluding tests.
+  - Pattern checked: DROP TABLE, DROP COLUMN, and ALTER TABLE variants that drop/alter/rename/change type.
+  - Scan returned no runtime hits.
+  - No Alembic migration was created because P-01/P-02 found no RISK-DESTRUCTIVE entries to move.
+Fix applied:
+  - Updated prd.json P-02 verification command to reflect the P-01 finding: verify absence of destructive runtime DDL instead of requiring boe_modelos_worker.py to be cleaned in P-02.
+Accepted risks:
+  - Idempotent runtime DDL remains intentionally deferred to P-03.
+Next: P-03
+=== Iteration P-03 - 2026-05-13T07:03:51+02:00 ===
+Story: P-03 Move RISK-IDEMPOTENT DDL to Alembic - remove all runtime schema changes from workers
+Result: PASS
+Evidence:
+  - Added Alembic migration 20260513_0073_webhook_events.py for webhook_events with RLS policies for esdata and service_role.
+  - Removed runtime CREATE TABLE from apps/api/services/webhook_verification.py; webhook idempotency now asserts Alembic-owned table/columns.
+  - Added runtime schema assertion helpers in apps/workers/runtime.py and converted risk workers from CREATE/ALTER bootstraps to assertions.
+  - Converted production BOE schema repair to migration assertions for pg_trgm and idx_version_articulo_texto_trgm.
+  - Targeted DDL gate over P-01 RISK-IDEMPOTENT files returned no CREATE/ALTER/DROP/INDEX/EXTENSION hits.
+  - Full suite passed with repo-local TMP/TEMP to avoid Windows global temp permissions: 3011 passed, 2 skipped.
+Fix applied:
+  - Runtime production paths now fail fast if Alembic migrations are missing instead of mutating schema.
+  - SQLite-only worker test compatibility remains isolated in helper functions and is not used on PostgreSQL.
+Accepted risks:
+  - apps/api/services/persistence.py still contains SQLite compatibility DDL templates, but its PostgreSQL path verifies schema and returns without runtime DDL.
+  - boe.py/change_detection.py/dgt.py/eurlex.py retain SQLite-only compatibility helpers documented as non-production.
+Next: P-04
+=== Iteration P-04 - 2026-05-13T07:05:17+02:00 ===
+Story: P-04 Schedule mcp_deep_contract_audit.py in weekly cron alongside accuracy check
+Result: PASS-WITH-CAVEAT
+Evidence:
+  - scripts/weekly-accuracy-check.sh now runs scripts/maintenance/mcp_deep_contract_audit.py immediately after mcp_validation_suite inside the API container.
+  - Local syntax verification passed: bash -n scripts/weekly-accuracy-check.sh.
+  - Local contract audit CLI is present and parses arguments: python scripts/maintenance/mcp_deep_contract_audit.py --help.
+  - Verification grep confirms mcp_deep_contract_audit is wired into weekly-accuracy-check.sh.
+Accepted risks:
+  - Full VPS cron execution was not run in this iteration because current SSH access to deploy@212.227.227.64 is denied by publickey. The existing cron invokes weekly-accuracy-check.sh, so the deployed script will run the deep audit after sync.
+Next: P-05
+=== Iteration P-05 - 2026-05-13T07:06:34+02:00 ===
+Story: P-05 Extend freshness check to all 11 pending domains
+Result: PASS-WITH-CAVEAT
+Evidence:
+  - Extended scripts/weekly-accuracy-check.sh freshness SQL from 5 domains to 16 domain groups.
+  - Added BORME, DGT/TEAC, AEPD, BDE, BDNS, SEPBLAC, CENDOJ, FATCA/GIIN, OFAC, CDI and PGC.
+  - Missing sync_log rows now return INFO rather than STALE, so configured-but-inactive domains do not create false WorkerSilent alerts.
+  - Local syntax verification passed: bash -n scripts/weekly-accuracy-check.sh.
+  - Static coverage check sees 19 worker references in the freshness matrix, above the >=11 acceptance threshold.
+Accepted risks:
+  - Full production run remains pending until SSH access is restored; current local verification covers script syntax and domain coverage, not live DB freshness values.
+Next: P-06
+=== Iteration P-06 - 2026-05-13T07:12:30+02:00 ===
+Story: P-06 Configure offsite immutable backup - second provider, 30-day retention
+Result: BLOCKED-AWAITING-OFFSITE-REMOTE
+Evidence:
+  - Added scripts/backup-offsite.sh with strict Bash mode, temporary directory cleanup, required ESDATA_BACKUP_REMOTE, Docker Compose pg_dump custom-format dump, rclone upload, remote-size verification, 30-day retention pruning, and last-success timestamp at /var/lib/esdata/last_offsite_backup.
+  - Added infra/deploy/cron/esdata-offsite-backup for daily 02:00 Europe/Madrid execution as deploy user using /etc/esdata/offsite-backup.env.
+  - Added docs/operations/runbooks/offsite-backup.md with setup, manual verification and restore-drill procedure.
+  - Linked offsite backup runbook from docs/operations/runbooks/backup-restore.md.
+  - Added scripts/tests/test_backup_offsite.py.
+  - Verification passed: pytest scripts/tests/test_backup_offsite.py -q => 3 passed.
+  - Verification passed: bash -n scripts/backup-offsite.sh and bash -n scripts/weekly-accuracy-check.sh.
+  - Verification passed: no provider secret-name patterns in scripts/infra/offsite runbook.
+  - Expected guard verified: scripts/backup-offsite.sh --check-config fails until ESDATA_BACKUP_REMOTE is configured.
+Accepted risks:
+  - P-06 cannot be marked passes=true yet: no offsite provider/rclone remote credentials are available in the repo, and SSH to deploy@212.227.227.64 is currently denied by publickey. A real upload and remote-size verification must be run on the VPS before this story closes.
+Next: P-06 after offsite remote is configured, then P-07 restore drill.
+=== Iteration D-00 - 2026-05-13T11:05:00+02:00 ===
+Story: D-00 Pre-sprint: map available AEAT design documents for all priority models
+Models processed: 100, 111, 115, 123, 124, 187, 193, 196, 198, 200, 216, 289, 290, 296, 303
+Source format: XSD/properties, XLS, XLSX, PDF design-register table, ZIP XSD/WSDL, technical help HTML
+Fields loaded per model: none in this story; D-00 is research/map only.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-100-199.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-200-299.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-300-399.html
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-289-decla_____ras-ambito-asistencia-mutua/informacion-sobre-presentacion-mediante-web-service.html
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/informacion-sobre-presentacion-mediante-web-service.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-291-347/modelo-296-formulario.html
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-291-347/modelo-296-fichero.html
+Result: PASS
+Caveat if any: local Docker Compose could not query DB because DATABASE_URL is not set in this local shell; production counts must be checked in D-01 before mutating modelo_casilla.
+Next: D-01
+=== Iteration D-01 - 2026-05-13T11:27:00+02:00 ===
+Story: D-01 Load Modelo 296 complete design - IRNR no residentes
+Models processed: 296
+Source format: PDF design-register table
+Fields loaded per model: local parser probe only, 296=114 fields extracted from official AEAT PDF; production DB load pending.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos_24/DR_296_2024.pdf
+Result: PASS-WITH-CAVEAT
+Caveat if any: production now has official design-register fields for 296, but API remains `verified=false`, `completeness=parcial` because D-01 does not yet prove complete instructions, all claves/subclaves, or applicability/obligation rules.
+Local verification:
+  - `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 14 passed.
+  - `python -m compileall apps/workers/aeat_current_designs.py` => OK.
+  - Real AEAT PDF probe => 114 extracted fields, including `NIF DEL DECLARANTE` and `CLAVE`.
+VPS verification:
+  - SSH key access restored for `deploy`; `PasswordAuthentication` returned to `no`.
+  - Branch `fix/aeat-full-documentation` deployed at commit `bff2048`.
+  - `docker compose ... build worker-modelos` => built.
+  - `docker compose ... run --rm worker-modelos python aeat_current_designs.py --run-once` => `pdf_fields=114`, `parse_errors=0`.
+  - SQL: `296 casillas_total=124`, `diseno_registro_campo=114`.
+  - API: `296 verified=false`, `completeness=parcial`, `casillas_total=124`, `evidence_status=evidence_limited`.
+Next: D-02
+=== Iteration D-02 - 2026-05-13T12:28:00+02:00 ===
+Story: D-02 Load Modelo 216 complete design - IRNR retenciones no residentes
+Models processed: 216
+Source format: XLSX design-register table
+Fields loaded per model: no new load required; production already has 216=47 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos_24/216e2024.xlsx
+Result: PASS-WITH-CAVEAT
+Caveat if any: `modelo_recurso` and `modelo_casilla` prove official design fields, but API remains `verified=false`, `completeness=parcial` because D-02 does not prove full instructions or applicability/obligation rules.
+Verification:
+  - Local parser probe on official XLSX => 47 fields.
+  - SQL production: `216 casillas_total=47`, `diseno_registro_campo=47`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=xlsx`, `row_provenance=official_exact`.
+  - API: `216 verified=false`, `completeness=parcial`, `casillas_total=47`, `evidence_status=evidence_limited`.
+Next: D-03
+=== Iteration D-03 - 2026-05-13T12:34:00+02:00 ===
+Story: D-03 Load Modelo 193 complete design - retenciones capital mobiliario
+Models processed: 193
+Source format: PDF design-register table
+Fields loaded per model: no new load required; production already has 193=59 official design fields plus 12 functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_193_2025.pdf
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present, but API remains `verified=false`, `completeness=parcial` because instructions and complete claves/subclaves are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe on official PDF => 59 fields.
+  - SQL production: `193 casillas_total=71`, `diseno_registro_campo=59`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+  - API: `193 verified=false`, `completeness=parcial`, `casillas_total=71`, `evidence_status=evidence_limited`.
+Next: D-04
+=== Iteration D-04 - 2026-05-13T12:45:00+02:00 ===
+Story: D-04 Load Modelo 198 complete design - operaciones con activos financieros
+Models processed: 198
+Source format: PDF design-register table
+Fields loaded per model: production reloaded 198=64 official design fields; 72 casillas total including existing functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_198_2024.pdf
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and parser noise was removed, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Fix applied:
+  - Hardened PDF nature detection so lowercase narrative fragments like `224 a 235...` are not parsed as fields.
+  - Added targeted parser tests for lowercase noise rejection and valid `Num`/`AN` abbreviations.
+Verification:
+  - Local tests: `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 16 passed.
+  - Local official PDF probe: 64 fields, lowercase-noise fields=0.
+  - VPS worker run: `pdf_fields=178`, `parse_errors=0` (198=64 plus forced 296=114).
+  - SQL production: `198 casillas_total=72`, `diseno_registro_campo=64`, `lowercase_noise=0`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+  - API: `198 verified=false`, `completeness=parcial`, `casillas_total=72`, `evidence_status=evidence_limited`.
+Next: D-05
+=== Iteration D-05 - 2026-05-13T12:55:00+02:00 ===
+Story: D-05 Load Modelo 187 complete design - acciones y participaciones IIC
+Models processed: 187
+Source format: PDF design-register table
+Fields loaded per model: no new load required; production already has 187=42 official design fields plus 8 functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_187_2022.pdf
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe on official PDF => 42 fields, lowercase-noise fields=0.
+  - SQL production: `187 casillas_total=50`, `diseno_registro_campo=42`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=pdf`, `row_provenance=official_exact`.
+  - API: `187 verified=false`, `completeness=parcial`, `casillas_total=50`, `evidence_status=evidence_limited`.
+  - Formal verification command: `187 casillas: 50` => PASS.
+Next: D-06
+=== Iteration D-06 - 2026-05-13T13:05:00+02:00 ===
+Story: D-06 Load Modelo 123 and 124 complete designs - retenciones IS/IRPF
+Models processed: 123, 124
+Source format: XLS, XLSX design-register tables
+Fields loaded per model: no new load required; production already has 123=44 and 124=39 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_24/DR123e24.xls
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_20/124v01e2020_v1.07.xlsx
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe: `123=44` fields, `124=39` fields.
+  - SQL production: `123 casillas_total=44`, `124 casillas_total=39`, all `diseno_registro_campo`.
+  - `modelo_recurso`: both have `tipo_recurso=diseno_registro`, official AEAT URLs, `row_provenance=official_exact`.
+  - API: `123 verified=false`, `completeness=parcial`, `casillas_total=44`; `124 verified=false`, `completeness=parcial`, `casillas_total=39`.
+  - Formal verification command: `123 casillas: 44`, `124 casillas: 39` => PASS.
+Next: D-07
+=== Iteration D-07 - 2026-05-13T13:20:00+02:00 ===
+Story: D-07 Load Modelo 289 complete design - CRS/DAC2 cuentas financieras
+Models processed: 289
+Source format: ZIP XSD/WSDL
+Fields loaded per model: production loaded 289=127 official XSD fields; 134 casillas total including existing functional seed fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-289-decla_____ras-ambito-asistencia-mutua/informacion-sobre-presentacion-mediante-web-service.html
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI42/Ayuda/XSD_WSDL/289_XSD_2.0_WSDL_2.0.1.zip
+Result: PASS-WITH-CAVEAT
+Caveat if any: official XSD fields are loaded and traceable, but API remains `verified=false`, `completeness=parcial` because the XSD proves technical message structure, not complete procedural filing guidance or applicability rules.
+Fix applied:
+  - Added Modelo 289 official XSD/WSDL ZIP as a supplemental current design source.
+  - Added test coverage to ensure the 289 supplemental source remains registered.
+Verification:
+  - Local tests: `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 17 passed.
+  - Local official ZIP probe: 127 XSD fields.
+  - VPS worker run: `xsd_fields=127`, `parse_errors=0`.
+  - SQL production: `289 casillas_total=134`, `diseno_registro_xsd_campo=127`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro_xsd`, `formato=zip`, `row_provenance=official_exact`.
+  - API: `289 verified=false`, `completeness=parcial`, `casillas_total=134`, `evidence_status=evidence_limited`.
+Next: D-08
+=== Iteration D-08 - 2026-05-13T13:30:00+02:00 ===
+Story: D-08 Verify and complete Modelo 100 - IRPF declaracion anual
+Models processed: 100
+Source format: XSD + properties dictionaries
+Fields loaded per model: no new load required; production already has 100=2521 official fields/casillas.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/Renta2025.xsd
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/diccionarioXSD_2025.properties
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/diccionarioDlgXSD_2025.properties
+Result: PASS
+Caveat if any: none for casilla existence contract; API marks `verified=true`, `completeness=completa`.
+Verification:
+  - Official AEAT resources reachable: Renta2025.xsd, diccionarioXSD_2025.properties, diccionarioDlgXSD_2025.properties.
+  - SQL production: `100 casillas_total=2521`, `diseno_registro_campo=2493`.
+  - `modelo_recurso`: XSD and dictionaries have official AEAT URLs and `row_provenance=official_exact`.
+  - API: `100 verified=true`, `completeness=completa`, `casillas_total=2521`, `evidence_status=verified`.
+  - Formal verification command: `100 casillas: 2521` => PASS.
+Next: D-09
+=== Iteration D-09 - 2026-05-13T13:40:00+02:00 ===
+Story: D-09 Verify and complete Modelo 200 - Impuesto Sociedades
+Models processed: 200
+Source format: XLS + XLSX anexos oficiales
+Fields loaded per model: no new load required; production already has 200=6807 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_200_299/archivos_25/DR200e25.xls
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_Resto_Mod/archivos/dr200inf_2015.xlsx
+  - additional official AEAT anexos listed in `modelo_recurso`
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because the active campaign lacks complete structured instructions/operational metadata; the contract logic intentionally does not promote casillas-only evidence to authoritative filing guidance.
+Verification:
+  - Local parser probe on official XLS => 6807 fields.
+  - SQL production: `200 casillas_total=6807`, all `diseno_registro_campo`.
+  - `modelo_recurso`: main XLS and annexes have official AEAT URLs and `row_provenance=official_exact`.
+  - API: `200 verified=false`, `completeness=parcial`, `casillas_total=6807`, `evidence_status=evidence_limited`.
+  - Formal verification command: `200 casillas: 6807` => PASS.
+Next: D-10
+=== Iteration D-10 - 2026-05-13T13:55:00+02:00 ===
+Story: D-10 Verify and complete Modelo 303 - IVA autoliquidacion
+Models processed: 303
+Source format: XLSX design-register table
+Fields loaded per model: production loaded 303=432 official design fields; previous production count was 0.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_300_399/archivos_26/DR303e26v101.xlsx
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-300-399.html
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and operational metadata are not yet structured; no filing obligation or field-obligation rules are inferred from the design alone.
+Fix applied:
+  - Added Modelo 303 official XLSX design source as a supplemental worker source outside the 100-299 index range.
+  - Added test coverage to ensure the 303 supplemental source remains registered.
+Verification:
+  - Local tests: `python -m pytest apps/workers/tests/test_aeat_current_designs.py -q` => 18 passed.
+  - Local parser probe on official XLSX => 432 fields.
+  - VPS worker run: `spreadsheet_fields=432`, `parse_errors=0`.
+  - SQL production: `303 casillas_total=432`, `diseno_registro_campo=432`.
+  - `modelo_recurso`: `tipo_recurso=diseno_registro`, `formato=xlsx`, `row_provenance=official_exact`.
+  - API: `303 verified=false`, `completeness=parcial`, `casillas_total=432`, `evidence_status=evidence_limited`.
+  - Formal verification command: `303 casillas: 432` => PASS.
+Next: D-11
+=== Iteration D-11 - 2026-05-13T14:05:00+02:00 ===
+Story: D-11 Verify and complete Modelos 111 and 115
+Models processed: 111, 115
+Source format: XLS design-register tables
+Fields loaded per model: no new load required; production already has 111=63 and 115=37 official design fields.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos/dr111e16v18.xls
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos/DR115e15v13.xls
+Result: PASS-WITH-CAVEAT
+Caveat if any: official design fields are present and traceable, but API remains `verified=false`, `completeness=parcial` because complete instructions and applicability/obligation rules are not yet loaded as structured evidence.
+Verification:
+  - Local parser probe: `111=63` fields, `115=37` fields.
+  - SQL production: `111 casillas_total=63`, `115 casillas_total=37`, all `diseno_registro_campo`.
+  - `modelo_recurso`: both have `tipo_recurso=diseno_registro`, official AEAT URLs, `row_provenance=official_exact`.
+  - API: both return `verified=false`, `completeness=parcial`, `evidence_status=evidence_limited`.
+  - Formal verification command: `111 casillas: 63`, `115 casillas: 37` => PASS.
+Next: D-12
+=== Iteration D-12 - 2026-05-13T14:20:00+02:00 ===
+Story: D-12 Sweep: load all remaining models with official docs in priority range
+Models processed: 196, 290 plus priority STATUS-A sweep
+Source format: PDF design-register table, ZIP XSD/WSDL, previously loaded XLS/XLSX/PDF/XSD sources
+Fields loaded per model: no new load required in D-12; all priority STATUS-A models now have official fields loaded.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_23/DR_Mod_196_2023.pdf
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI38/Ayuda/XSD_WSDL/290_XSD_2.0_WSDL_2.1.1.zip
+Result: PASS-WITH-CAVEAT
+Caveat if any: 100 is `verified=true`/`completa`; remaining priority models mostly stay `verified=false`/`parcial` because official design fields alone do not prove complete instructions or applicability rules.
+Verification:
+  - Local parser probe: `196=62` PDF fields, `290=152` XSD fields.
+  - SQL 100-299 numeric sweep: `total=88`, `loaded=65`.
+  - Priority STATUS-A counts: 100=2521, 111=63, 115=37, 123=44, 124=39, 187=50, 193=71, 196=62, 198=72, 200=6807, 216=47, 289=134, 290=152, 296=124.
+  - Modelo 303 outside 100-299: `303=432`.
+  - API spot-check: `196 verified=false`, `completeness=parcial`, `casillas_total=62`; `290 verified=false`, `completeness=parcial`, `casillas_total=152`.
+  - `docs/aeat-docs-map.md` updated with D-12 final status table.
+Next: D-13
+=== Iteration D-13 - 2026-05-13T14:45:00+02:00 ===
+Story: D-13 Final documentation coverage report
+Models processed: all numeric AEAT 100-299 plus priority 303
+Source format: report/reconciliation from production DB, AEAT docs map and MCP contract suites
+Fields loaded per model: no new load required; D-13 reconciles final state.
+Source URLs used:
+  - docs/aeat-docs-map.md final STATUS-A table
+  - official AEAT source URLs already stored in modelo_recurso during D-01 to D-12
+Result: PASS
+Verification:
+  - SQL production 100-299: total=88, loaded=65, zero=23.
+  - Priority STATUS-A coverage: 15/15 models have official fields loaded (100, 111, 115, 123, 124, 187, 193, 196, 198, 200, 216, 289, 290, 296, 303).
+  - Zero-casilla models documented with no-casillas-expected, deprecated/legacy, STATUS-D or STATUS-E reason in docs/aeat-documentation-coverage-report.md.
+  - VPS mcp_validation_suite: ok=true.
+  - VPS mcp_deep_contract_audit: ok=true.
+Caveat if any: most priority models remain `verified=false`/`parcial` by design because official design fields do not prove complete filing instructions, obligatoriedad or applicability rules.
+Next: AEAT full documentation sprint complete.
+=== Iteration E-00 - 2026-05-13T15:20:00+02:00 ===
+Story: E-00 Map all official EUR-Lex and ESMA sources for market regulation domains
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014L0065
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:32014R0600
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:32023R1114
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R0858
+  - https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:32014R0596
+  - https://www.esma.europa.eu/data-reporting/mifir-reporting
+  - https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110
+  - https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds
+  - https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_fitrs
+  - https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/dlt-pilot-regime
+  - https://www.esma.europa.eu/document/list-authorised-dlt-market-infrastructures
+Records loaded: none
+Result: PASS
+Verification:
+  - `docs/eurlex-esma-market-coverage-map.md` exists.
+  - Local marker count for `STATUS-|CELEX|ESMA` = 31, above threshold 10.
+  - `prd.json` parses as valid JSON.
+Caveat: source map only; no schema, worker, API or data load work is performed until E-01.
+Next: E-01
+=== Iteration E-01 - 2026-05-13T16:05:00+02:00 ===
+Story: E-01 Alembic migrations for all new EUR-Lex and ESMA tables
+Sources accessed: none; schema-only migration.
+Records loaded: none.
+Schema created:
+  - eurlex_act
+  - eurlex_article
+  - esma_reporting_document
+  - esma_schema
+  - esma_schema_field
+  - esma_validation_rule
+  - esma_firds_file
+  - esma_firds_instrument
+  - esma_fitrs_result
+  - esma_dlt_market_infrastructure
+  - esma_dlt_exemption
+Result: PASS
+Verification:
+  - Local: `python -m py_compile alembic/versions/20260513_0074_eurlex_esma_market_tables.py` OK.
+  - Local: `alembic heads` => `20260513_0074_eurlex_esma_market_tables`.
+  - Test DB on VPS: `alembic upgrade head` against `esdata_e01_test` produced `TEST_TABLE_COUNT=11`; test DB then dropped.
+  - Production DB: `alembic_version=20260513_0074_eurlex_esma_market_tables`.
+  - Production DB: required table count = 11.
+  - Production DB: combined row count across new tables = 0.
+  - Production DB: RLS enabled count across new tables = 11.
+  - Production `/status`: api=ok, database=ok.
+Caveat: production API container was not restarted because no API code path uses these tables yet; this story is migration-only. No source data was loaded.
+Next: E-02
+=== Iteration E-02 - 2026-05-13T16:25:00+02:00 ===
+Story: E-02 Load EUR-Lex MiFIR full articulado - CELEX 32014R0600
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/ES/TXT/XML/?uri=CELEX:32014R0600
+  - http://publications.europa.eu/resource/celex/32014R0600
+  - http://publications.europa.eu/resource/consolidation/2014R0600%2F20251123_0100010.SPA.xhtml.CL2014R0600ES0100010.0001.html
+Records loaded:
+  - eurlex_act=1 for CELEX 32014R0600
+  - eurlex_article=93 for CELEX 32014R0600
+Source hashes:
+  - MiFIR consolidated HTML: MD5 stored in `eurlex_act.source_hash` and every article row.
+Result: PASS
+Verification:
+  - Local parser probe: CELEX 32014R0600 returned 93 article blocks from official Publications Office consolidation.
+  - VPS worker run: `[run-once] EUR-Lex market: acts=1 articles=93`.
+  - SQL production: `32014R0600 verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: `eurlex_article` count for MiFIR = 93.
+  - SQL production: article 1 contains real text beginning `Objeto y ambito de aplicacion`.
+  - `sync_log`: `worker-eurlex-market status=ok articulos_upserted=93`.
+Caveat: E-02 loads data only. Dedicated `/v1/eurlex/market/...` endpoints are still scheduled for E-11.
+Next: E-03
+=== Iteration E-03 - 2026-05-13T16:40:00+02:00 ===
+Story: E-03 Load EUR-Lex MiCA full articulado - CELEX 32023R1114
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/ES/TXT/XML/?uri=CELEX:32023R1114
+  - http://publications.europa.eu/resource/celex/32023R1114
+  - http://publications.europa.eu/resource/consolidation/2023R1114%2F20240109_0010030.SPA.xhtml.CL2023R1114ES0010030.0001.html
+Records loaded:
+  - eurlex_act=1 for CELEX 32023R1114
+  - eurlex_article=149 for CELEX 32023R1114
+Source hashes:
+  - MiCA consolidated HTML: MD5 stored in `eurlex_act.source_hash` and every article row.
+Result: PASS
+Verification:
+  - Local parser probe: CELEX 32023R1114 returned 149 article blocks from official Publications Office consolidation.
+  - VPS worker run: `[run-once] EUR-Lex market: acts=1 articles=149`.
+  - SQL production: `32023R1114 verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: `eurlex_article` count for MiCA = 149.
+  - SQL production: article 1 contains real text beginning `Objeto`.
+  - `sync_log`: latest `worker-eurlex-market status=ok articulos_upserted=149`.
+Caveat: E-03 loads MiCA legal text. CASP register hardening remains E-09 and dedicated API endpoints remain E-11.
+Next: E-04
+=== Iteration E-04 - 2026-05-13T14:20:00+02:00 ===
+Story: E-04 Load EUR-Lex DLT Pilot Regulation - CELEX 32022R0858
+Sources accessed:
+  - https://eur-lex.europa.eu/legal-content/ES/TXT/XML/?uri=CELEX:32022R0858
+  - http://publications.europa.eu/resource/celex/32022R0858
+  - http://publications.europa.eu/resource/oj/JOL_2022_151_R_0001.SPA
+  - http://publications.europa.eu/resource/cellar/b563a601-e245-11ec-a534-01aa75ed71a1.0023.03/DOC_1
+Records loaded:
+  - eurlex_act=1 for CELEX 32022R0858
+  - eurlex_article=19 for CELEX 32022R0858
+Source hashes:
+  - DLT Pilot Spanish Official Journal HTML: MD5 stored in `eurlex_act.source_hash` and every article row.
+Result: PASS
+Verification:
+  - Local parser probe first caught and fixed a wrong-candidate risk: CELEX 32022R0858 RDF also links CSDR 2014R0909 consolidations, so the loader now filters candidates by CELEX token.
+  - Local parser probe: CELEX 32022R0858 returned 19 Spanish article blocks from the official DOUE/OJ expression.
+  - VPS worker run: `[run-once] EUR-Lex market: acts=1 articles=19`.
+  - SQL production: `32022R0858 verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: `eurlex_article` count for DLT Pilot = 19.
+  - SQL production: article 1 contains real Spanish text beginning `El presente Reglamento establece los requisitos aplicables...`.
+  - Formal verification: `DLT Pilot articles: 19` => `PASS`.
+Caveat: EUR-Lex Spanish consolidation manifestation returned 404 for this act, so E-04 loaded the official Spanish DOUE/OJ text (`JOL_2022_151_R_0001.SPA`). Dedicated API endpoints remain E-11.
+Next: E-05
+=== Iteration E-05 - 2026-05-13T14:30:00+02:00 ===
+Story: E-05 Load ESMA MiFIR Transaction Reporting XML Schema 1.1.0
+Sources accessed:
+  - https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2598_annex_2_mifir_transaction_reporting_iso20022_xml_schemas.zip
+Records loaded:
+  - esma_schema=1 for ESMA MiFIR Transaction Reporting ISO 20022 XML Schemas version 1.1.0
+  - esma_schema_field=168
+Source hashes:
+  - ZIP MD5 stored in `esma_schema.source_hash`.
+  - Per-XSD MD5 stored in every `esma_schema_field.source_hash`, with `source_url` using `#<xsd filename>`.
+Result: PASS
+Verification:
+  - Local parser probe: official ESMA ZIP returned 4 XSD files and 168 deterministic `xs:element` records.
+  - Unit test: `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q` => `1 passed`.
+  - VPS worker run: `[run-once] ESMA MiFIR reporting: files=4 fields=168`.
+  - SQL production: `TRANSACTION_REPORTING verified=true completeness=completa hash_len=32 capture_date=2026-05-13`.
+  - SQL production: field count for `TRANSACTION_REPORTING` = 168.
+  - `sync_log`: `worker-esma-mifir-reporting status=ok documentos_processed=4 articulos_upserted=168`.
+  - Formal verification: `MiFIR TR fields: 168` => `PASS`.
+Caveat: E-05 loads the authoritative XSD structure only. It does not infer RTS 22 validation rules or filing obligations from prose; reporting documents and validation rules remain E-06.
+Next: E-06
+=== Iteration E-06 - 2026-05-13T14:40:00+02:00 ===
+Story: E-06 Load ESMA MiFIR reporting documents - RTS 22, ITS, Q&A
+Sources accessed:
+  - https://www.esma.europa.eu/data-reporting/mifir-reporting
+  - https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2598_annex_2_mifir_transaction_reporting_iso20022_xml_schemas.zip
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2356_mifir_transaction_reporting_technical_reporting_instructions.pdf
+  - https://www.esma.europa.eu/sites/default/files/library/esma65-8-2594_annex_1_mifir_transaction_reporting_validation_rules.xlsx
+Records loaded:
+  - esma_reporting_document=4 for dominio=MIFIR
+  - esma_validation_rule=223 from the structured `TransactionDataValidations` XLSX sheet
+Source hashes:
+  - MD5 stored per document in `esma_reporting_document.source_hash`.
+  - MD5 of validation XLSX stored in every `esma_validation_rule.source_hash`.
+Result: PASS
+Verification:
+  - Local parser probe: `documents=4`, `rules=223`.
+  - Unit tests: `python -m pytest apps/workers/tests/test_worker_esma_mifir_reporting.py -q` => `2 passed`.
+  - VPS worker run: `[run-once] ESMA MiFIR reporting: files=4 fields=168 documents=4 validation_rules=223`.
+  - SQL production: document rows by type = HUB, SCHEMA, INSTRUCTIONS, VALIDATION_RULES.
+  - SQL production: validation rule count for `ESMA65-8-2594` = 223.
+  - Formal verification: `SELECT COUNT(*) FROM esma_reporting_document WHERE dominio='MIFIR'` returned `4` and `PASS`.
+Caveat: PDFs are metadata-only (`completeness=parcial`) because prose is not parsed into rules. Only the official structured XLSX validation rules are loaded as `esma_validation_rule`.
+Next: E-07
+=== Iteration E-07 - 2026-05-13T14:50:00+02:00 ===
+Story: E-07 Load FIRDS file list and metadata - pilot only
+Sources accessed:
+  - https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds
+  - https://registers.esma.europa.eu/solr/esma_registers_firds_files/select
+  - https://firds.esma.europa.eu/firds/DLTINS_20260513_02of02.zip
+Records loaded:
+  - esma_firds_file=14 recent DLTINS metadata rows
+  - esma_firds_instrument=1000 pilot sample rows from one DLTINS file
+Source hashes:
+  - ESMA Solr checksum stored as `esma_firds_file.source_hash`.
+  - Downloaded pilot ZIP MD5 verified against ESMA checksum and stored on file/instrument rows.
+Result: PASS
+Verification:
+  - Local parser probe: recent DLTINS files=14; selected pilot `DLTINS_20260513_02of02.zip`; sample parse returned instruments.
+  - Unit test: `python -m pytest apps/workers/tests/test_worker_esma_firds.py -q` => `1 passed`.
+  - VPS worker run: `[run-once] ESMA FIRDS: files=14 instruments=1000 pilot=DLTINS_20260513_02of02.zip`.
+  - SQL production: `FIRDS files: 14, instruments: 1000`.
+  - SQL production: pilot file `downloaded=true`, `processed=true`, `size_bytes=14685323`, `hash_len=32`.
+  - `sync_log`: `worker-esma-firds status=ok documentos_processed=14 articulos_upserted=1000`.
+  - Formal verification: `PASS`.
+Volume notes: full FULINS historical ingestion remains explicitly out of scope; E-07 proves the DLTINS metadata/download/parser pipeline only.
+Next: E-08
+=== Iteration E-08 - 2026-05-13T14:55:00+02:00 ===
+Story: E-08 Load ESMA DLT authorised market infrastructures
+Sources accessed:
+  - https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/dlt-pilot-regime
+  - https://www.esma.europa.eu/sites/default/files/2026-01/Authorised_DLT_Market_Infrastructures.pdf
+Records loaded:
+  - esma_reporting_document=1 for dominio=DLT
+  - esma_dlt_market_infrastructure=6
+  - esma_dlt_exemption=75
+Source hashes:
+  - Authorised_DLT_Market_Infrastructures.pdf: 0c2c034d579839f0e5ee49fb0fed5367
+Result: PASS
+Verification:
+  - Official ESMA DLT Pilot page confirms ESMA publishes the authorised DLT market infrastructure list.
+  - The worker downloads the official PDF, extracts text with pypdf, validates every configured official row against the extracted text, and only then writes rows.
+  - VPS worker run: `[run-once] ESMA DLT: infrastructures=6 exemptions=75 source_hash=0c2c034d579839f0e5ee49fb0fed5367`.
+  - SQL production: 6 infrastructures, all `verified=true` and `completeness=completa`.
+  - SQL production includes current official rows for CSD Prague, 21X AG, 360X AG, UAB Axiology DLT, LISE SA, and Securitize Europe Brokerage and Markets SV SA.
+  - `sync_log`: `worker-esma-dlt status=ok documentos_processed=1 articulos_upserted=81`.
+  - Formal verification: `SELECT COUNT(*) FROM esma_dlt_market_infrastructure` returned `6` and `PASS`.
+Caveat: E-08 stores the official list and exemptions from the current ESMA PDF. It does not infer lower thresholds beyond the PDF table (`n/a` in current source), and future PDF structure changes intentionally fail validation until reviewed.
+Next: E-09
+=== Iteration E-09 - 2026-05-13T15:05:00+02:00 ===
+Story: E-09 Harden CASP/MiCA register - verify existing data and fill gaps
+Sources accessed:
+  - https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica
+  - https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv
+Records loaded:
+  - casp=192 official ESMA CASP rows after upsert de-duplication
+Source hashes:
+  - CASPS.csv: one MD5 source hash persisted on every verified CASP row
+Result: PASS
+Verification:
+  - Official ESMA MiCA page states the Interim MiCA Register is a weekly CSV publication and shows `Last update: 4 May 2026`.
+  - Added Alembic migration `20260513_0075_casp_source_traceability.py` for `casp.source_url`, `source_hash`, `capture_date`, `verified`, and `completeness`.
+  - Updated `apps/workers/mica.py` to persist source URL/hash/capture date and mark official CASP rows `verified=true`, `completeness=completa`.
+  - Unit test: `python -m pytest apps/workers/tests/test_worker_mica.py -q` => `5 passed`.
+  - VPS migration: `alembic upgrade head` applied `20260513_0075_casp_source_traceability`.
+  - VPS worker run: `cron-mica-weekly` discovered `CASPS.csv`, processed `194` CSV rows and synced `194` rows; DB de-duplicates to `192` CASP entities.
+  - SQL production: `SELECT COUNT(*), MAX(capture_date) FROM casp WHERE verified=true` returned `192 | 2026-05-13`.
+  - API CASP search: `/v1/mica/casp/buscar?q=crypto` returns `total=6`, `quality_signal=official_esma_register`, `safe_to_answer=true`.
+  - API non-CASP MiCA: `/v1/mica/crypto-assets` remains `workflow_empty`, `safe_to_answer=false`; no substitute data is invented.
+  - `sync_log`: latest `cron-mica-weekly status=ok documentos_processed=194 documentos_upserted=194`.
+  - Formal verification command returned `PASS`.
+Caveat: Non-CASP MiCA tables remain fail-closed/workflow-empty until an official structured source is mapped and parsed in a separate story.
+Next: E-10
+=== Iteration E-10 - 2026-05-13T15:23:24+02:00 ===
+Story: E-10 Create workers for EUR-Lex and ESMA scheduled refresh
+Sources accessed:
+  - Existing official EUR-Lex market loader sources for CELEX 32014L0065, 32014R0600, 32023R1114, 32022R0858
+  - Existing official ESMA MiFIR reporting, FIRDS and DLT worker sources
+Records loaded:
+  - sync_log fresh run: worker-eurlex-market documents=4 articles=353
+  - sync_log fresh run: worker-esma-mifir-reporting documents=4 articles_upserted=391
+  - sync_log fresh run: worker-esma-firds documents=14 articles_upserted=1000
+  - sync_log fresh run: worker-esma-dlt documents=1 articles_upserted=81
+Result: PASS
+Verification:
+  - Added scheduled Compose cron services: cron-eurlex-market-monthly, cron-esma-mifir-reporting-weekly, cron-esma-firds-daily, cron-esma-dlt-weekly.
+  - Added systemd timers and enabled them on VPS: EUR-Lex monthly, ESMA MiFIR weekly, ESMA FIRDS daily, ESMA DLT weekly.
+  - Added `worker-eurlex-market`, `worker-esma-mifir-reporting`, `worker-esma-firds`, `worker-esma-dlt` to canonical cadence registry.
+  - `/status` reports all four market workers with `stale=false` and `cadence_declared=true`.
+  - Local test: `python -m pytest apps/api/tests/test_worker_cadence.py -q` => `5 passed`.
+  - Formal verification command returned `3` and `PASS`.
+Caveat: cron service names are aliases to the `worker-*` sync_log names; registering cron service names as independent `/status` workers would create false `never_run` alerts.
+Next: E-11
+=== Iteration E-11 - 2026-05-13T15:31:30+02:00 ===
+Story: E-11 Expose EUR-Lex and ESMA endpoints in API and MCP
+Sources accessed:
+  - Production DB tables populated by E-02 to E-10: eurlex_act, eurlex_article, esma_schema, esma_schema_field, esma_firds_file, esma_firds_instrument, esma_dlt_market_infrastructure
+Records exposed:
+  - /v1/eurlex/market/acts: total=4, verified=true, completeness=completa
+  - /v1/eurlex/market/32014R0600/articulos/1: real MiFIR article text, text_len=6528
+  - /v1/esma/mifir/schemas: total=1, verified=true, completeness=completa
+  - /v1/esma/mifir/transaction-reporting/fields: total=168, verified=true, completeness=completa
+  - /v1/esma/firds/files: total=14, verified=false, completeness=parcial
+  - /v1/esma/firds/instruments: total=1000, verified=false, completeness=parcial
+  - /v1/esma/dlt/infrastructures: total=6, verified=true, completeness=completa
+Result: PASS
+Verification:
+  - Added routers: eurlex_market, esma_mifir, esma_firds, esma_dlt.
+  - Registered routers in FastAPI with `/v1/eurlex/market/*` before generic `/v1/eurlex/{referencia}` to avoid route shadowing.
+  - Local import check: `APP_ENV=test ... python -c "import main"` => import-ok.
+  - VPS API rebuilt and restarted.
+  - Smoke endpoints returned expected totals/contracts with API key.
+  - query_audit_log contains entries for `/v1/eurlex/market/*` and `/v1/esma/*`.
+  - Formal verification equivalent with API key returned `PASS` (`acts=4`, `schemas=1`).
+Caveat: FIRDS endpoints intentionally return `verified=false`/`parcial` because only DLTINS metadata plus a bounded sample is loaded; absence of an ISIN is not authoritative.
+Next: E-12
+=== Iteration E-12 - 2026-05-13T15:50:00+02:00 ===
+Story: E-12 Expand mcp_validation_suite and mcp_deep_contract_audit for new domains
+Sources accessed:
+  - Production API endpoints added in E-11
+  - Production DB registry via scripts/ralph/table-remediation-registry.json
+Records loaded:
+  - none; read-only validation story
+Result: PASS
+Verification:
+  - Added validation suite checks for MiFIR, MiCA and DLT Pilot article text, ESMA MiFIR schema, transaction-reporting XSD fields, FIRDS evidence-limited files and unknown-ISIN fail-closed behavior, DLT infrastructures, and CASP official register.
+  - Added explicit deep audit check `eurlex_esma_market_contracts`.
+  - Updated Ralph table registry to include 12 newly live tables: eurlex_act, eurlex_article, esma_reporting_document, esma_schema, esma_schema_field, esma_validation_rule, esma_firds_file, esma_firds_instrument, esma_fitrs_result, esma_dlt_market_infrastructure, esma_dlt_exemption, webhook_events.
+  - Rebuilt/restarted VPS API so `/v1/domain-availability` uses the updated registry.
+  - VPS `mcp_validation_suite.py --read-only --base-url http://api:8000` returned `"ok": true`.
+  - VPS `mcp_deep_contract_audit.py --base-url http://api:8000` returned `"ok": true`.
+  - Formal verification command returned `PASS`.
+Caveat: EUR-Lex article rows store official EU Publications/Cellar URLs (`publications.europa.eu`) as source URLs; the deep audit accepts this as official EU provenance and still blocks BOE cross-domain contamination.
+Next: E-13
+=== Iteration E-13 - 2026-05-13T16:08:00+02:00 ===
+Story: E-13 Final coverage report - EUR-Lex + ESMA markets sprint
+Sources accessed:
+  - Production DB tables: eurlex_act, eurlex_article, esma_schema, esma_schema_field, esma_validation_rule, esma_reporting_document, esma_firds_file, esma_firds_instrument, esma_dlt_market_infrastructure, esma_dlt_exemption, casp
+  - Production API `/status`
+  - Alertmanager `/api/v2/alerts`
+Records loaded:
+  - none; final reporting story
+Result: PASS
+Verification:
+  - Wrote `docs/eurlex-esma-coverage-report.md`.
+  - Production EUR-Lex counts: MiFID II=92 articles, MiFIR=93, MiCA=149, DLT Pilot=19.
+  - Production ESMA counts: schema=1, schema fields=168, validation rules=223, reporting documents=5, FIRDS files=14, FIRDS pilot instruments=1000, DLT infrastructures=6, DLT exemptions=75, CASP verified rows=192.
+  - `/status` returned `api=ok`, `database=ok`; all workers in response have `stale=false`.
+  - Alertmanager active alerts response: `[]`.
+  - Formal E-13 verification command returned `PASS`.
+Caveat: FIRDS remains explicitly partial/evidence-limited; FITRS remains configured_but_unavailable until a dedicated ingestion story is approved.
+Next: COMPLETE

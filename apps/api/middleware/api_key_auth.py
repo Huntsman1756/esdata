@@ -12,7 +12,13 @@ from mcp_request_context import is_mcp_internal_request
 logger = logging.getLogger(__name__)
 
 # Paths that do NOT require authentication
-PUBLIC_PATHS = ("/health", "/gpt-actions/modelos/openapi.json", "/privacy", "/metrics")
+PUBLIC_PATHS = (
+    "/health",
+    "/gpt-actions/modelos/openapi.json",
+    "/gpt-actions/core/openapi.json",
+    "/privacy",
+    "/metrics",
+)
 
 
 def _is_public(path: str) -> bool:
