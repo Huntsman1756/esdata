@@ -109,7 +109,7 @@
       "id": "D-08",
       "title": "Verify and complete Modelo 100 - IRPF declaracion anual",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify 100 casillas came from official XSD/properties",
         "Reload from official source if provenance is missing",

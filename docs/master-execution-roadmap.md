@@ -6023,3 +6023,26 @@ En orden de impacto real:
 - VPS SQL/API: `289 casillas_total=134`, contrato parcial.
 
 **Siguiente paso:** D-08 Modelo 100, verificar procedencia oficial de IRPF y cobertura masiva de casillas.
+
+---
+
+## Reclamo 2026-05-13 - D-08 Modelo 100 cobertura oficial verificada
+
+**Estado:** COMPLETADO LOCAL / VERIFICADO VPS.
+
+**Archivos principales:** `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** comprobar que la cobertura extensa del Modelo 100 procede de fuentes oficiales AEAT y que el contrato API puede seguir siendo autoritativo.
+
+**Resultado:**
+- Produccion contiene `100 casillas_total=2521`.
+- `modelo_recurso` acredita fuentes oficiales AEAT: `Renta2025.xsd`, `diccionarioXSD_2025.properties` y `diccionarioDlgXSD_2025.properties`, todas con `row_provenance=official_exact`.
+- La API responde `verified=true`, `completeness=completa`, `evidence_status=verified`.
+
+**Pruebas ejecutadas:**
+- Descarga local de las tres fuentes oficiales AEAT: HTTP 200.
+- VPS SQL: `100 casillas_total=2521`, `diseno_registro_campo=2493`.
+- API: `/v1/modelos/aeat/100` devuelve `casillas_total=2521`.
+- Verificacion formal D-08: `100 casillas: 2521` => `PASS`.
+
+**Siguiente paso:** D-09 Modelo 200, verificar Impuesto sobre Sociedades contra XLS oficial.

@@ -1251,3 +1251,21 @@ Verification:
   - `modelo_recurso`: `tipo_recurso=diseno_registro_xsd`, `formato=zip`, `row_provenance=official_exact`.
   - API: `289 verified=false`, `completeness=parcial`, `casillas_total=134`, `evidence_status=evidence_limited`.
 Next: D-08
+=== Iteration D-08 - 2026-05-13T13:30:00+02:00 ===
+Story: D-08 Verify and complete Modelo 100 - IRPF declaracion anual
+Models processed: 100
+Source format: XSD + properties dictionaries
+Fields loaded per model: no new load required; production already has 100=2521 official fields/casillas.
+Source URLs used:
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/Renta2025.xsd
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/diccionarioXSD_2025.properties
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/diccionarioDlgXSD_2025.properties
+Result: PASS
+Caveat if any: none for casilla existence contract; API marks `verified=true`, `completeness=completa`.
+Verification:
+  - Official AEAT resources reachable: Renta2025.xsd, diccionarioXSD_2025.properties, diccionarioDlgXSD_2025.properties.
+  - SQL production: `100 casillas_total=2521`, `diseno_registro_campo=2493`.
+  - `modelo_recurso`: XSD and dictionaries have official AEAT URLs and `row_provenance=official_exact`.
+  - API: `100 verified=true`, `completeness=completa`, `casillas_total=2521`, `evidence_status=verified`.
+  - Formal verification command: `100 casillas: 2521` => PASS.
+Next: D-09
