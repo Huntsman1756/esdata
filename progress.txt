@@ -1383,3 +1383,31 @@ Verification:
   - `prd.json` parses as valid JSON.
 Caveat: source map only; no schema, worker, API or data load work is performed until E-01.
 Next: E-01
+=== Iteration E-01 - 2026-05-13T16:05:00+02:00 ===
+Story: E-01 Alembic migrations for all new EUR-Lex and ESMA tables
+Sources accessed: none; schema-only migration.
+Records loaded: none.
+Schema created:
+  - eurlex_act
+  - eurlex_article
+  - esma_reporting_document
+  - esma_schema
+  - esma_schema_field
+  - esma_validation_rule
+  - esma_firds_file
+  - esma_firds_instrument
+  - esma_fitrs_result
+  - esma_dlt_market_infrastructure
+  - esma_dlt_exemption
+Result: PASS
+Verification:
+  - Local: `python -m py_compile alembic/versions/20260513_0074_eurlex_esma_market_tables.py` OK.
+  - Local: `alembic heads` => `20260513_0074_eurlex_esma_market_tables`.
+  - Test DB on VPS: `alembic upgrade head` against `esdata_e01_test` produced `TEST_TABLE_COUNT=11`; test DB then dropped.
+  - Production DB: `alembic_version=20260513_0074_eurlex_esma_market_tables`.
+  - Production DB: required table count = 11.
+  - Production DB: combined row count across new tables = 0.
+  - Production DB: RLS enabled count across new tables = 11.
+  - Production `/status`: api=ok, database=ok.
+Caveat: production API container was not restarted because no API code path uses these tables yet; this story is migration-only. No source data was loaded.
+Next: E-02

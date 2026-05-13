@@ -21,14 +21,14 @@
       "id": "E-01",
       "title": "Alembic migrations for all new EUR-Lex and ESMA tables",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Check existing schema before migration",
         "Create Alembic migration for missing eurlex/esma tables",
         "Do not use runtime DDL",
         "Apply to test DB before production"
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c '\\dt esma_schema esma_schema_field esma_validation_rule esma_firds_file esma_dlt_market_infrastructure' && alembic history | head -3 && echo PASS || echo FAIL-TABLES-MISSING"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('eurlex_act','eurlex_article','esma_reporting_document','esma_schema','esma_schema_field','esma_validation_rule','esma_firds_file','esma_firds_instrument','esma_fitrs_result','esma_dlt_market_infrastructure','esma_dlt_exemption')\"); [ \"$COUNT\" -eq 11 ] && alembic heads | grep -q '20260513_0074_eurlex_esma_market_tables' && echo PASS || echo FAIL-TABLES-MISSING"
     },
     {
       "id": "E-02",
