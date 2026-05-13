@@ -27,6 +27,13 @@ Use ESData as the only evidence source unless the user explicitly allows externa
 - If ESData returns no relevant evidence, abstain instead of using tax memory.
 - Do not use SearXNG, search results, or a skill checklist as authority.
 
+## Do Not Use When
+
+- The user asks for general tax education without ESData evidence requirements.
+- The user asks you to complete or submit a filing; this skill can only prepare a review draft.
+- The answer would require private client records not provided in the conversation.
+- ESData has no relevant source loaded and the user has not allowed external verification.
+
 ## Output Shape
 
 ```text

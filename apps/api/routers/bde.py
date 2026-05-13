@@ -1,13 +1,16 @@
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
 from sqlalchemy import text
+
+from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/bde", tags=["bde"])
 
 
 @router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_bde")
 async def listar_bde(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tipo: str | None = Query(None, description="Filtrar por tipo (informe_bde, comunicacion_bde, publicacion_bde)"),
     ambito: str | None = Query(None, description="Filtrar por ámbito (estabilidad_financiera, politica_monetaria, supervision_bancaria)"),
@@ -45,25 +48,33 @@ async def listar_bde(
             params,
         ).mappings()
 
-        return {
-            "documentos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
-                    "ambito": row["ambito"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
-        }
+        documentos = [
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "tipo_documento": row["tipo_documento"],
+                "ambito": row["ambito"],
+                "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
+                "url_fuente": row["url_fuente"],
+            }
+            for row in rows
+        ]
+        record_retrieval_query_audit(
+            request,
+            path="/v1/bde",
+            query_text=q or tipo or ambito or "",
+            tool_name="listar_bde",
+            items=documentos,
+            total=len(documentos),
+            verified=bool(documentos),
+            completeness="parcial",
+        )
+        return {"documentos": documentos}
 
 
 @router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_bde")
-async def get_bde(referencia: str):
+async def get_bde(referencia: str, request: Request):
     with db_session() as db:
         row = (
             db.execute(
@@ -85,7 +96,7 @@ async def get_bde(referencia: str):
         if not row:
             raise HTTPException(status_code=404, detail={"error": "Documento Banco de España no encontrado"})
 
-        return {
+        result = {
             "referencia": row["referencia"],
             "fecha": str(row["fecha"]) if row["fecha"] else None,
             "titulo": row["titulo"],
@@ -94,3 +105,14 @@ async def get_bde(referencia: str):
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
         }
+        record_retrieval_query_audit(
+            request,
+            path="/v1/bde/{referencia}",
+            query_text=referencia,
+            tool_name="get_bde",
+            items=[result],
+            total=1,
+            verified=True,
+            completeness="parcial",
+        )
+        return result

@@ -1,9 +1,11 @@
 import json
 
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from schemas import BOEDiarioDetail, BOEDiarioListResponse
 from sqlalchemy import text
+
+from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/boe-diario", tags=["boe-diario"])
 
@@ -19,6 +21,7 @@ def _metadata(value):
 
 @router.get("", response_model=BOEDiarioListResponse, operation_id="listar_boe_diario")
 async def listar_boe_diario(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o titulo"),
     tipo: str | None = Query(None, description="anuncio_boe | suplemento_boe | notificacion_boe"),
     limit: int = Query(20, ge=1, le=100, description="Limite de documentos devueltos"),
@@ -75,6 +78,16 @@ async def listar_boe_diario(
         }
         for row in rows
     ]
+    record_retrieval_query_audit(
+        request,
+        path="/v1/boe-diario",
+        query_text=q or tipo or "",
+        tool_name="listar_boe_diario",
+        items=documentos,
+        total=int(total or 0),
+        verified=True,
+        completeness="completa" if documentos else "parcial",
+    )
     next_offset = offset + limit if offset + len(documentos) < int(total or 0) else None
     return {
         "documentos": documentos,
@@ -87,7 +100,7 @@ async def listar_boe_diario(
 
 
 @router.get("/{referencia:path}", response_model=BOEDiarioDetail, operation_id="get_boe_diario")
-async def get_boe_diario(referencia: str):
+async def get_boe_diario(referencia: str, request: Request):
     with db_session() as db:
         row = (
             db.execute(
@@ -119,7 +132,7 @@ async def get_boe_diario(referencia: str):
     if not row:
         raise HTTPException(status_code=404, detail={"error": "Documento BOE diario no encontrado"})
 
-    return {
+    result = {
         "referencia": row["referencia"],
         "fecha": str(row["fecha"]) if row["fecha"] else None,
         "titulo": row["titulo"],
@@ -130,3 +143,14 @@ async def get_boe_diario(referencia: str):
         "row_provenance": row["row_provenance"],
         "metadata": _metadata(row["metadata"]),
     }
+    record_retrieval_query_audit(
+        request,
+        path="/v1/boe-diario/{referencia}",
+        query_text=referencia,
+        tool_name="get_boe_diario",
+        items=[result],
+        total=1,
+        verified=True,
+        completeness=result["row_completeness"] or "completa",
+    )
+    return result

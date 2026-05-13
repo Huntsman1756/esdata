@@ -236,3 +236,38 @@ async def test_domain_search_endpoints_persist_query_audit_entries(
     assert entry.user_id == "domain-audit-user"
     assert query_fragment in entry.query_text.lower()
     assert entry.response_summary
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("path", "request_id", "expected_path", "expected_tool"),
+    [
+        ("/v1/boe-diario?limit=1", "req-boe-diario-direct-audit-001", "/v1/boe-diario", "listar_boe_diario"),
+        ("/v1/bde?q=supervision", "req-bde-direct-audit-001", "/v1/bde", "listar_bde"),
+        ("/v1/bdns?q=subvencion", "req-bdns-direct-audit-001", "/v1/bdns", "listar_bdns"),
+        ("/v1/sepblac?q=pbc", "req-sepblac-direct-audit-001", "/v1/sepblac", "listar_sepblac"),
+        ("/v1/cendoj?q=iva", "req-cendoj-direct-audit-001", "/v1/cendoj", "listar_cendoj"),
+    ],
+)
+async def test_direct_source_endpoints_persist_query_audit_entries(
+    path: str,
+    request_id: str,
+    expected_path: str,
+    expected_tool: str,
+):
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key", "x-request-id": request_id, "x-user-id": "direct-audit-user"},
+    ) as client:
+        response = await client.get(path)
+
+    assert response.status_code == 200
+
+    entries = QueryAuditService().get_by_request_id(request_id)
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.path == expected_path
+    assert entry.tool_name == expected_tool
+    assert entry.user_id == "direct-audit-user"
+    assert entry.response_summary

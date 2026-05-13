@@ -29,6 +29,13 @@ Use this skill for onboarding and AML/KYC triage. It adapts financial-services r
 - Treat BORME extraction as heuristic unless ESData marks it otherwise.
 - Keep all conclusions as draft for compliance officer review.
 
+## Do Not Use When
+
+- The user asks for a legally binding AML/KYC approval or rejection.
+- The requested screening source is not loaded in ESData and the user expects a definitive clearance.
+- The case requires private customer documents, ownership charts, or transaction history that were not supplied.
+- The user asks for sanctions evasion, bypassing onboarding controls, or reducing due-diligence evidence.
+
 ## Output
 
 ```text

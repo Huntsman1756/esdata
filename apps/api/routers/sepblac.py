@@ -1,14 +1,16 @@
-from fastapi import APIRouter, HTTPException, Query
+from db import db_session
+from fastapi import APIRouter, HTTPException, Query, Request
+from schemas import SEPBLACDetail, SEPBLACListResponse
 from sqlalchemy import text
 
-from db import db_session
-from schemas import SEPBLACDetail, SEPBLACListResponse
+from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/sepblac", tags=["sepblac"])
 
 
 @router.get("", response_model=SEPBLACListResponse, operation_id="listar_sepblac")
 async def listar_sepblac(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     ambito: str | None = Query(None, description="Filtrar por ámbito operativo"),
 ):
@@ -42,25 +44,33 @@ async def listar_sepblac(
             params,
         ).mappings()
 
-        return {
-            "documentos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": row["tipo_documento"],
-                    "ambito": row["ambito"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
-        }
+        documentos = [
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "tipo_documento": row["tipo_documento"],
+                "ambito": row["ambito"],
+                "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
+                "url_fuente": row["url_fuente"],
+            }
+            for row in rows
+        ]
+        record_retrieval_query_audit(
+            request,
+            path="/v1/sepblac",
+            query_text=q or ambito or "",
+            tool_name="listar_sepblac",
+            items=documentos,
+            total=len(documentos),
+            verified=bool(documentos),
+            completeness="parcial",
+        )
+        return {"documentos": documentos}
 
 
 @router.get("/{referencia:path}", response_model=SEPBLACDetail, operation_id="get_sepblac")
-async def get_sepblac(referencia: str):
+async def get_sepblac(referencia: str, request: Request):
     with db_session() as db:
         row = (
             db.execute(
@@ -83,7 +93,7 @@ async def get_sepblac(referencia: str):
         if not row:
             raise HTTPException(status_code=404, detail={"error": "Documento SEPBLAC no encontrado"})
 
-        return {
+        result = {
             "referencia": row["referencia"],
             "fecha": str(row["fecha"]) if row["fecha"] else None,
             "titulo": row["titulo"],
@@ -92,3 +102,14 @@ async def get_sepblac(referencia: str):
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
         }
+        record_retrieval_query_audit(
+            request,
+            path="/v1/sepblac/{referencia}",
+            query_text=referencia,
+            tool_name="get_sepblac",
+            items=[result],
+            total=1,
+            verified=True,
+            completeness="parcial",
+        )
+        return result

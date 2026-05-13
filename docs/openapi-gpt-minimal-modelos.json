@@ -30,18 +30,38 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "codigo": { "type": "string" },
-                          "nombre": { "type": "string" },
-                          "periodo": { "type": "string" },
-                          "impuesto": { "type": "string" },
-                          "articulos_count": { "type": "integer" },
-                          "casillas_count": { "type": "integer" }
+                          "codigo": {
+                            "type": "string"
+                          },
+                          "nombre": {
+                            "type": "string"
+                          },
+                          "periodo": {
+                            "type": "string"
+                          },
+                          "impuesto": {
+                            "type": "string"
+                          },
+                          "articulos_count": {
+                            "type": "integer"
+                          },
+                          "casillas_count": {
+                            "type": "integer"
+                          }
                         },
-                        "required": ["codigo", "nombre", "impuesto", "articulos_count", "casillas_count"]
+                        "required": [
+                          "codigo",
+                          "nombre",
+                          "impuesto",
+                          "articulos_count",
+                          "casillas_count"
+                        ]
                       }
                     }
                   },
-                  "required": ["modelos"]
+                  "required": [
+                    "modelos"
+                  ]
                 }
               }
             }
@@ -82,21 +102,40 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "codigo": { "type": "string" },
-                    "nombre": { "type": "string" },
-                    "periodo": { "type": "string" },
-                    "impuesto": { "type": "string" },
-                    "url_info": { "type": "string" },
-                    "campana_activa": { "type": "string" },
+                    "codigo": {
+                      "type": "string"
+                    },
+                    "nombre": {
+                      "type": "string"
+                    },
+                    "periodo": {
+                      "type": "string"
+                    },
+                    "impuesto": {
+                      "type": "string"
+                    },
+                    "url_info": {
+                      "type": "string"
+                    },
+                    "campana_activa": {
+                      "type": "string"
+                    },
                     "campanas": {
                       "type": "array",
                       "items": {
                         "type": "object",
                         "properties": {
-                          "campana": { "type": "string" },
-                          "activo": { "type": "boolean" }
+                          "campana": {
+                            "type": "string"
+                          },
+                          "activo": {
+                            "type": "boolean"
+                          }
                         },
-                        "required": ["campana", "activo"]
+                        "required": [
+                          "campana",
+                          "activo"
+                        ]
                       }
                     },
                     "articulos": {
@@ -104,13 +143,27 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "norma": { "type": "string" },
-                          "numero": { "type": "string" },
-                          "titulo": { "type": "string" },
-                          "casilla": { "type": "string" },
-                          "nota": { "type": "string" },
-                          "fuente": { "type": "string" },
-                          "url_fuente": { "type": "string" }
+                          "norma": {
+                            "type": "string"
+                          },
+                          "numero": {
+                            "type": "string"
+                          },
+                          "titulo": {
+                            "type": "string"
+                          },
+                          "casilla": {
+                            "type": "string"
+                          },
+                          "nota": {
+                            "type": "string"
+                          },
+                          "fuente": {
+                            "type": "string"
+                          },
+                          "url_fuente": {
+                            "type": "string"
+                          }
                         }
                       }
                     },
@@ -119,14 +172,29 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "codigo": { "type": "string" },
-                          "etiqueta": { "type": "string" },
-                          "descripcion": { "type": "string" },
-                          "tipo_casilla": { "type": "string" },
-                          "pagina": { "type": "integer" },
-                          "orden": { "type": "integer" }
+                          "codigo": {
+                            "type": "string"
+                          },
+                          "etiqueta": {
+                            "type": "string"
+                          },
+                          "descripcion": {
+                            "type": "string"
+                          },
+                          "tipo_casilla": {
+                            "type": "string"
+                          },
+                          "pagina": {
+                            "type": "integer"
+                          },
+                          "orden": {
+                            "type": "integer"
+                          }
                         },
-                        "required": ["codigo", "etiqueta"]
+                        "required": [
+                          "codigo",
+                          "etiqueta"
+                        ]
                       }
                     },
                     "claves": {
@@ -134,12 +202,23 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "codigo": { "type": "string" },
-                          "etiqueta": { "type": "string" },
-                          "descripcion": { "type": "string" },
-                          "tipo_clave": { "type": "string" }
+                          "codigo": {
+                            "type": "string"
+                          },
+                          "etiqueta": {
+                            "type": "string"
+                          },
+                          "descripcion": {
+                            "type": "string"
+                          },
+                          "tipo_clave": {
+                            "type": "string"
+                          }
                         },
-                        "required": ["codigo", "etiqueta"]
+                        "required": [
+                          "codigo",
+                          "etiqueta"
+                        ]
                       }
                     },
                     "instrucciones": {
@@ -147,12 +226,25 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "seccion": { "type": "string" },
-                          "titulo": { "type": "string" },
-                          "contenido": { "type": "string" },
-                          "orden": { "type": "integer" }
+                          "seccion": {
+                            "type": "string"
+                          },
+                          "titulo": {
+                            "type": "string"
+                          },
+                          "contenido": {
+                            "type": "string"
+                          },
+                          "orden": {
+                            "type": "integer"
+                          }
                         },
-                        "required": ["seccion", "titulo", "contenido", "orden"]
+                        "required": [
+                          "seccion",
+                          "titulo",
+                          "contenido",
+                          "orden"
+                        ]
                       }
                     },
                     "normativa": {
@@ -160,13 +252,25 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "boe_id": { "type": "string" },
-                          "titulo": { "type": "string" },
-                          "fecha": { "type": "string" },
-                          "url_boe": { "type": "string" },
-                          "resumen": { "type": "string" }
+                          "boe_id": {
+                            "type": "string"
+                          },
+                          "titulo": {
+                            "type": "string"
+                          },
+                          "fecha": {
+                            "type": "string"
+                          },
+                          "url_boe": {
+                            "type": "string"
+                          },
+                          "resumen": {
+                            "type": "string"
+                          }
                         },
-                        "required": ["titulo"]
+                        "required": [
+                          "titulo"
+                        ]
                       }
                     },
                     "doctrina_relacionada": {
@@ -176,12 +280,31 @@
                       }
                     }
                   },
-                  "required": ["codigo", "nombre", "impuesto"]
+                  "required": [
+                    "codigo",
+                    "nombre",
+                    "impuesto"
+                  ]
                 }
               }
             }
           }
         }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key required for ESData GPT Actions."
       }
     }
   }

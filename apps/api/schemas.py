@@ -1291,6 +1291,9 @@ class QueryAuditEntryResponse(MCPMinimumResponseContract):
 class QueryAuditLogResponse(BaseModel):
     total: int = Field(description="Total entries matching the query")
     path: str | None = Field(default=None, description="Path filter applied")
+    limit: int = Field(default=100, description="Maximum entries returned")
+    offset: int = Field(default=0, description="Pagination offset")
+    has_more: bool = Field(default=False, description="Whether more entries are available")
     entries: list[QueryAuditEntryResponse] = Field(default_factory=list, description="Audit log entries")
 
 
@@ -4014,6 +4017,52 @@ class DocInterpretativoDetail(BaseModel):
     referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
     boe_referencia: str | None = Field(default=None, description="Alias de referencia BOE para consumidores MCP")
     url_cnmv: str | None = Field(default=None, description="Alias de URL fuente CNMV/BOE para consumidores MCP")
+
+
+# --- BDNS / SEPBLAC direct document surfaces --------------------------------
+
+class BDNSListItem(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    fragmento: str
+    url_fuente: str | None = None
+
+
+class BDNSListResponse(BaseModel):
+    convocatorias: list[BDNSListItem]
+
+
+class BDNSDetail(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    texto: str
+    url_fuente: str | None = None
+
+
+class SEPBLACListItem(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    tipo_documento: str
+    ambito: str
+    fragmento: str
+    url_fuente: str | None = None
+
+
+class SEPBLACListResponse(BaseModel):
+    documentos: list[SEPBLACListItem]
+
+
+class SEPBLACDetail(BaseModel):
+    referencia: str
+    fecha: str | None = None
+    titulo: str | None = None
+    tipo_documento: str
+    ambito: str
+    texto: str
+    url_fuente: str | None = None
 
 
 # --- BOE diario non-consolidated documents ---------------------------------

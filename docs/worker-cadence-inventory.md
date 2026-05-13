@@ -3,6 +3,11 @@
 Date: 2026-05-13  
 Scope: W-01, worker stale-threshold hardening.
 
+> Snapshot historico: esta tabla refleja el inventario inicial W-01 antes de aplicar W-02 a W-06.
+> Estado actual verificado el 2026-05-13: `worker_cadence_declared=37/37`,
+> `worker_cadence_missing=0`, `/status stale_workers=[]`, y la suite de validacion
+> semanal pasa. El registro canonico actual esta en `apps/api/services/worker_cadence.py`.
+
 ## Method
 
 Sources checked:

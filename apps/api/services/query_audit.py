@@ -10,6 +10,8 @@ from typing import Any
 from db import engine
 from mcp_catalog import infer_query_audit_tool_name
 from pydantic import BaseModel, Field
+from sqlalchemy import text
+
 from services.persistence import (
     dumps_json,
     dumps_json_list,
@@ -17,7 +19,6 @@ from services.persistence import (
     loads_json,
     rows_to_dicts,
 )
-from sqlalchemy import text
 
 
 class QueryAuditEntry(BaseModel):
@@ -258,13 +259,30 @@ class QueryAuditService:
             response_payload=loads_json(row.get("response_payload"), {}),
         )
 
-    def get_entries(self, path: str | None = None) -> list[QueryAuditEntry]:
+    def count_entries(self, path: str | None = None) -> int:
+        sql = "SELECT COUNT(*) FROM query_audit_log"
+        params: dict[str, object] = {}
+        if path:
+            sql += " WHERE path = :path"
+            params["path"] = path
+        with engine.begin() as conn:
+            return int(conn.execute(text(sql), params).scalar() or 0)
+
+    def get_entries(
+        self,
+        path: str | None = None,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[QueryAuditEntry]:
         sql = "SELECT * FROM query_audit_log"
         params: dict[str, object] = {}
         if path:
             sql += " WHERE path = :path"
             params["path"] = path
-        sql += " ORDER BY created_at ASC"
+        sql += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+        params["limit"] = limit
+        params["offset"] = offset
         with engine.begin() as conn:
             rows = rows_to_dicts(conn.execute(text(sql), params))
         return [self._map_entry(row) for row in rows]

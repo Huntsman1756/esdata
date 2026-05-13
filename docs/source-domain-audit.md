@@ -5,6 +5,18 @@ Entorno verificado: VPS `212.227.227.64`, Docker Compose en `/srv/esdata`.
 
 Este documento replica el criterio aplicado a modelos AEAT: una fuente queda marcada como cubierta solo si hay datos reales, worker/job observado, endpoint/API consultable y contrato MCP/API que no inventa cuando la evidencia es limitada.
 
+## Delta 2026-05-13
+
+Verificacion fresca en VPS: API y DB `ok`, `workers_total=36`, `stale_workers=[]`, `worker_cadence_declared=37/37`, `mcp_validation_suite ok=true`, `mcp_deep_contract_audit ok=true`.
+
+Conteos productivos actuales: `aeat_modelo=219`, `modelo_campana=232`, `modelo_casilla=31101`, `norma=37`, `articulo=1062`, `version_articulo=2345`, `documento_interpretativo=18799`, `query_audit_log=1299`, `sync_log=873`.
+
+Superficie viva actual: MCP HTTP devuelve `70` herramientas; el contrato OpenAPI GPT principal expone `72` operaciones con `ApiKeyAuth`. La diferencia es esperada porque GPT Actions incluye operaciones REST auxiliares ademas de herramientas MCP.
+
+Hallazgo nuevo cerrado localmente: los endpoints directos `/v1/boe-diario`, `/v1/bde`, `/v1/bdns`, `/v1/sepblac` y `/v1/cendoj` no registraban `query_audit_log`; se cablean al helper comun de auditoria para que no queden retrievals sin traza.
+
+Gaps que siguen siendo limitaciones honestas, no cobertura completa: BORME sigue `partial_heuristic`, FATCA/CRS no cubre procedimiento completo, MiCA no-CASP sigue `configured_but_unavailable`, AEPD no incluye resoluciones sancionadoras completas, EUR-Lex solo es autoritativo para CELEX con articulado cargado y reconciliado.
+
 ## Estado Por Fuente
 
 | Fuente / dominio | Tablas principales | Datos reales observados | Worker/job observado | API/MCP | Estado |

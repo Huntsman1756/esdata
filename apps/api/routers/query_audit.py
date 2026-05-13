@@ -15,14 +15,20 @@ router = APIRouter(prefix="/v1/ai", tags=["query_audit"])
 )
 async def get_query_audit_log(
     path: str | None = Query(None, description="Filter by API path (e.g. /v1/consulta)"),
+    limit: int = Query(100, ge=1, le=100, description="Maximum entries returned"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
 ):
     """Query query audit log with optional path filter."""
     store = get_query_audit_service()
-    entries = store.get_entries(path=path)
+    total = store.count_entries(path=path)
+    entries = store.get_entries(path=path, limit=limit, offset=offset)
 
     return {
-        "total": len(entries),
+        "total": total,
         "path": path,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(entries) < total,
         "entries": [
             QueryAuditEntryResponse(
                 entry_id=e.entry_id,

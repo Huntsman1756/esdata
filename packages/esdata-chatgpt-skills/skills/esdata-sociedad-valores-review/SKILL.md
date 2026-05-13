@@ -35,6 +35,13 @@ Ask only missing facts that change the answer:
 - If ESData says `evidence_limited`, keep the conclusion limited.
 - Use a human review gate before client advice, filing, reporting, or regulatory submissions.
 
+## Do Not Use When
+
+- The user wants investment advice, portfolio recommendations, suitability conclusions, or order execution decisions.
+- The question is about a non-Spanish financial entity and ESData has no loaded source for that jurisdiction.
+- The user asks for a definitive obligation while material facts such as role, product, residence, or period are missing.
+- The answer depends on live CNMV/AEAT filing portals rather than ESData's loaded evidence.
+
 ## Output
 
 ```text

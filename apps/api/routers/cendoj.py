@@ -1,7 +1,9 @@
 from db import db_session
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
 from sqlalchemy import text
+
+from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/cendoj", tags=["cendoj"])
 
@@ -14,6 +16,7 @@ def _normalize_tipo_documento(value: str | None) -> str | None:
 
 @router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_cendoj")
 async def listar_cendoj(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     tribunal: str | None = Query(None, description="Filtrar por tribunal (tribunal_supremo, audiencia_nacional, tsj)"),
     tipo: str | None = Query(None, description="Filtrar por tipo de documento (sentencia, auto, providencia)"),
@@ -59,26 +62,34 @@ async def listar_cendoj(
             params,
         ).mappings()
 
-        return {
-            "documentos": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "tipo_documento": _normalize_tipo_documento(row["tipo_documento"]),
-                    "ambito": row["ambito"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                    "organismo_emisor": row.get("organismo_emisor"),
-                }
-                for row in rows
-            ]
-        }
+        documentos = [
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "tipo_documento": _normalize_tipo_documento(row["tipo_documento"]),
+                "ambito": row["ambito"],
+                "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
+                "url_fuente": row["url_fuente"],
+                "organismo_emisor": row.get("organismo_emisor"),
+            }
+            for row in rows
+        ]
+        record_retrieval_query_audit(
+            request,
+            path="/v1/cendoj",
+            query_text=q or tribunal or tipo or organismo or "",
+            tool_name="listar_cendoj",
+            items=documentos,
+            total=len(documentos),
+            verified=bool(documentos),
+            completeness="parcial",
+        )
+        return {"documentos": documentos}
 
 
 @router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_cendoj")
-async def get_cendoj(referencia: str):
+async def get_cendoj(referencia: str, request: Request):
     with db_session() as db:
         row = (
             db.execute(
@@ -100,7 +111,7 @@ async def get_cendoj(referencia: str):
         if not row:
             raise HTTPException(status_code=404, detail={"error": "Documento CENDOJ no encontrado"})
 
-        return {
+        result = {
             "referencia": row["referencia"],
             "fecha": str(row["fecha"]) if row["fecha"] else None,
             "titulo": row["titulo"],
@@ -110,3 +121,14 @@ async def get_cendoj(referencia: str):
             "url_fuente": row["url_fuente"],
             "organismo_emisor": row.get("organismo_emisor"),
         }
+        record_retrieval_query_audit(
+            request,
+            path="/v1/cendoj/{referencia}",
+            query_text=referencia,
+            tool_name="get_cendoj",
+            items=[result],
+            total=1,
+            verified=True,
+            completeness="parcial",
+        )
+        return result

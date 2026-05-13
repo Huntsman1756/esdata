@@ -235,8 +235,8 @@ Auth: `ApiKeyAuth`, header `X-API-Key`.
 
 Older Action specs:
 
-- `docs/openapi-gpt-clipboard.json`: stale/minimal, 7 paths and no security scheme.
-- `docs/openapi-gpt-minimal-modelos.json`: minimal model-only spec, 2 paths.
+- `docs/openapi-gpt-clipboard.json`: legacy clipboard spec; now declares `ApiKeyAuth` for safe GPT Actions use, but the main generated spec remains canonical.
+- `docs/openapi-gpt-minimal-modelos.json`: minimal model-only spec, 2 paths; now declares `ApiKeyAuth`.
 
 ### Web UI
 

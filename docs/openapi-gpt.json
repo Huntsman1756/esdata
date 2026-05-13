@@ -4926,10 +4926,25 @@
             "title": "Rerank Score",
             "description": "Puntuacion de reranking"
           },
+          "relevance_score": {
+            "type": "number",
+            "title": "Relevance Score",
+            "description": "Puntuacion normalizada de relevancia"
+          },
           "excerpt": {
             "type": "string",
             "title": "Excerpt",
             "description": "Vista previa del contenido del chunk"
+          },
+          "content_preview": {
+            "type": "string",
+            "title": "Content Preview",
+            "description": "Vista previa estable para clientes MCP/GPT"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial de la fuente si esta disponible"
           }
         },
         "type": "object",

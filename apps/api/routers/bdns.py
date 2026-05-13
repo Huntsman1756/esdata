@@ -1,14 +1,16 @@
-from fastapi import APIRouter, HTTPException, Query
+from db import db_session
+from fastapi import APIRouter, HTTPException, Query, Request
+from schemas import BDNSDetail, BDNSListResponse
 from sqlalchemy import text
 
-from db import db_session
-from schemas import BDNSDetail, BDNSListResponse
+from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/bdns", tags=["bdns"])
 
 
 @router.get("", response_model=BDNSListResponse, operation_id="listar_bdns")
 async def listar_bdns(
+    request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
 ):
     filters = [
@@ -37,23 +39,31 @@ async def listar_bdns(
             params,
         ).mappings()
 
-        return {
-            "convocatorias": [
-                {
-                    "referencia": row["referencia"],
-                    "fecha": str(row["fecha"]) if row["fecha"] else None,
-                    "titulo": row["titulo"],
-                    "fragmento": row["texto"][:220]
-                    + ("..." if len(row["texto"]) > 220 else ""),
-                    "url_fuente": row["url_fuente"],
-                }
-                for row in rows
-            ]
-        }
+        convocatorias = [
+            {
+                "referencia": row["referencia"],
+                "fecha": str(row["fecha"]) if row["fecha"] else None,
+                "titulo": row["titulo"],
+                "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
+                "url_fuente": row["url_fuente"],
+            }
+            for row in rows
+        ]
+        record_retrieval_query_audit(
+            request,
+            path="/v1/bdns",
+            query_text=q or "",
+            tool_name="listar_bdns",
+            items=convocatorias,
+            total=len(convocatorias),
+            verified=bool(convocatorias),
+            completeness="parcial",
+        )
+        return {"convocatorias": convocatorias}
 
 
 @router.get("/{referencia:path}", response_model=BDNSDetail, operation_id="get_bdns")
-async def get_bdns(referencia: str):
+async def get_bdns(referencia: str, request: Request):
     with db_session() as db:
         row = (
             db.execute(
@@ -76,10 +86,21 @@ async def get_bdns(referencia: str):
         if not row:
             raise HTTPException(status_code=404, detail={"error": "Convocatoria BDNS no encontrada"})
 
-        return {
+        result = {
             "referencia": row["referencia"],
             "fecha": str(row["fecha"]) if row["fecha"] else None,
             "titulo": row["titulo"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
         }
+        record_retrieval_query_audit(
+            request,
+            path="/v1/bdns/{referencia}",
+            query_text=referencia,
+            tool_name="get_bdns",
+            items=[result],
+            total=1,
+            verified=True,
+            completeness="parcial",
+        )
+        return result

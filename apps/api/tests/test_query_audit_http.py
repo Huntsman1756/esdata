@@ -151,7 +151,41 @@ async def test_query_audit_filter_by_path():
     data = response.json()
     assert data["total"] == 1
     assert data["path"] == "/v1/consulta"
+    assert data["limit"] == 100
+    assert data["offset"] == 0
+    assert data["has_more"] is False
     assert data["entries"][0]["request_id"] == "req-path-001"
+
+
+@pytest.mark.asyncio
+async def test_query_audit_list_is_paginated_and_bounded():
+    from services.query_audit import get_query_audit_service
+
+    svc = get_query_audit_service()
+    for index in range(3):
+        svc.record_query(
+            request_id=f"req-page-{index}",
+            user_id="u1",
+            path="/v1/consulta",
+            query_text=f"consulta {index}",
+            retrieved_chunks=[],
+            response_summary="ok",
+        )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/ai/query-audit", params={"limit": 2, "offset": 0})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+    assert data["limit"] == 2
+    assert data["offset"] == 0
+    assert data["has_more"] is True
+    assert len(data["entries"]) == 2
 
 
 @pytest.mark.asyncio
