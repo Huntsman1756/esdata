@@ -50,6 +50,16 @@ def _cnmv_list_payload(row) -> dict:
         "referencia_boe": row.get("referencia_boe"),
         "boe_referencia": _cnmv_boe_reference(row),
         "url_cnmv": _cnmv_source_alias(row),
+        "es_consolidado": row.get("es_consolidado"),
+        "consolidated_verification_status": row.get("consolidated_verification_status"),
+        "consolidated_source_url": row.get("consolidated_source_url"),
+        "consolidated_checked_at": str(row["consolidated_checked_at"])
+        if row.get("consolidated_checked_at")
+        else None,
+        "boe_last_modified": str(row["boe_last_modified"])
+        if row.get("boe_last_modified")
+        else None,
+        "consolidated_evidence_note": row.get("consolidated_evidence_note"),
     }
 
 
@@ -144,7 +154,49 @@ async def listar_cnmv(
             text(
                 f"""
                 SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente,
-                       estado_vigencia, fecha_publicacion, referencia_boe
+                       estado_vigencia, fecha_publicacion, referencia_boe,
+                       (
+                           SELECT dv.es_consolidado
+                           FROM documento_version dv
+                           WHERE dv.documento_referencia = d.referencia
+                           ORDER BY dv.version_num DESC
+                           LIMIT 1
+                       ) AS es_consolidado,
+                       (
+                           SELECT dv.consolidated_verification_status
+                           FROM documento_version dv
+                           WHERE dv.documento_referencia = d.referencia
+                           ORDER BY dv.version_num DESC
+                           LIMIT 1
+                       ) AS consolidated_verification_status,
+                       (
+                           SELECT dv.consolidated_source_url
+                           FROM documento_version dv
+                           WHERE dv.documento_referencia = d.referencia
+                           ORDER BY dv.version_num DESC
+                           LIMIT 1
+                       ) AS consolidated_source_url,
+                       (
+                           SELECT dv.consolidated_checked_at
+                           FROM documento_version dv
+                           WHERE dv.documento_referencia = d.referencia
+                           ORDER BY dv.version_num DESC
+                           LIMIT 1
+                       ) AS consolidated_checked_at,
+                       (
+                           SELECT dv.boe_last_modified
+                           FROM documento_version dv
+                           WHERE dv.documento_referencia = d.referencia
+                           ORDER BY dv.version_num DESC
+                           LIMIT 1
+                       ) AS boe_last_modified,
+                       (
+                           SELECT dv.consolidated_evidence_note
+                           FROM documento_version dv
+                           WHERE dv.documento_referencia = d.referencia
+                           ORDER BY dv.version_num DESC
+                           LIMIT 1
+                       ) AS consolidated_evidence_note
                 FROM documento_interpretativo d
                 WHERE { ' AND '.join(filters) }
                 ORDER BY {order_by} {order_dir}
@@ -387,7 +439,49 @@ async def get_cnmv(referencia: str):
                 text(
                     """
                     SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente,
-                           estado_vigencia, numero_circular, fecha_publicacion, referencia_boe
+                           estado_vigencia, numero_circular, fecha_publicacion, referencia_boe,
+                           (
+                               SELECT dv.es_consolidado
+                               FROM documento_version dv
+                               WHERE dv.documento_referencia = d.referencia
+                               ORDER BY dv.version_num DESC
+                               LIMIT 1
+                           ) AS es_consolidado,
+                           (
+                               SELECT dv.consolidated_verification_status
+                               FROM documento_version dv
+                               WHERE dv.documento_referencia = d.referencia
+                               ORDER BY dv.version_num DESC
+                               LIMIT 1
+                           ) AS consolidated_verification_status,
+                           (
+                               SELECT dv.consolidated_source_url
+                               FROM documento_version dv
+                               WHERE dv.documento_referencia = d.referencia
+                               ORDER BY dv.version_num DESC
+                               LIMIT 1
+                           ) AS consolidated_source_url,
+                           (
+                               SELECT dv.consolidated_checked_at
+                               FROM documento_version dv
+                               WHERE dv.documento_referencia = d.referencia
+                               ORDER BY dv.version_num DESC
+                               LIMIT 1
+                           ) AS consolidated_checked_at,
+                           (
+                               SELECT dv.boe_last_modified
+                               FROM documento_version dv
+                               WHERE dv.documento_referencia = d.referencia
+                               ORDER BY dv.version_num DESC
+                               LIMIT 1
+                           ) AS boe_last_modified,
+                           (
+                               SELECT dv.consolidated_evidence_note
+                               FROM documento_version dv
+                               WHERE dv.documento_referencia = d.referencia
+                               ORDER BY dv.version_num DESC
+                               LIMIT 1
+                           ) AS consolidated_evidence_note
                     FROM documento_interpretativo d
                     WHERE d.organismo_emisor = 'CNMV'
                       AND d.tipo_fuente = 'cnmv'
@@ -418,4 +512,14 @@ async def get_cnmv(referencia: str):
             "referencia_boe": row.get("referencia_boe"),
             "boe_referencia": _cnmv_boe_reference(row),
             "url_cnmv": _cnmv_source_alias(row),
+            "es_consolidado": row.get("es_consolidado"),
+            "consolidated_verification_status": row.get("consolidated_verification_status"),
+            "consolidated_source_url": row.get("consolidated_source_url"),
+            "consolidated_checked_at": str(row["consolidated_checked_at"])
+            if row.get("consolidated_checked_at")
+            else None,
+            "boe_last_modified": str(row["boe_last_modified"])
+            if row.get("boe_last_modified")
+            else None,
+            "consolidated_evidence_note": row.get("consolidated_evidence_note"),
         }

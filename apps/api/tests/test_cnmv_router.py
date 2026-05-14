@@ -43,6 +43,9 @@ async def test_cnmv_buscar_excludes_derogados_by_default():
     assert "vigente_modificado" in estados
     assert "CNMV-Circular-0-2020" not in referencias
     assert "CNMV-Circular-2-2024" in referencias
+    modified = next(doc for doc in data["documentos"] if doc["referencia"] == "CNMV-Circular-2-2024")
+    assert modified["es_consolidado"] is False
+    assert modified["consolidated_verification_status"] == "not_consolidated"
 
 
 @pytest.mark.asyncio
@@ -71,6 +74,15 @@ async def test_cnmv_detail_exposes_source_aliases():
     assert data["fecha_publicacion"] == "2025-03-05"
     assert data["url_cnmv"] == "https://example.invalid/cnmv/circular-1-2025"
     assert data["boe_referencia"] == "BOE-A-2025-1234"
+
+    async with _client() as client:
+        modified_response = await client.get("/v1/cnmv/CNMV-Circular-2-2024")
+
+    assert modified_response.status_code == 200
+    modified = modified_response.json()
+    assert modified["es_consolidado"] is False
+    assert modified["consolidated_verification_status"] == "not_consolidated"
+    assert modified["consolidated_source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-2024-5678"
 
 
 @pytest.mark.asyncio

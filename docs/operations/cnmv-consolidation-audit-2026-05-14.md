@@ -23,6 +23,8 @@ The fix adds explicit consolidation audit metadata to both version tables:
 | `boe_last_modified` | official last modification date if deterministically extracted |
 | `consolidated_evidence_note` | concise reason for the classification |
 
+The API exposes the same metadata in CNMV list/search/detail responses and in `/v1/cnmv/{referencia}/versions`, so MCP/GPT consumers do not need a second lookup to avoid treating a modified document as consolidated.
+
 ## Operational Rule
 
 A `documento_version` row is not evidence of consolidated text by itself. Retrieval, audits, and human review must inspect `es_consolidado` and `consolidated_verification_status`.

@@ -4036,6 +4036,12 @@ class DocInterpretativoListItem(BaseModel):
     referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
     boe_referencia: str | None = Field(default=None, description="Alias de referencia BOE para consumidores MCP")
     url_cnmv: str | None = Field(default=None, description="Alias de URL fuente CNMV/BOE para consumidores MCP")
+    es_consolidado: bool | None = Field(default=None, description="True solo si la version cargada esta verificada como consolidada")
+    consolidated_verification_status: str | None = Field(default=None, description="consolidated | not_consolidated | unknown | verification_error")
+    consolidated_source_url: str | None = Field(default=None, description="URL BOE usada para verificar consolidacion")
+    consolidated_checked_at: str | None = Field(default=None, description="Timestamp de verificacion de consolidacion")
+    boe_last_modified: str | None = Field(default=None, description="Fecha ultima modificacion BOE si se extrajo")
+    consolidated_evidence_note: str | None = Field(default=None, description="Nota de evidencia sobre consolidacion")
 
 
 class DocInterpretativoListResponse(BaseModel):
@@ -4071,6 +4077,12 @@ class DocInterpretativoDetail(BaseModel):
     referencia_boe: str | None = Field(default=None, description="Referencia BOE (cnmv)")
     boe_referencia: str | None = Field(default=None, description="Alias de referencia BOE para consumidores MCP")
     url_cnmv: str | None = Field(default=None, description="Alias de URL fuente CNMV/BOE para consumidores MCP")
+    es_consolidado: bool | None = Field(default=None, description="True solo si la version cargada esta verificada como consolidada")
+    consolidated_verification_status: str | None = Field(default=None, description="consolidated | not_consolidated | unknown | verification_error")
+    consolidated_source_url: str | None = Field(default=None, description="URL BOE usada para verificar consolidacion")
+    consolidated_checked_at: str | None = Field(default=None, description="Timestamp de verificacion de consolidacion")
+    boe_last_modified: str | None = Field(default=None, description="Fecha ultima modificacion BOE si se extrajo")
+    consolidated_evidence_note: str | None = Field(default=None, description="Nota de evidencia sobre consolidacion")
 
 
 # --- BDNS / SEPBLAC direct document surfaces --------------------------------
