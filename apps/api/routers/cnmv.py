@@ -1,6 +1,7 @@
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
 from schemas import (
+    CNMVCoverageResponse,
     CNMVObligationLinkResponse,
     CNMVRegulationLinkResponse,
     CNMVVersionResponse,
@@ -19,6 +20,74 @@ CNMV_COVERAGE_NOTE = (
     "puede significar no cargado, no inexistente. Por defecto se excluyen documentos "
     "derogados; use vigencia=all o vigencia=derogado para auditoria historica."
 )
+
+CNMV_SOURCE_FAMILIES = [
+    {
+        "family_id": "circulares",
+        "nombre": "Circulares CNMV",
+        "source_url": "https://www.cnmv.es/portal/Legislacion/Circulares",
+        "loaded_tipo_documentos": ["circular_cnmv", "circular"],
+        "coverage_status": "partial_loaded",
+        "contract_note": (
+            "Cargado parcialmente desde el indice oficial de circulares. "
+            "El conteo cargado no representa el universo completo CNMV."
+        ),
+    },
+    {
+        "family_id": "documentos_cnmv_genericos",
+        "nombre": "Documentos CNMV genericos cargados",
+        "source_url": "https://www.cnmv.es/Portal/Menu/Legislacion?lang=es",
+        "loaded_tipo_documentos": ["documento_cnmv"],
+        "coverage_status": "partial_generic",
+        "contract_note": (
+            "Documentos oficiales CNMV sin familia especifica normalizada. "
+            "No debe usarse como prueba de cobertura completa de guias, consultas o modelos."
+        ),
+    },
+    {
+        "family_id": "guias_tecnicas",
+        "nombre": "Guias tecnicas CNMV",
+        "source_url": "https://www.cnmv.es/portal/Legislacion/Guias-Tecnicas",
+        "loaded_tipo_documentos": ["guia_cnmv"],
+        "coverage_status": "configured_but_unavailable",
+        "contract_note": "Fuente oficial identificada; no hay ingestion completa dedicada todavia.",
+    },
+    {
+        "family_id": "preguntas_respuestas_normas",
+        "nombre": "Preguntas y respuestas sobre normas y recomendaciones",
+        "source_url": "https://www.cnmv.es/Portal/Menu/Legislacion?lang=es",
+        "loaded_tipo_documentos": [],
+        "coverage_status": "configured_but_unavailable",
+        "contract_note": "Familia oficial identificada en el menu CNMV; sin ingestion dedicada.",
+    },
+    {
+        "family_id": "documentos_consulta_cnmv",
+        "nombre": "Documentos a consulta de la CNMV",
+        "source_url": "https://www.cnmv.es/portal/publicaciones/documentos-fase-consulta?tDoc=1",
+        "loaded_tipo_documentos": [],
+        "coverage_status": "configured_but_unavailable",
+        "contract_note": "Fuente oficial paginada identificada; sin ingestion dedicada.",
+    },
+    {
+        "family_id": "modelos_normalizados",
+        "nombre": "Modelos normalizados CNMV",
+        "source_url": "https://www.cnmv.es/portal/Legislacion/ModelosN/ModelosN",
+        "loaded_tipo_documentos": [],
+        "coverage_status": "configured_but_unavailable",
+        "contract_note": "Fuente oficial identificada; no se cargan formularios/modelos CNMV en el corpus actual.",
+    },
+    {
+        "family_id": "registros_oficiales",
+        "nombre": "Registros oficiales CNMV",
+        "source_url": "https://www.cnmv.es/Portal/Menu/Legislacion?lang=es",
+        "loaded_tipo_documentos": [],
+        "coverage_status": "configured_but_unavailable",
+        "contract_note": (
+            "La web oficial lista registros de entidades, emisores, IIC, ESI, "
+            "infraestructuras y CASP; no forman parte del corpus CNMV documental actual."
+        ),
+    },
+]
 
 
 def _cnmv_boe_reference(row) -> str | None:
@@ -84,6 +153,112 @@ def _apply_cnmv_vigencia_filter(
     filters.append("d.estado_vigencia = :vigencia")
     params["vigencia"] = normalized
     return normalized, [normalized]
+
+
+def _empty_coverage_counts() -> dict[str, int]:
+    return {
+        "loaded_count": 0,
+        "vigente_count": 0,
+        "vigente_modificado_count": 0,
+        "derogado_count": 0,
+    }
+
+
+@router.get(
+    "/coverage",
+    response_model=CNMVCoverageResponse,
+    operation_id="get_cnmv_coverage",
+)
+async def get_cnmv_coverage():
+    """Expose CNMV loaded corpus size versus known official source families."""
+    with db_session() as db:
+        total_rows = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        COUNT(*) AS total,
+                        SUM(
+                            CASE
+                                WHEN estado_vigencia IN ('vigente', 'vigente_modificado')
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS current_total,
+                        SUM(
+                            CASE WHEN estado_vigencia = 'derogado' THEN 1 ELSE 0 END
+                        ) AS derogado_total
+                    FROM documento_interpretativo
+                    WHERE organismo_emisor = 'CNMV'
+                      AND tipo_fuente = 'cnmv'
+                    """
+                )
+            )
+            .mappings()
+            .first()
+        )
+        by_type_rows = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        tipo_documento,
+                        COUNT(*) AS total,
+                        SUM(
+                            CASE WHEN estado_vigencia = 'vigente' THEN 1 ELSE 0 END
+                        ) AS vigente,
+                        SUM(
+                            CASE
+                                WHEN estado_vigencia = 'vigente_modificado'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS vigente_modificado,
+                        SUM(
+                            CASE WHEN estado_vigencia = 'derogado' THEN 1 ELSE 0 END
+                        ) AS derogado
+                    FROM documento_interpretativo
+                    WHERE organismo_emisor = 'CNMV'
+                      AND tipo_fuente = 'cnmv'
+                    GROUP BY tipo_documento
+                    """
+                )
+            )
+            .mappings()
+            .all()
+        )
+
+    counts_by_type = {row["tipo_documento"]: row for row in by_type_rows}
+    source_families = []
+    for family in CNMV_SOURCE_FAMILIES:
+        counts = _empty_coverage_counts()
+        for tipo_documento in family["loaded_tipo_documentos"]:
+            row = counts_by_type.get(tipo_documento)
+            if not row:
+                continue
+            counts["loaded_count"] += int(row["total"] or 0)
+            counts["vigente_count"] += int(row["vigente"] or 0)
+            counts["vigente_modificado_count"] += int(row["vigente_modificado"] or 0)
+            counts["derogado_count"] += int(row["derogado"] or 0)
+
+        source_families.append(
+            {
+                "family_id": family["family_id"],
+                "nombre": family["nombre"],
+                "source_url": family["source_url"],
+                "coverage_status": family["coverage_status"],
+                "contract_note": family["contract_note"],
+                **counts,
+            }
+        )
+
+    return {
+        "total_cnmv_loaded": int(total_rows["total"] or 0) if total_rows else 0,
+        "current_loaded": int(total_rows["current_total"] or 0) if total_rows else 0,
+        "derogado_loaded": int(total_rows["derogado_total"] or 0) if total_rows else 0,
+        "source_families": source_families,
+        "coverage_note": CNMV_COVERAGE_NOTE,
+    }
 
 
 @router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_cnmv")

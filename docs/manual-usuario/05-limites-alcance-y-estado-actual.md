@@ -38,6 +38,8 @@ Esto no significa que todos los dominios esten completos al mismo nivel de profu
 
 En internacional y convenios DTA, la existencia de seeds o fixtures en el repo no garantiza por si sola que todos esos convenios esten cargados o validados en una instancia concreta. La cobertura operativa debe inferirse del contrato HTTP expuesto por la API y del dataset realmente sembrado en el entorno objetivo; por eso el manual documenta ejemplos verificados, no una matriz exhaustiva de paises.
 
+En CNMV, el corpus actual es parcial. La instancia productiva puede devolver decenas de circulares oficiales cargadas, pero eso no significa que incluya todo el universo CNMV: guias tecnicas, documentos a consulta, modelos normalizados, preguntas y respuestas y registros oficiales tienen familias propias. Use `GET /v1/cnmv/coverage` para distinguir lo cargado de lo conocido pero no disponible. Un no resultado en CNMV puede significar "no cargado", no "no existe".
+
 ## Regla sobre cobertura
 
 No asumir que cualquier tema legal o financiero esta soportado por el producto solo porque exista infraestructura generica. La cobertura real depende de las fases implementadas y de la documentacion permanente del repo.

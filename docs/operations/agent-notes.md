@@ -318,3 +318,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: los documentos CNMV `vigente_modificado` tenian fila de version, pero esa fila solo probaba que existe un snapshot/versionado interno. No probaba que el texto cargado fuera la consolidacion BOE vigente.
 - Impacto: una respuesta podia tratar una circular modificada como texto actual consolidado cuando en realidad podia ser la publicacion original o una modificacion parcial.
 - Regla practica: no considerar consolidado ningun documento CNMV modificado salvo `es_consolidado=true` y `consolidated_verification_status='consolidated'`. Si el estado es `not_consolidated`, `unknown` o `verification_error`, responder como evidencia limitada o pedir verificacion manual.
+
+### 2026-05-14 - CNMV 65 circulares no equivale a cobertura CNMV completa
+
+- Scope: `/v1/cnmv/coverage`, `documento_interpretativo.tipo_documento`, familias oficiales CNMV.
+- Hallazgo: produccion tiene 72 documentos CNMV cargados, de los cuales 65 son `circular_cnmv`. Ese numero bajo es correcto como subset cargado, pero no representa la web completa de CNMV.
+- Impacto: un agente podia leer "65 archivos CNMV" como cobertura general y responder "no existe/no aplica" cuando en realidad la familia oficial no estaba cargada: guias tecnicas, documentos a consulta, modelos normalizados, preguntas y respuestas o registros oficiales.
+- Regla practica: antes de responder con no-result CNMV, consultar o citar el contrato de `/v1/cnmv/coverage`. Si una familia aparece como `configured_but_unavailable`, responder `evidence_limited` o "no cargado", no "no existe".

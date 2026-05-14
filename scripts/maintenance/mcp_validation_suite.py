@@ -689,6 +689,41 @@ def _validate_casp_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, An
     return ok, details
 
 
+def _validate_cnmv_coverage_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    families = payload.get("source_families") or []
+    family_by_id = {
+        item.get("family_id"): item for item in families if isinstance(item, dict)
+    }
+    unavailable = [
+        item.get("family_id")
+        for item in families
+        if item.get("coverage_status") == "configured_but_unavailable"
+    ]
+    details = {
+        "total_cnmv_loaded": payload.get("total_cnmv_loaded"),
+        "current_loaded": payload.get("current_loaded"),
+        "derogado_loaded": payload.get("derogado_loaded"),
+        "family_count": len(families),
+        "unavailable": unavailable,
+        "coverage_note": payload.get("coverage_note"),
+    }
+    ok = (
+        isinstance(families, list)
+        and payload.get("total_cnmv_loaded", 0) > 0
+        and payload.get("current_loaded", 0) > 0
+        and (family_by_id.get("circulares") or {}).get("coverage_status")
+        == "partial_loaded"
+        and (family_by_id.get("guias_tecnicas") or {}).get("coverage_status")
+        == "configured_but_unavailable"
+        and (family_by_id.get("documentos_consulta_cnmv") or {}).get(
+            "coverage_status"
+        )
+        == "configured_but_unavailable"
+        and "no cargado" in (payload.get("coverage_note") or "")
+    )
+    return ok, details
+
+
 def run_read_only_suite(base_url: str) -> dict[str, Any]:
     base_url = base_url.rstrip("/")
     checks: list[dict[str, Any]] = []
@@ -943,6 +978,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"q": "crypto", "limit": 5, "offset": 0},
                 _validate_casp_contract,
                 "esma_casp_register_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/cnmv/coverage",
+                {},
+                _validate_cnmv_coverage_contract,
+                "cnmv_coverage_partial_contract",
             )
         )
 

@@ -4085,6 +4085,26 @@ class DocInterpretativoDetail(BaseModel):
     consolidated_evidence_note: str | None = Field(default=None, description="Nota de evidencia sobre consolidacion")
 
 
+class CNMVCoverageFamily(BaseModel):
+    family_id: str
+    nombre: str
+    source_url: str
+    coverage_status: str
+    loaded_count: int
+    vigente_count: int = 0
+    vigente_modificado_count: int = 0
+    derogado_count: int = 0
+    contract_note: str
+
+
+class CNMVCoverageResponse(BaseModel):
+    total_cnmv_loaded: int
+    current_loaded: int
+    derogado_loaded: int
+    source_families: list[CNMVCoverageFamily]
+    coverage_note: str
+
+
 # --- BDNS / SEPBLAC direct document surfaces --------------------------------
 
 class BDNSListItem(BaseModel):

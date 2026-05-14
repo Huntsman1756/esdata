@@ -30,6 +30,24 @@ async def test_cnmv_buscar_alias_returns_traceable_documents():
 
 
 @pytest.mark.asyncio
+async def test_cnmv_coverage_exposes_loaded_subset_and_missing_families():
+    async with _client() as client:
+        response = await client.get("/v1/cnmv/coverage")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_cnmv_loaded"] >= 3
+    assert data["current_loaded"] >= 2
+    families = {family["family_id"]: family for family in data["source_families"]}
+    assert families["circulares"]["loaded_count"] >= 3
+    assert families["circulares"]["coverage_status"] == "partial_loaded"
+    assert families["guias_tecnicas"]["coverage_status"] == "configured_but_unavailable"
+    assert families["documentos_consulta_cnmv"]["coverage_status"] == "configured_but_unavailable"
+    assert families["modelos_normalizados"]["coverage_status"] == "configured_but_unavailable"
+    assert "no cargado" in data["coverage_note"]
+
+
+@pytest.mark.asyncio
 async def test_cnmv_buscar_excludes_derogados_by_default():
     async with _client() as client:
         response = await client.get("/v1/cnmv/buscar?q=circular&limit=50")

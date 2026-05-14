@@ -175,6 +175,7 @@ Uso recomendado:
 - `GET /v1/boe-diario` — listado de documentos BOE no consolidados (`BOE-B`, `BOE-S`, `BOE-N`) cargados desde XML diario o PDF oficial
 - `GET /v1/boe-diario/{referencia}` — detalle trazable del documento BOE diario; no debe confundirse con legislacion consolidada de `/v1/legislacion`
 - `GET /v1/cnmv` - listado de documentos CNMV cargados; por defecto devuelve solo `vigente` y `vigente_modificado`, excluyendo `derogado`.
+- `GET /v1/cnmv/coverage` - contrato de cobertura CNMV: recuento cargado, fuentes oficiales identificadas y familias conocidas sin ingestion dedicada.
 - `GET /v1/cnmv?vigencia=all` - auditoria historica CNMV incluyendo derogados; `vigencia=derogado` filtra solo derogados.
 - `GET /v1/cnmv/{referencia}`
 - `GET /v1/cendoj`
