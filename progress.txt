@@ -327,6 +327,28 @@ Learnings:
 - Production `sync_log` uses `finished_at`, not `ended_at`; verification scripts must use `COALESCE(finished_at, started_at)`.
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
+=== Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
+Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
+Sources accessed:
+  - Existing production API `/v1/consulta`
+  - New compatibility endpoint `/v1/ai/consulta`
+Records loaded:
+  - none; defensive API contract story
+Result: PASS
+Evidence:
+  - Reproduced production behavior before fix: `POST /v1/ai/consulta` returned `404` while `GET /v1/consulta?q=FATCA passive entity modelo 290` returned `200` with limited evidence. This explains the GPT Actions "consulta libre" failure path: the JSON action endpoint expected by the client was missing.
+  - Added `POST /v1/ai/consulta` as a JSON compatibility wrapper over the existing consulta engine.
+  - Added explicit response contract fields to consulta responses: `status`, `safe_to_answer`, `evidence_notice`.
+  - Added input validation: empty `query` => `400`; query length >1000 => `400`.
+  - Local tests: `python -m pytest apps/api/tests/test_consulta_libre.py apps/api/tests/test_consulta_fail_closed.py -q` => `4 passed`.
+  - VPS deployed commit `f5a209f`.
+  - VPS FATCA query: `POST /v1/ai/consulta` with `FATCA passive entity modelo 290` => `status=evidence_limited`, `safe_to_answer=false`, `total_resultados=0`, no 500.
+  - VPS invalid input: empty query => `400`; >1000 chars => `400`.
+  - VPS API logs after the check: no `500`, `exception` or `traceback` lines.
+  - VPS `/status`: `api=ok`, `database=ok`, `stale_count=0`.
+Caveat:
+  - I-00 intentionally does not make FATCA/passive NFFE answerable. It only prevents consulta libre from crashing or missing the JSON action route. The operational FATCA answer still requires I-01 to I-03.
+Next: I-01
 === Iteration F-06 - 2026-05-13T19:40:00+02:00 ===
 Story: F-06 Final verification
 Result: PASS

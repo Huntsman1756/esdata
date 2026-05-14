@@ -6,7 +6,7 @@
       "id": "I-00",
       "title": "Fix error 500 in consulta libre - must return evidence_limited not crash",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Reproduce the consulta libre 500 with a FATCA query",
         "Find and fix the root cause instead of swallowing the exception",
