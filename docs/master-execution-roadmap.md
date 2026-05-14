@@ -6487,3 +6487,13 @@ En orden de impacto real:
 - API VPS `/v1/modelos/aeat/296` => claves=35, instrucciones=8.
 
 **Siguiente paso:** I-05 cargar instrucciones y claves del Modelo 216.
+
+---
+
+## Reclamo 2026-05-14 - I-05 Cargar instrucciones y claves Modelo 216
+
+**Estado:** EN CURSO.
+
+**Archivos principales:** `scripts/data/load_modelo_216_irnr_instructions.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar instrucciones oficiales y claves operativas trazables del Modelo 216 desde BOE/AEAT.
