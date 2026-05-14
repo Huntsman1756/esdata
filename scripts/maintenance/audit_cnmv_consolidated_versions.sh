@@ -85,7 +85,6 @@ rows="$(
     FROM documento_interpretativo d
     WHERE d.organismo_emisor = 'CNMV'
       AND d.tipo_fuente = 'cnmv'
-      AND d.tipo_documento ILIKE '%circular%'
       AND d.estado_vigencia = 'vigente_modificado'
     ORDER BY d.referencia;
   " </dev/null

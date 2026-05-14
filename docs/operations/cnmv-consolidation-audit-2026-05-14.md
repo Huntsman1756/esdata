@@ -42,6 +42,6 @@ scripts/maintenance/audit_cnmv_consolidated_versions.sh --dry-run
 scripts/maintenance/audit_cnmv_consolidated_versions.sh --apply
 ```
 
-The script checks every CNMV `vigente_modificado` circular against the BOE `act.php` page for its `BOE-A-*` reference and updates both version tables conservatively.
+The script checks every CNMV `vigente_modificado` document against the BOE `act.php` page for its `BOE-A-*` reference and updates both version tables conservatively.
 
 Current conservative behavior: if BOE redirects/canonically links to `doc.php` and no consolidated marker is found, the row is marked `not_consolidated`. This is intentional. A false `consolidated=true` would be worse than an `evidence_limited` response.

@@ -315,6 +315,6 @@ Usar notas cortas con este esquema:
 ### 2026-05-14 - CNMV versiones modificadas no equivalen a texto consolidado
 
 - Scope: `documento_version`, `documento_cnmv_version`, `/v1/cnmv/{referencia}/versions`, `scripts/maintenance/audit_cnmv_consolidated_versions.sh`.
-- Hallazgo: las 23 circulares CNMV `vigente_modificado` tenian fila de version, pero esa fila solo probaba que existe un snapshot/versionado interno. No probaba que el texto cargado fuera la consolidacion BOE vigente.
+- Hallazgo: los documentos CNMV `vigente_modificado` tenian fila de version, pero esa fila solo probaba que existe un snapshot/versionado interno. No probaba que el texto cargado fuera la consolidacion BOE vigente.
 - Impacto: una respuesta podia tratar una circular modificada como texto actual consolidado cuando en realidad podia ser la publicacion original o una modificacion parcial.
 - Regla practica: no considerar consolidado ningun documento CNMV modificado salvo `es_consolidado=true` y `consolidated_verification_status='consolidated'`. Si el estado es `not_consolidated`, `unknown` o `verification_error`, responder como evidencia limitada o pedir verificacion manual.
