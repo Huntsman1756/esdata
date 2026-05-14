@@ -6464,3 +6464,13 @@ En orden de impacto real:
 - VPS consulta FATCA/passive/no residente => solo Modelo 290 en `modelos`.
 
 **Siguiente paso:** I-04 cargar instrucciones y claves oficiales del Modelo 296.
+
+---
+
+## Reclamo 2026-05-14 - I-04 Cargar instrucciones y claves Modelo 296
+
+**Estado:** EN CURSO.
+
+**Archivos principales:** `scripts/data/load_modelo_296_irnr_instructions.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar instrucciones, claves de renta, subclaves de retencion y trigger keywords oficiales del Modelo 296 desde BOE/AEAT.
