@@ -84,7 +84,7 @@
                             "id":  "I-06",
                             "title":  "Load instructions and keys for Modelo 198 - activos financieros",
                             "priority":  7,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Load official Modelo 198 instructions and operation/value keys",
                                                        "Load sociedad de valores and activos financieros trigger keywords"

@@ -1858,3 +1858,19 @@ Verification:
   - Formal E-13 verification command returned `PASS`.
 Caveat: FIRDS remains explicitly partial/evidence-limited; FITRS remains configured_but_unavailable until a dedicated ingestion story is approved.
 Next: COMPLETE
+=== Iteration I-06 - 2026-05-14T07:10:04+02:00 ===
+Story: I-06 Load instructions and keys for Modelo 198 - activos financieros
+Sources accessed:
+  - https://www.boe.es/buscar/doc.php?id=BOE-A-2024-27528
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_198_2024.pdf
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-190-198/modelo-198.html
+Records loaded:
+  - modelo_clave: 46 official Modelo 198 keys (origin, operation, market, representation, value)
+  - modelo_instruccion: 7 official-source instruction sections
+  - modelo_trigger_keyword: activos financieros / sociedad de valores routing terms
+Result: PASS
+Verification:
+  - Production SQL: 198 claves=46 instrucciones=7 missing_source=0
+  - Production API: /v1/modelos/aeat/198 returned claves=46 and instrucciones=7
+Caveat: completeness remains parcial until I-09 applies query-driven graduation across all loaded evidence.
+Next: I-07

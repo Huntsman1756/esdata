@@ -6510,3 +6510,6 @@ En orden de impacto real:
 - API VPS `/v1/modelos/aeat/216` => claves=5, instrucciones=6.
 
 **Siguiente paso:** I-06 cargar instrucciones y claves del Modelo 198.
+
+- 2026-05-14 I-06 Load instructions and keys for Modelo 198 - COMPLETADO. Loader oficial scripts/data/load_modelo_198_activos_instructions.py; VPS: claves=46, instrucciones=7, missing_source=0; API expone ambas secciones. Siguiente: I-07.
+
