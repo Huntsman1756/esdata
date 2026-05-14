@@ -327,6 +327,18 @@ Learnings:
 - Production `sync_log` uses `finished_at`, not `ended_at`; verification scripts must use `COALESCE(finished_at, started_at)`.
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
+
+=== Iteration I-03 - 2026-05-14T06:48:00+02:00 ===
+Story: I-03 Expose instructions and keys in API and MCP for Modelo 290
+Result: PASS
+Evidence:
+  - Local: `python -m pytest apps/api/tests/test_consulta_libre.py apps/api/tests/test_modelos_truth_contract.py -q` => 26 passed.
+  - VPS `/v1/modelos/aeat/290`: claves=7, instrucciones=7, reglas_inclusion=5.
+  - VPS `/v1/consulta?q=FATCA passive NFFE no residente modelo 290`: modelos=[290] and includes Modelo 290 instrucciones/claves/reglas_inclusion.
+  - Fixed stale-session bug in consulta detail lookup: model detail now uses a fresh DB session instead of a closed SQLAlchemy session.
+Accepted risks:
+  - None.
+Next: I-04
 === Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
 Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
 Result: PASS

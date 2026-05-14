@@ -6447,8 +6447,20 @@ En orden de impacto real:
 
 ## Reclamo 2026-05-14 - I-03 Exponer instrucciones, claves y reglas Modelo 290
 
-**Estado:** EN CURSO.
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
 
 **Archivos principales:** `apps/api/routers/modelos.py`, `apps/api/routers/consulta.py`, `apps/api/services/modelos.py`, `apps/api/schemas.py`, `apps/api/tests/conftest.py`, `apps/api/tests/test_consulta_libre.py`.
 
 **Objetivo:** exponer `claves`, `instrucciones` y `reglas_inclusion` del Modelo 290 en API/MCP y enrutar consultas FATCA/passive NFFE al Modelo 290, no a IRNR.
+
+**Resultado:**
+- `/v1/modelos/aeat/290` expone `claves`, `instrucciones` y `reglas_inclusion`.
+- `/v1/consulta?q=FATCA passive NFFE no residente modelo 290` devuelve `modelos=[290]`, con reglas FATCA cargadas.
+- Se corrigio un bug de sesion cerrada en `consulta_fiscal`: el detalle de modelos intentaba consultar con una sesion SQLAlchemy ya cerrada.
+
+**Pruebas ejecutadas:**
+- Local `python -m pytest apps/api/tests/test_consulta_libre.py apps/api/tests/test_modelos_truth_contract.py -q` => 26 passed.
+- VPS `/v1/modelos/aeat/290` => claves=7, instrucciones=7, reglas=5.
+- VPS consulta FATCA/passive/no residente => solo Modelo 290 en `modelos`.
+
+**Siguiente paso:** I-04 cargar instrucciones y claves oficiales del Modelo 296.
