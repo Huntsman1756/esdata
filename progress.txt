@@ -329,6 +329,31 @@ Learnings:
 Next: COMPLETE
 === Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
 Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
+Result: PASS
+Evidence:
+  - Added JSON POST compatibility endpoint `/v1/ai/consulta`.
+  - FATCA passive query returns `status=evidence_limited`, `safe_to_answer=false`, not 500.
+  - Empty and >1000 character queries return 400.
+  - Local tests: `apps/api/tests/test_consulta_libre.py apps/api/tests/test_consulta_fail_closed.py` => 4 passed.
+  - VPS logs after test calls show no 500/exception/traceback and `/status` is ok with 0 stale workers.
+Accepted risks:
+  - none
+Next: I-01
+=== Iteration I-01 - 2026-05-14T06:35:00+02:00 ===
+Story: I-01 Alembic migrations for instruction/key/rule tables
+Result: PASS
+Evidence:
+  - Added Alembic revision `20260514_0077_aeat_instruction_key_tables`.
+  - Existing `modelo_clave` and `modelo_instruccion` were extended additively with provenance fields instead of being recreated.
+  - Created `modelo_regla_inclusion` and `modelo_trigger_keyword` via Alembic with RLS policies for `esdata` and `service_role`.
+  - Test DB migration reached head and contained all four tables.
+  - Production Alembic version is `20260514_0077_aeat_instruction_key_tables`.
+  - Formal verification confirmed all four tables exist in production and returned PASS.
+Accepted risks:
+  - Historical `modelo_clave` and `modelo_instruccion` rows may still have null `source_url`; new official loaders must populate source fields and must not invent provenance for old rows.
+Next: I-02
+=== Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
+Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
 Sources accessed:
   - Existing production API `/v1/consulta`
   - New compatibility endpoint `/v1/ai/consulta`

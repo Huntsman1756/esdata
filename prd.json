@@ -20,7 +20,7 @@
       "id": "I-01",
       "title": "Alembic migrations for instruction/key/rule tables",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create Alembic migration for modelo_clave, modelo_instruccion, modelo_regla_inclusion and modelo_trigger_keyword",
         "Review migration for unintended drops",
