@@ -88,7 +88,7 @@ rows="$(
       AND d.tipo_documento ILIKE '%circular%'
       AND d.estado_vigencia = 'vigente_modificado'
     ORDER BY d.referencia;
-  "
+  " </dev/null
 )"
 
 if [[ -z "$rows" ]]; then
