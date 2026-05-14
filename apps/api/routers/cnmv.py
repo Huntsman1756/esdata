@@ -234,7 +234,10 @@ async def get_cnmv_versions(referencia: str):
                 text(
                     """
                     SELECT documento_referencia, version_num, texto, cambio_tipo,
-                           fecha_version, nota, url_version
+                           fecha_version, nota, url_version, es_consolidado,
+                           consolidated_verification_status, consolidated_source_url,
+                           consolidated_checked_at, boe_last_modified,
+                           consolidated_evidence_note
                     FROM documento_version
                     WHERE documento_referencia = :referencia
                     ORDER BY version_num ASC
@@ -257,7 +260,13 @@ async def get_cnmv_versions(referencia: str):
                                estado_version AS cambio_tipo,
                                fecha_version,
                                resumen_cambios AS nota,
-                               fuente_version AS url_version
+                               fuente_version AS url_version,
+                               es_consolidado,
+                               consolidated_verification_status,
+                               consolidated_source_url,
+                               consolidated_checked_at,
+                               boe_last_modified,
+                               consolidated_evidence_note
                         FROM documento_cnmv_version
                         WHERE documento_referencia = :referencia
                         ORDER BY version_numero ASC
@@ -279,6 +288,16 @@ async def get_cnmv_versions(referencia: str):
                 "fecha_version": str(row["fecha_version"]) if row["fecha_version"] else None,
                 "nota": row.get("nota"),
                 "url_version": row.get("url_version"),
+                "es_consolidado": row.get("es_consolidado"),
+                "consolidated_verification_status": row.get("consolidated_verification_status"),
+                "consolidated_source_url": row.get("consolidated_source_url"),
+                "consolidated_checked_at": str(row["consolidated_checked_at"])
+                if row.get("consolidated_checked_at")
+                else None,
+                "boe_last_modified": str(row["boe_last_modified"])
+                if row.get("boe_last_modified")
+                else None,
+                "consolidated_evidence_note": row.get("consolidated_evidence_note"),
                 "texto": row["texto"],
             }
             for row in rows

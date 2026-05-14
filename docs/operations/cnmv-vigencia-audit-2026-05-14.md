@@ -36,4 +36,6 @@ The coverage note is intentional: the CNMV corpus is the official corpus loaded 
 
 ## Remaining Risk
 
-All 23 `vigente_modificado` documents have at least one `documento_version` row, but this does not by itself prove that the loaded text is the BOE consolidated text. The next hardening step is to sample those 23 BOE references against official BOE consolidated pages and verify whether `texto` is consolidated or original publication text.
+All 23 `vigente_modificado` documents have at least one `documento_version` row, but this does not by itself prove that the loaded text is the BOE consolidated text.
+
+Follow-up hardening is tracked in `docs/operations/cnmv-consolidation-audit-2026-05-14.md`: version tables now expose explicit consolidation audit metadata (`es_consolidado`, `consolidated_verification_status`, checked URL, checked timestamp and evidence note). Agents must not treat a version row as consolidated unless `es_consolidado=true` and the verification status is `consolidated`.

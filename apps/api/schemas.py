@@ -4161,6 +4161,12 @@ class CNMVVersionItem(BaseModel):
     fecha_version: str | None = None
     nota: str | None = None
     url_version: str | None = None
+    es_consolidado: bool | None = None
+    consolidated_verification_status: str | None = None
+    consolidated_source_url: str | None = None
+    consolidated_checked_at: str | None = None
+    boe_last_modified: str | None = None
+    consolidated_evidence_note: str | None = None
     texto: str
 
 

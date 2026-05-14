@@ -71,3 +71,20 @@ async def test_cnmv_detail_exposes_source_aliases():
     assert data["fecha_publicacion"] == "2025-03-05"
     assert data["url_cnmv"] == "https://example.invalid/cnmv/circular-1-2025"
     assert data["boe_referencia"] == "BOE-A-2025-1234"
+
+
+@pytest.mark.asyncio
+async def test_cnmv_versions_expose_consolidation_audit_metadata():
+    async with _client() as client:
+        response = await client.get("/v1/cnmv/CNMV-Circular-2-2024/versions")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["referencia"] == "CNMV-Circular-2-2024"
+    assert data["total"] == 1
+    version = data["versiones"][0]
+    assert version["es_consolidado"] is False
+    assert version["consolidated_verification_status"] == "not_consolidated"
+    assert version["consolidated_source_url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-2024-5678"
+    assert version["consolidated_checked_at"] == "2026-05-14T00:00:00Z"
+    assert version["consolidated_evidence_note"]

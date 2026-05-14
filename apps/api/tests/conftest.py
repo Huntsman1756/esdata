@@ -241,6 +241,12 @@ STATEMENTS = [
         fecha_version TEXT,
         nota TEXT,
         url_version TEXT,
+        es_consolidado BOOLEAN,
+        consolidated_verification_status TEXT,
+        consolidated_source_url TEXT,
+        consolidated_checked_at TEXT,
+        boe_last_modified TEXT,
+        consolidated_evidence_note TEXT,
         UNIQUE(documento_referencia, version_num)
     )
     """,
@@ -2279,6 +2285,27 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         'Texto CNMV vigente modificado sobre obligaciones de conducta y reporting prudencial.',
         'https://example.invalid/cnmv/circular-2-2024',
         'vigente_modificado', '2/2024', '2024-03-05', 'BOE-A-2024-5678'
+    )
+    """,
+    """
+    INSERT INTO documento_version (
+        documento_referencia, version_num, texto, cambio_tipo, fecha_version,
+        nota, url_version, es_consolidado, consolidated_verification_status,
+        consolidated_source_url, consolidated_checked_at, boe_last_modified,
+        consolidated_evidence_note
+    )
+    VALUES (
+        'CNMV-Circular-2-2024', 1,
+        'Snapshot cargado desde publicacion original BOE; no probado como texto consolidado.',
+        'modificado', '2026-05-14',
+        'Fixture de auditoria de consolidacion CNMV',
+        'https://www.boe.es/buscar/doc.php?id=BOE-A-2024-5678',
+        0,
+        'not_consolidated',
+        'https://www.boe.es/buscar/act.php?id=BOE-A-2024-5678',
+        '2026-05-14T00:00:00Z',
+        NULL,
+        'BOE canonical doc.php/original publication without consolidated marker.'
     )
     """,
     """
