@@ -1911,3 +1911,17 @@ Verification:
   - Production API exposes instructions for both models
 Caveat: 303 and 200 remain partial; this story loaded high-value official instruction sections, not complete form-level guidance for every casilla/page.
 Next: I-09
+=== Iteration I-09 - 2026-05-14T07:22:40+02:00 ===
+Story: I-09 Update completeness status for models with full instructions + keys loaded
+Sources accessed:
+  - Production DB metrics for active AEAT campaigns and loaded official-source rows
+Records updated:
+  - completeness=completa: 187, 193, 198, 216, 290, 296
+  - completeness=parcial: 200, 303
+Result: PASS
+Verification:
+  - Query-driven graduation: casillas>0, claves>0, instrucciones>0, missing source in claves/instrucciones=0
+  - Production SQL returned completa_count=6
+  - Production API spot-check: 198 completeness=completa verified=true; 303 completeness=parcial verified=false
+Caveat: 200 and 303 intentionally stay parcial because this sprint loaded instructions but no official clave set for those models.
+Next: I-10

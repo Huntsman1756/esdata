@@ -6519,3 +6519,6 @@ En orden de impacto real:
 
 - 2026-05-14 I-08 Load instructions for Modelos 303 and 200 - COMPLETADO con caveat. Loader oficial scripts/data/load_modelos_303_200_instructions.py; VPS: 303 instrucciones=5, 200 instrucciones=5, missing_source=0; ambos permanecen parciales hasta evidencia completa. Siguiente: I-09.
 
+
+- 2026-05-14 I-09 Update completeness status - COMPLETADO. Graduacion query-driven: completa para 187,193,198,216,290,296; parcial para 200,303. API spot-check: 198 verified=true/completa, 303 verified=false/parcial. Siguiente: I-10.
+

@@ -118,7 +118,7 @@
                             "id":  "I-09",
                             "title":  "Update completeness status for models with full instructions + keys loaded",
                             "priority":  10,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Use query-driven graduation only",
                                                        "Graduate a model to completa only when it has casillas, claves, instrucciones and source_url coverage",
