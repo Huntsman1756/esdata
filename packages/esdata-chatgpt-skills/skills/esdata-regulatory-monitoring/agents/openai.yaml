@@ -1,4 +1,4 @@
 interface:
   display_name: "ESData Regulatory Monitoring"
-  short_description: "Regulatory change monitoring workflow"
-  default_prompt: "Use $esdata-regulatory-monitoring to review official regulatory changes and produce a cited digest."
+  short_description: "Regulatory monitoring and coverage gaps"
+  default_prompt: "Use $esdata-regulatory-monitoring to review official regulatory changes, coverage gaps, and source freshness with cited ESData evidence."

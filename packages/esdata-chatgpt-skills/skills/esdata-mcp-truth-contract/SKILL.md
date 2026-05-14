@@ -12,6 +12,7 @@ Use this skill whenever ESData MCP is the evidence source. The goal is to keep a
 Treat ESData as the evidence layer, not as a reasoning shortcut.
 
 - Report what ESData returned: `verified`, `completeness`, `source_url`, `boe_reference`, `review_required`, `evidence_limited`, `configured_but_unavailable`.
+- Prefer direct contract fields when present: `evidence_status`, `safe_to_answer`, `coverage_note`, `quality_signal`, `source_hash`, `capture_date`, and domain-specific coverage endpoints.
 - Label your own inference separately as agent reasoning.
 - Never turn a prompt, checklist, web search, SearXNG result, or skill instruction into evidence.
 - Never say "obligatorio", "debe presentar", "plazo definitivo", or "aplica" unless ESData returns explicit evidence for that claim.
@@ -27,6 +28,8 @@ Treat ESData as the evidence layer, not as a reasoning shortcut.
 | `verified=false`, `completeness=parcial` | Say "evidencia limitada"; do not present procedural or obligation claims as complete. |
 | `configured_but_unavailable` | Domain is known but no usable data is loaded; abstain from substantive answer. |
 | `workflow_empty` or `allowed_empty` | Explain that this is expected empty state, not evidence for the legal conclusion. |
+| `safe_to_answer=false` | Do not answer the substantive claim; explain what evidence is missing. |
+| `coverage_status=partial_loaded` | Use only the loaded subset. A no-result may mean "not loaded". |
 
 ## Workflow
 
@@ -35,7 +38,9 @@ Treat ESData as the evidence layer, not as a reasoning shortcut.
 3. Extract only evidence-bearing fields and citations.
 4. Classify every output item as `confirmado`, `candidato`, or `requiere verificacion`.
 5. Ask for missing factual context if a legal/tax conclusion depends on it.
-6. Add a human review gate before filing, submitting, sending, or relying on a conclusion.
+6. For CNMV queries, inspect `/v1/cnmv/coverage` if a no-result or corpus-size claim matters.
+7. For CNMV `vigente_modificado`, treat text as consolidated only when `es_consolidado=true` and `consolidated_verification_status=consolidated`.
+8. Add a human review gate before filing, submitting, sending, or relying on a conclusion.
 
 ## Output Template
 

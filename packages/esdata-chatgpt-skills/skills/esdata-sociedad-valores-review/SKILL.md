@@ -24,8 +24,9 @@ Ask only missing facts that change the answer:
 2. Withholding and information returns for residents/non-residents.
 3. FATCA/CRS reporting signals.
 4. CNMV/MiFID II regulatory obligations.
-5. KYC/AML evidence gaps.
-6. BORME/company evidence, marked partial if heuristic.
+5. EUR-Lex/ESMA market regulation evidence: MiFID II, MiFIR, MiCA, DLT Pilot, ESMA transaction-reporting schemas.
+6. KYC/AML evidence gaps.
+7. BORME/company evidence, marked partial if heuristic.
 
 ## Answer Rules
 
@@ -33,6 +34,10 @@ Ask only missing facts that change the answer:
 - Do not infer obligations from entity type alone.
 - Classify models as `confirmado`, `candidato`, or `requiere verificacion`.
 - If ESData says `evidence_limited`, keep the conclusion limited.
+- For CNMV, check `/v1/cnmv/coverage` before treating a no-result as non-existence.
+- For CNMV `vigente_modificado`, do not cite as consolidated current text unless ESData returns `es_consolidado=true`.
+- For FATCA passive/active entity questions, use Modelo 290 `reglas_inclusion` before any generic tax-model classification.
+- For ESMA reporting, use XSD/schema fields as authoritative only for loaded schema scope; FIRDS pilot data remains evidence-limited unless ESData says complete.
 - Use a human review gate before client advice, filing, reporting, or regulatory submissions.
 
 ## Do Not Use When

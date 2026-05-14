@@ -1,4 +1,4 @@
 interface:
   display_name: "ESData FATCA CRS Review"
-  short_description: "FATCA/CRS evidence-limited workflow"
-  default_prompt: "Use $esdata-fatca-crs-review to analyze FATCA or CRS questions without inventing filing instructions."
+  short_description: "FATCA/CRS review with Modelo 290 evidence"
+  default_prompt: "Use $esdata-fatca-crs-review to analyze FATCA or CRS questions, routing passive/active NFFE cases to Modelo 290 evidence before reasoning."

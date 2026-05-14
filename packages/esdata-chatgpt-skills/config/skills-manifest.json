@@ -1,6 +1,6 @@
 {
   "package": "esdata-chatgpt-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "purpose": "Skills for using ESData MCP as an official evidence layer while keeping reasoning, workflow, and human review gates outside the MCP core.",
   "source_policy": {
     "mcp_core": "Only official, loaded, traceable ESData evidence may support authoritative claims.",
@@ -42,12 +42,12 @@
     {
       "name": "esdata-fatca-crs-review",
       "zip": "../zips/esdata-fatca-crs-review.zip",
-      "use_for": "FATCA/CRS/Modelos 289/290 evidence-limited workflows."
+      "use_for": "FATCA/CRS/Modelos 289/290 workflows, including Modelo 290 rules when ESData returns them."
     },
     {
       "name": "esdata-regulatory-monitoring",
       "zip": "../zips/esdata-regulatory-monitoring.zip",
-      "use_for": "Regulatory digest, source monitoring, verified changes and discovery staging."
+      "use_for": "Regulatory digest, source monitoring, verified changes, coverage gaps and discovery staging."
     },
     {
       "name": "esdata-kyc-aml-review",
@@ -65,7 +65,9 @@
     "cold-start context gathering before applicability conclusions",
     "draft subject to professional review",
     "rules-grid KYC workflow",
-    "regulatory feed digest with verified/discovery separation"
+    "regulatory feed digest with verified/discovery separation",
+    "coverage contract checks for partial domains such as CNMV",
+    "AEAT instruction/key/rule routing before procedural answers"
   ],
   "not_adapted": [
     "external corpus as authority",

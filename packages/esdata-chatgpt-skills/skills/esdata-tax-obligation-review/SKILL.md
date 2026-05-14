@@ -1,6 +1,6 @@
 ---
 name: esdata-tax-obligation-review
-description: Review Spanish tax filing, AEAT model, casilla, withholding, IRPF, IS, IVA, IRNR, and tax obligation questions using ESData MCP evidence. Use when the user asks which Hacienda model applies, how to classify AEAT models/casillas, whether something is obligatory, or why ESData gave partial or conflicting tax answers.
+description: Review Spanish tax filing, AEAT model, casilla, claves/subclaves, instructions, withholding, IRPF, IS, IVA, IRNR, FATCA Modelo 290, and tax obligation questions using ESData MCP evidence. Use when the user asks which Hacienda model applies, how to classify AEAT models/casillas, whether something is obligatory, how to fill a model field, or why ESData gave partial or conflicting tax answers.
 ---
 
 # ESData Tax Obligation Review
@@ -17,15 +17,25 @@ Use ESData as the only evidence source unless the user explicitly allows externa
    - `candidato`: relevant to the fact pattern but not explicit enough for obligation.
    - `requiere verificacion`: partial, weak, deprecated, missing condition, or incomplete evidence.
 5. Explain conditions without converting them into obligations.
-6. Add a review gate before filing or relying on the answer.
+6. When the question is about "que clave", "como rellenar" or "incluir/no incluir", inspect `claves`, `instrucciones`, and `reglas_inclusion` before answering.
+7. Add a review gate before filing or relying on the answer.
 
 ## Hard Rules
 
 - Do not say "debe presentar" unless ESData returns explicit evidence for that entity and fact pattern.
 - For casillas, distinguish "casilla exists in Modelo X" from "casilla must be filled".
 - For `completeness=parcial`, say "evidencia limitada" and refuse complete filing instructions.
+- If `claves` or `instrucciones` are empty, say that ESData has field inventory only and cannot answer the procedural question.
+- If `reglas_inclusion` are present, use them for include/exclude/conditional decisions and cite `fuente_normativa`.
 - If ESData returns no relevant evidence, abstain instead of using tax memory.
 - Do not use SearXNG, search results, or a skill checklist as authority.
+
+## Current Tax Notes
+
+- TRLIRNR is loaded and can be queried through `TRLIRNR` or `IRNR`; use it for IRNR references before falling back to generic search.
+- Priority AEAT models may now expose instructions/keys: 187, 193, 198, 216, 290 and 296 can be `completa`; 200 and 303 may still have partial instructions.
+- Modelo 290 FATCA has dedicated inclusion rules. Do not route FATCA passive entity questions to IRNR 216/296 unless ESData explicitly returns those models for the same FATCA claim.
+- `casillas_total` confirms field inventory, not taxpayer applicability.
 
 ## Do Not Use When
 

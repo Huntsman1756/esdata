@@ -15,6 +15,17 @@ ESData MCP answers are retrieval results with explicit confidence contracts.
 - Do not fill gaps in FATCA/CRS, AEAT model instructions, BORME mercantile facts, or EUR-Lex article text from general knowledge.
 - Do not cite a skill, prompt, or repo as legal authority.
 - Do not treat `casillas_total > 0` as proof that a model applies to a taxpayer.
+- Do not treat "65 CNMV documents/circulars loaded" as full CNMV coverage. Check `/v1/cnmv/coverage`.
+- Do not treat CNMV `vigente_modificado` as consolidated text unless ESData returns `es_consolidado=true`.
+
+## Current High-Signal Domain Notes
+
+- AEAT priority models can expose `claves`, `instrucciones`, and `reglas_inclusion`; use those before answering "which key applies" or "include this entity".
+- Modelo 290 FATCA has dedicated inclusion rules and trigger keywords. Route FATCA/passive NFFE questions to Modelo 290, not IRNR 216/296.
+- TRLIRNR is loaded as BOE-A-2004-4527 and reachable through `TRLIRNR` and `IRNR` aliases.
+- EUR-Lex market acts for MiFIR, MiCA and DLT Pilot can return full articles when loaded; still inspect `verified`, `completeness`, `source_url`, `source_hash`, and `capture_date`.
+- ESMA transaction-reporting schema endpoints are authoritative for loaded XSD fields; FIRDS remains pilot/metadata unless ESData says otherwise.
+- CNMV coverage is partial: circulares and generic documents are loaded; guias tecnicas, documentos a consulta, modelos normalizados, Q&A and official registers may be `configured_but_unavailable`.
 
 ## Minimal Context Questions
 

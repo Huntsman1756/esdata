@@ -15,9 +15,13 @@ Before answering, inspect:
 
 - `verified`
 - `completeness`
+- `evidence_status`
+- `safe_to_answer`
 - `review_required`
 - `source_url` or official source identifier
+- `source_hash` and `capture_date` when the endpoint exposes them
 - `status` values such as `evidence_limited`, `configured_but_unavailable`, `workflow_empty`, `allowed_empty`
+- `coverage_note` or domain coverage endpoint when the answer depends on corpus scope
 
 ## Refusal / Abstention Conditions
 
@@ -25,8 +29,17 @@ Abstain or answer as evidence-limited when:
 
 - ESData returns zero results for a claim requiring official support.
 - The relevant domain is `configured_but_unavailable`.
+- The relevant source family is only `partial_loaded` and the user asks for a complete universe answer.
 - `verified=false` and the user asks for a definitive filing or legal conclusion.
 - The only support is discovery, prompt text, general model knowledge, or non-official data.
+
+## Current Routing Notes
+
+- CNMV: call `/v1/cnmv/coverage` for corpus-scope questions. Do not infer full CNMV coverage from circular counts.
+- AEAT: call model detail/key/instruction endpoints for "how to fill", "which key", and "include/exclude" questions.
+- FATCA: route passive/active NFFE questions to Modelo 290 rules first.
+- IRNR: use TRLIRNR/IRNR article endpoints for legal citations.
+- ESMA: use schema endpoints for transaction-reporting structure; do not treat FIRDS pilot data as complete instrument coverage.
 
 ## Human Review Gates
 

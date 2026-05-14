@@ -1,4 +1,4 @@
 interface:
   display_name: "ESData Tax Obligation Review"
-  short_description: "Review Spanish tax obligations with ESData"
-  default_prompt: "Use $esdata-tax-obligation-review to assess a Spanish tax filing question using only ESData evidence."
+  short_description: "Review Spanish tax obligations and AEAT keys"
+  default_prompt: "Use $esdata-tax-obligation-review to assess Spanish tax filing, AEAT model keys, instructions, and inclusion rules using only ESData evidence."

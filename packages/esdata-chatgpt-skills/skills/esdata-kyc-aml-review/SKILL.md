@@ -11,7 +11,7 @@ Use this skill for onboarding and AML/KYC triage. It adapts financial-services r
 
 1. Identify client/entity, jurisdiction, product/service, risk factors, and onboarding stage.
 2. Inventory supplied documents and missing facts.
-3. Query ESData for regulatory references, sanctions/OFAC if loaded, FATCA/CRS, CNMV/MiFID, AEPD/privacy, and BOE/EUR-Lex context.
+3. Query ESData for regulatory references, sanctions/OFAC if loaded, FATCA/CRS, CNMV/MiFID, AEPD/privacy, BOE/EUR-Lex context, and ESMA schema/register evidence when relevant.
 4. Build a rules grid:
    - requirement or risk area;
    - evidence received;
@@ -27,6 +27,9 @@ Use this skill for onboarding and AML/KYC triage. It adapts financial-services r
 - Do not clear sanctions or AML risk unless the relevant data source is loaded and verified.
 - If ESData says a sanctions or KYC domain is `configured_but_unavailable`, state that screening is not covered by ESData.
 - Treat BORME extraction as heuristic unless ESData marks it otherwise.
+- For FATCA passive/active NFFE onboarding questions, use Modelo 290 `reglas_inclusion` and quote the returned source.
+- For CNMV checks, use `/v1/cnmv/coverage`; do not treat missing guias tecnicas, Q&A, documentos a consulta or registros as "no obligation".
+- For ESMA/FIRDS, distinguish schema/reporting validation evidence from pilot instrument metadata.
 - Keep all conclusions as draft for compliance officer review.
 
 ## Do Not Use When
