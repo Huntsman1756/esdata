@@ -5,7 +5,7 @@ import re
 import unicodedata
 
 from db import db_session
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from middleware.metrics import (
     record_consulta_metrics,
     record_faithfulness_histogram,
@@ -22,6 +22,7 @@ from services.domain_availability import get_domain_availability
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
 from services.unified_multi_source_search import unified_multi_source_search
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,50 @@ UNVERIFIED_EVIDENCE_AVISO = (
 )
 
 router = APIRouter(prefix="", tags=["consulta"])
+
+
+MAX_CONSULTA_QUERY_LENGTH = 1000
+
+
+class ConsultaLibreRequest(BaseModel):
+    query: str = Field(..., description="Pregunta fiscal-regulatoria en lenguaje natural")
+    sujeto: str = ""
+    pais: str = ""
+    tipo_operacion: str = ""
+    vigente_en: str | None = None
+    sources: str | None = None
+    hybrid_weight: float = Field(default=0.3, ge=0.0, le=1.0)
+
+
+def _validate_consulta_query(query: str) -> str:
+    normalized = (query or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="query must not be empty")
+    if len(normalized) > MAX_CONSULTA_QUERY_LENGTH:
+        raise HTTPException(status_code=400, detail="query is too long")
+    return normalized
+
+
+def _consulta_contract_fields(
+    *,
+    total_resultados: int,
+    confianza: dict | None,
+) -> dict[str, object]:
+    confianza = confianza or {}
+    review_required = bool(confianza.get("review_required", True))
+    aviso = confianza.get("aviso")
+    safe_to_answer = total_resultados > 0 and not review_required
+    if safe_to_answer:
+        status = "matched"
+    elif total_resultados == 0 and not aviso:
+        status = "no_results"
+    else:
+        status = "evidence_limited"
+    return {
+        "status": status,
+        "safe_to_answer": safe_to_answer,
+        "evidence_notice": aviso if not safe_to_answer else None,
+    }
 
 
 DOMAIN_AVAILABILITY_QUERY_MAP: list[tuple[tuple[str, ...], tuple[str, ...]]] = [
@@ -170,6 +215,7 @@ def _availability_abstention_response(
         modelos=[],
         resultados=[],
         total_resultados=0,
+        **_consulta_contract_fields(total_resultados=0, confianza=confianza),
         relevancia={
             "nivel": "baja",
             "score": 0.0,
@@ -210,6 +256,10 @@ def _unverified_abstention_response(
         modelos=[],
         resultados=[],
         total_resultados=0,
+        **_consulta_contract_fields(total_resultados=0, confianza={
+            "review_required": True,
+            "aviso": aviso,
+        }),
         relevancia={
             "nivel": "baja",
             "score": 0.0,
@@ -1432,6 +1482,10 @@ async def consulta_fiscal(
         modelos=modelos_detalle if modelos_detalle else [],
         resultados=deduped,
         total_resultados=len(deduped),
+        **_consulta_contract_fields(
+            total_resultados=len(deduped),
+            confianza=confianza if isinstance(confianza, dict) else None,
+        ),
         result_metadata={
             "returned_count": len(deduped),
             "scored_count": len(scored_results),
@@ -1449,4 +1503,32 @@ async def consulta_fiscal(
         confianza=confianza if isinstance(confianza, dict) else None,
         cited_chunks=cited_chunks if cited_chunks else [],
         claim_citations=claim_citations if claim_citations else [],
+    )
+
+
+@router.post(
+    "/v1/ai/consulta",
+    operation_id="consulta_fiscal_ai_compat",
+    response_model=ConsultaFiscalResponse,
+    summary="Consulta fiscal inteligente para GPT Actions",
+    description=(
+        "Compatibilidad JSON para GPT Actions. Usa el mismo motor que "
+        "GET /v1/consulta y devuelve status/safe_to_answer para que los "
+        "clientes distingan respuestas accionables de evidencia limitada."
+    ),
+)
+async def consulta_fiscal_ai_compat(
+    request: Request,
+    payload: ConsultaLibreRequest,
+):
+    query = _validate_consulta_query(payload.query)
+    return await consulta_fiscal(
+        request,
+        q=query,
+        sujeto=payload.sujeto,
+        pais=payload.pais,
+        tipo_operacion=payload.tipo_operacion,
+        vigente_en=payload.vigente_en,
+        sources=payload.sources,
+        hybrid_weight=payload.hybrid_weight,
     )

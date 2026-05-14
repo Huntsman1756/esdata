@@ -1,77 +1,160 @@
 {
-  "projectName": "esdata-trlirnr-liva-fixes",
-  "branchName": "fix/trlirnr-liva-completeness",
+  "projectName": "esdata-aeat-instructions-keys",
+  "branchName": "fix/aeat-instructions-keys",
   "userStories": [
     {
-      "id": "F-01",
-      "title": "Load TRLIRNR complete from BOE-A-2004-4527",
+      "id": "I-00",
+      "title": "Fix error 500 in consulta libre - must return evidence_limited not crash",
       "priority": 1,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Load BOE-A-2004-4527 as codigo=TRLIRNR through the existing BOE consolidated pipeline",
-        "Load all deterministic BOE blocks into norma, articulo and version_articulo",
-        "Verify /v1/legislacion/TRLIRNR/articulos/14 returns real BOE text",
-        "Article count must be >= 53"
+        "Reproduce the consulta libre 500 with a FATCA query",
+        "Find and fix the root cause instead of swallowing the exception",
+        "Valid unsupported queries return evidence_limited or no_results, never an unhandled 500",
+        "Empty and very long queries return 400, not 500",
+        "Add regression tests in apps/api/tests/test_consulta_libre.py"
       ],
-      "verificationCommand": "COMPOSE='docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec -T postgres psql -U esdata -d esdata -tAc \"SELECT COUNT(*) FROM articulo WHERE norma_id=(SELECT id FROM norma WHERE codigo='TRLIRNR')\"); echo \"TRLIRNR articles: $COUNT\"; [ \"$COUNT\" -ge 53 ] && curl -sf -H \"X-API-Key: $ESDATA_API_KEY\" http://localhost:${API_PORT:-8000}/v1/legislacion/TRLIRNR/articulos/14 | jq '.texto' | grep -v 'null' && echo PASS || echo FAIL"
+      "verificationCommand": "curl -sf -X POST http://localhost:${API_PORT:-8000}/v1/ai/consulta -H 'Content-Type: application/json' -d '{\"query\":\"FATCA passive entity modelo 290\"}' | jq '.safe_to_answer' | grep -vE '^null$' && echo PASS || echo FAIL-CONSULTA-LIBRE-ERROR"
     },
     {
-      "id": "F-02",
-      "title": "Add IRNR alias so TRLIRNR is reachable by both identifiers",
+      "id": "I-01",
+      "title": "Alembic migrations for instruction/key/rule tables",
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Resolve IRNR as an alias for TRLIRNR in legislation routes",
-        "Verify /v1/legislacion/IRNR/articulos/14 returns the same text as TRLIRNR"
+        "Create Alembic migration for modelo_clave, modelo_instruccion, modelo_regla_inclusion and modelo_trigger_keyword",
+        "Review migration for unintended drops",
+        "Apply to test DB first, then production",
+        "Confirm all four tables exist in production"
       ],
-      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/v1/legislacion/IRNR/articulos/14 | jq '.texto' | grep -v 'null' && curl -sf http://localhost:${API_PORT:-8000}/v1/legislacion/TRLIRNR/articulos/14 | jq '.texto' | grep -v 'null' && echo PASS || echo FAIL-ALIAS-NOT-WORKING"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c '\\dt modelo_clave modelo_instruccion modelo_regla_inclusion modelo_trigger_keyword' && echo PASS || echo FAIL-TABLES-MISSING"
     },
     {
-      "id": "F-03",
-      "title": "Fix LIVA article name typo: 163 sexvivies -> 163 sexvicies",
+      "id": "I-02",
+      "title": "Load Modelo 290 instructions, keys, and FATCA inclusion rules",
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Correct the LIVA article numero typo with a targeted update",
-        "Verify only 163 sexvicies remains"
+        "Find and verify official AEAT/BOE sources for Modelo 290 and RD 1021/2015",
+        "Load official instructions into modelo_instruccion",
+        "Load account holder/entity keys into modelo_clave",
+        "Load verified FATCA inclusion/exclusion rules into modelo_regla_inclusion",
+        "Load FATCA trigger keywords for semantic routing",
+        "Every loaded record must have source_url, source_hash and capture_date"
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; RESULT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT numero FROM articulo WHERE numero ILIKE '%sexvi%'\"); echo \"Result: $RESULT\"; echo \"$RESULT\" | grep -q 'sexvicies' && echo \"$RESULT\" | grep -qv 'sexvivies' && echo PASS || echo FAIL-TYPO-STILL-PRESENT"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; CLAVES=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_clave mc JOIN modelo_campana c ON mc.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='290'\"); REGLAS=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_regla_inclusion mr JOIN modelo_campana c ON mr.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='290'\"); echo \"290 claves=$CLAVES reglas=$REGLAS\"; [ \"$CLAVES\" -gt 0 ] && [ \"$REGLAS\" -gt 0 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "F-04",
-      "title": "Write BOE completeness test by BOE ID",
+      "id": "I-03",
+      "title": "Expose instructions and keys in API and MCP for Modelo 290",
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Create apps/api/tests/test_boe_completeness.py",
-        "Fail on zero articles for core BOE laws",
-        "Warn but do not fail on conservative count drift except TRLIRNR"
+        "Expose claves, instrucciones and reglas_inclusion in /v1/modelos/aeat/290",
+        "Add or extend MCP behavior for entity-type inclusion decisions",
+        "Unknown scenarios return evidence_limited",
+        "FATCA passive queries route to Modelo 290, not IRNR"
       ],
-      "verificationCommand": "pytest apps/api/tests/test_boe_completeness.py -v 2>&1 | tail -15 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "verificationCommand": "curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/290 | jq '{claves: (.claves | length), instrucciones: (.instrucciones | length), reglas: (.reglas_inclusion | length)}' | grep -vE ': 0' && echo PASS || echo FAIL-NO-KEYS-IN-RESPONSE"
     },
     {
-      "id": "F-05",
-      "title": "Add TRLIRNR to mcp_validation_suite and mcp_deep_contract_audit",
+      "id": "I-04",
+      "title": "Load instructions and keys for Modelo 296 - IRNR no residentes",
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Validation suite checks TRLIRNR and IRNR alias",
-        "Deep audit checks TRLIRNR verified response and LIVA 163 sexvicies"
+        "Load official Modelo 296 instructions and keys from AEAT/BOE sources",
+        "Load IRNR/no-resident trigger keywords",
+        "Update completeness only if evidence supports it"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_clave mc JOIN modelo_campana c ON mc.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='296'\"); echo \"296 claves: $COUNT\"; [ \"$COUNT\" -gt 3 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "I-05",
+      "title": "Load instructions and keys for Modelo 216 - IRNR retenciones",
+      "priority": 6,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Load official Modelo 216 instructions and keys from AEAT/BOE sources",
+        "Load IRNR withholding trigger keywords"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_clave mc JOIN modelo_campana c ON mc.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='216'\"); echo \"216 claves: $COUNT\"; [ \"$COUNT\" -gt 2 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "I-06",
+      "title": "Load instructions and keys for Modelo 198 - activos financieros",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Load official Modelo 198 instructions and operation/value keys",
+        "Load sociedad de valores and activos financieros trigger keywords"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_clave mc JOIN modelo_campana c ON mc.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='198'\"); echo \"198 claves: $COUNT\"; [ \"$COUNT\" -gt 2 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "I-07",
+      "title": "Load instructions and keys for Modelos 187 and 193",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Load official instructions and keys for Modelos 187 and 193",
+        "Load trigger keywords for both"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; for C in 187 193; do COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_clave mc JOIN modelo_campana c ON mc.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='$C'\"); echo \"$C claves: $COUNT\"; done && echo PASS"
+    },
+    {
+      "id": "I-08",
+      "title": "Load instructions for Modelos 303 and 200 - IVA and IS",
+      "priority": 9,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Load official partial instructions for high-value sections of Modelos 303 and 200",
+        "PASS-WITH-CAVEAT is acceptable for complex partial instruction coverage",
+        "Load trigger keywords for both"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; for C in 303 200; do COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_instruccion mi JOIN modelo_campana c ON mi.campana_id=c.id JOIN aeat_modelo m ON m.id=c.modelo_id WHERE m.codigo='$C'\"); echo \"$C instrucciones: $COUNT\"; done && echo PASS"
+    },
+    {
+      "id": "I-09",
+      "title": "Update completeness status for models with full instructions + keys loaded",
+      "priority": 10,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Use query-driven graduation only",
+        "Graduate a model to completa only when it has casillas, claves, instrucciones and source_url coverage",
+        "Leave all other models parcial"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM aeat_modelo WHERE completeness='completa'\"); echo \"Models completa: $COUNT\"; [ \"$COUNT\" -gt 0 ] && echo PASS || echo FAIL-NO-COMPLETA-MODELS"
+    },
+    {
+      "id": "I-10",
+      "title": "Update mcp_validation_suite: test FATCA passive routing and model completeness",
+      "priority": 11,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Validation suite checks Modelo 290 claves/reglas",
+        "Validation suite checks FATCA passive routes to 290, not IRNR",
+        "Deep audit checks passive NFFE and active NFFE rules",
+        "Both suites return ok=true"
       ],
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker python mcp_validation_suite.py 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
-      "id": "F-06",
-      "title": "Final verification",
-      "priority": 6,
-      "passes": true,
+      "id": "I-11",
+      "title": "Final verification - full sprint close",
+      "priority": 12,
+      "passes": false,
       "acceptanceCriteria": [
-        "TRLIRNR loaded and alias works",
-        "LIVA typo fixed",
-        "BOE completeness test passes",
-        "Full suite and MCP audits remain green"
+        "consulta libre has no 500 errors for valid queries",
+        "Modelo 290 has claves, instrucciones and reglas_inclusion",
+        "Priority models have loaded instructions/keys according to scope",
+        "FATCA passive routes to 290, not IRNR",
+        "pytest apps/ -q passes",
+        "mcp_validation_suite and mcp_deep_contract_audit return ok=true",
+        "status and Alertmanager are clean",
+        "docs/aeat-instructions-coverage-report.md is written"
       ],
-      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep -E 'passed' && curl -sf http://localhost:${API_PORT:-8000}/v1/legislacion/TRLIRNR/articulos/14 | jq '.texto' | grep -v 'null' && echo PASS || echo FAIL"
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep -E 'passed' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/290 | jq '{claves: (.claves | length), reglas: (.reglas_inclusion | length)}' | grep -vE ': 0' && echo PASS || echo FAIL"
     }
   ]
 }

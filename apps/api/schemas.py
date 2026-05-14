@@ -3676,6 +3676,18 @@ class ConsultaFiscalResponse(BaseModel):
     modelos: list[dict] = Field(default_factory=list, description="Modelos AEAT identificados")
     resultados: list[dict] = Field(default_factory=list, description="Resultados de búsqueda unificados")
     total_resultados: int = Field(description="Número total de resultados")
+    status: str | None = Field(
+        default=None,
+        description="matched, evidence_limited o no_results para consumo de agentes",
+    )
+    safe_to_answer: bool | None = Field(
+        default=None,
+        description="True solo cuando la respuesta esta suficientemente respaldada para contestar sin revision",
+    )
+    evidence_notice: str | None = Field(
+        default=None,
+        description="Aviso de evidencia limitada o abstencion cuando safe_to_answer=false",
+    )
     result_metadata: dict = Field(
         default_factory=dict,
         description="Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos.",
