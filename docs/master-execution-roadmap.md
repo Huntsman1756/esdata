@@ -6522,3 +6522,6 @@ En orden de impacto real:
 
 - 2026-05-14 I-09 Update completeness status - COMPLETADO. Graduacion query-driven: completa para 187,193,198,216,290,296; parcial para 200,303. API spot-check: 198 verified=true/completa, 303 verified=false/parcial. Siguiente: I-10.
 
+
+- 2026-05-14 I-10 FATCA routing validation - COMPLETADO. Se ampliaron mcp_validation_suite y mcp_deep_contract_audit para comprobar Modelo 290 con claves/instrucciones/reglas, consulta FATCA passive NFFE dirigida a Modelo 290 y sin contaminacion IRNR 216/296, y al menos un modelo AEAT graduado a completa (198). VPS: validation ok=True con 38 checks; deep contract audit ok=True con 9 checks tras rebuild de api para incluir el registry actualizado. Siguiente: I-11 final verification.
+

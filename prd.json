@@ -130,7 +130,7 @@
                             "id":  "I-10",
                             "title":  "Update mcp_validation_suite: test FATCA passive routing and model completeness",
                             "priority":  11,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Validation suite checks Modelo 290 claves/reglas",
                                                        "Validation suite checks FATCA passive routes to 290, not IRNR",

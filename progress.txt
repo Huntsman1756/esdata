@@ -1925,3 +1925,19 @@ Verification:
   - Production API spot-check: 198 completeness=completa verified=true; 303 completeness=parcial verified=false
 Caveat: 200 and 303 intentionally stay parcial because this sprint loaded instructions but no official clave set for those models.
 Next: I-10
+=== Iteration I-10 - 2026-05-14T07:49:12+02:00 ===
+Story: I-10 Update mcp_validation_suite: test FATCA passive routing and model completeness
+Sources accessed:
+  - Production API /v1/modelos/aeat/290, /v1/consulta, /v1/modelos/aeat/198
+  - mcp_validation_suite.py and mcp_deep_contract_audit.py gates
+Records loaded:
+  - none; validation and contract audit story
+Result: PASS
+Verification:
+  - VPS mcp_validation_suite.py --read-only --base-url http://api:8000 returned ok=True with 38 checks.
+  - VPS mcp_deep_contract_audit.py --base-url http://api:8000 returned ok=True with 9 checks.
+  - Added FATCA passive routing checks: query routes to Modelo 290 and not IRNR models 216/296.
+  - Added Modelo 290 contract checks for claves, instrucciones and reglas_inclusion.
+  - Added completed AEAT model check using Modelo 198 completeness=completa verified=true.
+Caveat: API image had to be rebuilt so domain-availability used the updated Ralph table registry.
+Next: I-11
