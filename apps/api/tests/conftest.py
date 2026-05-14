@@ -2269,6 +2269,36 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """
     INSERT INTO documento_interpretativo (
         tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente,
+        estado_vigencia, numero_circular, fecha_publicacion, referencia_boe
+    )
+    VALUES (
+        'circular', 'CNMV', 'es', 'cnmv', 'mifid_ii',
+        'CNMV-Circular-2-2024', '2024-03-01',
+        'Circular 2/2024 modificada sobre normas de conducta MiFID II',
+        'Texto CNMV vigente modificado sobre obligaciones de conducta y reporting prudencial.',
+        'https://example.invalid/cnmv/circular-2-2024',
+        'vigente_modificado', '2/2024', '2024-03-05', 'BOE-A-2024-5678'
+    )
+    """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente,
+        estado_vigencia, numero_circular, fecha_publicacion, referencia_boe
+    )
+    VALUES (
+        'circular', 'CNMV', 'es', 'cnmv', 'mifid_ii',
+        'CNMV-Circular-0-2020', '2020-03-01',
+        'Circular 0/2020 derogada sobre normas de conducta MiFID II',
+        'Texto CNMV derogado sobre obligaciones de conducta y reporting prudencial.',
+        'https://example.invalid/cnmv/circular-0-2020',
+        'derogado', '0/2020', '2020-03-05', 'BOE-A-2020-1111'
+    )
+    """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
         referencia, fecha, titulo, texto, url_fuente
     )
     VALUES (

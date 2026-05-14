@@ -4047,6 +4047,12 @@ class DocInterpretativoListResponse(BaseModel):
     offset: int | None = Field(default=None, description="Offset paginacion")
     has_more: bool | None = Field(default=None, description="Si hay mas resultados")
     next_offset: int | None = Field(default=None, description="Siguiente offset")
+    vigencia_filter: str | None = Field(default=None, description="Filtro de vigencia aplicado por el router")
+    included_estados_vigencia: list[str] | None = Field(
+        default=None,
+        description="Estados de vigencia incluidos cuando el filtro no es all",
+    )
+    coverage_note: str | None = Field(default=None, description="Nota de cobertura del corpus")
 
 
 class DocInterpretativoDetail(BaseModel):
