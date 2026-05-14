@@ -339,6 +339,20 @@ Evidence:
 Accepted risks:
   - None.
 Next: I-04
+
+=== Iteration I-04 - 2026-05-14T06:58:00+02:00 ===
+Story: I-04 Load instructions and keys for Modelo 296 - IRNR no residentes
+Result: PASS
+Evidence:
+  - Added `scripts/data/load_modelo_296_irnr_instructions.py`.
+  - Official sources: BOE-A-2008-18497, AEAT DR_296_2024.pdf, AEAT formulario/fichero help pages.
+  - VPS load via psql returned `DO`.
+  - Production counts: Modelo 296 claves=35, instrucciones=8.
+  - Provenance check: missing_source_claves=0, missing_source_instrucciones=0.
+  - API `/v1/modelos/aeat/296`: claves=35, instrucciones=8.
+Accepted risks:
+  - Modelo 296 remains subject to later completeness graduation; this story loads official keys/instructions but does not assert full operational applicability for every case.
+Next: I-05
 === Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
 Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
 Result: PASS

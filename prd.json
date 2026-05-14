@@ -61,7 +61,7 @@
                             "id":  "I-04",
                             "title":  "Load instructions and keys for Modelo 296 - IRNR no residentes",
                             "priority":  5,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Load official Modelo 296 instructions and keys from AEAT/BOE sources",
                                                        "Load IRNR/no-resident trigger keywords",

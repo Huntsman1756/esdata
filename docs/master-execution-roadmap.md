@@ -6469,8 +6469,21 @@ En orden de impacto real:
 
 ## Reclamo 2026-05-14 - I-04 Cargar instrucciones y claves Modelo 296
 
-**Estado:** EN CURSO.
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
 
 **Archivos principales:** `scripts/data/load_modelo_296_irnr_instructions.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
 
 **Objetivo:** cargar instrucciones, claves de renta, subclaves de retencion y trigger keywords oficiales del Modelo 296 desde BOE/AEAT.
+
+**Resultado:**
+- Loader oficial `scripts/data/load_modelo_296_irnr_instructions.py` creado.
+- Produccion: Modelo 296 con 35 claves/subclaves y 8 instrucciones.
+- Todos los registros cargados tienen `source_url`, `source_hash` y `capture_date`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile scripts/data/load_modelo_296_irnr_instructions.py`
+- VPS load por `docker compose exec postgres psql` => `DO`.
+- SQL VPS: `claves=35`, `instrucciones=8`, `missing_source_claves=0`, `missing_source_instrucciones=0`.
+- API VPS `/v1/modelos/aeat/296` => claves=35, instrucciones=8.
+
+**Siguiente paso:** I-05 cargar instrucciones y claves del Modelo 216.
