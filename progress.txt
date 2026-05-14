@@ -1941,3 +1941,23 @@ Verification:
   - Added completed AEAT model check using Modelo 198 completeness=completa verified=true.
 Caveat: API image had to be rebuilt so domain-availability used the updated Ralph table registry.
 Next: I-11
+=== Iteration I-11 - 2026-05-14T07:58:51+02:00 ===
+Story: I-11 Final verification - full sprint close
+Sources accessed:
+  - Production DB counts for Modelos 187, 193, 198, 200, 216, 290, 296, 303
+  - Production API /status and Alertmanager
+  - mcp_validation_suite.py and mcp_deep_contract_audit.py final gates
+Records loaded:
+  - none; final verification and report story
+Result: PASS
+Verification:
+  - Wrote docs/aeat-instructions-coverage-report.md.
+  - Local full suite: 3034 passed, 2 skipped, 34 warnings.
+  - Production counts: 290 claves=7 instrucciones=7 reglas=5; 296 claves=35 instrucciones=8; 216 claves=5 instrucciones=6; 198 claves=46 instrucciones=7; 187 claves=28 instrucciones=5; 193 claves=38 instrucciones=5; 303 instrucciones=5; 200 instrucciones=5.
+  - Completeness: completa for 187, 193, 198, 216, 290, 296; parcial for 200, 303.
+  - VPS mcp_validation_suite.py returned ok=True with 38 checks.
+  - VPS mcp_deep_contract_audit.py returned ok=True with 9 checks.
+  - /status returned api=ok and database=ok; every worker in workers has stale=false.
+  - Alertmanager returned 0 active alerts.
+Caveat: 200 and 303 remain intentionally partial because only instruction sections, not full deterministic clave coverage, were loaded.
+Next: COMPLETE

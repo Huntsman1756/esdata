@@ -143,7 +143,7 @@
                             "id":  "I-11",
                             "title":  "Final verification - full sprint close",
                             "priority":  12,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "consulta libre has no 500 errors for valid queries",
                                                        "Modelo 290 has claves, instrucciones and reglas_inclusion",
