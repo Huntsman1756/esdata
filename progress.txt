@@ -1892,3 +1892,22 @@ Verification:
   - Production API: /v1/modelos/aeat/187 and /v1/modelos/aeat/193 expose claves/instrucciones
 Caveat: Modelo 187 uses the current AEAT logical design PDF published as 2022; no newer deterministic PDF was found in the active AEAT docs map.
 Next: I-08
+=== Iteration I-08 - 2026-05-14T07:19:32+02:00 ===
+Story: I-08 Load instructions for Modelos 303 and 200 - IVA and IS
+Sources accessed:
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2025.html
+  - https://sede.agenciatributaria.gob.es/Sede/iva/presentar-declaracion-iva-modelo-303.html
+  - https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/modelo-200.html
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GE04/200/Modelo_200.pdf
+  - AEAT Manual Sociedades 2024, declaracion del impuesto
+Records loaded:
+  - Modelo 303: modelo_instruccion=5, source coverage complete for loaded rows
+  - Modelo 200: modelo_instruccion=5, source coverage complete for loaded rows
+  - Trigger keywords for IVA and IS routing
+Result: PASS-WITH-CAVEAT
+Verification:
+  - Production SQL: 303 instrucciones=5 missing_source=0
+  - Production SQL: 200 instrucciones=5 missing_source=0
+  - Production API exposes instructions for both models
+Caveat: 303 and 200 remain partial; this story loaded high-value official instruction sections, not complete form-level guidance for every casilla/page.
+Next: I-09

@@ -106,7 +106,7 @@
                             "id":  "I-08",
                             "title":  "Load instructions for Modelos 303 and 200 - IVA and IS",
                             "priority":  9,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Load official partial instructions for high-value sections of Modelos 303 and 200",
                                                        "PASS-WITH-CAVEAT is acceptable for complex partial instruction coverage",

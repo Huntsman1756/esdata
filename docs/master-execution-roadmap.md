@@ -6516,3 +6516,6 @@ En orden de impacto real:
 
 - 2026-05-14 I-07 Load instructions and keys for Modelos 187 and 193 - COMPLETADO. Loader oficial scripts/data/load_modelos_187_193_instructions.py; VPS: 187 claves=28/instrucciones=5, 193 claves=38/instrucciones=5, missing_source=0. Siguiente: I-08.
 
+
+- 2026-05-14 I-08 Load instructions for Modelos 303 and 200 - COMPLETADO con caveat. Loader oficial scripts/data/load_modelos_303_200_instructions.py; VPS: 303 instrucciones=5, 200 instrucciones=5, missing_source=0; ambos permanecen parciales hasta evidencia completa. Siguiente: I-09.
+
