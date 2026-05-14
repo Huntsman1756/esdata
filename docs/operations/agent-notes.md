@@ -304,3 +304,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: `verified=false` y `completeness=parcial` son correctos, pero algunos agentes no los traducen de forma consistente a lenguaje de evidencia limitada.
 - Impacto: sin un campo directo, una respuesta con campos oficiales cargados puede ser resumida como si fuera completa para instrucciones u obligatoriedad.
 - Regla practica: las superficies de modelo deben devolver `evidence_status=evidence_limited` y `evidence_notice` cuando el contrato sea parcial. `no-casillas-expected` no significa "sin obligacion"; solo significa ausencia verificada de casillas estructuradas esperadas.
+
+### 2026-05-14 - CNMV vigencia por defecto
+
+- Scope: `apps/api/routers/cnmv.py`, `/v1/cnmv`, `/v1/cnmv/buscar`, `documento_interpretativo.estado_vigencia`.
+- Hallazgo: produccion tenia 72 documentos CNMV cargados: 30 `derogado`, 19 `vigente` y 23 `vigente_modificado`. La busqueda por defecto mezclaba derogados con vigentes si el caller no pasaba `vigencia`.
+- Impacto: una consulta de obligaciones vigentes podia recibir circulares derogadas sin pedir auditoria historica, erosionando el contrato de respuesta.
+- Regla practica: CNMV debe filtrar por defecto a `vigente` + `vigente_modificado`; `vigencia=all` o `vigencia=derogado` deben ser decisiones explicitas. Las respuestas deben recordar que el corpus CNMV es lo cargado, no el universo completo CNMV.

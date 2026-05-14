@@ -1,6 +1,5 @@
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
-from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import (
     CNMVObligationLinkResponse,
     CNMVRegulationLinkResponse,
@@ -10,7 +9,16 @@ from schemas import (
 )
 from sqlalchemy import text
 
+from routers.retrieval_audit import record_retrieval_query_audit
+
 router = APIRouter(prefix="/v1/cnmv", tags=["cnmv"])
+
+CNMV_CURRENT_VIGENCIA_STATES = ("vigente", "vigente_modificado")
+CNMV_COVERAGE_NOTE = (
+    "CNMV devuelve el corpus oficial cargado en ESData; no encontrar un documento "
+    "puede significar no cargado, no inexistente. Por defecto se excluyen documentos "
+    "derogados; use vigencia=all o vigencia=derogado para auditoria historica."
+)
 
 
 def _cnmv_boe_reference(row) -> str | None:
@@ -45,13 +53,42 @@ def _cnmv_list_payload(row) -> dict:
     }
 
 
+def _apply_cnmv_vigencia_filter(
+    filters: list[str],
+    params: dict[str, str],
+    vigencia: str | None,
+) -> tuple[str, list[str] | None]:
+    """Apply the CNMV default current-document contract.
+
+    Default retrieval is for current obligations, so derogados are excluded unless
+    the caller asks for `vigencia=all` or a specific estado_vigencia.
+    """
+    normalized = (vigencia or "").strip().lower()
+    if not normalized or normalized == "current":
+        filters.append("d.estado_vigencia IN ('vigente', 'vigente_modificado')")
+        return "current", list(CNMV_CURRENT_VIGENCIA_STATES)
+
+    if normalized == "all":
+        return "all", None
+
+    filters.append("d.estado_vigencia = :vigencia")
+    params["vigencia"] = normalized
+    return normalized, [normalized]
+
+
 @router.get("", response_model=DocInterpretativoListResponse, operation_id="listar_cnmv")
 async def listar_cnmv(
     request: Request,
     q: str | None = Query(None, description="Filtrar por texto o título"),
     ambito: str | None = Query(None, description="Filtrar por ámbito regulatorio"),
     tipo_documento: str | None = Query(None, description="Filtrar por tipo de documento"),
-    vigencia: str | None = Query(None, description="Filtrar por estado de vigencia"),
+    vigencia: str | None = Query(
+        None,
+        description=(
+            "Filtrar por estado de vigencia. Por defecto: current "
+            "(vigente + vigente_modificado). Use all para incluir derogados."
+        ),
+    ),
     regulacion: str | None = Query(None, description="Filtrar por regulación EU/ES relacionada (mifid_ii, mifir, mar, dora, priips, LIVMC)"),
     obligacion: str | None = Query(None, description="Filtrar por tipo de obligación (presentacion_modelo, remision_informacion, control_interno, comunicacion_indicio, reporting_prudencial)"),
     skip: int = Query(0, ge=0, description="Offset de paginación"),
@@ -64,6 +101,11 @@ async def listar_cnmv(
         "d.tipo_fuente = 'cnmv'",
     ]
     params: dict[str, str] = {}
+    vigencia_filter, included_estados = _apply_cnmv_vigencia_filter(
+        filters,
+        params,
+        vigencia,
+    )
 
     if q:
         filters.append(
@@ -78,10 +120,6 @@ async def listar_cnmv(
     if tipo_documento:
         filters.append("d.tipo_documento = :tipo_documento")
         params["tipo_documento"] = tipo_documento
-
-    if vigencia:
-        filters.append("d.estado_vigencia = :vigencia")
-        params["vigencia"] = vigencia
 
     if regulacion:
         filters.append(
@@ -134,9 +172,16 @@ async def listar_cnmv(
 
         response = {
             "documentos": docs,
+            "items": docs,
             "skip": skip,
             "limit": limit,
             "total": total,
+            "offset": skip,
+            "has_more": (skip + limit) < int(total or 0),
+            "next_offset": skip + limit if (skip + limit) < int(total or 0) else None,
+            "vigencia_filter": vigencia_filter,
+            "included_estados_vigencia": included_estados,
+            "coverage_note": CNMV_COVERAGE_NOTE,
         }
         path = request.url.path
         record_retrieval_query_audit(
