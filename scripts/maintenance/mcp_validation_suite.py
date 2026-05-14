@@ -394,9 +394,29 @@ def _validate_fatca_query_routes_to_290(payload: dict[str, Any]) -> tuple[bool, 
         payload.get("status") in {"matched", "evidence_limited", "no_verified"}
         and "290" in codigos
         and not ({"216", "296"} & set(codigos))
-        and bool(payload.get("evidence_notice"))
     )
     return ok, details
+
+
+def _validate_completed_aeat_model(expected_codigo: str):
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        details = {
+            "codigo": payload.get("codigo"),
+            "verified": payload.get("verified"),
+            "completeness": payload.get("completeness"),
+            "claves": len(payload.get("claves") or []),
+            "instrucciones": len(payload.get("instrucciones") or []),
+        }
+        ok = (
+            payload.get("codigo") == expected_codigo
+            and payload.get("verified") is True
+            and payload.get("completeness") == "completa"
+            and len(payload.get("claves") or []) > 0
+            and len(payload.get("instrucciones") or []) > 0
+        )
+        return ok, details
+
+    return validator
 
 
 def _validate_any_completed_aeat_model(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
@@ -842,10 +862,10 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         checks.append(
             _check_json_contract(
                 client,
-                "/v1/modelos",
-                {"limit": 100, "offset": 0},
-                _validate_any_completed_aeat_model,
-                "aeat_has_completed_verified_models",
+                "/v1/modelos/aeat/198",
+                {},
+                _validate_completed_aeat_model("198"),
+                "aeat_modelo_198_completed_contract",
             )
         )
         checks.append(

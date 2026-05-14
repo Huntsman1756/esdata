@@ -767,15 +767,13 @@ def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
             if {"216", "296"} & set(codigos):
                 failures.append({"check": "consulta_fatca_routing", "reason": "irnr_contamination", "details": details["fatca_query"]})
 
-        status_code, modelos, text_preview = _get_json(client, "/v1/modelos", {"limit": 100, "offset": 0})
-        if status_code != 200 or not modelos:
+        status_code, modelo_198, text_preview = _get_json(client, "/v1/modelos/aeat/198")
+        if status_code != 200 or not modelo_198:
             failures.append({"check": "aeat_completed_models", "reason": "endpoint_failed", "response": text_preview})
         else:
-            completed = [
-                item.get("codigo")
-                for item in modelos.get("modelos") or []
-                if item.get("verified") is True and item.get("completeness") == "completa"
-            ]
+            completed = []
+            if modelo_198.get("verified") is True and modelo_198.get("completeness") == "completa":
+                completed.append(modelo_198.get("codigo"))
             details["completed_models"] = completed
             if not completed:
                 failures.append({"check": "aeat_completed_models", "reason": "no_completed_verified_models"})
