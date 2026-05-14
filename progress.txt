@@ -353,6 +353,20 @@ Evidence:
 Accepted risks:
   - Modelo 296 remains subject to later completeness graduation; this story loads official keys/instructions but does not assert full operational applicability for every case.
 Next: I-05
+
+=== Iteration I-05 - 2026-05-14T07:05:00+02:00 ===
+Story: I-05 Load instructions and keys for Modelo 216 - IRNR retenciones
+Result: PASS
+Evidence:
+  - Added `scripts/data/load_modelo_216_irnr_instructions.py`.
+  - Official sources: BOE-A-2008-18497 and AEAT Modelo 216 technical help page.
+  - VPS load via psql returned `DO`.
+  - Production counts: Modelo 216 claves=5, instrucciones=6.
+  - Provenance check: missing_source=0 for Modelo 216 claves.
+  - API `/v1/modelos/aeat/216`: claves=5, instrucciones=6.
+Accepted risks:
+  - Modelo 216 keys loaded are operational categories from official presentation/period/result rules; it is not a per-perceptor annual design like Modelo 296.
+Next: I-06
 === Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
 Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
 Result: PASS

@@ -6492,8 +6492,21 @@ En orden de impacto real:
 
 ## Reclamo 2026-05-14 - I-05 Cargar instrucciones y claves Modelo 216
 
-**Estado:** EN CURSO.
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
 
 **Archivos principales:** `scripts/data/load_modelo_216_irnr_instructions.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
 
 **Objetivo:** cargar instrucciones oficiales y claves operativas trazables del Modelo 216 desde BOE/AEAT.
+
+**Resultado:**
+- Loader oficial `scripts/data/load_modelo_216_irnr_instructions.py` creado.
+- Produccion: Modelo 216 con 5 claves operativas y 6 instrucciones.
+- Los registros cargados tienen `source_url`, `source_hash` y `capture_date`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile scripts/data/load_modelo_216_irnr_instructions.py`
+- VPS load por `docker compose exec postgres psql` => `DO`.
+- SQL VPS: `claves=5`, `instrucciones=6`, `missing_source=0`.
+- API VPS `/v1/modelos/aeat/216` => claves=5, instrucciones=6.
+
+**Siguiente paso:** I-06 cargar instrucciones y claves del Modelo 198.

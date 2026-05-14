@@ -73,7 +73,7 @@
                             "id":  "I-05",
                             "title":  "Load instructions and keys for Modelo 216 - IRNR retenciones",
                             "priority":  6,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Load official Modelo 216 instructions and keys from AEAT/BOE sources",
                                                        "Load IRNR withholding trigger keywords"
