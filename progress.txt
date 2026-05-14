@@ -352,6 +352,18 @@ Evidence:
 Accepted risks:
   - Historical `modelo_clave` and `modelo_instruccion` rows may still have null `source_url`; new official loaders must populate source fields and must not invent provenance for old rows.
 Next: I-02
+=== Iteration I-02 - 2026-05-14T07:10:00+02:00 ===
+Story: I-02 Load Modelo 290 instructions, keys, and FATCA inclusion rules
+Result: PASS
+Evidence:
+  - Official sources verified: BOE-A-2014-6922 Orden HAP/1136/2014, BOE-A-2014-6854 FATCA Spain-US Agreement, and AEAT 290 XSD/WSDL ZIP.
+  - Added `scripts/data/load_modelo_290_fatca_instructions.py`; it downloads official sources, computes MD5 hashes, emits SQL, and does not access DB directly.
+  - Production load via docker compose postgres psql inserted: claves=7, instrucciones=7, reglas_inclusion=5, trigger_keywords=16.
+  - Provenance check returned missing_provenance=0 for `modelo_clave`, `modelo_instruccion`, and `modelo_regla_inclusion` rows for Modelo 290.
+  - Formal verification: `290 claves=7 reglas=5`, PASS.
+Accepted risks:
+  - No `>10%` substantial-owner threshold was loaded because the official BOE sources used here state “personas que ejercen el control” and KYC/AML procedures, not that percentage. The rule records explicitly preserve that limitation.
+Next: I-03
 === Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
 Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
 Sources accessed:
