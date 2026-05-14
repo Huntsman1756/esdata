@@ -6513,3 +6513,6 @@ En orden de impacto real:
 
 - 2026-05-14 I-06 Load instructions and keys for Modelo 198 - COMPLETADO. Loader oficial scripts/data/load_modelo_198_activos_instructions.py; VPS: claves=46, instrucciones=7, missing_source=0; API expone ambas secciones. Siguiente: I-07.
 
+
+- 2026-05-14 I-07 Load instructions and keys for Modelos 187 and 193 - COMPLETADO. Loader oficial scripts/data/load_modelos_187_193_instructions.py; VPS: 187 claves=28/instrucciones=5, 193 claves=38/instrucciones=5, missing_source=0. Siguiente: I-08.
+

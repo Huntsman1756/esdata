@@ -1874,3 +1874,21 @@ Verification:
   - Production API: /v1/modelos/aeat/198 returned claves=46 and instrucciones=7
 Caveat: completeness remains parcial until I-09 applies query-driven graduation across all loaded evidence.
 Next: I-07
+=== Iteration I-07 - 2026-05-14T07:15:12+02:00 ===
+Story: I-07 Load instructions and keys for Modelos 187 and 193
+Sources accessed:
+  - https://www.boe.es/buscar/doc.php?id=BOE-A-2024-27528
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_187_2022.pdf
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_193_2025.pdf
+  - AEAT help pages for Modelo 187 and Modelo 193
+Records loaded:
+  - Modelo 187: modelo_clave=28, modelo_instruccion=5
+  - Modelo 193: modelo_clave=38, modelo_instruccion=5
+  - Trigger keywords for IIC and capital mobiliario routing
+Result: PASS
+Verification:
+  - Production SQL: 187 claves=28 instrucciones=5 missing_source=0
+  - Production SQL: 193 claves=38 instrucciones=5 missing_source=0
+  - Production API: /v1/modelos/aeat/187 and /v1/modelos/aeat/193 expose claves/instrucciones
+Caveat: Modelo 187 uses the current AEAT logical design PDF published as 2022; no newer deterministic PDF was found in the active AEAT docs map.
+Next: I-08

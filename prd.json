@@ -95,7 +95,7 @@
                             "id":  "I-07",
                             "title":  "Load instructions and keys for Modelos 187 and 193",
                             "priority":  8,
-                            "passes":  false,
+                            "passes":  true,
                             "acceptanceCriteria":  [
                                                        "Load official instructions and keys for Modelos 187 and 193",
                                                        "Load trigger keywords for both"
