@@ -691,6 +691,105 @@ def audit_boe_core_legislation_contracts(base_url: str) -> CheckResult:
     )
 
 
+def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {
+        "modelo_290": {},
+        "fatca_query": {},
+        "completed_models": [],
+    }
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        status_code, payload, text_preview = _get_json(client, "/v1/modelos/aeat/290")
+        if status_code != 200 or not payload:
+            failures.append({"check": "modelo_290_detail", "reason": "endpoint_failed", "response": text_preview})
+        else:
+            reglas = payload.get("reglas_inclusion") or []
+            detalles_reglas = [
+                {
+                    "supuesto": regla.get("supuesto"),
+                    "decision": regla.get("decision"),
+                    "source_url": regla.get("source_url"),
+                }
+                for regla in reglas
+            ]
+            details["modelo_290"] = {
+                "verified": payload.get("verified"),
+                "completeness": payload.get("completeness"),
+                "claves": len(payload.get("claves") or []),
+                "instrucciones": len(payload.get("instrucciones") or []),
+                "reglas": len(reglas),
+                "reglas_inclusion": detalles_reglas,
+            }
+            if payload.get("verified") is not True or payload.get("completeness") != "completa":
+                failures.append({"check": "modelo_290_detail", "reason": "not_verified_complete", "details": details["modelo_290"]})
+            if not payload.get("claves") or not payload.get("instrucciones") or not reglas:
+                failures.append({"check": "modelo_290_detail", "reason": "missing_keys_instructions_or_rules", "details": details["modelo_290"]})
+
+            def _find_rule(term: str, decision: str) -> dict[str, Any] | None:
+                for regla in reglas:
+                    if term in (regla.get("supuesto") or "").lower() and regla.get("decision") == decision:
+                        return regla
+                return None
+
+            passive_include = _find_rule("pasiva con", "INCLUIR")
+            passive_exclude = _find_rule("pasiva sin", "EXCLUIR")
+            active_exclude = _find_rule("activa", "EXCLUIR")
+            if not passive_include:
+                failures.append({"check": "modelo_290_rules", "reason": "missing_passive_include_rule"})
+            if not passive_exclude:
+                failures.append({"check": "modelo_290_rules", "reason": "missing_passive_exclude_rule"})
+            if not active_exclude:
+                failures.append({"check": "modelo_290_rules", "reason": "missing_active_exclude_rule"})
+            for name, rule in {
+                "passive_include": passive_include,
+                "passive_exclude": passive_exclude,
+                "active_exclude": active_exclude,
+            }.items():
+                if rule and not rule.get("source_url"):
+                    failures.append({"check": "modelo_290_rules", "reason": "missing_rule_source_url", "rule": name})
+
+        status_code, consulta, text_preview = _get_json(
+            client,
+            "/v1/consulta",
+            {"q": "FATCA passive NFFE modelo 290"},
+        )
+        if status_code != 200 or not consulta:
+            failures.append({"check": "consulta_fatca_routing", "reason": "endpoint_failed", "response": text_preview})
+        else:
+            codigos = [item.get("codigo") for item in consulta.get("modelos") or []]
+            details["fatca_query"] = {
+                "status": consulta.get("status"),
+                "safe_to_answer": consulta.get("safe_to_answer"),
+                "codigos": codigos,
+            }
+            if "290" not in codigos:
+                failures.append({"check": "consulta_fatca_routing", "reason": "modelo_290_missing", "details": details["fatca_query"]})
+            if {"216", "296"} & set(codigos):
+                failures.append({"check": "consulta_fatca_routing", "reason": "irnr_contamination", "details": details["fatca_query"]})
+
+        status_code, modelos, text_preview = _get_json(client, "/v1/modelos", {"limit": 100, "offset": 0})
+        if status_code != 200 or not modelos:
+            failures.append({"check": "aeat_completed_models", "reason": "endpoint_failed", "response": text_preview})
+        else:
+            completed = [
+                item.get("codigo")
+                for item in modelos.get("modelos") or []
+                if item.get("verified") is True and item.get("completeness") == "completa"
+            ]
+            details["completed_models"] = completed
+            if not completed:
+                failures.append({"check": "aeat_completed_models", "reason": "no_completed_verified_models"})
+
+    return CheckResult(
+        "aeat_instruction_key_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
 def audit_semantic_suite(base_url: str) -> CheckResult:
     sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
     from mcp_validation_suite import run_read_only_suite  # type: ignore
@@ -717,6 +816,7 @@ def run_audit(base_url: str, database_url: str) -> dict[str, Any]:
         audit_mcp_tools(base_url),
         audit_actions_openapi(base_url),
         audit_boe_core_legislation_contracts(base_url),
+        audit_aeat_instruction_key_contracts(base_url),
         audit_eurlex_esma_market_contracts(base_url),
         audit_semantic_suite(base_url),
     ]

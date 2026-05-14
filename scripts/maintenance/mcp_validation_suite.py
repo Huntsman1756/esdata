@@ -351,6 +351,69 @@ def _validate_modelo_detail_bounded(payload: dict[str, Any]) -> tuple[bool, dict
     return ok, details
 
 
+def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    claves = payload.get("claves") or []
+    instrucciones = payload.get("instrucciones") or []
+    reglas = payload.get("reglas_inclusion") or []
+    regla_text = " ".join(str(regla.get("supuesto") or "") for regla in reglas).lower()
+    decisions = {regla.get("decision") for regla in reglas}
+    details = {
+        "codigo": payload.get("codigo"),
+        "verified": payload.get("verified"),
+        "completeness": payload.get("completeness"),
+        "claves": len(claves),
+        "instrucciones": len(instrucciones),
+        "reglas_inclusion": len(reglas),
+        "decisions": sorted(str(value) for value in decisions),
+    }
+    ok = (
+        payload.get("codigo") == "290"
+        and payload.get("verified") is True
+        and payload.get("completeness") == "completa"
+        and len(claves) > 0
+        and len(instrucciones) > 0
+        and len(reglas) > 0
+        and "pasiva" in regla_text
+        and "activa" in regla_text
+        and {"INCLUIR", "EXCLUIR"} <= decisions
+    )
+    return ok, details
+
+
+def _validate_fatca_query_routes_to_290(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    modelos = payload.get("modelos") or []
+    codigos = [item.get("codigo") for item in modelos]
+    details = {
+        "status": payload.get("status"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+        "codigos": codigos,
+        "total_modelos": len(modelos),
+        "evidence_notice": payload.get("evidence_notice"),
+    }
+    ok = (
+        payload.get("status") in {"matched", "evidence_limited", "no_verified"}
+        and "290" in codigos
+        and not ({"216", "296"} & set(codigos))
+        and bool(payload.get("evidence_notice"))
+    )
+    return ok, details
+
+
+def _validate_any_completed_aeat_model(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    modelos = payload.get("modelos") or []
+    completed = [
+        item.get("codigo")
+        for item in modelos
+        if item.get("completeness") == "completa" and item.get("verified") is True
+    ]
+    details = {
+        "total": payload.get("total"),
+        "completed": completed[:20],
+        "completed_count": len(completed),
+    }
+    return len(completed) > 0, details
+
+
 def _validate_list_pagination(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     list_key = "normas" if "normas" in payload else "modelos" if "modelos" in payload else None
     items = payload.get(list_key or "") or []
@@ -756,6 +819,33 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"limit": 25, "offset": 0},
                 _validate_modelo_casillas_pagination,
                 "modelo_100_casillas_paginated_agent_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/aeat/290",
+                {},
+                _validate_modelo_290_fatca_contract,
+                "modelo_290_fatca_rules_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/consulta",
+                {"q": "FATCA passive NFFE modelo 290"},
+                _validate_fatca_query_routes_to_290,
+                "consulta_fatca_routes_to_modelo_290",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos",
+                {"limit": 100, "offset": 0},
+                _validate_any_completed_aeat_model,
+                "aeat_has_completed_verified_models",
             )
         )
         checks.append(
