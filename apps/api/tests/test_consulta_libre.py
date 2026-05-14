@@ -13,6 +13,7 @@ if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
 from main import app
+from routers.consulta import _extract_keywords, _resolve_modelos
 
 
 @pytest.mark.asyncio
@@ -32,6 +33,14 @@ async def test_consulta_libre_fatca_query_returns_safe_contract():
     assert data["consulta"] == "FATCA passive entity modelo 290"
     assert data["status"] in {"matched", "evidence_limited", "no_results"}
     assert data["safe_to_answer"] is not None
+
+
+def test_fatca_passive_query_routes_to_modelo_290_before_irnr():
+    keywords = _extract_keywords("FATCA passive NFFE no residente modelo 290", "")
+    resolved = _resolve_modelos(keywords)
+
+    assert resolved[0] == "290"
+    assert "216" not in resolved[:1]
 
 
 @pytest.mark.asyncio

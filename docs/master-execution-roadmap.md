@@ -6442,3 +6442,13 @@ En orden de impacto real:
 **Motivo:** FULINS diario puede requerir decenas o cientos de GB para historico operativo. Para el caso de uso actual no aporta tanto como los esquemas de validacion y reglas de reporte, y aumentaria coste, mantenimiento y riesgo de stale data.
 
 **Implicacion:** `worker-esma-firds` queda como metadata/piloto acotado para probar contrato `evidence_limited`; no debe evolucionar a cobertura autoritativa de instrumentos sin un nuevo sprint con estimacion de almacenamiento, particionado, retencion y presupuesto operacional.
+
+---
+
+## Reclamo 2026-05-14 - I-03 Exponer instrucciones, claves y reglas Modelo 290
+
+**Estado:** EN CURSO.
+
+**Archivos principales:** `apps/api/routers/modelos.py`, `apps/api/routers/consulta.py`, `apps/api/services/modelos.py`, `apps/api/schemas.py`, `apps/api/tests/conftest.py`, `apps/api/tests/test_consulta_libre.py`.
+
+**Objetivo:** exponer `claves`, `instrucciones` y `reglas_inclusion` del Modelo 290 en API/MCP y enrutar consultas FATCA/passive NFFE al Modelo 290, no a IRNR.

@@ -571,10 +571,20 @@ def list_campaign_claves(db, campana_id: int):
     return db.execute(
         text(
             """
-            SELECT codigo, etiqueta, descripcion, tipo_clave
+            SELECT
+                codigo,
+                etiqueta,
+                descripcion,
+                tipo_clave,
+                COALESCE(tipo, tipo_clave, 'CLAVE') AS tipo,
+                criterio_aplicacion,
+                exclusiones,
+                source_url,
+                source_hash,
+                CAST(capture_date AS TEXT) AS capture_date
             FROM modelo_clave
             WHERE campana_id = :campana_id AND activa = true
-            ORDER BY codigo
+            ORDER BY COALESCE(tipo, tipo_clave, 'CLAVE'), codigo
             """
         ),
         {"campana_id": campana_id},
@@ -585,10 +595,41 @@ def list_campaign_instructions(db, campana_id: int):
     return db.execute(
         text(
             """
-            SELECT seccion, titulo, contenido, orden
+            SELECT
+                seccion,
+                titulo,
+                contenido,
+                orden,
+                COALESCE(texto, contenido) AS texto,
+                casilla_referencia,
+                source_url,
+                source_hash,
+                CAST(capture_date AS TEXT) AS capture_date
             FROM modelo_instruccion
             WHERE campana_id = :campana_id
             ORDER BY orden
+            """
+        ),
+        {"campana_id": campana_id},
+    ).mappings()
+
+
+def list_campaign_reglas_inclusion(db, campana_id: int):
+    return db.execute(
+        text(
+            """
+            SELECT
+                supuesto,
+                decision,
+                condicion,
+                umbral,
+                fuente_normativa,
+                source_url,
+                source_hash,
+                CAST(capture_date AS TEXT) AS capture_date
+            FROM modelo_regla_inclusion
+            WHERE campana_id = :campana_id
+            ORDER BY supuesto
             """
         ),
         {"campana_id": campana_id},

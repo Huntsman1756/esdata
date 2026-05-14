@@ -28,6 +28,7 @@ from services.modelos import (
     list_campaign_casillas,
     list_campaign_claves,
     list_campaign_instructions,
+    list_campaign_reglas_inclusion,
     list_modelo_artefactos,
     list_modelo_articulos,
     list_modelo_campanas,
@@ -374,15 +375,25 @@ async def get_modelo_aeat(
                 "casillas_total": 0,
                 "casillas_campana": None,
                 "casillas_selection_notice": None,
+                "claves": [],
+                "claves_total": 0,
+                "instrucciones": [],
+                "instrucciones_total": 0,
+                "reglas_inclusion": [],
+                "reglas_inclusion_total": 0,
                 "campana_actual": None,
                 "historial": [] if include_history else None,
             }
 
         campana_actual = campanas[0]
+        campana_id = campana_actual["id"]
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana=campana)
         casillas_selection = get_campaign_for_casillas(db, codigo, campana)
         casillas_camp_row = casillas_selection["campaign"]
         casillas_total = count_campaign_casillas(db, casillas_camp_row["id"]) if casillas_camp_row else 0
+        claves = [dict(r) for r in list_campaign_claves(db, campana_id)]
+        instrucciones = [dict(r) for r in list_campaign_instructions(db, campana_id)]
+        reglas_inclusion = [dict(r) for r in list_campaign_reglas_inclusion(db, campana_id)]
         campana_actual_payload = {
             "campana": campana_actual["campana"],
             "activo": bool(campana_actual["activo"]),
@@ -418,6 +429,12 @@ async def get_modelo_aeat(
             "casillas_total": casillas_total,
             "casillas_campana": casillas_camp_row["campana"] if casillas_camp_row else None,
             "casillas_selection_notice": casillas_selection["selection_notice"],
+            "claves": claves,
+            "claves_total": len(claves),
+            "instrucciones": instrucciones,
+            "instrucciones_total": len(instrucciones),
+            "reglas_inclusion": reglas_inclusion,
+            "reglas_inclusion_total": len(reglas_inclusion),
             "campana_actual": campana_actual_payload,
             "historial": historial_payload,
         }
@@ -527,6 +544,15 @@ async def get_modelo(
         else:
             instrucciones_total = 0
 
+        reglas_inclusion = []
+        if campana_id:
+            all_regla_rows = list(list_campaign_reglas_inclusion(db, campana_id))
+            regla_rows = all_regla_rows[:related_limit]
+            reglas_inclusion = [dict(r) for r in regla_rows]
+            reglas_inclusion_total = len(all_regla_rows)
+        else:
+            reglas_inclusion_total = 0
+
         operativa_row = get_modelo_campana_operativa_row(db, campana_id) if campana_id else None
         estado_metadato = (
             operativa_row["estado_metadato"]
@@ -591,6 +617,8 @@ async def get_modelo(
             "claves_total": claves_total,
             "instrucciones": instrucciones,
             "instrucciones_total": instrucciones_total,
+            "reglas_inclusion": reglas_inclusion,
+            "reglas_inclusion_total": reglas_inclusion_total,
             "normativa": normativa,
             "normativa_total": len(all_norm_rows),
             "doctrina_relacionada": doctrina_relacionada,
@@ -631,7 +659,7 @@ async def get_modelo(
             response_summary=(
                 f"campanas={len(campanas)};articulos={len(articulos)};"
                 f"casillas={len(casillas)}/{casillas_total};"
-                f"instrucciones={len(instrucciones)}"
+                f"instrucciones={len(instrucciones)};reglas={len(reglas_inclusion)}"
             ),
             confidence={"score": 0.9 if verified else 0.5, "label": "alta" if verified else "media"},
             completeness=payload["completeness"],

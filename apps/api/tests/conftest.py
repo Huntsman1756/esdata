@@ -2456,6 +2456,12 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         etiqueta        TEXT NOT NULL,
         descripcion     TEXT,
         tipo_clave      TEXT,
+        tipo            TEXT DEFAULT 'CLAVE',
+        criterio_aplicacion TEXT,
+        exclusiones     TEXT,
+        source_url      TEXT,
+        source_hash     TEXT,
+        capture_date    TEXT,
         activa          INTEGER NOT NULL DEFAULT 1,
         creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(campana_id, codigo)
@@ -2469,7 +2475,38 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         titulo          TEXT NOT NULL,
         contenido       TEXT NOT NULL,
         orden           INTEGER DEFAULT 0,
+        texto           TEXT,
+        casilla_referencia TEXT,
+        source_url      TEXT,
+        source_hash     TEXT,
+        capture_date    TEXT,
         creado_at       TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS modelo_regla_inclusion (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
+        supuesto        TEXT NOT NULL,
+        decision        TEXT NOT NULL,
+        condicion       TEXT,
+        umbral          TEXT,
+        fuente_normativa TEXT,
+        source_url      TEXT NOT NULL,
+        source_hash     TEXT,
+        capture_date    TEXT,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(campana_id, supuesto)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS modelo_trigger_keyword (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
+        keyword         TEXT NOT NULL,
+        dominio         TEXT,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(modelo_id, keyword)
     )
     """,
     """
