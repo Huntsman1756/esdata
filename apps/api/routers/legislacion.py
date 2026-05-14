@@ -7,6 +7,11 @@ from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/legislacion", tags=["legislacion"])
 
+NORMA_ALIASES = {
+    "IRNR": "TRLIRNR",
+    "LIRNR": "TRLIRNR",
+}
+
 
 def _boe_source_url(boe_id: str | None, anchor: str | None = None) -> str | None:
     if not boe_id:
@@ -18,6 +23,11 @@ def _boe_source_url(boe_id: str | None, anchor: str | None = None) -> str | None
 def _article_anchor(numero: str) -> str:
     normalized = "".join(ch for ch in str(numero) if ch.isalnum()).lower()
     return f"a{normalized}"
+
+
+def _resolve_norma_codigo(codigo: str) -> str:
+    normalized = codigo.strip().upper()
+    return NORMA_ALIASES.get(normalized, codigo.strip())
 
 
 def _record_legislacion_query_audit(
@@ -124,6 +134,8 @@ async def get_cobertura():
 
 @router.get("/{codigo}", operation_id="get_norma")
 async def get_norma(request: Request, codigo: str):
+    canonical_codigo = _resolve_norma_codigo(codigo)
+    lookup_codigo = canonical_codigo.upper()
     with db_session() as db:
         row = (
             db.execute(
@@ -132,10 +144,10 @@ async def get_norma(request: Request, codigo: str):
                 SELECT codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
                        tipo_documento, ambito, estado_cobertura, vigente_desde
                 FROM norma
-                WHERE codigo = :codigo
+                WHERE UPPER(codigo) = :codigo
                 """
                 ),
-                {"codigo": codigo},
+                {"codigo": lookup_codigo},
             )
             .mappings()
             .first()
@@ -152,7 +164,7 @@ async def get_norma(request: Request, codigo: str):
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}",
-        query_text=codigo,
+        query_text=canonical_codigo if canonical_codigo == codigo else f"{codigo}->{canonical_codigo}",
         tool_name="get_norma",
         retrieved_chunks=[
             {
@@ -176,8 +188,10 @@ async def list_articulos(
     limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
     offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
-    filters = ["n.codigo = :codigo"]
-    params = {"codigo": codigo}
+    canonical_codigo = _resolve_norma_codigo(codigo)
+    lookup_codigo = canonical_codigo.upper()
+    filters = ["UPPER(n.codigo) = :codigo"]
+    params = {"codigo": lookup_codigo}
 
     if tipo is not None:
         filters.append("a.tipo = :tipo")
@@ -213,8 +227,8 @@ async def list_articulos(
         )
         if not rows:
             existe_norma = db.execute(
-                text("SELECT 1 FROM norma WHERE codigo = :codigo"),
-                {"codigo": codigo},
+                text("SELECT 1 FROM norma WHERE UPPER(codigo) = :codigo"),
+                {"codigo": lookup_codigo},
             ).first()
             if not existe_norma:
                 raise HTTPException(
@@ -236,7 +250,7 @@ async def list_articulos(
         })
     has_more = offset + len(articulos) < total
     payload = {
-        "norma": codigo,
+        "norma": rows[0]["norma_codigo"] if rows else canonical_codigo,
         "articulos": articulos,
         "total": total,
         "limit": limit,
@@ -247,11 +261,11 @@ async def list_articulos(
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}/articulos",
-        query_text=codigo if tipo is None else f"{codigo}:{tipo}",
+        query_text=canonical_codigo if tipo is None else f"{canonical_codigo}:{tipo}",
         tool_name="list_articulos",
         retrieved_chunks=[
             {
-                "norma": codigo,
+                "norma": canonical_codigo,
                 "numero": row["numero"],
                 "title": row.get("titulo"),
             }
@@ -266,8 +280,10 @@ async def list_articulos(
 
 @router.get("/{codigo}/articulos/{numero}", operation_id="get_articulo")
 async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: str | None = None):
-    filters = ["n.codigo = :codigo", "a.numero = :numero"]
-    params = {"codigo": codigo, "numero": numero}
+    canonical_codigo = _resolve_norma_codigo(codigo)
+    lookup_codigo = canonical_codigo.upper()
+    filters = ["UPPER(n.codigo) = :codigo", "a.numero = :numero"]
+    params = {"codigo": lookup_codigo, "numero": numero}
 
     if vigente_en is not None:
         filters.append(
@@ -316,6 +332,8 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
         "boe_reference": boe_id,
         "source_url": source_url,
         "eli_uri": row["eli_uri"],
+        "verified": True,
+        "completeness": "completa",
         "confianza": {
             "nivel": 1,
             "fuentes": [f"{row['codigo']} art. {row['numero']}"],
@@ -325,7 +343,7 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}/articulos/{numero}",
-        query_text=f"{codigo}:{numero}",
+        query_text=f"{canonical_codigo}:{numero}",
         tool_name="get_articulo",
         retrieved_chunks=[
             {
@@ -345,6 +363,8 @@ async def get_articulo(request: Request, codigo: str, numero: str, vigente_en: s
     "/{codigo}/articulos/{numero}/historial", operation_id="get_articulo_historial"
 )
 async def get_articulo_historial(request: Request, codigo: str, numero: str):
+    canonical_codigo = _resolve_norma_codigo(codigo)
+    lookup_codigo = canonical_codigo.upper()
     with db_session() as db:
         rows = db.execute(
             text(
@@ -354,11 +374,11 @@ async def get_articulo_historial(request: Request, codigo: str, numero: str):
                 FROM norma n
                 JOIN articulo a ON a.norma_id = n.id
                 JOIN version_articulo va ON va.articulo_id = a.id
-                WHERE n.codigo = :codigo AND a.numero = :numero
+                WHERE UPPER(n.codigo) = :codigo AND a.numero = :numero
                 ORDER BY va.vigente_desde DESC
                 """
             ),
-            {"codigo": codigo, "numero": numero},
+            {"codigo": lookup_codigo, "numero": numero},
         ).mappings()
         historial = [
             {
@@ -379,7 +399,7 @@ async def get_articulo_historial(request: Request, codigo: str, numero: str):
         raise HTTPException(status_code=404, detail={"error": "Articulo no encontrado"})
     first_item = historial[0]
     payload = {
-        "norma": codigo,
+        "norma": canonical_codigo,
         "numero": numero,
         "boe_reference": first_item.get("boe_reference"),
         "source_url": first_item.get("source_url"),
@@ -389,11 +409,11 @@ async def get_articulo_historial(request: Request, codigo: str, numero: str):
     _record_legislacion_query_audit(
         request,
         path=f"/v1/legislacion/{codigo}/articulos/{numero}/historial",
-        query_text=f"{codigo}:{numero}",
+        query_text=f"{canonical_codigo}:{numero}",
         tool_name="get_articulo_historial",
         retrieved_chunks=[
             {
-                "norma": codigo,
+                "norma": canonical_codigo,
                 "numero": numero,
                 "title": f"Historial articulo {numero}",
                 "content_preview": item["texto"][:220],

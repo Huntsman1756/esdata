@@ -8,6 +8,26 @@
 
 ## Reclamo activo
 
+- 2026-05-14 07:10 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` I-02 AEAT instructions/keys sprint: se carga Modelo 290 FATCA con instrucciones, claves, reglas de inclusion y keywords desde fuentes oficiales. Fuentes verificadas: Orden HAP/1136/2014 `BOE-A-2014-6922`, Acuerdo FATCA Espana-EE.UU. `BOE-A-2014-6854` y ZIP XSD/WSDL oficial AEAT del Modelo 290. Se anade `scripts/data/load_modelo_290_fatca_instructions.py`, que descarga fuentes oficiales, calcula MD5 y emite SQL para ejecutar exclusivamente via `docker compose exec postgres psql`. Produccion: `modelo_clave=7`, `modelo_instruccion=7`, `modelo_regla_inclusion=5`, `modelo_trigger_keyword=16` para `290`; las tres tablas con procedencia por fila tienen `missing_provenance=0`. Caveat deliberado: no se carga umbral `>10%` porque las fuentes BOE usadas hablan de `personas que ejercen el control` y procedimientos KYC/AML, no de ese porcentaje; la limitacion queda en `umbral`. Siguiente paso exacto: I-03, exponer `claves`, `instrucciones` y `reglas_inclusion` en `/v1/modelos/aeat/290` y enrutar FATCA passive a Modelo 290.
+
+- 2026-05-14 06:35 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` I-01 AEAT instructions/keys sprint: se anade la migracion Alembic `20260514_0077_aeat_instruction_key_tables`. `modelo_clave` y `modelo_instruccion` se extienden de forma aditiva con campos de trazabilidad (`source_url`, `source_hash`, `capture_date`) y aplicabilidad (`tipo`, `criterio_aplicacion`, `exclusiones`, `texto`, `casilla_referencia`) sin recrear tablas ni perder datos historicos. Se crean `modelo_regla_inclusion` y `modelo_trigger_keyword` con RLS y policies para `esdata`/`service_role`. Verificacion: `test_alembic_integrity.py` => `11 passed`; migracion a base test en VPS llega a head y contiene las cuatro tablas; produccion queda en `alembic_version=20260514_0077_aeat_instruction_key_tables`; psql confirma las cuatro tablas y columnas nuevas. Caveat honesto: registros historicos pueden tener `source_url` nulo; los nuevos cargadores oficiales deben poblar procedencia completa, no inventarla. Siguiente paso exacto: I-02, cargar instrucciones, claves y reglas oficiales FATCA del Modelo 290 desde BOE/AEAT.
+
+- 2026-05-14 05:58 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` I-00 AEAT instructions/keys sprint: se cierra el fallo de consulta libre para GPT Actions. Produccion antes del fix: `POST /v1/ai/consulta` devolvia `404` aunque `GET /v1/consulta?q=FATCA passive entity modelo 290` devolvia `200` con evidencia limitada; la ruta JSON esperada por el cliente no existia y podia manifestarse como error de herramienta. Se anade `POST /v1/ai/consulta` como wrapper JSON del motor existente, se exponen `status`, `safe_to_answer` y `evidence_notice` en `ConsultaFiscalResponse`, y se valida `query` vacia o >1000 chars con `400`. Verificacion local: `apps/api/tests/test_consulta_libre.py apps/api/tests/test_consulta_fail_closed.py` => `4 passed`. VPS commit `f5a209f`: FATCA passive entity devuelve `status=evidence_limited`, `safe_to_answer=false`, `total_resultados=0`; empty y long query devuelven `400`; logs API sin `500/exception/traceback`; `/status api=ok database=ok stale_count=0`. Siguiente paso exacto: I-01, crear migracion Alembic para `modelo_clave`, `modelo_instruccion`, `modelo_regla_inclusion` y `modelo_trigger_keyword`.
+
+- 2026-05-14 05:50 Europe/Madrid - `[INICIADO LOCAL]` I-00 AEAT instructions/keys sprint: se inicia rama `fix/aeat-instructions-keys` para cerrar el gap operativo de instrucciones, claves, subclaves y reglas de inclusion AEAT, empezando por la consulta libre FATCA/Modelo 290. Alcance de esta iteracion Ralph: reproducir el 500 de `/v1/ai/consulta` con consulta FATCA/passive entity, encontrar causa raiz, devolver `evidence_limited`/`no_results` en vez de 500, y anadir tests de entrada valida, vacia y excesivamente larga. No se cargan claves ni reglas hasta I-01/I-02.
+
+- 2026-05-13 19:40 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` F-06 TRLIRNR + BOE completeness sprint: cierre final del sprint. La suite local completa queda verde con `3030 passed, 2 skipped, 34 warnings`; durante el gate se corrige un bug adicional de lookup en `/v1/legislacion/{codigo}` para preservar codigos mixtos reales como `EUR-Lex-*` sin romper aliases case-insensitive (`IRNR -> TRLIRNR`). Los tests MCP que arrancan Uvicorn en subproceso ahora comprueban la fila de auditoria contra el SQLite exacto del subproceso, evitando contaminacion por singletons/imports del proceso padre. VPS desplegado en commit `2ccb005`; `mcp_validation_suite.py --read-only --base-url http://api:8000` y `mcp_deep_contract_audit.py --base-url http://api:8000` devuelven `ok=true`. Produccion: TRLIRNR art. 14 e IRNR alias art. 14 responden con `BOE-A-2004-4527`, `verified=true`, `completeness=completa` y texto real; LIVA `163 sexvicies` es el unico numero `%sexvi%`; `/status` devuelve `api=ok`, `database=ok`, `workers_total=40`, `stale_count=0`; Alertmanager activo no silenciado devuelve `0`. Estado del sprint `esdata-trlirnr-liva-fixes`: F-01 a F-06 cerradas. Siguiente paso exacto: decidir si se mergea `fix/trlirnr-liva-completeness` a `main` o se encadena con el siguiente sprint.
+
+- 2026-05-13 19:25 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` F-05 TRLIRNR + BOE completeness sprint: los articulos BOE consolidados expuestos por `/v1/legislacion/{codigo}/articulos/{numero}` incorporan ahora `verified=true` y `completeness=completa` cuando devuelven texto oficial trazable. `scripts/maintenance/mcp_validation_suite.py` anade checks para `TRLIRNR` art. 14, alias `IRNR` art. 14 y `LIVA` art. `163 sexvicies`; `scripts/maintenance/mcp_deep_contract_audit.py` anade `boe_core_legislation_contracts`. Verificacion VPS: `mcp_validation_suite.py --read-only --base-url http://api:8000` devuelve `ok=true` con los 3 nuevos checks BOE en verde; `mcp_deep_contract_audit.py --base-url http://api:8000` devuelve `ok=true` y confirma TRLIRNR/IRNR/LIVA con `verified=true`, `completeness=completa`, BOE ID correcto y URL oficial. Siguiente paso exacto: F-06, verificacion final completa del sprint.
+
+- 2026-05-13 19:16 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` F-04 TRLIRNR + BOE completeness sprint: se anade `apps/api/tests/test_boe_completeness.py` y marker `boe_completeness` para comprobar por BOE ID que las leyes core no quedan con cero articulos cargados. El test falla con cero articulos para TRLIRNR, LIVA, LGT, LIRPF, LIS e ITPAJD; ademas exige `TRLIRNR >= 53` y solo emite warning para desviaciones conservadoras en leyes con disposiciones variables. Verificacion local: `python -m pytest apps/api/tests/test_boe_completeness.py -v` => `1 passed`. Verificacion productiva SQL: TRLIRNR=66, LIVA=228, LGT=319, LIRPF=175, LIS=180, ITPAJD=67. Siguiente paso exacto: F-05, anadir TRLIRNR/IRNR y LIVA 163 sexvicies a `mcp_validation_suite` y `mcp_deep_contract_audit`.
+
+- 2026-05-13 19:05 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` F-03 TRLIRNR + BOE completeness sprint: se corrige el identificador oficial del articulo LIVA `163 sexvicies`. Produccion tenia `articulo.numero='163 sexvivies'` y `titulo='Articulo 163 sexvivies'`; se aplica UPDATE quirurgico sobre la norma LIVA/`BOE-A-1992-28740` y se anade migracion Alembic `20260513_0076_liva_163_sexvicies_typo.py` para que el fix sea reproducible. Verificacion VPS: la busqueda SQL `%sexvi%` devuelve solo `163 sexvicies`; `/v1/legislacion/LIVA/articulos/163%20sexvicies` devuelve HTTP 200 con `boe_reference=BOE-A-1992-28740` y texto real. Siguiente paso exacto: F-04, anadir test automatizado de completitud BOE por BOE ID.
+
+- 2026-05-13 18:52 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` F-02 TRLIRNR + BOE completeness sprint: se anade normalizacion de aliases en `apps/api/routers/legislacion.py` para resolver `IRNR` y `LIRNR` al codigo canonico `TRLIRNR` en detalle de norma, listado de articulos, articulo exacto e historial. La respuesta conserva `norma=TRLIRNR` y trazabilidad BOE canonica. Se anade fixture TRLIRNR en tests API y cobertura `test_legislacion_irnr_alias_resuelve_trlirnr`. Verificacion local: `python -m pytest apps/api/tests/test_smoke.py::test_legislacion_irnr_alias_resuelve_trlirnr -q` => `1 passed`. VPS: API reconstruida/reiniciada; `/v1/legislacion/IRNR/articulos/14` y `/v1/legislacion/TRLIRNR/articulos/14` devuelven HTTP 200 con el mismo prefijo de texto y `boe_reference=BOE-A-2004-4527`. Siguiente paso exacto: F-03, corregir typo LIVA `163 sexvivies -> 163 sexvicies`.
+
+- 2026-05-13 18:44 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` F-01 TRLIRNR + BOE completeness sprint: se anade `TRLIRNR` al catalogo canonico de `apps/workers/boe.py` con BOE ID `BOE-A-2004-4527`, clasificacion `real_decreto_legislativo` y ambito `tributario`; Compose y `docs/environment-variables.md` quedan preparados para incluirlo en `BOE_LEGISLACION_NORMAS`. VPS: se reconstruye `worker-boe`, se detiene brevemente el worker continuo para liberar el advisory lock, se ejecuta `BOE_LEGISLACION_NORMAS=TRLIRNR WORKER_REQUEST_DELAY=0 worker-boe python boe.py --run-once` y se vuelve a levantar el worker. Resultado: 75 bloques BOE procesados y 66 filas finales en `articulo` para `TRLIRNR`; `/v1/legislacion/TRLIRNR/articulos/14` devuelve texto BOE real con `boe_reference=BOE-A-2004-4527` y `source_url=https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527#a14`. Caveat intencional: `/v1/legislacion/IRNR/articulos/14` sigue 404 hasta F-02, donde se anadira el alias. Siguiente paso exacto: F-02, resolver alias `IRNR -> TRLIRNR`.
+
 - 2026-05-13 15:05 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` E-09 EUR-Lex + ESMA markets coverage: se endurece el registro CASP/MiCA. La pagina oficial ESMA MiCA confirma que el Interim MiCA Register se publica como CSV semanal y muestra `Last update: 4 May 2026`; el worker `apps/workers/mica.py` descubre `CASPS.csv` y ahora persiste trazabilidad por fila. Se anade la migracion Alembic `20260513_0075_casp_source_traceability.py` con `casp.source_url`, `source_hash`, `capture_date`, `verified` y `completeness`. VPS: `alembic upgrade head` aplicado; `cron-mica-weekly` procesa `194` filas CSV oficiales y la tabla queda en `192` CASP de-duplicados con `verified=true`, `capture_date=2026-05-13` y un unico hash de fuente. API: `/v1/mica/casp/buscar?q=crypto` devuelve `quality_signal=official_esma_register` y `safe_to_answer=true`; `/v1/mica/crypto-assets` sigue `workflow_empty`, `safe_to_answer=false`, sin sustituir datos CASP por activos crypto. Verificacion formal: `SELECT COUNT(*), MAX(capture_date) FROM casp WHERE verified=true` devuelve `192 | 2026-05-13` y `PASS`. Siguiente paso exacto: E-10, crear/registrar workers programados y cadencias para EUR-Lex market, ESMA MiFIR, FIRDS y DLT.
 
 - 2026-05-13 14:55 Europe/Madrid - `[COMPLETADO LOCAL + VPS]` E-08 EUR-Lex + ESMA markets coverage: se anade `apps/workers/worker_esma_dlt.py` para cargar la lista oficial ESMA de infraestructuras autorizadas DLT desde `Authorised_DLT_Market_Infrastructures.pdf`. El worker descarga el PDF, calcula MD5, extrae texto con `pypdf` y valida que las seis filas oficiales esperadas siguen presentes antes de escribir. Produccion queda con `esma_reporting_document=1` para `dominio=DLT`, `esma_dlt_market_infrastructure=6` y `esma_dlt_exemption=75`; todas las infraestructuras quedan `verified=true`, `completeness=completa`, `source_hash=0c2c034d579839f0e5ee49fb0fed5367`, `capture_date=2026-05-13`. Filas oficiales cargadas: CSD Prague, 21X AG, 360X AG, UAB Axiology DLT, LISE SA y Securitize Europe Brokerage and Markets SV SA. `sync_log` registra `worker-esma-dlt status=ok documentos_processed=1 articulos_upserted=81`. Verificacion formal: `SELECT COUNT(*) FROM esma_dlt_market_infrastructure` devuelve `6` y `PASS`. Siguiente paso exacto: E-09, auditar y refrescar CASP/MiCA register.
@@ -6422,3 +6442,89 @@ En orden de impacto real:
 **Motivo:** FULINS diario puede requerir decenas o cientos de GB para historico operativo. Para el caso de uso actual no aporta tanto como los esquemas de validacion y reglas de reporte, y aumentaria coste, mantenimiento y riesgo de stale data.
 
 **Implicacion:** `worker-esma-firds` queda como metadata/piloto acotado para probar contrato `evidence_limited`; no debe evolucionar a cobertura autoritativa de instrumentos sin un nuevo sprint con estimacion de almacenamiento, particionado, retencion y presupuesto operacional.
+
+---
+
+## Reclamo 2026-05-14 - I-03 Exponer instrucciones, claves y reglas Modelo 290
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `apps/api/routers/modelos.py`, `apps/api/routers/consulta.py`, `apps/api/services/modelos.py`, `apps/api/schemas.py`, `apps/api/tests/conftest.py`, `apps/api/tests/test_consulta_libre.py`.
+
+**Objetivo:** exponer `claves`, `instrucciones` y `reglas_inclusion` del Modelo 290 en API/MCP y enrutar consultas FATCA/passive NFFE al Modelo 290, no a IRNR.
+
+**Resultado:**
+- `/v1/modelos/aeat/290` expone `claves`, `instrucciones` y `reglas_inclusion`.
+- `/v1/consulta?q=FATCA passive NFFE no residente modelo 290` devuelve `modelos=[290]`, con reglas FATCA cargadas.
+- Se corrigio un bug de sesion cerrada en `consulta_fiscal`: el detalle de modelos intentaba consultar con una sesion SQLAlchemy ya cerrada.
+
+**Pruebas ejecutadas:**
+- Local `python -m pytest apps/api/tests/test_consulta_libre.py apps/api/tests/test_modelos_truth_contract.py -q` => 26 passed.
+- VPS `/v1/modelos/aeat/290` => claves=7, instrucciones=7, reglas=5.
+- VPS consulta FATCA/passive/no residente => solo Modelo 290 en `modelos`.
+
+**Siguiente paso:** I-04 cargar instrucciones y claves oficiales del Modelo 296.
+
+---
+
+## Reclamo 2026-05-14 - I-04 Cargar instrucciones y claves Modelo 296
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `scripts/data/load_modelo_296_irnr_instructions.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar instrucciones, claves de renta, subclaves de retencion y trigger keywords oficiales del Modelo 296 desde BOE/AEAT.
+
+**Resultado:**
+- Loader oficial `scripts/data/load_modelo_296_irnr_instructions.py` creado.
+- Produccion: Modelo 296 con 35 claves/subclaves y 8 instrucciones.
+- Todos los registros cargados tienen `source_url`, `source_hash` y `capture_date`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile scripts/data/load_modelo_296_irnr_instructions.py`
+- VPS load por `docker compose exec postgres psql` => `DO`.
+- SQL VPS: `claves=35`, `instrucciones=8`, `missing_source_claves=0`, `missing_source_instrucciones=0`.
+- API VPS `/v1/modelos/aeat/296` => claves=35, instrucciones=8.
+
+**Siguiente paso:** I-05 cargar instrucciones y claves del Modelo 216.
+
+---
+
+## Reclamo 2026-05-14 - I-05 Cargar instrucciones y claves Modelo 216
+
+**Estado:** COMPLETADO LOCAL / DESPLEGADO VPS.
+
+**Archivos principales:** `scripts/data/load_modelo_216_irnr_instructions.py`, `prd.json`, `progress.txt`, `docs/master-execution-roadmap.md`.
+
+**Objetivo:** cargar instrucciones oficiales y claves operativas trazables del Modelo 216 desde BOE/AEAT.
+
+**Resultado:**
+- Loader oficial `scripts/data/load_modelo_216_irnr_instructions.py` creado.
+- Produccion: Modelo 216 con 5 claves operativas y 6 instrucciones.
+- Los registros cargados tienen `source_url`, `source_hash` y `capture_date`.
+
+**Pruebas ejecutadas:**
+- `python -m py_compile scripts/data/load_modelo_216_irnr_instructions.py`
+- VPS load por `docker compose exec postgres psql` => `DO`.
+- SQL VPS: `claves=5`, `instrucciones=6`, `missing_source=0`.
+- API VPS `/v1/modelos/aeat/216` => claves=5, instrucciones=6.
+
+**Siguiente paso:** I-06 cargar instrucciones y claves del Modelo 198.
+
+- 2026-05-14 I-06 Load instructions and keys for Modelo 198 - COMPLETADO. Loader oficial scripts/data/load_modelo_198_activos_instructions.py; VPS: claves=46, instrucciones=7, missing_source=0; API expone ambas secciones. Siguiente: I-07.
+
+
+- 2026-05-14 I-07 Load instructions and keys for Modelos 187 and 193 - COMPLETADO. Loader oficial scripts/data/load_modelos_187_193_instructions.py; VPS: 187 claves=28/instrucciones=5, 193 claves=38/instrucciones=5, missing_source=0. Siguiente: I-08.
+
+
+- 2026-05-14 I-08 Load instructions for Modelos 303 and 200 - COMPLETADO con caveat. Loader oficial scripts/data/load_modelos_303_200_instructions.py; VPS: 303 instrucciones=5, 200 instrucciones=5, missing_source=0; ambos permanecen parciales hasta evidencia completa. Siguiente: I-09.
+
+
+- 2026-05-14 I-09 Update completeness status - COMPLETADO. Graduacion query-driven: completa para 187,193,198,216,290,296; parcial para 200,303. API spot-check: 198 verified=true/completa, 303 verified=false/parcial. Siguiente: I-10.
+
+
+- 2026-05-14 I-10 FATCA routing validation - COMPLETADO. Se ampliaron mcp_validation_suite y mcp_deep_contract_audit para comprobar Modelo 290 con claves/instrucciones/reglas, consulta FATCA passive NFFE dirigida a Modelo 290 y sin contaminacion IRNR 216/296, y al menos un modelo AEAT graduado a completa (198). VPS: validation ok=True con 38 checks; deep contract audit ok=True con 9 checks tras rebuild de api para incluir el registry actualizado. Siguiente: I-11 final verification.
+
+
+- 2026-05-14 I-11 AEAT instructions/keys sprint - COMPLETADO. Informe final escrito en docs/aeat-instructions-coverage-report.md. Conteos produccion: 290 claves=7 instrucciones=7 reglas=5; 296=35/8; 216=5/6; 198=46/7; 187=28/5; 193=38/5; 303 instrucciones=5; 200 instrucciones=5. Completa/verified=true para 187,193,198,216,290,296; parcial/verified=false para 200 y 303. Local full suite: 3034 passed, 2 skipped. VPS: mcp_validation_suite ok=True con 38 checks; mcp_deep_contract_audit ok=True con 9 checks; /status api=ok database=ok y workers stale=false; Alertmanager 0 active alerts. Sprint cerrado: COMPLETE.
+

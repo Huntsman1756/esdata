@@ -312,6 +312,14 @@ class ModeloClave(BaseModel):
     )
 
 
+    tipo: str | None = Field(default=None, description="Tipo de clave normalizado")
+    criterio_aplicacion: str | None = Field(default=None, description="Criterio oficial de aplicacion")
+    exclusiones: str | None = Field(default=None, description="Supuestos en los que no aplica")
+    source_url: str | None = Field(default=None, description="URL oficial de procedencia")
+    source_hash: str | None = Field(default=None, description="Hash de la fuente oficial")
+    capture_date: str | None = Field(default=None, description="Fecha de captura")
+
+
 class ModeloInstruccion(BaseModel):
     seccion: str = Field(
         description="Sección (caracteristicas, quien-debe, como-rellenar, plazo)"
@@ -319,6 +327,24 @@ class ModeloInstruccion(BaseModel):
     titulo: str = Field(description="Título de la sección")
     contenido: str = Field(description="Contenido paso a paso")
     orden: int = Field(description="Orden de presentación")
+
+
+    texto: str | None = Field(default=None, description="Texto oficial normalizado")
+    casilla_referencia: str | None = Field(default=None, description="Casilla o campo relacionado")
+    source_url: str | None = Field(default=None, description="URL oficial de procedencia")
+    source_hash: str | None = Field(default=None, description="Hash de la fuente oficial")
+    capture_date: str | None = Field(default=None, description="Fecha de captura")
+
+
+class ModeloReglaInclusion(BaseModel):
+    supuesto: str = Field(description="Supuesto operativo cubierto por la regla")
+    decision: str = Field(description="INCLUIR, EXCLUIR, CONDICIONAL o EVIDENCE_LIMITED")
+    condicion: str | None = Field(default=None, description="Condicion aplicable si la decision es condicional")
+    umbral: str | None = Field(default=None, description="Umbral oficial si existe")
+    fuente_normativa: str | None = Field(default=None, description="Referencia normativa oficial")
+    source_url: str = Field(description="URL oficial de procedencia")
+    source_hash: str | None = Field(default=None, description="Hash de la fuente oficial")
+    capture_date: str | None = Field(default=None, description="Fecha de captura")
 
 
 class ModeloNormativa(BaseModel):
@@ -411,6 +437,10 @@ class ModeloDetail(BaseModel):
         default_factory=list, description="Instrucciones"
     )
     instrucciones_total: int = Field(default=0, description="Total de instrucciones disponibles")
+    reglas_inclusion: list[ModeloReglaInclusion] = Field(
+        default_factory=list, description="Reglas oficiales de inclusion/exclusion"
+    )
+    reglas_inclusion_total: int = Field(default=0, description="Total de reglas de inclusion disponibles")
     normativa: list[ModeloNormativa] = Field(
         default_factory=list, description="Normativa BOE"
     )
@@ -750,6 +780,12 @@ class AEATModeloDetail(BaseModel):
     casillas_total: int = Field(default=0, description="Numero de casillas/campos oficiales cargados para la campana consultada")
     casillas_campana: str | None = Field(default=None, description="Campana usada para contar casillas/campos")
     casillas_selection_notice: str | None = Field(default=None, description="Aviso si las casillas proceden de una campana distinta")
+    claves: list[ModeloClave] = Field(default_factory=list, description="Claves oficiales de la campana")
+    claves_total: int = Field(default=0, description="Total de claves oficiales disponibles")
+    instrucciones: list[ModeloInstruccion] = Field(default_factory=list, description="Instrucciones oficiales de la campana")
+    instrucciones_total: int = Field(default=0, description="Total de instrucciones oficiales disponibles")
+    reglas_inclusion: list[ModeloReglaInclusion] = Field(default_factory=list, description="Reglas oficiales de inclusion/exclusion")
+    reglas_inclusion_total: int = Field(default=0, description="Total de reglas de inclusion disponibles")
     campana_actual: AEATCampanaDetail | None = Field(default=None, description="Campana actual con recursos activos")
     historial: list[AEATCampanaDetail] | None = Field(default=None, description="Historial de campanas y versiones si include_history=true")
 
@@ -3676,6 +3712,18 @@ class ConsultaFiscalResponse(BaseModel):
     modelos: list[dict] = Field(default_factory=list, description="Modelos AEAT identificados")
     resultados: list[dict] = Field(default_factory=list, description="Resultados de búsqueda unificados")
     total_resultados: int = Field(description="Número total de resultados")
+    status: str | None = Field(
+        default=None,
+        description="matched, evidence_limited o no_results para consumo de agentes",
+    )
+    safe_to_answer: bool | None = Field(
+        default=None,
+        description="True solo cuando la respuesta esta suficientemente respaldada para contestar sin revision",
+    )
+    evidence_notice: str | None = Field(
+        default=None,
+        description="Aviso de evidencia limitada o abstencion cuando safe_to_answer=false",
+    )
     result_metadata: dict = Field(
         default_factory=dict,
         description="Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos.",

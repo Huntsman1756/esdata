@@ -617,6 +617,177 @@ def audit_eurlex_esma_market_contracts(base_url: str) -> CheckResult:
     )
 
 
+def audit_boe_core_legislation_contracts(base_url: str) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {"articles_checked": []}
+    article_checks = [
+        {
+            "name": "trlirnr_article_14",
+            "path": "/v1/legislacion/TRLIRNR/articulos/14",
+            "expected_norma": "TRLIRNR",
+            "expected_numero": "14",
+            "expected_boe": "BOE-A-2004-4527",
+            "required_text": "Rentas exentas",
+        },
+        {
+            "name": "irnr_alias_article_14",
+            "path": "/v1/legislacion/IRNR/articulos/14",
+            "expected_norma": "TRLIRNR",
+            "expected_numero": "14",
+            "expected_boe": "BOE-A-2004-4527",
+            "required_text": "Rentas exentas",
+        },
+        {
+            "name": "liva_article_163_sexvicies",
+            "path": "/v1/legislacion/LIVA/articulos/163%20sexvicies",
+            "expected_norma": "LIVA",
+            "expected_numero": "163 sexvicies",
+            "expected_boe": "BOE-A-1992-28740",
+            "required_text": None,
+        },
+    ]
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        for check in article_checks:
+            status_code, payload, text_preview = _get_json(client, check["path"])
+            text_value = (payload or {}).get("texto") or ""
+            source_url = (payload or {}).get("source_url") or ""
+            record = {
+                "name": check["name"],
+                "path": check["path"],
+                "status_code": status_code,
+                "norma": (payload or {}).get("norma"),
+                "numero": (payload or {}).get("numero"),
+                "boe_reference": (payload or {}).get("boe_reference"),
+                "verified": (payload or {}).get("verified"),
+                "completeness": (payload or {}).get("completeness"),
+                "text_length": len(text_value),
+                "source_url": source_url,
+            }
+            details["articles_checked"].append(record)
+            if status_code != 200 or not payload:
+                failures.append({"check": check["name"], "reason": "endpoint_failed", "response": text_preview})
+                continue
+            if payload.get("norma") != check["expected_norma"] or payload.get("numero") != check["expected_numero"]:
+                failures.append({"check": check["name"], "reason": "article_identity_mismatch", "record": record})
+            if payload.get("boe_reference") != check["expected_boe"]:
+                failures.append({"check": check["name"], "reason": "boe_reference_mismatch", "record": record})
+            if payload.get("verified") is not True or payload.get("completeness") != "completa":
+                failures.append({"check": check["name"], "reason": "not_verified_complete", "record": record})
+            if len(text_value) < 50:
+                failures.append({"check": check["name"], "reason": "missing_real_text", "record": record})
+            required_text = check.get("required_text")
+            if required_text and required_text.lower() not in text_value.lower():
+                failures.append({"check": check["name"], "reason": "required_text_missing", "required_text": required_text, "record": record})
+            if not source_url.startswith(f"https://www.boe.es/buscar/act.php?id={check['expected_boe']}"):
+                failures.append({"check": check["name"], "reason": "not_official_boe_sourced", "record": record})
+
+    return CheckResult(
+        "boe_core_legislation_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
+def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {
+        "modelo_290": {},
+        "fatca_query": {},
+        "completed_models": [],
+    }
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        status_code, payload, text_preview = _get_json(client, "/v1/modelos/aeat/290")
+        if status_code != 200 or not payload:
+            failures.append({"check": "modelo_290_detail", "reason": "endpoint_failed", "response": text_preview})
+        else:
+            reglas = payload.get("reglas_inclusion") or []
+            detalles_reglas = [
+                {
+                    "supuesto": regla.get("supuesto"),
+                    "decision": regla.get("decision"),
+                    "source_url": regla.get("source_url"),
+                }
+                for regla in reglas
+            ]
+            details["modelo_290"] = {
+                "verified": payload.get("verified"),
+                "completeness": payload.get("completeness"),
+                "claves": len(payload.get("claves") or []),
+                "instrucciones": len(payload.get("instrucciones") or []),
+                "reglas": len(reglas),
+                "reglas_inclusion": detalles_reglas,
+            }
+            if payload.get("verified") is not True or payload.get("completeness") != "completa":
+                failures.append({"check": "modelo_290_detail", "reason": "not_verified_complete", "details": details["modelo_290"]})
+            if not payload.get("claves") or not payload.get("instrucciones") or not reglas:
+                failures.append({"check": "modelo_290_detail", "reason": "missing_keys_instructions_or_rules", "details": details["modelo_290"]})
+
+            def _find_rule(term: str, decision: str) -> dict[str, Any] | None:
+                for regla in reglas:
+                    if term in (regla.get("supuesto") or "").lower() and regla.get("decision") == decision:
+                        return regla
+                return None
+
+            passive_include = _find_rule("pasiva con", "INCLUIR")
+            passive_exclude = _find_rule("pasiva sin", "EXCLUIR")
+            active_exclude = _find_rule("activa", "EXCLUIR")
+            if not passive_include:
+                failures.append({"check": "modelo_290_rules", "reason": "missing_passive_include_rule"})
+            if not passive_exclude:
+                failures.append({"check": "modelo_290_rules", "reason": "missing_passive_exclude_rule"})
+            if not active_exclude:
+                failures.append({"check": "modelo_290_rules", "reason": "missing_active_exclude_rule"})
+            for name, rule in {
+                "passive_include": passive_include,
+                "passive_exclude": passive_exclude,
+                "active_exclude": active_exclude,
+            }.items():
+                if rule and not rule.get("source_url"):
+                    failures.append({"check": "modelo_290_rules", "reason": "missing_rule_source_url", "rule": name})
+
+        status_code, consulta, text_preview = _get_json(
+            client,
+            "/v1/consulta",
+            {"q": "FATCA passive NFFE modelo 290"},
+        )
+        if status_code != 200 or not consulta:
+            failures.append({"check": "consulta_fatca_routing", "reason": "endpoint_failed", "response": text_preview})
+        else:
+            codigos = [item.get("codigo") for item in consulta.get("modelos") or []]
+            details["fatca_query"] = {
+                "status": consulta.get("status"),
+                "safe_to_answer": consulta.get("safe_to_answer"),
+                "codigos": codigos,
+            }
+            if "290" not in codigos:
+                failures.append({"check": "consulta_fatca_routing", "reason": "modelo_290_missing", "details": details["fatca_query"]})
+            if {"216", "296"} & set(codigos):
+                failures.append({"check": "consulta_fatca_routing", "reason": "irnr_contamination", "details": details["fatca_query"]})
+
+        status_code, modelo_198, text_preview = _get_json(client, "/v1/modelos/aeat/198")
+        if status_code != 200 or not modelo_198:
+            failures.append({"check": "aeat_completed_models", "reason": "endpoint_failed", "response": text_preview})
+        else:
+            completed = []
+            if modelo_198.get("verified") is True and modelo_198.get("completeness") == "completa":
+                completed.append(modelo_198.get("codigo"))
+            details["completed_models"] = completed
+            if not completed:
+                failures.append({"check": "aeat_completed_models", "reason": "no_completed_verified_models"})
+
+    return CheckResult(
+        "aeat_instruction_key_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
 def audit_semantic_suite(base_url: str) -> CheckResult:
     sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
     from mcp_validation_suite import run_read_only_suite  # type: ignore
@@ -642,6 +813,8 @@ def run_audit(base_url: str, database_url: str) -> dict[str, Any]:
         audit_domain_availability(base_url, registry),
         audit_mcp_tools(base_url),
         audit_actions_openapi(base_url),
+        audit_boe_core_legislation_contracts(base_url),
+        audit_aeat_instruction_key_contracts(base_url),
         audit_eurlex_esma_market_contracts(base_url),
         audit_semantic_suite(base_url),
     ]

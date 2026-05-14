@@ -351,6 +351,89 @@ def _validate_modelo_detail_bounded(payload: dict[str, Any]) -> tuple[bool, dict
     return ok, details
 
 
+def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    claves = payload.get("claves") or []
+    instrucciones = payload.get("instrucciones") or []
+    reglas = payload.get("reglas_inclusion") or []
+    regla_text = " ".join(str(regla.get("supuesto") or "") for regla in reglas).lower()
+    decisions = {regla.get("decision") for regla in reglas}
+    details = {
+        "codigo": payload.get("codigo"),
+        "verified": payload.get("verified"),
+        "completeness": payload.get("completeness"),
+        "claves": len(claves),
+        "instrucciones": len(instrucciones),
+        "reglas_inclusion": len(reglas),
+        "decisions": sorted(str(value) for value in decisions),
+    }
+    ok = (
+        payload.get("codigo") == "290"
+        and payload.get("verified") is True
+        and payload.get("completeness") == "completa"
+        and len(claves) > 0
+        and len(instrucciones) > 0
+        and len(reglas) > 0
+        and "pasiva" in regla_text
+        and "activa" in regla_text
+        and {"INCLUIR", "EXCLUIR"} <= decisions
+    )
+    return ok, details
+
+
+def _validate_fatca_query_routes_to_290(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    modelos = payload.get("modelos") or []
+    codigos = [item.get("codigo") for item in modelos]
+    details = {
+        "status": payload.get("status"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+        "codigos": codigos,
+        "total_modelos": len(modelos),
+        "evidence_notice": payload.get("evidence_notice"),
+    }
+    ok = (
+        payload.get("status") in {"matched", "evidence_limited", "no_verified"}
+        and "290" in codigos
+        and not ({"216", "296"} & set(codigos))
+    )
+    return ok, details
+
+
+def _validate_completed_aeat_model(expected_codigo: str):
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        details = {
+            "codigo": payload.get("codigo"),
+            "verified": payload.get("verified"),
+            "completeness": payload.get("completeness"),
+            "claves": len(payload.get("claves") or []),
+            "instrucciones": len(payload.get("instrucciones") or []),
+        }
+        ok = (
+            payload.get("codigo") == expected_codigo
+            and payload.get("verified") is True
+            and payload.get("completeness") == "completa"
+            and len(payload.get("claves") or []) > 0
+            and len(payload.get("instrucciones") or []) > 0
+        )
+        return ok, details
+
+    return validator
+
+
+def _validate_any_completed_aeat_model(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    modelos = payload.get("modelos") or []
+    completed = [
+        item.get("codigo")
+        for item in modelos
+        if item.get("completeness") == "completa" and item.get("verified") is True
+    ]
+    details = {
+        "total": payload.get("total"),
+        "completed": completed[:20],
+        "completed_count": len(completed),
+    }
+    return len(completed) > 0, details
+
+
 def _validate_list_pagination(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     list_key = "normas" if "normas" in payload else "modelos" if "modelos" in payload else None
     items = payload.get(list_key or "") or []
@@ -428,6 +511,41 @@ def _validate_eurlex_market_article(expected_celex: str) -> Any:
             and bool(payload.get("source_hash"))
             and bool(payload.get("capture_date"))
         )
+        return ok, details
+
+    return validator
+
+
+def _validate_legislation_article(
+    expected_norma: str,
+    expected_numero: str,
+    expected_boe_reference: str,
+    *,
+    required_text: str | None = None,
+) -> Any:
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        text_value = payload.get("texto") or ""
+        source_url = payload.get("source_url") or ""
+        details = {
+            "norma": payload.get("norma"),
+            "numero": payload.get("numero"),
+            "boe_reference": payload.get("boe_reference"),
+            "verified": payload.get("verified"),
+            "completeness": payload.get("completeness"),
+            "text_length": len(text_value),
+            "source_url": source_url,
+        }
+        ok = (
+            payload.get("norma") == expected_norma
+            and payload.get("numero") == expected_numero
+            and payload.get("boe_reference") == expected_boe_reference
+            and payload.get("verified") is True
+            and payload.get("completeness") == "completa"
+            and len(text_value) > 50
+            and source_url.startswith(f"https://www.boe.es/buscar/act.php?id={expected_boe_reference}")
+        )
+        if required_text is not None:
+            ok = ok and required_text.lower() in text_value.lower()
         return ok, details
 
     return validator
@@ -582,6 +700,47 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         checks.append(
             _check_json_contract(
                 client,
+                "/v1/legislacion/TRLIRNR/articulos/14",
+                {},
+                _validate_legislation_article(
+                    "TRLIRNR",
+                    "14",
+                    "BOE-A-2004-4527",
+                    required_text="Rentas exentas",
+                ),
+                "trlirnr_article_14_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/legislacion/IRNR/articulos/14",
+                {},
+                _validate_legislation_article(
+                    "TRLIRNR",
+                    "14",
+                    "BOE-A-2004-4527",
+                    required_text="Rentas exentas",
+                ),
+                "irnr_alias_article_14_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/legislacion/LIVA/articulos/163%20sexvicies",
+                {},
+                _validate_legislation_article(
+                    "LIVA",
+                    "163 sexvicies",
+                    "BOE-A-1992-28740",
+                ),
+                "liva_article_163_sexvicies_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
                 "/v1/domain-availability",
                 {"only_empty": "true"},
                 _validate_domain_availability,
@@ -680,6 +839,33 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"limit": 25, "offset": 0},
                 _validate_modelo_casillas_pagination,
                 "modelo_100_casillas_paginated_agent_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/aeat/290",
+                {},
+                _validate_modelo_290_fatca_contract,
+                "modelo_290_fatca_rules_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/consulta",
+                {"q": "FATCA passive NFFE modelo 290"},
+                _validate_fatca_query_routes_to_290,
+                "consulta_fatca_routes_to_modelo_290",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/aeat/198",
+                {},
+                _validate_completed_aeat_model("198"),
+                "aeat_modelo_198_completed_contract",
             )
         )
         checks.append(

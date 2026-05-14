@@ -328,6 +328,194 @@ Learnings:
 - When piping remote scripts through SSH, every `docker compose exec -T ...` inside the script should use `< /dev/null` or Compose can consume the remaining script input.
 Next: COMPLETE
 
+=== Iteration I-03 - 2026-05-14T06:48:00+02:00 ===
+Story: I-03 Expose instructions and keys in API and MCP for Modelo 290
+Result: PASS
+Evidence:
+  - Local: `python -m pytest apps/api/tests/test_consulta_libre.py apps/api/tests/test_modelos_truth_contract.py -q` => 26 passed.
+  - VPS `/v1/modelos/aeat/290`: claves=7, instrucciones=7, reglas_inclusion=5.
+  - VPS `/v1/consulta?q=FATCA passive NFFE no residente modelo 290`: modelos=[290] and includes Modelo 290 instrucciones/claves/reglas_inclusion.
+  - Fixed stale-session bug in consulta detail lookup: model detail now uses a fresh DB session instead of a closed SQLAlchemy session.
+Accepted risks:
+  - None.
+Next: I-04
+
+=== Iteration I-04 - 2026-05-14T06:58:00+02:00 ===
+Story: I-04 Load instructions and keys for Modelo 296 - IRNR no residentes
+Result: PASS
+Evidence:
+  - Added `scripts/data/load_modelo_296_irnr_instructions.py`.
+  - Official sources: BOE-A-2008-18497, AEAT DR_296_2024.pdf, AEAT formulario/fichero help pages.
+  - VPS load via psql returned `DO`.
+  - Production counts: Modelo 296 claves=35, instrucciones=8.
+  - Provenance check: missing_source_claves=0, missing_source_instrucciones=0.
+  - API `/v1/modelos/aeat/296`: claves=35, instrucciones=8.
+Accepted risks:
+  - Modelo 296 remains subject to later completeness graduation; this story loads official keys/instructions but does not assert full operational applicability for every case.
+Next: I-05
+
+=== Iteration I-05 - 2026-05-14T07:05:00+02:00 ===
+Story: I-05 Load instructions and keys for Modelo 216 - IRNR retenciones
+Result: PASS
+Evidence:
+  - Added `scripts/data/load_modelo_216_irnr_instructions.py`.
+  - Official sources: BOE-A-2008-18497 and AEAT Modelo 216 technical help page.
+  - VPS load via psql returned `DO`.
+  - Production counts: Modelo 216 claves=5, instrucciones=6.
+  - Provenance check: missing_source=0 for Modelo 216 claves.
+  - API `/v1/modelos/aeat/216`: claves=5, instrucciones=6.
+Accepted risks:
+  - Modelo 216 keys loaded are operational categories from official presentation/period/result rules; it is not a per-perceptor annual design like Modelo 296.
+Next: I-06
+=== Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
+Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
+Result: PASS
+Evidence:
+  - Added JSON POST compatibility endpoint `/v1/ai/consulta`.
+  - FATCA passive query returns `status=evidence_limited`, `safe_to_answer=false`, not 500.
+  - Empty and >1000 character queries return 400.
+  - Local tests: `apps/api/tests/test_consulta_libre.py apps/api/tests/test_consulta_fail_closed.py` => 4 passed.
+  - VPS logs after test calls show no 500/exception/traceback and `/status` is ok with 0 stale workers.
+Accepted risks:
+  - none
+Next: I-01
+=== Iteration I-01 - 2026-05-14T06:35:00+02:00 ===
+Story: I-01 Alembic migrations for instruction/key/rule tables
+Result: PASS
+Evidence:
+  - Added Alembic revision `20260514_0077_aeat_instruction_key_tables`.
+  - Existing `modelo_clave` and `modelo_instruccion` were extended additively with provenance fields instead of being recreated.
+  - Created `modelo_regla_inclusion` and `modelo_trigger_keyword` via Alembic with RLS policies for `esdata` and `service_role`.
+  - Test DB migration reached head and contained all four tables.
+  - Production Alembic version is `20260514_0077_aeat_instruction_key_tables`.
+  - Formal verification confirmed all four tables exist in production and returned PASS.
+Accepted risks:
+  - Historical `modelo_clave` and `modelo_instruccion` rows may still have null `source_url`; new official loaders must populate source fields and must not invent provenance for old rows.
+Next: I-02
+=== Iteration I-02 - 2026-05-14T07:10:00+02:00 ===
+Story: I-02 Load Modelo 290 instructions, keys, and FATCA inclusion rules
+Result: PASS
+Evidence:
+  - Official sources verified: BOE-A-2014-6922 Orden HAP/1136/2014, BOE-A-2014-6854 FATCA Spain-US Agreement, and AEAT 290 XSD/WSDL ZIP.
+  - Added `scripts/data/load_modelo_290_fatca_instructions.py`; it downloads official sources, computes MD5 hashes, emits SQL, and does not access DB directly.
+  - Production load via docker compose postgres psql inserted: claves=7, instrucciones=7, reglas_inclusion=5, trigger_keywords=16.
+  - Provenance check returned missing_provenance=0 for `modelo_clave`, `modelo_instruccion`, and `modelo_regla_inclusion` rows for Modelo 290.
+  - Formal verification: `290 claves=7 reglas=5`, PASS.
+Accepted risks:
+  - No `>10%` substantial-owner threshold was loaded because the official BOE sources used here state “personas que ejercen el control” and KYC/AML procedures, not that percentage. The rule records explicitly preserve that limitation.
+Next: I-03
+=== Iteration I-00 - 2026-05-14T05:58:00+02:00 ===
+Story: I-00 Fix error 500 in consulta libre - must return evidence_limited not crash
+Sources accessed:
+  - Existing production API `/v1/consulta`
+  - New compatibility endpoint `/v1/ai/consulta`
+Records loaded:
+  - none; defensive API contract story
+Result: PASS
+Evidence:
+  - Reproduced production behavior before fix: `POST /v1/ai/consulta` returned `404` while `GET /v1/consulta?q=FATCA passive entity modelo 290` returned `200` with limited evidence. This explains the GPT Actions "consulta libre" failure path: the JSON action endpoint expected by the client was missing.
+  - Added `POST /v1/ai/consulta` as a JSON compatibility wrapper over the existing consulta engine.
+  - Added explicit response contract fields to consulta responses: `status`, `safe_to_answer`, `evidence_notice`.
+  - Added input validation: empty `query` => `400`; query length >1000 => `400`.
+  - Local tests: `python -m pytest apps/api/tests/test_consulta_libre.py apps/api/tests/test_consulta_fail_closed.py -q` => `4 passed`.
+  - VPS deployed commit `f5a209f`.
+  - VPS FATCA query: `POST /v1/ai/consulta` with `FATCA passive entity modelo 290` => `status=evidence_limited`, `safe_to_answer=false`, `total_resultados=0`, no 500.
+  - VPS invalid input: empty query => `400`; >1000 chars => `400`.
+  - VPS API logs after the check: no `500`, `exception` or `traceback` lines.
+  - VPS `/status`: `api=ok`, `database=ok`, `stale_count=0`.
+Caveat:
+  - I-00 intentionally does not make FATCA/passive NFFE answerable. It only prevents consulta libre from crashing or missing the JSON action route. The operational FATCA answer still requires I-01 to I-03.
+Next: I-01
+=== Iteration F-06 - 2026-05-13T19:40:00+02:00 ===
+Story: F-06 Final verification
+Result: PASS
+Evidence:
+  - Local full suite: `python -m pytest apps/ -q --basetemp .pytest-tmp` => `3030 passed, 2 skipped, 34 warnings`.
+  - Fixed an additional regression found by the full suite: legislation lookup now preserves mixed-case DB codes such as `EUR-Lex-*` while resolving aliases case-insensitively.
+  - Hardened MCP spawned-server audit tests to read the exact SQLite DB used by the Uvicorn subprocess, avoiding cross-test service singleton contamination.
+  - VPS deployed commit `2ccb005`.
+  - Production `mcp_validation_suite.py --read-only --base-url http://api:8000` => `ok=true`.
+  - Production `mcp_deep_contract_audit.py --base-url http://api:8000` => `ok=true`.
+  - Production TRLIRNR article 14: `norma=TRLIRNR`, `boe_reference=BOE-A-2004-4527`, `verified=true`, `completeness=completa`, `text_len=16942`.
+  - Production IRNR alias article 14 returns the same TRLIRNR text and contract.
+  - Production LIVA article `163 sexvicies`: only the corrected numero remains; endpoint returns `verified=true`, `completeness=completa`.
+  - Production `/status`: `api=ok`, `database=ok`, `workers_total=40`, `stale_count=0`.
+  - Alertmanager active unsilenced alerts: `0`.
+Accepted risks:
+  - none
+Next: COMPLETE
+=== Iteration F-03 - 2026-05-13T19:05:00+02:00 ===
+Story: F-03 Fix LIVA article name typo: 163 sexvivies -> 163 sexvicies
+Queries tested: 2
+Results: correct=2 honest_limit=0 incorrect=0
+Incorrect answers found: LIVA article identifier typo `163 sexvivies`
+Fixes applied:
+  - Production DB targeted update changed `articulo.numero` and title from `163 sexvivies` to official `163 sexvicies`.
+  - Added Alembic migration `20260513_0076_liva_163_sexvicies_typo.py` so future environments reproduce the correction.
+Evidence:
+  - SQL after update returns only `163 sexvicies` for LIVA `%sexvi%` lookup.
+  - `/v1/legislacion/LIVA/articulos/163%20sexvicies` returns HTTP 200 with `boe_reference=BOE-A-1992-28740`.
+Next: F-04
+=== Iteration F-04 - 2026-05-13T19:16:00+02:00 ===
+Story: F-04 Write BOE completeness test by BOE ID
+Queries tested: 6
+Results: correct=6 honest_limit=0 incorrect=0
+Incorrect answers found: none
+Fixes applied:
+  - Added `apps/api/tests/test_boe_completeness.py`.
+  - Registered pytest marker `boe_completeness`.
+Evidence:
+  - Local verification: `python -m pytest apps/api/tests/test_boe_completeness.py -v` => `1 passed`.
+  - Production BOE ID counts: TRLIRNR=66, LIVA=228, LGT=319, LIRPF=175, LIS=180, ITPAJD=67.
+Next: F-05
+=== Iteration F-05 - 2026-05-13T19:25:00+02:00 ===
+Story: F-05 Add TRLIRNR to mcp_validation_suite and mcp_deep_contract_audit
+Queries tested: 3 direct BOE article contracts plus full MCP suites
+Results: correct=3 honest_limit=0 incorrect=0
+Incorrect answers found: none
+Fixes applied:
+  - `/v1/legislacion/{codigo}/articulos/{numero}` now exposes `verified=true` and `completeness=completa` for consolidated BOE article responses.
+  - `mcp_validation_suite.py` checks TRLIRNR article 14, IRNR alias article 14, and LIVA article `163 sexvicies`.
+  - `mcp_deep_contract_audit.py` adds `boe_core_legislation_contracts`.
+Evidence:
+  - VPS validation suite: `ok=true`; new BOE checks all returned HTTP 200 with official BOE references.
+  - VPS deep contract audit: `ok=true`; `boe_core_legislation_contracts` checked TRLIRNR, IRNR alias and LIVA 163 sexvicies with no failures.
+Next: F-06
+=== Iteration F-01 - 2026-05-13T18:44:26+02:00 ===
+Story: F-01 Load TRLIRNR complete from BOE-A-2004-4527
+Sources accessed:
+  - https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527
+  - https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2004-4527/metadatos
+  - https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-2004-4527/texto/indice
+Records loaded:
+  - norma: TRLIRNR / BOE-A-2004-4527 / real_decreto_legislativo / tributario
+  - articulo: 66 rows for TRLIRNR
+  - version_articulo: official consolidated BOE block versions loaded by worker-boe
+Result: PASS
+Verification:
+  - Local pytest: `python -m pytest apps/workers/tests/test_boe.py::test_parse_metadata_uses_per_code_classification_for_trlirnr apps/workers/tests/test_boe.py::test_default_normas_include_itpajd -q` => 2 passed.
+  - VPS worker run: `BOE_LEGISLACION_NORMAS=TRLIRNR WORKER_REQUEST_DELAY=0 worker-boe python boe.py --run-once` => 75 BOE blocks processed, 75 upserts attempted.
+  - VPS SQL: `SELECT COUNT(*) FROM articulo WHERE norma_id=(SELECT id FROM norma WHERE codigo='TRLIRNR')` => 66.
+  - VPS API: `/v1/legislacion/TRLIRNR/articulos/14` returns BOE-A-2004-4527, source_url `https://www.boe.es/buscar/act.php?id=BOE-A-2004-4527#a14`, text_len=16942.
+Caveat:
+  - `/v1/legislacion/IRNR/articulos/14` still returns 404; aliasing is F-02 and was intentionally not mixed into F-01.
+Next: F-02
+=== Iteration F-02 - 2026-05-13T18:52:00+02:00 ===
+Story: F-02 Add IRNR alias so TRLIRNR is reachable by both identifiers
+Sources accessed:
+  - Existing production TRLIRNR corpus loaded from BOE-A-2004-4527 in F-01
+Records loaded:
+  - none; router alias and test fixture only
+Result: PASS
+Verification:
+  - Local pytest: `python -m pytest apps/api/tests/test_smoke.py::test_legislacion_irnr_alias_resuelve_trlirnr -q` => 1 passed.
+  - VPS API rebuilt and restarted.
+  - VPS `/v1/legislacion/IRNR/articulos/14` returns HTTP 200, canonical `norma=TRLIRNR`, BOE reference `BOE-A-2004-4527`.
+  - VPS `/v1/legislacion/TRLIRNR/articulos/14` returns the same text prefix as the alias endpoint.
+Caveat:
+  - `IRNR` is an API alias only; the canonical DB code remains `TRLIRNR`.
+Next: F-03
+
 === Iteration 9 - 2026-05-12T19:53:00+02:00 ===
 Story: Q-09 MiCA / ESMA - verify configured_but_unavailable domains respond correctly
 Queries tested: 7
@@ -1669,4 +1857,107 @@ Verification:
   - Alertmanager active alerts response: `[]`.
   - Formal E-13 verification command returned `PASS`.
 Caveat: FIRDS remains explicitly partial/evidence-limited; FITRS remains configured_but_unavailable until a dedicated ingestion story is approved.
+Next: COMPLETE
+=== Iteration I-06 - 2026-05-14T07:10:04+02:00 ===
+Story: I-06 Load instructions and keys for Modelo 198 - activos financieros
+Sources accessed:
+  - https://www.boe.es/buscar/doc.php?id=BOE-A-2024-27528
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_198_2024.pdf
+  - https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/declaraciones-informativas-ayuda-tecnica/modelos-190-198/modelo-198.html
+Records loaded:
+  - modelo_clave: 46 official Modelo 198 keys (origin, operation, market, representation, value)
+  - modelo_instruccion: 7 official-source instruction sections
+  - modelo_trigger_keyword: activos financieros / sociedad de valores routing terms
+Result: PASS
+Verification:
+  - Production SQL: 198 claves=46 instrucciones=7 missing_source=0
+  - Production API: /v1/modelos/aeat/198 returned claves=46 and instrucciones=7
+Caveat: completeness remains parcial until I-09 applies query-driven graduation across all loaded evidence.
+Next: I-07
+=== Iteration I-07 - 2026-05-14T07:15:12+02:00 ===
+Story: I-07 Load instructions and keys for Modelos 187 and 193
+Sources accessed:
+  - https://www.boe.es/buscar/doc.php?id=BOE-A-2024-27528
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_187_2022.pdf
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_193_2025.pdf
+  - AEAT help pages for Modelo 187 and Modelo 193
+Records loaded:
+  - Modelo 187: modelo_clave=28, modelo_instruccion=5
+  - Modelo 193: modelo_clave=38, modelo_instruccion=5
+  - Trigger keywords for IIC and capital mobiliario routing
+Result: PASS
+Verification:
+  - Production SQL: 187 claves=28 instrucciones=5 missing_source=0
+  - Production SQL: 193 claves=38 instrucciones=5 missing_source=0
+  - Production API: /v1/modelos/aeat/187 and /v1/modelos/aeat/193 expose claves/instrucciones
+Caveat: Modelo 187 uses the current AEAT logical design PDF published as 2022; no newer deterministic PDF was found in the active AEAT docs map.
+Next: I-08
+=== Iteration I-08 - 2026-05-14T07:19:32+02:00 ===
+Story: I-08 Load instructions for Modelos 303 and 200 - IVA and IS
+Sources accessed:
+  - https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2025.html
+  - https://sede.agenciatributaria.gob.es/Sede/iva/presentar-declaracion-iva-modelo-303.html
+  - https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/modelo-200.html
+  - https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GE04/200/Modelo_200.pdf
+  - AEAT Manual Sociedades 2024, declaracion del impuesto
+Records loaded:
+  - Modelo 303: modelo_instruccion=5, source coverage complete for loaded rows
+  - Modelo 200: modelo_instruccion=5, source coverage complete for loaded rows
+  - Trigger keywords for IVA and IS routing
+Result: PASS-WITH-CAVEAT
+Verification:
+  - Production SQL: 303 instrucciones=5 missing_source=0
+  - Production SQL: 200 instrucciones=5 missing_source=0
+  - Production API exposes instructions for both models
+Caveat: 303 and 200 remain partial; this story loaded high-value official instruction sections, not complete form-level guidance for every casilla/page.
+Next: I-09
+=== Iteration I-09 - 2026-05-14T07:22:40+02:00 ===
+Story: I-09 Update completeness status for models with full instructions + keys loaded
+Sources accessed:
+  - Production DB metrics for active AEAT campaigns and loaded official-source rows
+Records updated:
+  - completeness=completa: 187, 193, 198, 216, 290, 296
+  - completeness=parcial: 200, 303
+Result: PASS
+Verification:
+  - Query-driven graduation: casillas>0, claves>0, instrucciones>0, missing source in claves/instrucciones=0
+  - Production SQL returned completa_count=6
+  - Production API spot-check: 198 completeness=completa verified=true; 303 completeness=parcial verified=false
+Caveat: 200 and 303 intentionally stay parcial because this sprint loaded instructions but no official clave set for those models.
+Next: I-10
+=== Iteration I-10 - 2026-05-14T07:49:12+02:00 ===
+Story: I-10 Update mcp_validation_suite: test FATCA passive routing and model completeness
+Sources accessed:
+  - Production API /v1/modelos/aeat/290, /v1/consulta, /v1/modelos/aeat/198
+  - mcp_validation_suite.py and mcp_deep_contract_audit.py gates
+Records loaded:
+  - none; validation and contract audit story
+Result: PASS
+Verification:
+  - VPS mcp_validation_suite.py --read-only --base-url http://api:8000 returned ok=True with 38 checks.
+  - VPS mcp_deep_contract_audit.py --base-url http://api:8000 returned ok=True with 9 checks.
+  - Added FATCA passive routing checks: query routes to Modelo 290 and not IRNR models 216/296.
+  - Added Modelo 290 contract checks for claves, instrucciones and reglas_inclusion.
+  - Added completed AEAT model check using Modelo 198 completeness=completa verified=true.
+Caveat: API image had to be rebuilt so domain-availability used the updated Ralph table registry.
+Next: I-11
+=== Iteration I-11 - 2026-05-14T07:58:51+02:00 ===
+Story: I-11 Final verification - full sprint close
+Sources accessed:
+  - Production DB counts for Modelos 187, 193, 198, 200, 216, 290, 296, 303
+  - Production API /status and Alertmanager
+  - mcp_validation_suite.py and mcp_deep_contract_audit.py final gates
+Records loaded:
+  - none; final verification and report story
+Result: PASS
+Verification:
+  - Wrote docs/aeat-instructions-coverage-report.md.
+  - Local full suite: 3034 passed, 2 skipped, 34 warnings.
+  - Production counts: 290 claves=7 instrucciones=7 reglas=5; 296 claves=35 instrucciones=8; 216 claves=5 instrucciones=6; 198 claves=46 instrucciones=7; 187 claves=28 instrucciones=5; 193 claves=38 instrucciones=5; 303 instrucciones=5; 200 instrucciones=5.
+  - Completeness: completa for 187, 193, 198, 216, 290, 296; parcial for 200, 303.
+  - VPS mcp_validation_suite.py returned ok=True with 38 checks.
+  - VPS mcp_deep_contract_audit.py returned ok=True with 9 checks.
+  - /status returned api=ok and database=ok; every worker in workers has stale=false.
+  - Alertmanager returned 0 active alerts.
+Caveat: 200 and 303 remain intentionally partial because only instruction sections, not full deterministic clave coverage, were loaded.
 Next: COMPLETE

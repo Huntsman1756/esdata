@@ -5,7 +5,7 @@ import re
 import unicodedata
 
 from db import db_session
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from middleware.metrics import (
     record_consulta_metrics,
     record_faithfulness_histogram,
@@ -22,6 +22,7 @@ from services.domain_availability import get_domain_availability
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
 from services.unified_multi_source_search import unified_multi_source_search
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,50 @@ UNVERIFIED_EVIDENCE_AVISO = (
 )
 
 router = APIRouter(prefix="", tags=["consulta"])
+
+
+MAX_CONSULTA_QUERY_LENGTH = 1000
+
+
+class ConsultaLibreRequest(BaseModel):
+    query: str = Field(..., description="Pregunta fiscal-regulatoria en lenguaje natural")
+    sujeto: str = ""
+    pais: str = ""
+    tipo_operacion: str = ""
+    vigente_en: str | None = None
+    sources: str | None = None
+    hybrid_weight: float = Field(default=0.3, ge=0.0, le=1.0)
+
+
+def _validate_consulta_query(query: str) -> str:
+    normalized = (query or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="query must not be empty")
+    if len(normalized) > MAX_CONSULTA_QUERY_LENGTH:
+        raise HTTPException(status_code=400, detail="query is too long")
+    return normalized
+
+
+def _consulta_contract_fields(
+    *,
+    total_resultados: int,
+    confianza: dict | None,
+) -> dict[str, object]:
+    confianza = confianza or {}
+    review_required = bool(confianza.get("review_required", True))
+    aviso = confianza.get("aviso")
+    safe_to_answer = total_resultados > 0 and not review_required
+    if safe_to_answer:
+        status = "matched"
+    elif total_resultados == 0 and not aviso:
+        status = "no_results"
+    else:
+        status = "evidence_limited"
+    return {
+        "status": status,
+        "safe_to_answer": safe_to_answer,
+        "evidence_notice": aviso if not safe_to_answer else None,
+    }
 
 
 DOMAIN_AVAILABILITY_QUERY_MAP: list[tuple[tuple[str, ...], tuple[str, ...]]] = [
@@ -170,6 +215,7 @@ def _availability_abstention_response(
         modelos=[],
         resultados=[],
         total_resultados=0,
+        **_consulta_contract_fields(total_resultados=0, confianza=confianza),
         relevancia={
             "nivel": "baja",
             "score": 0.0,
@@ -210,6 +256,10 @@ def _unverified_abstention_response(
         modelos=[],
         resultados=[],
         total_resultados=0,
+        **_consulta_contract_fields(total_resultados=0, confianza={
+            "review_required": True,
+            "aviso": aviso,
+        }),
         relevancia={
             "nivel": "baja",
             "score": 0.0,
@@ -234,6 +284,22 @@ def _unverified_abstention_response(
 
 #  Keyword → modelo mapping
 KEYWORD_MODELOS = {
+    # FATCA / Modelo 290
+    "modelo 290": ["290"],
+    "fatca": ["290"],
+    "passive nffe": ["290"],
+    "active nffe": ["290"],
+    "nffe pasiva": ["290"],
+    "nffe activa": ["290"],
+    "entidad pasiva": ["290"],
+    "entidad activa": ["290"],
+    "ffi": ["290"],
+    "giin": ["290"],
+    "substantial owner": ["290"],
+    "titular sustancial": ["290"],
+    "persona estadounidense": ["290"],
+    "cuenta financiera fatca": ["290"],
+    "declaracion informativa fatca": ["290"],
     # FactA / intracomunitario
     "facta": ["216", "349", "124"],
     "intracomunitario": ["216", "349", "124"],
@@ -334,6 +400,24 @@ KEYWORD_MODELOS = {
     "modelo DAC6": ["DAC6"],
 }
 
+FATCA_MODELO_290_KEYWORDS = {
+    "modelo 290",
+    "fatca",
+    "passive nffe",
+    "active nffe",
+    "nffe pasiva",
+    "nffe activa",
+    "entidad pasiva",
+    "entidad activa",
+    "ffi",
+    "giin",
+    "substantial owner",
+    "titular sustancial",
+    "persona estadounidense",
+    "cuenta financiera fatca",
+    "declaracion informativa fatca",
+}
+
 #  Sujeto → modelo mapping
 SUJETO_MODELOS = {
     "no_residente": ["124", "216", "123", "296"],
@@ -374,6 +458,9 @@ def _resolve_modelos(keywords: list[str]) -> list[str]:
     # Group keywords by specificity: longer keywords first, then by position
     # This ensures "irnr" (matched from query) beats "renta" (generic)
     sorted_keywords = sorted(keywords, key=lambda k: (len(k), keywords.index(k)), reverse=True)
+
+    if any(kw in FATCA_MODELO_290_KEYWORDS for kw in keywords):
+        return ["290"]
 
     # Track how many models each keyword contributes
     keyword_models = {}
@@ -1183,55 +1270,91 @@ async def consulta_fiscal(
             logger.warning("Doctrina search failed for q='%s'", q)
 
     #  5. Obtener detalle completo de modelos
-    try:
+    if any(kw in FATCA_MODELO_290_KEYWORDS for kw in keywords):
+        modelos_codigo = ["290"]
+    else:
         modelos_codigo = list(dict.fromkeys(modelos_codigo))
-        modelos_detalle = []
+    modelos_detalle = []
+    with db_session() as model_db:
+        try:
+            for codigo in modelos_codigo:
+                rows = model_db.execute(
+                    text("""
+                        SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info,
+                               mc.id AS campana_id,
+                               mc.campana, mc.version_form, mc.url_normativa, mc.url_formato,
+                               mi.seccion, mi.titulo, COALESCE(mi.texto, mi.contenido) AS contenido, mi.orden,
+                               mco.categoria_obligado, mco.frecuencia_presentacion,
+                               mco.ventana_presentacion, mco.canal_presentacion,
+                               mco.obligados_resumen, mco.plazo_resumen, mco.norma_base
+                        FROM aeat_modelo am
+                        LEFT JOIN modelo_campana mc ON mc.modelo_id = am.id AND mc.activo = true
+                        LEFT JOIN modelo_campana_operativa mco ON mco.campana_id = mc.id
+                        LEFT JOIN modelo_instruccion mi ON mi.campana_id = mc.id
+                        WHERE am.codigo = :codigo
+                        ORDER BY mi.orden
+                    """),
+                    {"codigo": codigo},
+                ).mappings()
 
-        for codigo in modelos_codigo:
-            rows = db.execute(
-                text("""
-                    SELECT am.codigo, am.nombre, am.periodo, am.impuesto, am.url_info,
-                           mc.campana, mc.version_form, mc.url_normativa, mc.url_formato,
-                           mi.seccion, mi.titulo, mi.contenido, mi.orden,
-                           mco.categoria_obligado, mco.frecuencia_presentacion,
-                           mco.ventana_presentacion, mco.canal_presentacion,
-                           mco.obligados_resumen, mco.plazo_resumen, mco.norma_base
-                    FROM aeat_modelo am
-                    LEFT JOIN modelo_campana mc ON mc.modelo_id = am.id AND mc.activo = true
-                    LEFT JOIN modelo_campana_operativa mco ON mco.campana_id = mc.id
-                    LEFT JOIN modelo_instruccion mi ON mi.campana_id = mc.id
-                    WHERE am.codigo = :codigo
-                    ORDER BY mi.orden
-                """),
-                {"codigo": codigo},
-            ).mappings()
-
-            rows_list = list(rows)
-            if rows_list:
-                first = rows_list[0]
-                instrucciones = [
-                    {"seccion": r["seccion"], "titulo": r["titulo"], "contenido": r["contenido"], "orden": r["orden"]}
-                    for r in rows_list if r["seccion"]
-                ]
-                modelos_detalle.append({
-                    "codigo": first["codigo"],
-                    "nombre": first["nombre"],
-                    "periodo": first["periodo"],
-                    "impuesto": first["impuesto"],
-                    "url_info": first["url_info"],
-                    "campana": first["campana"],
-                    "categoria_obligado": first["categoria_obligado"],
-                    "frecuencia": first["frecuencia_presentacion"],
-                    "ventana": first["ventana_presentacion"],
-                    "canal": first["canal_presentacion"],
-                    "obligados_resumen": first["obligados_resumen"],
-                    "plazo_resumen": first["plazo_resumen"],
-                    "norma_base": first["norma_base"],
-                    "instrucciones": instrucciones,
-                })
-    except Exception:
-        db.rollback()
-        logger.warning("Modelo detail lookup failed for codigos=%s", modelos_codigo)
+                rows_list = list(rows)
+                if rows_list:
+                    first = rows_list[0]
+                    instrucciones = [
+                        {"seccion": r["seccion"], "titulo": r["titulo"], "contenido": r["contenido"], "orden": r["orden"]}
+                        for r in rows_list if r["seccion"]
+                    ]
+                    claves = []
+                    reglas_inclusion = []
+                    if first["campana_id"]:
+                        claves = [
+                            dict(row)
+                            for row in model_db.execute(
+                                text("""
+                                    SELECT codigo, etiqueta, descripcion,
+                                           COALESCE(tipo, tipo_clave, 'CLAVE') AS tipo,
+                                           criterio_aplicacion, exclusiones, source_url
+                                    FROM modelo_clave
+                                    WHERE campana_id = :campana_id AND activa = true
+                                    ORDER BY COALESCE(tipo, tipo_clave, 'CLAVE'), codigo
+                                """),
+                                {"campana_id": first["campana_id"]},
+                            ).mappings()
+                        ]
+                        reglas_inclusion = [
+                            dict(row)
+                            for row in model_db.execute(
+                                text("""
+                                    SELECT supuesto, decision, condicion, umbral,
+                                           fuente_normativa, source_url
+                                    FROM modelo_regla_inclusion
+                                    WHERE campana_id = :campana_id
+                                    ORDER BY supuesto
+                                """),
+                                {"campana_id": first["campana_id"]},
+                            ).mappings()
+                        ]
+                    modelos_detalle.append({
+                        "codigo": first["codigo"],
+                        "nombre": first["nombre"],
+                        "periodo": first["periodo"],
+                        "impuesto": first["impuesto"],
+                        "url_info": first["url_info"],
+                        "campana": first["campana"],
+                        "categoria_obligado": first["categoria_obligado"],
+                        "frecuencia": first["frecuencia_presentacion"],
+                        "ventana": first["ventana_presentacion"],
+                        "canal": first["canal_presentacion"],
+                        "obligados_resumen": first["obligados_resumen"],
+                        "plazo_resumen": first["plazo_resumen"],
+                        "norma_base": first["norma_base"],
+                        "instrucciones": instrucciones,
+                        "claves": claves,
+                        "reglas_inclusion": reglas_inclusion,
+                    })
+        except Exception:
+            model_db.rollback()
+            logger.exception("Modelo detail lookup failed for codigos=%s", modelos_codigo)
 
     #  6. Integrated unified multi-source search (if sources filter specified)
     if sources and q:
@@ -1432,6 +1555,10 @@ async def consulta_fiscal(
         modelos=modelos_detalle if modelos_detalle else [],
         resultados=deduped,
         total_resultados=len(deduped),
+        **_consulta_contract_fields(
+            total_resultados=len(deduped),
+            confianza=confianza if isinstance(confianza, dict) else None,
+        ),
         result_metadata={
             "returned_count": len(deduped),
             "scored_count": len(scored_results),
@@ -1449,4 +1576,32 @@ async def consulta_fiscal(
         confianza=confianza if isinstance(confianza, dict) else None,
         cited_chunks=cited_chunks if cited_chunks else [],
         claim_citations=claim_citations if claim_citations else [],
+    )
+
+
+@router.post(
+    "/v1/ai/consulta",
+    operation_id="consulta_fiscal_ai_compat",
+    response_model=ConsultaFiscalResponse,
+    summary="Consulta fiscal inteligente para GPT Actions",
+    description=(
+        "Compatibilidad JSON para GPT Actions. Usa el mismo motor que "
+        "GET /v1/consulta y devuelve status/safe_to_answer para que los "
+        "clientes distingan respuestas accionables de evidencia limitada."
+    ),
+)
+async def consulta_fiscal_ai_compat(
+    request: Request,
+    payload: ConsultaLibreRequest,
+):
+    query = _validate_consulta_query(payload.query)
+    return await consulta_fiscal(
+        request,
+        q=query,
+        sujeto=payload.sujeto,
+        pais=payload.pais,
+        tipo_operacion=payload.tipo_operacion,
+        vigente_en=payload.vigente_en,
+        sources=payload.sources,
+        hybrid_weight=payload.hybrid_weight,
     )

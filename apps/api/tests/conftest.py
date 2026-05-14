@@ -2070,6 +2070,24 @@ STATEMENTS = [
         '1995-03-28'
     )
     """,
+    """
+    INSERT INTO norma (
+        codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
+        tipo_documento, ambito, estado_cobertura, vigente_desde
+    )
+    VALUES (
+        'TRLIRNR',
+        'Real Decreto Legislativo 5/2004, por el que se aprueba el texto refundido de la Ley del Impuesto sobre la Renta de no Residentes',
+        'BOE-A-2004-4527',
+        'https://www.boe.es/eli/es/rdlg/2004/03/05/5',
+        'es',
+        'boe',
+        'real_decreto_legislativo',
+        'tributario',
+        'ingestada',
+        '2004-03-13'
+    )
+    """,
     # --- LIVA 91: fixture de test con texto realista del BOE ---
     # Este no es un placeholder de producción; el worker BOE ingesta el texto real.
     # Aquí usamos un extracto representativo para que los tests verifiquen búsqueda y estructura.
@@ -2120,6 +2138,11 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM norma WHERE codigo = 'RIRNR'
     """,
     """
+    INSERT INTO articulo (norma_id, numero, titulo, tipo)
+    SELECT id, '14', 'Rentas exentas', 'articulo'
+    FROM norma WHERE codigo = 'TRLIRNR'
+    """,
+    """
     INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
     SELECT a.id, 'Articulo 7. Son transmisiones patrimoniales sujetas:
 1. Las transmisiones onerosas por actos inter vivos de toda clase de bienes y derechos.
@@ -2168,6 +2191,14 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     FROM articulo a
     JOIN norma n ON n.id = a.norma_id
     WHERE n.codigo = 'RIRNR' AND a.numero = '35'
+    """,
+    """
+    INSERT INTO version_articulo (articulo_id, texto, vigente_desde, vigente_hasta, boe_bloque_id)
+    SELECT a.id, 'Articulo 14. Rentas exentas. Estaran exentas determinadas rentas obtenidas sin mediacion de establecimiento permanente conforme al texto refundido de la Ley del Impuesto sobre la Renta de no Residentes.',
+    '2004-03-13', NULL, 'a14'
+    FROM articulo a
+    JOIN norma n ON n.id = a.norma_id
+    WHERE n.codigo = 'TRLIRNR' AND a.numero = '14'
     """,
     # --- Materias (taxonomía curada) ---
     """
@@ -2425,6 +2456,12 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         etiqueta        TEXT NOT NULL,
         descripcion     TEXT,
         tipo_clave      TEXT,
+        tipo            TEXT DEFAULT 'CLAVE',
+        criterio_aplicacion TEXT,
+        exclusiones     TEXT,
+        source_url      TEXT,
+        source_hash     TEXT,
+        capture_date    TEXT,
         activa          INTEGER NOT NULL DEFAULT 1,
         creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(campana_id, codigo)
@@ -2438,7 +2475,38 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
         titulo          TEXT NOT NULL,
         contenido       TEXT NOT NULL,
         orden           INTEGER DEFAULT 0,
+        texto           TEXT,
+        casilla_referencia TEXT,
+        source_url      TEXT,
+        source_hash     TEXT,
+        capture_date    TEXT,
         creado_at       TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS modelo_regla_inclusion (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        campana_id      INTEGER NOT NULL REFERENCES modelo_campana(id) ON DELETE CASCADE,
+        supuesto        TEXT NOT NULL,
+        decision        TEXT NOT NULL,
+        condicion       TEXT,
+        umbral          TEXT,
+        fuente_normativa TEXT,
+        source_url      TEXT NOT NULL,
+        source_hash     TEXT,
+        capture_date    TEXT,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(campana_id, supuesto)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS modelo_trigger_keyword (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        modelo_id       INTEGER NOT NULL REFERENCES aeat_modelo(id) ON DELETE CASCADE,
+        keyword         TEXT NOT NULL,
+        dominio         TEXT,
+        creado_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(modelo_id, keyword)
     )
     """,
     """

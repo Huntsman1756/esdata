@@ -49,6 +49,7 @@ addopts = "-v --tb=short --import-mode=importlib"
 pythonpath = ["."]
 markers = [
     "integration: tests that require a real database",
+    "boe_completeness: BOE consolidated legislation corpus completeness checks",
     "smoke: quick health check tests",
     "slow: tests that take more than 5 seconds",
 ]
