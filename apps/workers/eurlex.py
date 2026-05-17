@@ -121,7 +121,7 @@ EURLEX_NORMAS: list[dict] = [
      "vigente_desde": "2014-06-16", "ambito": "resolucion_bancaria"},
     # --- EMIR ---
     {"codigo": "EMIR_2012_648", "boe_id": "EUR-CELEX-32012R0648", "tipo_documento": "reglamento",
-     "titulo": "Reglamento (UE) n. o 648/2012 sobre los contratos derivados de tipo de cambio y opciones (EMIR)",
+     "titulo": "Reglamento (UE) n. o 648/2012 sobre derivados extrabursatiles, entidades de contrapartida central y registros de operaciones (EMIR)",
      "vigente_desde": "2012-07-16", "ambito": "derivados"},
     # --- PSD2 / PSD3 ---
     {"codigo": "PSD2_2015_236", "boe_id": "EUR-CELEX-32015L2366", "tipo_documento": "directiva",

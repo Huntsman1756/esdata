@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "workers"))
 
 from services.search import (
+    _NORMA_ALIASES,
     _apply_legal_priority,
     _chunk_rank_boost,
     _exact_legal_anchor,
@@ -19,6 +20,14 @@ from services.search import (
     _search_legislacion_pg,
     search_legislacion,
 )
+
+
+def test_financial_norm_aliases_map_to_canonical_sources():
+    assert _NORMA_ALIASES["LPBC"] == "LEY10_2010"
+    assert _NORMA_ALIASES["LPBCFT"] == "LEY10_2010"
+    assert _NORMA_ALIASES["LIVMC"] == "LIVMC"
+    assert _NORMA_ALIASES["RD1082"] == "RD_1082_2012"
+    assert _NORMA_ALIASES["EMIR"] == "EMIR_2012_648"
 
 
 class TestChunkRankBoost:
