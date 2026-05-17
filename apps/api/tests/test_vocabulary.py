@@ -19,23 +19,22 @@ sys.modules["vocabulary"] = api_vocabulary
 _spec.loader.exec_module(api_vocabulary)
 
 from vocabulary import (
-    VOCABULARY,
-    TOTAL_VALUES,
-    TIPOS_FUENTE,
-    TIPOS_DOCUMENTO,
     AMBITOS,
-    ESTADOS_VIGENCIA,
-    TIPOS_OBLIGACION,
-    TIPOS_MICRO_OBLIGACION,
-    ORGANISMOS_EMISORES,
     ESTADOS_COBERTURA,
+    ESTADOS_VIGENCIA,
     JURISDICCIONES,
+    ORGANISMOS_EMISORES,
     REGULACIONES_RELACIONADAS,
+    TIPOS_DOCUMENTO,
+    TIPOS_FUENTE,
+    TIPOS_MICRO_OBLIGACION,
+    TIPOS_OBLIGACION,
+    TOTAL_VALUES,
+    VOCABULARY,
     validate_field,
     validate_payload,
     validate_payload_strict,
 )
-
 
 # ---------------------------------------------------------------------------
 # Structure tests
@@ -44,7 +43,7 @@ from vocabulary import (
 
 def test_total_value_count():
     """Vocabulary should cover all known values."""
-    assert TOTAL_VALUES == 219, f"Expected 219 total values, got {TOTAL_VALUES}"
+    assert TOTAL_VALUES == 222, f"Expected 222 total values, got {TOTAL_VALUES}"
 
 
 def test_vocabulary_has_all_fields():
@@ -69,7 +68,7 @@ def test_tipo_fuente_count():
 
 
 def test_tipo_documento_count():
-    assert len(TIPOS_DOCUMENTO) == 62
+    assert len(TIPOS_DOCUMENTO) == 65
 
 
 def test_ambitos_count():
@@ -123,8 +122,8 @@ def test_all_tipo_documento_seed_values_covered():
         "consulta_vinculante", "resolucion_teac",
         "sentencia", "auto", "providencia", "resolucion",
         "circular_cnmv", "manual_cnmv", "guia_cnmv", "guia_tecnica_cnmv",
-        "documento_cnmv", "documento_consulta_cnmv",
-        "formulario_sepblac", "manual_sepblac", "guia_operativa_sepblac", "normativa_sepblac", "documento_sepblac",
+        "documento_cnmv", "documento_consulta_cnmv", "normativa_esi_cnmv", "modelo_esi_cnmv",
+        "formulario_sepblac", "manual_sepblac", "guia_operativa_sepblac", "obligacion_sepblac", "normativa_sepblac", "documento_sepblac",
         "resolucion_aepd", "guia_aepd", "informe_aepd", "instruccion_aepd", "acuerdo_aepd", "documento_aepd",
         "informe_bde", "comunicacion_bde", "publicacion_bde", "guia_bde", "documento_bde",
         "nombramiento", "cese", "constitucion", "cambio_domicilio",

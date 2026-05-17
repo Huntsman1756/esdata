@@ -78,6 +78,8 @@ TIPOS_DOCUMENTO_CNMV: frozenset[str] = frozenset({
     "guia_tecnica_cnmv",
     "documento_cnmv",
     "documento_consulta_cnmv",
+    "normativa_esi_cnmv",
+    "modelo_esi_cnmv",
     "resolucion_cnmv",
     "codigo_autoregulacion_cnmv",
     "informe_anual_cnmv",
@@ -96,6 +98,7 @@ TIPOS_DOCUMENTO_SEPBLAC: frozenset[str] = frozenset({
     "formulario_sepblac",
     "manual_sepblac",
     "guia_operativa_sepblac",
+    "obligacion_sepblac",
     "normativa_sepblac",
     "documento_sepblac",
 })

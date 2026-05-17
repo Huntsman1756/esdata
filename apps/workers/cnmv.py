@@ -480,6 +480,7 @@ def _parse_cnmv_official_index_links(
     tipo_documento: str,
     referencia_prefix: str,
     default_title: str,
+    include_keywords: tuple[str, ...],
 ) -> list[dict]:
     """Parse CNMV official index pages into source-family document candidates.
 
@@ -504,6 +505,21 @@ def _parse_cnmv_official_index_links(
         url = _absolute_cnmv_url(source_index_url, href)
         netloc = urlparse(url).netloc.lower()
         if netloc and "cnmv.es" not in netloc and "boe.es" not in netloc and "eur-lex.europa.eu" not in netloc:
+            continue
+        lowered_url = url.lower()
+        if not any(
+            token in lowered_url
+            for token in (
+                "/docportal/legislacion",
+                "/portal/legislacion",
+                "/portal/menu/legislacion",
+                "boe.es",
+                "eur-lex.europa.eu",
+            )
+        ):
+            continue
+        combined = _ascii_fold(f"{title} {context} {url}").lower()
+        if not any(keyword in combined for keyword in include_keywords):
             continue
         if url in seen:
             continue
@@ -550,6 +566,17 @@ def _parse_cnmv_normativa_esi(html: str, source_index_url: str) -> list[dict]:
         tipo_documento="normativa_esi_cnmv",
         referencia_prefix="CNMV-NORMATIVA-ESI",
         default_title="Normativa CNMV para empresas de servicios de inversion",
+        include_keywords=(
+            "esi",
+            "empresa de servicios de inversion",
+            "empresas de servicios de inversion",
+            "servicios de inversion",
+            "mifid",
+            "mifir",
+            "mercado de valores",
+            "real decreto 813",
+            "boe-a-2023-22763",
+        ),
     )
 
 
@@ -561,6 +588,7 @@ def _parse_cnmv_modelos_esi(html: str, source_index_url: str) -> list[dict]:
         tipo_documento="modelo_esi_cnmv",
         referencia_prefix="CNMV-MODELO-ESI",
         default_title="Modelos normalizados CNMV para empresas de servicios de inversion",
+        include_keywords=("esi", "modelo", "estado reservado", "servicios de inversion"),
     )
 
 
