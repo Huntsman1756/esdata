@@ -87,8 +87,8 @@ WITH seed AS (
         (
             'AUTOLIQUIDACION',
             'Modelo 111 - Retenciones trabajo y actividades profesionales',
-            'mensual o trimestral',
-            NULL,
+            'mensual',
+            'mensual o trimestral segun volumen y condiciones AEAT',
             '111',
             'LIRPF',
             'art. 101',
@@ -111,8 +111,8 @@ WITH seed AS (
         (
             'AUTOLIQUIDACION',
             'Modelo 303 - IVA autoliquidacion',
-            'mensual o trimestral',
-            NULL,
+            'mensual',
+            'mensual o trimestral segun volumen y condiciones AEAT',
             '303',
             'LIVA',
             'art. 164',
@@ -207,8 +207,8 @@ WITH seed AS (
         (
             'AUTOLIQUIDACION',
             'Modelo 216 - IRNR retenciones periodicas',
-            'mensual o trimestral',
-            NULL,
+            'mensual',
+            'mensual o trimestral segun volumen y condiciones AEAT',
             '216',
             'TRLIRNR',
             'art. 31',
