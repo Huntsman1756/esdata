@@ -28,7 +28,7 @@
       "title": "Seed SFTR + CRR regulations",
       "priority": 4,
       "passes": false,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32019R2365','32013R0575','32019R0876')\"); echo \"SFTR+CRR: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32015R2365','32013R0575','32019R0876')\"); echo \"SFTR+CRR: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
       "id": "D-05",
