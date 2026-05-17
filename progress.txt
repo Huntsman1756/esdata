@@ -2525,3 +2525,4 @@ Resultado:
 - C-09: COMPLETADO.
 - Siguiente historia Ralph: C-10 Update mcp_validation_suite - profile and applicability checks.
 - 2026-05-17 C-10 PASS: mcp_validation_suite ok=true and mcp_deep_contract_audit ok=true in VPS using ops service against http://api:8000. Added profile/applicability checks, MCP tool registry checks, registry entries and refreshed docs/openapi-gpt.json.
+- 2026-05-17 C-11 PASS: Sprint C final verification complete. Local `pytest apps/ -q --basetemp .pytest-tmp` => 3079 passed. Production `/status` api/database ok, `/v1/perfil/sociedad_valores/obligaciones` total=26, `mcp_validation_suite` ok=true, `mcp_deep_contract_audit` ok=true, Alertmanager active alerts count=0. Coverage report written to docs/sprint-c-coverage-report.md and roadmap updated.
