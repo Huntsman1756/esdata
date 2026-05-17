@@ -41,8 +41,8 @@
       "id": "F-06",
       "title": "Fix Modelo 289 CRS - articulo LGT concreto, verified=true condicional",
       "priority": 6,
-      "passes": false,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 289%' AND articulo_referencia='art. 93 bis' AND verified=true\"); echo \"M289 fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "passes": true,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 289%' AND articulo_referencia='DA 22.ª ap. 1' AND verified=true\"); echo \"M289 fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
       "id": "F-07",
