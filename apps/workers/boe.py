@@ -63,6 +63,9 @@ DEFAULT_NORMAS = {
     # Added 2026-05-09 per audit: compliance domains gap
     "LEY10_2010": "BOE-A-2010-6737",       # Ley 10/2010 Prevencion blanqueo capitales (SEPBLAC)
     "RDL19_2018": "BOE-A-2018-16036",      # RDL 19/2018 Servicios de pago — implementa PSD2 en Espana
+    # Added 2026-05-17 per financial compliance source expansion.
+    "LIVMC": "BOE-A-2023-7053",            # Ley 6/2023 Mercados de Valores y Servicios de Inversion
+    "RD_1082_2012": "BOE-A-2012-9716",     # Reglamento de Instituciones de Inversion Colectiva
 }
 
 KNOWN_BOE_CODES = set(DEFAULT_NORMAS.keys())
@@ -86,6 +89,11 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto_ley",
         "ambito": "servicios_pago",
     },
+    "LIVMC": {"tipo_documento": "ley", "ambito": "mercados_valores"},
+    "RD_1082_2012": {
+        "tipo_documento": "real_decreto",
+        "ambito": "instituciones_inversion_colectiva",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -96,6 +104,8 @@ LAW_TO_NORMA = {
     "5/2004": "TRLIRNR",
     "10/2010": "LEY10_2010",
     "19/2018": "RDL19_2018",
+    "6/2023": "LIVMC",
+    "1082/2012": "RD_1082_2012",
 }
 
 

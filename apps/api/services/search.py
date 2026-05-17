@@ -386,7 +386,12 @@ _NORMA_ALIASES = {
     "CSDDD": "CSDDD_2024_1760",
     # Spanish laws
     "LEY10": "LEY10_2010", "LEY102010": "LEY10_2010",
+    "LPBC": "LEY10_2010", "LPBCFT": "LEY10_2010",
+    "PBCFT": "LEY10_2010",
     "RDL19": "RDL19_2018", "RDL192018": "RDL19_2018",
+    "LIVMC": "LIVMC", "LMVSI": "LIVMC",
+    "RD1082": "RD_1082_2012", "RD10822012": "RD_1082_2012",
+    "RDIIC": "RD_1082_2012",
 }
 
 def _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params):

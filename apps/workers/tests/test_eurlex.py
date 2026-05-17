@@ -796,6 +796,8 @@ def test_eurlex_normas_uses_corrected_celex_for_known_skips():
     assert normas_by_codigo["DAC6_2018_825"]["boe_id"] == "EUR-CELEX-32018L0822"
     assert normas_by_codigo["DAC7_2021_1689"]["boe_id"] == "EUR-CELEX-32021L0514"
     assert normas_by_codigo["PSD3_2024_884"]["boe_id"] == "EUR-CELEX-32024R0886"
+    assert normas_by_codigo["EMIR_2012_648"]["boe_id"] == "EUR-CELEX-32012R0648"
+    assert "contrapartida central" in normas_by_codigo["EMIR_2012_648"]["titulo"]
 
 
 def test_eurlex_normas_excludes_dubious_seed_entries():

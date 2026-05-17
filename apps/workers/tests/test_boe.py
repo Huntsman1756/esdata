@@ -172,6 +172,37 @@ def test_parse_metadata_uses_per_code_classification_for_trlirnr():
     )
 
 
+def test_parse_metadata_uses_per_code_classification_for_financial_norms():
+    livmc_payload = {
+        "data": [
+            {
+                "titulo": "Ley 6/2023, de 17 de marzo, de los Mercados de Valores y de los Servicios de Inversion.",
+                "fecha_vigencia": "20230407",
+                "url_eli": "https://www.boe.es/eli/es/l/2023/03/17/6",
+            }
+        ]
+    }
+    rd_payload = {
+        "data": [
+            {
+                "titulo": "Real Decreto 1082/2012, de 13 de julio, por el que se aprueba el Reglamento de desarrollo de la Ley 35/2003, de 4 de noviembre, de instituciones de inversion colectiva.",
+                "fecha_vigencia": "20120721",
+                "url_eli": "https://www.boe.es/eli/es/rd/2012/07/13/1082",
+            }
+        ]
+    }
+
+    livmc = parse_metadata("LIVMC", "BOE-A-2023-7053", livmc_payload)
+    rd_1082 = parse_metadata("RD_1082_2012", "BOE-A-2012-9716", rd_payload)
+
+    assert livmc.tipo_documento == "ley"
+    assert livmc.ambito == "mercados_valores"
+    assert livmc.vigente_desde == "2023-04-07"
+    assert rd_1082.tipo_documento == "real_decreto"
+    assert rd_1082.ambito == "instituciones_inversion_colectiva"
+    assert rd_1082.vigente_desde == "2012-07-21"
+
+
 def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
     payload = {
         "data": [
@@ -190,10 +221,16 @@ def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
 
 
 def test_default_normas_include_itpajd():
-    from boe import DEFAULT_NORMAS
+    from boe import DEFAULT_NORMAS, LAW_TO_NORMA
 
     assert DEFAULT_NORMAS["ITPAJD"] == "BOE-A-1993-25359"
     assert DEFAULT_NORMAS["TRLIRNR"] == "BOE-A-2004-4527"
+    assert DEFAULT_NORMAS["LEY10_2010"] == "BOE-A-2010-6737"
+    assert DEFAULT_NORMAS["LIVMC"] == "BOE-A-2023-7053"
+    assert DEFAULT_NORMAS["RD_1082_2012"] == "BOE-A-2012-9716"
+    assert LAW_TO_NORMA["10/2010"] == "LEY10_2010"
+    assert LAW_TO_NORMA["6/2023"] == "LIVMC"
+    assert LAW_TO_NORMA["1082/2012"] == "RD_1082_2012"
 
 
 def test_run_sync_ingests_itpajd_article_and_version():
