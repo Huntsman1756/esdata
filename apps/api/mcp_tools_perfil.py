@@ -243,7 +243,10 @@ def _evidence_notice(row: Any) -> str:
     if bool(row["verified"]):
         norma = row["norma_codigo"] or "fuente oficial"
         articulo = row["articulo_referencia"] or ""
-        return f"Verificado contra {norma} {articulo}".strip()
+        notice = f"Verificado contra {norma} {articulo}".strip()
+        if str(row["completeness"]) == "parcial":
+            return f"{notice} (condicional)"
+        return notice
     return "evidence_limited: pendiente verificacion articulo"
 
 

@@ -280,6 +280,10 @@ def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
                                 {"name": "consulta_fiscal"},
                                 {"name": "list_modelos_por_supuesto"},
                                 {"name": "list_domain_availability"},
+                                {"name": "listar_perfiles_entidad"},
+                                {"name": "obtener_obligaciones_perfil"},
+                                {"name": "calendario_obligaciones_perfil"},
+                                {"name": "buscar_norma_eu"},
                             ]
                         }
                     }
@@ -332,6 +336,10 @@ def test_mcp_validation_suite_accepts_mcp_session_id_on_missing_session_handshak
                             {"name": "consulta_fiscal"},
                             {"name": "list_modelos_por_supuesto"},
                             {"name": "list_domain_availability"},
+                            {"name": "listar_perfiles_entidad"},
+                            {"name": "obtener_obligaciones_perfil"},
+                            {"name": "calendario_obligaciones_perfil"},
+                            {"name": "buscar_norma_eu"},
                         ]
                     }
                 }

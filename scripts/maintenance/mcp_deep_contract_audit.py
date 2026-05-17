@@ -1108,6 +1108,7 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     sgiic_items = extra_payloads.get("sgiic_cnmv", {}).get("obligaciones", [])
     all_profile_items: list[dict[str, Any]] = []
     with httpx.Client(base_url=base_url, timeout=60) as client:
+        profile_obligaciones: dict[str, list[dict[str, Any]]] = {}
         for profile in (
             "sociedad_valores",
             "agencia_valores",
@@ -1122,9 +1123,9 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 params={},
             )
             if status == 200 and isinstance(payload, dict):
-                all_profile_items.extend(
-                    item for item in (payload.get("obligaciones") or []) if isinstance(item, dict)
-                )
+                items = [item for item in (payload.get("obligaciones") or []) if isinstance(item, dict)]
+                profile_obligaciones[profile] = items
+                all_profile_items.extend(items)
 
     details["eaf_cnmv_descriptions"] = [item.get("descripcion") for item in eaf_items if isinstance(item, dict)]
     details["entidad_credito_cnmv_descriptions"] = [
@@ -1134,6 +1135,37 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         item.get("modelo_aeat") for item in esp_items if isinstance(item, dict)
     ]
     details["sgiic_cnmv_descriptions"] = [item.get("descripcion") for item in sgiic_items if isinstance(item, dict)]
+    sociedad_items = profile_obligaciones.get("sociedad_valores", [])
+    sociedad_ifr_obligations = [
+        item
+        for item in sociedad_items
+        if item.get("norma_codigo") == "32019R2033"
+        and (
+            "prudencial" in str(item.get("descripcion", "")).lower()
+            or "recursos propios" in str(item.get("descripcion", "")).lower()
+        )
+    ]
+    sgiic_annex_iv_count = sum(
+        1
+        for item in sgiic_items
+        if isinstance(item, dict) and "annex iv" in str(item.get("descripcion", "")).lower()
+    )
+    verified_partial_bad_notice = [
+        item.get("descripcion")
+        for item in all_profile_items
+        if isinstance(item, dict)
+        and item.get("verified") is True
+        and item.get("completeness") == "parcial"
+        and (
+            "condicional" not in str(item.get("evidence_notice", "")).lower()
+            or "evidence_limited" in str(item.get("evidence_notice", "")).lower()
+        )
+    ]
+    details["sociedad_valores_ifr_obligations"] = [
+        item.get("descripcion") for item in sociedad_ifr_obligations
+    ]
+    details["sgiic_annex_iv_count"] = sgiic_annex_iv_count
+    details["verified_partial_bad_notice"] = verified_partial_bad_notice[:20]
 
     if not any("idoneidad" in str(item.get("descripcion", "")).lower() for item in eaf_items if isinstance(item, dict)):
         failures.append({"check": "eaf_cnmv_idoneidad"})
@@ -1159,6 +1191,17 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         failures.append({"check": "empresa_servicios_pago_modelo_303_completa"})
     if not any("annex iv" in str(item.get("descripcion", "")).lower() for item in sgiic_items if isinstance(item, dict)):
         failures.append({"check": "sgiic_aifmd_annex_iv"})
+    if not sociedad_ifr_obligations:
+        failures.append({"check": "sociedad_valores_ifr_prudential_obligation"})
+    if sgiic_annex_iv_count != 1:
+        failures.append({"check": "sgiic_aifmd_annex_iv_exactly_one", "count": sgiic_annex_iv_count})
+    if verified_partial_bad_notice:
+        failures.append(
+            {
+                "check": "verified_partial_notice_conditional",
+                "items": verified_partial_bad_notice[:20],
+            }
+        )
     missing_profile_source = [
         item.get("descripcion")
         for item in all_profile_items
