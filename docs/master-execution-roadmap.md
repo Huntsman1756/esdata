@@ -6556,3 +6556,5 @@ En orden de impacto real:
 
 - 2026-05-17 Sprint A A-05 SEPBLAC family worker - COMPLETADO LOCAL. `worker-sepblac` soporta `--familia normativa|obligaciones|guias|tipologias`, discovery oficial por familia, `tipo_documento` separado, `sujeto_obligado` para obligaciones, metadata opcional (`source_url`, `capture_date`, `verified`) y referencias derivadas de `(tipo_documento, source_url)`. Tests SEPBLAC: 9 passed. Siguiente: A-06 cargar RD 304/2014.
 
+- 2026-05-17 Sprint A A-06 RD 304/2014 - COMPLETADO. Se corrige el BOE ID del PRD: `BOE-A-2014-5438` era RD 340/2014; la fuente correcta de RD 304/2014 es `BOE-A-2014-4742`. `apps/workers/boe.py` anade `RD_304_2014`, clasificacion PBC/FT y alias `304/2014`. Se limpio la carga erronea propia inicial (7 articulos RD 340/2014 bajo codigo RD_304_2014) y se recargo desde BOE correcto. Produccion: `RD_304_2014`, `BOE-A-2014-4742`, 82 articulos; `/v1/legislacion/RD_304_2014/articulos/4` devuelve 200 con texto. Siguiente: A-07 cargar SEPBLAC granular.
+

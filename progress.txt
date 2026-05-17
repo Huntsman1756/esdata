@@ -2128,3 +2128,34 @@ Caveat:
 
 Siguiente historia Ralph:
 - A-06: Load RD 304/2014 if not loaded - LPBC-FT reglamento.
+
+### A-06 Load RD 304/2014 if not loaded - LPBC-FT reglamento - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Hallazgo importante:
+- El PRD indicaba `BOE-A-2014-5438`, pero esa referencia oficial corresponde a RD 340/2014, no a RD 304/2014.
+- La referencia BOE correcta para RD 304/2014 es `BOE-A-2014-4742` (`https://www.boe.es/buscar/act.php?id=BOE-A-2014-4742`).
+
+Cambios:
+- `apps/workers/boe.py` anade `RD_304_2014` a `DEFAULT_NORMAS` con `BOE-A-2014-4742`.
+- Clasificacion: `tipo_documento='real_decreto'`, `ambito='prevencion_blanqueo'`.
+- Alias legal: `LAW_TO_NORMA['304/2014']='RD_304_2014'`.
+- `apps/workers/tests/test_boe.py` cubre metadata, default y alias.
+
+Operacion VPS:
+- Primera carga con el BOE ID erroneo del PRD inserto 7 filas de RD 340/2014 bajo codigo `RD_304_2014`.
+- Se limpio exclusivamente esa carga errónea propia: `version_articulo=7`, `articulo=7`, `norma=1`.
+- Se reconstruyo `worker-boe` desde git y se ejecuto solo `BOE_LEGISLACION_NORMAS=RD_304_2014`.
+- Carga correcta: `82` bloques/articulos.
+
+Verificacion:
+- SQL produccion: `RD_304_2014`, `boe_id='BOE-A-2014-4742'`, titulo oficial de RD 304/2014, `82` articulos.
+- Articulo 4: `text_len=1401`.
+- API con `X-API-Key`: `/v1/legislacion/RD_304_2014/articulos/4` => `200`, texto empieza por `Artículo 4. Identificación formal.`
+- Tests locales: `pytest apps/workers/tests/test_boe.py -q -k "financial_norms or default_normas"` => `2 passed`.
+- `python -m py_compile apps/workers/boe.py apps/workers/tests/test_boe.py` OK.
+- `git diff --check` OK.
+
+Siguiente historia Ralph:
+- A-07: Load SEPBLAC granular corpus in production.
