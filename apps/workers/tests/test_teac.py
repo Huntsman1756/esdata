@@ -7,7 +7,14 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from teac import DYCTEA_ROOT_URL, discover_resolution_urls, parse_resolution_html, run_sync
+from teac import (
+    DYCTEA_ROOT_URL,
+    discover_resolution_urls,
+    parse_dyctea_search_results,
+    parse_resolution_html,
+    run_sync,
+    upsert_documento_interpretativo,
+)
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -345,6 +352,187 @@ def test_teac_run_once_flag_accepts_argparse():
     assert result.returncode == 0
     assert "--run-once" in result.stdout
     assert "--interval" in result.stdout
+    assert "--dry-run" in result.stdout
+    assert "--max-results" in result.stdout
+
+
+def test_parse_dyctea_search_results_extracts_metadata_and_url():
+    html = """
+    <div id='resultadosCriterios'>
+      <ul>
+        <li class='resultadoCriterio'>
+          <span class='resultadoCriterioTitulo'>
+            <a href='criterio.aspx?id=00/01234/2024/00/0/1'>
+              Criterio 1 de la resolucion 00/01234/2024/00/00 del 15/03/2024 - TEAC
+            </a>
+          </span>
+          <span>Unidad resolutoria: Sala Primera</span>
+          <span>Concepto: IRNR. Retencion no residente</span>
+        </li>
+      </ul>
+    </div>
+    """
+
+    results = parse_dyctea_search_results(html, DYCTEA_ROOT_URL)
+
+    assert results == [
+        {
+            "referencia": "00/01234/2024/00/00",
+            "fecha": "2024-03-15",
+            "sala": "Sala Primera",
+            "materia": "IRNR. Retencion no residente",
+            "titulo": "Criterio 1 de la resolucion 00/01234/2024/00/00 del 15/03/2024 - TEAC",
+            "url_oficial": "https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/01234/2024/00/0/1",
+        }
+    ]
+
+
+def test_upsert_documento_interpretativo_is_idempotent_and_stores_quality_contract():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT,
+                    metadata TEXT,
+                    row_completeness TEXT,
+                    row_provenance TEXT
+                )
+                """
+            )
+        )
+
+        payload = {
+            "referencia": "00/01234/2024/00/00",
+            "fecha": "2024-03-15",
+            "titulo": "IRNR. Retencion no residente",
+            "texto": "Criterio completo oficial del TEAC.",
+            "url_fuente": "https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/01234/2024/00/0/1",
+            "sala": "Sala Primera",
+            "materia": "IRNR",
+            "row_completeness": "complete",
+            "row_provenance": "official_exact",
+            "verified": True,
+        }
+
+        upsert_documento_interpretativo(conn, payload)
+        upsert_documento_interpretativo(conn, payload)
+
+        row = conn.execute(
+            text(
+                """
+                SELECT COUNT(*), row_completeness, row_provenance, metadata
+                FROM documento_interpretativo
+                GROUP BY row_completeness, row_provenance, metadata
+                """
+            )
+        ).fetchone()
+
+    assert row[0] == 1
+    assert row[1] == "complete"
+    assert row[2] == "official_exact"
+    assert '"verified": true' in row[3]
+    assert '"sala": "Sala Primera"' in row[3]
+
+
+def test_run_sync_applies_request_delay_between_resolution_fetches(monkeypatch):
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_articulo (
+                    documento_id INTEGER NOT NULL,
+                    articulo_id INTEGER NOT NULL,
+                    metodo_enlace TEXT NOT NULL,
+                    confianza_enlace REAL NOT NULL,
+                    nota TEXT,
+                    PRIMARY KEY (documento_id, articulo_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+
+    def _html_for(url: str) -> str:
+        ref = "00/01234/2024/00/00" if "01234" in url else "00/05678/2024/00/00"
+        return f"""
+        <div id='criterioDatosTitulo'>resolucion: <span class='criterioNegrita'>{ref}</span></div>
+        <div id='criterioDatosUnidad'>Unidad resolutoria: <span class='criterioNegrita'>TEAC</span></div>
+        <div id='criterioDatosFecha'>Fecha de la resolucion: <span class='criterioNegrita'>15/03/2024</span></div>
+        <div id='criterioDatosAsunto'><p>IVA. Base imponible.</p></div>
+        <div id='criterioDatosContenido'><p>Texto completo oficial.</p></div>
+        """
+
+    sleeps = []
+    monkeypatch.setattr("teac.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr("teac.fetch_resolution_html", _html_for)
+    monkeypatch.setenv("WORKER_REQUEST_DELAY", "0.25")
+    monkeypatch.setattr("teac.time.sleep", lambda seconds: sleeps.append(seconds))
+    monkeypatch.setattr("teac.auto_link_doctrina", lambda conn: 0)
+
+    result = run_sync(
+        seed_urls=[
+            f"{DYCTEA_ROOT_URL}criterio.aspx?id=00/01234/2024/00/0/1",
+            f"{DYCTEA_ROOT_URL}criterio.aspx?id=00/05678/2024/00/0/1",
+        ]
+    )
+
+    assert result == {"processed": 2, "stored": 2}
+    assert sleeps == [0.25, 0.25]
 
 
 def test_run_sync_handles_fetch_errors_without_nameerror(monkeypatch):

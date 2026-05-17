@@ -2002,3 +2002,28 @@ Verificacion A-01:
 
 Siguiente historia Ralph:
 - A-02: Upgrade TEAC worker for DYCTEA bulk ingestion.
+
+### A-02 Upgrade TEAC worker for DYCTEA bulk ingestion - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- `apps/workers/teac.py` incorpora parser `parse_dyctea_search_results` para resultados HTML oficiales `criterio.aspx`.
+- Se anade discovery bulk por ventanas de fecha usando el formulario ASP.NET oficial de DYCTEA con `__VIEWSTATE`.
+- `TEAC_FECHA_DESDE` y `--fecha-desde` permiten fijar fecha inicial; si hay `--max-results`, el worker fuerza carga inicial desde `2018-01-01` para no quedar atrapado por las 10 filas historicas.
+- `--dry-run` descubre candidatos sin escribir DB.
+- `--max-results` limita procesamiento.
+- Upsert TEAC conserva contrato de calidad en columnas opcionales `metadata`, `row_completeness`, `row_provenance` cuando existen, y sigue funcionando con tablas legacy.
+- `metadata` incluye `verified`, `sala`, `materia` y `url_oficial`; `verified=true` solo si hay texto oficial parseado y URL oficial Hacienda.
+
+Tests:
+- `pytest apps/workers/tests/test_teac.py -v` => `17 passed`.
+- `python -m py_compile apps/workers/teac.py apps/workers/tests/test_teac.py` OK.
+- `git diff --check` OK.
+
+Caveat:
+- A-02 no carga produccion. A-03 debe ejecutar el worker en VPS y validar conteos reales.
+- A-01 no confirmo API JSON estable; el worker trata DYCTEA como HTML ASP.NET stateful.
+
+Siguiente historia Ralph:
+- A-03: Load 500+ TEAC resoluciones in production.
