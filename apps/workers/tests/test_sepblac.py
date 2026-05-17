@@ -6,7 +6,12 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sepblac import build_document_payload, discover_default_urls, run_sync, upsert_documento_interpretativo
+from sepblac import (
+    build_document_payload,
+    discover_default_urls,
+    run_sync,
+    upsert_documento_interpretativo,
+)
 
 SEPBLAC_HTML = b"""
 <html>
@@ -44,10 +49,52 @@ def test_build_document_payload_classifies_obligations_separately():
         "https://www.sepblac.es/es/sujetos-obligados/obligaciones/",
         b"<html><body><h1>Obligaciones de los sujetos obligados</h1><p>Ley 10/2010 sobre blanqueo de capitales y Real Decreto 304/2014.</p></body></html>",
         "text/html; charset=utf-8",
+        familia="obligaciones",
     )
 
     assert payload["tipo_documento"] == "obligacion_sepblac"
     assert payload["ambito"] == "aml_cft"
+    assert payload["sujeto_obligado"] == "all"
+
+
+def test_build_document_payload_uses_explicit_family_contracts():
+    cases = [
+        ("normativa", "https://www.sepblac.es/es/normativa/", "normativa_sepblac"),
+        (
+            "obligaciones",
+            "https://www.sepblac.es/es/sociedades-valores/obligaciones/",
+            "obligacion_sepblac",
+        ),
+        (
+            "guias",
+            "https://www.sepblac.es/es/publicaciones/guia-operativa.pdf",
+            "guia_operativa_sepblac",
+        ),
+    ]
+
+    for familia, url, expected_tipo in cases:
+        payload = build_document_payload(
+            url,
+            b"<html><body><h1>Documento oficial SEPBLAC</h1><p>Prevencion del blanqueo de capitales.</p></body></html>",
+            "text/html; charset=utf-8",
+            familia=familia,
+        )
+
+        assert payload["tipo_documento"] == expected_tipo
+        assert payload["verified"] is True
+        assert payload["row_completeness"] == "complete"
+
+
+def test_obligacion_sepblac_rows_include_sujeto_obligado():
+    payload = build_document_payload(
+        "https://www.sepblac.es/es/sociedades-valores/obligaciones/",
+        b"<html><body><h1>Obligaciones de sociedades de valores</h1><p>Diligencia debida y comunicacion por indicio.</p></body></html>",
+        "text/html; charset=utf-8",
+        familia="obligaciones",
+    )
+
+    assert payload["tipo_documento"] == "obligacion_sepblac"
+    assert payload["sujeto_obligado"] == "sociedad_valores"
 
 
 def test_discover_default_urls_uses_official_sepblac_sources(monkeypatch):
@@ -68,7 +115,7 @@ def test_discover_default_urls_uses_official_sepblac_sources(monkeypatch):
     assert all("sepblac.es" in url for url in urls)
 
 
-def test_upsert_documento_interpretativo_stores_sepblac_fields_once():
+def test_upsert_documento_interpretativo_is_idempotent_by_family_source_tuple():
     engine = create_engine("sqlite:///:memory:", future=True)
 
     with engine.begin() as conn:
@@ -86,39 +133,40 @@ def test_upsert_documento_interpretativo_stores_sepblac_fields_once():
                     fecha TEXT NOT NULL,
                     titulo TEXT,
                     texto TEXT NOT NULL,
-                    url_fuente TEXT
+                    url_fuente TEXT,
+                    metadata TEXT,
+                    row_completeness TEXT,
+                    row_provenance TEXT
                 )
                 """
             )
         )
 
-        payload = {
-            "referencia": "SEPBLAC-MODELO-19",
-            "fecha": "2026-04-16",
-            "titulo": "Comunicación por indicio - Modelo 19 SEPBLAC",
-            "tipo_documento": "formulario_sepblac",
-            "ambito": "aml_cft_reporting",
-            "texto": "Procedimiento para la comunicación por indicio y formulario oficial Modelo 19 SEPBLAC.",
-            "url_fuente": "https://www.sepblac.es/es/",
-        }
+        payload = build_document_payload(
+            "https://www.sepblac.es/es/sociedades-valores/obligaciones/",
+            b"<html><body><h1>Obligaciones de sociedades de valores</h1><p>Diligencia debida.</p></body></html>",
+            "text/html; charset=utf-8",
+            familia="obligaciones",
+        )
 
         upsert_documento_interpretativo(conn, payload)
         upsert_documento_interpretativo(conn, payload)
 
         row = conn.execute(
             text(
-                "SELECT referencia, tipo_documento, organismo_emisor, tipo_fuente, ambito, COUNT(*) FROM documento_interpretativo GROUP BY referencia, tipo_documento, organismo_emisor, tipo_fuente, ambito"
+                "SELECT tipo_documento, organismo_emisor, tipo_fuente, ambito, COUNT(*), metadata FROM documento_interpretativo GROUP BY tipo_documento, organismo_emisor, tipo_fuente, ambito, metadata"
             )
         ).fetchone()
 
     assert row == (
-        "SEPBLAC-MODELO-19",
-        "formulario_sepblac",
+        "obligacion_sepblac",
         "SEPBLAC",
         "sepblac",
-        "aml_cft_reporting",
+        "aml_cft",
         1,
+        row[5],
     )
+    assert '"sujeto_obligado": "sociedad_valores"' in row[5]
 
 
 def test_run_sync_persists_sepblac_document_and_metrics(monkeypatch):

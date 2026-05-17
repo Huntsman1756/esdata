@@ -2097,3 +2097,34 @@ Verificacion A-04:
 
 Siguiente historia Ralph:
 - A-05: Upgrade SEPBLAC worker - separate families by contract.
+
+### A-05 Upgrade SEPBLAC worker - separate families by contract - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- `apps/workers/sepblac.py` incorpora `SEPBLAC_FAMILY_MAP` con familias separadas: `normativa`, `obligaciones`, `guias`, `tipologias`.
+- CLI nuevo: `--familia {normativa,obligaciones,guias,tipologias}` y `--max-urls`.
+- `discover_default_urls(max_urls, familia=...)` descubre por familia y filtra URLs oficiales `sepblac.es`.
+- `build_document_payload(..., familia=...)` fuerza el contrato de familia:
+  - `normativa` => `tipo_documento='normativa_sepblac'`.
+  - `obligaciones` => `tipo_documento='obligacion_sepblac'` y `sujeto_obligado`.
+  - `guias` => `tipo_documento='guia_operativa_sepblac'`.
+  - `tipologias` => `tipo_documento='tipologia_sepblac'`, pero sigue condicionado a fuente oficial usable en A-07.
+- `verified=true` solo si la URL final es oficial SEPBLAC y hay texto extraido.
+- `row_completeness='complete'` para texto parseado; si una columna `metadata` existe, se guarda `source_url`, `capture_date`, `verified`, `sujeto_obligado`.
+- Upsert conserva compatibilidad con tabla actual por `referencia`, pero la referencia nueva queda derivada de `(tipo_documento, source_url)` para evitar colisiones entre familias.
+- PDF con contenido no parseable cae a HTML solo si el `content-type` no declara PDF; si el servidor declara PDF y falla, se conserva el error.
+
+Tests:
+- `pytest apps/workers/tests/test_sepblac.py -v` => `9 passed`.
+- VerificationCommand equivalente en PowerShell => `PASS`.
+- `python -m py_compile apps/workers/sepblac.py apps/workers/tests/test_sepblac.py` OK.
+- `git diff --check` OK.
+
+Caveat:
+- A-05 solo cambia worker/tests. No carga produccion.
+- La familia `tipologias` permanece condicional: las URLs `documentacion`/`guias-y-orientaciones` del prompt devolvieron 404 en A-04; A-07 debe cargar solo fuentes oficiales que resuelvan.
+
+Siguiente historia Ralph:
+- A-06: Load RD 304/2014 if not loaded - LPBC-FT reglamento.

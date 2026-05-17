@@ -6554,3 +6554,5 @@ En orden de impacto real:
 
 - 2026-05-17 Sprint A A-04 SEPBLAC audit - COMPLETADO. `apps/workers/sepblac.py` auditado completo. Produccion: 6 filas SEPBLAC (`obligacion_sepblac=4`, `guia_operativa_sepblac=1`, `normativa_sepblac=1`). `SEPBLAC_SEED_URLS` en VPS solo apunta a home/publicaciones, no a familias granularizadas. `RD_304_2014` no esta cargado en `norma`. Siguiente: A-05 separar worker SEPBLAC por familias.
 
+- 2026-05-17 Sprint A A-05 SEPBLAC family worker - COMPLETADO LOCAL. `worker-sepblac` soporta `--familia normativa|obligaciones|guias|tipologias`, discovery oficial por familia, `tipo_documento` separado, `sujeto_obligado` para obligaciones, metadata opcional (`source_url`, `capture_date`, `verified`) y referencias derivadas de `(tipo_documento, source_url)`. Tests SEPBLAC: 9 passed. Siguiente: A-06 cargar RD 304/2014.
+
