@@ -15,5 +15,6 @@ RUN pip install --no-cache-dir \
 COPY alembic.ini /workspace/alembic.ini
 COPY alembic /workspace/alembic
 COPY scripts /workspace/scripts
+COPY apps/api/mcp_catalog.py /workspace/apps/api/mcp_catalog.py
 
 CMD ["python", "--version"]
