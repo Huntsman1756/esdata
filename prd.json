@@ -62,7 +62,7 @@
       "id": "F-09",
       "title": "Fix SGIIC - consolidar duplicado AIFMD Annex IV y completar articulos",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; TOTAL=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sgiic'\"); VER=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sgiic' AND verified=true\"); echo \"sgiic total=$TOTAL verified=$VER\"; [ \"$VER\" -ge 16 ] && echo PASS || echo FAIL"
     },
     {
