@@ -93,6 +93,9 @@ def _extract_hidden_inputs(html: str) -> dict[str, str]:
     inputs: dict[str, str] = {}
     for match in re.finditer(r"<input\b[^>]*>", html, flags=re.IGNORECASE | re.DOTALL):
         tag = match.group(0)
+        type_match = re.search(r'type=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
+        if not type_match or type_match.group(1).lower() != "hidden":
+            continue
         name_match = re.search(r'name=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
         if not name_match:
             continue

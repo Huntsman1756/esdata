@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from teac import (
     DYCTEA_ROOT_URL,
+    _extract_hidden_inputs,
     discover_resolution_urls,
     parse_dyctea_search_results,
     parse_resolution_html,
@@ -385,6 +386,18 @@ def test_parse_dyctea_search_results_extracts_metadata_and_url():
             "url_oficial": "https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/criterio.aspx?id=00/01234/2024/00/0/1",
         }
     ]
+
+
+def test_extract_hidden_inputs_excludes_search_and_reset_controls():
+    html = """
+    <input type="hidden" name="__VIEWSTATE" value="abc" />
+    <input name="ctl00$contentBody$tbFechaDesde" type="text" value="" />
+    <input type="checkbox" name="ctl00$contentBody$cbCriterios" checked="checked" />
+    <input type="submit" name="ctl00$contentBody$btSearch" value="Buscar" />
+    <input type="submit" name="ctl00$contentBody$btReset" value="Limpiar" />
+    """
+
+    assert _extract_hidden_inputs(html) == {"__VIEWSTATE": "abc"}
 
 
 def test_upsert_documento_interpretativo_is_idempotent_and_stores_quality_contract():
