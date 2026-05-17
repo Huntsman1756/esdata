@@ -2277,3 +2277,20 @@ Caveats finales:
 Resultado:
 - Sprint A TEAC DYCTEA + SEPBLAC granular: COMPLETO.
 - Branch `feat/sprint-a-teac-sepblac` queda listo para merge tras push final.
+
+### C-01 Alembic migrations - perfil_entidad / obligacion_perfil / obligacion_fuente - EN CURSO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Contexto:
+- Sprint C se inicia desde `main=5a7a9d8` en branch `feat/sprint-c-motor-aplicabilidad`.
+- `prd.json` restaurado con el diseno MCP-first y las historias C-01..C-11.
+
+Validacion local previa:
+- `python -m py_compile alembic/versions/20260517_0079_profile_applicability_tables.py` => OK.
+- `python -m pytest apps/api/tests/test_alembic_integrity.py -q --basetemp .pytest-tmp` => `11 passed`.
+- `python -m alembic heads` => `20260517_0079_profile_applicability_tables (head)`.
+- `git diff --check` => OK.
+
+Caveat operativo:
+- Docker Compose local no pudo evaluar `infra/deploy/docker-compose.prod.yml ps` porque falta `DATABASE_URL` en el entorno local. La aplicacion de DB se hara por Alembic en VPS contra produccion, no por DDL runtime.
