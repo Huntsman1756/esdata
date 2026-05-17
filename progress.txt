@@ -2294,3 +2294,16 @@ Validacion local previa:
 
 Caveat operativo:
 - Docker Compose local no pudo evaluar `infra/deploy/docker-compose.prod.yml ps` porque falta `DATABASE_URL` en el entorno local. La aplicacion de DB se hara por Alembic en VPS contra produccion, no por DDL runtime.
+
+Verificacion produccion:
+- VPS sincronizado con `origin/feat/sprint-c-motor-aplicabilidad` en commit `25a636f`.
+- `docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops alembic upgrade head` => aplico `20260517_0079_profile_applicability_tables`.
+- Tablas existentes segun `pg_tables`: `perfil_entidad`, `obligacion_perfil`, `obligacion_fuente`.
+- RLS activo en las 3 tablas (`relrowsecurity=true`).
+- Policies por tabla: `2` (`esdata_all`, `service_role_all`).
+- `alembic_version` => `20260517_0079_profile_applicability_tables`.
+- VerificationCommand C-01 => `PASS` (nota: el `\\dt` literal del PRD solo imprime la primera tabla porque psql trata los nombres adicionales como argumentos extra; se hizo verificacion SQL adicional para las 3 tablas).
+
+Resultado:
+- C-01: COMPLETADO.
+- Siguiente historia Ralph: C-02 Define MCP tool contracts - before any implementation.

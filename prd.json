@@ -6,7 +6,7 @@
       "id": "C-01",
       "title": "Alembic migrations - perfil_entidad, obligacion_perfil, obligacion_fuente",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create Alembic migration for the 3 applicability tables",
         "Apply through Alembic, not runtime DDL",
