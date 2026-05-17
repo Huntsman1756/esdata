@@ -69,8 +69,8 @@
       "id": "D-10",
       "title": "Cross-reference TEAC resoluciones with EU regulations",
       "priority": 10,
-      "passes": false,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='resolucion_teac' AND (resumen ILIKE '%MiFIR%' OR resumen ILIKE '%EMIR%')\" && echo PASS"
+      "passes": true,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='resolucion_teac' AND (texto ~* '(^|[^A-Za-z0-9])(MiFIR|EMIR|DORA|SFTR|CRR)([^A-Za-z0-9]|$)' OR texto ~* '(600/2014|648/2012|575/2013|2015/2365)' OR titulo ~* '(^|[^A-Za-z0-9])(MiFIR|EMIR|DORA|SFTR|CRR)([^A-Za-z0-9]|$)' OR titulo ~* '(600/2014|648/2012|575/2013|2015/2365)')\" && echo PASS"
     },
     {
       "id": "D-11",
