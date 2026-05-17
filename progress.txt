@@ -2469,3 +2469,38 @@ Verificacion:
 Resultado:
 - C-07: COMPLETADO.
 - Siguiente historia Ralph: C-08 REST API endpoints - /v1/perfil thin wrapper over MCP tools.
+
+### C-08 REST API endpoints - /v1/perfil thin wrapper over MCP tools - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+TDD:
+- Test rojo inicial fallo por `ImportError: cannot import name 'perfil' from routers`.
+- Tras crear router, el primer verde fallo por SQLite in-memory/threading en TestClient; se corrigio el fixture con `StaticPool` y `check_same_thread=False`.
+
+Implementacion:
+- Nuevo router `apps/api/routers/perfil.py`.
+- Endpoints:
+  - `GET /v1/perfil`
+  - `GET /v1/perfil/{codigo}`
+  - `GET /v1/perfil/{codigo}/obligaciones`
+  - `GET /v1/perfil/{codigo}/obligaciones/calendario`
+- Los endpoints son wrappers finos sobre `mcp_tools_perfil.py`.
+- `main.py` registra `perfil.router`.
+
+Verificacion local:
+- `python -m pytest apps/api/tests/test_perfil_router.py -v --basetemp .pytest-tmp` => `6 passed`.
+- `python -m pytest apps/api/tests/test_mcp_tools_perfil.py apps/api/tests/test_perfil_router.py -q --basetemp .pytest-tmp` => `13 passed`.
+
+Verificacion produccion:
+- API rebuild/restart desde `origin/feat/sprint-c-motor-aplicabilidad`.
+- `/status` => `api=ok`, `database=ok`.
+- `GET /v1/perfil` => `6`.
+- `GET /v1/perfil/sociedad_valores` => `obligaciones_total=26`.
+- `GET /v1/perfil/sociedad_valores/obligaciones` => `total=26`.
+- `GET /v1/perfil/sociedad_valores/obligaciones?dominio=PBC_FT` => `total=8`.
+- `GET /v1/perfil/sociedad_valores/obligaciones/calendario` => `anual=11`.
+
+Resultado:
+- C-08: COMPLETADO.
+- Siguiente historia Ralph: C-09 Seed agencia_valores and SGIIC obligations.

@@ -90,7 +90,7 @@
       "id": "C-08",
       "title": "REST API endpoints - /v1/perfil thin wrapper over MCP tools",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create apps/api/routers/perfil.py",
         "Expose list, detail, obligations, and calendar endpoints",
