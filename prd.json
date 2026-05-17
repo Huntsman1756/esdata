@@ -20,7 +20,7 @@
       "id": "D-03",
       "title": "Seed EMIR + DORA regulations",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32012R0648','32019R0834','32022R2554')\"); echo \"EMIR+DORA: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
