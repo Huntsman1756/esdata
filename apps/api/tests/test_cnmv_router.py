@@ -45,7 +45,7 @@ async def test_cnmv_coverage_exposes_loaded_subset_and_missing_families():
     assert families["guias_tecnicas"]["coverage_status"] == "partial_loaded"
     assert families["documentos_consulta_cnmv"]["loaded_count"] >= 1
     assert families["documentos_consulta_cnmv"]["coverage_status"] == "partial_loaded"
-    assert families["modelos_normalizados"]["coverage_status"] == "configured_but_unavailable"
+    assert families["modelos_normalizados"]["coverage_status"] == "partial_loaded"
     assert "no cargado" in data["coverage_note"]
 
 

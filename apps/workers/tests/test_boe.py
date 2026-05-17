@@ -202,9 +202,19 @@ def test_parse_metadata_uses_per_code_classification_for_financial_norms():
             }
         ]
     }
+    rd_304_payload = {
+        "data": [
+            {
+                "titulo": "Real Decreto 304/2014, de 5 de mayo, por el que se aprueba el Reglamento de la Ley 10/2010, de 28 de abril, de prevencion del blanqueo de capitales y de la financiacion del terrorismo.",
+                "fecha_vigencia": "20140506",
+                "url_eli": "https://www.boe.es/eli/es/rd/2014/05/05/304",
+            }
+        ]
+    }
 
     livmc = parse_metadata("LIVMC", "BOE-A-2023-7053", livmc_payload)
     rd_1082 = parse_metadata("RD_1082_2012", "BOE-A-2012-9716", rd_payload)
+    rd_304 = parse_metadata("RD_304_2014", "BOE-A-2014-4742", rd_304_payload)
 
     assert livmc.tipo_documento == "ley"
     assert livmc.ambito == "mercados_valores"
@@ -212,6 +222,9 @@ def test_parse_metadata_uses_per_code_classification_for_financial_norms():
     assert rd_1082.tipo_documento == "real_decreto"
     assert rd_1082.ambito == "instituciones_inversion_colectiva"
     assert rd_1082.vigente_desde == "2012-07-21"
+    assert rd_304.tipo_documento == "real_decreto"
+    assert rd_304.ambito == "prevencion_blanqueo"
+    assert rd_304.vigente_desde == "2014-05-06"
 
 
 def test_parse_metadata_keeps_existing_tax_norms_as_tributario():
@@ -240,10 +253,12 @@ def test_default_normas_include_itpajd():
     assert DEFAULT_NORMAS["LIVMC"] == "BOE-A-2023-7053"
     assert DEFAULT_NORMAS["RD_1082_2012"] == "BOE-A-2012-9716"
     assert DEFAULT_NORMAS["RD_813_2023"] == "BOE-A-2023-22763"
+    assert DEFAULT_NORMAS["RD_304_2014"] == "BOE-A-2014-4742"
     assert LAW_TO_NORMA["10/2010"] == "LEY10_2010"
     assert LAW_TO_NORMA["6/2023"] == "LIVMC"
     assert LAW_TO_NORMA["1082/2012"] == "RD_1082_2012"
     assert LAW_TO_NORMA["813/2023"] == "RD_813_2023"
+    assert LAW_TO_NORMA["304/2014"] == "RD_304_2014"
 
 
 def test_run_sync_ingests_itpajd_article_and_version():

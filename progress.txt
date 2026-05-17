@@ -1961,3 +1961,319 @@ Verification:
   - Alertmanager returned 0 active alerts.
 Caveat: 200 and 303 remain intentionally partial because only instruction sections, not full deterministic clave coverage, were loaded.
 Next: COMPLETE
+
+---
+
+## Sprint A - TEAC DYCTEA + SEPBLAC granular
+
+### A-01 Audit current TEAC worker and DYCTEA API - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Lecturas obligatorias:
+- `apps/workers/teac.py` leido completo.
+- `prd.json` y `progress.txt` revisados; el `prd.json` anterior pertenecia al sprint AEAT I-* cerrado, por lo que se reemplaza por el PRD operativo de Sprint A.
+- `git log --oneline -20` revisado antes de ejecutar la historia.
+
+Estado productivo:
+- SQL solicitado contra VPS: `documento_interpretativo WHERE tipo_documento='resolucion_teac'`.
+- Resultado: `10` filas.
+- `fecha_publicacion` existe pero `MIN/MAX` salen vacios para esas filas; `fecha` si esta poblada en muestras recientes.
+- Muestras productivas recientes: `00/04803/2024/00/00` con fecha `2026-04-30`, `00/02088/2024/00/00` con fecha `2026-04-30`, `00/02259/2025/00/00` con fecha `2026-04-24`.
+
+Worker actual:
+- Usa `TEAC_SEED_URLS` y `DYCTEA_ROOT_URL=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/`.
+- Descubre enlaces `criterio.aspx?id=...` desde HTML ASP.NET con `__VIEWSTATE`.
+- No implementa bulk por rango de fechas 2018-presente.
+- No tiene paginacion explicita, `TEAC_FECHA_DESDE`, `--dry-run` ni `--max-results`.
+- Inserta `tipo_documento='resolucion_teac'`, `referencia`, `fecha`, `titulo`, `texto`, `url_fuente`, con upsert por `referencia`.
+
+DYCTEA:
+- La URL del prompt `https://www.hacienda.gob.es/es-ES/El%20Ministerio/Paginas/TEAC/Busqueda.aspx` devuelve `404`.
+- La URL publica usada por el worker `https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/` devuelve `200 OK` y HTML ASP.NET de aproximadamente `1.27 MB`.
+- El formulario contiene `__VIEWSTATE`, `__VIEWSTATEGENERATOR`, `ctl00$contentBody$tbFechaDesde`, `ctl00$contentBody$tbFechaHasta`, `ctl00$contentBody$ddlUnidad`, checks de `cbCriterios`/`cbResoluciones` y boton `ctl00$contentBody$btSearch`.
+- POST manual simple con parametros form sin `VIEWSTATE` no devuelve JSON; vuelve a HTML. No hay API JSON confirmada en A-01.
+- El HTML inicial contiene mapas JS masivos de normas/preceptos; la paginacion y limite por pagina no quedan documentados como JSON estable en A-01. A-02 debe tratar DYCTEA como HTML ASP.NET stateful salvo que encuentre endpoint interno estructurado.
+- Los textos completos parecen requerir abrir cada `criterio.aspx?id=...`; no aparecen como JSON de respuesta bulk.
+
+Verificacion A-01:
+- Equivalente compliant ejecutado sin host Python: DB via `docker compose exec -T postgres psql` en VPS y alcance DYCTEA probado con `curl`.
+- Resultado: `Current TEAC rows: 10`; DYCTEA reachable por HTTP `200 OK`; `AUDIT-COMPLETE`.
+
+Siguiente historia Ralph:
+- A-02: Upgrade TEAC worker for DYCTEA bulk ingestion.
+
+### A-02 Upgrade TEAC worker for DYCTEA bulk ingestion - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- `apps/workers/teac.py` incorpora parser `parse_dyctea_search_results` para resultados HTML oficiales `criterio.aspx`.
+- Se anade discovery bulk por ventanas de fecha usando el formulario ASP.NET oficial de DYCTEA con `__VIEWSTATE`.
+- `TEAC_FECHA_DESDE` y `--fecha-desde` permiten fijar fecha inicial; si hay `--max-results`, el worker fuerza carga inicial desde `2018-01-01` para no quedar atrapado por las 10 filas historicas.
+- `--dry-run` descubre candidatos sin escribir DB.
+- `--max-results` limita procesamiento.
+- Upsert TEAC conserva contrato de calidad en columnas opcionales `metadata`, `row_completeness`, `row_provenance` cuando existen, y sigue funcionando con tablas legacy.
+- `metadata` incluye `verified`, `sala`, `materia` y `url_oficial`; `verified=true` solo si hay texto oficial parseado y URL oficial Hacienda.
+
+Tests:
+- `pytest apps/workers/tests/test_teac.py -v` => `17 passed`.
+- `python -m py_compile apps/workers/teac.py apps/workers/tests/test_teac.py` OK.
+- `git diff --check` OK.
+
+Caveat:
+- A-02 no carga produccion. A-03 debe ejecutar el worker en VPS y validar conteos reales.
+- A-01 no confirmo API JSON estable; el worker trata DYCTEA como HTML ASP.NET stateful.
+
+Siguiente historia Ralph:
+- A-03: Load 500+ TEAC resoluciones in production.
+
+### A-03 Load 500+ TEAC resoluciones in production - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Despliegue:
+- Rama `feat/sprint-a-teac-sepblac` subida a origin y desplegada en `/srv/esdata`.
+- VPS conserva un cambio local ajeno en `scripts/backup-offsite.sh`; no se ha tocado.
+- `worker-teac` reconstruido desde git.
+
+Correccion operativa:
+- La primera prueba seca devolvio 0 candidatos porque el POST DYCTEA enviaba tambien `btReset=Limpiar`.
+- Se corrigio `_extract_hidden_inputs` para enviar solo inputs hidden y se anadio test de regresion.
+- `pytest apps/workers/tests/test_teac.py -v` => `18 passed`.
+- Prueba seca tras correccion: `TEAC_SEED_URLS=` + `--dry-run --max-results 5 --fecha-desde 2026-01-01` => 5 candidatos.
+
+Carga produccion:
+- Comando equivalente ejecutado en VPS: `docker compose -f infra/deploy/docker-compose.prod.yml run --rm -e TEAC_SEED_URLS= -e WORKER_REQUEST_DELAY=0.2 worker-teac python teac.py --run-once --max-results 600 --fecha-desde 2018-01-01`.
+- Resultado SQL produccion: `558` filas `tipo_documento='resolucion_teac'`.
+- Rango: `2018-01-16` a `2026-04-30`.
+- Completitud: `complete=286`, `partial=272`.
+- Spot-check URL oficial: 3 resoluciones recientes devuelven HTTP 200.
+
+Verificacion A-03:
+- VerificationCommand equivalente contra VPS: `TEAC rows: 558` => `PASS`.
+
+Caveat:
+- 272 filas son parciales porque el texto completo no siempre se parsea desde `criterio.aspx`; metadata, referencia, fecha y URL oficial quedan trazables.
+
+Siguiente historia Ralph:
+- A-04: Audit current SEPBLAC worker and production rows.
+
+### A-04 Audit current SEPBLAC worker and production rows - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Lecturas obligatorias:
+- `apps/workers/sepblac.py` leido completo.
+- `prd.json`, `progress.txt` y `git log --oneline -20` revisados antes de ejecutar la historia.
+
+Worker actual:
+- `SEED_URLS` viene de `SEPBLAC_SEED_URLS`; si existe, no usa discovery interno.
+- Defaults internos actuales: `https://www.sepblac.es/es/normativa/?lang=es`, `normativa-nacional`, `normativa-comunitaria`, `https://www.sepblac.es/es/sujetos-obligados/obligaciones/`.
+- Clasificacion actual por texto: `normativa_sepblac`, `obligacion_sepblac`, `guia_operativa_sepblac`, `formulario_sepblac`, `manual_sepblac`, `documento_sepblac`.
+- No hay CLI `--familia`, `--dry-run` ni cargas separadas por contrato.
+- No guarda `sujeto_obligado`, `source_url`, `capture_date`, `metadata`, `row_completeness` ni `verified` como contrato explicito.
+- Upsert actual por `referencia`; puede colisionar entre familias si el slug/referencia se repite.
+
+Estado productivo:
+- `SEPBLAC_SEED_URLS=https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/`.
+- SQL produccion por `tipo_documento`: `obligacion_sepblac=4`, `guia_operativa_sepblac=1`, `normativa_sepblac=1`.
+- Total SEPBLAC: 6 filas.
+
+Mapa de seeds y gaps:
+- Seeds VPS actuales: home/publicaciones, demasiado genericas para cobertura granular.
+- Normativa oficial y subfamilias nacional/comunitaria: no estan seeded via env, aunque el worker tiene defaults internos.
+- Obligaciones: no esta seeded via env. El default interno antiguo `sujetos-obligados/obligaciones` devuelve 200; la URL del prompt `entidades-obligadas/obligaciones` redirige a `medios-de-pago/obligaciones`, por lo que A-05 debe validar rutas oficiales actuales por familia.
+- Guias/orientaciones: URL del prompt `entidades-obligadas/guias-y-orientaciones` devuelve 404 en la prueba HTTP; A-05 debe descubrir fuente oficial actual o dejar familia como target/caveat.
+- Tipologias/documentacion: URL del prompt `https://www.sepblac.es/es/documentacion/` devuelve 404; no cargar como `verified` hasta localizar fuente oficial clara.
+
+RD 304/2014:
+- SQL produccion: `SELECT codigo,titulo FROM norma WHERE codigo ILIKE '%304%' OR codigo ILIKE '%rgl%pbcft%' OR titulo ILIKE '%304/2014%'` => 0 filas.
+- A-06 debe cargar `BOE-A-2014-5438` como `RD_304_2014`.
+
+Verificacion A-04:
+- VerificationCommand equivalente contra VPS ejecutado con DB via `docker compose exec -T postgres psql`.
+- Resultado: tabla SEPBLAC por tipo_documento devuelta correctamente; `AUDIT-COMPLETE` operativo.
+
+Siguiente historia Ralph:
+- A-05: Upgrade SEPBLAC worker - separate families by contract.
+
+### A-05 Upgrade SEPBLAC worker - separate families by contract - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- `apps/workers/sepblac.py` incorpora `SEPBLAC_FAMILY_MAP` con familias separadas: `normativa`, `obligaciones`, `guias`, `tipologias`.
+- CLI nuevo: `--familia {normativa,obligaciones,guias,tipologias}` y `--max-urls`.
+- `discover_default_urls(max_urls, familia=...)` descubre por familia y filtra URLs oficiales `sepblac.es`.
+- `build_document_payload(..., familia=...)` fuerza el contrato de familia:
+  - `normativa` => `tipo_documento='normativa_sepblac'`.
+  - `obligaciones` => `tipo_documento='obligacion_sepblac'` y `sujeto_obligado`.
+  - `guias` => `tipo_documento='guia_operativa_sepblac'`.
+  - `tipologias` => `tipo_documento='tipologia_sepblac'`, pero sigue condicionado a fuente oficial usable en A-07.
+- `verified=true` solo si la URL final es oficial SEPBLAC y hay texto extraido.
+- `row_completeness='complete'` para texto parseado; si una columna `metadata` existe, se guarda `source_url`, `capture_date`, `verified`, `sujeto_obligado`.
+- Upsert conserva compatibilidad con tabla actual por `referencia`, pero la referencia nueva queda derivada de `(tipo_documento, source_url)` para evitar colisiones entre familias.
+- PDF con contenido no parseable cae a HTML solo si el `content-type` no declara PDF; si el servidor declara PDF y falla, se conserva el error.
+
+Tests:
+- `pytest apps/workers/tests/test_sepblac.py -v` => `9 passed`.
+- VerificationCommand equivalente en PowerShell => `PASS`.
+- `python -m py_compile apps/workers/sepblac.py apps/workers/tests/test_sepblac.py` OK.
+- `git diff --check` OK.
+
+Caveat:
+- A-05 solo cambia worker/tests. No carga produccion.
+- La familia `tipologias` permanece condicional: las URLs `documentacion`/`guias-y-orientaciones` del prompt devolvieron 404 en A-04; A-07 debe cargar solo fuentes oficiales que resuelvan.
+
+Siguiente historia Ralph:
+- A-06: Load RD 304/2014 if not loaded - LPBC-FT reglamento.
+
+### A-06 Load RD 304/2014 if not loaded - LPBC-FT reglamento - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Hallazgo importante:
+- El PRD indicaba `BOE-A-2014-5438`, pero esa referencia oficial corresponde a RD 340/2014, no a RD 304/2014.
+- La referencia BOE correcta para RD 304/2014 es `BOE-A-2014-4742` (`https://www.boe.es/buscar/act.php?id=BOE-A-2014-4742`).
+
+Cambios:
+- `apps/workers/boe.py` anade `RD_304_2014` a `DEFAULT_NORMAS` con `BOE-A-2014-4742`.
+- Clasificacion: `tipo_documento='real_decreto'`, `ambito='prevencion_blanqueo'`.
+- Alias legal: `LAW_TO_NORMA['304/2014']='RD_304_2014'`.
+- `apps/workers/tests/test_boe.py` cubre metadata, default y alias.
+
+Operacion VPS:
+- Primera carga con el BOE ID erroneo del PRD inserto 7 filas de RD 340/2014 bajo codigo `RD_304_2014`.
+- Se limpio exclusivamente esa carga errónea propia: `version_articulo=7`, `articulo=7`, `norma=1`.
+- Se reconstruyo `worker-boe` desde git y se ejecuto solo `BOE_LEGISLACION_NORMAS=RD_304_2014`.
+- Carga correcta: `82` bloques/articulos.
+
+Verificacion:
+- SQL produccion: `RD_304_2014`, `boe_id='BOE-A-2014-4742'`, titulo oficial de RD 304/2014, `82` articulos.
+- Articulo 4: `text_len=1401`.
+- API con `X-API-Key`: `/v1/legislacion/RD_304_2014/articulos/4` => `200`, texto empieza por `Artículo 4. Identificación formal.`
+- Tests locales: `pytest apps/workers/tests/test_boe.py -q -k "financial_norms or default_normas"` => `2 passed`.
+- `python -m py_compile apps/workers/boe.py apps/workers/tests/test_boe.py` OK.
+- `git diff --check` OK.
+
+Siguiente historia Ralph:
+- A-07: Load SEPBLAC granular corpus in production.
+
+### A-07 Load SEPBLAC granular corpus in production - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Despliegue:
+- `worker-sepblac` reconstruido desde rama `feat/sprint-a-teac-sepblac`.
+- Ejecuciones por familia:
+  - `--familia normativa --max-urls 50` => procesados 6, almacenados 6.
+  - `--familia obligaciones --max-urls 50` => procesados 3, almacenados 3.
+  - `--familia guias --max-urls 50` inicial => procesados 1, almacenados 1.
+
+Correccion de discovery:
+- La primera carga de guias quedo en 2 filas totales.
+- Se anadieron fuentes oficiales de publicaciones SEPBLAC:
+  - `https://www.sepblac.es/es/publicaciones/recomendaciones-de-control-interno/`
+  - `https://www.sepblac.es/es/publicaciones/mas-publicaciones/`
+- Se ampliaron tokens de guia con `recomendacion`, `control interno`, `publicaciones`.
+- Tests SEPBLAC tras ajuste: `10 passed`.
+- Recarga `--familia guias --max-urls 50` => procesados 6, almacenados 5.
+
+Estado produccion:
+- `normativa_sepblac=7`.
+- `obligacion_sepblac=7`.
+- `guia_operativa_sepblac=7`.
+- `obligacion_sepblac` con `sujeto_obligado` en metadata: 3.
+- `normativa_sepblac` que menciona Ley 10/2010 o RD 304/2014: 3.
+
+Verificacion A-07:
+- VerificationCommand equivalente con columna real `tipo_fuente='sepblac'` ejecutado contra VPS.
+- Resultado: tabla por `tipo_documento` devuelta con 7/7/7; `PASS` operativo.
+
+Caveat:
+- El PRD usa columna `fuente`, pero el esquema activo usa `tipo_fuente`; se verifico con la columna real.
+- `tipologia_sepblac` no se cargo porque la fuente `documentacion` indicada en el prompt devolvio 404 en A-04.
+
+Siguiente historia Ralph:
+- A-08: Update mcp_validation_suite - TEAC and SEPBLAC coverage checks.
+
+### A-08 Update mcp_validation_suite - TEAC and SEPBLAC coverage checks - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- `scripts/maintenance/mcp_validation_suite.py` anade checks SQL/API para TEAC, SEPBLAC granular y RD 304/2014.
+- `scripts/maintenance/mcp_deep_contract_audit.py` anade contrato profundo `teac_sepblac_sprint_a_contracts`.
+- `infra/deploy/Dockerfile.ops` incluye `httpx` y `apps/api/mcp_catalog.py` para ejecutar las suites desde el contenedor `ops`.
+
+Verificacion VPS:
+- `mcp_validation_suite.py --read-only --base-url http://api:8000` desde `ops` con `ESDATA_API_KEY/MCP_API_KEY` => `ok=true`.
+- Nuevos checks de DB:
+  - `resolucion_teac=558`.
+  - `url_oficial/url_fuente TEAC=100%`.
+  - `normativa_sepblac=7`.
+  - `obligacion_sepblac=7`.
+  - `guia_operativa_sepblac=7`.
+  - `RD_304_2014 articles=76` segun el contrato de suite.
+- `mcp_deep_contract_audit.py --base-url http://api:8000` desde `ops` => `ok=true`.
+- Suite semantica delegada dentro del deep audit: `48` checks, `0` failures.
+
+Caveat operativo:
+- El comando literal del PRD usa servicio `worker`, pero el compose activo no tiene un servicio generico `worker`. Se uso el equivalente correcto `ops`, que es la imagen de mantenimiento con `scripts/`.
+
+Siguiente historia Ralph:
+- A-09: Update docs - honest coverage report and roadmap.
+
+### A-09 Update docs - honest coverage report and roadmap - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- Creado `docs/sprint-a-coverage-report.md` con tabla de cobertura real y SQL productivo.
+- Actualizado `docs/master-execution-roadmap.md` con cierre A-08/A-09 y siguiente paso A-10.
+- Actualizado `docs/operations/agent-notes.md` con contrato operativo TEAC DYCTEA, SEPBLAC granular y RD 304/2014.
+
+Evidencia documentada:
+- TEAC `resolucion_teac=558`, `verified_pct=51.25`, `complete_rows=286`, `partial_rows=272`.
+- SEPBLAC `normativa_sepblac=7`, `obligacion_sepblac=7`, `guia_operativa_sepblac=7`.
+- RD 304/2014 `BOE-A-2014-4742`, `76` articulos segun SQL de produccion usado para el informe.
+- `mcp_validation_suite.py` en VPS => `ok=true`.
+- `mcp_deep_contract_audit.py` en VPS => `ok=true`.
+
+Caveat:
+- TEAC y SEPBLAC quedan mejorados para Sprint C, pero no se documentan como universo completo de TEAC/SEPBLAC.
+- `tipologia_sepblac` sigue como target por fuente 404.
+
+Siguiente historia Ralph:
+- A-10: Final verification - Sprint A complete.
+
+### A-10 Final verification - Sprint A complete - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Verificacion local:
+- Primer `pytest apps/ -q --basetemp .pytest-tmp` detecto un test stale de CNMV: esperaba `modelos_normalizados=configured_but_unavailable` aunque el contrato actual ya lo declara `partial_loaded`.
+- Se actualizo `apps/api/tests/test_cnmv_router.py` para reflejar el contrato vivo de `/v1/cnmv/coverage`.
+- `pytest apps/api/tests/test_cnmv_router.py -q --basetemp .pytest-tmp` => `7 passed`.
+- `pytest apps/ -q --basetemp .pytest-tmp` => `3062 passed, 2 skipped, 34 warnings`.
+
+Verificacion VPS:
+- `/status` con API key => `api=ok`, `database=ok`, `stale_workers=[]`, `stale_count=0`.
+- `mcp_validation_suite.py --read-only --base-url http://api:8000` desde `ops` => `ok=true`.
+- `mcp_deep_contract_audit.py --base-url http://api:8000` desde `ops` => `ok=true`.
+- Alertmanager dentro del contenedor: active unsilenced uninhibited alerts => `0`.
+
+Conteos finales produccion:
+- TEAC `resolucion_teac=558`.
+- SEPBLAC `normativa_sepblac=7`, `obligacion_sepblac=7`, `guia_operativa_sepblac=7`.
+- RD 304/2014 `rd304_articles=76`.
+
+Caveats finales:
+- TEAC no se documenta como universo completo: `286` filas completas y `272` parciales.
+- SEPBLAC `tipologia_sepblac` sigue target por fuente 404.
+- El comando literal del PRD usa un servicio `worker` que no existe en compose; se verifico con el servicio real `ops`.
+
+Resultado:
+- Sprint A TEAC DYCTEA + SEPBLAC granular: COMPLETO.
+- Branch `feat/sprint-a-teac-sepblac` queda listo para merge tras push final.
