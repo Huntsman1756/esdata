@@ -1080,6 +1080,94 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         if not isinstance(payload, dict) or "safe_to_answer" not in payload:
             failures.append({"check": f"{name}_safe_to_answer"})
 
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        profile_checks = {
+            "eaf_cnmv": ("/v1/perfil/eaf/obligaciones", {"dominio": "CNMV"}),
+            "entidad_credito_cnmv": (
+                "/v1/perfil/entidad_credito/obligaciones",
+                {"dominio": "CNMV"},
+            ),
+            "empresa_servicios_pago_fiscal": (
+                "/v1/perfil/empresa_servicios_pago/obligaciones",
+                {"dominio": "FISCAL"},
+            ),
+            "sgiic_cnmv": ("/v1/perfil/sgiic/obligaciones", {"dominio": "CNMV"}),
+            "all_profiles": ("/v1/perfil", {}),
+        }
+        extra_payloads: dict[str, Any] = {}
+        for check_name, (path, params) in profile_checks.items():
+            status, payload, preview = _get_json(client, path, params=params)
+            details[f"{check_name}_status"] = status
+            if status != 200:
+                failures.append({"check": check_name, "status": status, "response": preview})
+            extra_payloads[check_name] = payload
+
+    eaf_items = extra_payloads.get("eaf_cnmv", {}).get("obligaciones", [])
+    entidad_items = extra_payloads.get("entidad_credito_cnmv", {}).get("obligaciones", [])
+    esp_items = extra_payloads.get("empresa_servicios_pago_fiscal", {}).get("obligaciones", [])
+    sgiic_items = extra_payloads.get("sgiic_cnmv", {}).get("obligaciones", [])
+    all_profile_items: list[dict[str, Any]] = []
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        for profile in (
+            "sociedad_valores",
+            "agencia_valores",
+            "sgiic",
+            "eaf",
+            "entidad_credito",
+            "empresa_servicios_pago",
+        ):
+            status, payload, _preview = _get_json(
+                client,
+                f"/v1/perfil/{profile}/obligaciones",
+                params={},
+            )
+            if status == 200 and isinstance(payload, dict):
+                all_profile_items.extend(
+                    item for item in (payload.get("obligaciones") or []) if isinstance(item, dict)
+                )
+
+    details["eaf_cnmv_descriptions"] = [item.get("descripcion") for item in eaf_items if isinstance(item, dict)]
+    details["entidad_credito_cnmv_descriptions"] = [
+        item.get("descripcion") for item in entidad_items if isinstance(item, dict)
+    ]
+    details["empresa_servicios_pago_fiscal_modelos"] = [
+        item.get("modelo_aeat") for item in esp_items if isinstance(item, dict)
+    ]
+    details["sgiic_cnmv_descriptions"] = [item.get("descripcion") for item in sgiic_items if isinstance(item, dict)]
+
+    if not any("idoneidad" in str(item.get("descripcion", "")).lower() for item in eaf_items if isinstance(item, dict)):
+        failures.append({"check": "eaf_cnmv_idoneidad"})
+    if any(
+        needle in str(item.get("descripcion", "")).lower()
+        for item in eaf_items
+        if isinstance(item, dict)
+        for needle in ("transaction reporting", "mejor ejecucion")
+    ):
+        failures.append({"check": "eaf_forbidden_execution_obligations"})
+    if not any(
+        needle in str(item.get("descripcion", "")).lower()
+        for item in entidad_items
+        if isinstance(item, dict)
+        for needle in ("corep", "finrep")
+    ):
+        failures.append({"check": "entidad_credito_corep_finrep"})
+    if not any(
+        item.get("modelo_aeat") == "303" and item.get("completeness") == "completa"
+        for item in esp_items
+        if isinstance(item, dict)
+    ):
+        failures.append({"check": "empresa_servicios_pago_modelo_303_completa"})
+    if not any("annex iv" in str(item.get("descripcion", "")).lower() for item in sgiic_items if isinstance(item, dict)):
+        failures.append({"check": "sgiic_aifmd_annex_iv"})
+    missing_profile_source = [
+        item.get("descripcion")
+        for item in all_profile_items
+        if isinstance(item, dict) and not item.get("source_url")
+    ]
+    details["all_profiles_source_url_missing"] = missing_profile_source[:20]
+    if missing_profile_source:
+        failures.append({"check": "all_profiles_source_url_required", "missing": missing_profile_source[:20]})
+
     try:
         with httpx.Client(base_url=base_url, timeout=60) as client:
             session_id, session_details = _mcp_session(client)

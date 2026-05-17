@@ -585,14 +585,25 @@ def _validate_perfil_list(payload: Any) -> tuple[bool, dict[str, Any]]:
         "returned": len(items),
         "codigos": sorted(str(codigo) for codigo in codigos),
     }
-    return len(items) >= 3 and "sociedad_valores" in codigos, details
+    expected = {
+        "sociedad_valores",
+        "agencia_valores",
+        "sgiic",
+        "eaf",
+        "entidad_credito",
+        "empresa_servicios_pago",
+    }
+    return len(items) >= 6 and expected <= codigos, details
 
 
 def _validate_perfil_obligaciones(
     *,
     minimum_total: int,
+    expected_perfil: str = "sociedad_valores",
     required_types: set[str] | None = None,
     required_modelos: set[str] | None = None,
+    required_text: set[str] | None = None,
+    forbidden_text: set[str] | None = None,
 ) -> Any:
     def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
         obligaciones = payload.get("obligaciones") or []
@@ -607,6 +618,11 @@ def _validate_perfil_obligaciones(
             for item in obligaciones
             if isinstance(item, dict) and not item.get("source_url")
         ]
+        descriptions = [
+            str(item.get("descripcion") or "").lower()
+            for item in obligaciones
+            if isinstance(item, dict)
+        ]
         details = {
             "perfil": (payload.get("perfil") or {}).get("codigo"),
             "total": payload.get("total"),
@@ -616,9 +632,11 @@ def _validate_perfil_obligaciones(
             "modelos": sorted(str(modelo) for modelo in modelos),
             "missing_source_url": missing_source[:20],
             "evidence_notice_present": bool(payload.get("evidence_notice")),
+            "required_text": sorted(required_text or []),
+            "forbidden_text": sorted(forbidden_text or []),
         }
         ok = (
-            (payload.get("perfil") or {}).get("codigo") == "sociedad_valores"
+            (payload.get("perfil") or {}).get("codigo") == expected_perfil
             and isinstance(payload.get("total"), int)
             and payload.get("total", 0) >= minimum_total
             and len(obligaciones) >= minimum_total
@@ -630,6 +648,17 @@ def _validate_perfil_obligaciones(
             ok = ok and required_types <= tipos
         if required_modelos:
             ok = ok and required_modelos <= modelos
+        if required_text:
+            ok = ok and all(
+                any(needle.lower() in description for description in descriptions)
+                for needle in required_text
+            )
+        if forbidden_text:
+            ok = ok and not any(
+                needle.lower() in description
+                for needle in forbidden_text
+                for description in descriptions
+            )
         return ok, details
 
     return validator
@@ -1201,6 +1230,90 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {},
                 _validate_perfil_calendar,
                 "perfil_sociedad_valores_calendar_contract",
+            )
+        )
+        for perfil_codigo, minimum_total in (
+            ("eaf", 15),
+            ("entidad_credito", 22),
+            ("empresa_servicios_pago", 10),
+            ("sgiic", 20),
+        ):
+            checks.append(
+                _check_json_contract(
+                    client,
+                    f"/v1/perfil/{perfil_codigo}/obligaciones",
+                    {},
+                    _validate_perfil_obligaciones(
+                        minimum_total=minimum_total,
+                        expected_perfil=perfil_codigo,
+                    ),
+                    f"perfil_{perfil_codigo}_obligaciones_contract",
+                )
+            )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/eaf/obligaciones",
+                {"dominio": "CNMV"},
+                _validate_perfil_obligaciones(
+                    minimum_total=4,
+                    expected_perfil="eaf",
+                    required_text={"idoneidad"},
+                    forbidden_text={"transaction reporting", "mejor ejecucion"},
+                ),
+                "perfil_eaf_cnmv_no_execution_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/agencia_valores/obligaciones",
+                {},
+                _validate_perfil_obligaciones(
+                    minimum_total=18,
+                    expected_perfil="agencia_valores",
+                    forbidden_text={"custodia"},
+                ),
+                "perfil_agencia_valores_no_custody_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/entidad_credito/obligaciones",
+                {"dominio": "CNMV"},
+                _validate_perfil_obligaciones(
+                    minimum_total=5,
+                    expected_perfil="entidad_credito",
+                    required_text={"corep", "finrep"},
+                ),
+                "perfil_entidad_credito_prudential_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/empresa_servicios_pago/obligaciones",
+                {"dominio": "FISCAL"},
+                _validate_perfil_obligaciones(
+                    minimum_total=4,
+                    expected_perfil="empresa_servicios_pago",
+                    required_modelos={"303"},
+                ),
+                "perfil_empresa_servicios_pago_fiscal_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/sgiic/obligaciones",
+                {"dominio": "CNMV"},
+                _validate_perfil_obligaciones(
+                    minimum_total=6,
+                    expected_perfil="sgiic",
+                    required_text={"annex iv"},
+                ),
+                "perfil_sgiic_aifmd_contract",
             )
         )
         checks.append(

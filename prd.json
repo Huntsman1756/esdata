@@ -1,90 +1,97 @@
 {
-  "projectName": "esdata-sprint-d-esma-esrb",
-  "branchName": "feat/sprint-d-esma-esrb",
+  "projectName": "esdata-sprint-e-aplicabilidad-completa",
+  "branchName": "feat/sprint-e-aplicabilidad-completa",
   "userStories": [
     {
-      "id": "D-01",
-      "title": "Alembic migration - EU metadata columns on norma table",
+      "id": "E-01",
+      "title": "Load missing norms - PSD2, Ley 10/2014, RD-ley 19/2018",
       "priority": 1,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM information_schema.columns WHERE table_name='norma' AND column_name IN ('celex','tipo_norma','url_eurlex','vigente','derogada_por')\"); echo \"EU columns: $COUNT\"; [ \"$COUNT\" -ge 5 ] && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM norma WHERE codigo IN ('32015L2366','LEY10_2014','RD19_2018')"
     },
     {
-      "id": "D-02",
-      "title": "Seed MiFIR/MiFID II core regulations",
+      "id": "E-02",
+      "title": "Seed EAF obligations - fiscal (AEAT)",
       "priority": 2,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32014L0065','32014R0600','32017R0571','32017R0590','32017R0565')\"); echo \"MiFIR/MiFID norms: $COUNT\"; [ \"$COUNT\" -ge 5 ] && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND obligacion_tipo IN ('AUTOLIQUIDACION','DECLARACION_INFORMATIVA')"
     },
     {
-      "id": "D-03",
-      "title": "Seed EMIR + DORA regulations",
+      "id": "E-03",
+      "title": "Seed EAF obligations - PBC/FT",
       "priority": 3,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32012R0648','32019R0834','32022R2554')\"); echo \"EMIR+DORA: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND obligacion_tipo IN ('DILIGENCIA_DEBIDA','COMUNICACION_INDICIO','CONTROL_INTERNO','FORMACION','REGISTRO')"
     },
     {
-      "id": "D-04",
-      "title": "Seed SFTR + CRR regulations",
+      "id": "E-04",
+      "title": "Seed EAF obligations - CNMV/MiFID II specific",
       "priority": 4,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32015R2365','32013R0575','32019R0876')\"); echo \"SFTR+CRR: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf'"
     },
     {
-      "id": "D-05",
-      "title": "Seed UCITS + AIFMD regulations for SGIIC",
+      "id": "E-05",
+      "title": "Seed entidad_credito obligations - fiscal (AEAT)",
       "priority": 5,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32009L0065','32011L0061','32013R0231')\"); echo \"UCITS+AIFMD: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito' AND obligacion_tipo IN ('AUTOLIQUIDACION','DECLARACION_INFORMATIVA')"
     },
     {
-      "id": "D-06",
-      "title": "Seed ESMA Guidelines as documento_interpretativo",
+      "id": "E-06",
+      "title": "Seed entidad_credito obligations - PBC/FT (alto riesgo)",
       "priority": 6,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='ESMA' AND tipo_documento='guideline_esma'\"); echo \"ESMA Guidelines: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito' AND obligacion_tipo IN ('DILIGENCIA_DEBIDA','COMUNICACION_INDICIO','CONTROL_INTERNO','FORMACION','REGISTRO')"
     },
     {
-      "id": "D-07",
-      "title": "Upgrade verified count using loaded EU norms",
+      "id": "E-07",
+      "title": "Seed entidad_credito obligations - BDE prudencial y DORA",
       "priority": 7,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sociedad_valores' AND verified=true\"); echo \"sociedad_valores verified: $COUNT\"; [ \"$COUNT\" -ge 20 ] && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito'"
     },
     {
-      "id": "D-08",
-      "title": "New MCP tool - buscar_norma_eu",
+      "id": "E-08",
+      "title": "Seed empresa_servicios_pago obligations",
       "priority": 8,
       "passes": true,
-      "verificationCommand": "pytest apps/api/tests/test_mcp_tools_eu.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='empresa_servicios_pago'"
     },
     {
-      "id": "D-09",
-      "title": "REST endpoint - GET /v1/norma/eu and /v1/norma/{codigo}",
+      "id": "E-09",
+      "title": "Complete sgiic obligations - AIFMD Annex IV + ESMA liquidity",
       "priority": 9,
       "passes": true,
-      "verificationCommand": "pytest apps/api/tests/test_norma_router.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/v1/norma/eu | jq 'length' | awk '{if ($1>=10) print \"PASS\"; else print \"FAIL: only \" $1}' || echo FAIL"
+      "verificationCommand": "SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM obligacion_perfil WHERE perfil_codigo='sgiic'"
     },
     {
-      "id": "D-10",
-      "title": "Cross-reference TEAC resoluciones with EU regulations",
+      "id": "E-10",
+      "title": "Upgrade agencia_valores - verified count using Sprint D EU norms",
       "priority": 10,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='resolucion_teac' AND (texto ~* '(^|[^A-Za-z0-9])(MiFIR|EMIR|DORA|SFTR|CRR)([^A-Za-z0-9]|$)' OR texto ~* '(600/2014|648/2012|575/2013|2015/2365)' OR titulo ~* '(^|[^A-Za-z0-9])(MiFIR|EMIR|DORA|SFTR|CRR)([^A-Za-z0-9]|$)' OR titulo ~* '(600/2014|648/2012|575/2013|2015/2365)')\" && echo PASS"
+      "verificationCommand": "SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM obligacion_perfil WHERE perfil_codigo='agencia_valores'"
     },
     {
-      "id": "D-11",
-      "title": "Update validation suite - EU regulations and new tools",
+      "id": "E-11",
+      "title": "Coverage report - all profiles complete",
       "priority": 11,
       "passes": true,
-      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
+      "verificationCommand": "profile coverage thresholds"
     },
     {
-      "id": "D-12",
-      "title": "Final verification - Sprint D complete",
+      "id": "E-12",
+      "title": "Update mcp_validation_suite - all profiles covered",
       "priority": 12,
       "passes": true,
-      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && curl -sf http://localhost:${API_PORT:-8000}/v1/norma/eu | jq 'length' | awk '{if ($1>=10) print \"PASS\"; else print \"FAIL: only \" $1}' || echo FAIL"
+      "verificationCommand": "mcp_validation_suite.py and mcp_deep_contract_audit.py ok=true"
+    },
+    {
+      "id": "E-13",
+      "title": "Final verification - Sprint E complete",
+      "priority": 13,
+      "passes": true,
+      "verificationCommand": "pytest apps/ -q plus production totals"
     }
   ]
 }
