@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+from sqlalchemy import create_engine, text
 
 
 def _headers() -> dict[str, str]:
@@ -186,6 +187,76 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
     check["missing_tools"] = missing
     check["ok"] = not missing
     return check
+
+
+def _check_db_scalar(database_url: str, name: str, sql: str, minimum: int) -> dict[str, Any]:
+    check: dict[str, Any] = {"name": name, "ok": False, "minimum": minimum}
+    try:
+        engine = create_engine(database_url, future=True)
+        with engine.connect() as conn:
+            value = int(conn.execute(text(sql)).scalar() or 0)
+    except Exception as exc:
+        check["error"] = str(exc)
+        return check
+    check["value"] = value
+    check["ok"] = value >= minimum
+    return check
+
+
+def _check_database_contracts() -> list[dict[str, Any]]:
+    database_url = os.getenv("DATABASE_URL", "")
+    if not database_url:
+        return [{"name": "database_contracts_configured", "ok": False, "error": "DATABASE_URL missing"}]
+    checks = [
+        _check_db_scalar(
+            database_url,
+            "teac_resolucion_count_ge_500",
+            "SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='resolucion_teac'",
+            500,
+        ),
+        _check_db_scalar(
+            database_url,
+            "teac_url_oficial_coverage_ge_90_percent",
+            """
+            SELECT CASE
+                WHEN COUNT(*) = 0 THEN 0
+                ELSE FLOOR(100.0 * COUNT(*) FILTER (WHERE url_fuente IS NOT NULL) / COUNT(*))::int
+            END
+            FROM documento_interpretativo
+            WHERE tipo_documento='resolucion_teac'
+            """,
+            90,
+        ),
+        _check_db_scalar(
+            database_url,
+            "sepblac_normativa_count_ge_5",
+            "SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='normativa_sepblac'",
+            5,
+        ),
+        _check_db_scalar(
+            database_url,
+            "sepblac_obligacion_count_ge_5",
+            "SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='obligacion_sepblac'",
+            5,
+        ),
+        _check_db_scalar(
+            database_url,
+            "sepblac_guia_count_ge_3",
+            "SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='guia_operativa_sepblac'",
+            3,
+        ),
+        _check_db_scalar(
+            database_url,
+            "rd_304_2014_article_count_ge_10",
+            """
+            SELECT COUNT(*)
+            FROM articulo a JOIN norma n ON n.id=a.norma_id
+            WHERE n.codigo='RD_304_2014'
+            """,
+            10,
+        ),
+    ]
+    return checks
 
 
 def _validate_domain_availability(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
@@ -551,6 +622,36 @@ def _validate_legislation_article(
     return validator
 
 
+def _validate_teac_search_result(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    resultados = payload.get("resultados") or []
+    teac_results = [
+        item
+        for item in resultados
+        if item.get("tipo_documento") == "resolucion_teac"
+        or str(item.get("organismo_emisor") or "").upper() == "TEAC"
+    ]
+    details = {
+        "returned": len(resultados),
+        "teac_results": len(teac_results),
+        "first_referencia": teac_results[0].get("referencia") if teac_results else None,
+    }
+    return len(teac_results) > 0, details
+
+
+def _validate_sepblac_family_list(expected_tipo: str, minimum: int = 1) -> Any:
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        documentos = payload.get("documentos") or []
+        matching = [item for item in documentos if item.get("tipo_documento") == expected_tipo]
+        details = {
+            "returned": len(documentos),
+            "matching": len(matching),
+            "expected_tipo": expected_tipo,
+        }
+        return len(matching) >= minimum, details
+
+    return validator
+
+
 def _validate_esma_mifir_schema_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     items = payload.get("items") or []
     details = {
@@ -734,6 +835,7 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         checks.append(_check_get(client, "/health"))
         checks.append(_check_get(client, "/status"))
         checks.append(_check_mcp_transport(client))
+        checks.extend(_check_database_contracts())
         checks.append(_check_get(client, "/v1/legislacion/LIVA/articulos/90", "21 por ciento"))
         checks.append(
             _check_json_contract(
@@ -992,6 +1094,42 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 "cnmv_coverage_partial_contract",
             )
         )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/doctrina/buscar",
+                {
+                    "q": "retencion no residente",
+                    "tipo": "resolucion_teac",
+                    "organismo_emisor": "TEAC",
+                },
+                _validate_teac_search_result,
+                "teac_resoluciones_search_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/sepblac",
+                {"q": "obligaciones"},
+                _validate_sepblac_family_list("obligacion_sepblac"),
+                "sepblac_obligacion_family_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/legislacion/RD_304_2014/articulos/4",
+                {},
+                _validate_legislation_article(
+                    "RD_304_2014",
+                    "4",
+                    "BOE-A-2014-4742",
+                    required_text="Identificación formal",
+                ),
+                "rd_304_2014_article_4_contract",
+            )
+        )
 
     return {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -1014,6 +1152,7 @@ def main() -> int:
 
     result = run_read_only_suite(args.base_url)
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    print(f"ok={str(result['ok']).lower()}")
     return 0 if result["ok"] else 1
 
 

@@ -788,6 +788,218 @@ def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
     )
 
 
+def audit_teac_sepblac_contracts(base_url: str, engine: Engine) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {}
+
+    with engine.connect() as conn:
+        teac_count = int(
+            conn.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM documento_interpretativo
+                    WHERE tipo_documento='resolucion_teac'
+                    """
+                )
+            ).scalar()
+            or 0
+        )
+        teac_url_count = int(
+            conn.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM documento_interpretativo
+                    WHERE tipo_documento='resolucion_teac'
+                      AND url_fuente IS NOT NULL
+                    """
+                )
+            ).scalar()
+            or 0
+        )
+        sepblac_obligacion_count = int(
+            conn.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM documento_interpretativo
+                    WHERE tipo_documento='obligacion_sepblac'
+                    """
+                )
+            ).scalar()
+            or 0
+        )
+        sepblac_sociedad_valores_count = int(
+            conn.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM documento_interpretativo
+                    WHERE tipo_documento='obligacion_sepblac'
+                      AND (
+                        metadata->>'sujeto_obligado' IN ('sociedad_valores', 'all')
+                        OR LOWER(COALESCE(texto, '')) LIKE '%sociedad%valores%'
+                        OR LOWER(COALESCE(titulo, '')) LIKE '%sociedad%valores%'
+                      )
+                    """
+                )
+            ).scalar()
+            or 0
+        )
+        rd_304_articles = int(
+            conn.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM articulo a
+                    JOIN norma n ON n.id=a.norma_id
+                    WHERE n.codigo='RD_304_2014'
+                    """
+                )
+            ).scalar()
+            or 0
+        )
+
+    details["db"] = {
+        "teac_count": teac_count,
+        "teac_url_count": teac_url_count,
+        "teac_url_percent": round((teac_url_count / teac_count) * 100, 2)
+        if teac_count
+        else 0,
+        "sepblac_obligacion_count": sepblac_obligacion_count,
+        "sepblac_sociedad_valores_applicable_count": sepblac_sociedad_valores_count,
+        "sociedad_valores_basis": "obligacion_sepblac rows explicitly tagged sociedad_valores or all, or matching text/title",
+        "rd_304_2014_articles": rd_304_articles,
+    }
+    if teac_count < 500:
+        failures.append({"check": "teac_count", "reason": "count_below_500", "value": teac_count})
+    if teac_count and (teac_url_count / teac_count) < 0.9:
+        failures.append(
+            {
+                "check": "teac_url_coverage",
+                "reason": "url_oficial_below_90_percent",
+                "value": teac_url_count,
+                "total": teac_count,
+            }
+        )
+    if sepblac_obligacion_count < 5:
+        failures.append(
+            {
+                "check": "sepblac_obligacion_count",
+                "reason": "count_below_5",
+                "value": sepblac_obligacion_count,
+            }
+        )
+    if sepblac_sociedad_valores_count < 1:
+        failures.append(
+            {
+                "check": "sepblac_sociedad_valores_applicability",
+                "reason": "no_obligacion_sepblac_row_applicable_to_sociedad_valores",
+            }
+        )
+    if rd_304_articles < 10:
+        failures.append(
+            {
+                "check": "rd_304_2014_articles",
+                "reason": "article_count_below_10",
+                "value": rd_304_articles,
+            }
+        )
+
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        status_code, payload, text_preview = _get_json(
+            client,
+            "/v1/doctrina/buscar",
+            {
+                "q": "retencion no residente",
+                "tipo": "resolucion_teac",
+                "organismo_emisor": "TEAC",
+            },
+        )
+        resultados = (payload or {}).get("resultados") or []
+        teac_results = [
+            item
+            for item in resultados
+            if item.get("tipo_documento") == "resolucion_teac"
+            or str(item.get("organismo_emisor") or "").upper() == "TEAC"
+        ]
+        details["teac_query"] = {
+            "status_code": status_code,
+            "returned": len(resultados),
+            "teac_results": len(teac_results),
+        }
+        if status_code != 200 or not teac_results:
+            failures.append(
+                {
+                    "check": "teac_retencion_no_residente_query",
+                    "reason": "no_resolucion_teac_result",
+                    "response": text_preview,
+                }
+            )
+
+        status_code, payload, text_preview = _get_json(
+            client,
+            "/v1/sepblac",
+            {"q": "sujetos"},
+        )
+        documentos = (payload or {}).get("documentos") or []
+        sepblac_obligaciones = [
+            item for item in documentos if item.get("tipo_documento") == "obligacion_sepblac"
+        ]
+        details["sepblac_sociedad_valores_query"] = {
+            "status_code": status_code,
+            "returned": len(documentos),
+            "obligacion_sepblac_results": len(sepblac_obligaciones),
+            "query": "sujetos",
+        }
+        if status_code != 200 or not sepblac_obligaciones:
+            failures.append(
+                {
+                    "check": "sepblac_sociedad_valores_obligacion_query",
+                    "reason": "no_obligacion_sepblac_result",
+                    "response": text_preview,
+                }
+            )
+
+        status_code, payload, text_preview = _get_json(
+            client,
+            "/v1/legislacion/RD_304_2014/articulos/4",
+        )
+        text_value = (payload or {}).get("texto") or ""
+        details["rd_304_article_4"] = {
+            "status_code": status_code,
+            "norma": (payload or {}).get("norma"),
+            "numero": (payload or {}).get("numero"),
+            "boe_reference": (payload or {}).get("boe_reference"),
+            "text_length": len(text_value),
+        }
+        if (
+            status_code != 200
+            or not payload
+            or payload.get("norma") != "RD_304_2014"
+            or payload.get("numero") != "4"
+            or payload.get("boe_reference") != "BOE-A-2014-4742"
+            or "identificación formal" not in text_value.lower()
+        ):
+            failures.append(
+                {
+                    "check": "rd_304_2014_article_4",
+                    "reason": "article_contract_failed",
+                    "response": text_preview,
+                }
+            )
+
+    return CheckResult(
+        "teac_sepblac_sprint_a_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
 def audit_semantic_suite(base_url: str) -> CheckResult:
     sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
     from mcp_validation_suite import run_read_only_suite  # type: ignore
@@ -815,6 +1027,7 @@ def run_audit(base_url: str, database_url: str) -> dict[str, Any]:
         audit_actions_openapi(base_url),
         audit_boe_core_legislation_contracts(base_url),
         audit_aeat_instruction_key_contracts(base_url),
+        audit_teac_sepblac_contracts(base_url, engine),
         audit_eurlex_esma_market_contracts(base_url),
         audit_semantic_suite(base_url),
     ]
@@ -844,6 +1057,7 @@ def main() -> int:
     result = run_audit(args.base_url.rstrip("/"), args.database_url)
     rendered = json.dumps(result, ensure_ascii=False, indent=2)
     print(rendered)
+    print(f"ok={str(result['ok']).lower()}")
     if args.output:
         Path(args.output).write_text(rendered + "\n", encoding="utf-8")
     return 0 if result["ok"] else 1
