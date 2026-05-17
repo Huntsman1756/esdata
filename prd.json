@@ -34,7 +34,7 @@
       "id": "G-05",
       "title": "Add plazo_descripcion to all obligations missing it",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE periodicidad IN ('mensual','trimestral','semestral','anual') AND plazo_descripcion IS NULL\"); echo \"Missing plazo: $COUNT\"; [ \"$COUNT\" -eq 0 ] && echo PASS || echo FAIL"
     },
     {
