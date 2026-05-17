@@ -30,7 +30,7 @@
       "id": "C-03",
       "title": "Seed perfil_entidad - 6 supervised entity profiles",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Seed sociedad_valores, agencia_valores, sgiic, eaf, entidad_credito, empresa_servicios_pago",
         "Verify LIVMC and LEY10_2010 before seeding",

@@ -2335,3 +2335,31 @@ Verificacion:
 Resultado:
 - C-02: COMPLETADO.
 - Siguiente historia Ralph: C-03 Seed perfil_entidad - 6 supervised entity profiles.
+
+### C-03 Seed perfil_entidad - 6 supervised entity profiles - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- `LIVMC`, `LEY10_2010`, `RD_1082_2012` existen en `norma`.
+- `perfil_entidad` estaba vacia (`count=0`) antes del seed.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_perfil_entidad.sql`.
+- Precondiciones SQL: falla cerrado si faltan `LIVMC` o `LEY10_2010`.
+- Perfiles insertados/actualizados:
+  - `sociedad_valores | CNMV | LIVMC`
+  - `agencia_valores | CNMV | LIVMC`
+  - `sgiic | CNMV | RD_1082_2012`
+  - `eaf | CNMV | LIVMC`
+  - `entidad_credito | BDE | multiple`
+  - `empresa_servicios_pago | BDE | multiple`
+
+Verificacion produccion:
+- Seed ejecutado por `docker compose ... exec postgres psql -f - < scripts/data/seed_perfil_entidad.sql`.
+- `SELECT COUNT(*) FROM perfil_entidad WHERE activo=true` => `6`.
+- VerificationCommand C-03 => `Profiles: 6`, `PASS`.
+
+Resultado:
+- C-03: COMPLETADO.
+- Siguiente historia Ralph: C-04 Seed sociedad_valores - fiscal obligations (AEAT).
