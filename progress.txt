@@ -2307,3 +2307,31 @@ Verificacion produccion:
 Resultado:
 - C-01: COMPLETADO.
 - Siguiente historia Ralph: C-02 Define MCP tool contracts - before any implementation.
+
+### C-02 Define MCP tool contracts - before any implementation - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Implementacion:
+- Nuevo modulo runtime `apps/api/mcp_tools_perfil.py`.
+- Contratos definidos sin DB calls:
+  - `listar_perfiles_entidad`
+  - `obtener_obligaciones_perfil`
+  - `calendario_obligaciones_perfil`
+- Schemas Pydantic:
+  - `ObligacionItem`
+  - `ObligacionesResponse`
+  - `CalendarioResponse`
+- Output contract MCP-first: lista plana, `source_url` obligatorio, `evidence_notice` por item, `safe_to_answer` calculado a nivel respuesta.
+
+TDD:
+- Test rojo inicial fallo por `ModuleNotFoundError: No module named 'mcp_tools_perfil'`.
+- Implementacion minima anadida despues del rojo.
+
+Verificacion:
+- `python -m pytest apps/api/tests/test_mcp_tool_contracts_perfil.py -v --basetemp .pytest-tmp` => `4 passed`.
+- VerificationCommand C-02 equivalente => `4 passed`.
+
+Resultado:
+- C-02: COMPLETADO.
+- Siguiente historia Ralph: C-03 Seed perfil_entidad - 6 supervised entity profiles.

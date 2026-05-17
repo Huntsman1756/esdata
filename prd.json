@@ -18,7 +18,7 @@
       "id": "C-02",
       "title": "Define MCP tool contracts - before any implementation",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Define listar_perfiles_entidad, obtener_obligaciones_perfil, calendario_obligaciones_perfil contracts",
         "Define flat output schemas with source_url and evidence_notice",
