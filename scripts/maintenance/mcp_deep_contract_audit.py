@@ -1081,26 +1081,63 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
             failures.append({"check": f"{name}_safe_to_answer"})
 
     try:
-        sys.path.insert(0, str(ROOT / "apps" / "api"))
-        from mcp_catalog import get_stdio_tool_definitions  # type: ignore
-
-        tools = {tool.get("name"): tool for tool in get_stdio_tool_definitions()}
-        tool = tools.get("obtener_obligaciones_perfil") or {}
-        description = tool.get("description") or ""
-        details["obtener_obligaciones_perfil_description_length"] = len(description)
-        details["profile_stdio_tools_present"] = sorted(
-            name
-            for name in (
-                "listar_perfiles_entidad",
-                "obtener_obligaciones_perfil",
-                "calendario_obligaciones_perfil",
-            )
-            if name in tools
-        )
-        if len(description) <= 50:
-            failures.append({"check": "tool_description_length", "tool": "obtener_obligaciones_perfil"})
+        with httpx.Client(base_url=base_url, timeout=60) as client:
+            session_id, session_details = _mcp_session(client)
+            details["mcp_session"] = session_details
+            if not session_id:
+                failures.append({"check": "mcp_tool_registry", "reason": "missing_session_id"})
+            else:
+                rpc_headers = {
+                    "Accept": "application/json, text/event-stream",
+                    "Content-Type": "application/json",
+                    "MCP-Session-ID": session_id,
+                    **_mcp_headers(),
+                }
+                _request_with_retry(
+                    client,
+                    "POST",
+                    "/mcp",
+                    headers=rpc_headers,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "initialize",
+                        "params": {
+                            "protocolVersion": "2025-03-26",
+                            "capabilities": {},
+                            "clientInfo": {"name": "esdata-profile-audit", "version": "1.0"},
+                        },
+                    },
+                )
+                tools_response = _request_with_retry(
+                    client,
+                    "POST",
+                    "/mcp",
+                    headers=rpc_headers,
+                    json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+                )
+                tools_payload = tools_response.json()
+                tools = {
+                    tool.get("name"): tool
+                    for tool in ((tools_payload.get("result") or {}).get("tools") or [])
+                    if isinstance(tool, dict)
+                }
+                tool = tools.get("obtener_obligaciones_perfil") or {}
+                description = tool.get("description") or ""
+                details["obtener_obligaciones_perfil_description_length"] = len(description)
+                details["profile_mcp_tools_present"] = sorted(
+                    name
+                    for name in (
+                        "listar_perfiles_entidad",
+                        "obtener_obligaciones_perfil",
+                        "calendario_obligaciones_perfil",
+                    )
+                    if name in tools
+                )
+                if len(description) <= 50:
+                    failures.append({"check": "tool_description_length", "tool": "obtener_obligaciones_perfil"})
     except Exception as exc:
-        failures.append({"check": "stdio_tool_registry_import", "error": str(exc)})
+        failures.append({"check": "mcp_tool_registry", "error": str(exc)})
 
     return CheckResult(
         "profile_applicability_contracts",

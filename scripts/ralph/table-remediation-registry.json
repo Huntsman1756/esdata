@@ -9,8 +9,8 @@
                   "local_only":  true
               },
     "summary":  {
-                    "total_tables":  177,
-                    "populated":  86,
+                    "total_tables":  180,
+                    "populated":  89,
                     "blocker":  0,
                     "derived_blocker":  0,
                     "workflow_empty":  53,
@@ -1910,6 +1910,39 @@
                        "action":  "Operational idempotency table; may be empty if no webhook has been received.",
                        "rls_enabled":  true,
                        "verification_sql":  "SELECT count(*) FROM public.\"webhook_events\";"
+                   },
+                   {
+                       "table":  "perfil_entidad",
+                       "row_count":  6,
+                       "classification":  "populated",
+                       "domain":  "Aplicabilidad por Perfil",
+                       "official_source_family":  "official_source_required",
+                       "target_path":  "alembic/versions/20260517_0079_profile_applicability_tables.py",
+                       "action":  "Perfiles de entidad supervisada poblados por Sprint C con fuentes LIVMC/LPBC-FT verificables.",
+                       "rls_enabled":  true,
+                       "verification_sql":  "SELECT count(*) FROM public.\"perfil_entidad\";"
+                   },
+                   {
+                       "table":  "obligacion_perfil",
+                       "row_count":  65,
+                       "classification":  "populated",
+                       "domain":  "Aplicabilidad por Perfil",
+                       "official_source_family":  "official_source_required",
+                       "target_path":  "scripts/data/seed_sociedad_valores_fiscal_obligaciones.sql",
+                       "action":  "Matriz de obligaciones por perfil poblada por Sprint C; cada fila exige source_url y evidencia limitada si no esta verificada.",
+                       "rls_enabled":  true,
+                       "verification_sql":  "SELECT count(*) FROM public.\"obligacion_perfil\";"
+                   },
+                   {
+                       "table":  "obligacion_fuente",
+                       "row_count":  120,
+                       "classification":  "populated",
+                       "domain":  "Aplicabilidad por Perfil",
+                       "official_source_family":  "official_source_required",
+                       "target_path":  "scripts/data/seed_sociedad_valores_pbcft_obligaciones.sql",
+                       "action":  "Fuentes trazables por obligacion pobladas por Sprint C desde normativa oficial, circulares y guias aplicables.",
+                       "rls_enabled":  true,
+                       "verification_sql":  "SELECT count(*) FROM public.\"obligacion_fuente\";"
                    },
                    {
                        "table":  "workflow_cases",
