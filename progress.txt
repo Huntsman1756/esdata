@@ -2247,3 +2247,33 @@ Caveat:
 
 Siguiente historia Ralph:
 - A-10: Final verification - Sprint A complete.
+
+### A-10 Final verification - Sprint A complete - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Verificacion local:
+- Primer `pytest apps/ -q --basetemp .pytest-tmp` detecto un test stale de CNMV: esperaba `modelos_normalizados=configured_but_unavailable` aunque el contrato actual ya lo declara `partial_loaded`.
+- Se actualizo `apps/api/tests/test_cnmv_router.py` para reflejar el contrato vivo de `/v1/cnmv/coverage`.
+- `pytest apps/api/tests/test_cnmv_router.py -q --basetemp .pytest-tmp` => `7 passed`.
+- `pytest apps/ -q --basetemp .pytest-tmp` => `3062 passed, 2 skipped, 34 warnings`.
+
+Verificacion VPS:
+- `/status` con API key => `api=ok`, `database=ok`, `stale_workers=[]`, `stale_count=0`.
+- `mcp_validation_suite.py --read-only --base-url http://api:8000` desde `ops` => `ok=true`.
+- `mcp_deep_contract_audit.py --base-url http://api:8000` desde `ops` => `ok=true`.
+- Alertmanager dentro del contenedor: active unsilenced uninhibited alerts => `0`.
+
+Conteos finales produccion:
+- TEAC `resolucion_teac=558`.
+- SEPBLAC `normativa_sepblac=7`, `obligacion_sepblac=7`, `guia_operativa_sepblac=7`.
+- RD 304/2014 `rd304_articles=76`.
+
+Caveats finales:
+- TEAC no se documenta como universo completo: `286` filas completas y `272` parciales.
+- SEPBLAC `tipologia_sepblac` sigue target por fuente 404.
+- El comando literal del PRD usa un servicio `worker` que no existe en compose; se verifico con el servicio real `ops`.
+
+Resultado:
+- Sprint A TEAC DYCTEA + SEPBLAC granular: COMPLETO.
+- Branch `feat/sprint-a-teac-sepblac` queda listo para merge tras push final.
