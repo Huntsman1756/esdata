@@ -2159,3 +2159,41 @@ Verificacion:
 
 Siguiente historia Ralph:
 - A-07: Load SEPBLAC granular corpus in production.
+
+### A-07 Load SEPBLAC granular corpus in production - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Despliegue:
+- `worker-sepblac` reconstruido desde rama `feat/sprint-a-teac-sepblac`.
+- Ejecuciones por familia:
+  - `--familia normativa --max-urls 50` => procesados 6, almacenados 6.
+  - `--familia obligaciones --max-urls 50` => procesados 3, almacenados 3.
+  - `--familia guias --max-urls 50` inicial => procesados 1, almacenados 1.
+
+Correccion de discovery:
+- La primera carga de guias quedo en 2 filas totales.
+- Se anadieron fuentes oficiales de publicaciones SEPBLAC:
+  - `https://www.sepblac.es/es/publicaciones/recomendaciones-de-control-interno/`
+  - `https://www.sepblac.es/es/publicaciones/mas-publicaciones/`
+- Se ampliaron tokens de guia con `recomendacion`, `control interno`, `publicaciones`.
+- Tests SEPBLAC tras ajuste: `10 passed`.
+- Recarga `--familia guias --max-urls 50` => procesados 6, almacenados 5.
+
+Estado produccion:
+- `normativa_sepblac=7`.
+- `obligacion_sepblac=7`.
+- `guia_operativa_sepblac=7`.
+- `obligacion_sepblac` con `sujeto_obligado` en metadata: 3.
+- `normativa_sepblac` que menciona Ley 10/2010 o RD 304/2014: 3.
+
+Verificacion A-07:
+- VerificationCommand equivalente con columna real `tipo_fuente='sepblac'` ejecutado contra VPS.
+- Resultado: tabla por `tipo_documento` devuelta con 7/7/7; `PASS` operativo.
+
+Caveat:
+- El PRD usa columna `fuente`, pero el esquema activo usa `tipo_fuente`; se verifico con la columna real.
+- `tipologia_sepblac` no se cargo porque la fuente `documentacion` indicada en el prompt devolvio 404 en A-04.
+
+Siguiente historia Ralph:
+- A-08: Update mcp_validation_suite - TEAC and SEPBLAC coverage checks.

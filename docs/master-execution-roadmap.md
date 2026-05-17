@@ -6558,3 +6558,5 @@ En orden de impacto real:
 
 - 2026-05-17 Sprint A A-06 RD 304/2014 - COMPLETADO. Se corrige el BOE ID del PRD: `BOE-A-2014-5438` era RD 340/2014; la fuente correcta de RD 304/2014 es `BOE-A-2014-4742`. `apps/workers/boe.py` anade `RD_304_2014`, clasificacion PBC/FT y alias `304/2014`. Se limpio la carga erronea propia inicial (7 articulos RD 340/2014 bajo codigo RD_304_2014) y se recargo desde BOE correcto. Produccion: `RD_304_2014`, `BOE-A-2014-4742`, 82 articulos; `/v1/legislacion/RD_304_2014/articulos/4` devuelve 200 con texto. Siguiente: A-07 cargar SEPBLAC granular.
 
+- 2026-05-17 Sprint A A-07 SEPBLAC granular production load - COMPLETADO. `worker-sepblac` reconstruido y ejecutado por familias. Produccion: `normativa_sepblac=7`, `obligacion_sepblac=7`, `guia_operativa_sepblac=7`; 3 obligaciones incluyen `sujeto_obligado` en metadata y 3 normativas mencionan Ley 10/2010 o RD 304/2014. Se amplio discovery de guias con subpaginas oficiales `recomendaciones-de-control-interno` y `mas-publicaciones`. `tipologia_sepblac` queda target por 404 en fuente indicada. Siguiente: A-08 validation suite.
+
