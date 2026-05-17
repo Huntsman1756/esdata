@@ -13,7 +13,7 @@
       "id": "F-02",
       "title": "Fix reporting prudencial - sociedad_valores y agencia_valores (IFR, no CRR)",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%prudencial%' AND perfil_codigo IN ('sociedad_valores','agencia_valores') AND norma_codigo='32019R2033' AND verified=true\"); echo \"IFR fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
