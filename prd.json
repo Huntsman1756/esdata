@@ -20,7 +20,7 @@
       "id": "G-03",
       "title": "BUG-3: Fix evidence_notice conflict - obligation verified vs form completeness",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/api/tests/test_evidence_notice_separation.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/289 | jq 'has(\"obligation_context\")' | grep true && echo PASS || echo FAIL"
     },
     {

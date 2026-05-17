@@ -82,6 +82,41 @@ def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
     return "ESData tiene evidencia suficiente para el contrato operativo declarado."
 
 
+def _obligation_evidence_notice(row) -> str:
+    if bool(row["verified"]):
+        norma = row["norma_codigo"] or "fuente oficial"
+        articulo = row["articulo_referencia"] or ""
+        notice = f"Verificado contra {norma} {articulo}".strip()
+        if row["completeness"] == "parcial":
+            return f"{notice} (condicional)"
+        return notice
+    return "evidence_limited: pendiente verificacion articulo"
+
+
+def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
+    rows = db.execute(
+        text(
+            """
+            SELECT perfil_codigo, verified, norma_codigo, articulo_referencia, completeness
+            FROM obligacion_perfil
+            WHERE modelo_aeat = :codigo
+            ORDER BY perfil_codigo
+            """
+        ),
+        {"codigo": codigo},
+    ).mappings()
+    return [
+        {
+            "perfil_codigo": row["perfil_codigo"],
+            "verified": bool(row["verified"]),
+            "norma_codigo": row["norma_codigo"],
+            "articulo_referencia": row["articulo_referencia"],
+            "obligation_evidence_notice": _obligation_evidence_notice(row),
+        }
+        for row in rows
+    ]
+
+
 def _record_modelo_query_audit(
     request: Request,
     *,
@@ -384,7 +419,9 @@ async def get_modelo_aeat(
             raise HTTPException(status_code=404, detail={"error": f"Modelo AEAT {codigo} no encontrado"})
 
         campanas = _get_aeat_campanas(db, model_row["id"], campana=campana, include_history=include_history)
+        obligation_context = _list_modelo_obligation_context(db, codigo)
         if not campanas:
+            form_notice = _modelo_evidence_notice("parcial", False)
             return {
                 "codigo": model_row["codigo"],
                 "nombre": model_row["nombre"],
@@ -392,7 +429,10 @@ async def get_modelo_aeat(
                 "completeness": "parcial",
                 "verified": False,
                 "evidence_status": _modelo_evidence_status("parcial", False),
-                "evidence_notice": _modelo_evidence_notice("parcial", False),
+                "evidence_notice": form_notice,
+                "form_completeness": "parcial",
+                "form_evidence_notice": form_notice,
+                "obligation_context": obligation_context,
                 "casillas_total": 0,
                 "casillas_campana": None,
                 "casillas_selection_notice": None,
@@ -409,6 +449,7 @@ async def get_modelo_aeat(
         campana_actual = campanas[0]
         campana_id = campana_actual["id"]
         completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana=campana)
+        form_notice = _modelo_evidence_notice(completeness, verified)
         casillas_selection = get_campaign_for_casillas(db, codigo, campana)
         casillas_camp_row = casillas_selection["campaign"]
         casillas_total = count_campaign_casillas(db, casillas_camp_row["id"]) if casillas_camp_row else 0
@@ -446,7 +487,10 @@ async def get_modelo_aeat(
             "completeness": completeness,
             "verified": verified,
             "evidence_status": _modelo_evidence_status(completeness, verified),
-            "evidence_notice": _modelo_evidence_notice(completeness, verified),
+            "evidence_notice": form_notice,
+            "form_completeness": completeness,
+            "form_evidence_notice": form_notice,
+            "obligation_context": obligation_context,
             "casillas_total": casillas_total,
             "casillas_campana": casillas_camp_row["campana"] if casillas_camp_row else None,
             "casillas_selection_notice": casillas_selection["selection_notice"],
