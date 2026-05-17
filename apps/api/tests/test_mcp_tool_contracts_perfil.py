@@ -10,6 +10,7 @@ from mcp_tools_perfil import (
     ObligacionesResponse,
     PerfilResumen,
     build_calendario_response,
+    _evidence_notice,
 )
 
 
@@ -61,6 +62,21 @@ def test_obligaciones_response_marks_unsafe_when_more_than_30_percent_unverified
     assert response.unverified_count == 1
     assert response.safe_to_answer is False
     assert "evidence_limited" in response.evidence_notice
+
+
+def test_verified_partial_obligation_notice_is_conditional_not_evidence_limited() -> None:
+    notice = _evidence_notice(
+        {
+            "verified": True,
+            "norma_codigo": "LGT",
+            "articulo_referencia": "DA 22. ap. 1",
+            "completeness": "parcial",
+        }
+    )
+
+    assert "Verificado contra LGT DA 22. ap. 1" in notice
+    assert "condicional" in notice
+    assert "evidence_limited" not in notice
 
 
 def test_tool_descriptions_are_routing_grade() -> None:

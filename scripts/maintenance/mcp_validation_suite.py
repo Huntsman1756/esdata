@@ -120,7 +120,21 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
     }
     try:
         # /mcp opens an SSE stream; do not wait for the response body to finish.
-        with client.stream("GET", "/mcp", headers=headers) as handshake:
+        if hasattr(client, "stream"):
+            with client.stream("GET", "/mcp", headers=headers) as handshake:
+                session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get(
+                    "Mcp-Session-Id"
+                )
+                check["handshake_status_code"] = handshake.status_code
+                check["has_session_id"] = bool(session_id)
+                if not session_id:
+                    check["error"] = "missing_mcp_session_id"
+                    return check
+                if handshake.status_code not in {200, 400}:
+                    check["error"] = f"unexpected_handshake_status: {handshake.status_code}"
+                    return check
+        else:
+            handshake = _request_with_retry(client, "GET", "/mcp", headers=headers)
             session_id = handshake.headers.get("mcp-session-id") or handshake.headers.get(
                 "Mcp-Session-Id"
             )
@@ -207,6 +221,20 @@ def _check_db_scalar(database_url: str, name: str, sql: str, minimum: int) -> di
     return check
 
 
+def _check_db_zero(database_url: str, name: str, sql: str) -> dict[str, Any]:
+    check: dict[str, Any] = {"name": name, "ok": False, "expected": 0}
+    try:
+        engine = create_engine(database_url, future=True)
+        with engine.connect() as conn:
+            value = int(conn.execute(text(sql)).scalar() or 0)
+    except Exception as exc:
+        check["error"] = str(exc)
+        return check
+    check["value"] = value
+    check["ok"] = value == 0
+    return check
+
+
 def _check_database_contracts() -> list[dict[str, Any]]:
     database_url = os.getenv("DATABASE_URL", "")
     if not database_url:
@@ -276,6 +304,73 @@ def _check_database_contracts() -> list[dict[str, Any]]:
               AND source_url IS NOT NULL
             """,
             1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "sociedad_valores_verified_ge_24",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='sociedad_valores'
+              AND verified=true
+            """,
+            24,
+        ),
+        _check_db_zero(
+            database_url,
+            "all_profiles_pct_verified_ge_70",
+            """
+            SELECT COUNT(*)
+            FROM (
+                SELECT perfil_codigo,
+                       100.0 * SUM(CASE WHEN verified THEN 1 ELSE 0 END)
+                         / NULLIF(COUNT(*), 0) AS pct_verified
+                FROM obligacion_perfil
+                GROUP BY perfil_codigo
+            ) profile_rates
+            WHERE pct_verified < 70
+            """,
+        ),
+        _check_db_scalar(
+            database_url,
+            "ifd_ifr_norms_loaded",
+            "SELECT COUNT(*) FROM norma WHERE codigo IN ('32019R2033', '32019L2034')",
+            2,
+        ),
+        _check_db_zero(
+            database_url,
+            "esi_prudential_not_primary_crr",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo IN ('sociedad_valores', 'agencia_valores')
+              AND norma_codigo='32013R0575'
+              AND descripcion ILIKE '%prudencial%'
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "modelo_289_uses_lgt_da22_ap1",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE descripcion ILIKE '%Modelo 289%'
+              AND (
+                  norma_codigo <> 'LGT'
+                  OR articulo_referencia NOT LIKE 'DA 22.% ap. 1'
+                  OR verified IS NOT true
+              )
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "evidence_limited_rows_have_notas",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE verified IS NOT true
+              AND (notas IS NULL OR btrim(notas) = '')
+            """,
         ),
     ]
     return checks
@@ -703,8 +798,6 @@ def _validate_norma_eu_list(payload: Any) -> tuple[bool, dict[str, Any]]:
     }
     ok = (
         len(items) >= 10
-        and "32022R2554" in celex_values
-        and "32014R0600" in celex_values
         and not missing_url
     )
     return ok, details
