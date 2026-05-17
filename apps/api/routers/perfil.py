@@ -68,3 +68,18 @@ async def get_calendario_obligaciones_perfil(codigo: str):
     except PerfilNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return response.model_dump(mode="json")
+
+
+@router.get(
+    "/{codigo}/obligaciones/calendario/{quarter}",
+    operation_id="calendario_obligaciones_perfil_quarter",
+)
+async def get_calendario_obligaciones_perfil_quarter(codigo: str, quarter: str):
+    try:
+        with db_session() as db:
+            response = calendario_obligaciones_perfil(db, codigo, quarter=quarter)
+    except PerfilNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return [item.model_dump(mode="json") for item in response.obligaciones]

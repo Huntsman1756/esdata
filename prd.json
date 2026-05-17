@@ -27,7 +27,7 @@
       "id": "G-04",
       "title": "BUG-4: Calendar tool must use structured periodicidad data, not semantic search",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/api/tests/test_calendario_trimestral.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf \"http://localhost:${API_PORT:-8000}/v1/perfil/sociedad_valores/obligaciones/calendario/2026-Q3\" | jq 'length' | awk '{if ($1>=2) print \"PASS\"; else print \"FAIL: only \" $1 \" obligations in Q3\"}' || echo FAIL"
     },
     {

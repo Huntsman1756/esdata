@@ -30,6 +30,13 @@ CALENDARIO_PERIODICIDADES: tuple[Periodicidad, ...] = (
     "continua",
 )
 
+QUARTER_MONTHS: dict[str, dict[str, object]] = {
+    "Q1": {"meses": (1, 2, 3), "vencimientos_mes_sig": 4},
+    "Q2": {"meses": (4, 5, 6), "vencimientos_mes_sig": 7},
+    "Q3": {"meses": (7, 8, 9), "vencimientos_mes_sig": 10},
+    "Q4": {"meses": (10, 11, 12), "vencimientos_mes_sig": 1},
+}
+
 
 class PerfilResumen(BaseModel):
     codigo: str
@@ -86,6 +93,18 @@ class ObligacionesResponse(BaseModel):
 class CalendarioResponse(BaseModel):
     perfil: PerfilResumen
     calendario: dict[Periodicidad, list[ObligacionItem]]
+
+
+class CalendarioQuarterResponse(BaseModel):
+    perfil: PerfilResumen
+    quarter: str
+    obligaciones: list[ObligacionItem]
+    total: int = 0
+
+    @model_validator(mode="after")
+    def derive_total(self) -> CalendarioQuarterResponse:
+        self.total = len(self.obligaciones)
+        return self
 
 
 @dataclass(frozen=True)
@@ -147,7 +166,9 @@ CALENDARIO_OBLIGACIONES_PERFIL = MCPToolContract(
         "por periodicidad. Usar cuando el usuario pregunta cuando hay que presentar modelos, "
         "que vence este trimestre, que hay que hacer mensualmente, o como organizar el "
         "calendario anual de compliance. No usar para conocer el contenido de una obligacion; "
-        "usar obtener_obligaciones_perfil para eso."
+        "usar obtener_obligaciones_perfil para eso. Si se proporciona el parametro quarter "
+        "(ej: 2026-Q3), devuelve solo las obligaciones con vencimiento en ese trimestre "
+        "segun periodicidad y plazo_descripcion estructurados."
     ),
     parameters={
         "perfil_codigo": {
@@ -161,9 +182,14 @@ CALENDARIO_OBLIGACIONES_PERFIL = MCPToolContract(
                 "entidad_credito",
                 "empresa_servicios_pago",
             ],
-        }
+        },
+        "quarter": {
+            "type": "string",
+            "required": False,
+            "description": "Trimestre a consultar: Q1, Q2, Q3, Q4 o YYYY-QN, ej: 2026-Q3",
+        },
     },
-    returns="CalendarioResponse",
+    returns="CalendarioResponse | CalendarioQuarterResponse",
 )
 
 PERFIL_MCP_TOOL_CONTRACTS: tuple[MCPToolContract, ...] = (
@@ -328,6 +354,60 @@ def build_calendario_response(
     return CalendarioResponse(perfil=perfil, calendario=calendario)
 
 
-def calendario_obligaciones_perfil(db: Session, perfil_codigo: str) -> CalendarioResponse:
+def normalize_quarter(quarter: str) -> str:
+    value = quarter.strip().upper()
+    if "-" in value:
+        value = value.rsplit("-", 1)[-1]
+    if value not in QUARTER_MONTHS:
+        raise ValueError(f"Trimestre no soportado: {quarter}")
+    return value
+
+
+def _is_due_in_quarter(obligacion: ObligacionItem, quarter: str) -> bool:
+    if not obligacion.plazo_descripcion:
+        return False
+    periodicidad = obligacion.periodicidad
+    if periodicidad == "mensual":
+        return True
+    if periodicidad == "continua":
+        return True
+    if periodicidad != "trimestral":
+        return False
+
+    # Modelo 202 has three statutory instalments: April (Q2), October and
+    # December (Q4). It is not due in Q1 or Q3.
+    if obligacion.modelo_aeat == "202":
+        return quarter in {"Q2", "Q4"}
+
+    return True
+
+
+def build_calendario_quarter_response(
+    *,
+    perfil: PerfilResumen,
+    obligaciones: list[ObligacionItem],
+    quarter: str,
+) -> CalendarioQuarterResponse:
+    quarter_key = normalize_quarter(quarter)
+    due = [
+        obligacion
+        for obligacion in obligaciones
+        if obligacion.periodicidad in {"mensual", "trimestral", "continua"}
+        and _is_due_in_quarter(obligacion, quarter_key)
+    ]
+    return CalendarioQuarterResponse(perfil=perfil, quarter=quarter_key, obligaciones=due)
+
+
+def calendario_obligaciones_perfil(
+    db: Session,
+    perfil_codigo: str,
+    quarter: str | None = None,
+) -> CalendarioResponse | CalendarioQuarterResponse:
     response = obtener_obligaciones_perfil(db, perfil_codigo, "ALL")
+    if quarter:
+        return build_calendario_quarter_response(
+            perfil=response.perfil,
+            obligaciones=response.obligaciones,
+            quarter=quarter,
+        )
     return build_calendario_response(perfil=response.perfil, obligaciones=response.obligaciones)

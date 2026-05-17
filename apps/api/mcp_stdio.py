@@ -1405,6 +1405,7 @@ class MCPStdioServer:
                     payload = calendario_obligaciones_perfil(
                         db,
                         arguments.get("perfil_codigo", "sociedad_valores"),
+                        arguments.get("quarter"),
                     ).model_dump()
                 self._send_jsonrpc(msg_id, {
                     "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
