@@ -103,6 +103,9 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         "consulta_fiscal",
         "list_modelos_por_supuesto",
         "list_domain_availability",
+        "listar_perfiles_entidad",
+        "obtener_obligaciones_perfil",
+        "calendario_obligaciones_perfil",
     }
     check: dict[str, Any] = {
         "name": "mcp_transport_tools_list",
@@ -553,6 +556,87 @@ def _validate_obligaciones_aplicables_contract(payload: dict[str, Any]) -> tuple
             and payload.get("verified") is True
             and len(payload.get("obligaciones") or []) <= payload.get("limit", 0)
         )
+    return ok, details
+
+
+def _validate_perfil_list(payload: Any) -> tuple[bool, dict[str, Any]]:
+    items = payload if isinstance(payload, list) else []
+    codigos = {item.get("codigo") for item in items if isinstance(item, dict)}
+    details = {
+        "returned": len(items),
+        "codigos": sorted(str(codigo) for codigo in codigos),
+    }
+    return len(items) >= 3 and "sociedad_valores" in codigos, details
+
+
+def _validate_perfil_obligaciones(
+    *,
+    minimum_total: int,
+    required_types: set[str] | None = None,
+    required_modelos: set[str] | None = None,
+) -> Any:
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        obligaciones = payload.get("obligaciones") or []
+        tipos = {item.get("obligacion_tipo") for item in obligaciones if isinstance(item, dict)}
+        modelos = {
+            item.get("modelo_aeat")
+            for item in obligaciones
+            if isinstance(item, dict) and item.get("modelo_aeat")
+        }
+        missing_source = [
+            item.get("descripcion")
+            for item in obligaciones
+            if isinstance(item, dict) and not item.get("source_url")
+        ]
+        details = {
+            "perfil": (payload.get("perfil") or {}).get("codigo"),
+            "total": payload.get("total"),
+            "returned": len(obligaciones),
+            "safe_to_answer": payload.get("safe_to_answer"),
+            "tipos": sorted(str(tipo) for tipo in tipos),
+            "modelos": sorted(str(modelo) for modelo in modelos),
+            "missing_source_url": missing_source[:20],
+            "evidence_notice_present": bool(payload.get("evidence_notice")),
+        }
+        ok = (
+            (payload.get("perfil") or {}).get("codigo") == "sociedad_valores"
+            and isinstance(payload.get("total"), int)
+            and payload.get("total", 0) >= minimum_total
+            and len(obligaciones) >= minimum_total
+            and not missing_source
+            and "safe_to_answer" in payload
+            and bool(payload.get("evidence_notice"))
+        )
+        if required_types:
+            ok = ok and required_types <= tipos
+        if required_modelos:
+            ok = ok and required_modelos <= modelos
+        return ok, details
+
+    return validator
+
+
+def _validate_perfil_calendar(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    calendario = payload.get("calendario") or {}
+    expected_keys = {"diaria", "mensual", "trimestral", "semestral", "anual", "ad_hoc", "continua"}
+    details = {
+        "perfil": (payload.get("perfil") or {}).get("codigo"),
+        "keys": sorted(calendario),
+        "anual": len(calendario.get("anual") or []),
+        "continua": len(calendario.get("continua") or []),
+        "mensual": len(calendario.get("mensual") or []),
+        "trimestral": len(calendario.get("trimestral") or []),
+    }
+    ok = (
+        (payload.get("perfil") or {}).get("codigo") == "sociedad_valores"
+        and expected_keys <= set(calendario)
+        and len(calendario.get("anual") or []) > 0
+        and len(calendario.get("continua") or []) > 0
+        and (
+            len(calendario.get("mensual") or []) > 0
+            or len(calendario.get("trimestral") or []) > 0
+        )
+    )
     return ok, details
 
 
@@ -1015,6 +1099,45 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"tipo_entidad": "sociedad_valores", "limite": 1, "offset": 0},
                 _validate_obligaciones_aplicables_contract,
                 "obligaciones_aplicables_profile_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil",
+                {},
+                _validate_perfil_list,
+                "perfil_list_profiles_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/sociedad_valores/obligaciones",
+                {},
+                _validate_perfil_obligaciones(minimum_total=15),
+                "perfil_sociedad_valores_obligaciones_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/sociedad_valores/obligaciones",
+                {"dominio": "PBC_FT"},
+                _validate_perfil_obligaciones(
+                    minimum_total=4,
+                    required_types={"COMUNICACION_INDICIO", "DILIGENCIA_DEBIDA"},
+                ),
+                "perfil_sociedad_valores_pbc_ft_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/sociedad_valores/obligaciones/calendario",
+                {},
+                _validate_perfil_calendar,
+                "perfil_sociedad_valores_calendar_contract",
             )
         )
         for celex, name in [

@@ -1,16 +1,139 @@
 {
-  "projectName": "esdata-sprint-a-teac-sepblac",
-  "branchName": "feat/sprint-a-teac-sepblac",
+  "projectName": "esdata-sprint-c-motor-aplicabilidad",
+  "branchName": "feat/sprint-c-motor-aplicabilidad",
   "userStories": [
-    {"id": "A-01", "title": "Audit current TEAC worker and DYCTEA API", "priority": 1, "passes": true, "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='resolucion_teac'\"); echo \"Current TEAC rows: $COUNT\"; python -c \"import urllib.request; print('DYCTEA reachable')\" && echo AUDIT-COMPLETE"},
-    {"id": "A-02", "title": "Upgrade TEAC worker for DYCTEA bulk ingestion", "priority": 2, "passes": true, "verificationCommand": "pytest apps/workers/tests/test_teac.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"},
-    {"id": "A-03", "title": "Load 500+ TEAC resoluciones in production", "priority": 3, "passes": true, "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE tipo_documento='resolucion_teac'\"); echo \"TEAC rows: $COUNT\"; [ \"$COUNT\" -ge 500 ] && echo PASS || echo \"PASS-WITH-CAVEAT: $COUNT rows loaded\""},
-    {"id": "A-04", "title": "Audit current SEPBLAC worker and production rows", "priority": 4, "passes": true, "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT tipo_documento, COUNT(*) FROM documento_interpretativo WHERE fuente='sepblac' OR tipo_documento ILIKE '%sepblac%' GROUP BY tipo_documento\" && echo AUDIT-COMPLETE"},
-    {"id": "A-05", "title": "Upgrade SEPBLAC worker - separate families by contract", "priority": 5, "passes": true, "verificationCommand": "pytest apps/workers/tests/test_sepblac.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"},
-    {"id": "A-06", "title": "Load RD 304/2014 if not loaded - LPBC-FT reglamento", "priority": 6, "passes": true, "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM articulo a JOIN norma n ON n.id=a.norma_id WHERE n.codigo='RD_304_2014' OR n.titulo ILIKE '%304/2014%'\"); echo \"RD 304/2014 articles: $COUNT\"; [ \"$COUNT\" -gt 0 ] && echo PASS || echo FAIL"},
-    {"id": "A-07", "title": "Load SEPBLAC granular corpus in production", "priority": 7, "passes": true, "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT tipo_documento, COUNT(*) FROM documento_interpretativo WHERE fuente='sepblac' GROUP BY tipo_documento ORDER BY COUNT(*) DESC\" && echo PASS"},
-    {"id": "A-08", "title": "Update mcp_validation_suite - TEAC and SEPBLAC coverage checks", "priority": 8, "passes": true, "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"},
-    {"id": "A-09", "title": "Update docs - honest coverage report and roadmap", "priority": 9, "passes": true, "verificationCommand": "python scripts/maintenance/verify-doc-contracts.py && echo PASS || echo FAIL"},
-    {"id": "A-10", "title": "Final verification - Sprint A complete", "priority": 10, "passes": true, "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep -E 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"}
+    {
+      "id": "C-01",
+      "title": "Alembic migrations - perfil_entidad, obligacion_perfil, obligacion_fuente",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Create Alembic migration for the 3 applicability tables",
+        "Apply through Alembic, not runtime DDL",
+        "Verify all 3 tables exist in production and RLS is enabled"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c '\\dt perfil_entidad obligacion_perfil obligacion_fuente' && echo PASS || echo FAIL-TABLES-MISSING"
+    },
+    {
+      "id": "C-02",
+      "title": "Define MCP tool contracts - before any implementation",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Define listar_perfiles_entidad, obtener_obligaciones_perfil, calendario_obligaciones_perfil contracts",
+        "Define flat output schemas with source_url and evidence_notice",
+        "Add contract tests"
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_mcp_tool_contracts_perfil.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "C-03",
+      "title": "Seed perfil_entidad - 6 supervised entity profiles",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Seed sociedad_valores, agencia_valores, sgiic, eaf, entidad_credito, empresa_servicios_pago",
+        "Verify LIVMC and LEY10_2010 before seeding",
+        "All 6 rows active"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc 'SELECT COUNT(*) FROM perfil_entidad WHERE activo=true'); echo \"Profiles: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "C-04",
+      "title": "Seed sociedad_valores - fiscal obligations (AEAT)",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Seed fiscal AEAT obligations for sociedad_valores",
+        "Every obligation has source_url",
+        "verified=true only when norma/articulo/source_url/model are confirmed"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sociedad_valores' AND obligacion_tipo IN ('AUTOLIQUIDACION','DECLARACION_INFORMATIVA')\"); echo \"Fiscal obligations: $COUNT\"; [ \"$COUNT\" -ge 8 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "C-05",
+      "title": "Seed sociedad_valores - PBC/FT obligations",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Seed PBC/FT obligations from LEY10_2010 and RD_304_2014",
+        "Add obligacion_fuente rows",
+        "Use SEPBLAC rows as secondary sources when available"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sociedad_valores' AND obligacion_tipo IN ('DILIGENCIA_DEBIDA','COMUNICACION_INDICIO','CONTROL_INTERNO','FORMACION','REGISTRO')\"); echo \"PBC/FT obligations: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "C-06",
+      "title": "Seed sociedad_valores - CNMV/market obligations",
+      "priority": 6,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Seed CNMV and market obligations from LIVMC and CNMV circulars",
+        "Conditional obligations marked parcial",
+        "Add circular secondary sources where available"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sociedad_valores' AND obligacion_tipo IN ('REPORTING','CONTROL_INTERNO','FORMACION')\"); echo \"CNMV obligations: $COUNT\"; [ \"$COUNT\" -ge 5 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "C-07",
+      "title": "Implement MCP tools - wire contracts to DB",
+      "priority": 7,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Wire the 3 MCP contracts to DB queries",
+        "Return flat obligations with evidence notices",
+        "Register tools in MCP registry"
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_mcp_tools_perfil.py -v 2>&1 | tail -15 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "C-08",
+      "title": "REST API endpoints - /v1/perfil thin wrapper over MCP tools",
+      "priority": 8,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Create apps/api/routers/perfil.py",
+        "Expose list, detail, obligations, and calendar endpoints",
+        "Do not duplicate MCP tool logic"
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_perfil_router.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/v1/perfil/sociedad_valores/obligaciones | jq 'length' | awk '{if ($1>=15) print \"PASS\"; else print \"FAIL: \" $1}' || echo FAIL"
+    },
+    {
+      "id": "C-09",
+      "title": "Seed agencia_valores and SGIIC obligations",
+      "priority": 9,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Seed agencia_valores obligations with LIVMC art.144 caveat where needed",
+        "Seed SGIIC obligations from RD_1082_2012 and shared PBC/FT duties",
+        "Mark uncertain obligations as parcial"
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; for P in agencia_valores sgiic; do COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='$P'\"); echo \"$P: $COUNT\"; done && echo PASS"
+    },
+    {
+      "id": "C-10",
+      "title": "Update mcp_validation_suite - profile and applicability checks",
+      "priority": 10,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Add profile/applicability checks to mcp_validation_suite.py",
+        "Add MCP contract checks to mcp_deep_contract_audit.py",
+        "Both suites return ok=true"
+      ],
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
+    },
+    {
+      "id": "C-11",
+      "title": "Final verification - Sprint C complete",
+      "priority": 11,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Tables populated and tools registered",
+        "API endpoints working",
+        "pytest apps/ and validation suites pass",
+        "Coverage report and roadmap updated"
+      ],
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && curl -sf http://localhost:${API_PORT:-8000}/v1/perfil/sociedad_valores/obligaciones | jq '.total' | awk '{if ($1>=15) print \"PASS\"; else print \"FAIL: only \" $1}' || echo FAIL"
+    }
   ]
 }

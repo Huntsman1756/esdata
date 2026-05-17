@@ -2307,6 +2307,144 @@
         "description": "Return freshness and ingestion status for official source families. Use this before answering currency-sensitive questions about tax models, deadlines, legislation, doctrine, or regulatory updates."
       }
     },
+    "/v1/perfil": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Listar Perfiles",
+        "operationId": "listar_perfiles_entidad",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/perfil/{codigo}": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Get Perfil",
+        "operationId": "get_perfil_entidad",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/perfil/{codigo}/obligaciones": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Get Obligaciones Perfil",
+        "operationId": "obtener_obligaciones_perfil",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "dominio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "FISCAL",
+                "PBC_FT",
+                "CNMV",
+                "ALL"
+              ],
+              "type": "string",
+              "default": "ALL",
+              "title": "Dominio"
+            }
+          },
+          {
+            "name": "verified",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "title": "Verified"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/perfil/{codigo}/obligaciones/calendario": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Get Calendario Obligaciones Perfil",
+        "operationId": "calendario_obligaciones_perfil",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/internacional/obligaciones": {
       "get": {
         "tags": [

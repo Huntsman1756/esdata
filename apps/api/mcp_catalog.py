@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from mcp_tools_perfil import PERFIL_MCP_TOOL_CONTRACTS
+
 DEFAULT_MCP_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": True,
@@ -93,6 +95,11 @@ HTTP_MCP_OPERATIONS = [
     "detalle_convenio_dta_internacional",
     "listar_reglas_retencion_internacional",
     "calcular_retencion",
+    # Aplicabilidad por perfil
+    "listar_perfiles_entidad",
+    "get_perfil_entidad",
+    "obtener_obligaciones_perfil",
+    "calendario_obligaciones_perfil",
     # Bridged from stdio — tools that previously only worked via MCP stdio
     # transport are now callable via HTTP MCP too. Each maps to an existing
     # REST endpoint that the stdio handler already delegates to.
@@ -191,7 +198,7 @@ def apply_http_tool_contract(tools: list[Any]) -> None:
 
 
 def get_stdio_tool_definitions() -> list[dict[str, Any]]:
-    return enrich_stdio_tool_contract([
+    tool_definitions = [
         {
             "name": "consulta_fiscal",
             "description": (
@@ -336,4 +343,29 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
                 "required": [],
             },
         },
-    ])
+    ]
+    for contract in PERFIL_MCP_TOOL_CONTRACTS:
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+        for parameter_name, parameter_contract in contract.parameters.items():
+            properties[parameter_name] = {
+                key: value
+                for key, value in parameter_contract.items()
+                if key not in {"required", "default"}
+            }
+            if "default" in parameter_contract:
+                properties[parameter_name]["default"] = parameter_contract["default"]
+            if parameter_contract.get("required"):
+                required.append(parameter_name)
+        tool_definitions.append(
+            {
+                "name": contract.name,
+                "description": contract.description,
+                "inputSchema": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
+            }
+        )
+    return enrich_stdio_tool_contract(tool_definitions)

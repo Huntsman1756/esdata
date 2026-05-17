@@ -2277,3 +2277,252 @@ Caveats finales:
 Resultado:
 - Sprint A TEAC DYCTEA + SEPBLAC granular: COMPLETO.
 - Branch `feat/sprint-a-teac-sepblac` queda listo para merge tras push final.
+
+### C-01 Alembic migrations - perfil_entidad / obligacion_perfil / obligacion_fuente - EN CURSO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Contexto:
+- Sprint C se inicia desde `main=5a7a9d8` en branch `feat/sprint-c-motor-aplicabilidad`.
+- `prd.json` restaurado con el diseno MCP-first y las historias C-01..C-11.
+
+Validacion local previa:
+- `python -m py_compile alembic/versions/20260517_0079_profile_applicability_tables.py` => OK.
+- `python -m pytest apps/api/tests/test_alembic_integrity.py -q --basetemp .pytest-tmp` => `11 passed`.
+- `python -m alembic heads` => `20260517_0079_profile_applicability_tables (head)`.
+- `git diff --check` => OK.
+
+Caveat operativo:
+- Docker Compose local no pudo evaluar `infra/deploy/docker-compose.prod.yml ps` porque falta `DATABASE_URL` en el entorno local. La aplicacion de DB se hara por Alembic en VPS contra produccion, no por DDL runtime.
+
+Verificacion produccion:
+- VPS sincronizado con `origin/feat/sprint-c-motor-aplicabilidad` en commit `25a636f`.
+- `docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops alembic upgrade head` => aplico `20260517_0079_profile_applicability_tables`.
+- Tablas existentes segun `pg_tables`: `perfil_entidad`, `obligacion_perfil`, `obligacion_fuente`.
+- RLS activo en las 3 tablas (`relrowsecurity=true`).
+- Policies por tabla: `2` (`esdata_all`, `service_role_all`).
+- `alembic_version` => `20260517_0079_profile_applicability_tables`.
+- VerificationCommand C-01 => `PASS` (nota: el `\\dt` literal del PRD solo imprime la primera tabla porque psql trata los nombres adicionales como argumentos extra; se hizo verificacion SQL adicional para las 3 tablas).
+
+Resultado:
+- C-01: COMPLETADO.
+- Siguiente historia Ralph: C-02 Define MCP tool contracts - before any implementation.
+
+### C-02 Define MCP tool contracts - before any implementation - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Implementacion:
+- Nuevo modulo runtime `apps/api/mcp_tools_perfil.py`.
+- Contratos definidos sin DB calls:
+  - `listar_perfiles_entidad`
+  - `obtener_obligaciones_perfil`
+  - `calendario_obligaciones_perfil`
+- Schemas Pydantic:
+  - `ObligacionItem`
+  - `ObligacionesResponse`
+  - `CalendarioResponse`
+- Output contract MCP-first: lista plana, `source_url` obligatorio, `evidence_notice` por item, `safe_to_answer` calculado a nivel respuesta.
+
+TDD:
+- Test rojo inicial fallo por `ModuleNotFoundError: No module named 'mcp_tools_perfil'`.
+- Implementacion minima anadida despues del rojo.
+
+Verificacion:
+- `python -m pytest apps/api/tests/test_mcp_tool_contracts_perfil.py -v --basetemp .pytest-tmp` => `4 passed`.
+- VerificationCommand C-02 equivalente => `4 passed`.
+
+Resultado:
+- C-02: COMPLETADO.
+- Siguiente historia Ralph: C-03 Seed perfil_entidad - 6 supervised entity profiles.
+
+### C-03 Seed perfil_entidad - 6 supervised entity profiles - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- `LIVMC`, `LEY10_2010`, `RD_1082_2012` existen en `norma`.
+- `perfil_entidad` estaba vacia (`count=0`) antes del seed.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_perfil_entidad.sql`.
+- Precondiciones SQL: falla cerrado si faltan `LIVMC` o `LEY10_2010`.
+- Perfiles insertados/actualizados:
+  - `sociedad_valores | CNMV | LIVMC`
+  - `agencia_valores | CNMV | LIVMC`
+  - `sgiic | CNMV | RD_1082_2012`
+  - `eaf | CNMV | LIVMC`
+  - `entidad_credito | BDE | multiple`
+  - `empresa_servicios_pago | BDE | multiple`
+
+Verificacion produccion:
+- Seed ejecutado por `docker compose ... exec postgres psql -f - < scripts/data/seed_perfil_entidad.sql`.
+- `SELECT COUNT(*) FROM perfil_entidad WHERE activo=true` => `6`.
+- VerificationCommand C-03 => `Profiles: 6`, `PASS`.
+
+Resultado:
+- C-03: COMPLETADO.
+- Siguiente historia Ralph: C-04 Seed sociedad_valores - fiscal obligations (AEAT).
+
+### C-04 Seed sociedad_valores - fiscal obligations (AEAT) - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- Normas disponibles: `LIRPF`, `LIVA`, `LIS`, `TRLIRNR`, `LGT`, `RD_1082_2012`.
+- Articulos confirmados para verificacion: `LIRPF art.101`, `LIVA art.164`, `LIS art.124`, `TRLIRNR art.31`.
+- Modelos AEAT con URL oficial: `111`, `115`, `187`, `193`, `198`, `200`, `216`, `289`, `290`, `296`, `303`.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_sociedad_valores_fiscal_obligaciones.sql`.
+- `source_url` se obtiene desde `aeat_modelo/modelo_campana`, no hardcodeada salvo fuentes BOE secundarias.
+- `verified=true` solo cuando hay norma y articulo confirmados.
+- Obligaciones condicionales quedan `completeness='parcial'` aunque tengan fuente oficial.
+
+Incidencia corregida:
+- Primer intento fallo por constraint `ck_obligacion_perfil_periodicidad` al usar `mensual o trimestral`.
+- Se normalizo `periodicidad` a valores canonicos y se movio la alternativa a `plazo_descripcion`.
+
+Verificacion produccion:
+- Filas fiscales `sociedad_valores`: `11`.
+- Modelos cargados: `111`, `115`, `187`, `193`, `198`, `200`, `216`, `289`, `290`, `296`, `303`.
+- VerificationCommand C-04 => `Fiscal obligations: 11`, `PASS`.
+
+Resultado:
+- C-04: COMPLETADO.
+- Siguiente historia Ralph: C-05 Seed sociedad_valores - PBC/FT obligations.
+
+### C-05 Seed sociedad_valores - PBC/FT obligations - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- Articulos confirmados: `LEY10_2010` arts. `3`, `4`, `11`, `12`, `18`, `25`, `26`, `26 bis`, `29`.
+- Articulos confirmados: `RD_304_2014` arts. `4`, `8`, `15`, `16`, `33`, `35`, `36`, `40`.
+- SEPBLAC `obligacion_sepblac` tiene filas con `metadata->>'sujeto_obligado'='all'`; se usan como fuente secundaria.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_sociedad_valores_pbcft_obligaciones.sql`.
+- Obligaciones cargadas: diligencia debida cliente, UBO, diligencia reforzada, comunicacion de indicios, manual PBC/FT, OCI/representante, formacion, conservacion documental.
+- Fuentes primarias enlazadas en `obligacion_fuente`: `LEY10_2010` y `RD_304_2014`.
+- Fuente secundaria enlazada: pagina oficial SEPBLAC de obligaciones.
+
+Verificacion produccion:
+- Obligaciones PBC/FT `sociedad_valores`: `8`.
+- Fuentes PBC/FT enlazadas: `23`.
+- VerificationCommand C-05 => `PBC/FT obligations: 8`, `PASS`.
+
+Resultado:
+- C-05: COMPLETADO.
+- Siguiente historia Ralph: C-06 Seed sociedad_valores - CNMV/market obligations.
+
+### C-06 Seed sociedad_valores - CNMV/market obligations - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- Circulares CNMV relevantes cargadas; se uso la circular mas reciente con URL oficial como fuente secundaria.
+- `LIVMC` cargada con articulos `125` y `228`.
+- Normas UE disponibles como cobertura parcial: `MIFIR_2014_60`, `CRR_II_2019_2057`.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_sociedad_valores_cnmv_obligaciones.sql`.
+- Obligaciones especificas CNMV/mercado cargadas: `7`.
+- Obligaciones con articulo confirmado y condicionalidad operativa: `LIVMC art.125`, `LIVMC art.228`.
+- Obligaciones UE/MiFID sin articulo granular cargado quedan `verified=false`, `completeness='parcial'`.
+
+Verificacion produccion:
+- `CNMV-only seeded`: `7`.
+- VerificationCommand C-06 => `CNMV obligations: 10`, `PASS`.
+- Nota: el verificationCommand cuenta por tipo (`REPORTING`, `CONTROL_INTERNO`, `FORMACION`) y por eso incluye tambien obligaciones PBC/FT ya cargadas. El conteo especifico por descripciones CNMV es `7`.
+
+Resultado:
+- C-06: COMPLETADO.
+- Siguiente historia Ralph: C-07 Implement MCP tools - wire contracts to DB.
+
+### C-07 Implement MCP tools - wire contracts to DB - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+TDD:
+- Test rojo inicial fallo por `ImportError: cannot import name 'PerfilNotFoundError'`.
+- Implementacion anadida despues del rojo.
+
+Implementacion:
+- `apps/api/mcp_tools_perfil.py` ahora implementa:
+  - `listar_perfiles_entidad(db)`
+  - `obtener_obligaciones_perfil(db, perfil_codigo, dominio='ALL')`
+  - `calendario_obligaciones_perfil(db, perfil_codigo)`
+- Filtrado por dominio:
+  - `FISCAL`: autoliquidaciones/declaraciones informativas.
+  - `PBC_FT`: tipos PBC/FT y norma `LEY10_2010`/`RD_304_2014`.
+  - `CNMV`: reporting/control/formacion excluyendo PBC/FT por norma.
+- `source_url` vacio queda excluido por SQL.
+- `PerfilNotFoundError` actua como equivalente 404 para tool/API wrappers.
+- `mcp_catalog.py` registra las 3 herramientas MCP-first desde los contratos C-02.
+- `mcp_stdio.py` despacha las 3 herramientas directamente contra DB hasta que C-08 exponga REST wrappers.
+
+Verificacion:
+- `python -m pytest apps/api/tests/test_mcp_tools_perfil.py -v --basetemp .pytest-tmp` => `7 passed`.
+- VerificationCommand C-07 equivalente => `7 passed`.
+
+Resultado:
+- C-07: COMPLETADO.
+- Siguiente historia Ralph: C-08 REST API endpoints - /v1/perfil thin wrapper over MCP tools.
+
+### C-08 REST API endpoints - /v1/perfil thin wrapper over MCP tools - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+TDD:
+- Test rojo inicial fallo por `ImportError: cannot import name 'perfil' from routers`.
+- Tras crear router, el primer verde fallo por SQLite in-memory/threading en TestClient; se corrigio el fixture con `StaticPool` y `check_same_thread=False`.
+
+Implementacion:
+- Nuevo router `apps/api/routers/perfil.py`.
+- Endpoints:
+  - `GET /v1/perfil`
+  - `GET /v1/perfil/{codigo}`
+  - `GET /v1/perfil/{codigo}/obligaciones`
+  - `GET /v1/perfil/{codigo}/obligaciones/calendario`
+- Los endpoints son wrappers finos sobre `mcp_tools_perfil.py`.
+- `main.py` registra `perfil.router`.
+
+Verificacion local:
+- `python -m pytest apps/api/tests/test_perfil_router.py -v --basetemp .pytest-tmp` => `6 passed`.
+- `python -m pytest apps/api/tests/test_mcp_tools_perfil.py apps/api/tests/test_perfil_router.py -q --basetemp .pytest-tmp` => `13 passed`.
+
+Verificacion produccion:
+- API rebuild/restart desde `origin/feat/sprint-c-motor-aplicabilidad`.
+- `/status` => `api=ok`, `database=ok`.
+- `GET /v1/perfil` => `6`.
+- `GET /v1/perfil/sociedad_valores` => `obligaciones_total=26`.
+- `GET /v1/perfil/sociedad_valores/obligaciones` => `total=26`.
+- `GET /v1/perfil/sociedad_valores/obligaciones?dominio=PBC_FT` => `total=8`.
+- `GET /v1/perfil/sociedad_valores/obligaciones/calendario` => `anual=11`.
+
+Resultado:
+- C-08: COMPLETADO.
+- Siguiente historia Ralph: C-09 Seed agencia_valores and SGIIC obligations.
+
+### C-09 Seed agencia_valores and SGIIC obligations - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_agencia_sgiic_obligaciones.sql`.
+- `agencia_valores` hereda obligaciones de `sociedad_valores` excluyendo cualquier obligacion de custodia, con nota de caveat por limitacion operativa/no custodia segun LIVMC art. 144.
+- `sgiic` hereda PBC/FT y subset fiscal/IIC (`111`, `115`, `187`, `200`) y anade `Reporting periodico IIC a CNMV` como parcial.
+- Fuentes `obligacion_fuente` copiadas desde las obligaciones base y fuente RD 1082/2012 para reporting IIC.
+
+Verificacion produccion:
+- `agencia_valores: 26`.
+- `sgiic: 13`.
+- Distribucion por tipo verificada via SQL.
+- VerificationCommand C-09 => `PASS`.
+
+Resultado:
+- C-09: COMPLETADO.
+- Siguiente historia Ralph: C-10 Update mcp_validation_suite - profile and applicability checks.
+- 2026-05-17 C-10 PASS: mcp_validation_suite ok=true and mcp_deep_contract_audit ok=true in VPS using ops service against http://api:8000. Added profile/applicability checks, MCP tool registry checks, registry entries and refreshed docs/openapi-gpt.json.
+- 2026-05-17 C-11 PASS: Sprint C final verification complete. Local `pytest apps/ -q --basetemp .pytest-tmp` => 3079 passed. Production `/status` api/database ok, `/v1/perfil/sociedad_valores/obligaciones` total=26, `mcp_validation_suite` ok=true, `mcp_deep_contract_audit` ok=true, Alertmanager active alerts count=0. Coverage report written to docs/sprint-c-coverage-report.md and roadmap updated.
