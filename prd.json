@@ -48,7 +48,7 @@
       "id": "D-07",
       "title": "Upgrade verified count using loaded EU norms",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sociedad_valores' AND verified=true\"); echo \"sociedad_valores verified: $COUNT\"; [ \"$COUNT\" -ge 20 ] && echo PASS || echo FAIL"
     },
     {
