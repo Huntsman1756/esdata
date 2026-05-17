@@ -106,6 +106,7 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         "listar_perfiles_entidad",
         "obtener_obligaciones_perfil",
         "calendario_obligaciones_perfil",
+        "buscar_norma_eu",
     }
     check: dict[str, Any] = {
         "name": "mcp_transport_tools_list",
@@ -257,6 +258,24 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             WHERE n.codigo='RD_304_2014'
             """,
             10,
+        ),
+        _check_db_scalar(
+            database_url,
+            "eu_norms_celex_count_ge_10",
+            "SELECT COUNT(*) FROM norma WHERE celex IS NOT NULL AND tipo_norma IS NOT NULL",
+            10,
+        ),
+        _check_db_scalar(
+            database_url,
+            "sociedad_valores_dora_obligation_ge_1",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='sociedad_valores'
+              AND norma_codigo='32022R2554'
+              AND source_url IS NOT NULL
+            """,
+            1,
         ),
     ]
     return checks
@@ -638,6 +657,50 @@ def _validate_perfil_calendar(payload: dict[str, Any]) -> tuple[bool, dict[str, 
         )
     )
     return ok, details
+
+
+def _validate_norma_eu_list(payload: Any) -> tuple[bool, dict[str, Any]]:
+    items = payload if isinstance(payload, list) else []
+    celex_values = {item.get("celex") for item in items if isinstance(item, dict)}
+    missing_url = [
+        item.get("codigo")
+        for item in items
+        if isinstance(item, dict) and not item.get("url_eurlex")
+    ]
+    details = {
+        "returned": len(items),
+        "celex": sorted(str(value) for value in celex_values if value),
+        "missing_url_eurlex": missing_url[:20],
+    }
+    ok = (
+        len(items) >= 10
+        and "32022R2554" in celex_values
+        and "32014R0600" in celex_values
+        and not missing_url
+    )
+    return ok, details
+
+
+def _validate_norma_eu_detail(expected_celex: str) -> Any:
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        obligaciones = payload.get("obligaciones_referenciadas") or []
+        details = {
+            "codigo": payload.get("codigo"),
+            "celex": payload.get("celex"),
+            "tipo_norma": payload.get("tipo_norma"),
+            "url_eurlex_present": bool(payload.get("url_eurlex")),
+            "obligaciones_referenciadas": len(obligaciones),
+        }
+        ok = (
+            payload.get("celex") == expected_celex
+            and bool(payload.get("url_eurlex"))
+            and payload.get("tipo_norma") is not None
+        )
+        if expected_celex == "32014R0600":
+            ok = ok and len(obligaciones) >= 1
+        return ok, details
+
+    return validator
 
 
 def _validate_eurlex_market_article(expected_celex: str) -> Any:
@@ -1138,6 +1201,33 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {},
                 _validate_perfil_calendar,
                 "perfil_sociedad_valores_calendar_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/norma/eu",
+                {},
+                _validate_norma_eu_list,
+                "norma_eu_list_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/norma/32014R0600",
+                {},
+                _validate_norma_eu_detail("32014R0600"),
+                "norma_eu_mifir_detail_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/norma/32022R2554",
+                {},
+                _validate_norma_eu_detail("32022R2554"),
+                "norma_eu_dora_detail_contract",
             )
         )
         for celex, name in [

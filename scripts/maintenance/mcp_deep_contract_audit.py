@@ -1149,6 +1149,143 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     )
 
 
+def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {}
+
+    with engine.connect() as conn:
+        eu_count = int(
+            conn.execute(
+                text("SELECT COUNT(*) FROM norma WHERE celex IS NOT NULL AND tipo_norma IS NOT NULL")
+            ).scalar()
+            or 0
+        )
+        sociedad_verified = int(
+            conn.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM obligacion_perfil
+                    WHERE perfil_codigo='sociedad_valores'
+                      AND verified=true
+                    """
+                )
+            ).scalar()
+            or 0
+        )
+    details["eu_norms_with_celex"] = eu_count
+    details["sociedad_valores_verified_count"] = sociedad_verified
+    if eu_count < 10:
+        failures.append({"check": "eu_norms_with_celex", "value": eu_count, "minimum": 10})
+    if sociedad_verified < 20:
+        failures.append({"check": "sociedad_valores_verified_count", "value": sociedad_verified, "minimum": 20})
+
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        list_status, list_payload, list_preview = _get_json(client, "/v1/norma/eu")
+        mifir_status, mifir_payload, mifir_preview = _get_json(client, "/v1/norma/eu", params={"termino": "MiFIR"})
+        dora_status, dora_payload, dora_preview = _get_json(client, "/v1/norma/eu", params={"termino": "DORA"})
+        cnmv_status, cnmv_payload, cnmv_preview = _get_json(
+            client,
+            "/v1/perfil/sociedad_valores/obligaciones",
+            params={"dominio": "CNMV"},
+        )
+
+    list_items = list_payload if isinstance(list_payload, list) else []
+    mifir_items = mifir_payload if isinstance(mifir_payload, list) else []
+    dora_items = dora_payload if isinstance(dora_payload, list) else []
+    cnmv_obligaciones = cnmv_payload.get("obligaciones") if isinstance(cnmv_payload, dict) else []
+    cnmv_normas = {
+        item.get("norma_codigo")
+        for item in (cnmv_obligaciones or [])
+        if isinstance(item, dict) and item.get("norma_codigo")
+    }
+    missing_url = [
+        item.get("codigo")
+        for item in list_items
+        if isinstance(item, dict) and not item.get("url_eurlex")
+    ]
+    details.update(
+        {
+            "norma_eu_status": list_status,
+            "norma_eu_returned": len(list_items),
+            "norma_eu_missing_url": missing_url[:20],
+            "mifir_status": mifir_status,
+            "mifir_celex": [item.get("celex") for item in mifir_items if isinstance(item, dict)],
+            "dora_status": dora_status,
+            "dora_celex": [item.get("celex") for item in dora_items if isinstance(item, dict)],
+            "cnmv_status": cnmv_status,
+            "cnmv_normas": sorted(str(value) for value in cnmv_normas),
+        }
+    )
+    if list_status != 200 or len(list_items) < 10 or missing_url:
+        failures.append({"check": "norma_eu_endpoint", "status": list_status, "preview": list_preview})
+    if mifir_status != 200 or "32014R0600" not in {item.get("celex") for item in mifir_items if isinstance(item, dict)}:
+        failures.append({"check": "buscar_norma_eu_mifir", "status": mifir_status, "preview": mifir_preview})
+    if dora_status != 200 or "32022R2554" not in {item.get("celex") for item in dora_items if isinstance(item, dict)}:
+        failures.append({"check": "buscar_norma_eu_dora", "status": dora_status, "preview": dora_preview})
+    if "32014R0600" not in cnmv_normas:
+        failures.append({"check": "perfil_cnmv_mifir_obligation", "status": cnmv_status, "preview": cnmv_preview})
+
+    try:
+        with httpx.Client(base_url=base_url, timeout=60) as client:
+            session_id, session_details = _mcp_session(client)
+            details["eu_mcp_session"] = session_details
+            if session_id:
+                rpc_headers = {
+                    "Accept": "application/json, text/event-stream",
+                    "Content-Type": "application/json",
+                    "MCP-Session-ID": session_id,
+                    **_mcp_headers(),
+                }
+                _request_with_retry(
+                    client,
+                    "POST",
+                    "/mcp",
+                    headers=rpc_headers,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "initialize",
+                        "params": {
+                            "protocolVersion": "2025-03-26",
+                            "capabilities": {},
+                            "clientInfo": {"name": "esdata-eu-audit", "version": "1.0"},
+                        },
+                    },
+                )
+                tools_response = _request_with_retry(
+                    client,
+                    "POST",
+                    "/mcp",
+                    headers=rpc_headers,
+                    json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+                )
+                tools_payload = tools_response.json()
+                tools = {
+                    tool.get("name"): tool
+                    for tool in ((tools_payload.get("result") or {}).get("tools") or [])
+                    if isinstance(tool, dict)
+                }
+                tool = tools.get("buscar_norma_eu") or {}
+                description = tool.get("description") or ""
+                details["buscar_norma_eu_description_length"] = len(description)
+                if len(description) <= 50:
+                    failures.append({"check": "tool_description_length", "tool": "buscar_norma_eu"})
+            else:
+                failures.append({"check": "eu_mcp_tool_registry", "reason": "missing_session_id"})
+    except Exception as exc:
+        failures.append({"check": "eu_mcp_tool_registry", "error": str(exc)})
+
+    return CheckResult(
+        "eu_norm_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
 def audit_semantic_suite(base_url: str) -> CheckResult:
     sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
     from mcp_validation_suite import run_read_only_suite  # type: ignore
@@ -1178,6 +1315,7 @@ def run_audit(base_url: str, database_url: str) -> dict[str, Any]:
         audit_aeat_instruction_key_contracts(base_url),
         audit_teac_sepblac_contracts(base_url, engine),
         audit_profile_applicability_contracts(base_url),
+        audit_eu_norm_contracts(base_url, engine),
         audit_eurlex_esma_market_contracts(base_url),
         audit_semantic_suite(base_url),
     ]
