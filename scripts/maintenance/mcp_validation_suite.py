@@ -107,6 +107,7 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         "obtener_obligaciones_perfil",
         "calendario_obligaciones_perfil",
         "buscar_norma_eu",
+        "buscar_modelos_aeat_catalogo",
     }
     check: dict[str, Any] = {
         "name": "mcp_transport_tools_list",
@@ -370,6 +371,27 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             FROM obligacion_perfil
             WHERE verified IS NOT true
               AND (notas IS NULL OR btrim(notas) = '')
+            """,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_202_all_profiles_loaded",
+            """
+            SELECT COUNT(DISTINCT perfil_codigo)
+            FROM obligacion_perfil
+            WHERE modelo_aeat='202'
+              AND verified=true
+            """,
+            6,
+        ),
+        _check_db_zero(
+            database_url,
+            "trimestral_obligations_have_plazo",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE periodicidad='trimestral'
+              AND plazo_descripcion IS NULL
             """,
         ),
     ]
@@ -780,6 +802,94 @@ def _validate_perfil_calendar(payload: dict[str, Any]) -> tuple[bool, dict[str, 
             or len(calendario.get("trimestral") or []) > 0
         )
     )
+    return ok, details
+
+
+def _validate_sociedad_valores_fiscal_routing(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    obligaciones = payload.get("obligaciones") or []
+    modelos = {
+        item.get("modelo_aeat")
+        for item in obligaciones
+        if isinstance(item, dict) and item.get("modelo_aeat")
+    }
+    modelo_202_items = [
+        item
+        for item in obligaciones
+        if isinstance(item, dict) and item.get("modelo_aeat") == "202"
+    ]
+    details = {
+        "perfil": (payload.get("perfil") or {}).get("codigo"),
+        "modelos": sorted(str(modelo) for modelo in modelos),
+        "modelo_202_count": len(modelo_202_items),
+        "modelo_202_verified": [item.get("verified") for item in modelo_202_items],
+    }
+    ok = (
+        (payload.get("perfil") or {}).get("codigo") == "sociedad_valores"
+        and "202" in modelos
+        and not ({"123", "124"} & modelos)
+        and any(item.get("verified") is True for item in modelo_202_items)
+    )
+    return ok, details
+
+
+def _validate_aeat_catalogo_layer(payload: Any) -> tuple[bool, dict[str, Any]]:
+    items = payload if isinstance(payload, list) else []
+    first = items[0] if items and isinstance(items[0], dict) else {}
+    details = {
+        "returned": len(items),
+        "codigo": first.get("codigo"),
+        "keys": sorted(first.keys()) if isinstance(first, dict) else [],
+    }
+    ok = (
+        len(items) == 1
+        and first.get("codigo") == "123"
+        and "verified" not in first
+        and "evidence_notice" not in first
+    )
+    return ok, details
+
+
+def _validate_modelo_289_obligation_context(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    context = payload.get("obligation_context") or []
+    sociedad_items = [
+        item
+        for item in context
+        if isinstance(item, dict) and item.get("perfil_codigo") == "sociedad_valores"
+    ]
+    details = {
+        "codigo": payload.get("codigo"),
+        "form_completeness": payload.get("form_completeness"),
+        "obligation_context_count": len(context),
+        "sociedad_valores_context": sociedad_items[:1],
+    }
+    ok = (
+        payload.get("codigo") == "289"
+        and "form_completeness" in payload
+        and len(sociedad_items) == 1
+        and sociedad_items[0].get("verified") is True
+        and "Verificado" in str(sociedad_items[0].get("obligation_evidence_notice") or "")
+    )
+    return ok, details
+
+
+def _validate_calendar_q3_structured(payload: Any) -> tuple[bool, dict[str, Any]]:
+    items = payload if isinstance(payload, list) else []
+    modelos = {
+        item.get("modelo_aeat")
+        for item in items
+        if isinstance(item, dict) and item.get("modelo_aeat")
+    }
+    missing_plazo = [
+        item.get("descripcion")
+        for item in items
+        if isinstance(item, dict) and not item.get("plazo_descripcion")
+    ]
+    details = {
+        "returned": len(items),
+        "modelos": sorted(str(modelo) for modelo in modelos),
+        "missing_plazo": missing_plazo[:20],
+    }
+    ok = len(items) >= 2 and "303" in modelos and "202" not in modelos and not missing_plazo
     return ok, details
 
 
@@ -1262,6 +1372,24 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         checks.append(
             _check_json_contract(
                 client,
+                "/v1/modelos/aeat/289",
+                {},
+                _validate_modelo_289_obligation_context,
+                "modelo_289_obligation_context_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/catalogo",
+                {"codigo": "123"},
+                _validate_aeat_catalogo_layer,
+                "aeat_catalogo_no_profile_evidence_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
                 "/v1/consulta",
                 {"q": "FATCA passive NFFE modelo 290"},
                 _validate_fatca_query_routes_to_290,
@@ -1308,6 +1436,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
             _check_json_contract(
                 client,
                 "/v1/perfil/sociedad_valores/obligaciones",
+                {"dominio": "FISCAL"},
+                _validate_sociedad_valores_fiscal_routing,
+                "perfil_sociedad_valores_fiscal_routing_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/sociedad_valores/obligaciones",
                 {"dominio": "PBC_FT"},
                 _validate_perfil_obligaciones(
                     minimum_total=4,
@@ -1323,6 +1460,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {},
                 _validate_perfil_calendar,
                 "perfil_sociedad_valores_calendar_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/perfil/sociedad_valores/obligaciones/calendario/2026-Q3",
+                {},
+                _validate_calendar_q3_structured,
+                "perfil_sociedad_valores_calendar_q3_contract",
             )
         )
         for perfil_codigo, minimum_total in (

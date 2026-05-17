@@ -1101,11 +1101,34 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
             if status != 200:
                 failures.append({"check": check_name, "status": status, "response": preview})
             extra_payloads[check_name] = payload
+        calendar_q3_status, calendar_q3_payload, calendar_q3_preview = _get_json(
+            client,
+            "/v1/perfil/sociedad_valores/obligaciones/calendario/2026-Q3",
+        )
+        catalog_123_status, catalog_123_payload, catalog_123_preview = _get_json(
+            client,
+            "/v1/modelos/catalogo",
+            params={"codigo": "123"},
+        )
+        modelo_289_status, modelo_289_payload, modelo_289_preview = _get_json(
+            client,
+            "/v1/modelos/aeat/289",
+        )
+        details["calendar_q3_status"] = calendar_q3_status
+        details["catalog_123_status"] = catalog_123_status
+        details["modelo_289_status"] = modelo_289_status
 
     eaf_items = extra_payloads.get("eaf_cnmv", {}).get("obligaciones", [])
     entidad_items = extra_payloads.get("entidad_credito_cnmv", {}).get("obligaciones", [])
     esp_items = extra_payloads.get("empresa_servicios_pago_fiscal", {}).get("obligaciones", [])
     sgiic_items = extra_payloads.get("sgiic_cnmv", {}).get("obligaciones", [])
+    calendar_q3_items = calendar_q3_payload if isinstance(calendar_q3_payload, list) else []
+    catalog_123_items = catalog_123_payload if isinstance(catalog_123_payload, list) else []
+    modelo_289_context = (
+        modelo_289_payload.get("obligation_context")
+        if isinstance(modelo_289_payload, dict)
+        else []
+    )
     all_profile_items: list[dict[str, Any]] = []
     with httpx.Client(base_url=base_url, timeout=60) as client:
         profile_obligaciones: dict[str, list[dict[str, Any]]] = {}
@@ -1166,6 +1189,28 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     ]
     details["sgiic_annex_iv_count"] = sgiic_annex_iv_count
     details["verified_partial_bad_notice"] = verified_partial_bad_notice[:20]
+    q3_modelos = {
+        item.get("modelo_aeat")
+        for item in calendar_q3_items
+        if isinstance(item, dict) and item.get("modelo_aeat")
+    }
+    catalog_first = catalog_123_items[0] if catalog_123_items and isinstance(catalog_123_items[0], dict) else {}
+    modelo_289_sociedad_context = [
+        item
+        for item in (modelo_289_context or [])
+        if isinstance(item, dict) and item.get("perfil_codigo") == "sociedad_valores"
+    ]
+    modelo_289_profile_items = [
+        item
+        for item in sociedad_items
+        if isinstance(item, dict) and item.get("modelo_aeat") == "289"
+    ]
+    details["calendar_q3_modelos"] = sorted(str(modelo) for modelo in q3_modelos)
+    details["catalog_123_keys"] = sorted(catalog_first.keys()) if isinstance(catalog_first, dict) else []
+    details["modelo_289_sociedad_context"] = modelo_289_sociedad_context[:1]
+    details["modelo_289_profile_evidence_notice"] = [
+        item.get("evidence_notice") for item in modelo_289_profile_items
+    ]
 
     if not any("idoneidad" in str(item.get("descripcion", "")).lower() for item in eaf_items if isinstance(item, dict)):
         failures.append({"check": "eaf_cnmv_idoneidad"})
@@ -1202,6 +1247,51 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 "items": verified_partial_bad_notice[:20],
             }
         )
+    if (
+        calendar_q3_status != 200
+        or "303" not in q3_modelos
+        or "202" in q3_modelos
+    ):
+        failures.append(
+            {
+                "check": "calendar_q3_structured",
+                "status": calendar_q3_status,
+                "modelos": sorted(str(modelo) for modelo in q3_modelos),
+                "response": calendar_q3_preview,
+            }
+        )
+    if (
+        catalog_123_status != 200
+        or not catalog_first
+        or "verified" in catalog_first
+        or "evidence_notice" in catalog_first
+    ):
+        failures.append(
+            {
+                "check": "catalog_tool_has_no_profile_evidence",
+                "status": catalog_123_status,
+                "response": catalog_123_preview,
+            }
+        )
+    if (
+        modelo_289_status != 200
+        or not modelo_289_sociedad_context
+        or modelo_289_sociedad_context[0].get("verified") is not True
+    ):
+        failures.append(
+            {
+                "check": "modelo_289_obligation_context_verified",
+                "status": modelo_289_status,
+                "response": modelo_289_preview,
+            }
+        )
+    if not any(
+        "Verificado" in str(item.get("evidence_notice") or "")
+        and "evidence_limited" not in str(item.get("evidence_notice") or "")
+        for item in modelo_289_profile_items
+        if isinstance(item, dict)
+    ):
+        failures.append({"check": "modelo_289_profile_evidence_notice_verified"})
     missing_profile_source = [
         item.get("descripcion")
         for item in all_profile_items
@@ -1256,17 +1346,46 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 tool = tools.get("obtener_obligaciones_perfil") or {}
                 description = tool.get("description") or ""
                 details["obtener_obligaciones_perfil_description_length"] = len(description)
-                details["profile_mcp_tools_present"] = sorted(
-                    name
-                    for name in (
-                        "listar_perfiles_entidad",
-                        "obtener_obligaciones_perfil",
-                        "calendario_obligaciones_perfil",
-                    )
-                    if name in tools
-                )
+                expected_core_tools = {
+                    "listar_perfiles_entidad",
+                    "obtener_obligaciones_perfil",
+                    "calendario_obligaciones_perfil",
+                    "buscar_norma_eu",
+                    "buscar_modelos_aeat_catalogo",
+                }
+                present_core_tools = sorted(name for name in expected_core_tools if name in tools)
+                details["profile_mcp_tools_present"] = present_core_tools
+                details["profile_mcp_core_tool_count"] = len(present_core_tools)
                 if len(description) <= 50:
                     failures.append({"check": "tool_description_length", "tool": "obtener_obligaciones_perfil"})
+                missing_core_tools = sorted(expected_core_tools - set(present_core_tools))
+                if missing_core_tools:
+                    failures.append(
+                        {
+                            "check": "core_mcp_tool_registry",
+                            "missing": missing_core_tools,
+                        }
+                    )
+                calendar_description = (
+                    tools.get("calendario_obligaciones_perfil", {}).get("description") or ""
+                )
+                catalog_description = (
+                    tools.get("buscar_modelos_aeat_catalogo", {}).get("description") or ""
+                )
+                if "quarter" not in calendar_description:
+                    failures.append(
+                        {
+                            "check": "calendar_tool_quarter_description",
+                            "description": calendar_description[:200],
+                        }
+                    )
+                if "NO indica" not in catalog_description:
+                    failures.append(
+                        {
+                            "check": "catalog_tool_layer_description",
+                            "description": catalog_description[:200],
+                        }
+                    )
     except Exception as exc:
         failures.append({"check": "mcp_tool_registry", "error": str(exc)})
 

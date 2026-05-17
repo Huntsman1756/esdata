@@ -336,7 +336,9 @@ async def get_modelos_por_supuesto(
     summary="Busca modelos AEAT en el catalogo general",
     description=(
         "Busca modelos AEAT por codigo o termino. Esta ruta devuelve informacion "
-        "del catalogo y no afirma aplicabilidad ni obligatoriedad para perfiles."
+        "del catalogo: nombre, instrucciones disponibles, claves y completitud de "
+        "datos cargados. NO indica si una entidad concreta tiene obligacion de "
+        "presentarlo; para eso usar obtener_obligaciones_perfil."
     ),
 )
 async def get_modelos_aeat_catalogo(

@@ -41,7 +41,7 @@
       "id": "G-06",
       "title": "Update mcp_validation_suite - routing and calendar checks",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {

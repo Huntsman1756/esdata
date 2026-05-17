@@ -745,6 +745,50 @@
         }
       }
     },
+    "/v1/modelos/catalogo": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Busca modelos AEAT en el catalogo general",
+        "description": "Busca modelos AEAT por codigo o termino. Esta ruta devuelve informacion del catalogo: nombre, instrucciones disponibles, claves y completitud de datos cargados. NO indica si una entidad concreta tiene obligacion de presentarlo; para eso usar obtener_obligaciones_perfil.",
+        "operationId": "buscar_modelos_aeat_catalogo",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Codigo de modelo AEAT, ej: 123",
+              "title": "Codigo"
+            },
+            "description": "Codigo de modelo AEAT, ej: 123"
+          },
+          {
+            "name": "termino",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Texto a buscar en codigo o descripcion",
+              "title": "Termino"
+            },
+            "description": "Texto a buscar en codigo o descripcion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/modelos": {
       "get": {
         "tags": [
@@ -2470,7 +2514,8 @@
           "perfil",
           "aplicabilidad"
         ],
-        "summary": "Get Calendario Obligaciones Perfil",
+        "summary": "Calendario de obligaciones por perfil",
+        "description": "Devuelve el calendario operativo agrupado por periodicidad. Si se proporciona el parametro quarter (ej: 2026-Q3), devuelve solo las obligaciones con vencimiento en ese trimestre segun periodicidad y plazo_descripcion estructurados.",
         "operationId": "calendario_obligaciones_perfil",
         "parameters": [
           {
@@ -2481,6 +2526,17 @@
               "type": "string",
               "title": "Codigo"
             }
+          },
+          {
+            "name": "quarter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Trimestre: Q1, Q2, Q3, Q4 o YYYY-QN",
+              "title": "Quarter"
+            },
+            "description": "Trimestre: Q1, Q2, Q3, Q4 o YYYY-QN"
           }
         ],
         "responses": {

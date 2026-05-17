@@ -745,6 +745,50 @@
         }
       }
     },
+    "/v1/modelos/catalogo": {
+      "get": {
+        "tags": [
+          "modelos"
+        ],
+        "summary": "Busca modelos AEAT en el catalogo general",
+        "description": "Busca modelos AEAT por codigo o termino. Esta ruta devuelve informacion del catalogo: nombre, instrucciones disponibles, claves y completitud de datos cargados. NO indica si una entidad concreta tiene obligacion de presentarlo; para eso usar obtener_obligaciones_perfil.",
+        "operationId": "buscar_modelos_aeat_catalogo",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Codigo de modelo AEAT, ej: 123",
+              "title": "Codigo"
+            },
+            "description": "Codigo de modelo AEAT, ej: 123"
+          },
+          {
+            "name": "termino",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Texto a buscar en codigo o descripcion",
+              "title": "Termino"
+            },
+            "description": "Texto a buscar en codigo o descripcion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/modelos": {
       "get": {
         "tags": [
@@ -1400,6 +1444,56 @@
           }
         },
         "x-beta": true
+      }
+    },
+    "/v1/norma/eu": {
+      "get": {
+        "tags": [
+          "norma",
+          "eu"
+        ],
+        "summary": "List Normas Eu",
+        "operationId": "buscar_norma_eu",
+        "parameters": [
+          {
+            "name": "termino",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Keyword, CELEX, or regulation name.",
+              "default": "",
+              "title": "Termino"
+            },
+            "description": "Keyword, CELEX, or regulation name."
+          },
+          {
+            "name": "tipo_norma",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "reglamento_ue",
+                "directiva_ue",
+                "rts",
+                "its",
+                "guideline_esma"
+              ],
+              "type": "string",
+              "title": "Tipo Norma"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
       }
     },
     "/v1/consulta": {
@@ -2305,6 +2399,156 @@
           }
         },
         "description": "Return freshness and ingestion status for official source families. Use this before answering currency-sensitive questions about tax models, deadlines, legislation, doctrine, or regulatory updates."
+      }
+    },
+    "/v1/perfil": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Listar Perfiles",
+        "operationId": "listar_perfiles_entidad",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/perfil/{codigo}": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Get Perfil",
+        "operationId": "get_perfil_entidad",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/perfil/{codigo}/obligaciones": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Get Obligaciones Perfil",
+        "operationId": "obtener_obligaciones_perfil",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "dominio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "FISCAL",
+                "PBC_FT",
+                "CNMV",
+                "ALL"
+              ],
+              "type": "string",
+              "default": "ALL",
+              "title": "Dominio"
+            }
+          },
+          {
+            "name": "verified",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "title": "Verified"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/perfil/{codigo}/obligaciones/calendario": {
+      "get": {
+        "tags": [
+          "perfil",
+          "aplicabilidad"
+        ],
+        "summary": "Calendario de obligaciones por perfil",
+        "description": "Devuelve el calendario operativo agrupado por periodicidad. Si se proporciona el parametro quarter (ej: 2026-Q3), devuelve solo las obligaciones con vencimiento en ese trimestre segun periodicidad y plazo_descripcion estructurados.",
+        "operationId": "calendario_obligaciones_perfil",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "quarter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Trimestre: Q1, Q2, Q3, Q4 o YYYY-QN",
+              "title": "Quarter"
+            },
+            "description": "Trimestre: Q1, Q2, Q3, Q4 o YYYY-QN"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
       }
     },
     "/v1/internacional/obligaciones": {

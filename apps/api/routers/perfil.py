@@ -60,13 +60,30 @@ async def get_obligaciones_perfil(
     return response.model_dump(mode="json")
 
 
-@router.get("/{codigo}/obligaciones/calendario", operation_id="calendario_obligaciones_perfil")
-async def get_calendario_obligaciones_perfil(codigo: str):
+@router.get(
+    "/{codigo}/obligaciones/calendario",
+    operation_id="calendario_obligaciones_perfil",
+    summary="Calendario de obligaciones por perfil",
+    description=(
+        "Devuelve el calendario operativo agrupado por periodicidad. Si se proporciona "
+        "el parametro quarter (ej: 2026-Q3), devuelve solo las obligaciones con "
+        "vencimiento en ese trimestre segun periodicidad y plazo_descripcion "
+        "estructurados."
+    ),
+)
+async def get_calendario_obligaciones_perfil(
+    codigo: str,
+    quarter: str | None = Query(None, description="Trimestre: Q1, Q2, Q3, Q4 o YYYY-QN"),
+):
     try:
         with db_session() as db:
-            response = calendario_obligaciones_perfil(db, codigo)
+            response = calendario_obligaciones_perfil(db, codigo, quarter=quarter)
     except PerfilNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if quarter:
+        return [item.model_dump(mode="json") for item in response.obligaciones]
     return response.model_dump(mode="json")
 
 
