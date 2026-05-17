@@ -102,7 +102,7 @@
       "id": "C-09",
       "title": "Seed agencia_valores and SGIIC obligations",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Seed agencia_valores obligations with LIVMC art.144 caveat where needed",
         "Seed SGIIC obligations from RD_1082_2012 and shared PBC/FT duties",

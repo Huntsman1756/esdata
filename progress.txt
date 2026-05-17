@@ -2504,3 +2504,23 @@ Verificacion produccion:
 Resultado:
 - C-08: COMPLETADO.
 - Siguiente historia Ralph: C-09 Seed agencia_valores and SGIIC obligations.
+
+### C-09 Seed agencia_valores and SGIIC obligations - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_agencia_sgiic_obligaciones.sql`.
+- `agencia_valores` hereda obligaciones de `sociedad_valores` excluyendo cualquier obligacion de custodia, con nota de caveat por limitacion operativa/no custodia segun LIVMC art. 144.
+- `sgiic` hereda PBC/FT y subset fiscal/IIC (`111`, `115`, `187`, `200`) y anade `Reporting periodico IIC a CNMV` como parcial.
+- Fuentes `obligacion_fuente` copiadas desde las obligaciones base y fuente RD 1082/2012 para reporting IIC.
+
+Verificacion produccion:
+- `agencia_valores: 26`.
+- `sgiic: 13`.
+- Distribucion por tipo verificada via SQL.
+- VerificationCommand C-09 => `PASS`.
+
+Resultado:
+- C-09: COMPLETADO.
+- Siguiente historia Ralph: C-10 Update mcp_validation_suite - profile and applicability checks.
