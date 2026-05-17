@@ -2326,6 +2326,40 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """
     INSERT INTO documento_interpretativo (
         tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente,
+        estado_vigencia, fecha_publicacion, metadata, row_completeness, row_provenance
+    )
+    VALUES (
+        'guia_tecnica_cnmv', 'CNMV', 'es', 'cnmv', 'gobierno_corporativo',
+        'CNMV-GUIA-TECNICA-1-2024', '2024-01-01',
+        'Guia Tecnica 1/2024 sobre comisiones de auditoria de entidades de interes publico',
+        'Texto oficial CNMV parseable sobre comisiones de auditoria, supervision y criterios tecnicos.',
+        'https://www.cnmv.es/DocPortal/Legislacion/Guias-Tecnicas/GT_ComisionesAuditorias.pdf',
+        'vigente', '2024',
+        '{}',
+        'complete', 'official_exact'
+    )
+    """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+        referencia, fecha, titulo, texto, url_fuente,
+        estado_vigencia, fecha_publicacion, metadata, row_completeness, row_provenance
+    )
+    VALUES (
+        'documento_consulta_cnmv', 'CNMV', 'es', 'cnmv', 'mercados',
+        'CNMV-CONSULTA-2025-12-15-control-interno', '2025-12-15',
+        'Consulta publica previa sobre guia tecnica de control interno',
+        '[PARTIAL] Metadata oficial CNMV sin texto completo parseable. Titulo: Consulta publica previa sobre guia tecnica de control interno.',
+        'https://www.cnmv.es/DocPortal/DocFaseConsulta/CNMV/GT_ControlInterno.pdf',
+        'consulta_cerrada', '2025-12-15',
+        '{}',
+        'partial', 'official_best_effort'
+    )
+    """,
+    """
+    INSERT INTO documento_interpretativo (
+        tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
         referencia, fecha, titulo, texto, url_fuente
     )
     VALUES (

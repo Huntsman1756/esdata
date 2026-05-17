@@ -44,7 +44,7 @@ from vocabulary import (
 
 def test_total_value_count():
     """Vocabulary should cover all known values."""
-    assert TOTAL_VALUES == 216, f"Expected 216 total values, got {TOTAL_VALUES}"
+    assert TOTAL_VALUES == 219, f"Expected 219 total values, got {TOTAL_VALUES}"
 
 
 def test_vocabulary_has_all_fields():
@@ -69,7 +69,7 @@ def test_tipo_fuente_count():
 
 
 def test_tipo_documento_count():
-    assert len(TIPOS_DOCUMENTO) == 60
+    assert len(TIPOS_DOCUMENTO) == 62
 
 
 def test_ambitos_count():
@@ -77,7 +77,7 @@ def test_ambitos_count():
 
 
 def test_estado_vigencia_count():
-    assert len(ESTADOS_VIGENCIA) == 4
+    assert len(ESTADOS_VIGENCIA) == 5
 
 
 def test_tipo_obligacion_count():
@@ -122,7 +122,8 @@ def test_all_tipo_documento_seed_values_covered():
         "directiva_ue", "directiva", "decision", "directive", "regulation", "recommendation", "documento_ue",
         "consulta_vinculante", "resolucion_teac",
         "sentencia", "auto", "providencia", "resolucion",
-        "circular_cnmv", "manual_cnmv", "guia_cnmv", "documento_cnmv",
+        "circular_cnmv", "manual_cnmv", "guia_cnmv", "guia_tecnica_cnmv",
+        "documento_cnmv", "documento_consulta_cnmv",
         "formulario_sepblac", "manual_sepblac", "guia_operativa_sepblac", "normativa_sepblac", "documento_sepblac",
         "resolucion_aepd", "guia_aepd", "informe_aepd", "instruccion_aepd", "acuerdo_aepd", "documento_aepd",
         "informe_bde", "comunicacion_bde", "publicacion_bde", "guia_bde", "documento_bde",

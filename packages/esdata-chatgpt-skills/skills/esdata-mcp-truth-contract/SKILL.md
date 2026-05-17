@@ -39,7 +39,8 @@ Treat ESData as the evidence layer, not as a reasoning shortcut.
 4. Classify every output item as `confirmado`, `candidato`, or `requiere verificacion`.
 5. Ask for missing factual context if a legal/tax conclusion depends on it.
 6. For CNMV queries, inspect `/v1/cnmv/coverage` if a no-result or corpus-size claim matters.
-7. For CNMV `vigente_modificado`, treat text as consolidated only when `es_consolidado=true` and `consolidated_verification_status=consolidated`.
+7. For CNMV, distinguish `circular_cnmv`, `guia_tecnica_cnmv`, and `documento_consulta_cnmv`; consultation documents are not current obligations.
+8. For CNMV `vigente_modificado`, treat text as consolidated only when `es_consolidado=true` and `consolidated_verification_status=consolidated`.
 8. Add a human review gate before filing, submitting, sending, or relying on a conclusion.
 
 ## Output Template

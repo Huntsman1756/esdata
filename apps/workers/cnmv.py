@@ -13,10 +13,12 @@ Limitaciones conocidas:
 """
 
 import argparse
+import json
 import logging
 import os
 import re
 import time
+import unicodedata
 from datetime import UTC, datetime
 from io import BytesIO
 from urllib.parse import urlparse
@@ -67,12 +69,20 @@ SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 
 # Portal CNMV URLs for discovery
 CNMV_CIRCULARES_MAIN_URL = "https://www.cnmv.es/portal/Legislacion/Circulares.aspx"
+CNMV_GUIAS_TECNICAS_URL = "https://www.cnmv.es/portal/legislacion/guias-tecnicas?lang=es"
+CNMV_CONSULTAS_CNMV_URL = "https://www.cnmv.es/portal/publicaciones/Documentos-Fase-Consulta?tDoc=1"
 CNMV_CIRCULARES_PATTERN = re.compile(
     r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE
 )
 CNMV_SEED_URLS_FALLBACK = [
     "https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133",
 ]
+CNMV_FAMILY_ALIASES = {
+    "circulares": "circulares",
+    "guias_tecnicas": "guias_tecnicas",
+    "documentos_consulta": "documentos_consulta_cnmv",
+    "documentos_consulta_cnmv": "documentos_consulta_cnmv",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +213,47 @@ def _normalize_whitespace(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def _ascii_fold(value: str) -> str:
+    return (
+        unicodedata.normalize("NFKD", value)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+
+
+def _slug(value: str, max_length: int = 80) -> str:
+    folded = _ascii_fold(value).lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", folded).strip("-")
+    return slug[:max_length].strip("-") or "documento"
+
+
+def _absolute_cnmv_url(base_url: str, href: str) -> str:
+    if href.startswith("//"):
+        return "https:" + href
+    return str(httpx.URL(base_url).join(href))
+
+
+def _metadata_json(metadata: dict) -> str:
+    return json.dumps(metadata, ensure_ascii=True, sort_keys=True)
+
+
+def _parse_cnmv_year_heading(value: str) -> str | None:
+    match = re.search(r"\b(20\d{2}|19\d{2})\b", value)
+    return match.group(1) if match else None
+
+
+def _parse_cnmv_date(value: str) -> str | None:
+    match = re.search(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b", value)
+    if not match:
+        return None
+    day, month, year = match.groups()
+    return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+
+
+def _normalize_title(value: str) -> str:
+    return _normalize_whitespace(_ascii_fold(value))
+
+
 # ---------------------------------------------------------------------------
 # Discovery (23.1) — scrape CNMV portal for new document URLs
 # ---------------------------------------------------------------------------
@@ -292,12 +343,194 @@ def _discover_cnmv_circulares(
     return urls or (SEED_URLS or CNMV_SEED_URLS_FALLBACK)
 
 
+def _parse_cnmv_technical_guides(html: str, source_index_url: str) -> list[dict]:
+    """Parse the official CNMV technical guides index into document candidates."""
+    soup = BeautifulSoup(html, "html.parser")
+    candidates: list[dict] = []
+    seen: set[str] = set()
+    current_year: str | None = None
+
+    for node in soup.find_all(["h2", "li"]):
+        if node.name == "h2":
+            current_year = _parse_cnmv_year_heading(node.get_text(" ", strip=True))
+            continue
+
+        raw_text = _normalize_whitespace(node.get_text(" ", strip=True))
+        folded_text = _ascii_fold(raw_text)
+        if not re.search(r"\bGuia Tecnica\s+\d+/\d{4}\b", folded_text, re.IGNORECASE):
+            continue
+
+        link = node.find("a", href=True)
+        if not link:
+            continue
+        url = _absolute_cnmv_url(source_index_url, link["href"])
+        if url in seen:
+            continue
+        seen.add(url)
+
+        match = re.search(r"\bGuia Tecnica\s+(\d+/\d{4})\b", folded_text, re.IGNORECASE)
+        if not match:
+            continue
+        guide_number = match.group(1)
+        title = _normalize_title(raw_text)
+        year = guide_number.split("/", 1)[1] if "/" in guide_number else current_year
+
+        candidates.append(
+            {
+                "url": url,
+                "referencia": f"CNMV-GUIA-TECNICA-{guide_number.replace('/', '-')}",
+                "titulo": title,
+                "fecha": f"{year}-01-01" if year else datetime.now(UTC).date().isoformat(),
+                "fecha_publicacion": year,
+                "tipo_documento": "guia_tecnica_cnmv",
+                "estado_vigencia": _detect_vigencia(raw_text),
+                "family_id": "guias_tecnicas",
+                "source_index_url": source_index_url,
+            }
+        )
+
+    return candidates
+
+
+def _parse_cnmv_consultation_documents(html: str, source_index_url: str) -> list[dict]:
+    """Parse official CNMV consultation-process rows as non-current documents."""
+    soup = BeautifulSoup(html, "html.parser")
+    candidates: list[dict] = []
+    seen_refs: set[str] = set()
+    current_status = "consulta_abierta"
+
+    for node in soup.find_all(["h2", "li"]):
+        if node.name == "h2":
+            heading = _ascii_fold(node.get_text(" ", strip=True)).lower()
+            if "closed" in heading or "cerrado" in heading:
+                current_status = "consulta_cerrada"
+            elif "open" in heading or "abierto" in heading:
+                current_status = "consulta_abierta"
+            continue
+
+        raw_text = _normalize_whitespace(node.get_text(" ", strip=True))
+        date_value = _parse_cnmv_date(raw_text)
+        links = [
+            {
+                "titulo": _normalize_title(a_tag.get_text(" ", strip=True)),
+                "url": _absolute_cnmv_url(source_index_url, a_tag["href"]),
+            }
+            for a_tag in node.find_all("a", href=True)
+        ]
+        if not date_value or not links:
+            continue
+
+        title_text = raw_text
+        for link in links:
+            title_text = title_text.replace(link["titulo"], " ")
+        title_text = re.sub(r"\b\d{1,2}/\d{1,2}/\d{4}\b", " ", title_text)
+        title = _normalize_title(title_text)
+        if not title:
+            continue
+
+        primary = next(
+            (
+                link
+                for link in links
+                if any(
+                    token in link["titulo"].lower()
+                    for token in ("consultation", "consulta", "prior")
+                )
+            ),
+            links[0],
+        )
+        referencia = f"CNMV-CONSULTA-{date_value}-{_slug(title, 48)}"
+        if referencia in seen_refs:
+            continue
+        seen_refs.add(referencia)
+
+        candidates.append(
+            {
+                "url": primary["url"],
+                "referencia": referencia,
+                "titulo": title,
+                "fecha": date_value,
+                "fecha_publicacion": date_value,
+                "tipo_documento": "documento_consulta_cnmv",
+                "estado_vigencia": "consulta_cerrada"
+                if current_status == "consulta_cerrada"
+                else "historico",
+                "estado_consulta": current_status,
+                "family_id": "documentos_consulta_cnmv",
+                "source_index_url": source_index_url,
+                "documentos_asociados": links,
+            }
+        )
+
+    return candidates
+
+
+def _discover_source_family_documents() -> list[dict]:
+    candidates: list[dict] = []
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        for source_url, parser in (
+            (CNMV_GUIAS_TECNICAS_URL, _parse_cnmv_technical_guides),
+            (CNMV_CONSULTAS_CNMV_URL, _parse_cnmv_consultation_documents),
+        ):
+            try:
+                response = client.get(source_url)
+                if response.status_code == 200:
+                    candidates.extend(parser(response.text, source_url))
+            except Exception:
+                logger.warning("Failed to scrape CNMV source family: %s", source_url)
+                continue
+    return candidates
+
+
 def _discover_new_urls(seed_urls: list[str] | None = None) -> list[str]:
     """Discover CNMV document URLs from the CNMV portal.
 
     Returns a list of URLs to fetch. Falls back to seed URLs if scraping fails.
     """
+    if seed_urls is not None:
+        return seed_urls
     return _discover_cnmv_circulares()
+
+
+def _normalize_family_filter(familia: str | None) -> str | None:
+    if not familia:
+        return None
+    normalized = familia.strip().lower()
+    if normalized in {"all", "todas", "todos"}:
+        return None
+    return CNMV_FAMILY_ALIASES.get(normalized, normalized)
+
+
+def _candidate_family(candidate: dict | str) -> str:
+    if isinstance(candidate, dict):
+        return str(candidate.get("family_id") or "")
+    return "circulares"
+
+
+def _discover_new_documents(
+    seed_urls: list[str] | None = None,
+    familia: str | None = None,
+    max_urls: int | None = None,
+) -> list[dict | str]:
+    family_filter = _normalize_family_filter(familia)
+    candidates: list[dict | str] = []
+
+    if family_filter in {None, "circulares"}:
+        candidates.extend(_discover_new_urls(seed_urls))
+
+    if seed_urls is None and family_filter != "circulares":
+        candidates.extend(_discover_source_family_documents())
+
+    if family_filter:
+        candidates = [
+            candidate
+            for candidate in candidates
+            if _candidate_family(candidate) == family_filter
+        ]
+
+    if max_urls is not None and max_urls > 0:
+        candidates = candidates[:max_urls]
+    return candidates
 
 
 # ---------------------------------------------------------------------------
@@ -911,31 +1144,76 @@ def _resolve_boe_document_url(url: str, content: bytes, content_type: str) -> st
 # ---------------------------------------------------------------------------
 
 
-def build_document_payload(url: str, content: bytes, content_type: str = "") -> dict[str, str]:
-    if "pdf" in content_type.lower() or content.startswith(b"%PDF-"):
-        text_value = extract_pdf_text(content)
-    else:
-        text_value = extract_html_text(content)
+def build_document_payload(
+    url: str,
+    content: bytes,
+    content_type: str = "",
+    metadata: dict | None = None,
+) -> dict[str, str]:
+    metadata = dict(metadata or {})
+    text_value = ""
+    try:
+        if "pdf" in content_type.lower() or content.startswith(b"%PDF-"):
+            text_value = extract_pdf_text(content)
+        else:
+            text_value = extract_html_text(content)
+    except Exception:
+        text_value = ""
 
+    row_completeness = "complete"
+    row_provenance = "official_exact"
     if not text_value:
-        raise ValueError(f"Could not extract text from CNMV document: {url}")
+        if not metadata:
+            raise ValueError(f"Could not extract text from CNMV document: {url}")
+        row_completeness = "partial"
+        row_provenance = "official_best_effort"
+        text_value = (
+            f"[PARTIAL] Metadata oficial CNMV sin texto completo parseable. "
+            f"Titulo: {metadata.get('titulo') or metadata.get('referencia') or url}. "
+            f"URL oficial: {url}"
+        )
 
     first_line = next((line.strip() for line in text_value.splitlines() if line.strip()), "")
-    referencia = _extract_reference(url, text_value)
+    referencia = metadata.get("referencia") or _extract_reference(url, text_value)
+    tipo_documento = metadata.get("tipo_documento") or _detect_document_type(text_value)
+    estado_vigencia = metadata.get("estado_vigencia") or _detect_vigencia(
+        f"{metadata.get('titulo', '')} {text_value}"
+    )
+    titulo = metadata.get("titulo") or first_line or referencia
+    fecha = metadata.get("fecha") or datetime.now(UTC).date().isoformat()
+    fecha_publicacion = metadata.get("fecha_publicacion") or _extract_publication_date(
+        f"{metadata.get('titulo', '')} {text_value}"
+    )
+    verified = (
+        row_completeness == "complete"
+        and row_provenance == "official_exact"
+        and "cnmv.es" in urlparse(url).netloc.lower()
+    )
+    metadata_payload = {
+        "verified": verified,
+        "family_id": metadata.get("family_id"),
+        "source_index_url": metadata.get("source_index_url"),
+        "estado_consulta": metadata.get("estado_consulta"),
+        "documentos_asociados": metadata.get("documentos_asociados"),
+    }
+    metadata_payload = {key: value for key, value in metadata_payload.items() if value is not None}
 
     return {
         "referencia": referencia,
-        "fecha": datetime.now(UTC).date().isoformat(),
-        "titulo": first_line or referencia,
+        "fecha": fecha,
+        "titulo": titulo,
         "texto": text_value,
         "url_fuente": url,
-        "tipo_documento": _detect_document_type(text_value),
+        "tipo_documento": tipo_documento,
         "ambito": _detect_ambito(text_value),
         "numero_circular": _extract_circular_number(text_value),
-        "fecha_publicacion": _extract_publication_date(text_value),
+        "fecha_publicacion": fecha_publicacion,
         "referencia_boe": _extract_boe_reference(text_value, url),
-        "estado_vigencia": _detect_vigencia(text_value),
+        "estado_vigencia": estado_vigencia,
         "regulacion_relacionada": _detect_regulacion_relacionada(text_value),
+        "row_completeness": row_completeness,
+        "row_provenance": row_provenance,
+        "metadata": _metadata_json(metadata_payload) if metadata_payload else None,
     }
 
 
@@ -1000,16 +1278,16 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
         "ambito", "referencia", "fecha", "titulo", "texto", "url_fuente",
     ]
     # Add optional enriched columns
-    for col in (
+    optional_columns = (
         "numero_circular",
         "fecha_publicacion",
         "referencia_boe",
         "estado_vigencia",
+        "metadata",
         "row_completeness",
         "row_provenance",
-    ):
-        if col in payload:
-            columns.append(col)
+    )
+    columns.extend(col for col in optional_columns if col in payload)
 
     columns = [col for col in columns if col in table_columns]
 
@@ -1082,7 +1360,7 @@ def _record_version(
 
 def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
     """Upsert document and record version if it already exists.
-    
+
     Returns dict with 'action' ('created' or 'updated') and 'version_num'.
     """
     referencia = payload["referencia"]
@@ -1177,6 +1455,8 @@ def upsert_with_versioning(conn, payload: dict[str, str]) -> dict[str, str]:
 def run_sync(
     seed_urls: list[str] | None = None,
     worker_name: str = "worker-cnmv",
+    familia: str | None = None,
+    max_urls: int | None = None,
 ) -> dict[str, int]:
     # Validate before discovery to avoid unnecessary HTTP calls
     raw = SEED_URLS if seed_urls is None else seed_urls
@@ -1189,8 +1469,8 @@ def run_sync(
         return {"processed": 0, "stored": 0, "discovered": 0}
 
     # Discover URLs (23.1)
-    urls = _discover_new_urls(seed_urls)
-    if not urls:
+    candidates = _discover_new_documents(seed_urls, familia=familia, max_urls=max_urls)
+    if not candidates:
         logger.error(
             "SEED_URLS vacío en %s — worker abortado sin ingestión. "
             "Configura la variable de entorno correspondiente.",
@@ -1201,7 +1481,7 @@ def run_sync(
     request_delay = float(os.environ.get("WORKER_REQUEST_DELAY", "1.0"))
     processed = 0
     stored = 0
-    discovered = len(urls)
+    discovered = len(candidates)
     missing_document_failures = 0
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine, logger=logger)
@@ -1210,7 +1490,13 @@ def run_sync(
         with httpx.Client(timeout=30.0, follow_redirects=True) as client, engine.begin() as conn:
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
-            for url in urls:
+            for candidate in candidates:
+                url = candidate["url"] if isinstance(candidate, dict) else str(candidate)
+                metadata = (
+                    candidate
+                    if isinstance(candidate, dict) and candidate.keys() - {"url"}
+                    else None
+                )
                 try:
                     try:
                         response = client.get(url)
@@ -1228,11 +1514,19 @@ def run_sync(
                         missing_document_failures += 1
                         continue
 
-                    payload = build_document_payload(
-                        url,
-                        response.content,
-                        response.headers.get("content-type", ""),
-                    )
+                    if metadata:
+                        payload = build_document_payload(
+                            url,
+                            response.content,
+                            response.headers.get("content-type", ""),
+                            metadata=metadata,
+                        )
+                    else:
+                        payload = build_document_payload(
+                            url,
+                            response.content,
+                            response.headers.get("content-type", ""),
+                        )
                     processed += 1
 
                     change = check_content_changed(
@@ -1270,8 +1564,8 @@ def run_sync(
                     if upsert_result["action"] != "unchanged":
                         stored += 1
                     time.sleep(request_delay)
-                except Exception:
-                    # Log individual URL failure but continue
+                except Exception as exc:
+                    logger.warning("Failed to process CNMV URL %s: %s", url, exc)
                     continue
 
             final_status, final_error_msg = finalize_partial_sync_status(
@@ -1328,6 +1622,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "--discover-only", action="store_true", help="Only discover URLs, don't sync"
     )
+    parser.add_argument(
+        "--familia",
+        choices=sorted(CNMV_FAMILY_ALIASES),
+        default=None,
+        help="Limit sync/discovery to one CNMV source family",
+    )
+    parser.add_argument(
+        "--max-urls",
+        type=int,
+        default=None,
+        help="Maximum URLs/documents to process in this run",
+    )
     args = parser.parse_args()
 
     from runtime import init_sentry
@@ -1336,22 +1642,26 @@ if __name__ == "__main__":
     interval = args.interval if args.interval is not None else SYNC_INTERVAL_SECONDS
 
     if args.run_once:
-        result = run_sync(worker_name="cron-cnmv-weekly")
+        result = run_sync(
+            worker_name="cron-cnmv-weekly",
+            familia=args.familia,
+            max_urls=args.max_urls,
+        )
         print(
             f"[run-once] URLs descubiertas: {result['discovered']}, "
             f"Documentos procesados: {result['processed']}, "
             f"almacenados: {result['stored']}"
         )
     elif args.discover_only:
-        urls = _discover_new_urls()
-        print(f"[discover-only] {len(urls)} URLs descubiertas:")
-        for u in urls:
-            print(f"  - {u}")
+        docs = _discover_new_documents(familia=args.familia, max_urls=args.max_urls)
+        print(f"[discover-only] {len(docs)} documentos descubiertos:")
+        for doc in docs:
+            print(f"  - {doc['url'] if isinstance(doc, dict) else doc}")
     else:
         print(f"Starting CNMV worker in continuous mode (interval={interval}s)")
         while True:
             touch_heartbeat()
-            result = run_sync()
+            result = run_sync(familia=args.familia, max_urls=args.max_urls)
             print(
                 f"Synced descubiertas={result['discovered']}, documentos={result['processed']}, "
                 f"almacenados={result['stored']} at {datetime.now(UTC).isoformat()}"

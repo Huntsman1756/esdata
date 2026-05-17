@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import httpx
 import pytest
@@ -8,27 +8,29 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cnmv import (
+    _detect_ambito,
+    _detect_document_type,
+    _detect_obligaciones,
+    _detect_regulaciones,
+    _detect_vigencia,
+    _discover_cnmv_circulares,
+    _discover_new_documents,
+    _discover_new_urls,
+    _extract_boe_reference,
+    _extract_circular_number,
+    _extract_publication_date,
+    _extract_reference,
+    _get_next_version,
+    _parse_cnmv_consultation_documents,
+    _parse_cnmv_technical_guides,
+    _record_version,
+    _upsert_obligation_links,
+    _upsert_regulation_links,
     build_document_payload,
     run_sync,
     upsert_documento_interpretativo,
     upsert_with_versioning,
-    _detect_document_type,
-    _detect_ambito,
-    _detect_regulaciones,
-    _detect_obligaciones,
-    _upsert_regulation_links,
-    _upsert_obligation_links,
-    _extract_reference,
-    _extract_circular_number,
-    _extract_publication_date,
-    _extract_boe_reference,
-    _detect_vigencia,
-    _discover_new_urls,
-    _discover_cnmv_circulares,
-    _record_version,
-    _get_next_version,
 )
-
 
 MINIMAL_CNMV_PDF = b"""%PDF-1.4
 1 0 obj
@@ -78,6 +80,35 @@ BOE_DOC_HTML = b"""
     <iframe src="/diario_boe/txt.php?id=BOE-A-2009-133"></iframe>
   </body>
 </html>
+"""
+
+CNMV_GUIAS_HTML = """
+<html><body>
+  <h2>Guías Técnicas publicadas en el año 2024</h2>
+  <ul>
+    <li>Guía Técnica 1/2024:
+      <a href="/DocPortal/Legislacion/Guias-Tecnicas/GT_ComisionesAuditorias.pdf">
+        sobre comisiones de auditoría de entidades de interés público
+      </a>
+    </li>
+  </ul>
+</body></html>
+"""
+
+CNMV_CONSULTAS_HTML = """
+<html><body>
+  <h2>With comment period already closed</h2>
+  <ul>
+    <li>
+      <span>15/12/2025</span>
+      <span>Preliminary public consultation on draft Technical Guide regarding internal controls</span>
+      <ul>
+        <li><a href="/DocPortal/DocFaseConsulta/CNMV/GT_ControlInterno.pdf">Prior consultation</a></li>
+        <li><a href="/DocPortal/DocFaseConsulta/CNMV/Comentarios_GT_ControlInterno.pdf">Comments received to the prior consultation</a></li>
+      </ul>
+    </li>
+  </ul>
+</body></html>
 """
 
 
@@ -251,6 +282,119 @@ def test_build_document_payload_minimal():
     assert payload["referencia"].startswith("CNMV-")
     assert payload["numero_circular"] == "9/2008"
     assert payload["referencia_boe"] is None
+
+
+def test_parse_cnmv_technical_guides_keeps_official_family_contract():
+    candidates = _parse_cnmv_technical_guides(
+        CNMV_GUIAS_HTML,
+        "https://www.cnmv.es/portal/legislacion/guias-tecnicas?lang=es",
+    )
+
+    assert candidates == [
+        {
+            "url": "https://www.cnmv.es/DocPortal/Legislacion/Guias-Tecnicas/GT_ComisionesAuditorias.pdf",
+            "referencia": "CNMV-GUIA-TECNICA-1-2024",
+            "titulo": "Guia Tecnica 1/2024: sobre comisiones de auditoria de entidades de interes publico",
+            "fecha": "2024-01-01",
+            "fecha_publicacion": "2024",
+            "tipo_documento": "guia_tecnica_cnmv",
+            "estado_vigencia": "vigente",
+            "family_id": "guias_tecnicas",
+            "source_index_url": "https://www.cnmv.es/portal/legislacion/guias-tecnicas?lang=es",
+        }
+    ]
+
+
+def test_parse_cnmv_consultations_marks_non_current_monitoring_contract():
+    candidates = _parse_cnmv_consultation_documents(
+        CNMV_CONSULTAS_HTML,
+        "https://www.cnmv.es/portal/publicaciones/Documentos-Fase-Consulta?tDoc=1",
+    )
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate["tipo_documento"] == "documento_consulta_cnmv"
+    assert candidate["estado_vigencia"] == "consulta_cerrada"
+    assert candidate["estado_consulta"] == "consulta_cerrada"
+    assert candidate["fecha"] == "2025-12-15"
+    assert candidate["url"] == "https://www.cnmv.es/DocPortal/DocFaseConsulta/CNMV/GT_ControlInterno.pdf"
+    assert candidate["family_id"] == "documentos_consulta_cnmv"
+    assert candidate["documentos_asociados"] == [
+        {
+            "titulo": "Prior consultation",
+            "url": "https://www.cnmv.es/DocPortal/DocFaseConsulta/CNMV/GT_ControlInterno.pdf",
+        },
+        {
+            "titulo": "Comments received to the prior consultation",
+            "url": "https://www.cnmv.es/DocPortal/DocFaseConsulta/CNMV/Comentarios_GT_ControlInterno.pdf",
+        },
+    ]
+
+
+def test_build_document_payload_applies_family_metadata_and_partial_contract():
+    payload = build_document_payload(
+        "https://www.cnmv.es/DocPortal/DocFaseConsulta/CNMV/GT_ControlInterno.pdf",
+        b"",
+        "application/pdf",
+        metadata={
+            "referencia": "CNMV-CONSULTA-2025-12-15-GT-ControlInterno",
+            "titulo": "Consulta publica previa sobre guia tecnica de control interno",
+            "fecha": "2025-12-15",
+            "tipo_documento": "documento_consulta_cnmv",
+            "estado_vigencia": "consulta_cerrada",
+            "estado_consulta": "consulta_cerrada",
+            "family_id": "documentos_consulta_cnmv",
+        },
+    )
+
+    assert payload["referencia"] == "CNMV-CONSULTA-2025-12-15-GT-ControlInterno"
+    assert payload["tipo_documento"] == "documento_consulta_cnmv"
+    assert payload["estado_vigencia"] == "consulta_cerrada"
+    assert payload["row_completeness"] == "partial"
+    assert payload["row_provenance"] == "official_best_effort"
+    assert '"verified": false' in payload["metadata"]
+
+
+def test_discover_new_documents_filters_source_family_and_limits(monkeypatch):
+    monkeypatch.setattr("cnmv._discover_cnmv_circulares", lambda: ["https://example.invalid/circular.pdf"])
+    monkeypatch.setattr(
+        "cnmv._discover_source_family_documents",
+        lambda: [
+            {"url": "https://example.invalid/gt-1.pdf", "family_id": "guias_tecnicas"},
+            {"url": "https://example.invalid/gt-2.pdf", "family_id": "guias_tecnicas"},
+            {
+                "url": "https://example.invalid/consulta.pdf",
+                "family_id": "documentos_consulta_cnmv",
+            },
+        ],
+    )
+
+    docs = _discover_new_documents(familia="guias_tecnicas", max_urls=1)
+
+    assert docs == [{"url": "https://example.invalid/gt-1.pdf", "family_id": "guias_tecnicas"}]
+
+
+def test_discover_new_documents_accepts_consultation_family_alias(monkeypatch):
+    monkeypatch.setattr("cnmv._discover_cnmv_circulares", lambda: [])
+    monkeypatch.setattr(
+        "cnmv._discover_source_family_documents",
+        lambda: [
+            {
+                "url": "https://example.invalid/consulta.pdf",
+                "family_id": "documentos_consulta_cnmv",
+            },
+            {"url": "https://example.invalid/gt.pdf", "family_id": "guias_tecnicas"},
+        ],
+    )
+
+    docs = _discover_new_documents(familia="documentos_consulta")
+
+    assert docs == [
+        {
+            "url": "https://example.invalid/consulta.pdf",
+            "family_id": "documentos_consulta_cnmv",
+        }
+    ]
 
 
 def test_run_sync_follows_boe_html_seed_to_pdf(monkeypatch):
@@ -540,8 +684,9 @@ def test_discover_cnmv_circulares_from_main_page(monkeypatch):
 
     # Use fixture directly
     main_html = fixture_path.read_text(encoding="utf-8")
-    from bs4 import BeautifulSoup
     import re
+
+    from bs4 import BeautifulSoup
     soup = BeautifulSoup(main_html, "html.parser")
     pattern = re.compile(r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE)
     links = []
@@ -688,6 +833,7 @@ def test_discover_new_urls_fallback(monkeypatch):
 
     # Re-import to pick up new env var
     import importlib
+
     import cnmv
     importlib.reload(cnmv)
 

@@ -714,11 +714,14 @@ def _validate_cnmv_coverage_contract(payload: dict[str, Any]) -> tuple[bool, dic
         and (family_by_id.get("circulares") or {}).get("coverage_status")
         == "partial_loaded"
         and (family_by_id.get("guias_tecnicas") or {}).get("coverage_status")
-        == "configured_but_unavailable"
+        == "partial_loaded"
+        and (family_by_id.get("guias_tecnicas") or {}).get("loaded_count", 0) > 0
         and (family_by_id.get("documentos_consulta_cnmv") or {}).get(
             "coverage_status"
         )
-        == "configured_but_unavailable"
+        == "partial_loaded"
+        and (family_by_id.get("documentos_consulta_cnmv") or {}).get("loaded_count", 0)
+        > 0
         and "no cargado" in (payload.get("coverage_note") or "")
     )
     return ok, details

@@ -28,7 +28,8 @@ Use this skill for onboarding and AML/KYC triage. It adapts financial-services r
 - If ESData says a sanctions or KYC domain is `configured_but_unavailable`, state that screening is not covered by ESData.
 - Treat BORME extraction as heuristic unless ESData marks it otherwise.
 - For FATCA passive/active NFFE onboarding questions, use Modelo 290 `reglas_inclusion` and quote the returned source.
-- For CNMV checks, use `/v1/cnmv/coverage`; do not treat missing guias tecnicas, Q&A, documentos a consulta or registros as "no obligation".
+- For CNMV checks, use `/v1/cnmv/coverage`; treat `guia_tecnica_cnmv` as supervisory/interpretive criteria and `documento_consulta_cnmv` as monitoring/proposal material, not current obligations.
+- Do not treat missing CNMV Q&A, modelos normalizados or registros as "no obligation" when coverage says they are unavailable.
 - For ESMA/FIRDS, distinguish schema/reporting validation evidence from pilot instrument metadata.
 - Keep all conclusions as draft for compliance officer review.
 

@@ -47,10 +47,13 @@ CNMV_SOURCE_FAMILIES = [
     {
         "family_id": "guias_tecnicas",
         "nombre": "Guias tecnicas CNMV",
-        "source_url": "https://www.cnmv.es/portal/Legislacion/Guias-Tecnicas",
-        "loaded_tipo_documentos": ["guia_cnmv"],
-        "coverage_status": "configured_but_unavailable",
-        "contract_note": "Fuente oficial identificada; no hay ingestion completa dedicada todavia.",
+        "source_url": "https://www.cnmv.es/portal/legislacion/guias-tecnicas?lang=es",
+        "loaded_tipo_documentos": ["guia_tecnica_cnmv"],
+        "coverage_status": "partial_loaded",
+        "contract_note": (
+            "Ingestion dedicada desde la pagina oficial de guias tecnicas. "
+            "Son criterios de interpretacion/supervision, no norma primaria."
+        ),
     },
     {
         "family_id": "preguntas_respuestas_normas",
@@ -63,10 +66,13 @@ CNMV_SOURCE_FAMILIES = [
     {
         "family_id": "documentos_consulta_cnmv",
         "nombre": "Documentos a consulta de la CNMV",
-        "source_url": "https://www.cnmv.es/portal/publicaciones/documentos-fase-consulta?tDoc=1",
-        "loaded_tipo_documentos": [],
-        "coverage_status": "configured_but_unavailable",
-        "contract_note": "Fuente oficial paginada identificada; sin ingestion dedicada.",
+        "source_url": "https://www.cnmv.es/portal/publicaciones/Documentos-Fase-Consulta?tDoc=1",
+        "loaded_tipo_documentos": ["documento_consulta_cnmv"],
+        "coverage_status": "partial_loaded",
+        "contract_note": (
+            "Ingestion dedicada de procesos de consulta CNMV. "
+            "No son norma vigente ni obligaciones actuales; sirven para seguimiento regulatorio."
+        ),
     },
     {
         "family_id": "modelos_normalizados",
@@ -102,8 +108,21 @@ def _cnmv_source_alias(row) -> str | None:
     return row.get("url_fuente")
 
 
+def _cnmv_row_completeness(row) -> str | None:
+    return row.get("row_completeness")
+
+
+def _cnmv_verified(row) -> bool | None:
+    completeness = row.get("row_completeness")
+    provenance = row.get("row_provenance")
+    if completeness is None and provenance is None:
+        return None
+    return completeness == "complete" and provenance == "official_exact"
+
+
 def _cnmv_list_payload(row) -> dict:
     texto = row["texto"] or ""
+    completeness = _cnmv_row_completeness(row)
     return {
         "referencia": row["referencia"],
         "fecha": str(row["fecha"]) if row["fecha"] else None,
@@ -119,6 +138,10 @@ def _cnmv_list_payload(row) -> dict:
         "referencia_boe": row.get("referencia_boe"),
         "boe_referencia": _cnmv_boe_reference(row),
         "url_cnmv": _cnmv_source_alias(row),
+        "verified": _cnmv_verified(row),
+        "completeness": completeness,
+        "row_completeness": completeness,
+        "row_provenance": row.get("row_provenance"),
         "es_consolidado": row.get("es_consolidado"),
         "consolidated_verification_status": row.get("consolidated_verification_status"),
         "consolidated_source_url": row.get("consolidated_source_url"),
@@ -330,6 +353,7 @@ async def listar_cnmv(
                 f"""
                 SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente,
                        estado_vigencia, fecha_publicacion, referencia_boe,
+                       row_completeness, row_provenance,
                        (
                            SELECT dv.es_consolidado
                            FROM documento_version dv
@@ -615,6 +639,7 @@ async def get_cnmv(referencia: str):
                     """
                     SELECT referencia, fecha, titulo, tipo_documento, ambito, texto, url_fuente,
                            estado_vigencia, numero_circular, fecha_publicacion, referencia_boe,
+                           row_completeness, row_provenance,
                            (
                                SELECT dv.es_consolidado
                                FROM documento_version dv
@@ -673,6 +698,7 @@ async def get_cnmv(referencia: str):
         if not row:
             raise HTTPException(status_code=404, detail={"error": "Documento CNMV no encontrado"})
 
+        completeness = _cnmv_row_completeness(row)
         return {
             "referencia": row["referencia"],
             "fecha": str(row["fecha"]) if row["fecha"] else None,
@@ -687,6 +713,10 @@ async def get_cnmv(referencia: str):
             "referencia_boe": row.get("referencia_boe"),
             "boe_referencia": _cnmv_boe_reference(row),
             "url_cnmv": _cnmv_source_alias(row),
+            "verified": _cnmv_verified(row),
+            "completeness": completeness,
+            "row_completeness": completeness,
+            "row_provenance": row.get("row_provenance"),
             "es_consolidado": row.get("es_consolidado"),
             "consolidated_verification_status": row.get("consolidated_verification_status"),
             "consolidated_source_url": row.get("consolidated_source_url"),

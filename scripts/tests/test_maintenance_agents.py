@@ -7,7 +7,6 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -179,6 +178,39 @@ def test_mcp_validation_suite_accepts_explicit_empty_domain_contract():
 
     assert ok is True
     assert details["legacy_statuses"] == []
+
+
+def test_mcp_validation_suite_requires_cnmv_expanded_families_loaded():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_cnmv_coverage_contract(
+        {
+            "total_cnmv_loaded": 5,
+            "current_loaded": 4,
+            "derogado_loaded": 1,
+            "coverage_note": "CNMV devuelve corpus cargado; no cargado no equivale a inexistente.",
+            "source_families": [
+                {
+                    "family_id": "circulares",
+                    "coverage_status": "partial_loaded",
+                    "loaded_count": 3,
+                },
+                {
+                    "family_id": "guias_tecnicas",
+                    "coverage_status": "partial_loaded",
+                    "loaded_count": 1,
+                },
+                {
+                    "family_id": "documentos_consulta_cnmv",
+                    "coverage_status": "partial_loaded",
+                    "loaded_count": 1,
+                },
+            ],
+        }
+    )
+
+    assert ok is True
+    assert details["family_count"] == 3
 
 
 def test_mcp_validation_suite_requires_fail_closed_empty_domain_response():

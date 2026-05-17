@@ -3353,10 +3353,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Filtrar por estado de vigencia",
+              "description": "Filtrar por estado de vigencia. Por defecto: current (vigente + vigente_modificado). Use all para incluir derogados.",
               "title": "Vigencia"
             },
-            "description": "Filtrar por estado de vigencia"
+            "description": "Filtrar por estado de vigencia. Por defecto: current (vigente + vigente_modificado). Use all para incluir derogados."
           },
           {
             "name": "regulacion",
@@ -4314,18 +4314,9 @@
             "title": "Row Provenance"
           },
           "metadata": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metadata"
+            "title": "Metadata",
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "type": "object",
@@ -4865,6 +4856,30 @@
             "type": "string",
             "title": "Url Version"
           },
+          "es_consolidado": {
+            "type": "boolean",
+            "title": "Es Consolidado"
+          },
+          "consolidated_verification_status": {
+            "type": "string",
+            "title": "Consolidated Verification Status"
+          },
+          "consolidated_source_url": {
+            "type": "string",
+            "title": "Consolidated Source Url"
+          },
+          "consolidated_checked_at": {
+            "type": "string",
+            "title": "Consolidated Checked At"
+          },
+          "boe_last_modified": {
+            "type": "string",
+            "title": "Boe Last Modified"
+          },
+          "consolidated_evidence_note": {
+            "type": "string",
+            "title": "Consolidated Evidence Note"
+          },
           "texto": {
             "type": "string",
             "title": "Texto"
@@ -5039,6 +5054,21 @@
             "title": "Total Resultados",
             "description": "Número total de resultados"
           },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "matched, evidence_limited o no_results para consumo de agentes"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "True solo cuando la respuesta esta suficientemente respaldada para contestar sin revision"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice",
+            "description": "Aviso de evidencia limitada o abstencion cuando safe_to_answer=false"
+          },
           "result_metadata": {
             "type": "object",
             "title": "Result Metadata",
@@ -5148,6 +5178,56 @@
             "type": "string",
             "title": "Url Cnmv",
             "description": "Alias de URL fuente CNMV/BOE para consumidores MCP"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "True solo si hay texto oficial CNMV parseable y trazable"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "complete | partial"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          },
+          "es_consolidado": {
+            "type": "boolean",
+            "title": "Es Consolidado",
+            "description": "True solo si la version cargada esta verificada como consolidada"
+          },
+          "consolidated_verification_status": {
+            "type": "string",
+            "title": "Consolidated Verification Status",
+            "description": "consolidated | not_consolidated | unknown | verification_error"
+          },
+          "consolidated_source_url": {
+            "type": "string",
+            "title": "Consolidated Source Url",
+            "description": "URL BOE usada para verificar consolidacion"
+          },
+          "consolidated_checked_at": {
+            "type": "string",
+            "title": "Consolidated Checked At",
+            "description": "Timestamp de verificacion de consolidacion"
+          },
+          "boe_last_modified": {
+            "type": "string",
+            "title": "Boe Last Modified",
+            "description": "Fecha ultima modificacion BOE si se extrajo"
+          },
+          "consolidated_evidence_note": {
+            "type": "string",
+            "title": "Consolidated Evidence Note",
+            "description": "Nota de evidencia sobre consolidacion"
           }
         },
         "type": "object",
@@ -5230,6 +5310,56 @@
             "type": "string",
             "title": "Url Cnmv",
             "description": "Alias de URL fuente CNMV/BOE para consumidores MCP"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "True solo si hay texto oficial CNMV parseable y trazable"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "description": "complete | partial"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          },
+          "es_consolidado": {
+            "type": "boolean",
+            "title": "Es Consolidado",
+            "description": "True solo si la version cargada esta verificada como consolidada"
+          },
+          "consolidated_verification_status": {
+            "type": "string",
+            "title": "Consolidated Verification Status",
+            "description": "consolidated | not_consolidated | unknown | verification_error"
+          },
+          "consolidated_source_url": {
+            "type": "string",
+            "title": "Consolidated Source Url",
+            "description": "URL BOE usada para verificar consolidacion"
+          },
+          "consolidated_checked_at": {
+            "type": "string",
+            "title": "Consolidated Checked At",
+            "description": "Timestamp de verificacion de consolidacion"
+          },
+          "boe_last_modified": {
+            "type": "string",
+            "title": "Boe Last Modified",
+            "description": "Fecha ultima modificacion BOE si se extrajo"
+          },
+          "consolidated_evidence_note": {
+            "type": "string",
+            "title": "Consolidated Evidence Note",
+            "description": "Nota de evidencia sobre consolidacion"
           }
         },
         "type": "object",
@@ -5287,6 +5417,24 @@
             "type": "integer",
             "title": "Next Offset",
             "description": "Siguiente offset"
+          },
+          "vigencia_filter": {
+            "type": "string",
+            "title": "Vigencia Filter",
+            "description": "Filtro de vigencia aplicado por el router"
+          },
+          "included_estados_vigencia": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Included Estados Vigencia",
+            "description": "Estados de vigencia incluidos cuando el filtro no es all"
+          },
+          "coverage_note": {
+            "type": "string",
+            "title": "Coverage Note",
+            "description": "Nota de cobertura del corpus"
           }
         },
         "type": "object",
@@ -6839,6 +6987,36 @@
             "type": "string",
             "title": "Tipo Clave",
             "description": "Tipo (rendimiento, regimen, etc.)"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "Tipo de clave normalizado"
+          },
+          "criterio_aplicacion": {
+            "type": "string",
+            "title": "Criterio Aplicacion",
+            "description": "Criterio oficial de aplicacion"
+          },
+          "exclusiones": {
+            "type": "string",
+            "title": "Exclusiones",
+            "description": "Supuestos en los que no aplica"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial de procedencia"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "Hash de la fuente oficial"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date",
+            "description": "Fecha de captura"
           }
         },
         "type": "object",
@@ -7004,6 +7182,20 @@
             "type": "integer",
             "title": "Instrucciones Total",
             "description": "Total de instrucciones disponibles",
+            "default": 0
+          },
+          "reglas_inclusion": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloReglaInclusion"
+            },
+            "type": "array",
+            "title": "Reglas Inclusion",
+            "description": "Reglas oficiales de inclusion/exclusion"
+          },
+          "reglas_inclusion_total": {
+            "type": "integer",
+            "title": "Reglas Inclusion Total",
+            "description": "Total de reglas de inclusion disponibles",
             "default": 0
           },
           "normativa": {
@@ -7178,6 +7370,31 @@
             "type": "integer",
             "title": "Orden",
             "description": "Orden de presentación"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto",
+            "description": "Texto oficial normalizado"
+          },
+          "casilla_referencia": {
+            "type": "string",
+            "title": "Casilla Referencia",
+            "description": "Casilla o campo relacionado"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial de procedencia"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "Hash de la fuente oficial"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date",
+            "description": "Fecha de captura"
           }
         },
         "type": "object",
@@ -7222,6 +7439,57 @@
           "titulo"
         ],
         "title": "ModeloNormativa"
+      },
+      "ModeloReglaInclusion": {
+        "properties": {
+          "supuesto": {
+            "type": "string",
+            "title": "Supuesto",
+            "description": "Supuesto operativo cubierto por la regla"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision",
+            "description": "INCLUIR, EXCLUIR, CONDICIONAL o EVIDENCE_LIMITED"
+          },
+          "condicion": {
+            "type": "string",
+            "title": "Condicion",
+            "description": "Condicion aplicable si la decision es condicional"
+          },
+          "umbral": {
+            "type": "string",
+            "title": "Umbral",
+            "description": "Umbral oficial si existe"
+          },
+          "fuente_normativa": {
+            "type": "string",
+            "title": "Fuente Normativa",
+            "description": "Referencia normativa oficial"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial de procedencia"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "Hash de la fuente oficial"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date",
+            "description": "Fecha de captura"
+          }
+        },
+        "type": "object",
+        "required": [
+          "supuesto",
+          "decision",
+          "source_url"
+        ],
+        "title": "ModeloReglaInclusion"
       },
       "ModeloResumenOperativoResponse": {
         "properties": {
@@ -7776,22 +8044,9 @@
             "title": "Deposito Previo"
           },
           "fuentes_operativas": {
-            "anyOf": [
-              {
-                "items": {},
-                "type": "array"
-              },
-              {
-                "type": "object"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fuentes Operativas"
+            "title": "Fuentes Operativas",
+            "type": "object",
+            "additionalProperties": true
           },
           "ultima_actualizacion": {
             "type": "string",
@@ -8292,19 +8547,9 @@
             "description": "URL oficial trazable del resultado"
           },
           "chunk_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Chunk Id",
-            "description": "Identificador interno del fragmento recuperado"
+            "description": "Identificador interno del fragmento recuperado",
+            "type": "string"
           },
           "source_hash": {
             "type": "string",
@@ -8336,14 +8581,7 @@
         "properties": {
           "loc": {
             "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
+              "type": "string"
             },
             "type": "array",
             "title": "Location"
