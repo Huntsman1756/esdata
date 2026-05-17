@@ -67,6 +67,7 @@ DEFAULT_NORMAS = {
     "LIVMC": "BOE-A-2023-7053",            # Ley 6/2023 Mercados de Valores y Servicios de Inversion
     "RD_1082_2012": "BOE-A-2012-9716",     # Reglamento de Instituciones de Inversion Colectiva
     "RD_813_2023": "BOE-A-2023-22763",     # Regimen juridico de empresas de servicios de inversion
+    "RD_304_2014": "BOE-A-2014-5438",      # Reglamento Ley 10/2010 PBC/FT
 }
 
 KNOWN_BOE_CODES = set(DEFAULT_NORMAS.keys())
@@ -99,6 +100,10 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto",
         "ambito": "empresas_servicios_inversion",
     },
+    "RD_304_2014": {
+        "tipo_documento": "real_decreto",
+        "ambito": "prevencion_blanqueo",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -112,6 +117,7 @@ LAW_TO_NORMA = {
     "6/2023": "LIVMC",
     "1082/2012": "RD_1082_2012",
     "813/2023": "RD_813_2023",
+    "304/2014": "RD_304_2014",
 }
 
 
