@@ -83,7 +83,7 @@
       "id": "D-12",
       "title": "Final verification - Sprint D complete",
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && curl -sf http://localhost:${API_PORT:-8000}/v1/norma/eu | jq 'length' | awk '{if ($1>=10) print \"PASS\"; else print \"FAIL: only \" $1}' || echo FAIL"
     }
   ]
