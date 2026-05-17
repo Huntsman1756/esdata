@@ -42,7 +42,7 @@
       "id": "C-04",
       "title": "Seed sociedad_valores - fiscal obligations (AEAT)",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Seed fiscal AEAT obligations for sociedad_valores",
         "Every obligation has source_url",

@@ -2363,3 +2363,31 @@ Verificacion produccion:
 Resultado:
 - C-03: COMPLETADO.
 - Siguiente historia Ralph: C-04 Seed sociedad_valores - fiscal obligations (AEAT).
+
+### C-04 Seed sociedad_valores - fiscal obligations (AEAT) - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- Normas disponibles: `LIRPF`, `LIVA`, `LIS`, `TRLIRNR`, `LGT`, `RD_1082_2012`.
+- Articulos confirmados para verificacion: `LIRPF art.101`, `LIVA art.164`, `LIS art.124`, `TRLIRNR art.31`.
+- Modelos AEAT con URL oficial: `111`, `115`, `187`, `193`, `198`, `200`, `216`, `289`, `290`, `296`, `303`.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_sociedad_valores_fiscal_obligaciones.sql`.
+- `source_url` se obtiene desde `aeat_modelo/modelo_campana`, no hardcodeada salvo fuentes BOE secundarias.
+- `verified=true` solo cuando hay norma y articulo confirmados.
+- Obligaciones condicionales quedan `completeness='parcial'` aunque tengan fuente oficial.
+
+Incidencia corregida:
+- Primer intento fallo por constraint `ck_obligacion_perfil_periodicidad` al usar `mensual o trimestral`.
+- Se normalizo `periodicidad` a valores canonicos y se movio la alternativa a `plazo_descripcion`.
+
+Verificacion produccion:
+- Filas fiscales `sociedad_valores`: `11`.
+- Modelos cargados: `111`, `115`, `187`, `193`, `198`, `200`, `216`, `289`, `290`, `296`, `303`.
+- VerificationCommand C-04 => `Fiscal obligations: 11`, `PASS`.
+
+Resultado:
+- C-04: COMPLETADO.
+- Siguiente historia Ralph: C-05 Seed sociedad_valores - PBC/FT obligations.
