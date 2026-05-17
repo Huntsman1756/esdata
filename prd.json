@@ -13,7 +13,7 @@
       "id": "D-02",
       "title": "Seed MiFIR/MiFID II core regulations",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32014L0065','32014R0600','32017R0571','32017R0590','32017R0565')\"); echo \"MiFIR/MiFID norms: $COUNT\"; [ \"$COUNT\" -ge 5 ] && echo PASS || echo FAIL"
     },
     {
