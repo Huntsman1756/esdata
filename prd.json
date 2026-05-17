@@ -78,7 +78,7 @@
       "id": "C-07",
       "title": "Implement MCP tools - wire contracts to DB",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Wire the 3 MCP contracts to DB queries",
         "Return flat obligations with evidence notices",

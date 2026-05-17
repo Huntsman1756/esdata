@@ -2439,3 +2439,33 @@ Verificacion produccion:
 Resultado:
 - C-06: COMPLETADO.
 - Siguiente historia Ralph: C-07 Implement MCP tools - wire contracts to DB.
+
+### C-07 Implement MCP tools - wire contracts to DB - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+TDD:
+- Test rojo inicial fallo por `ImportError: cannot import name 'PerfilNotFoundError'`.
+- Implementacion anadida despues del rojo.
+
+Implementacion:
+- `apps/api/mcp_tools_perfil.py` ahora implementa:
+  - `listar_perfiles_entidad(db)`
+  - `obtener_obligaciones_perfil(db, perfil_codigo, dominio='ALL')`
+  - `calendario_obligaciones_perfil(db, perfil_codigo)`
+- Filtrado por dominio:
+  - `FISCAL`: autoliquidaciones/declaraciones informativas.
+  - `PBC_FT`: tipos PBC/FT y norma `LEY10_2010`/`RD_304_2014`.
+  - `CNMV`: reporting/control/formacion excluyendo PBC/FT por norma.
+- `source_url` vacio queda excluido por SQL.
+- `PerfilNotFoundError` actua como equivalente 404 para tool/API wrappers.
+- `mcp_catalog.py` registra las 3 herramientas MCP-first desde los contratos C-02.
+- `mcp_stdio.py` despacha las 3 herramientas directamente contra DB hasta que C-08 exponga REST wrappers.
+
+Verificacion:
+- `python -m pytest apps/api/tests/test_mcp_tools_perfil.py -v --basetemp .pytest-tmp` => `7 passed`.
+- VerificationCommand C-07 equivalente => `7 passed`.
+
+Resultado:
+- C-07: COMPLETADO.
+- Siguiente historia Ralph: C-08 REST API endpoints - /v1/perfil thin wrapper over MCP tools.

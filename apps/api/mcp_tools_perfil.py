@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
 DominioPerfil = Literal["FISCAL", "PBC_FT", "CNMV", "ALL"]
@@ -170,6 +173,142 @@ PERFIL_MCP_TOOL_CONTRACTS: tuple[MCPToolContract, ...] = (
 )
 
 
+class PerfilNotFoundError(ValueError):
+    """Raised when a requested applicability profile is not configured."""
+
+
+logger = logging.getLogger(__name__)
+
+
+DOMAIN_FILTERS: dict[str, str] = {
+    "FISCAL": "op.obligacion_tipo IN ('AUTOLIQUIDACION', 'DECLARACION_INFORMATIVA')",
+    "PBC_FT": (
+        "op.obligacion_tipo IN ('DILIGENCIA_DEBIDA', 'COMUNICACION_INDICIO', "
+        "'CONTROL_INTERNO', 'FORMACION', 'REGISTRO') "
+        "AND COALESCE(op.norma_codigo, '') IN ('LEY10_2010', 'RD_304_2014')"
+    ),
+    "CNMV": (
+        "op.obligacion_tipo IN ('REPORTING', 'CONTROL_INTERNO', 'FORMACION') "
+        "AND COALESCE(op.norma_codigo, '') NOT IN ('LEY10_2010', 'RD_304_2014')"
+    ),
+    "ALL": "1 = 1",
+}
+
+
+def listar_perfiles_entidad(db: Session) -> list[PerfilResumen]:
+    rows = db.execute(
+        text(
+            """
+            SELECT codigo, nombre, supervisor, regimen_primario
+            FROM perfil_entidad
+            WHERE activo = true
+            ORDER BY supervisor, codigo
+            """
+        )
+    ).mappings()
+    return [
+        PerfilResumen(
+            codigo=str(row["codigo"]),
+            nombre=str(row["nombre"]),
+            supervisor=str(row["supervisor"]),
+            regimen_primario=row["regimen_primario"],
+        )
+        for row in rows
+    ]
+
+
+def _get_perfil(db: Session, perfil_codigo: str) -> PerfilResumen:
+    row = db.execute(
+        text(
+            """
+            SELECT codigo, nombre, supervisor, regimen_primario
+            FROM perfil_entidad
+            WHERE codigo = :codigo
+              AND activo = true
+            """
+        ),
+        {"codigo": perfil_codigo},
+    ).mappings().first()
+    if row is None:
+        raise PerfilNotFoundError(f"Perfil no configurado: {perfil_codigo}")
+    return PerfilResumen(
+        codigo=str(row["codigo"]),
+        nombre=str(row["nombre"]),
+        supervisor=str(row["supervisor"]),
+        regimen_primario=row["regimen_primario"],
+    )
+
+
+def _evidence_notice(row: Any) -> str:
+    if bool(row["verified"]):
+        norma = row["norma_codigo"] or "fuente oficial"
+        articulo = row["articulo_referencia"] or ""
+        return f"Verificado contra {norma} {articulo}".strip()
+    return "evidence_limited: pendiente verificacion articulo"
+
+
+def _obligacion_from_row(row: Any) -> ObligacionItem:
+    return ObligacionItem(
+        descripcion=str(row["descripcion"]),
+        obligacion_tipo=str(row["obligacion_tipo"]),
+        periodicidad=row["periodicidad"],
+        plazo_descripcion=row["plazo_descripcion"],
+        modelo_aeat=row["modelo_aeat"],
+        norma_codigo=row["norma_codigo"],
+        articulo_referencia=row["articulo_referencia"],
+        fuente_secundaria=row["fuente_secundaria"],
+        verified=bool(row["verified"]),
+        completeness=str(row["completeness"]),
+        source_url=str(row["source_url"]),
+        evidence_notice=_evidence_notice(row),
+    )
+
+
+def obtener_obligaciones_perfil(
+    db: Session,
+    perfil_codigo: str,
+    dominio: DominioPerfil = "ALL",
+) -> ObligacionesResponse:
+    perfil = _get_perfil(db, perfil_codigo)
+    domain_filter = DOMAIN_FILTERS.get(dominio)
+    if domain_filter is None:
+        raise ValueError(f"Dominio no soportado: {dominio}")
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT
+                op.id,
+                op.obligacion_tipo,
+                op.descripcion,
+                op.periodicidad,
+                op.plazo_descripcion,
+                op.modelo_aeat,
+                op.norma_codigo,
+                op.articulo_referencia,
+                op.fuente_secundaria,
+                op.verified,
+                op.completeness,
+                op.source_url
+            FROM obligacion_perfil op
+            WHERE op.perfil_codigo = :perfil_codigo
+              AND op.source_url IS NOT NULL
+              AND op.source_url <> ''
+              AND {domain_filter}
+            ORDER BY op.obligacion_tipo, op.descripcion
+            """
+        ),
+        {"perfil_codigo": perfil_codigo},
+    ).mappings().all()
+
+    obligaciones = [_obligacion_from_row(row) for row in rows]
+    return ObligacionesResponse(
+        perfil=perfil,
+        dominio_filtrado=dominio,
+        obligaciones=obligaciones,
+    )
+
+
 def build_calendario_response(
     *,
     perfil: PerfilResumen,
@@ -184,3 +323,8 @@ def build_calendario_response(
             periodicidad = "ad_hoc"
         calendario[periodicidad].append(obligacion)  # type: ignore[index]
     return CalendarioResponse(perfil=perfil, calendario=calendario)
+
+
+def calendario_obligaciones_perfil(db: Session, perfil_codigo: str) -> CalendarioResponse:
+    response = obtener_obligaciones_perfil(db, perfil_codigo, "ALL")
+    return build_calendario_response(perfil=response.perfil, obligaciones=response.obligaciones)

@@ -9,8 +9,15 @@ import anyio
 import httpx
 
 # FastAPI app must be imported before any DB access
+from db import db_session
 from main import app
 from mcp_catalog import get_stdio_tool_definitions
+from mcp_tools_perfil import (
+    PerfilNotFoundError,
+    calendario_obligaciones_perfil,
+    listar_perfiles_entidad,
+    obtener_obligaciones_perfil,
+)
 from mcp_request_context import (
     get_mcp_request_id,
     get_mcp_user_id,
@@ -1364,6 +1371,47 @@ class MCPStdioServer:
                     self._send_error(msg_id, -32603, f"API error: {status_code}")
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing get_emir_clearing_member: {e!s}")
+        elif tool_name == "listar_perfiles_entidad":
+            try:
+                with db_session() as db:
+                    perfiles = [perfil.model_dump() for perfil in listar_perfiles_entidad(db)]
+                self._send_jsonrpc(msg_id, {
+                    "content": [{"type": "text", "text": json.dumps(perfiles, ensure_ascii=False)}],
+                    "structuredContent": {"perfiles": perfiles},
+                })
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing listar_perfiles_entidad: {e!s}")
+        elif tool_name == "obtener_obligaciones_perfil":
+            try:
+                with db_session() as db:
+                    payload = obtener_obligaciones_perfil(
+                        db,
+                        arguments.get("perfil_codigo", "sociedad_valores"),
+                        arguments.get("dominio", "ALL"),
+                    ).model_dump()
+                self._send_jsonrpc(msg_id, {
+                    "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
+                    "structuredContent": payload,
+                })
+            except PerfilNotFoundError as e:
+                self._send_error(msg_id, -32602, str(e))
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing obtener_obligaciones_perfil: {e!s}")
+        elif tool_name == "calendario_obligaciones_perfil":
+            try:
+                with db_session() as db:
+                    payload = calendario_obligaciones_perfil(
+                        db,
+                        arguments.get("perfil_codigo", "sociedad_valores"),
+                    ).model_dump()
+                self._send_jsonrpc(msg_id, {
+                    "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
+                    "structuredContent": payload,
+                })
+            except PerfilNotFoundError as e:
+                self._send_error(msg_id, -32602, str(e))
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing calendario_obligaciones_perfil: {e!s}")
         else:
             self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
 
