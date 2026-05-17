@@ -1402,6 +1402,56 @@
         "x-beta": true
       }
     },
+    "/v1/norma/eu": {
+      "get": {
+        "tags": [
+          "norma",
+          "eu"
+        ],
+        "summary": "List Normas Eu",
+        "operationId": "buscar_norma_eu",
+        "parameters": [
+          {
+            "name": "termino",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Keyword, CELEX, or regulation name.",
+              "default": "",
+              "title": "Termino"
+            },
+            "description": "Keyword, CELEX, or regulation name."
+          },
+          {
+            "name": "tipo_norma",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "reglamento_ue",
+                "directiva_ue",
+                "rts",
+                "its",
+                "guideline_esma"
+              ],
+              "type": "string",
+              "title": "Tipo Norma"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/consulta": {
       "get": {
         "tags": [
