@@ -15,6 +15,7 @@ from schemas import (
     ModeloDetail as ModeloDetailSchema,
     ModeloCasillasResponse,
 )
+from mcp_tools_aeat_catalogo import buscar_modelos_aeat_catalogo
 from services.modelos import (
     build_modelo_truth_contract,
     count_campaign_casillas,
@@ -292,6 +293,26 @@ async def get_modelos_por_supuesto(
             verified=False,
         )
         return payload
+
+
+@router.get(
+    "/catalogo",
+    operation_id="buscar_modelos_aeat_catalogo",
+    summary="Busca modelos AEAT en el catalogo general",
+    description=(
+        "Busca modelos AEAT por codigo o termino. Esta ruta devuelve informacion "
+        "del catalogo y no afirma aplicabilidad ni obligatoriedad para perfiles."
+    ),
+)
+async def get_modelos_aeat_catalogo(
+    codigo: str | None = Query(None, description="Codigo de modelo AEAT, ej: 123"),
+    termino: str | None = Query(None, description="Texto a buscar en codigo o descripcion"),
+):
+    with db_session() as db:
+        return [
+            item.model_dump(mode="json")
+            for item in buscar_modelos_aeat_catalogo(db, codigo=codigo, termino=termino)
+        ]
 
 
 @router.get("", operation_id="list_modelos", response_model=ModelosListResponse)

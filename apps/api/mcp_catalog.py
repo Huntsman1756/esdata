@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from mcp_tools_aeat_catalogo import AEAT_CATALOGO_MCP_TOOL_CONTRACTS
 from mcp_tools_eu import EU_MCP_TOOL_CONTRACTS
 from mcp_tools_perfil import PERFIL_MCP_TOOL_CONTRACTS
 
@@ -53,6 +54,7 @@ HTTP_MCP_OPERATIONS = [
     "get_modelo_resumen_operativo",
     "get_modelo_fuentes_oficiales",
     "list_modelos_por_supuesto",
+    "buscar_modelos_aeat_catalogo",
     # Disponibilidad de dominios/tablas
     "list_domain_availability",
     "get_domain_availability",
@@ -346,7 +348,11 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
             },
         },
     ]
-    for contract in (*PERFIL_MCP_TOOL_CONTRACTS, *EU_MCP_TOOL_CONTRACTS):
+    for contract in (
+        *PERFIL_MCP_TOOL_CONTRACTS,
+        *EU_MCP_TOOL_CONTRACTS,
+        *AEAT_CATALOGO_MCP_TOOL_CONTRACTS,
+    ):
         properties: dict[str, Any] = {}
         required: list[str] = []
         for parameter_name, parameter_contract in contract.parameters.items():
