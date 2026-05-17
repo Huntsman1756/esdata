@@ -90,7 +90,7 @@
       "id": "E-13",
       "title": "Final verification - Sprint E complete",
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/ -q plus production totals"
     }
   ]
