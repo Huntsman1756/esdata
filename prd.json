@@ -76,7 +76,7 @@
       "id": "D-11",
       "title": "Update validation suite - EU regulations and new tools",
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
