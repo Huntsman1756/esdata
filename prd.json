@@ -69,7 +69,7 @@
       "id": "F-10",
       "title": "Fix empresa_servicios_pago PBC/FT condicional - articulo correcto",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='empresa_servicios_pago' AND verified=false\"); echo \"ESP remaining evidence_limited: $COUNT\"; [ \"$COUNT\" -eq 0 ] && echo PASS || echo FAIL"
     },
     {
