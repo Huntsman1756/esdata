@@ -90,7 +90,7 @@
       "id": "F-13",
       "title": "Final verification - Sprint F complete",
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT ROUND(100.0*SUM(CASE WHEN verified THEN 1 ELSE 0 END)/COUNT(*),1) FROM obligacion_perfil\" | awk '{if ($1>=75) print \"PASS: overall \" $1 \"%\"; else print \"FAIL: only \" $1 \"%\"}'"
     }
   ]
