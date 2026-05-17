@@ -27,7 +27,7 @@
       "id": "F-04",
       "title": "Fix Modelo 187 - articulo RD 1082/2012 concreto",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 187%' AND norma_codigo='RD_1082_2012' AND articulo_referencia IS NOT NULL AND verified=true\"); echo \"M187 fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
