@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from mcp_tools_eu import EU_MCP_TOOL_CONTRACTS
 from mcp_tools_perfil import PERFIL_MCP_TOOL_CONTRACTS
 
 DEFAULT_MCP_OUTPUT_SCHEMA: dict[str, Any] = {
@@ -100,6 +101,7 @@ HTTP_MCP_OPERATIONS = [
     "get_perfil_entidad",
     "obtener_obligaciones_perfil",
     "calendario_obligaciones_perfil",
+    "buscar_norma_eu",
     # Bridged from stdio — tools that previously only worked via MCP stdio
     # transport are now callable via HTTP MCP too. Each maps to an existing
     # REST endpoint that the stdio handler already delegates to.
@@ -344,7 +346,7 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
             },
         },
     ]
-    for contract in PERFIL_MCP_TOOL_CONTRACTS:
+    for contract in (*PERFIL_MCP_TOOL_CONTRACTS, *EU_MCP_TOOL_CONTRACTS):
         properties: dict[str, Any] = {}
         required: list[str] = []
         for parameter_name, parameter_contract in contract.parameters.items():

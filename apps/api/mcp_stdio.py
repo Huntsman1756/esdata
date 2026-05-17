@@ -12,6 +12,7 @@ import httpx
 from db import db_session
 from main import app
 from mcp_catalog import get_stdio_tool_definitions
+from mcp_tools_eu import buscar_norma_eu
 from mcp_tools_perfil import (
     PerfilNotFoundError,
     calendario_obligaciones_perfil,
@@ -1412,6 +1413,23 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32602, str(e))
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing calendario_obligaciones_perfil: {e!s}")
+        elif tool_name == "buscar_norma_eu":
+            try:
+                with db_session() as db:
+                    payload = [
+                        item.model_dump()
+                        for item in buscar_norma_eu(
+                            db,
+                            arguments.get("termino", ""),
+                            arguments.get("tipo_norma"),
+                        )
+                    ]
+                self._send_jsonrpc(msg_id, {
+                    "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
+                    "structuredContent": {"normas": payload},
+                })
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing buscar_norma_eu: {e!s}")
         else:
             self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
 
