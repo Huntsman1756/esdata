@@ -1961,3 +1961,44 @@ Verification:
   - Alertmanager returned 0 active alerts.
 Caveat: 200 and 303 remain intentionally partial because only instruction sections, not full deterministic clave coverage, were loaded.
 Next: COMPLETE
+
+---
+
+## Sprint A - TEAC DYCTEA + SEPBLAC granular
+
+### A-01 Audit current TEAC worker and DYCTEA API - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Lecturas obligatorias:
+- `apps/workers/teac.py` leido completo.
+- `prd.json` y `progress.txt` revisados; el `prd.json` anterior pertenecia al sprint AEAT I-* cerrado, por lo que se reemplaza por el PRD operativo de Sprint A.
+- `git log --oneline -20` revisado antes de ejecutar la historia.
+
+Estado productivo:
+- SQL solicitado contra VPS: `documento_interpretativo WHERE tipo_documento='resolucion_teac'`.
+- Resultado: `10` filas.
+- `fecha_publicacion` existe pero `MIN/MAX` salen vacios para esas filas; `fecha` si esta poblada en muestras recientes.
+- Muestras productivas recientes: `00/04803/2024/00/00` con fecha `2026-04-30`, `00/02088/2024/00/00` con fecha `2026-04-30`, `00/02259/2025/00/00` con fecha `2026-04-24`.
+
+Worker actual:
+- Usa `TEAC_SEED_URLS` y `DYCTEA_ROOT_URL=https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/`.
+- Descubre enlaces `criterio.aspx?id=...` desde HTML ASP.NET con `__VIEWSTATE`.
+- No implementa bulk por rango de fechas 2018-presente.
+- No tiene paginacion explicita, `TEAC_FECHA_DESDE`, `--dry-run` ni `--max-results`.
+- Inserta `tipo_documento='resolucion_teac'`, `referencia`, `fecha`, `titulo`, `texto`, `url_fuente`, con upsert por `referencia`.
+
+DYCTEA:
+- La URL del prompt `https://www.hacienda.gob.es/es-ES/El%20Ministerio/Paginas/TEAC/Busqueda.aspx` devuelve `404`.
+- La URL publica usada por el worker `https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/` devuelve `200 OK` y HTML ASP.NET de aproximadamente `1.27 MB`.
+- El formulario contiene `__VIEWSTATE`, `__VIEWSTATEGENERATOR`, `ctl00$contentBody$tbFechaDesde`, `ctl00$contentBody$tbFechaHasta`, `ctl00$contentBody$ddlUnidad`, checks de `cbCriterios`/`cbResoluciones` y boton `ctl00$contentBody$btSearch`.
+- POST manual simple con parametros form sin `VIEWSTATE` no devuelve JSON; vuelve a HTML. No hay API JSON confirmada en A-01.
+- El HTML inicial contiene mapas JS masivos de normas/preceptos; la paginacion y limite por pagina no quedan documentados como JSON estable en A-01. A-02 debe tratar DYCTEA como HTML ASP.NET stateful salvo que encuentre endpoint interno estructurado.
+- Los textos completos parecen requerir abrir cada `criterio.aspx?id=...`; no aparecen como JSON de respuesta bulk.
+
+Verificacion A-01:
+- Equivalente compliant ejecutado sin host Python: DB via `docker compose exec -T postgres psql` en VPS y alcance DYCTEA probado con `curl`.
+- Resultado: `Current TEAC rows: 10`; DYCTEA reachable por HTTP `200 OK`; `AUDIT-COMPLETE`.
+
+Siguiente historia Ralph:
+- A-02: Upgrade TEAC worker for DYCTEA bulk ingestion.
