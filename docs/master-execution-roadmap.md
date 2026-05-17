@@ -6546,3 +6546,9 @@ En orden de impacto real:
 
 - 2026-05-14 I-11 AEAT instructions/keys sprint - COMPLETADO. Informe final escrito en docs/aeat-instructions-coverage-report.md. Conteos produccion: 290 claves=7 instrucciones=7 reglas=5; 296=35/8; 216=5/6; 198=46/7; 187=28/5; 193=38/5; 303 instrucciones=5; 200 instrucciones=5. Completa/verified=true para 187,193,198,216,290,296; parcial/verified=false para 200 y 303. Local full suite: 3034 passed, 2 skipped. VPS: mcp_validation_suite ok=True con 38 checks; mcp_deep_contract_audit ok=True con 9 checks; /status api=ok database=ok y workers stale=false; Alertmanager 0 active alerts. Sprint cerrado: COMPLETE.
 
+- 2026-05-17 Sprint A A-01 TEAC DYCTEA audit - COMPLETADO. Produccion tenia 10 filas `resolucion_teac`; DYCTEA JSON no confirmado; fuente operativa oficial es HTML ASP.NET en `serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/`. Siguiente: A-02.
+
+- 2026-05-17 Sprint A A-02 TEAC bulk worker - COMPLETADO LOCAL. `apps/workers/teac.py` soporta discovery bulk DYCTEA por ventanas de fecha, `TEAC_FECHA_DESDE`, `--dry-run`, `--max-results` y contrato de completitud/verificacion. Tests TEAC: 17 passed. Siguiente: A-03.
+
+- 2026-05-17 Sprint A A-03 TEAC production load - COMPLETADO. `worker-teac` desplegado desde rama `feat/sprint-a-teac-sepblac` y reconstruido en VPS. Correccion adicional: solo se envian hidden inputs en POST DYCTEA para evitar `btReset=Limpiar`; tests TEAC: 18 passed. Produccion: 558 resoluciones TEAC, rango 2018-01-16 a 2026-04-30, `complete=286`, `partial=272`, 3 URLs recientes HTTP 200. Siguiente: A-04 SEPBLAC audit.
+

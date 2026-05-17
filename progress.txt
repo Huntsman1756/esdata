@@ -2027,3 +2027,34 @@ Caveat:
 
 Siguiente historia Ralph:
 - A-03: Load 500+ TEAC resoluciones in production.
+
+### A-03 Load 500+ TEAC resoluciones in production - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Despliegue:
+- Rama `feat/sprint-a-teac-sepblac` subida a origin y desplegada en `/srv/esdata`.
+- VPS conserva un cambio local ajeno en `scripts/backup-offsite.sh`; no se ha tocado.
+- `worker-teac` reconstruido desde git.
+
+Correccion operativa:
+- La primera prueba seca devolvio 0 candidatos porque el POST DYCTEA enviaba tambien `btReset=Limpiar`.
+- Se corrigio `_extract_hidden_inputs` para enviar solo inputs hidden y se anadio test de regresion.
+- `pytest apps/workers/tests/test_teac.py -v` => `18 passed`.
+- Prueba seca tras correccion: `TEAC_SEED_URLS=` + `--dry-run --max-results 5 --fecha-desde 2026-01-01` => 5 candidatos.
+
+Carga produccion:
+- Comando equivalente ejecutado en VPS: `docker compose -f infra/deploy/docker-compose.prod.yml run --rm -e TEAC_SEED_URLS= -e WORKER_REQUEST_DELAY=0.2 worker-teac python teac.py --run-once --max-results 600 --fecha-desde 2018-01-01`.
+- Resultado SQL produccion: `558` filas `tipo_documento='resolucion_teac'`.
+- Rango: `2018-01-16` a `2026-04-30`.
+- Completitud: `complete=286`, `partial=272`.
+- Spot-check URL oficial: 3 resoluciones recientes devuelven HTTP 200.
+
+Verificacion A-03:
+- VerificationCommand equivalente contra VPS: `TEAC rows: 558` => `PASS`.
+
+Caveat:
+- 272 filas son parciales porque el texto completo no siempre se parsea desde `criterio.aspx`; metadata, referencia, fecha y URL oficial quedan trazables.
+
+Siguiente historia Ralph:
+- A-04: Audit current SEPBLAC worker and production rows.
