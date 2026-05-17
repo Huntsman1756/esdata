@@ -27,9 +27,9 @@ Related structured tables currently loaded:
 |---|---|---|---|
 | Circulares CNMV | https://www.cnmv.es/portal/Legislacion/Circulares | partial_loaded | Loaded partially. Counts do not prove complete CNMV coverage. |
 | Generic CNMV documents | https://www.cnmv.es/Portal/Menu/Legislacion?lang=es | partial_generic | Loaded rows are official but not a complete family inventory. |
-| Guias tecnicas | https://www.cnmv.es/portal/Legislacion/Guias-Tecnicas | configured_but_unavailable | Official family identified; no dedicated ingestion yet. |
+| Guias tecnicas | https://www.cnmv.es/portal/legislacion/guias-tecnicas?lang=es | partial_loaded | Loaded as `guia_tecnica_cnmv`. Supervisory/interpretive criteria, not primary legislation. |
 | Preguntas y respuestas sobre normas | https://www.cnmv.es/Portal/Menu/Legislacion?lang=es | configured_but_unavailable | Official family identified from CNMV legislation menu; no dedicated ingestion yet. |
-| Documentos a consulta | https://www.cnmv.es/portal/publicaciones/documentos-fase-consulta?tDoc=1 | configured_but_unavailable | Official paginated family identified; no dedicated ingestion yet. |
+| Documentos a consulta | https://www.cnmv.es/portal/publicaciones/Documentos-Fase-Consulta?tDoc=1 | partial_loaded | Loaded as `documento_consulta_cnmv`. Monitoring/proposals only; not current obligations. |
 | Modelos normalizados | https://www.cnmv.es/portal/Legislacion/ModelosN/ModelosN | configured_but_unavailable | Official family identified; forms/models are not loaded in the current CNMV corpus. |
 | Registros oficiales | https://www.cnmv.es/Portal/Menu/Legislacion?lang=es | configured_but_unavailable | Entity and market registers are not part of the CNMV document corpus. |
 
@@ -45,6 +45,10 @@ Operational rules:
   `vigente_modificado`.
 - Historical/deprecated documents require explicit `vigencia=all` or
   `vigencia=derogado`.
+- Consultation documents use non-current states such as `consulta_cerrada`; use
+  `vigencia=all` plus `tipo_documento=documento_consulta_cnmv` for monitoring.
+- Rows expose `verified` and `completeness`: `verified=true` only means official
+  CNMV text was parseable and traceable, not that the document is primary law.
 - A no-result response in CNMV can mean "not loaded", not "does not exist".
 - `vigente_modificado` does not imply consolidated text. Use
   `es_consolidado=true` and `consolidated_verification_status='consolidated'`
@@ -52,10 +56,8 @@ Operational rules:
 
 ## Expansion Priority
 
-1. Guias tecnicas CNMV.
-2. Documentos a consulta.
-3. Modelos normalizados.
-4. Registers that are useful for regulated entities, but as separate structured
+1. Modelos normalizados.
+2. Registers that are useful for regulated entities, but as separate structured
    domains rather than mixed into `documento_interpretativo`.
-5. Additional communications and Q&A families only when the official source is
+3. Additional communications and Q&A families only when the official source is
    deterministic enough to parse without heuristic inference.

@@ -35,7 +35,7 @@ Abstain or answer as evidence-limited when:
 
 ## Current Routing Notes
 
-- CNMV: call `/v1/cnmv/coverage` for corpus-scope questions. Do not infer full CNMV coverage from circular counts.
+- CNMV: call `/v1/cnmv/coverage` for corpus-scope questions. Do not infer full CNMV coverage from circular counts. Treat `guia_tecnica_cnmv` as supervisory/interpretive and `documento_consulta_cnmv` as monitoring/proposal material, not current obligations.
 - AEAT: call model detail/key/instruction endpoints for "how to fill", "which key", and "include/exclude" questions.
 - FATCA: route passive/active NFFE questions to Modelo 290 rules first.
 - IRNR: use TRLIRNR/IRNR article endpoints for legal citations.

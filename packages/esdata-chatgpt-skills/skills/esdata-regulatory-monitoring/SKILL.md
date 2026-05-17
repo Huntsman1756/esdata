@@ -52,7 +52,9 @@ Gate:
 
 ## Current Coverage Traps
 
-- CNMV currently has a partial loaded corpus. Circulares and generic documents are not the full CNMV universe.
+- CNMV currently has a partial loaded corpus. Circulares, technical guides, consultation documents and generic documents are separate families; none proves full CNMV universe coverage.
+- CNMV `guia_tecnica_cnmv` rows are supervisory/interpretive criteria, not primary legislation.
+- CNMV `documento_consulta_cnmv` rows are proposals or consultation-stage materials for monitoring, not current obligations; query them with `vigencia=all` when needed.
 - CNMV `vigente_modificado` requires consolidation metadata before being treated as current consolidated text.
 - SearXNG/web discovery may identify URLs for staging, but must not be cited as evidence.
 - FIRDS full data is a capacity decision; use ESMA schema/validation endpoints for report-structure questions.

@@ -73,7 +73,9 @@ TIPOS_DOCUMENTO_CNMV: frozenset[str] = frozenset({
     "circular_cnmv",
     "manual_cnmv",
     "guia_cnmv",
+    "guia_tecnica_cnmv",
     "documento_cnmv",
+    "documento_consulta_cnmv",
 })
 
 TIPOS_DOCUMENTO_SEPBLAC: frozenset[str] = frozenset({
@@ -209,7 +211,7 @@ AMBITOS: frozenset[str] = frozenset({
 })
 
 # ---------------------------------------------------------------------------
-# estado_vigencia — 4 values
+# estado_vigencia — 5 values
 # ---------------------------------------------------------------------------
 
 ESTADOS_VIGENCIA: frozenset[str] = frozenset({
@@ -217,6 +219,7 @@ ESTADOS_VIGENCIA: frozenset[str] = frozenset({
     "vigente_modificado",
     "historico",
     "derogado",
+    "consulta_cerrada",
 })
 
 # ---------------------------------------------------------------------------

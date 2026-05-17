@@ -41,10 +41,44 @@ async def test_cnmv_coverage_exposes_loaded_subset_and_missing_families():
     families = {family["family_id"]: family for family in data["source_families"]}
     assert families["circulares"]["loaded_count"] >= 3
     assert families["circulares"]["coverage_status"] == "partial_loaded"
-    assert families["guias_tecnicas"]["coverage_status"] == "configured_but_unavailable"
-    assert families["documentos_consulta_cnmv"]["coverage_status"] == "configured_but_unavailable"
+    assert families["guias_tecnicas"]["loaded_count"] >= 1
+    assert families["guias_tecnicas"]["coverage_status"] == "partial_loaded"
+    assert families["documentos_consulta_cnmv"]["loaded_count"] >= 1
+    assert families["documentos_consulta_cnmv"]["coverage_status"] == "partial_loaded"
     assert families["modelos_normalizados"]["coverage_status"] == "configured_but_unavailable"
     assert "no cargado" in data["coverage_note"]
+
+
+@pytest.mark.asyncio
+async def test_cnmv_source_families_keep_distinct_truth_contracts():
+    async with _client() as client:
+        guide_response = await client.get(
+            "/v1/cnmv/buscar",
+            params={"q": "comisiones", "tipo_documento": "guia_tecnica_cnmv"},
+        )
+        consultation_response = await client.get(
+            "/v1/cnmv/buscar",
+            params={
+                "q": "control interno",
+                "tipo_documento": "documento_consulta_cnmv",
+                "vigencia": "all",
+            },
+        )
+
+    assert guide_response.status_code == 200
+    guides = guide_response.json()["documentos"]
+    assert guides
+    assert guides[0]["tipo_documento"] == "guia_tecnica_cnmv"
+    assert guides[0]["verified"] is True
+    assert guides[0]["completeness"] == "complete"
+
+    assert consultation_response.status_code == 200
+    consultations = consultation_response.json()["documentos"]
+    assert consultations
+    assert consultations[0]["tipo_documento"] == "documento_consulta_cnmv"
+    assert consultations[0]["estado_vigencia"] == "consulta_cerrada"
+    assert consultations[0]["verified"] is False
+    assert consultations[0]["completeness"] == "partial"
 
 
 @pytest.mark.asyncio

@@ -325,3 +325,10 @@ Usar notas cortas con este esquema:
 - Hallazgo: produccion tiene 72 documentos CNMV cargados, de los cuales 65 son `circular_cnmv`. Ese numero bajo es correcto como subset cargado, pero no representa la web completa de CNMV.
 - Impacto: un agente podia leer "65 archivos CNMV" como cobertura general y responder "no existe/no aplica" cuando en realidad la familia oficial no estaba cargada: guias tecnicas, documentos a consulta, modelos normalizados, preguntas y respuestas o registros oficiales.
 - Regla practica: antes de responder con no-result CNMV, consultar o citar el contrato de `/v1/cnmv/coverage`. Si una familia aparece como `configured_but_unavailable`, responder `evidence_limited` o "no cargado", no "no existe".
+
+### 2026-05-17 - CNMV guias tecnicas y documentos a consulta son familias separadas
+
+- Scope: `apps/workers/cnmv.py`, `/v1/cnmv/coverage`, `documento_interpretativo.tipo_documento`.
+- Hallazgo: guias tecnicas y documentos a consulta ya no deben agruparse como `documento_cnmv` generico. Las guias se cargan como `guia_tecnica_cnmv`; las consultas como `documento_consulta_cnmv`.
+- Impacto: mezclar esas familias con circulares haria que un agente confundiera criterio supervisor o propuestas normativas con obligaciones vigentes.
+- Regla practica: circulares CNMV pueden contener obligaciones/normativa vigente; guias tecnicas son interpretacion/supervision; documentos a consulta son borradores/propuestas para monitoring y requieren `vigencia=all`. `verified=true` solo prueba fuente oficial y texto trazable, no jerarquia normativa.

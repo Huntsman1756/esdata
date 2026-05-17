@@ -25,7 +25,9 @@ ESData MCP answers are retrieval results with explicit confidence contracts.
 - TRLIRNR is loaded as BOE-A-2004-4527 and reachable through `TRLIRNR` and `IRNR` aliases.
 - EUR-Lex market acts for MiFIR, MiCA and DLT Pilot can return full articles when loaded; still inspect `verified`, `completeness`, `source_url`, `source_hash`, and `capture_date`.
 - ESMA transaction-reporting schema endpoints are authoritative for loaded XSD fields; FIRDS remains pilot/metadata unless ESData says otherwise.
-- CNMV coverage is partial: circulares and generic documents are loaded; guias tecnicas, documentos a consulta, modelos normalizados, Q&A and official registers may be `configured_but_unavailable`.
+- CNMV coverage is partial: circulares, technical guides, consultation documents and generic documents are loaded as distinct families; modelos normalizados, Q&A and official registers may still be `configured_but_unavailable`.
+- CNMV technical guides are interpretive/supervisory criteria, not primary legislation.
+- CNMV consultation documents are proposals or consultation-stage materials for monitoring, not current obligations.
 
 ## Minimal Context Questions
 

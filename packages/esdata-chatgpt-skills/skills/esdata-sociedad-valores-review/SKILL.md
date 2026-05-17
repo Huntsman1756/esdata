@@ -35,6 +35,7 @@ Ask only missing facts that change the answer:
 - Classify models as `confirmado`, `candidato`, or `requiere verificacion`.
 - If ESData says `evidence_limited`, keep the conclusion limited.
 - For CNMV, check `/v1/cnmv/coverage` before treating a no-result as non-existence.
+- Distinguish CNMV families: `circular_cnmv` may evidence obligations/normativa; `guia_tecnica_cnmv` is supervisory/interpretive; `documento_consulta_cnmv` is monitoring/proposal material and not a current obligation.
 - For CNMV `vigente_modificado`, do not cite as consolidated current text unless ESData returns `es_consolidado=true`.
 - For FATCA passive/active entity questions, use Modelo 290 `reglas_inclusion` before any generic tax-model classification.
 - For ESMA reporting, use XSD/schema fields as authoritative only for loaded schema scope; FIRDS pilot data remains evidence-limited unless ESData says complete.
