@@ -114,7 +114,7 @@
       "id": "C-10",
       "title": "Update mcp_validation_suite - profile and applicability checks",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Add profile/applicability checks to mcp_validation_suite.py",
         "Add MCP contract checks to mcp_deep_contract_audit.py",
