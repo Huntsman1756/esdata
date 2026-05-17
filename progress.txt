@@ -2391,3 +2391,27 @@ Verificacion produccion:
 Resultado:
 - C-04: COMPLETADO.
 - Siguiente historia Ralph: C-05 Seed sociedad_valores - PBC/FT obligations.
+
+### C-05 Seed sociedad_valores - PBC/FT obligations - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- Articulos confirmados: `LEY10_2010` arts. `3`, `4`, `11`, `12`, `18`, `25`, `26`, `26 bis`, `29`.
+- Articulos confirmados: `RD_304_2014` arts. `4`, `8`, `15`, `16`, `33`, `35`, `36`, `40`.
+- SEPBLAC `obligacion_sepblac` tiene filas con `metadata->>'sujeto_obligado'='all'`; se usan como fuente secundaria.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_sociedad_valores_pbcft_obligaciones.sql`.
+- Obligaciones cargadas: diligencia debida cliente, UBO, diligencia reforzada, comunicacion de indicios, manual PBC/FT, OCI/representante, formacion, conservacion documental.
+- Fuentes primarias enlazadas en `obligacion_fuente`: `LEY10_2010` y `RD_304_2014`.
+- Fuente secundaria enlazada: pagina oficial SEPBLAC de obligaciones.
+
+Verificacion produccion:
+- Obligaciones PBC/FT `sociedad_valores`: `8`.
+- Fuentes PBC/FT enlazadas: `23`.
+- VerificationCommand C-05 => `PBC/FT obligations: 8`, `PASS`.
+
+Resultado:
+- C-05: COMPLETADO.
+- Siguiente historia Ralph: C-06 Seed sociedad_valores - CNMV/market obligations.

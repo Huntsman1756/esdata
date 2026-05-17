@@ -54,7 +54,7 @@
       "id": "C-05",
       "title": "Seed sociedad_valores - PBC/FT obligations",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Seed PBC/FT obligations from LEY10_2010 and RD_304_2014",
         "Add obligacion_fuente rows",
