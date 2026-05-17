@@ -71,6 +71,9 @@ SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 CNMV_CIRCULARES_MAIN_URL = "https://www.cnmv.es/portal/Legislacion/Circulares.aspx"
 CNMV_GUIAS_TECNICAS_URL = "https://www.cnmv.es/portal/legislacion/guias-tecnicas?lang=es"
 CNMV_CONSULTAS_CNMV_URL = "https://www.cnmv.es/portal/publicaciones/Documentos-Fase-Consulta?tDoc=1"
+CNMV_NORMATIVA_ESI_URL = "https://www.cnmv.es/portal/menu/legislacion-esi?lang=es"
+CNMV_MODELOS_ESI_URL = "https://www.cnmv.es/Portal/Legislacion/ModelosN/ModelosN.aspx?id=ESI&lang=es"
+CNMV_LEGISLACION_ESI_URL = "https://www.cnmv.es/portal/legislacion/legislacion/tematico?id=6&lang=es"
 CNMV_CIRCULARES_PATTERN = re.compile(
     r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE
 )
@@ -82,6 +85,10 @@ CNMV_FAMILY_ALIASES = {
     "guias_tecnicas": "guias_tecnicas",
     "documentos_consulta": "documentos_consulta_cnmv",
     "documentos_consulta_cnmv": "documentos_consulta_cnmv",
+    "normativa_esi": "normativa_esi",
+    "legislacion_esi": "normativa_esi",
+    "modelos_esi": "modelos_esi",
+    "modelos_normalizados_esi": "modelos_esi",
 }
 
 
@@ -465,12 +472,107 @@ def _parse_cnmv_consultation_documents(html: str, source_index_url: str) -> list
     return candidates
 
 
+def _parse_cnmv_official_index_links(
+    html: str,
+    source_index_url: str,
+    *,
+    family_id: str,
+    tipo_documento: str,
+    referencia_prefix: str,
+    default_title: str,
+) -> list[dict]:
+    """Parse CNMV official index pages into source-family document candidates.
+
+    This is intentionally metadata-first. If the linked target later cannot be
+    parsed as text, `build_document_payload` keeps an official partial row
+    instead of pretending complete coverage.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    candidates: list[dict] = []
+    seen: set[str] = set()
+
+    for a_tag in soup.find_all("a", href=True):
+        href = str(a_tag["href"]).strip()
+        if not href or href.startswith(("#", "mailto:", "javascript:")):
+            continue
+
+        title = _normalize_title(a_tag.get_text(" ", strip=True))
+        context = _normalize_title(a_tag.parent.get_text(" ", strip=True) if a_tag.parent else title)
+        if len(title) < 3 and len(context) < 8:
+            continue
+
+        url = _absolute_cnmv_url(source_index_url, href)
+        netloc = urlparse(url).netloc.lower()
+        if netloc and "cnmv.es" not in netloc and "boe.es" not in netloc and "eur-lex.europa.eu" not in netloc:
+            continue
+        if url in seen:
+            continue
+        seen.add(url)
+
+        candidate_title = title or context or default_title
+        candidates.append(
+            {
+                "url": url,
+                "referencia": f"{referencia_prefix}-{_slug(candidate_title or url, 64)}",
+                "titulo": candidate_title,
+                "fecha": datetime.now(UTC).date().isoformat(),
+                "fecha_publicacion": None,
+                "tipo_documento": tipo_documento,
+                "estado_vigencia": "vigente",
+                "family_id": family_id,
+                "source_index_url": source_index_url,
+            }
+        )
+
+    if candidates:
+        return candidates
+
+    return [
+        {
+            "url": source_index_url,
+            "referencia": f"{referencia_prefix}-INDICE",
+            "titulo": default_title,
+            "fecha": datetime.now(UTC).date().isoformat(),
+            "fecha_publicacion": None,
+            "tipo_documento": tipo_documento,
+            "estado_vigencia": "vigente",
+            "family_id": family_id,
+            "source_index_url": source_index_url,
+        }
+    ]
+
+
+def _parse_cnmv_normativa_esi(html: str, source_index_url: str) -> list[dict]:
+    return _parse_cnmv_official_index_links(
+        html,
+        source_index_url,
+        family_id="normativa_esi",
+        tipo_documento="normativa_esi_cnmv",
+        referencia_prefix="CNMV-NORMATIVA-ESI",
+        default_title="Normativa CNMV para empresas de servicios de inversion",
+    )
+
+
+def _parse_cnmv_modelos_esi(html: str, source_index_url: str) -> list[dict]:
+    return _parse_cnmv_official_index_links(
+        html,
+        source_index_url,
+        family_id="modelos_esi",
+        tipo_documento="modelo_esi_cnmv",
+        referencia_prefix="CNMV-MODELO-ESI",
+        default_title="Modelos normalizados CNMV para empresas de servicios de inversion",
+    )
+
+
 def _discover_source_family_documents() -> list[dict]:
     candidates: list[dict] = []
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
         for source_url, parser in (
             (CNMV_GUIAS_TECNICAS_URL, _parse_cnmv_technical_guides),
             (CNMV_CONSULTAS_CNMV_URL, _parse_cnmv_consultation_documents),
+            (CNMV_NORMATIVA_ESI_URL, _parse_cnmv_normativa_esi),
+            (CNMV_LEGISLACION_ESI_URL, _parse_cnmv_normativa_esi),
+            (CNMV_MODELOS_ESI_URL, _parse_cnmv_modelos_esi),
         ):
             try:
                 response = client.get(source_url)
@@ -1184,10 +1286,15 @@ def build_document_payload(
     fecha_publicacion = metadata.get("fecha_publicacion") or _extract_publication_date(
         f"{metadata.get('titulo', '')} {text_value}"
     )
+    source_host = urlparse(url).netloc.lower()
     verified = (
         row_completeness == "complete"
         and row_provenance == "official_exact"
-        and "cnmv.es" in urlparse(url).netloc.lower()
+        and (
+            "cnmv.es" in source_host
+            or "boe.es" in source_host
+            or "eur-lex.europa.eu" in source_host
+        )
     )
     metadata_payload = {
         "verified": verified,

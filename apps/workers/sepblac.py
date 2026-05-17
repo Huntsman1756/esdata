@@ -38,6 +38,16 @@ def _parse_seed_urls(value: str | None) -> list[str]:
 SEED_URLS = _parse_seed_urls(os.getenv("SEPBLAC_SEED_URLS"))
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
+SEPBLAC_NORMATIVA_URL = "https://www.sepblac.es/es/normativa/?lang=es"
+SEPBLAC_NORMATIVA_NACIONAL_URL = "https://www.sepblac.es/es/normativa/normativa-nacional/"
+SEPBLAC_NORMATIVA_COMUNITARIA_URL = "https://www.sepblac.es/es/normativa/normativa-comunitaria/"
+SEPBLAC_OBLIGACIONES_URL = "https://www.sepblac.es/es/sujetos-obligados/obligaciones/"
+DEFAULT_SOURCE_URLS = [
+    SEPBLAC_NORMATIVA_URL,
+    SEPBLAC_NORMATIVA_NACIONAL_URL,
+    SEPBLAC_NORMATIVA_COMUNITARIA_URL,
+    SEPBLAC_OBLIGACIONES_URL,
+]
 
 
 def _normalize_whitespace(value: str) -> str:
@@ -59,6 +69,8 @@ def _extract_reference(url: str, text_value: str) -> str:
 
 def _detect_document_type(text_value: str) -> str:
     lowered = text_value.lower()
+    if "sujetos obligados" in lowered or "obligaciones" in lowered:
+        return "obligacion_sepblac"
     if "modelo 19" in lowered:
         return "formulario_sepblac"
     if "manual" in lowered:
@@ -96,6 +108,50 @@ def extract_html_text(content: bytes) -> str:
     html = re.sub(r"<style[\s\S]*?</style>", " ", html, flags=re.IGNORECASE)
     text_value = re.sub(r"<[^>]+>", " ", html)
     return _normalize_whitespace(unescape(text_value))
+
+
+def _absolute_sepblac_url(base_url: str, href: str) -> str:
+    if href.startswith("//"):
+        return "https:" + href
+    return str(httpx.URL(base_url).join(href))
+
+
+def _is_official_sepblac_url(url: str) -> bool:
+    host = urlparse(url).netloc.lower()
+    return host.endswith("sepblac.es")
+
+
+def discover_default_urls(max_urls: int = 200) -> list[str]:
+    """Discover official SEPBLAC documents from normative and obligation pages."""
+    discovered: list[str] = []
+    seen: set[str] = set()
+
+    def add(url: str) -> None:
+        if url not in seen and _is_official_sepblac_url(url):
+            seen.add(url)
+            discovered.append(url)
+
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        for source_url in DEFAULT_SOURCE_URLS:
+            add(source_url)
+            try:
+                response = client.get(source_url)
+                if response.status_code != 200:
+                    continue
+            except Exception:
+                continue
+
+            html = response.text
+            for match in re.finditer(r"<a\b[^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", html, flags=re.IGNORECASE | re.DOTALL):
+                href, raw_label = match.groups()
+                label = extract_html_text(raw_label.encode("utf-8", errors="ignore")).lower()
+                if not any(token in f"{href} {label}" for token in ("normativa", "ley", "real-decreto", "reglamento", "obligacion", "guia", ".pdf")):
+                    continue
+                add(_absolute_sepblac_url(source_url, href.strip()))
+                if len(discovered) >= max_urls:
+                    return discovered
+
+    return discovered
 
 
 def extract_text(content: bytes, content_type: str, url: str) -> str:
@@ -186,7 +242,10 @@ def run_sync(
     import os
 
     logger = logging.getLogger(__name__)
-    urls = seed_urls or SEED_URLS
+    if seed_urls is not None:
+        urls = seed_urls
+    else:
+        urls = SEED_URLS or discover_default_urls()
     if not urls:
         logger.error(
             "SEED_URLS vacío en %s — worker abortado sin ingestión. "

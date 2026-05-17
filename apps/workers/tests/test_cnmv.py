@@ -22,6 +22,8 @@ from cnmv import (
     _extract_reference,
     _get_next_version,
     _parse_cnmv_consultation_documents,
+    _parse_cnmv_modelos_esi,
+    _parse_cnmv_normativa_esi,
     _parse_cnmv_technical_guides,
     _record_version,
     _upsert_obligation_links,
@@ -108,6 +110,27 @@ CNMV_CONSULTAS_HTML = """
       </ul>
     </li>
   </ul>
+</body></html>
+"""
+
+CNMV_ESI_HTML = """
+<html><body>
+  <main>
+    <h1>Empresas de servicios de inversion</h1>
+    <ul>
+      <li><a href="/DocPortal/Legislacion/ESI/RD813_2023.pdf">Real Decreto 813/2023, regimen juridico ESI</a></li>
+      <li><a href="https://www.boe.es/buscar/act.php?id=BOE-A-2023-22763">Texto consolidado BOE RD 813/2023</a></li>
+    </ul>
+  </main>
+</body></html>
+"""
+
+CNMV_MODELOS_ESI_HTML = """
+<html><body>
+  <main>
+    <h1>Modelos normalizados ESI</h1>
+    <a href="/Portal/Legislacion/ModelosN/DetalleModelo.aspx?id=ESI-01">Estado reservado ESI 01</a>
+  </main>
 </body></html>
 """
 
@@ -328,6 +351,40 @@ def test_parse_cnmv_consultations_marks_non_current_monitoring_contract():
             "titulo": "Comments received to the prior consultation",
             "url": "https://www.cnmv.es/DocPortal/DocFaseConsulta/CNMV/Comentarios_GT_ControlInterno.pdf",
         },
+    ]
+
+
+def test_parse_cnmv_normativa_esi_uses_separate_family_contract():
+    candidates = _parse_cnmv_normativa_esi(
+        CNMV_ESI_HTML,
+        "https://www.cnmv.es/portal/menu/legislacion-esi?lang=es",
+    )
+
+    assert candidates[0]["family_id"] == "normativa_esi"
+    assert candidates[0]["tipo_documento"] == "normativa_esi_cnmv"
+    assert candidates[0]["referencia"].startswith("CNMV-NORMATIVA-ESI-")
+    assert candidates[0]["url"] == "https://www.cnmv.es/DocPortal/Legislacion/ESI/RD813_2023.pdf"
+    assert candidates[1]["url"] == "https://www.boe.es/buscar/act.php?id=BOE-A-2023-22763"
+
+
+def test_parse_cnmv_modelos_esi_uses_form_family_contract():
+    candidates = _parse_cnmv_modelos_esi(
+        CNMV_MODELOS_ESI_HTML,
+        "https://www.cnmv.es/Portal/Legislacion/ModelosN/ModelosN.aspx?id=ESI&lang=es",
+    )
+
+    assert candidates == [
+        {
+            "url": "https://www.cnmv.es/Portal/Legislacion/ModelosN/DetalleModelo.aspx?id=ESI-01",
+            "referencia": "CNMV-MODELO-ESI-estado-reservado-esi-01",
+            "titulo": "Estado reservado ESI 01",
+            "fecha": candidates[0]["fecha"],
+            "fecha_publicacion": None,
+            "tipo_documento": "modelo_esi_cnmv",
+            "estado_vigencia": "vigente",
+            "family_id": "modelos_esi",
+            "source_index_url": "https://www.cnmv.es/Portal/Legislacion/ModelosN/ModelosN.aspx?id=ESI&lang=es",
+        }
     ]
 
 

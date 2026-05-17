@@ -7,8 +7,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from openpyxl import Workbook
-
-from worker_esma_mifir_reporting import ReportingDocument, SchemaDownload, parse_validation_rules_xlsx, parse_xsd_fields
+from worker_esma_mifir_reporting import (
+    ESMA_MIFIR_DOCUMENTS,
+    ReportingDocument,
+    SchemaDownload,
+    parse_validation_rules_xlsx,
+    parse_xsd_fields,
+)
 
 
 def test_parse_xsd_fields_extracts_elements_and_lengths():
@@ -109,3 +114,13 @@ def test_parse_validation_rules_xlsx_extracts_structured_rules():
             "capture_date": rules[0]["capture_date"],
         }
     ]
+
+
+def test_mifir_reporting_documents_include_qna_and_isrb_contract():
+    refs = {document[2]: document for document in ESMA_MIFIR_DOCUMENTS}
+
+    assert refs["ESMA-MIFIR-REPORTING-HUB"][0] == "REPORTING_HUB"
+    assert refs["ESMA-ISRB-MIFIR-ARTICLE-26"][0] == "ISRB"
+    assert refs["ESMA-QNA-INDEX"][0] == "QNA_INDEX"
+    assert refs["ESMA-QNA-INDEX"][5] is True
+    assert refs["ESMA-QNA-INDEX"][6] == "parcial"

@@ -280,6 +280,14 @@ WORKER_CADENCE_CONFIG: dict[str, WorkerCadence] = {
         "cron_expression": "Mon *-*-* 03:15:00 Europe/Madrid",
         "notes": "OFAC SDN scheduled cron.",
     },
+    # real schedule: systemd weekly Monday 03:25 Europe/Madrid = 168 hours
+    "cron-eu-sanctions-weekly": {
+        "trigger": "cron_weekly",
+        "expected_cadence_hours": 168,
+        "stale_threshold_hours": 252,
+        "cron_expression": "Mon *-*-* 03:25:00 Europe/Madrid",
+        "notes": "EU consolidated financial sanctions scheduled cron.",
+    },
     # real schedule: systemd weekly Monday 03:35 Europe/Madrid = 168 hours
     "cron-mica-weekly": {
         "trigger": "cron_weekly",

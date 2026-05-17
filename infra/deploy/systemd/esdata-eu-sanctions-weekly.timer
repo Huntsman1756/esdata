@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata EU sanctions weekly sync
+
+[Timer]
+OnCalendar=Mon *-*-* 03:25:00 Europe/Madrid
+Persistent=true
+Unit=esdata-job@cron-eu-sanctions-weekly.service
+
+[Install]
+WantedBy=timers.target

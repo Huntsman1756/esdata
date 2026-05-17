@@ -140,7 +140,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BOE_API_BASE: ${BOE_API_BASE:-https://www.boe.es/datosabiertos/api/legislacion-consolidada}
-      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,LEY10_2010,RDL19_2018,LIVMC,RD_1082_2012,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
+      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,LEY10_2010,RDL19_2018,LIVMC,RD_1082_2012,RD_813_2023,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
       SYNC_INTERVAL_SECONDS: ${BOE_SYNC_INTERVAL_SECONDS:-3600}
       WORKER_CMD: python boe.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
@@ -528,7 +528,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       BOE_API_BASE: ${BOE_API_BASE:-https://www.boe.es/datosabiertos/api/legislacion-consolidada}
-      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,LEY10_2010,RDL19_2018,LIVMC,RD_1082_2012,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
+      BOE_LEGISLACION_NORMAS: ${BOE_LEGISLACION_NORMAS:-LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,LEY10_2010,RDL19_2018,LIVMC,RD_1082_2012,RD_813_2023,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BOE_DAILY:-}
       WORKER_CMD: python boe.py --run-once
     depends_on:
@@ -900,6 +900,24 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_OFAC_SDN_WEEKLY:-}
       WORKER_CMD: python ofac_sdn.py --run-once
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - esdata-internal
+
+  cron-eu-sanctions-weekly:
+    <<: *cron-hardening
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile.worker
+    profiles: ["cron"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      EU_SANCTIONS_XML_URL: ${EU_SANCTIONS_XML_URL:-}
+      HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_EU_SANCTIONS_WEEKLY:-}
+      WORKER_CMD: python eu_sanctions.py --run-once
       PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:

@@ -392,6 +392,8 @@ _NORMA_ALIASES = {
     "LIVMC": "LIVMC", "LMVSI": "LIVMC",
     "RD1082": "RD_1082_2012", "RD10822012": "RD_1082_2012",
     "RDIIC": "RD_1082_2012",
+    "RD813": "RD_813_2023", "RD8132023": "RD_813_2023",
+    "RDESI": "RD_813_2023", "ESI": "RD_813_2023",
 }
 
 def _build_common_filters(norma, fuente, ambito, tipo, vigente_en, params):

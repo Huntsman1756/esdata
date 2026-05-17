@@ -66,6 +66,7 @@ DEFAULT_NORMAS = {
     # Added 2026-05-17 per financial compliance source expansion.
     "LIVMC": "BOE-A-2023-7053",            # Ley 6/2023 Mercados de Valores y Servicios de Inversion
     "RD_1082_2012": "BOE-A-2012-9716",     # Reglamento de Instituciones de Inversion Colectiva
+    "RD_813_2023": "BOE-A-2023-22763",     # Regimen juridico de empresas de servicios de inversion
 }
 
 KNOWN_BOE_CODES = set(DEFAULT_NORMAS.keys())
@@ -94,6 +95,10 @@ NORMA_CLASSIFICATIONS = {
         "tipo_documento": "real_decreto",
         "ambito": "instituciones_inversion_colectiva",
     },
+    "RD_813_2023": {
+        "tipo_documento": "real_decreto",
+        "ambito": "empresas_servicios_inversion",
+    },
 }
 
 LAW_TO_NORMA = {
@@ -106,6 +111,7 @@ LAW_TO_NORMA = {
     "19/2018": "RDL19_2018",
     "6/2023": "LIVMC",
     "1082/2012": "RD_1082_2012",
+    "813/2023": "RD_813_2023",
 }
 
 

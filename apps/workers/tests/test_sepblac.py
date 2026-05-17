@@ -1,13 +1,12 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import httpx
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sepblac import build_document_payload, run_sync, upsert_documento_interpretativo
-
+from sepblac import build_document_payload, discover_default_urls, run_sync, upsert_documento_interpretativo
 
 SEPBLAC_HTML = b"""
 <html>
@@ -16,6 +15,14 @@ SEPBLAC_HTML = b"""
     <p>Procedimiento para la comunicaci\xc3\xb3n por indicio de hechos u operaciones respecto de los que existan indicios o certeza de blanqueo de capitales o financiaci\xc3\xb3n del terrorismo.</p>
   </body>
 </html>
+"""
+
+SEPBLAC_DISCOVERY_HTML = """
+<html><body>
+  <a href="/es/normativa/normativa-nacional/">Normativa nacional</a>
+  <a href="/media/2026/guia-obligaciones.pdf">Guia de obligaciones para sujetos obligados</a>
+  <a href="https://example.com/not-official.pdf">No oficial</a>
+</body></html>
 """
 
 
@@ -30,6 +37,35 @@ def test_build_document_payload_extracts_reference_type_and_ambito():
     assert payload["tipo_documento"] == "formulario_sepblac"
     assert payload["ambito"] == "aml_cft_reporting"
     assert "modelo 19" in payload["texto"].lower()
+
+
+def test_build_document_payload_classifies_obligations_separately():
+    payload = build_document_payload(
+        "https://www.sepblac.es/es/sujetos-obligados/obligaciones/",
+        b"<html><body><h1>Obligaciones de los sujetos obligados</h1><p>Ley 10/2010 sobre blanqueo de capitales y Real Decreto 304/2014.</p></body></html>",
+        "text/html; charset=utf-8",
+    )
+
+    assert payload["tipo_documento"] == "obligacion_sepblac"
+    assert payload["ambito"] == "aml_cft"
+
+
+def test_discover_default_urls_uses_official_sepblac_sources(monkeypatch):
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=SEPBLAC_DISCOVERY_HTML)
+
+    monkeypatch.setattr(
+        "sepblac.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    urls = discover_default_urls(max_urls=10)
+
+    assert "https://www.sepblac.es/es/normativa/?lang=es" in urls
+    assert "https://www.sepblac.es/media/2026/guia-obligaciones.pdf" in urls
+    assert all("sepblac.es" in url for url in urls)
 
 
 def test_upsert_documento_interpretativo_stores_sepblac_fields_once():
