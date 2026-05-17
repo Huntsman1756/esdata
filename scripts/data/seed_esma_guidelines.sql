@@ -21,8 +21,8 @@ INSERT INTO documento_interpretativo (
     'vigente',
     'mifir_reporting',
     '32014R0600;32017R0590',
-    'parcial',
-    'official_esma_metadata',
+    'partial',
+    'official_best_effort',
     jsonb_build_object(
         'source_url', 'https://www.esma.europa.eu/document/qas-mifir-data-reporting',
         'sujeto_obligado', 'esi',
@@ -45,8 +45,8 @@ INSERT INTO documento_interpretativo (
     'vigente',
     'fund_liquidity',
     '32009L0065;32011L0061',
-    'parcial',
-    'official_esma_metadata',
+    'partial',
+    'official_best_effort',
     jsonb_build_object(
         'source_url', 'https://www.esma.europa.eu/document/guidelines-liquidity-stress-testing-in-ucits-and-aifs',
         'sujeto_obligado', 'sgiic',
@@ -70,8 +70,8 @@ INSERT INTO documento_interpretativo (
     'vigente',
     'fund_liquidity',
     '32009L0065;32011L0061',
-    'parcial',
-    'official_esma_metadata',
+    'partial',
+    'official_best_effort',
     jsonb_build_object(
         'source_url', 'https://www.esma.europa.eu/document/guidelines-liquidity-management-tools-ucits-and-open-ended-aifs',
         'pdf_url', 'https://www.esma.europa.eu/sites/default/files/2026-03/ESMA34-671404336-1364_Guidelines_on_liquidity_management_tools_of_UCITS_and_open-ended_AIFs.pdf',
@@ -95,8 +95,8 @@ INSERT INTO documento_interpretativo (
     'vigente',
     'mifid_product_governance',
     '32014L0065;32017R0565',
-    'parcial',
-    'official_esma_metadata',
+    'partial',
+    'official_best_effort',
     jsonb_build_object(
         'source_url', 'https://www.esma.europa.eu/document/guidelines-mifid-ii-product-governance-requirements-0',
         'sujeto_obligado', 'esi',
