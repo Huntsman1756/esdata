@@ -6552,3 +6552,5 @@ En orden de impacto real:
 
 - 2026-05-17 Sprint A A-03 TEAC production load - COMPLETADO. `worker-teac` desplegado desde rama `feat/sprint-a-teac-sepblac` y reconstruido en VPS. Correccion adicional: solo se envian hidden inputs en POST DYCTEA para evitar `btReset=Limpiar`; tests TEAC: 18 passed. Produccion: 558 resoluciones TEAC, rango 2018-01-16 a 2026-04-30, `complete=286`, `partial=272`, 3 URLs recientes HTTP 200. Siguiente: A-04 SEPBLAC audit.
 
+- 2026-05-17 Sprint A A-04 SEPBLAC audit - COMPLETADO. `apps/workers/sepblac.py` auditado completo. Produccion: 6 filas SEPBLAC (`obligacion_sepblac=4`, `guia_operativa_sepblac=1`, `normativa_sepblac=1`). `SEPBLAC_SEED_URLS` en VPS solo apunta a home/publicaciones, no a familias granularizadas. `RD_304_2014` no esta cargado en `norma`. Siguiente: A-05 separar worker SEPBLAC por familias.
+

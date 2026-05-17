@@ -2058,3 +2058,42 @@ Caveat:
 
 Siguiente historia Ralph:
 - A-04: Audit current SEPBLAC worker and production rows.
+
+### A-04 Audit current SEPBLAC worker and production rows - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Lecturas obligatorias:
+- `apps/workers/sepblac.py` leido completo.
+- `prd.json`, `progress.txt` y `git log --oneline -20` revisados antes de ejecutar la historia.
+
+Worker actual:
+- `SEED_URLS` viene de `SEPBLAC_SEED_URLS`; si existe, no usa discovery interno.
+- Defaults internos actuales: `https://www.sepblac.es/es/normativa/?lang=es`, `normativa-nacional`, `normativa-comunitaria`, `https://www.sepblac.es/es/sujetos-obligados/obligaciones/`.
+- Clasificacion actual por texto: `normativa_sepblac`, `obligacion_sepblac`, `guia_operativa_sepblac`, `formulario_sepblac`, `manual_sepblac`, `documento_sepblac`.
+- No hay CLI `--familia`, `--dry-run` ni cargas separadas por contrato.
+- No guarda `sujeto_obligado`, `source_url`, `capture_date`, `metadata`, `row_completeness` ni `verified` como contrato explicito.
+- Upsert actual por `referencia`; puede colisionar entre familias si el slug/referencia se repite.
+
+Estado productivo:
+- `SEPBLAC_SEED_URLS=https://www.sepblac.es/es/,https://www.sepblac.es/es/publicaciones/`.
+- SQL produccion por `tipo_documento`: `obligacion_sepblac=4`, `guia_operativa_sepblac=1`, `normativa_sepblac=1`.
+- Total SEPBLAC: 6 filas.
+
+Mapa de seeds y gaps:
+- Seeds VPS actuales: home/publicaciones, demasiado genericas para cobertura granular.
+- Normativa oficial y subfamilias nacional/comunitaria: no estan seeded via env, aunque el worker tiene defaults internos.
+- Obligaciones: no esta seeded via env. El default interno antiguo `sujetos-obligados/obligaciones` devuelve 200; la URL del prompt `entidades-obligadas/obligaciones` redirige a `medios-de-pago/obligaciones`, por lo que A-05 debe validar rutas oficiales actuales por familia.
+- Guias/orientaciones: URL del prompt `entidades-obligadas/guias-y-orientaciones` devuelve 404 en la prueba HTTP; A-05 debe descubrir fuente oficial actual o dejar familia como target/caveat.
+- Tipologias/documentacion: URL del prompt `https://www.sepblac.es/es/documentacion/` devuelve 404; no cargar como `verified` hasta localizar fuente oficial clara.
+
+RD 304/2014:
+- SQL produccion: `SELECT codigo,titulo FROM norma WHERE codigo ILIKE '%304%' OR codigo ILIKE '%rgl%pbcft%' OR titulo ILIKE '%304/2014%'` => 0 filas.
+- A-06 debe cargar `BOE-A-2014-5438` como `RD_304_2014`.
+
+Verificacion A-04:
+- VerificationCommand equivalente contra VPS ejecutado con DB via `docker compose exec -T postgres psql`.
+- Resultado: tabla SEPBLAC por tipo_documento devuelta correctamente; `AUDIT-COMPLETE` operativo.
+
+Siguiente historia Ralph:
+- A-05: Upgrade SEPBLAC worker - separate families by contract.
