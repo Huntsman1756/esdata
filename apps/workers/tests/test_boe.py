@@ -15,6 +15,8 @@ from boe import (
     _ensure_schema,
     _ensure_sync_log_table,
     _hold_sync_lock,
+    _infer_tipo_y_numero,
+    _is_supported_block,
     _yyyymmdd_to_iso,
     auto_link_doctrina,
     auto_link_materias,
@@ -25,6 +27,15 @@ from boe import (
     upsert_articulo,
     upsert_norma,
 )
+
+
+def test_boe_title_normalization_accepts_nbsp_and_unicode_accents():
+    assert _is_supported_block("Art\u00edculo\xa01")
+    assert _infer_tipo_y_numero("Art\u00edculo\xa010") == ("articulo", "10")
+    assert _infer_tipo_y_numero("Disposici\u00f3n final primera") == (
+        "disposicion_final",
+        "primera",
+    )
 
 
 def test_parse_block_xml_uses_latest_valid_boe_version():

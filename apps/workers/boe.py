@@ -1207,8 +1207,12 @@ def _yyyymmdd_to_iso(value: str) -> str:
         raise ValueError(f"Invalid BOE date: {value!r}") from exc
 
 
+def _normalize_title_encoding(titulo: str) -> str:
+    return titulo.replace("\xa0", " ").strip()
+
+
 def _infer_tipo_y_numero(titulo: str) -> tuple[str, str]:
-    title = titulo.strip()
+    title = _normalize_title_encoding(titulo)
     if title.startswith("Artículo "):
         numero = title.replace("Artículo ", "", 1).split(".")[0].strip()
         return "articulo", numero
@@ -1228,6 +1232,7 @@ def _infer_tipo_y_numero(titulo: str) -> tuple[str, str]:
 
 
 def _is_supported_block(titulo: str) -> bool:
+    titulo = _normalize_title_encoding(titulo)
     prefixes = (
         "Artículo ",
         "Disposición adicional ",
