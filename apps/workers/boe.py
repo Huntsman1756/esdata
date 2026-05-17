@@ -67,7 +67,7 @@ DEFAULT_NORMAS = {
     "LIVMC": "BOE-A-2023-7053",            # Ley 6/2023 Mercados de Valores y Servicios de Inversion
     "RD_1082_2012": "BOE-A-2012-9716",     # Reglamento de Instituciones de Inversion Colectiva
     "RD_813_2023": "BOE-A-2023-22763",     # Regimen juridico de empresas de servicios de inversion
-    "RD_304_2014": "BOE-A-2014-5438",      # Reglamento Ley 10/2010 PBC/FT
+    "RD_304_2014": "BOE-A-2014-4742",      # Reglamento Ley 10/2010 PBC/FT
 }
 
 KNOWN_BOE_CODES = set(DEFAULT_NORMAS.keys())

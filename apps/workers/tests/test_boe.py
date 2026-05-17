@@ -214,7 +214,7 @@ def test_parse_metadata_uses_per_code_classification_for_financial_norms():
 
     livmc = parse_metadata("LIVMC", "BOE-A-2023-7053", livmc_payload)
     rd_1082 = parse_metadata("RD_1082_2012", "BOE-A-2012-9716", rd_payload)
-    rd_304 = parse_metadata("RD_304_2014", "BOE-A-2014-5438", rd_304_payload)
+    rd_304 = parse_metadata("RD_304_2014", "BOE-A-2014-4742", rd_304_payload)
 
     assert livmc.tipo_documento == "ley"
     assert livmc.ambito == "mercados_valores"
@@ -253,7 +253,7 @@ def test_default_normas_include_itpajd():
     assert DEFAULT_NORMAS["LIVMC"] == "BOE-A-2023-7053"
     assert DEFAULT_NORMAS["RD_1082_2012"] == "BOE-A-2012-9716"
     assert DEFAULT_NORMAS["RD_813_2023"] == "BOE-A-2023-22763"
-    assert DEFAULT_NORMAS["RD_304_2014"] == "BOE-A-2014-5438"
+    assert DEFAULT_NORMAS["RD_304_2014"] == "BOE-A-2014-4742"
     assert LAW_TO_NORMA["10/2010"] == "LEY10_2010"
     assert LAW_TO_NORMA["6/2023"] == "LIVMC"
     assert LAW_TO_NORMA["1082/2012"] == "RD_1082_2012"
