@@ -129,6 +129,7 @@ CNMV_MODELOS_ESI_HTML = """
 <html><body>
   <main>
     <h1>Modelos normalizados ESI</h1>
+    <a href="/Portal/Legislacion/ModelosN/modelosn.aspx?id=IM">Modelos IM</a>
     <a href="/Portal/Legislacion/ModelosN/DetalleModelo.aspx?id=ESI-01">Estado reservado ESI 01</a>
   </main>
 </body></html>

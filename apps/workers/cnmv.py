@@ -521,6 +521,8 @@ def _parse_cnmv_official_index_links(
         combined = _ascii_fold(f"{title} {context} {url}").lower()
         if not any(keyword in combined for keyword in include_keywords):
             continue
+        if family_id == "modelos_esi" and "id=esi" not in lowered_url and "/esi/" not in lowered_url:
+            continue
         if url in seen:
             continue
         seen.add(url)
