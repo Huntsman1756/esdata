@@ -13,63 +13,63 @@
       "id": "E-02",
       "title": "Seed EAF obligations - fiscal (AEAT)",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND obligacion_tipo IN ('AUTOLIQUIDACION','DECLARACION_INFORMATIVA')"
     },
     {
       "id": "E-03",
       "title": "Seed EAF obligations - PBC/FT",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND obligacion_tipo IN ('DILIGENCIA_DEBIDA','COMUNICACION_INDICIO','CONTROL_INTERNO','FORMACION','REGISTRO')"
     },
     {
       "id": "E-04",
       "title": "Seed EAF obligations - CNMV/MiFID II specific",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf'"
     },
     {
       "id": "E-05",
       "title": "Seed entidad_credito obligations - fiscal (AEAT)",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito' AND obligacion_tipo IN ('AUTOLIQUIDACION','DECLARACION_INFORMATIVA')"
     },
     {
       "id": "E-06",
       "title": "Seed entidad_credito obligations - PBC/FT (alto riesgo)",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito' AND obligacion_tipo IN ('DILIGENCIA_DEBIDA','COMUNICACION_INDICIO','CONTROL_INTERNO','FORMACION','REGISTRO')"
     },
     {
       "id": "E-07",
       "title": "Seed entidad_credito obligations - BDE prudencial y DORA",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito'"
     },
     {
       "id": "E-08",
       "title": "Seed empresa_servicios_pago obligations",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='empresa_servicios_pago'"
     },
     {
       "id": "E-09",
       "title": "Complete sgiic obligations - AIFMD Annex IV + ESMA liquidity",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM obligacion_perfil WHERE perfil_codigo='sgiic'"
     },
     {
       "id": "E-10",
       "title": "Upgrade agencia_valores - verified count using Sprint D EU norms",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM obligacion_perfil WHERE perfil_codigo='agencia_valores'"
     },
     {
