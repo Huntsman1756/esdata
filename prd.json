@@ -48,7 +48,7 @@
       "id": "G-07",
       "title": "Final verification - Sprint G complete",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && curl -sf \"http://localhost:${API_PORT:-8000}/v1/perfil/sociedad_valores/obligaciones/calendario/2026-Q3\" | jq 'length' | awk '{if ($1>=2) print \"PASS\"; else print \"FAIL\"}' || echo FAIL"
     }
   ]

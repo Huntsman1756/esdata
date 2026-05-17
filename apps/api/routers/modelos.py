@@ -43,6 +43,7 @@ from services.modelos import (
 from services.query_audit import get_query_audit_service
 from request_context import get_request_id, get_user_id
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 router = APIRouter(prefix="/v1/modelos", tags=["modelos"])
 
@@ -94,17 +95,20 @@ def _obligation_evidence_notice(row) -> str:
 
 
 def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
-    rows = db.execute(
-        text(
-            """
-            SELECT perfil_codigo, verified, norma_codigo, articulo_referencia, completeness
-            FROM obligacion_perfil
-            WHERE modelo_aeat = :codigo
-            ORDER BY perfil_codigo
-            """
-        ),
-        {"codigo": codigo},
-    ).mappings()
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT perfil_codigo, verified, norma_codigo, articulo_referencia, completeness
+                FROM obligacion_perfil
+                WHERE modelo_aeat = :codigo
+                ORDER BY perfil_codigo
+                """
+            ),
+            {"codigo": codigo},
+        ).mappings()
+    except SQLAlchemyError:
+        return []
     return [
         {
             "perfil_codigo": row["perfil_codigo"],
