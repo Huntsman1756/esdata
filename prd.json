@@ -42,7 +42,7 @@
       "title": "Seed ESMA Guidelines as documento_interpretativo",
       "priority": 6,
       "passes": false,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE fuente='esma' AND tipo_documento='guideline_esma'\"); echo \"ESMA Guidelines: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='ESMA' AND tipo_documento='guideline_esma'\"); echo \"ESMA Guidelines: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
     },
     {
       "id": "D-07",
