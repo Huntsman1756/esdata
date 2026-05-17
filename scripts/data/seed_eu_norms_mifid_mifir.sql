@@ -1,5 +1,20 @@
 BEGIN;
 
+-- Previous EUR-Lex ingestions used internal codes for these two acts while
+-- preserving the official CELEX in boe_id. Sprint D makes CELEX the canonical
+-- codigo for EU norms, so normalize before the idempotent upsert.
+UPDATE norma
+SET codigo = '32014L0065'
+WHERE boe_id = 'EUR-CELEX-32014L0065'
+  AND codigo <> '32014L0065'
+  AND NOT EXISTS (SELECT 1 FROM norma existing WHERE existing.codigo = '32014L0065');
+
+UPDATE norma
+SET codigo = '32014R0600'
+WHERE boe_id = 'EUR-CELEX-32014R0600'
+  AND codigo <> '32014R0600'
+  AND NOT EXISTS (SELECT 1 FROM norma existing WHERE existing.codigo = '32014R0600');
+
 INSERT INTO norma (
     codigo, titulo, boe_id, eli_uri, jurisdiccion, tipo_fuente,
     tipo_documento, ambito, estado_cobertura, vigente_desde,
