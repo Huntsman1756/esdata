@@ -34,7 +34,7 @@
       "id": "D-05",
       "title": "Seed UCITS + AIFMD regulations for SGIIC",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32009L0065','32011L0061','32013R0231')\"); echo \"UCITS+AIFMD: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
