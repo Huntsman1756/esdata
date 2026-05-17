@@ -14,6 +14,14 @@ from eurlex_market import (
 )
 
 
+def test_market_acts_include_emir():
+    emir = MARKET_ACTS["32012R0648"]
+
+    assert emir.tipo == "REGULATION"
+    assert emir.fecha_publicacion == "2012-07-27"
+    assert "EMIR" in emir.titulo
+
+
 def test_candidate_belongs_to_requested_celex_only():
     assert _candidate_belongs_to_act(
         "http://publications.europa.eu/resource/consolidation/2022R0858%2F20220602_0000010.SPA.xhtml",

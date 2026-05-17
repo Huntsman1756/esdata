@@ -39,7 +39,7 @@ This file tracks source families requested on 2026-05-17. It is not a claim that
 | LIVMC | `BOE-A-2023-7053` | `ready_for_ingestion` | Spanish securities-market law, primary obligation source. User-provided `BOE-A-2023-13494` is not LIVMC. |
 | LPBC-FT | `BOE-A-2010-6737` | `implemented_partial` as `LEY10_2010` | Keep canonical code `LEY10_2010`; aliases `LPBC`, `LPBCFT`, `PBCFT` point to it. |
 | RD 1082/2012 | `BOE-A-2012-9716` | `ready_for_ingestion` | Spanish IIC regulation, primary/subordinate regulatory source. |
-| EMIR | `CELEX:32012R0648` | `implemented_partial` as `EMIR_2012_648` | EU regulation via EUR-Lex, not BOE. |
+| EMIR | `CELEX:32012R0648` | `ready_for_ingestion` as `EMIR_2012_648` and dedicated `eurlex_market` act | EU regulation via EUR-Lex, not BOE. |
 
 ## Target Source Families
 

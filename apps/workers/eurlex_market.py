@@ -88,6 +88,12 @@ MARKET_ACTS: dict[str, MarketAct] = {
         tipo="REGULATION",
         fecha_publicacion="2022-06-02",
     ),
+    "32012R0648": MarketAct(
+        celex="32012R0648",
+        titulo="Reglamento (UE) n.o 648/2012 sobre derivados extrabursatiles, entidades de contrapartida central y registros de operaciones (EMIR)",
+        tipo="REGULATION",
+        fecha_publicacion="2012-07-27",
+    ),
 }
 
 
