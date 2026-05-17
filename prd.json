@@ -76,7 +76,7 @@
       "id": "F-11",
       "title": "Final diagnostic - verified rate and residual evidence_limited",
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT perfil_codigo, COUNT(*) total, SUM(CASE WHEN verified THEN 1 ELSE 0 END) verified, ROUND(100.0*SUM(CASE WHEN verified THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) pct FROM obligacion_perfil GROUP BY perfil_codigo ORDER BY pct DESC\" && echo PASS"
     },
     {
