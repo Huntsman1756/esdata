@@ -76,7 +76,7 @@
       "id": "E-11",
       "title": "Coverage report - all profiles complete",
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "profile coverage thresholds"
     },
     {
