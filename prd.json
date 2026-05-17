@@ -34,8 +34,8 @@
       "id": "F-05",
       "title": "Fix Modelo 198 - norma y articulo concretos",
       "priority": 5,
-      "passes": false,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 198%' AND norma_codigo='LIRPF' AND verified=true\"); echo \"M198 fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "passes": true,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 198%' AND norma_codigo='LGT' AND articulo_referencia='art. 93' AND verified=true\"); echo \"M198 fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
       "id": "F-06",
