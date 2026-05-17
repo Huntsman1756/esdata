@@ -55,7 +55,7 @@
       "id": "D-08",
       "title": "New MCP tool - buscar_norma_eu",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/api/tests/test_mcp_tools_eu.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
