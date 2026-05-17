@@ -1000,6 +1000,118 @@ def audit_teac_sepblac_contracts(base_url: str, engine: Engine) -> CheckResult:
     )
 
 
+def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
+    failures: list[dict[str, Any]] = []
+    details: dict[str, Any] = {}
+
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        fiscal_status, fiscal_payload, fiscal_preview = _get_json(
+            client,
+            "/v1/perfil/sociedad_valores/obligaciones",
+            params={"dominio": "FISCAL"},
+        )
+        pbc_status, pbc_payload, pbc_preview = _get_json(
+            client,
+            "/v1/perfil/sociedad_valores/obligaciones",
+            params={"dominio": "PBC_FT"},
+        )
+
+    fiscal_obligaciones = fiscal_payload.get("obligaciones") if isinstance(fiscal_payload, dict) else []
+    pbc_obligaciones = pbc_payload.get("obligaciones") if isinstance(pbc_payload, dict) else []
+    fiscal_modelos = {
+        item.get("modelo_aeat")
+        for item in (fiscal_obligaciones or [])
+        if isinstance(item, dict) and item.get("modelo_aeat")
+    }
+    pbc_tipos = {
+        item.get("obligacion_tipo")
+        for item in (pbc_obligaciones or [])
+        if isinstance(item, dict)
+    }
+    missing_source = [
+        item.get("descripcion")
+        for item in [*(fiscal_obligaciones or []), *(pbc_obligaciones or [])]
+        if isinstance(item, dict) and not item.get("source_url")
+    ]
+
+    details.update(
+        {
+            "fiscal_status": fiscal_status,
+            "pbc_status": pbc_status,
+            "fiscal_total": fiscal_payload.get("total") if isinstance(fiscal_payload, dict) else None,
+            "pbc_total": pbc_payload.get("total") if isinstance(pbc_payload, dict) else None,
+            "fiscal_modelos": sorted(str(modelo) for modelo in fiscal_modelos),
+            "pbc_tipos": sorted(str(tipo) for tipo in pbc_tipos),
+            "missing_source_url": missing_source[:20],
+            "fiscal_safe_to_answer_present": isinstance(fiscal_payload, dict)
+            and "safe_to_answer" in fiscal_payload,
+            "pbc_safe_to_answer_present": isinstance(pbc_payload, dict)
+            and "safe_to_answer" in pbc_payload,
+            "fiscal_evidence_notice_present": isinstance(fiscal_payload, dict)
+            and bool(fiscal_payload.get("evidence_notice")),
+            "pbc_evidence_notice_present": isinstance(pbc_payload, dict)
+            and bool(pbc_payload.get("evidence_notice")),
+        }
+    )
+
+    if fiscal_status != 200 or not isinstance(fiscal_payload, dict):
+        failures.append({"check": "fiscal_endpoint", "status": fiscal_status, "response": fiscal_preview})
+    if pbc_status != 200 or not isinstance(pbc_payload, dict):
+        failures.append({"check": "pbc_endpoint", "status": pbc_status, "response": pbc_preview})
+    if not {"200", "303", "193", "198"} <= fiscal_modelos:
+        failures.append(
+            {
+                "check": "fiscal_modelos",
+                "missing": sorted({"200", "303", "193", "198"} - fiscal_modelos),
+            }
+        )
+    if not {"COMUNICACION_INDICIO", "DILIGENCIA_DEBIDA"} <= pbc_tipos:
+        failures.append(
+            {
+                "check": "pbc_obligation_types",
+                "missing": sorted({"COMUNICACION_INDICIO", "DILIGENCIA_DEBIDA"} - pbc_tipos),
+            }
+        )
+    if missing_source:
+        failures.append({"check": "source_url_required", "missing": missing_source[:20]})
+    for name, payload in (("fiscal", fiscal_payload), ("pbc", pbc_payload)):
+        if not isinstance(payload, dict) or not payload.get("evidence_notice"):
+            failures.append({"check": f"{name}_evidence_notice"})
+        if not isinstance(payload, dict) or "safe_to_answer" not in payload:
+            failures.append({"check": f"{name}_safe_to_answer"})
+
+    try:
+        sys.path.insert(0, str(ROOT / "apps" / "api"))
+        from mcp_catalog import get_stdio_tool_definitions  # type: ignore
+
+        tools = {tool.get("name"): tool for tool in get_stdio_tool_definitions()}
+        tool = tools.get("obtener_obligaciones_perfil") or {}
+        description = tool.get("description") or ""
+        details["obtener_obligaciones_perfil_description_length"] = len(description)
+        details["profile_stdio_tools_present"] = sorted(
+            name
+            for name in (
+                "listar_perfiles_entidad",
+                "obtener_obligaciones_perfil",
+                "calendario_obligaciones_perfil",
+            )
+            if name in tools
+        )
+        if len(description) <= 50:
+            failures.append({"check": "tool_description_length", "tool": "obtener_obligaciones_perfil"})
+    except Exception as exc:
+        failures.append({"check": "stdio_tool_registry_import", "error": str(exc)})
+
+    return CheckResult(
+        "profile_applicability_contracts",
+        not failures,
+        {
+            **details,
+            "failures": failures,
+        },
+    )
+
+
 def audit_semantic_suite(base_url: str) -> CheckResult:
     sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
     from mcp_validation_suite import run_read_only_suite  # type: ignore
@@ -1028,6 +1140,7 @@ def run_audit(base_url: str, database_url: str) -> dict[str, Any]:
         audit_boe_core_legislation_contracts(base_url),
         audit_aeat_instruction_key_contracts(base_url),
         audit_teac_sepblac_contracts(base_url, engine),
+        audit_profile_applicability_contracts(base_url),
         audit_eurlex_esma_market_contracts(base_url),
         audit_semantic_suite(base_url),
     ]

@@ -95,6 +95,11 @@ HTTP_MCP_OPERATIONS = [
     "detalle_convenio_dta_internacional",
     "listar_reglas_retencion_internacional",
     "calcular_retencion",
+    # Aplicabilidad por perfil
+    "listar_perfiles_entidad",
+    "get_perfil_entidad",
+    "obtener_obligaciones_perfil",
+    "calendario_obligaciones_perfil",
     # Bridged from stdio — tools that previously only worked via MCP stdio
     # transport are now callable via HTTP MCP too. Each maps to an existing
     # REST endpoint that the stdio handler already delegates to.
