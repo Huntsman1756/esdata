@@ -2197,3 +2197,30 @@ Caveat:
 
 Siguiente historia Ralph:
 - A-08: Update mcp_validation_suite - TEAC and SEPBLAC coverage checks.
+
+### A-08 Update mcp_validation_suite - TEAC and SEPBLAC coverage checks - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- `scripts/maintenance/mcp_validation_suite.py` anade checks SQL/API para TEAC, SEPBLAC granular y RD 304/2014.
+- `scripts/maintenance/mcp_deep_contract_audit.py` anade contrato profundo `teac_sepblac_sprint_a_contracts`.
+- `infra/deploy/Dockerfile.ops` incluye `httpx` y `apps/api/mcp_catalog.py` para ejecutar las suites desde el contenedor `ops`.
+
+Verificacion VPS:
+- `mcp_validation_suite.py --read-only --base-url http://api:8000` desde `ops` con `ESDATA_API_KEY/MCP_API_KEY` => `ok=true`.
+- Nuevos checks de DB:
+  - `resolucion_teac=558`.
+  - `url_oficial/url_fuente TEAC=100%`.
+  - `normativa_sepblac=7`.
+  - `obligacion_sepblac=7`.
+  - `guia_operativa_sepblac=7`.
+  - `RD_304_2014 articles=76` segun el contrato de suite.
+- `mcp_deep_contract_audit.py --base-url http://api:8000` desde `ops` => `ok=true`.
+- Suite semantica delegada dentro del deep audit: `48` checks, `0` failures.
+
+Caveat operativo:
+- El comando literal del PRD usa servicio `worker`, pero el compose activo no tiene un servicio generico `worker`. Se uso el equivalente correcto `ops`, que es la imagen de mantenimiento con `scripts/`.
+
+Siguiente historia Ralph:
+- A-09: Update docs - honest coverage report and roadmap.
