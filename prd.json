@@ -6,7 +6,7 @@
       "id": "D-01",
       "title": "Alembic migration - EU metadata columns on norma table",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM information_schema.columns WHERE table_name='norma' AND column_name IN ('celex','tipo_norma','url_eurlex','vigente','derogada_por')\"); echo \"EU columns: $COUNT\"; [ \"$COUNT\" -ge 5 ] && echo PASS || echo FAIL"
     },
     {
