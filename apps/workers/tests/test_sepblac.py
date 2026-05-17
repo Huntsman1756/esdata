@@ -26,6 +26,7 @@ SEPBLAC_DISCOVERY_HTML = """
 <html><body>
   <a href="/es/normativa/normativa-nacional/">Normativa nacional</a>
   <a href="/media/2026/guia-obligaciones.pdf">Guia de obligaciones para sujetos obligados</a>
+  <a href="/es/publicaciones/recomendaciones-de-control-interno/">Recomendaciones de control interno</a>
   <a href="https://example.com/not-official.pdf">No oficial</a>
 </body></html>
 """
@@ -113,6 +114,23 @@ def test_discover_default_urls_uses_official_sepblac_sources(monkeypatch):
     assert "https://www.sepblac.es/es/normativa/?lang=es" in urls
     assert "https://www.sepblac.es/media/2026/guia-obligaciones.pdf" in urls
     assert all("sepblac.es" in url for url in urls)
+
+
+def test_discover_guias_family_includes_official_recommendations(monkeypatch):
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=SEPBLAC_DISCOVERY_HTML)
+
+    monkeypatch.setattr(
+        "sepblac.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    urls = discover_default_urls(max_urls=20, familia="guias")
+
+    assert "https://www.sepblac.es/es/publicaciones/" in urls
+    assert "https://www.sepblac.es/es/publicaciones/recomendaciones-de-control-interno/" in urls
 
 
 def test_upsert_documento_interpretativo_is_idempotent_by_family_source_tuple():

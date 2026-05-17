@@ -45,6 +45,10 @@ SEPBLAC_NORMATIVA_NACIONAL_URL = "https://www.sepblac.es/es/normativa/normativa-
 SEPBLAC_NORMATIVA_COMUNITARIA_URL = "https://www.sepblac.es/es/normativa/normativa-comunitaria/"
 SEPBLAC_OBLIGACIONES_URL = "https://www.sepblac.es/es/sujetos-obligados/obligaciones/"
 SEPBLAC_GUIAS_URL = "https://www.sepblac.es/es/publicaciones/"
+SEPBLAC_RECOMENDACIONES_CONTROL_INTERNO_URL = (
+    "https://www.sepblac.es/es/publicaciones/recomendaciones-de-control-interno/"
+)
+SEPBLAC_MAS_PUBLICACIONES_URL = "https://www.sepblac.es/es/publicaciones/mas-publicaciones/"
 SEPBLAC_TIPOLOGIAS_URL = "https://www.sepblac.es/es/documentacion/"
 DEFAULT_SOURCE_URLS = [
     SEPBLAC_NORMATIVA_URL,
@@ -69,8 +73,23 @@ SEPBLAC_FAMILY_MAP = {
     },
     "guias": {
         "tipo_documento": "guia_operativa_sepblac",
-        "source_urls": [SEPBLAC_GUIAS_URL],
-        "tokens": ("guia", "guía", "orientacion", "orientación", "manual", ".pdf"),
+        "source_urls": [
+            SEPBLAC_GUIAS_URL,
+            SEPBLAC_RECOMENDACIONES_CONTROL_INTERNO_URL,
+            SEPBLAC_MAS_PUBLICACIONES_URL,
+        ],
+        "tokens": (
+            "guia",
+            "guía",
+            "orientacion",
+            "orientación",
+            "manual",
+            "recomendacion",
+            "recomendación",
+            "control interno",
+            "publicaciones",
+            ".pdf",
+        ),
     },
     "tipologias": {
         "tipo_documento": "tipologia_sepblac",
