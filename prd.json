@@ -1,97 +1,97 @@
 {
-  "projectName": "esdata-sprint-e-aplicabilidad-completa",
-  "branchName": "feat/sprint-e-aplicabilidad-completa",
+  "projectName": "esdata-sprint-f-evidence-limited",
+  "branchName": "feat/sprint-f-evidence-limited",
   "userStories": [
     {
-      "id": "E-01",
-      "title": "Load missing norms - PSD2, Ley 10/2014, RD-ley 19/2018",
+      "id": "F-01",
+      "title": "Load IFR (32019R2033) - regimen prudencial ESI",
       "priority": 1,
       "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM norma WHERE codigo IN ('32015L2366','LEY10_2014','RD19_2018')"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE codigo IN ('32019R2033','32019L2034')\"); echo \"IFR+IFD: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-02",
-      "title": "Seed EAF obligations - fiscal (AEAT)",
+      "id": "F-02",
+      "title": "Fix reporting prudencial - sociedad_valores y agencia_valores (IFR, no CRR)",
       "priority": 2,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND obligacion_tipo IN ('AUTOLIQUIDACION','DECLARACION_INFORMATIVA')"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%prudencial%' AND perfil_codigo IN ('sociedad_valores','agencia_valores') AND norma_codigo='32019R2033' AND verified=true\"); echo \"IFR fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-03",
-      "title": "Seed EAF obligations - PBC/FT",
+      "id": "F-03",
+      "title": "Fix conflictos de interes y mejor ejecucion - articulos LIVMC concretos",
       "priority": 3,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND obligacion_tipo IN ('DILIGENCIA_DEBIDA','COMUNICACION_INDICIO','CONTROL_INTERNO','FORMACION','REGISTRO')"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%conflictos%' OR descripcion ILIKE '%mejor ejecucion%' AND perfil_codigo IN ('sociedad_valores','agencia_valores') AND verified=true\"); echo \"LIVMC articles fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-04",
-      "title": "Seed EAF obligations - CNMV/MiFID II specific",
+      "id": "F-04",
+      "title": "Fix Modelo 187 - articulo RD 1082/2012 concreto",
       "priority": 4,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf'"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 187%' AND norma_codigo='RD_1082_2012' AND articulo_referencia IS NOT NULL AND verified=true\"); echo \"M187 fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-05",
-      "title": "Seed entidad_credito obligations - fiscal (AEAT)",
+      "id": "F-05",
+      "title": "Fix Modelo 198 - norma y articulo concretos",
       "priority": 5,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito' AND obligacion_tipo IN ('AUTOLIQUIDACION','DECLARACION_INFORMATIVA')"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 198%' AND norma_codigo='LIRPF' AND verified=true\"); echo \"M198 fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-06",
-      "title": "Seed entidad_credito obligations - PBC/FT (alto riesgo)",
+      "id": "F-06",
+      "title": "Fix Modelo 289 CRS - articulo LGT concreto, verified=true condicional",
       "priority": 6,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito' AND obligacion_tipo IN ('DILIGENCIA_DEBIDA','COMUNICACION_INDICIO','CONTROL_INTERNO','FORMACION','REGISTRO')"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 289%' AND articulo_referencia='art. 93 bis' AND verified=true\"); echo \"M289 fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-07",
-      "title": "Seed entidad_credito obligations - BDE prudencial y DORA",
+      "id": "F-07",
+      "title": "Fix Modelo 290 FATCA - norma y articulo concretos",
       "priority": 7,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='entidad_credito'"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 290%' AND norma_codigo='LGT' AND verified=true\"); echo \"M290 fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-08",
-      "title": "Seed empresa_servicios_pago obligations",
+      "id": "F-08",
+      "title": "Fix certificacion MiFID II personal - articulo concreto",
       "priority": 8,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='empresa_servicios_pago'"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Certificacion MiFID II%' AND norma_codigo='32014L0065' AND verified=true\"); echo \"MiFID cert fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-09",
-      "title": "Complete sgiic obligations - AIFMD Annex IV + ESMA liquidity",
+      "id": "F-09",
+      "title": "Fix SGIIC - consolidar duplicado AIFMD Annex IV y completar articulos",
       "priority": 9,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM obligacion_perfil WHERE perfil_codigo='sgiic'"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; TOTAL=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sgiic'\"); VER=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sgiic' AND verified=true\"); echo \"sgiic total=$TOTAL verified=$VER\"; [ \"$VER\" -ge 16 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-10",
-      "title": "Upgrade agencia_valores - verified count using Sprint D EU norms",
+      "id": "F-10",
+      "title": "Fix empresa_servicios_pago PBC/FT condicional - articulo correcto",
       "priority": 10,
-      "passes": true,
-      "verificationCommand": "SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM obligacion_perfil WHERE perfil_codigo='agencia_valores'"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='empresa_servicios_pago' AND verified=false\"); echo \"ESP remaining evidence_limited: $COUNT\"; [ \"$COUNT\" -eq 0 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "E-11",
-      "title": "Coverage report - all profiles complete",
+      "id": "F-11",
+      "title": "Final diagnostic - verified rate and residual evidence_limited",
       "priority": 11,
-      "passes": true,
-      "verificationCommand": "profile coverage thresholds"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT perfil_codigo, COUNT(*) total, SUM(CASE WHEN verified THEN 1 ELSE 0 END) verified, ROUND(100.0*SUM(CASE WHEN verified THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) pct FROM obligacion_perfil GROUP BY perfil_codigo ORDER BY pct DESC\" && echo PASS"
     },
     {
-      "id": "E-12",
-      "title": "Update mcp_validation_suite - all profiles covered",
+      "id": "F-12",
+      "title": "Update mcp_validation_suite - verified rate checks",
       "priority": 12,
-      "passes": true,
-      "verificationCommand": "mcp_validation_suite.py and mcp_deep_contract_audit.py ok=true"
+      "passes": false,
+      "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
-      "id": "E-13",
-      "title": "Final verification - Sprint E complete",
+      "id": "F-13",
+      "title": "Final verification - Sprint F complete",
       "priority": 13,
-      "passes": true,
-      "verificationCommand": "pytest apps/ -q plus production totals"
+      "passes": false,
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT ROUND(100.0*SUM(CASE WHEN verified THEN 1 ELSE 0 END)/COUNT(*),1) FROM obligacion_perfil\" | awk '{if ($1>=75) print \"PASS: overall \" $1 \"%\"; else print \"FAIL: only \" $1 \"%\"}'"
     }
   ]
 }
