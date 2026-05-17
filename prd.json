@@ -20,7 +20,7 @@
       "id": "F-03",
       "title": "Fix conflictos de interes y mejor ejecucion - articulos LIVMC concretos",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%conflictos%' OR descripcion ILIKE '%mejor ejecucion%' AND perfil_codigo IN ('sociedad_valores','agencia_valores') AND verified=true\"); echo \"LIVMC articles fixed: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
