@@ -48,8 +48,8 @@
       "id": "F-07",
       "title": "Fix Modelo 290 FATCA - norma y articulo concretos",
       "priority": 7,
-      "passes": false,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 290%' AND norma_codigo='LGT' AND verified=true\"); echo \"M290 fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
+      "passes": true,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE descripcion ILIKE '%Modelo 290%' AND norma_codigo='LGT' AND articulo_referencia='DA 22.ª ap. 8' AND verified=true\"); echo \"M290 fixed: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
       "id": "F-08",
