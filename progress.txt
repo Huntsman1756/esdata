@@ -2224,3 +2224,26 @@ Caveat operativo:
 
 Siguiente historia Ralph:
 - A-09: Update docs - honest coverage report and roadmap.
+
+### A-09 Update docs - honest coverage report and roadmap - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Cambios:
+- Creado `docs/sprint-a-coverage-report.md` con tabla de cobertura real y SQL productivo.
+- Actualizado `docs/master-execution-roadmap.md` con cierre A-08/A-09 y siguiente paso A-10.
+- Actualizado `docs/operations/agent-notes.md` con contrato operativo TEAC DYCTEA, SEPBLAC granular y RD 304/2014.
+
+Evidencia documentada:
+- TEAC `resolucion_teac=558`, `verified_pct=51.25`, `complete_rows=286`, `partial_rows=272`.
+- SEPBLAC `normativa_sepblac=7`, `obligacion_sepblac=7`, `guia_operativa_sepblac=7`.
+- RD 304/2014 `BOE-A-2014-4742`, `76` articulos segun SQL de produccion usado para el informe.
+- `mcp_validation_suite.py` en VPS => `ok=true`.
+- `mcp_deep_contract_audit.py` en VPS => `ok=true`.
+
+Caveat:
+- TEAC y SEPBLAC quedan mejorados para Sprint C, pero no se documentan como universo completo de TEAC/SEPBLAC.
+- `tipologia_sepblac` sigue como target por fuente 404.
+
+Siguiente historia Ralph:
+- A-10: Final verification - Sprint A complete.

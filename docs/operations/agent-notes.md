@@ -332,3 +332,12 @@ Usar notas cortas con este esquema:
 - Hallazgo: guias tecnicas y documentos a consulta ya no deben agruparse como `documento_cnmv` generico. Las guias se cargan como `guia_tecnica_cnmv`; las consultas como `documento_consulta_cnmv`.
 - Impacto: mezclar esas familias con circulares haria que un agente confundiera criterio supervisor o propuestas normativas con obligaciones vigentes.
 - Regla practica: circulares CNMV pueden contener obligaciones/normativa vigente; guias tecnicas son interpretacion/supervision; documentos a consulta son borradores/propuestas para monitoring y requieren `vigencia=all`. `verified=true` solo prueba fuente oficial y texto trazable, no jerarquia normativa.
+
+### 2026-05-17 - Sprint A TEAC DYCTEA y SEPBLAC granular
+
+- Scope: `apps/workers/teac.py`, `apps/workers/sepblac.py`, `apps/workers/boe.py`, `documento_interpretativo`, `norma/articulo`, `mcp_validation_suite.py`, `mcp_deep_contract_audit.py`.
+- TEAC: DYCTEA no se trato como API JSON; la fuente operativa oficial es HTML ASP.NET en `https://serviciostelematicosext.hacienda.gob.es/TEAC/DYCTEA/`, con `__VIEWSTATE` y campos de fecha. El worker usa POST stateful, `TEAC_FECHA_DESDE`, `--fecha-desde`, `--max-results` y `--dry-run`. Produccion queda con `558` `resolucion_teac`; `286` completas y `272` parciales. No afirmar cobertura completa de toda la doctrina TEAC.
+- SEPBLAC: las familias quedan separadas por contrato. `normativa_sepblac` es fuente normativa o pagina normativa oficial; `obligacion_sepblac` es resumen operativo por sujeto obligado, no norma primaria; `guia_operativa_sepblac` es criterio/recomendacion operativa, no obligacion directa. Produccion: `7/7/7`.
+- RD 304/2014: el BOE ID correcto es `BOE-A-2014-4742`. El ID `BOE-A-2014-5438` del PRD correspondia a otro real decreto y fue descartado tras limpiar la carga erronea propia. Produccion expone `RD_304_2014` con articulos y `/v1/legislacion/RD_304_2014/articulos/4`.
+- Validacion: las suites deben correrse desde `ops` en Compose, no desde un servicio generico `worker` inexistente. Pasar `ESDATA_API_KEY` y `MCP_API_KEY` al contenedor para evitar falsos 401. `ops` incluye `httpx` y `apps/api/mcp_catalog.py`.
+- Regla practica: para back office de sociedad de valores, usar SEPBLAC `obligacion_sepblac` como evidencia operativa preliminar y resolver contra LPBC-FT/RD 304/2014 antes de convertirlo en obligacion normativa.
