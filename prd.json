@@ -83,7 +83,7 @@
       "id": "E-12",
       "title": "Update mcp_validation_suite - all profiles covered",
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "mcp_validation_suite.py and mcp_deep_contract_audit.py ok=true"
     },
     {
