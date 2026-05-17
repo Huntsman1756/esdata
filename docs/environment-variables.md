@@ -50,7 +50,7 @@
 | Variable | Requerida | Default | Estado | Uso |
 |----------|-----------|---------|--------|-----|
 | `BOE_API_BASE` | No | `https://www.boe.es/datosabiertos/api/legislacion-consolidada` | `runtime deploy` | Worker BOE + cron |
-| `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,LEY10_2010,RDL19_2018,LIVMC,RD_1082_2012,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | `runtime deploy` | Worker BOE + cron |
+| `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,LEY10_2010,RDL19_2018,LIVMC,RD_1082_2012,RD_813_2023,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | `runtime deploy` | Worker BOE + cron |
 | `BOE_SYNC_INTERVAL_SECONDS` | No | `3600` | `runtime deploy` | Worker BOE |
 | `BDNS_SEED_URLS` | Si | | `runtime deploy` | Worker BDNS + cron |
 | `BDNS_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BDNS |
@@ -59,6 +59,7 @@
 | `CNMV_SEED_URLS` | Si | | `runtime deploy` | Worker CNMV + cron |
 | `CNMV_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker CNMV |
 | `SEPBLAC_SEED_URLS` | Si | | `runtime deploy` | Worker SEPBLAC + cron |
+| `EU_SANCTIONS_XML_URL` | No | oficial FSF XML | `runtime deploy` | `cron-eu-sanctions-weekly` |
 | `SEPBLAC_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker SEPBLAC |
 | `CENDOJ_SEED_URLS` | Si | | `runtime deploy` | Worker CENDOJ |
 | `CENDOJ_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker CENDOJ |
@@ -96,6 +97,7 @@
 | `HC_PING_URL_CRON_CNMV_WEEKLY` | No | vacio | `runtime deploy` | `cron-cnmv-weekly` |
 | `HC_PING_URL_CRON_SEPBLAC_WEEKLY` | No | vacio | `runtime deploy` | `cron-sepblac-weekly` |
 | `HC_PING_URL_CRON_BDE_WEEKLY` | No | vacio | `runtime deploy` | `cron-bde-weekly` |
+| `HC_PING_URL_CRON_EU_SANCTIONS_WEEKLY` | No | vacio | `runtime deploy` | `cron-eu-sanctions-weekly` |
 | `GRAFANA_ADMIN_PASSWORD` | No | vacio | `runtime deploy` | Perfil `prod` de Grafana |
 | `GRAFANA_ROOT_URL` | No | `https://tudominio.com/grafana/` | `runtime deploy` | Perfil `prod` de Grafana |
 

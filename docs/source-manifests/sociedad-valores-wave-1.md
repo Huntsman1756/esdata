@@ -21,6 +21,14 @@ Cerrar la primera ola de fuentes necesarias para que `esdata` deje de ser solo u
 | Banco de Espana | circulares y guias sobre supervision, reporting y sistemas de pago | documento_regulatorio | P2 | basico | curado |
 | AEPD | guias y resoluciones sobre onboarding, AML/KYC, conservacion y acceso a datos | guidance | P2 | basico | curado |
 
+## Wave 1 repo update - 2026-05-17
+
+- BOE soporta `RD_813_2023` (`BOE-A-2023-22763`) como norma separada para regimen juridico ESI.
+- CNMV soporta familias `normativa_esi` (`normativa_esi_cnmv`) y `modelos_esi` (`modelo_esi_cnmv`) sin mezclarlas con circulares, guias tecnicas o consultas.
+- SEPBLAC descubre por defecto normativa nacional, normativa comunitaria y obligaciones oficiales.
+- Screening incorpora worker/cron `eu_sanctions.py` para la lista consolidada UE; requiere URL XML oficial FSF alcanzable/configurada para cargar filas productivas.
+- ESMA MiFIR reporting anade reporting hub, ISRB Article 26 y Q&A index al conjunto de documentos oficiales.
+
 ## Campos minimos por documento
 
 - `referencia`

@@ -34,7 +34,6 @@ from runtime import (
     init_sentry,
 )
 
-
 logger = configure_logging("workers.esma_mifir_reporting")
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("ESMA_MIFIR_REPORTING_SYNC_INTERVAL_SECONDS", 604800)
@@ -52,6 +51,12 @@ ESMA_TR_VALIDATION_RULES_URL = (
     "https://www.esma.europa.eu/sites/default/files/library/"
     "esma65-8-2594_annex_1_mifir_transaction_reporting_validation_rules.xlsx"
 )
+ESMA_MIFIR_REPORTING_PAGE = "https://www.esma.europa.eu/data-reporting/mifir-reporting"
+ESMA_MIFIR_ISRB_ARTICLE_26_URL = (
+    "https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/"
+    "mifir/article-26-obligation-report-transactions"
+)
+ESMA_QA_PAGE = "https://www.esma.europa.eu/publications-and-data/questions-answers"
 XSD_NS = {"xs": "http://www.w3.org/2001/XMLSchema"}
 
 
@@ -111,6 +116,33 @@ ESMA_MIFIR_DOCUMENTS: tuple[tuple[str, str, str, str, str | None, bool, str], ..
         "2022-05-31",
         True,
         "completa",
+    ),
+    (
+        "REPORTING_HUB",
+        "ESMA MiFIR data reporting hub",
+        "ESMA-MIFIR-REPORTING-HUB",
+        ESMA_MIFIR_REPORTING_PAGE,
+        None,
+        True,
+        "parcial",
+    ),
+    (
+        "ISRB",
+        "Interactive Single Rulebook - MiFIR Article 26 obligation to report transactions",
+        "ESMA-ISRB-MIFIR-ARTICLE-26",
+        ESMA_MIFIR_ISRB_ARTICLE_26_URL,
+        None,
+        True,
+        "parcial",
+    ),
+    (
+        "QNA_INDEX",
+        "ESMA Questions and Answers index",
+        "ESMA-QNA-INDEX",
+        ESMA_QA_PAGE,
+        None,
+        True,
+        "parcial",
     ),
 )
 

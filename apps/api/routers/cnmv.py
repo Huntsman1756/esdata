@@ -78,9 +78,23 @@ CNMV_SOURCE_FAMILIES = [
         "family_id": "modelos_normalizados",
         "nombre": "Modelos normalizados CNMV",
         "source_url": "https://www.cnmv.es/portal/Legislacion/ModelosN/ModelosN",
-        "loaded_tipo_documentos": [],
-        "coverage_status": "configured_but_unavailable",
-        "contract_note": "Fuente oficial identificada; no se cargan formularios/modelos CNMV en el corpus actual.",
+        "loaded_tipo_documentos": ["modelo_esi_cnmv"],
+        "coverage_status": "partial_loaded",
+        "contract_note": (
+            "Carga dedicada de modelos normalizados ESI desde fuente oficial CNMV. "
+            "Son formularios/reporting supervisor, no normativa primaria."
+        ),
+    },
+    {
+        "family_id": "normativa_esi",
+        "nombre": "Normativa CNMV para ESI",
+        "source_url": "https://www.cnmv.es/portal/menu/legislacion-esi?lang=es",
+        "loaded_tipo_documentos": ["normativa_esi_cnmv"],
+        "coverage_status": "partial_loaded",
+        "contract_note": (
+            "Indice oficial CNMV para empresas de servicios de inversion. "
+            "Puede enlazar a BOE/EUR-Lex; la obligacion vigente debe confirmarse en la fuente normativa primaria."
+        ),
     },
     {
         "family_id": "registros_oficiales",

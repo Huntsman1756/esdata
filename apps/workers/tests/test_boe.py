@@ -239,9 +239,11 @@ def test_default_normas_include_itpajd():
     assert DEFAULT_NORMAS["LEY10_2010"] == "BOE-A-2010-6737"
     assert DEFAULT_NORMAS["LIVMC"] == "BOE-A-2023-7053"
     assert DEFAULT_NORMAS["RD_1082_2012"] == "BOE-A-2012-9716"
+    assert DEFAULT_NORMAS["RD_813_2023"] == "BOE-A-2023-22763"
     assert LAW_TO_NORMA["10/2010"] == "LEY10_2010"
     assert LAW_TO_NORMA["6/2023"] == "LIVMC"
     assert LAW_TO_NORMA["1082/2012"] == "RD_1082_2012"
+    assert LAW_TO_NORMA["813/2023"] == "RD_813_2023"
 
 
 def test_run_sync_ingests_itpajd_article_and_version():
