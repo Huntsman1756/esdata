@@ -68,9 +68,14 @@ def buscar_norma_eu(
 ) -> list[NormaEuItem]:
     term = (termino or "").strip().lower()
     like_term = f"%{term}%"
+    tipo_filter = ""
+    params: dict[str, Any] = {"term": term, "like_term": like_term}
+    if tipo_norma is not None:
+        tipo_filter = "AND tipo_norma = :tipo_norma"
+        params["tipo_norma"] = tipo_norma
     rows = db.execute(
         text(
-            """
+            f"""
             SELECT
                 codigo,
                 celex,
@@ -82,7 +87,7 @@ def buscar_norma_eu(
                 derogada_por
             FROM norma
             WHERE tipo_norma IS NOT NULL
-              AND (:tipo_norma IS NULL OR tipo_norma = :tipo_norma)
+              {tipo_filter}
               AND (
                   :term = ''
                   OR lower(COALESCE(titulo, '')) LIKE :like_term
@@ -93,7 +98,7 @@ def buscar_norma_eu(
             LIMIT 10
             """
         ),
-        {"term": term, "like_term": like_term, "tipo_norma": tipo_norma},
+        params,
     ).mappings()
     return [
         NormaEuItem(
