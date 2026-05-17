@@ -2415,3 +2415,27 @@ Verificacion produccion:
 Resultado:
 - C-05: COMPLETADO.
 - Siguiente historia Ralph: C-06 Seed sociedad_valores - CNMV/market obligations.
+
+### C-06 Seed sociedad_valores - CNMV/market obligations - COMPLETADO
+
+Fecha: 2026-05-17 Europe/Madrid.
+
+Prechecks produccion:
+- Circulares CNMV relevantes cargadas; se uso la circular mas reciente con URL oficial como fuente secundaria.
+- `LIVMC` cargada con articulos `125` y `228`.
+- Normas UE disponibles como cobertura parcial: `MIFIR_2014_60`, `CRR_II_2019_2057`.
+
+Implementacion:
+- Nuevo seed idempotente `scripts/data/seed_sociedad_valores_cnmv_obligaciones.sql`.
+- Obligaciones especificas CNMV/mercado cargadas: `7`.
+- Obligaciones con articulo confirmado y condicionalidad operativa: `LIVMC art.125`, `LIVMC art.228`.
+- Obligaciones UE/MiFID sin articulo granular cargado quedan `verified=false`, `completeness='parcial'`.
+
+Verificacion produccion:
+- `CNMV-only seeded`: `7`.
+- VerificationCommand C-06 => `CNMV obligations: 10`, `PASS`.
+- Nota: el verificationCommand cuenta por tipo (`REPORTING`, `CONTROL_INTERNO`, `FORMACION`) y por eso incluye tambien obligaciones PBC/FT ya cargadas. El conteo especifico por descripciones CNMV es `7`.
+
+Resultado:
+- C-06: COMPLETADO.
+- Siguiente historia Ralph: C-07 Implement MCP tools - wire contracts to DB.
