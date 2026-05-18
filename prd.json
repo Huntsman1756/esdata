@@ -33,7 +33,7 @@
       "id": "J-03",
       "title": "Load modelo_instruccion - CRS/289 classification rules",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: J-01 schema confirmed.",
         "Load at least five Modelo 289 instructions: IFO classification, reportable account, filing period, NilReport and corrections.",
