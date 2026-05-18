@@ -2,8 +2,36 @@ from __future__ import annotations
 
 from typing import Any
 
+from mcp_tools_aeat_catalogo import AEAT_CATALOGO_MCP_TOOL_CONTRACTS
 from mcp_tools_eu import EU_MCP_TOOL_CONTRACTS
 from mcp_tools_perfil import PERFIL_MCP_TOOL_CONTRACTS
+
+MCP_TOOL_ROUTING_POLICY = """
+POLÍTICA DE SELECCIÓN DE HERRAMIENTAS ESDATA:
+
+1. Para obligaciones de una entidad supervisada → SIEMPRE obtener_obligaciones_perfil
+   Si el modelo no aparece en la respuesta: NO tiene obligación verificada.
+   NO buscar en catálogo AEAT como alternativa.
+   NO suplementar con buscar_modelos_aeat_catalogo.
+
+2. Para qué presentar en un trimestre/mes/período → SIEMPRE calendario_obligaciones_perfil
+   Usar parámetro quarter (ej: "2026-Q3") para filtrar por período.
+   Trigger: "este trimestre", "Q3", "qué vence", "agenda", "este mes",
+   "qué presento en julio/octubre/enero/abril".
+   NO usar búsqueda semántica ni catálogo para responder preguntas de calendario.
+
+3. Para información sobre un modelo AEAT (qué es, cómo se rellena) → buscar_modelos_aeat_catalogo
+   Esta herramienta NO indica obligatoriedad. Solo describe el formulario.
+   NO combinar su resultado con obligaciones de perfil sin separación explícita.
+
+4. Para normas UE (MiFIR, EMIR, DORA, CRR, UCITS) → buscar_norma_eu
+
+5. Para listar tipos de entidad → listar_perfiles_entidad
+
+REGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,
+la respuesta correcta es "no consta como obligación verificada para este perfil",
+no "lo busco en otro sitio".
+"""
 
 DEFAULT_MCP_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -53,6 +81,7 @@ HTTP_MCP_OPERATIONS = [
     "get_modelo_resumen_operativo",
     "get_modelo_fuentes_oficiales",
     "list_modelos_por_supuesto",
+    "buscar_modelos_aeat_catalogo",
     # Disponibilidad de dominios/tablas
     "list_domain_availability",
     "get_domain_availability",
@@ -346,7 +375,11 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
             },
         },
     ]
-    for contract in (*PERFIL_MCP_TOOL_CONTRACTS, *EU_MCP_TOOL_CONTRACTS):
+    for contract in (
+        *PERFIL_MCP_TOOL_CONTRACTS,
+        *EU_MCP_TOOL_CONTRACTS,
+        *AEAT_CATALOGO_MCP_TOOL_CONTRACTS,
+    ):
         properties: dict[str, Any] = {}
         required: list[str] = []
         for parameter_name, parameter_contract in contract.parameters.items():
@@ -359,10 +392,16 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
                 properties[parameter_name]["default"] = parameter_contract["default"]
             if parameter_contract.get("required"):
                 required.append(parameter_name)
+        description = contract.description
+        if contract.name in {
+            "obtener_obligaciones_perfil",
+            "calendario_obligaciones_perfil",
+        }:
+            description = f"{description}\n\n{MCP_TOOL_ROUTING_POLICY}"
         tool_definitions.append(
             {
                 "name": contract.name,
-                "description": contract.description,
+                "description": description,
                 "inputSchema": {
                     "type": "object",
                     "properties": properties,

@@ -1074,6 +1074,9 @@ services:
     profiles: ["prod", "ops"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ESDATA_API_KEY: ${ESDATA_API_KEY:?ESDATA_API_KEY is required}
+      MCP_API_KEY: ${MCP_API_KEY:?MCP_API_KEY is required}
+      ESDATA_API_URL: ${ESDATA_API_URL:-http://api:8000}
     depends_on:
       postgres:
         condition: service_healthy

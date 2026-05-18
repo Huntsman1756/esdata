@@ -12,6 +12,7 @@ import httpx
 from db import db_session
 from main import app
 from mcp_catalog import get_stdio_tool_definitions
+from mcp_tools_aeat_catalogo import buscar_modelos_aeat_catalogo
 from mcp_tools_eu import buscar_norma_eu
 from mcp_tools_perfil import (
     PerfilNotFoundError,
@@ -132,6 +133,19 @@ def _log_mcp_call(
     )
 
 
+class _AsyncStdinReader:
+    """Small async adapter for stdin bytes used by the stdio MCP loop."""
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    async def receive_line(self) -> bytes:
+        return await anyio.to_thread.run_sync(self._stream.readline)
+
+    async def receive_some(self, max_bytes: int) -> bytes:
+        return await anyio.to_thread.run_sync(self._stream.read, max_bytes)
+
+
 class MCPStdioServer:
     """Minimal MCP stdio server using Streamable HTTP transport concept."""
 
@@ -171,8 +185,10 @@ class MCPStdioServer:
 
     def _send(self, data: dict[str, Any]):
         payload = json.dumps(data, ensure_ascii=False)
-        sys.stdout.write(f"Content-Length: {len(payload.encode('utf-8'))}\r\n\r\n{payload}")
-        sys.stdout.flush()
+        payload_bytes = payload.encode("utf-8")
+        header = f"Content-Length: {len(payload_bytes)}\r\n\r\n".encode("ascii")
+        sys.stdout.buffer.write(header + payload_bytes)
+        sys.stdout.buffer.flush()
 
     async def _read_exact(self, stream, content_length: int) -> bytes:
         chunks: list[bytes] = []
@@ -218,7 +234,7 @@ class MCPStdioServer:
 
     async def run(self):
         try:
-            stdin_raw = anyio.wrap_socket(sys.stdin.detach())
+            stdin_raw = _AsyncStdinReader(sys.stdin.buffer)
             while True:
                 try:
                     message = await self._read_message(stdin_raw)
@@ -1404,6 +1420,7 @@ class MCPStdioServer:
                     payload = calendario_obligaciones_perfil(
                         db,
                         arguments.get("perfil_codigo", "sociedad_valores"),
+                        arguments.get("quarter"),
                     ).model_dump()
                 self._send_jsonrpc(msg_id, {
                     "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
@@ -1430,6 +1447,23 @@ class MCPStdioServer:
                 })
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing buscar_norma_eu: {e!s}")
+        elif tool_name == "buscar_modelos_aeat_catalogo":
+            try:
+                with db_session() as db:
+                    payload = [
+                        item.model_dump()
+                        for item in buscar_modelos_aeat_catalogo(
+                            db,
+                            codigo=arguments.get("codigo"),
+                            termino=arguments.get("termino"),
+                        )
+                    ]
+                self._send_jsonrpc(msg_id, {
+                    "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
+                    "structuredContent": {"modelos": payload},
+                })
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing buscar_modelos_aeat_catalogo: {e!s}")
         else:
             self._send_error(msg_id, -32601, f"Unknown tool: {tool_name}")
 

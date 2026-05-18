@@ -106,7 +106,7 @@ INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa
 SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-24098', NULL, true
 FROM aeat_modelo m WHERE m.codigo = '289';
 INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato, activo)
-SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml', 'https://www.boe.es/buscar/act.php?id=BOE-A-2014-12328', NULL, true
+SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml', 'https://www.boe.es/buscar/act.php?id=BOE-A-2014-6922', NULL, true
 FROM aeat_modelo m WHERE m.codigo = '290';
 INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato, activo)
 SELECT m.id, '2025', NULL, NULL, 'https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro.html', true
@@ -183,7 +183,7 @@ INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen
 SELECT am.id, 'BOE-A-2024-24098', 'Orden HAC/1150/2024 — Modelo 289', '2024-11-20', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-24098', 'Aprueba modelo 289 cuentas financieras DAC2/CRS'
 FROM aeat_modelo am WHERE am.codigo = '289';
 INSERT INTO modelo_normativa (modelo_id, boe_id, titulo, fecha, url_boe, resumen)
-SELECT am.id, 'BOE-A-2014-12328', 'Acuerdo FATCA España-EEUU', '2014-11-27', 'https://www.boe.es/buscar/act.php?id=BOE-A-2014-12328', 'Aplica acuerdo FATCA para intercambio de información'
+SELECT am.id, 'BOE-A-2014-6854', 'Acuerdo FATCA España-EEUU', '2014-07-01', 'https://www.boe.es/buscar/act.php?id=BOE-A-2014-6854', 'Acuerdo FATCA España-EE.UU.; Orden HAP/1136/2014 aprueba Modelo 290'
 FROM aeat_modelo am WHERE am.codigo = '290';
 
 -- 4. modelo_casilla

@@ -4,6 +4,13 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ---
 
+## 2026-05-18
+
+### feat/sprint-h-tool-descriptions
+- **8e0e679** `fix(ops)` - H-07 ajusta el servicio `ops` para recibir `ESDATA_API_URL`, `ESDATA_API_KEY` y `MCP_API_KEY`, de modo que los comandos de aceptacion de las suites MCP funcionen dentro de Compose contra `http://api:8000`.
+- **909febb** `fix(api)` - H-02..H-07 alinean las descripciones de herramientas MCP en stdio y HTTP: `MCP_TOOL_ROUTING_POLICY`, no fallback de obligaciones a catalogo AEAT, activadores de calendario trimestral, warning de catalogo AEAT, docs de arquitectura MCP, checks en `mcp_validation_suite.py`/`mcp_deep_contract_audit.py`, y fix del stdio real en Windows (`stdin` async + salida UTF-8 por bytes). Evidencia: `pytest apps/ -q --basetemp .pytest-tmp` -> `3124 passed`; VPS `mcp_validation_suite.py` -> `ok=true`; VPS `mcp_deep_contract_audit.py` -> `ok=true`.
+- **PENDING** `fix(data)` — H-01 corrige la procedencia del Modelo 290 FATCA: `BOE-A-2014-12328` queda descartado por ser LIS, `BOE-A-2014-8331` queda descartado por no ser FATCA, `obligacion_perfil` usa el Acuerdo FATCA `BOE-A-2014-6854`, `modelo_normativa` queda en `BOE-A-2014-6854` y `modelo_campana` 2025 queda en la Orden HAP/1136/2014 `BOE-A-2014-6922`, sin cambiar `verified`. Evidencia VPS: VerificationCommand H-01 => `PASS`.
+
 ## 2026-05-05
 
 ### main

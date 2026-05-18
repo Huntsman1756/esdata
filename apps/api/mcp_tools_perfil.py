@@ -30,6 +30,13 @@ CALENDARIO_PERIODICIDADES: tuple[Periodicidad, ...] = (
     "continua",
 )
 
+QUARTER_MONTHS: dict[str, dict[str, object]] = {
+    "Q1": {"meses": (1, 2, 3), "vencimientos_mes_sig": 4},
+    "Q2": {"meses": (4, 5, 6), "vencimientos_mes_sig": 7},
+    "Q3": {"meses": (7, 8, 9), "vencimientos_mes_sig": 10},
+    "Q4": {"meses": (10, 11, 12), "vencimientos_mes_sig": 1},
+}
+
 
 class PerfilResumen(BaseModel):
     codigo: str
@@ -88,6 +95,18 @@ class CalendarioResponse(BaseModel):
     calendario: dict[Periodicidad, list[ObligacionItem]]
 
 
+class CalendarioQuarterResponse(BaseModel):
+    perfil: PerfilResumen
+    quarter: str
+    obligaciones: list[ObligacionItem]
+    total: int = 0
+
+    @model_validator(mode="after")
+    def derive_total(self) -> CalendarioQuarterResponse:
+        self.total = len(self.obligaciones)
+        return self
+
+
 @dataclass(frozen=True)
 class MCPToolContract:
     name: str
@@ -101,7 +120,10 @@ LISTAR_PERFILES_ENTIDAD = MCPToolContract(
     description=(
         "Lista los tipos de entidad supervisada disponibles en ESData. Usar cuando "
         "el usuario pregunta que tipo de entidad es, que perfil tiene, o que categorias "
-        "de entidad supervisada existen en el sistema. No usar para buscar obligaciones concretas."
+        "de entidad supervisada existen en el sistema. No usar para buscar obligaciones concretas: "
+        "para obligaciones usar obtener_obligaciones_perfil; para vencimientos usar "
+        "calendario_obligaciones_perfil. Parametros: ninguno. Devuelve codigo, nombre, "
+        "supervisor y regimen_primario; NO devuelve modelos AEAT ni calendario."
     ),
     parameters={},
     returns="list[{codigo, nombre, supervisor, regimen_primario}]",
@@ -110,12 +132,20 @@ LISTAR_PERFILES_ENTIDAD = MCPToolContract(
 OBTENER_OBLIGACIONES_PERFIL = MCPToolContract(
     name="obtener_obligaciones_perfil",
     description=(
-        "Devuelve las obligaciones regulatorias concretas para un tipo de entidad supervisada "
-        "espanola. Usar cuando el usuario pregunta que obligaciones tiene una sociedad de "
-        "valores, agencia de valores, SGIIC o EAF en materia fiscal (AEAT), PBC/FT "
-        "(SEPBLAC) o mercados (CNMV). Incluye que modelos AEAT presentar, con que "
-        "periodicidad, y que norma lo exige. No usar para buscar texto normativo; usar "
-        "herramientas de busqueda legislativa para eso."
+        "WHEN to use: usar cuando el usuario pregunta que obligaciones tiene una entidad "
+        "supervisada espanola, que modelos AEAT debe presentar, que obligaciones PBC/FT "
+        "o CNMV aplican, o si una sociedad de valores, agencia de valores, SGIIC, EAF, "
+        "entidad de credito o empresa de servicios de pago tiene una obligacion verificada. "
+        "Ejemplos: 'que modelos presenta una sociedad de valores', 'obligaciones PBC/FT "
+        "de una EAF', 'obligaciones CNMV de una SGIIC'. WHEN NOT to use: No usar para "
+        "preguntas de calendario o periodo; usar calendario_obligaciones_perfil. No usar "
+        "para saber que es un modelo AEAT o como se rellena; usar buscar_modelos_aeat_catalogo. "
+        "Parametros: perfil_codigo es obligatorio, por ejemplo 'sociedad_valores'; dominio "
+        "opcional acepta FISCAL, PBC_FT, CNMV o ALL. Devuelve obligaciones verificadas de "
+        "perfil con modelo_aeat, norma_codigo, articulo_referencia, periodicidad, plazo, "
+        "source_url, verified y completeness. GOLDEN RULE: Si un modelo no aparece en la "
+        "respuesta, significa que NO esta registrado como obligacion verificada para ese "
+        "perfil. No buscar en otras herramientas como alternativa."
     ),
     parameters={
         "perfil_codigo": {
@@ -143,11 +173,18 @@ OBTENER_OBLIGACIONES_PERFIL = MCPToolContract(
 CALENDARIO_OBLIGACIONES_PERFIL = MCPToolContract(
     name="calendario_obligaciones_perfil",
     description=(
-        "Devuelve el calendario operativo de obligaciones de una entidad supervisada agrupado "
-        "por periodicidad. Usar cuando el usuario pregunta cuando hay que presentar modelos, "
-        "que vence este trimestre, que hay que hacer mensualmente, o como organizar el "
-        "calendario anual de compliance. No usar para conocer el contenido de una obligacion; "
-        "usar obtener_obligaciones_perfil para eso."
+        "WHEN to use: usar para preguntas de calendario, vencimientos y periodos: "
+        "'¿Que presento este trimestre?', '¿Que vence en Q3?', '¿Que modelos hay en julio?', "
+        "'agenda de compliance', 'calendario', 'este mes', 'proximos vencimientos'. "
+        "Parametro perfil_codigo obligatorio, por ejemplo 'sociedad_valores'. Parametro "
+        "quarter opcional: Formato YYYY-QN (ej: 2026-Q3) o QN (ej: Q3). SIEMPRE proporcionar "
+        "quarter si el usuario menciona un periodo. Mapeo: Q1=enero-marzo, Q2=abril-junio, "
+        "Q3=julio-septiembre, Q4=octubre-diciembre. Esta herramienta usa datos estructurados "
+        "de periodicidad y plazo_descripcion, NO busqueda semantica. Es la unica fuente fiable "
+        "para preguntas de calendario. WHEN NOT to use: No usar para saber que es un modelo "
+        "AEAT; usar buscar_modelos_aeat_catalogo. No usar para listar todo el perfil sin foco "
+        "temporal; usar obtener_obligaciones_perfil. Devuelve obligaciones vencidas por "
+        "periodicidad o, con quarter, la lista filtrada; NO devuelve instrucciones de relleno."
     ),
     parameters={
         "perfil_codigo": {
@@ -161,9 +198,14 @@ CALENDARIO_OBLIGACIONES_PERFIL = MCPToolContract(
                 "entidad_credito",
                 "empresa_servicios_pago",
             ],
-        }
+        },
+        "quarter": {
+            "type": "string",
+            "required": False,
+            "description": "Trimestre a consultar: Q1, Q2, Q3, Q4 o YYYY-QN, ej: 2026-Q3",
+        },
     },
-    returns="CalendarioResponse",
+    returns="CalendarioResponse | CalendarioQuarterResponse",
 )
 
 PERFIL_MCP_TOOL_CONTRACTS: tuple[MCPToolContract, ...] = (
@@ -328,6 +370,60 @@ def build_calendario_response(
     return CalendarioResponse(perfil=perfil, calendario=calendario)
 
 
-def calendario_obligaciones_perfil(db: Session, perfil_codigo: str) -> CalendarioResponse:
+def normalize_quarter(quarter: str) -> str:
+    value = quarter.strip().upper()
+    if "-" in value:
+        value = value.rsplit("-", 1)[-1]
+    if value not in QUARTER_MONTHS:
+        raise ValueError(f"Trimestre no soportado: {quarter}")
+    return value
+
+
+def _is_due_in_quarter(obligacion: ObligacionItem, quarter: str) -> bool:
+    if not obligacion.plazo_descripcion:
+        return False
+    periodicidad = obligacion.periodicidad
+    if periodicidad == "mensual":
+        return True
+    if periodicidad == "continua":
+        return True
+    if periodicidad != "trimestral":
+        return False
+
+    # Modelo 202 has three statutory instalments: April (Q2), October and
+    # December (Q4). It is not due in Q1 or Q3.
+    if obligacion.modelo_aeat == "202":
+        return quarter in {"Q2", "Q4"}
+
+    return True
+
+
+def build_calendario_quarter_response(
+    *,
+    perfil: PerfilResumen,
+    obligaciones: list[ObligacionItem],
+    quarter: str,
+) -> CalendarioQuarterResponse:
+    quarter_key = normalize_quarter(quarter)
+    due = [
+        obligacion
+        for obligacion in obligaciones
+        if obligacion.periodicidad in {"mensual", "trimestral", "continua"}
+        and _is_due_in_quarter(obligacion, quarter_key)
+    ]
+    return CalendarioQuarterResponse(perfil=perfil, quarter=quarter_key, obligaciones=due)
+
+
+def calendario_obligaciones_perfil(
+    db: Session,
+    perfil_codigo: str,
+    quarter: str | None = None,
+) -> CalendarioResponse | CalendarioQuarterResponse:
     response = obtener_obligaciones_perfil(db, perfil_codigo, "ALL")
+    if quarter:
+        return build_calendario_quarter_response(
+            perfil=response.perfil,
+            obligaciones=response.obligaciones,
+            quarter=quarter,
+        )
     return build_calendario_response(perfil=response.perfil, obligaciones=response.obligaciones)

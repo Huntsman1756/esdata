@@ -769,6 +769,16 @@ class AEATCampanaDetail(BaseModel):
     recursos: list[AEATModeloRecurso] = Field(default_factory=list, description="Recursos del modelo para esta campana")
 
 
+class AEATObligationContext(BaseModel):
+    perfil_codigo: str = Field(description="Perfil de entidad supervisada")
+    verified: bool = Field(description="Estado de verificacion de la obligacion de perfil")
+    norma_codigo: str | None = Field(default=None, description="Norma primaria de la obligacion")
+    articulo_referencia: str | None = Field(default=None, description="Articulo verificado")
+    completeness: str | None = Field(default=None, description="Completitud de la obligacion de perfil")
+    source_url: str | None = Field(default=None, description="Fuente oficial de la obligacion de perfil")
+    obligation_evidence_notice: str = Field(description="Aviso de evidencia de la obligacion de perfil")
+
+
 class AEATModeloDetail(BaseModel):
     codigo: str = Field(description="Codigo del modelo")
     nombre: str = Field(description="Nombre completo")
@@ -777,6 +787,12 @@ class AEATModeloDetail(BaseModel):
     verified: bool = Field(description="Si el contrato de completitud permite respuesta autoritativa")
     evidence_status: str = Field(description="Estado de evidencia para consumo por agentes")
     evidence_notice: str = Field(description="Aviso operativo sobre limites de evidencia")
+    form_completeness: str = Field(description="Completitud de instrucciones/campos del formulario")
+    form_evidence_notice: str = Field(description="Aviso de evidencia del formulario, separado de la obligacion")
+    obligation_context: list[AEATObligationContext] = Field(
+        default_factory=list,
+        description="Contexto de obligaciones verificadas por perfil para este modelo",
+    )
     casillas_total: int = Field(default=0, description="Numero de casillas/campos oficiales cargados para la campana consultada")
     casillas_campana: str | None = Field(default=None, description="Campana usada para contar casillas/campos")
     casillas_selection_notice: str | None = Field(default=None, description="Aviso si las casillas proceden de una campana distinta")

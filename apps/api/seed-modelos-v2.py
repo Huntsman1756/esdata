@@ -759,9 +759,9 @@ NORMATIVA = [
     ("289", "BOE-A-2024-24098", "Orden HAC/1150/2024 — Modelo 289",
      "2024-11-20", "https://www.boe.es/buscar/act.php?id=BOE-A-2024-24098",
      "Aprueba modelo 289 cuentas financieras DAC2/CRS"),
-    ("290", "BOE-A-2014-12328", "Acuerdo FATCA España-EEUU",
-     "2014-11-27", "https://www.boe.es/buscar/act.php?id=BOE-A-2014-12328",
-     "Aplica acuerdo FATCA para intercambio de información"),
+    ("290", "BOE-A-2014-6854", "Acuerdo FATCA España-EEUU",
+     "2014-07-01", "https://www.boe.es/buscar/act.php?id=BOE-A-2014-6854",
+     "Acuerdo FATCA España-EE.UU.; Orden HAP/1136/2014 aprueba Modelo 290"),
 ]
 
 

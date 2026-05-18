@@ -9,12 +9,15 @@ WORKDIR /workspace
 RUN pip install --no-cache-dir \
     alembic==1.16.4 \
     httpx==0.28.1 \
+    pydantic==2.13.4 \
     sqlalchemy==2.0.43 \
     psycopg[binary]==3.2.9
 
 COPY alembic.ini /workspace/alembic.ini
 COPY alembic /workspace/alembic
 COPY scripts /workspace/scripts
-COPY apps/api/mcp_catalog.py /workspace/apps/api/mcp_catalog.py
+COPY scripts/maintenance/mcp_validation_suite.py /workspace/mcp_validation_suite.py
+COPY scripts/maintenance/mcp_deep_contract_audit.py /workspace/mcp_deep_contract_audit.py
+COPY apps/api/mcp_*.py /workspace/apps/api/
 
 CMD ["python", "--version"]
