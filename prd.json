@@ -72,7 +72,7 @@
       "id": "J-06",
       "title": "Load modelo_casilla - XSD fields for CRS/289",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: J-01 schema confirmed.",
         "Load at least 20 CRS/289 XSD structural fields as modelo_casilla rows.",
