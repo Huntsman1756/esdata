@@ -20,7 +20,7 @@
       "id": "I-02",
       "title": "Seed pre-trade transparency obligations - sociedad_valores (SI conditional)",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: I-01 passed.",
         "Load conditional SI transparency obligations for sociedad_valores only.",
