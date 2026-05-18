@@ -33,7 +33,7 @@
       "id": "I-03",
       "title": "Seed pre-trade transparency obligations - agencia_valores y entidad_credito",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Load the same four RTS 1/2 obligations for agencia_valores and entidad_credito.",
         "Do not load RTS 1/2 obligations for eaf, sgiic, or empresa_servicios_pago.",
