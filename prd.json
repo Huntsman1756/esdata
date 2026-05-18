@@ -46,7 +46,7 @@
       "id": "J-04",
       "title": "Load modelo_regla_inclusion - CRS inclusion/exclusion rules",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: J-01 schema confirmed.",
         "Load at least six structured CRS inclusion/exclusion rules for Modelo 289.",
