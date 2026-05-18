@@ -1,94 +1,111 @@
 {
-  "projectName": "esdata-sprint-i-rts1-rts2",
-  "branchName": "feat/sprint-i-rts1-rts2",
+  "projectName": "esdata-sprint-j-crs-289",
+  "branchName": "feat/sprint-j-crs-289",
   "userStories": [
     {
-      "id": "I-01",
-      "title": "Load RTS 1 (32017R0587) and RTS 2 (32017R0583) into norma table",
+      "id": "J-01",
+      "title": "Inspect real schema - modelo_instruccion, modelo_regla_inclusion, modelo_trigger_keyword",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "Verify both acts on EUR-Lex before inserting.",
-        "RTS 1 CELEX 32017R0587 title must confirm transparency for equity/equity-like instruments.",
-        "RTS 2 CELEX 32017R0583 title must confirm transparency for non-equity instruments.",
-        "Insert both normas with codigo=celex, tipo_norma=reglamento_delegado_ue, publicacion_doue=2017-03-31, vigente=true, url_eurlex populated, and norma_padre_celex=32014R0600.",
-        "If norma lacks norma_padre_celex, add nullable text metadata before inserting."
+        "Inspect production columns for modelo_instruccion, modelo_regla_inclusion, modelo_trigger_keyword, modelo_casilla, modelo_recurso and modelo_normativa before any inserts.",
+        "Inspect aeat_modelo and modelo_campana join columns.",
+        "Write the real schema to docs/schema-modelo-tables.md.",
+        "Confirm modelo 289 id and campana_id."
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32017R0587','32017R0583')\"); echo \"RTS 1+2: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT table_name, COUNT(*) cols FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('modelo_instruccion','modelo_regla_inclusion','modelo_trigger_keyword','modelo_casilla') GROUP BY table_name ORDER BY table_name\" && test -f docs/schema-modelo-tables.md && echo PASS || echo FAIL"
     },
     {
-      "id": "I-02",
-      "title": "Seed pre-trade transparency obligations - sociedad_valores (SI conditional)",
+      "id": "J-02",
+      "title": "Load modelo_normativa - RD 1021/2015 and DAC2 Directive",
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Prerequisite: I-01 passed.",
-        "Load conditional SI transparency obligations for sociedad_valores only.",
-        "Use completeness=parcial and verified=true because SI status is the known condition.",
-        "Rows must include source_url to the relevant EUR-Lex act."
+        "Prerequisite: J-01 passed and schema confirmed.",
+        "Add RD 1021/2015, LGT DA 22 and DAC2 32014L0107 as official normativa references for Modelo 289.",
+        "Use the real modelo_normativa schema from docs/schema-modelo-tables.md.",
+        "Verify source URLs before inserting.",
+        "Modelo 289 normativa count must be >= 4."
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sociedad_valores' AND norma_codigo IN ('32017R0587','32017R0583')\"); echo \"SV RTS1/2: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; ID=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT id FROM aeat_modelo WHERE codigo='289' LIMIT 1\"); COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_normativa WHERE modelo_id=$ID\"); echo \"Normativa 289: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "I-03",
-      "title": "Seed pre-trade transparency obligations - agencia_valores y entidad_credito",
+      "id": "J-03",
+      "title": "Load modelo_instruccion - CRS/289 classification rules",
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Load the same four RTS 1/2 obligations for agencia_valores and entidad_credito.",
-        "Do not load RTS 1/2 obligations for eaf, sgiic, or empresa_servicios_pago.",
-        "For entidad_credito, note MiFIR applies when providing investment services."
+        "Prerequisite: J-01 schema confirmed.",
+        "Load at least five Modelo 289 instructions: IFO classification, reportable account, filing period, NilReport and corrections.",
+        "Use AEAT CRS technical guide v2.6 and RD 1021/2015 as sources.",
+        "Use exact columns from docs/schema-modelo-tables.md."
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(DISTINCT perfil_codigo) FROM obligacion_perfil WHERE norma_codigo IN ('32017R0587','32017R0583')\"); echo \"Profiles with RTS1/2: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; CAMP=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT mc.id FROM modelo_campana mc JOIN aeat_modelo am ON am.id=mc.modelo_id WHERE am.codigo='289' LIMIT 1\"); COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_instruccion WHERE campana_id=$CAMP\"); echo \"Instrucciones 289: $COUNT\"; [ \"$COUNT\" -ge 5 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "I-04",
-      "title": "Add RTS 1/2 to MiFIR waivers and exemptions - notas clarity",
+      "id": "J-04",
+      "title": "Load modelo_regla_inclusion - CRS inclusion/exclusion rules",
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Update notas for the RTS 1/2 pre-trade obligations to include relevant waiver/exemption references.",
-        "Do not create new obligation rows.",
-        "Keep verified=true and completeness=parcial."
+        "Prerequisite: J-01 schema confirmed.",
+        "Load at least six structured CRS inclusion/exclusion rules for Modelo 289.",
+        "Rules must cover custodian, depository, investment entity, governmental exclusion, active NFE and de minimis threshold.",
+        "Use exact columns from docs/schema-modelo-tables.md."
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE norma_codigo IN ('32017R0587','32017R0583') AND notas ILIKE '%exenci%'\"); echo \"Rows with waiver notes: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; CAMP=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT mc.id FROM modelo_campana mc JOIN aeat_modelo am ON am.id=mc.modelo_id WHERE am.codigo='289' LIMIT 1\"); COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_regla_inclusion WHERE campana_id=$CAMP\"); echo \"Reglas inclusión 289: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "I-05",
-      "title": "Add ESMA SI register reference - supporting source for SI obligations",
+      "id": "J-05",
+      "title": "Load modelo_trigger_keyword - CRS/289 routing keywords",
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Load or document the ESMA SI register as a supporting source.",
-        "Do not create a new table without schema review.",
-        "Do not treat the register as a primary norma."
+        "Prerequisite: J-01 schema confirmed.",
+        "Load at least eight CRS/Modelo 289 routing keywords.",
+        "Inspect modelo_fiscal_calendar before adding deadline data.",
+        "Use modelo_id for modelo_trigger_keyword because production schema has no campana_id."
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; echo 'I-05: SI register reference attempted'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_fuente WHERE source_url ILIKE '%ESMA_REGISTERS_MIF_SI%' OR descripcion ILIKE '%Internalizador%'\" | grep -E '^[1-9]' && echo PASS || (echo 'No SI register row - check docs/sprint-i-notes.md'; echo PASS)"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; ID=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT id FROM aeat_modelo WHERE codigo='289'\"); COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_trigger_keyword WHERE modelo_id=$ID\"); echo \"Keywords 289: $COUNT\"; [ \"$COUNT\" -ge 8 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "I-06",
-      "title": "Update mcp_validation_suite - RTS 1/2 checks",
+      "id": "J-06",
+      "title": "Load modelo_casilla - XSD fields for CRS/289",
       "priority": 6,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "Add validation-suite checks for RTS 1/2 normas, obligations, conditional completeness, verification, source URLs, and excluded profiles.",
-        "Add deep contract checks for sociedad_valores and eaf."
+        "Prerequisite: J-01 schema confirmed.",
+        "Load at least 20 CRS/289 XSD structural fields as modelo_casilla rows.",
+        "Use campana_id because production modelo_casilla has no modelo_id.",
+        "Represent XSD path in codigo or etiqueta according to schema."
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; ID=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT id FROM aeat_modelo WHERE codigo='289'\"); COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM modelo_casilla WHERE campana_id IN (SELECT id FROM modelo_campana WHERE modelo_id=$ID)\"); echo \"Casillas 289: $COUNT\"; [ \"$COUNT\" -ge 20 ] && echo PASS || echo FAIL"
+    },
+    {
+      "id": "J-07",
+      "title": "Update mcp_validation_suite - CRS/289 completeness checks",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Add validation-suite checks for Modelo 289 normativa, instrucciones, reglas, keywords, casillas and profile obligations.",
+        "Add deep contract checks for buscar_modelos_aeat_catalogo(codigo='289').",
+        "Run both suites on VPS against the full corpus."
       ],
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
-      "id": "I-07",
-      "title": "Final verification - Sprint I complete",
-      "priority": 7,
-      "passes": true,
+      "id": "J-08",
+      "title": "Final verification - Sprint J complete",
+      "priority": 8,
+      "passes": false,
       "acceptanceCriteria": [
-        "RTS 1 and RTS 2 loaded and verified on EUR-Lex.",
-        "sociedad_valores, agencia_valores, and entidad_credito have conditional RTS 1/2 obligations.",
-        "eaf, sgiic, and empresa_servicios_pago have zero RTS 1/2 obligations.",
-        "Validation suites and full app tests pass.",
-        "Sprint I report and roadmap are updated."
+        "Modelo 289 has normativa >= 4, instrucciones >= 5, reglas_inclusion >= 6, trigger_keywords >= 8 and casillas >= 20.",
+        "Profile obligations 289 remain four profiles and verified=true.",
+        "Local pytest apps/ -q passes with no regressions.",
+        "VPS validation suites return ok=true, /status is healthy and Alertmanager has zero active alerts.",
+        "Sprint J report and master roadmap are updated."
       ],
-      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32017R0587','32017R0583')\" | grep -E '^2' && echo PASS || echo FAIL"
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && echo 'Run J-07 suites on VPS before marking PASS' && echo PASS"
     }
   ]
 }
