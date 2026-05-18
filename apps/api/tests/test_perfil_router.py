@@ -39,7 +39,8 @@ def perfil_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
                     fuente_secundaria TEXT,
                     verified BOOLEAN,
                     completeness TEXT,
-                    source_url TEXT
+                    source_url TEXT,
+                    notas TEXT
                 )
                 """
             )

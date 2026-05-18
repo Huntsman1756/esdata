@@ -60,7 +60,8 @@ def norma_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
                     articulo_referencia TEXT,
                     verified BOOLEAN,
                     completeness TEXT,
-                    source_url TEXT
+                    source_url TEXT,
+                    notas TEXT
                 )
                 """
             )
