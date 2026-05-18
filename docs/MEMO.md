@@ -7,16 +7,20 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 ## feat/sprint-h-tool-descriptions
 
 ### Resumen
-Sprint H corrige el comportamiento de seleccion de herramientas MCP y una inconsistencia de procedencia del Modelo 290. La primera iteracion H-01 se cerro como data fix: no se cambio la obligacion ni su verificacion, solo las fuentes oficiales asociadas a FATCA.
+Sprint H corrige el comportamiento de seleccion de herramientas MCP y una inconsistencia de procedencia del Modelo 290. H-01 se cerro como data fix: no se cambio la obligacion ni su verificacion, solo las fuentes oficiales asociadas a FATCA. H-02..H-08 cierran el bug de routing: obligaciones de perfil ya no caen a catalogo AEAT, las preguntas por trimestre/mes activan calendario, y stdio MCP + HTTP MCP quedan alineados.
 
 ### Commits recientes
 | Commit | Tipo | Descripcion | Archivos afectados |
 |--------|------|-------------|-------------------|
+| 8e0e679 | fix(ops) | H-07 hace que `ops` reciba `ESDATA_API_URL`, `ESDATA_API_KEY` y `MCP_API_KEY` para que las suites de aceptacion funcionen dentro de Compose | infra/deploy/docker-compose.prod.yml |
+| 909febb | fix(api) | H-02..H-07 define `MCP_TOOL_ROUTING_POLICY`, reescribe descripciones stdio/HTTP, documenta `tools/list`, arregla el stdio real en Windows y anade checks de routing/calendario/Modelo 290 a las suites | apps/api/mcp_catalog.py, apps/api/mcp_stdio.py, apps/api/mcp_tools_perfil.py, apps/api/mcp_tools_aeat_catalogo.py, apps/api/mcp_tools_eu.py, apps/api/routers/perfil.py, apps/api/routers/modelos.py, apps/api/routers/norma.py, apps/api/schemas.py, apps/api/tests/test_mcp_routing_policy.py, apps/api/tests/test_stdio_tool_descriptions.py, apps/api/tests/test_http_mcp_descriptions.py, apps/api/tests/test_tools_list_output.py, apps/api/tests/test_modelo_obligation_context.py, docs/mcp-architecture.md, infra/deploy/Dockerfile.ops, infra/deploy/docker-compose.prod.yml, scripts/maintenance/mcp_validation_suite.py, scripts/maintenance/mcp_deep_contract_audit.py |
 | PENDING | fix(data) | H-01 corrige Modelo 290 FATCA para usar `BOE-A-2014-6854` como Acuerdo FATCA y `BOE-A-2014-6922` como orden de aprobacion del modelo, descartando `BOE-A-2014-12328` y el candidato erroneo `BOE-A-2014-8331` | scripts/seed-modelos-v2.py, apps/api/seed-modelos-v2.py, scripts/seed-fiscal-modelos.sql, prd.json, progress.txt, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
 
 ### Notas
 - Verificacion documental BOE: `BOE-A-2014-12328` es Ley 27/2014 del Impuesto sobre Sociedades; `BOE-A-2014-8331` no es FATCA; `BOE-A-2014-6854` es el Acuerdo FATCA Espana-EE.UU.; `BOE-A-2014-6922` es la Orden HAP/1136/2014 del Modelo 290.
 - Verificacion VPS H-01: `M290 source_url: https://www.boe.es/buscar/act.php?id=BOE-A-2014-6854` y `PASS`.
+- Verificacion local final H-08: `pytest apps/ -q --basetemp .pytest-tmp` -> `3124 passed`.
+- Verificacion VPS final H-07/H-08: `mcp_validation_suite.py --read-only --base-url http://api:8000` -> `ok=true`; `mcp_deep_contract_audit.py` -> `ok=true`; Alertmanager sin alertas activas.
 
 ## fix/mcp-phase-0-1
 

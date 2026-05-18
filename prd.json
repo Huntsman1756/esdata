@@ -19,7 +19,7 @@
       "id": "H-02",
       "title": "Define MCP_TOOL_ROUTING_POLICY constant in mcp_catalog.py",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Create MCP_TOOL_ROUTING_POLICY in apps/api/mcp_catalog.py.",
         "Add import/length/trigger/prohibition unit tests."
@@ -30,7 +30,7 @@
       "id": "H-03",
       "title": "Rewrite tool descriptions - stdio MCP surface",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Rewrite stdio descriptions for listar_perfiles_entidad, obtener_obligaciones_perfil, calendario_obligaciones_perfil, buscar_modelos_aeat_catalogo and buscar_norma_eu.",
         "Inject MCP_TOOL_ROUTING_POLICY into obtener_obligaciones_perfil and calendario_obligaciones_perfil."
@@ -41,7 +41,7 @@
       "id": "H-04",
       "title": "Rewrite tool descriptions - HTTP MCP surface",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Mirror stdio descriptions in FastAPI router summaries/descriptions for perfil, modelos and norma endpoints.",
         "Verify OpenAPI exposes the routing text."
@@ -52,7 +52,7 @@
       "id": "H-05",
       "title": "Verify tools/list output agent receives",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify stdio tools/list descriptions and document HTTP MCP verification in docs/mcp-architecture.md."
       ],
@@ -62,7 +62,7 @@
       "id": "H-06",
       "title": "Fix form_completeness vs obligation_context separation in 289/290 response",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify Modelo 289/290 response separates form completeness from obligation context.",
         "Fix only if current implementation conflates the layers."
@@ -73,7 +73,7 @@
       "id": "H-07",
       "title": "Update mcp_validation_suite description quality and routing checks",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Add Sprint H routing, description, Modelo 290 and calendario checks to validation suites."
       ],
@@ -83,7 +83,7 @@
       "id": "H-08",
       "title": "Final verification - Sprint H complete",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Run full app tests, MCP validation, deep contract audit, status checks and push branch."
       ],
