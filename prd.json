@@ -97,7 +97,7 @@
       "id": "J-08",
       "title": "Final verification - Sprint J complete",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Modelo 289 has normativa >= 4, instrucciones >= 5, reglas_inclusion >= 6, trigger_keywords >= 8 and casillas >= 20.",
         "Profile obligations 289 remain four profiles and verified=true.",
