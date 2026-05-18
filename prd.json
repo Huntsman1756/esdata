@@ -45,7 +45,7 @@
       "id": "I-04",
       "title": "Add RTS 1/2 to MiFIR waivers and exemptions - notas clarity",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Update notas for the RTS 1/2 pre-trade obligations to include relevant waiver/exemption references.",
         "Do not create new obligation rows.",
