@@ -457,6 +457,79 @@ def _check_database_contracts() -> list[dict[str, Any]]:
               AND plazo_descripcion IS NULL
             """,
         ),
+        _check_db_scalar(
+            database_url,
+            "rts1_norma_loaded",
+            "SELECT COUNT(*) FROM norma WHERE celex='32017R0587'",
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "rts2_norma_loaded",
+            "SELECT COUNT(*) FROM norma WHERE celex='32017R0583'",
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "sociedad_valores_rts1_rts2_obligations_ge_4",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='sociedad_valores'
+              AND norma_codigo IN ('32017R0587','32017R0583')
+            """,
+            4,
+        ),
+        _check_db_zero(
+            database_url,
+            "rts1_rts2_obligations_all_parcial",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE norma_codigo IN ('32017R0587','32017R0583')
+              AND completeness <> 'parcial'
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "rts1_rts2_obligations_all_verified",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE norma_codigo IN ('32017R0587','32017R0583')
+              AND verified IS NOT true
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "rts1_rts2_obligations_source_url_eurlex",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE norma_codigo IN ('32017R0587','32017R0583')
+              AND source_url NOT ILIKE '%eur-lex%'
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "eaf_has_zero_rts1_rts2_obligations",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='eaf'
+              AND norma_codigo IN ('32017R0587','32017R0583')
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "empresa_servicios_pago_has_zero_rts1_rts2_obligations",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='empresa_servicios_pago'
+              AND norma_codigo IN ('32017R0587','32017R0583')
+            """,
+        ),
     ]
     return checks
 

@@ -1232,6 +1232,24 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     details["modelo_289_profile_evidence_notice"] = [
         item.get("evidence_notice") for item in modelo_289_profile_items
     ]
+    sociedad_rts_items = [
+        item
+        for item in sociedad_items
+        if isinstance(item, dict) and item.get("norma_codigo") in {"32017R0587", "32017R0583"}
+    ]
+    sociedad_rts1_items = [
+        item for item in sociedad_rts_items if item.get("norma_codigo") == "32017R0587"
+    ]
+    eaf_rts_items = [
+        item
+        for item in profile_obligaciones.get("eaf", [])
+        if isinstance(item, dict) and item.get("norma_codigo") in {"32017R0587", "32017R0583"}
+    ]
+    details["sociedad_valores_rts1_rts2_count"] = len(sociedad_rts_items)
+    details["sociedad_valores_rts1_descriptions"] = [
+        item.get("descripcion") for item in sociedad_rts1_items
+    ]
+    details["eaf_rts1_rts2_count"] = len(eaf_rts_items)
 
     if not any("idoneidad" in str(item.get("descripcion", "")).lower() for item in eaf_items if isinstance(item, dict)):
         failures.append({"check": "eaf_cnmv_idoneidad"})
@@ -1330,6 +1348,32 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         if isinstance(item, dict)
     ):
         failures.append({"check": "modelo_289_profile_evidence_notice_verified"})
+    if not sociedad_rts1_items:
+        failures.append({"check": "sociedad_valores_rts1_obligation_present"})
+    if not any(
+        "Verificado" in str(item.get("evidence_notice") or "")
+        for item in sociedad_rts1_items
+    ):
+        failures.append({"check": "sociedad_valores_rts1_evidence_notice_verified"})
+    if not all(item.get("completeness") == "parcial" for item in sociedad_rts_items):
+        failures.append({"check": "sociedad_valores_rts_completeness_parcial"})
+    sociedad_rts_pre_trade_items = [
+        item
+        for item in sociedad_rts_items
+        if "pre-negociacion" in str(item.get("descripcion", "")).lower()
+    ]
+    if not all(
+        item.get("notas")
+        and (
+            "Internalizador Sistematico" in str(item.get("notas"))
+            or "estatus SI" in str(item.get("notas"))
+            or "registrada como SI" in str(item.get("notas"))
+        )
+        for item in sociedad_rts_pre_trade_items
+    ):
+        failures.append({"check": "sociedad_valores_rts_notas_si_conditionality"})
+    if eaf_rts_items:
+        failures.append({"check": "eaf_has_zero_rts1_rts2_obligations", "items": eaf_rts_items[:5]})
     missing_profile_source = [
         item.get("descripcion")
         for item in all_profile_items
