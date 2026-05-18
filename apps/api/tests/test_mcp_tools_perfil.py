@@ -87,6 +87,7 @@ def perfil_db() -> Session:
                     "norma": "LIS" if modelo == "200" else "LIRPF",
                     "articulo": "art. 124" if modelo == "200" else "art. 101",
                     "verified": 1,
+                    "notas": f"Nota operativa Modelo {modelo}",
                 }
             )
         for desc in (
@@ -104,6 +105,7 @@ def perfil_db() -> Session:
                     "norma": "LEY10_2010",
                     "articulo": "art. 3",
                     "verified": 1,
+                    "notas": f"Nota operativa {desc}",
                 }
             )
         for desc in (
@@ -121,6 +123,7 @@ def perfil_db() -> Session:
                     "norma": "LIVMC",
                     "articulo": "art. 228",
                     "verified": 0 if "MiFIR" in desc else 1,
+                    "notas": f"Nota operativa {desc}",
                 }
             )
 
@@ -131,11 +134,11 @@ def perfil_db() -> Session:
                     INSERT INTO obligacion_perfil (
                         perfil_codigo, obligacion_tipo, descripcion, periodicidad,
                         modelo_aeat, norma_codigo, articulo_referencia,
-                        fuente_secundaria, verified, completeness, source_url
+                        fuente_secundaria, verified, completeness, source_url, notas
                     ) VALUES (
                         'sociedad_valores', :tipo, :desc, :periodicidad,
                         :modelo, :norma, :articulo, NULL, :verified, 'completa',
-                        'https://example.test/source'
+                        'https://example.test/source', :notas
                     )
                     """
                 ),
@@ -166,6 +169,7 @@ def test_obtener_obligaciones_perfil_returns_profile_obligations(perfil_db: Sess
 
     assert response.total >= 15
     assert response.perfil.codigo == "sociedad_valores"
+    assert any(item.notas for item in response.obligaciones)
 
 
 def test_obtener_obligaciones_perfil_pbc_returns_only_pbc_types(perfil_db: Session) -> None:

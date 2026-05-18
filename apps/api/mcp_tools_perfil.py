@@ -58,6 +58,7 @@ class ObligacionItem(BaseModel):
     completeness: str
     source_url: str = Field(min_length=1)
     evidence_notice: str
+    notas: str | None = None
 
 
 class ObligacionesResponse(BaseModel):
@@ -306,6 +307,7 @@ def _obligacion_from_row(row: Any) -> ObligacionItem:
         completeness=str(row["completeness"]),
         source_url=str(row["source_url"]),
         evidence_notice=_evidence_notice(row),
+        notas=row["notas"],
     )
 
 
@@ -334,7 +336,8 @@ def obtener_obligaciones_perfil(
                 op.fuente_secundaria,
                 op.verified,
                 op.completeness,
-                op.source_url
+                op.source_url,
+                op.notas
             FROM obligacion_perfil op
             WHERE op.perfil_codigo = :perfil_codigo
               AND op.source_url IS NOT NULL

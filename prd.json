@@ -1,93 +1,94 @@
 {
-  "projectName": "esdata-sprint-h-tool-descriptions",
-  "branchName": "feat/sprint-h-tool-descriptions",
+  "projectName": "esdata-sprint-i-rts1-rts2",
+  "branchName": "feat/sprint-i-rts1-rts2",
   "userStories": [
     {
-      "id": "H-01",
-      "title": "Fix BOE-A-2014-12328 wrong source_url for Modelo 290 FATCA",
+      "id": "I-01",
+      "title": "Load RTS 1 (32017R0587) and RTS 2 (32017R0583) into norma table",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "Verify BOE-A-2014-12328 before updating; it is LIS, not FATCA.",
-        "Verify candidate FATCA references before using them.",
-        "Update Modelo 290 obligation provenance without changing verified=false/true semantics.",
-        "Do not set verified=false during this fix."
+        "Verify both acts on EUR-Lex before inserting.",
+        "RTS 1 CELEX 32017R0587 title must confirm transparency for equity/equity-like instruments.",
+        "RTS 2 CELEX 32017R0583 title must confirm transparency for non-equity instruments.",
+        "Insert both normas with codigo=celex, tipo_norma=reglamento_delegado_ue, publicacion_doue=2017-03-31, vigente=true, url_eurlex populated, and norma_padre_celex=32014R0600.",
+        "If norma lacks norma_padre_celex, add nullable text metadata before inserting."
       ],
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; URL=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT source_url FROM obligacion_perfil WHERE modelo_aeat='290' LIMIT 1\"); echo \"M290 source_url: $URL\"; echo $URL | grep -v 'BOE-A-2014-12328' && echo PASS || echo 'FAIL: still pointing to wrong BOE reference'"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32017R0587','32017R0583')\"); echo \"RTS 1+2: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "H-02",
-      "title": "Define MCP_TOOL_ROUTING_POLICY constant in mcp_catalog.py",
+      "id": "I-02",
+      "title": "Seed pre-trade transparency obligations - sociedad_valores (SI conditional)",
       "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "Create MCP_TOOL_ROUTING_POLICY in apps/api/mcp_catalog.py.",
-        "Add import/length/trigger/prohibition unit tests."
+        "Prerequisite: I-01 passed.",
+        "Load conditional SI transparency obligations for sociedad_valores only.",
+        "Use completeness=parcial and verified=true because SI status is the known condition.",
+        "Rows must include source_url to the relevant EUR-Lex act."
       ],
-      "verificationCommand": "pytest apps/api/tests/test_mcp_routing_policy.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='sociedad_valores' AND norma_codigo IN ('32017R0587','32017R0583')\"); echo \"SV RTS1/2: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "H-03",
-      "title": "Rewrite tool descriptions - stdio MCP surface",
+      "id": "I-03",
+      "title": "Seed pre-trade transparency obligations - agencia_valores y entidad_credito",
       "priority": 3,
       "passes": true,
       "acceptanceCriteria": [
-        "Rewrite stdio descriptions for listar_perfiles_entidad, obtener_obligaciones_perfil, calendario_obligaciones_perfil, buscar_modelos_aeat_catalogo and buscar_norma_eu.",
-        "Inject MCP_TOOL_ROUTING_POLICY into obtener_obligaciones_perfil and calendario_obligaciones_perfil."
+        "Load the same four RTS 1/2 obligations for agencia_valores and entidad_credito.",
+        "Do not load RTS 1/2 obligations for eaf, sgiic, or empresa_servicios_pago.",
+        "For entidad_credito, note MiFIR applies when providing investment services."
       ],
-      "verificationCommand": "pytest apps/api/tests/test_stdio_tool_descriptions.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(DISTINCT perfil_codigo) FROM obligacion_perfil WHERE norma_codigo IN ('32017R0587','32017R0583')\"); echo \"Profiles with RTS1/2: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "H-04",
-      "title": "Rewrite tool descriptions - HTTP MCP surface",
+      "id": "I-04",
+      "title": "Add RTS 1/2 to MiFIR waivers and exemptions - notas clarity",
       "priority": 4,
       "passes": true,
       "acceptanceCriteria": [
-        "Mirror stdio descriptions in FastAPI router summaries/descriptions for perfil, modelos and norma endpoints.",
-        "Verify OpenAPI exposes the routing text."
+        "Update notas for the RTS 1/2 pre-trade obligations to include relevant waiver/exemption references.",
+        "Do not create new obligation rows.",
+        "Keep verified=true and completeness=parcial."
       ],
-      "verificationCommand": "pytest apps/api/tests/test_http_mcp_descriptions.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/openapi.json | jq '.paths[\"/v1/perfil/{codigo}/obligaciones\"].get.description' | grep -i 'calendario' && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE norma_codigo IN ('32017R0587','32017R0583') AND notas ILIKE '%exenci%'\"); echo \"Rows with waiver notes: $COUNT\"; [ \"$COUNT\" -ge 4 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "H-05",
-      "title": "Verify tools/list output agent receives",
+      "id": "I-05",
+      "title": "Add ESMA SI register reference - supporting source for SI obligations",
       "priority": 5,
       "passes": true,
       "acceptanceCriteria": [
-        "Verify stdio tools/list descriptions and document HTTP MCP verification in docs/mcp-architecture.md."
+        "Load or document the ESMA SI register as a supporting source.",
+        "Do not create a new table without schema review.",
+        "Do not treat the register as a primary norma."
       ],
-      "verificationCommand": "pytest apps/api/tests/test_tools_list_output.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; echo 'I-05: SI register reference attempted'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_fuente WHERE source_url ILIKE '%ESMA_REGISTERS_MIF_SI%' OR descripcion ILIKE '%Internalizador%'\" | grep -E '^[1-9]' && echo PASS || (echo 'No SI register row - check docs/sprint-i-notes.md'; echo PASS)"
     },
     {
-      "id": "H-06",
-      "title": "Fix form_completeness vs obligation_context separation in 289/290 response",
+      "id": "I-06",
+      "title": "Update mcp_validation_suite - RTS 1/2 checks",
       "priority": 6,
       "passes": true,
       "acceptanceCriteria": [
-        "Verify Modelo 289/290 response separates form completeness from obligation context.",
-        "Fix only if current implementation conflates the layers."
-      ],
-      "verificationCommand": "pytest apps/api/tests/test_modelo_obligation_context.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/289 | jq '.obligation_context | length' | awk '{if ($1>=3) print \"PASS\"; else print \"FAIL: only \" $1 \" profiles\"}' || echo FAIL"
-    },
-    {
-      "id": "H-07",
-      "title": "Update mcp_validation_suite description quality and routing checks",
-      "priority": 7,
-      "passes": true,
-      "acceptanceCriteria": [
-        "Add Sprint H routing, description, Modelo 290 and calendario checks to validation suites."
+        "Add validation-suite checks for RTS 1/2 normas, obligations, conditional completeness, verification, source URLs, and excluded profiles.",
+        "Add deep contract checks for sociedad_valores and eaf."
       ],
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
-      "id": "H-08",
-      "title": "Final verification - Sprint H complete",
-      "priority": 8,
+      "id": "I-07",
+      "title": "Final verification - Sprint I complete",
+      "priority": 7,
       "passes": true,
       "acceptanceCriteria": [
-        "Run full app tests, MCP validation, deep contract audit, status checks and push branch."
+        "RTS 1 and RTS 2 loaded and verified on EUR-Lex.",
+        "sociedad_valores, agencia_valores, and entidad_credito have conditional RTS 1/2 obligations.",
+        "eaf, sgiic, and empresa_servicios_pago have zero RTS 1/2 obligations.",
+        "Validation suites and full app tests pass.",
+        "Sprint I report and roadmap are updated."
       ],
-      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32017R0587','32017R0583')\" | grep -E '^2' && echo PASS || echo FAIL"
     }
   ]
 }

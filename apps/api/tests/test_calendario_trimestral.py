@@ -50,7 +50,8 @@ def _make_session_factory() -> sessionmaker[Session]:
                     fuente_secundaria TEXT,
                     verified BOOLEAN NOT NULL,
                     completeness TEXT NOT NULL,
-                    source_url TEXT NOT NULL
+                    source_url TEXT NOT NULL,
+                    notas TEXT
                 )
                 """
             )

@@ -31,6 +31,17 @@ HTTP MCP uses JSON-RPC over `/mcp`. Start a session with the MCP handshake, then
 call `tools/list` on `/mcp` with the returned `MCP-Session-ID`. There is no
 separate stable `/mcp/tools` REST endpoint in this stack.
 
+## Validation environments
+
+Local Docker Desktop environments may use a minimal database for focused seed
+development. The MCP validation suites assume the complete production-like
+corpus is present.
+
+Run `mcp_validation_suite.py` and `mcp_deep_contract_audit.py` for sprint
+closure on the VPS, from the `ops` service, after applying the sprint data
+seeds to the VPS database. A local minimal corpus is valid for focused checks,
+but not for final `ok=true` suite acceptance.
+
 ## Routing policy
 
 `MCP_TOOL_ROUTING_POLICY` is defined once in `apps/api/mcp_catalog.py`.
