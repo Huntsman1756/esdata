@@ -133,6 +133,19 @@ def _log_mcp_call(
     )
 
 
+class _AsyncStdinReader:
+    """Small async adapter for stdin bytes used by the stdio MCP loop."""
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    async def receive_line(self) -> bytes:
+        return await anyio.to_thread.run_sync(self._stream.readline)
+
+    async def receive_some(self, max_bytes: int) -> bytes:
+        return await anyio.to_thread.run_sync(self._stream.read, max_bytes)
+
+
 class MCPStdioServer:
     """Minimal MCP stdio server using Streamable HTTP transport concept."""
 
@@ -172,8 +185,10 @@ class MCPStdioServer:
 
     def _send(self, data: dict[str, Any]):
         payload = json.dumps(data, ensure_ascii=False)
-        sys.stdout.write(f"Content-Length: {len(payload.encode('utf-8'))}\r\n\r\n{payload}")
-        sys.stdout.flush()
+        payload_bytes = payload.encode("utf-8")
+        header = f"Content-Length: {len(payload_bytes)}\r\n\r\n".encode("ascii")
+        sys.stdout.buffer.write(header + payload_bytes)
+        sys.stdout.buffer.flush()
 
     async def _read_exact(self, stream, content_length: int) -> bytes:
         chunks: list[bytes] = []
@@ -219,7 +234,7 @@ class MCPStdioServer:
 
     async def run(self):
         try:
-            stdin_raw = anyio.wrap_socket(sys.stdin.detach())
+            stdin_raw = _AsyncStdinReader(sys.stdin.buffer)
             while True:
                 try:
                     message = await self._read_message(stdin_raw)

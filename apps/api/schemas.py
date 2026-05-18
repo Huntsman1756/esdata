@@ -774,6 +774,8 @@ class AEATObligationContext(BaseModel):
     verified: bool = Field(description="Estado de verificacion de la obligacion de perfil")
     norma_codigo: str | None = Field(default=None, description="Norma primaria de la obligacion")
     articulo_referencia: str | None = Field(default=None, description="Articulo verificado")
+    completeness: str | None = Field(default=None, description="Completitud de la obligacion de perfil")
+    source_url: str | None = Field(default=None, description="Fuente oficial de la obligacion de perfil")
     obligation_evidence_notice: str = Field(description="Aviso de evidencia de la obligacion de perfil")
 
 

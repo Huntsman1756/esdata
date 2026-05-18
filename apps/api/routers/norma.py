@@ -2,14 +2,22 @@ from __future__ import annotations
 
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query
-from mcp_tools_eu import TipoNormaEu, buscar_norma_eu
+from mcp_tools_eu import BUSCAR_NORMA_EU, TipoNormaEu, buscar_norma_eu
 from sqlalchemy import text
 
 
 router = APIRouter(prefix="/v1/norma", tags=["norma", "eu"])
 
 
-@router.get("/eu", operation_id="buscar_norma_eu")
+NORMA_EU_DESCRIPTION = BUSCAR_NORMA_EU.description
+
+
+@router.get(
+    "/eu",
+    operation_id="buscar_norma_eu",
+    summary="Busca normas UE cargadas",
+    description=NORMA_EU_DESCRIPTION,
+)
 async def list_normas_eu(
     termino: str = Query("", description="Keyword, CELEX, or regulation name."),
     tipo_norma: TipoNormaEu | None = Query(None),
@@ -21,7 +29,12 @@ async def list_normas_eu(
         ]
 
 
-@router.get("/{codigo}", operation_id="get_norma_eu")
+@router.get(
+    "/{codigo}",
+    operation_id="get_norma_eu",
+    summary="Detalle de norma UE por codigo o CELEX",
+    description=NORMA_EU_DESCRIPTION,
+)
 async def get_norma(codigo: str):
     with db_session() as db:
         norma = db.execute(

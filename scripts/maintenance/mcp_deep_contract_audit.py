@@ -32,7 +32,16 @@ import httpx
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-ROOT = Path(__file__).resolve().parents[2]
+
+def _repo_root() -> Path:
+    current = Path(__file__).resolve()
+    for parent in (current.parent, *current.parents):
+        if (parent / "apps" / "api").exists() and (parent / "scripts").exists():
+            return parent
+    return Path.cwd()
+
+
+ROOT = _repo_root()
 REGISTRY_PATH = ROOT / "scripts" / "ralph" / "table-remediation-registry.json"
 MCP_CATALOG_PATH = ROOT / "apps" / "api" / "mcp_catalog.py"
 
@@ -1082,6 +1091,10 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
 
     with httpx.Client(base_url=base_url, timeout=60) as client:
         profile_checks = {
+            "sociedad_valores_fiscal": (
+                "/v1/perfil/sociedad_valores/obligaciones",
+                {"dominio": "FISCAL"},
+            ),
             "eaf_cnmv": ("/v1/perfil/eaf/obligaciones", {"dominio": "CNMV"}),
             "entidad_credito_cnmv": (
                 "/v1/perfil/entidad_credito/obligaciones",
@@ -1118,6 +1131,9 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         details["catalog_123_status"] = catalog_123_status
         details["modelo_289_status"] = modelo_289_status
 
+    sociedad_fiscal_items = extra_payloads.get("sociedad_valores_fiscal", {}).get(
+        "obligaciones", []
+    )
     eaf_items = extra_payloads.get("eaf_cnmv", {}).get("obligaciones", [])
     entidad_items = extra_payloads.get("entidad_credito_cnmv", {}).get("obligaciones", [])
     esp_items = extra_payloads.get("empresa_servicios_pago_fiscal", {}).get("obligaciones", [])
@@ -1206,6 +1222,11 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         if isinstance(item, dict) and item.get("modelo_aeat") == "289"
     ]
     details["calendar_q3_modelos"] = sorted(str(modelo) for modelo in q3_modelos)
+    details["sociedad_valores_fiscal_modelos"] = sorted(
+        str(item.get("modelo_aeat"))
+        for item in sociedad_fiscal_items
+        if isinstance(item, dict) and item.get("modelo_aeat")
+    )
     details["catalog_123_keys"] = sorted(catalog_first.keys()) if isinstance(catalog_first, dict) else []
     details["modelo_289_sociedad_context"] = modelo_289_sociedad_context[:1]
     details["modelo_289_profile_evidence_notice"] = [
@@ -1251,6 +1272,11 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         calendar_q3_status != 200
         or "303" not in q3_modelos
         or "202" in q3_modelos
+        or any(
+            not item.get("plazo_descripcion")
+            for item in calendar_q3_items
+            if isinstance(item, dict)
+        )
     ):
         failures.append(
             {
@@ -1258,6 +1284,18 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 "status": calendar_q3_status,
                 "modelos": sorted(str(modelo) for modelo in q3_modelos),
                 "response": calendar_q3_preview,
+            }
+        )
+    sociedad_fiscal_modelos = {
+        item.get("modelo_aeat")
+        for item in sociedad_fiscal_items
+        if isinstance(item, dict) and item.get("modelo_aeat")
+    }
+    if {"123", "124"} & sociedad_fiscal_modelos:
+        failures.append(
+            {
+                "check": "sociedad_valores_fiscal_no_123_124",
+                "modelos": sorted(str(modelo) for modelo in sociedad_fiscal_modelos),
             }
         )
     if (
@@ -1346,6 +1384,17 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 tool = tools.get("obtener_obligaciones_perfil") or {}
                 description = tool.get("description") or ""
                 details["obtener_obligaciones_perfil_description_length"] = len(description)
+                try:
+                    api_path = ROOT / "apps" / "api"
+                    if str(api_path) not in sys.path:
+                        sys.path.insert(0, str(api_path))
+                    from mcp_catalog import MCP_TOOL_ROUTING_POLICY  # type: ignore
+
+                    details["routing_policy_length"] = len(MCP_TOOL_ROUTING_POLICY)
+                    if "calendario_obligaciones_perfil" not in MCP_TOOL_ROUTING_POLICY:
+                        failures.append({"check": "mcp_tool_routing_policy_importable"})
+                except Exception as exc:
+                    failures.append({"check": "mcp_tool_routing_policy_importable", "error": str(exc)})
                 expected_core_tools = {
                     "listar_perfiles_entidad",
                     "obtener_obligaciones_perfil",
@@ -1358,6 +1407,13 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 details["profile_mcp_core_tool_count"] = len(present_core_tools)
                 if len(description) <= 50:
                     failures.append({"check": "tool_description_length", "tool": "obtener_obligaciones_perfil"})
+                if "NO" not in description or "calendario_obligaciones_perfil" not in description:
+                    failures.append(
+                        {
+                            "check": "obtener_obligaciones_routing_description",
+                            "description": description[:300],
+                        }
+                    )
                 missing_core_tools = sorted(expected_core_tools - set(present_core_tools))
                 if missing_core_tools:
                     failures.append(
@@ -1372,7 +1428,7 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 catalog_description = (
                     tools.get("buscar_modelos_aeat_catalogo", {}).get("description") or ""
                 )
-                if "quarter" not in calendar_description:
+                if "quarter" not in calendar_description or "este trimestre" not in calendar_description:
                     failures.append(
                         {
                             "check": "calendar_tool_quarter_description",

@@ -15,7 +15,7 @@ from schemas import (
     ModeloDetail as ModeloDetailSchema,
     ModeloCasillasResponse,
 )
-from mcp_tools_aeat_catalogo import buscar_modelos_aeat_catalogo
+from mcp_tools_aeat_catalogo import BUSCAR_MODELOS_AEAT_CATALOGO, buscar_modelos_aeat_catalogo
 from services.modelos import (
     build_modelo_truth_contract,
     count_campaign_casillas,
@@ -99,7 +99,13 @@ def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
         rows = db.execute(
             text(
                 """
-                SELECT perfil_codigo, verified, norma_codigo, articulo_referencia, completeness
+                SELECT
+                    perfil_codigo,
+                    verified,
+                    norma_codigo,
+                    articulo_referencia,
+                    completeness,
+                    source_url
                 FROM obligacion_perfil
                 WHERE modelo_aeat = :codigo
                 ORDER BY perfil_codigo
@@ -115,6 +121,8 @@ def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
             "verified": bool(row["verified"]),
             "norma_codigo": row["norma_codigo"],
             "articulo_referencia": row["articulo_referencia"],
+            "completeness": row["completeness"],
+            "source_url": row["source_url"],
             "obligation_evidence_notice": _obligation_evidence_notice(row),
         }
         for row in rows
@@ -338,12 +346,7 @@ async def get_modelos_por_supuesto(
     "/catalogo",
     operation_id="buscar_modelos_aeat_catalogo",
     summary="Busca modelos AEAT en el catalogo general",
-    description=(
-        "Busca modelos AEAT por codigo o termino. Esta ruta devuelve informacion "
-        "del catalogo: nombre, instrucciones disponibles, claves y completitud de "
-        "datos cargados. NO indica si una entidad concreta tiene obligacion de "
-        "presentarlo; para eso usar obtener_obligaciones_perfil."
-    ),
+    description=BUSCAR_MODELOS_AEAT_CATALOGO.description,
 )
 async def get_modelos_aeat_catalogo(
     codigo: str | None = Query(None, description="Codigo de modelo AEAT, ej: 123"),

@@ -20,12 +20,16 @@ class ModeloAEATCatalogoItem(BaseModel):
 BUSCAR_MODELOS_AEAT_CATALOGO = MCPToolContract(
     name="buscar_modelos_aeat_catalogo",
     description=(
-        "Busca modelos AEAT en el catalogo general por codigo o descripcion. Devuelve "
-        "informacion sobre el modelo: nombre, instrucciones disponibles, claves y "
-        "completeness de datos cargados. NO indica si una entidad concreta tiene "
-        "obligacion de presentarlo; para eso usar obtener_obligaciones_perfil. Usar "
-        "cuando el usuario pregunta que es un modelo AEAT concreto, como se rellena, "
-        "o que claves tiene, independientemente de su perfil."
+        "WHEN to use: Para saber que es un modelo, como se rellena, que campos/casillas "
+        "tiene, que claves o instrucciones existen, independientemente del perfil de la "
+        "entidad. Ejemplos: 'que es el modelo 303', 'como se rellena el modelo 290', "
+        "'que claves tiene el modelo 198'. Parametros: codigo opcional, por ejemplo '123' "
+        "o '303'; termino opcional para buscar texto en codigo o descripcion. Devuelve "
+        "codigo, nombre, completeness, instrucciones_count, claves_count y source_url. "
+        "EXPLICIT WARNING: Esta herramienta NO indica si una entidad tiene obligación de "
+        "presentar el modelo. Para obligatoriedad, usar obtener_obligaciones_perfil. "
+        "NO combinar resultados de esta herramienta con obligaciones de perfil sin "
+        "separación explícita."
     ),
     parameters={
         "codigo": {

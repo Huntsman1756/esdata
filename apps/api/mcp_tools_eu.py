@@ -33,12 +33,15 @@ class MCPToolContract:
 BUSCAR_NORMA_EU = MCPToolContract(
     name="buscar_norma_eu",
     description=(
-        "Busca reglamentos y directivas de la UE cargados en ESData. Devuelve ficha con "
-        "CELEX, titulo oficial, fecha publicacion DOUE, URL EUR-Lex, y vigencia. Usar "
-        "cuando el usuario pregunta por un reglamento europeo concreto (MiFIR, EMIR, "
-        "DORA, CRR, UCITS, AIFMD, SFTR) o quiere saber si una norma UE esta cargada "
-        "en el sistema. No usar para buscar obligaciones de una entidad; usar "
-        "obtener_obligaciones_perfil para eso."
+        "Busca reglamentos, directivas, RTS, ITS y guias ESMA de la UE cargados en ESData. "
+        "WHEN to use: usar cuando el usuario pregunta por una norma UE concreta como MiFIR, "
+        "EMIR, DORA, CRR, UCITS, AIFMD o SFTR, por un CELEX, o por si una norma UE esta "
+        "cargada en el sistema. Parametros: termino obligatorio con keyword, CELEX o nombre; "
+        "tipo_norma opcional acepta reglamento_ue, directiva_ue, rts, its o guideline_esma. "
+        "Devuelve codigo, CELEX, titulo oficial, fecha de publicacion DOUE, URL EUR-Lex, "
+        "vigente y derogada_por. No usar para obtener obligaciones de una entidad. Para eso, "
+        "usar obtener_obligaciones_perfil. NO responde si un perfil debe cumplir una norma; "
+        "solo devuelve ficha normativa UE."
     ),
     parameters={
         "termino": {
