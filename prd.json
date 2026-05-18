@@ -85,7 +85,7 @@
       "id": "J-07",
       "title": "Update mcp_validation_suite - CRS/289 completeness checks",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Add validation-suite checks for Modelo 289 normativa, instrucciones, reglas, keywords, casillas and profile obligations.",
         "Add deep contract checks for buscar_modelos_aeat_catalogo(codigo='289').",

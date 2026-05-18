@@ -1123,12 +1123,18 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
             "/v1/modelos/catalogo",
             params={"codigo": "123"},
         )
+        catalog_289_status, catalog_289_payload, catalog_289_preview = _get_json(
+            client,
+            "/v1/modelos/catalogo",
+            params={"codigo": "289"},
+        )
         modelo_289_status, modelo_289_payload, modelo_289_preview = _get_json(
             client,
             "/v1/modelos/aeat/289",
         )
         details["calendar_q3_status"] = calendar_q3_status
         details["catalog_123_status"] = catalog_123_status
+        details["catalog_289_status"] = catalog_289_status
         details["modelo_289_status"] = modelo_289_status
 
     sociedad_fiscal_items = extra_payloads.get("sociedad_valores_fiscal", {}).get(
@@ -1140,6 +1146,7 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     sgiic_items = extra_payloads.get("sgiic_cnmv", {}).get("obligaciones", [])
     calendar_q3_items = calendar_q3_payload if isinstance(calendar_q3_payload, list) else []
     catalog_123_items = catalog_123_payload if isinstance(catalog_123_payload, list) else []
+    catalog_289_items = catalog_289_payload if isinstance(catalog_289_payload, list) else []
     modelo_289_context = (
         modelo_289_payload.get("obligation_context")
         if isinstance(modelo_289_payload, dict)
@@ -1211,6 +1218,7 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         if isinstance(item, dict) and item.get("modelo_aeat")
     }
     catalog_first = catalog_123_items[0] if catalog_123_items and isinstance(catalog_123_items[0], dict) else {}
+    catalog_289_first = catalog_289_items[0] if catalog_289_items and isinstance(catalog_289_items[0], dict) else {}
     modelo_289_sociedad_context = [
         item
         for item in (modelo_289_context or [])
@@ -1228,6 +1236,24 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         if isinstance(item, dict) and item.get("modelo_aeat")
     )
     details["catalog_123_keys"] = sorted(catalog_first.keys()) if isinstance(catalog_first, dict) else []
+    details["catalog_289_counts"] = {
+        "codigo": catalog_289_first.get("codigo") if isinstance(catalog_289_first, dict) else None,
+        "instrucciones_count": (
+            catalog_289_first.get("instrucciones_count")
+            if isinstance(catalog_289_first, dict)
+            else None
+        ),
+        "reglas_inclusion_count": (
+            catalog_289_first.get("reglas_inclusion_count")
+            if isinstance(catalog_289_first, dict)
+            else None
+        ),
+        "has_obligation_context": (
+            "obligation_context" in catalog_289_first
+            if isinstance(catalog_289_first, dict)
+            else None
+        ),
+    }
     details["modelo_289_sociedad_context"] = modelo_289_sociedad_context[:1]
     details["modelo_289_profile_evidence_notice"] = [
         item.get("evidence_notice") for item in modelo_289_profile_items
@@ -1327,6 +1353,22 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 "check": "catalog_tool_has_no_profile_evidence",
                 "status": catalog_123_status,
                 "response": catalog_123_preview,
+            }
+        )
+    if (
+        catalog_289_status != 200
+        or not catalog_289_first
+        or catalog_289_first.get("codigo") != "289"
+        or int(catalog_289_first.get("instrucciones_count") or 0) < 5
+        or int(catalog_289_first.get("reglas_inclusion_count") or 0) < 6
+        or "obligation_context" in catalog_289_first
+    ):
+        failures.append(
+            {
+                "check": "catalog_289_crs_counts_no_obligation_context",
+                "status": catalog_289_status,
+                "response": catalog_289_preview,
+                "counts": details["catalog_289_counts"],
             }
         )
     if (
