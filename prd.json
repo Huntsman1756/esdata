@@ -59,7 +59,7 @@
       "id": "J-05",
       "title": "Load modelo_trigger_keyword - CRS/289 routing keywords",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: J-01 schema confirmed.",
         "Load at least eight CRS/Modelo 289 routing keywords.",
