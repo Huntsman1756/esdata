@@ -57,7 +57,7 @@
       "id": "I-05",
       "title": "Add ESMA SI register reference - supporting source for SI obligations",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Load or document the ESMA SI register as a supporting source.",
         "Do not create a new table without schema review.",
