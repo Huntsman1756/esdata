@@ -19,7 +19,7 @@
       "id": "J-02",
       "title": "Load modelo_normativa - RD 1021/2015 and DAC2 Directive",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: J-01 passed and schema confirmed.",
         "Add RD 1021/2015, LGT DA 22 and DAC2 32014L0107 as official normativa references for Modelo 289.",
