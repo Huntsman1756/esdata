@@ -1,55 +1,93 @@
 {
-  "projectName": "esdata-sprint-g-routing-calendario",
-  "branchName": "feat/sprint-g-routing-calendario",
+  "projectName": "esdata-sprint-h-tool-descriptions",
+  "branchName": "feat/sprint-h-tool-descriptions",
   "userStories": [
     {
-      "id": "G-01",
-      "title": "BUG-1: Add Modelo 202 (IS pago fraccionado) to all IS-subject profiles",
+      "id": "H-01",
+      "title": "Fix BOE-A-2014-12328 wrong source_url for Modelo 290 FATCA",
       "priority": 1,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE modelo_aeat='202' AND verified=true\"); echo \"M202 profiles: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
+      "acceptanceCriteria": [
+        "Verify BOE-A-2014-12328 before updating; it is LIS, not FATCA.",
+        "Verify candidate FATCA references before using them.",
+        "Update Modelo 290 obligation provenance without changing verified=false/true semantics.",
+        "Do not set verified=false during this fix."
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; URL=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT source_url FROM obligacion_perfil WHERE modelo_aeat='290' LIMIT 1\"); echo \"M290 source_url: $URL\"; echo $URL | grep -v 'BOE-A-2014-12328' && echo PASS || echo 'FAIL: still pointing to wrong BOE reference'"
     },
     {
-      "id": "G-02",
-      "title": "BUG-2: Separate catalogue tool from profile obligations tool",
+      "id": "H-02",
+      "title": "Define MCP_TOOL_ROUTING_POLICY constant in mcp_catalog.py",
       "priority": 2,
-      "passes": true,
-      "verificationCommand": "pytest apps/api/tests/test_mcp_tool_layer_separation.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Create MCP_TOOL_ROUTING_POLICY in apps/api/mcp_catalog.py.",
+        "Add import/length/trigger/prohibition unit tests."
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_mcp_routing_policy.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
-      "id": "G-03",
-      "title": "BUG-3: Fix evidence_notice conflict - obligation verified vs form completeness",
+      "id": "H-03",
+      "title": "Rewrite tool descriptions - stdio MCP surface",
       "priority": 3,
-      "passes": true,
-      "verificationCommand": "pytest apps/api/tests/test_evidence_notice_separation.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/289 | jq 'has(\"obligation_context\")' | grep true && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Rewrite stdio descriptions for listar_perfiles_entidad, obtener_obligaciones_perfil, calendario_obligaciones_perfil, buscar_modelos_aeat_catalogo and buscar_norma_eu.",
+        "Inject MCP_TOOL_ROUTING_POLICY into obtener_obligaciones_perfil and calendario_obligaciones_perfil."
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_stdio_tool_descriptions.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
-      "id": "G-04",
-      "title": "BUG-4: Calendar tool must use structured periodicidad data, not semantic search",
+      "id": "H-04",
+      "title": "Rewrite tool descriptions - HTTP MCP surface",
       "priority": 4,
-      "passes": true,
-      "verificationCommand": "pytest apps/api/tests/test_calendario_trimestral.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf \"http://localhost:${API_PORT:-8000}/v1/perfil/sociedad_valores/obligaciones/calendario/2026-Q3\" | jq 'length' | awk '{if ($1>=2) print \"PASS\"; else print \"FAIL: only \" $1 \" obligations in Q3\"}' || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Mirror stdio descriptions in FastAPI router summaries/descriptions for perfil, modelos and norma endpoints.",
+        "Verify OpenAPI exposes the routing text."
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_http_mcp_descriptions.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/openapi.json | jq '.paths[\"/v1/perfil/{codigo}/obligaciones\"].get.description' | grep -i 'calendario' && echo PASS || echo FAIL"
     },
     {
-      "id": "G-05",
-      "title": "Add plazo_descripcion to all obligations missing it",
+      "id": "H-05",
+      "title": "Verify tools/list output agent receives",
       "priority": 5,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE periodicidad IN ('mensual','trimestral','semestral','anual') AND plazo_descripcion IS NULL\"); echo \"Missing plazo: $COUNT\"; [ \"$COUNT\" -eq 0 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Verify stdio tools/list descriptions and document HTTP MCP verification in docs/mcp-architecture.md."
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_tools_list_output.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
-      "id": "G-06",
-      "title": "Update mcp_validation_suite - routing and calendar checks",
+      "id": "H-06",
+      "title": "Fix form_completeness vs obligation_context separation in 289/290 response",
       "priority": 6,
-      "passes": true,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Verify Modelo 289/290 response separates form completeness from obligation context.",
+        "Fix only if current implementation conflates the layers."
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_modelo_obligation_context.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && curl -sf http://localhost:${API_PORT:-8000}/v1/modelos/aeat/289 | jq '.obligation_context | length' | awk '{if ($1>=3) print \"PASS\"; else print \"FAIL: only \" $1 \" profiles\"}' || echo FAIL"
+    },
+    {
+      "id": "H-07",
+      "title": "Update mcp_validation_suite description quality and routing checks",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Add Sprint H routing, description, Modelo 290 and calendario checks to validation suites."
+      ],
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
-      "id": "G-07",
-      "title": "Final verification - Sprint G complete",
-      "priority": 7,
-      "passes": true,
-      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && curl -sf \"http://localhost:${API_PORT:-8000}/v1/perfil/sociedad_valores/obligaciones/calendario/2026-Q3\" | jq 'length' | awk '{if ($1>=2) print \"PASS\"; else print \"FAIL\"}' || echo FAIL"
+      "id": "H-08",
+      "title": "Final verification - Sprint H complete",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Run full app tests, MCP validation, deep contract audit, status checks and push branch."
+      ],
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     }
   ]
 }

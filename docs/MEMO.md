@@ -4,6 +4,20 @@ Registro de contexto, decisiones y archivos tocados por rama. Se actualiza cada 
 
 ---
 
+## feat/sprint-h-tool-descriptions
+
+### Resumen
+Sprint H corrige el comportamiento de seleccion de herramientas MCP y una inconsistencia de procedencia del Modelo 290. La primera iteracion H-01 se cerro como data fix: no se cambio la obligacion ni su verificacion, solo las fuentes oficiales asociadas a FATCA.
+
+### Commits recientes
+| Commit | Tipo | Descripcion | Archivos afectados |
+|--------|------|-------------|-------------------|
+| PENDING | fix(data) | H-01 corrige Modelo 290 FATCA para usar `BOE-A-2014-6854` como Acuerdo FATCA y `BOE-A-2014-6922` como orden de aprobacion del modelo, descartando `BOE-A-2014-12328` y el candidato erroneo `BOE-A-2014-8331` | scripts/seed-modelos-v2.py, apps/api/seed-modelos-v2.py, scripts/seed-fiscal-modelos.sql, prd.json, progress.txt, docs/master-execution-roadmap.md, docs/CHANGELOG.md, docs/MEMO.md |
+
+### Notas
+- Verificacion documental BOE: `BOE-A-2014-12328` es Ley 27/2014 del Impuesto sobre Sociedades; `BOE-A-2014-8331` no es FATCA; `BOE-A-2014-6854` es el Acuerdo FATCA Espana-EE.UU.; `BOE-A-2014-6922` es la Orden HAP/1136/2014 del Modelo 290.
+- Verificacion VPS H-01: `M290 source_url: https://www.boe.es/buscar/act.php?id=BOE-A-2014-6854` y `PASS`.
+
 ## fix/mcp-phase-0-1
 
 ### Resumen

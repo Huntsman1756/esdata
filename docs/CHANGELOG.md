@@ -4,6 +4,11 @@ Registro de cada commit atomico. Cada fix, feature o cambio va aqui con fecha, r
 
 ---
 
+## 2026-05-18
+
+### feat/sprint-h-tool-descriptions
+- **PENDING** `fix(data)` — H-01 corrige la procedencia del Modelo 290 FATCA: `BOE-A-2014-12328` queda descartado por ser LIS, `BOE-A-2014-8331` queda descartado por no ser FATCA, `obligacion_perfil` usa el Acuerdo FATCA `BOE-A-2014-6854`, `modelo_normativa` queda en `BOE-A-2014-6854` y `modelo_campana` 2025 queda en la Orden HAP/1136/2014 `BOE-A-2014-6922`, sin cambiar `verified`. Evidencia VPS: VerificationCommand H-01 => `PASS`.
+
 ## 2026-05-05
 
 ### main
