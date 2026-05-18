@@ -69,7 +69,7 @@
       "id": "I-06",
       "title": "Update mcp_validation_suite - RTS 1/2 checks",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Add validation-suite checks for RTS 1/2 normas, obligations, conditional completeness, verification, source URLs, and excluded profiles.",
         "Add deep contract checks for sociedad_valores and eaf."
@@ -80,7 +80,7 @@
       "id": "I-07",
       "title": "Final verification - Sprint I complete",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "RTS 1 and RTS 2 loaded and verified on EUR-Lex.",
         "sociedad_valores, agencia_valores, and entidad_credito have conditional RTS 1/2 obligations.",
