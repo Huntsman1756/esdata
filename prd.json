@@ -41,7 +41,7 @@
       "id": "L-06",
       "title": "Expose CNMV perfil endpoint in MCP - add to mcp_catalog",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/api/tests/test_mcp_cnmv_tool.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {

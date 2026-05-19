@@ -1430,6 +1430,31 @@ class MCPStdioServer:
                 self._send_error(msg_id, -32602, str(e))
             except Exception as e:
                 self._send_error(msg_id, -32603, f"Error executing calendario_obligaciones_perfil: {e!s}")
+        elif tool_name == "obtener_documentos_cnmv_perfil":
+            try:
+                params = {
+                    "vigente": arguments.get("vigente", True),
+                }
+                if arguments.get("tipo_documento"):
+                    params["tipo_documento"] = arguments["tipo_documento"]
+                perfil_codigo = arguments.get("perfil_codigo", "sociedad_valores")
+                result = await self._call_endpoint(
+                    "GET",
+                    f"/v1/cnmv/perfil/{perfil_codigo}",
+                    params=params,
+                )
+                status_code = result["status_code"]
+                data = result["data"] or []
+                if status_code == 200:
+                    payload = {"documentos": data, "total": len(data)}
+                    self._send_jsonrpc(msg_id, {
+                        "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
+                        "structuredContent": payload,
+                    })
+                else:
+                    self._send_error(msg_id, -32603, f"API error: {status_code}")
+            except Exception as e:
+                self._send_error(msg_id, -32603, f"Error executing obtener_documentos_cnmv_perfil: {e!s}")
         elif tool_name == "buscar_norma_eu":
             try:
                 with db_session() as db:

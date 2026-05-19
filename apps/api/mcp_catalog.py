@@ -28,6 +28,12 @@ POLÍTICA DE SELECCIÓN DE HERRAMIENTAS ESDATA:
 
 5. Para listar tipos de entidad → listar_perfiles_entidad
 
+6. Para circulares CNMV, guias tecnicas o modelos ESI aplicables a un perfil
+   -> obtener_documentos_cnmv_perfil
+   Trigger: "que circulares aplican", "guias tecnicas CNMV",
+   "modelos normalizados ESI", "supervision CNMV".
+   NO usar obtener_obligaciones_perfil para documentos supervisores.
+
 REGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,
 la respuesta correcta es "no consta como obligación verificada para este perfil",
 no "lo busco en otro sitio".
@@ -95,6 +101,7 @@ HTTP_MCP_OPERATIONS = [
     "get_aepd",
     "listar_cnmv",
     "buscar_cnmv",
+    "obtener_documentos_cnmv_perfil",
     "get_cnmv",
     "get_cnmv_versions",
     "get_cnmv_regulation_links",
@@ -180,6 +187,8 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "get_aepd"
     if path.startswith("/v1/aepd"):
         return "listar_aepd"
+    if path.startswith("/v1/cnmv/perfil"):
+        return "obtener_documentos_cnmv_perfil"
     if path.startswith("/v1/cnmv"):
         return "listar_cnmv"
     if path.startswith("/v1/eurlex"):
@@ -351,6 +360,29 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
                     "incluir_obligacion_sociedad": {"type": "boolean"},
                 },
                 "required": ["tipo_entidad"],
+            },
+        },
+        {
+            "name": "obtener_documentos_cnmv_perfil",
+            "description": (
+                "Devuelve documentos CNMV (circulares, guias tecnicas, modelos "
+                "normalizados ESI, normativa) aplicables a un perfil de entidad. "
+                "Usar cuando el usuario pregunta que circulares CNMV aplican a una "
+                "sociedad de valores, que guias tecnicas debe seguir una agencia de "
+                "valores, o que modelos normalizados CNMV existen para un tipo de "
+                "entidad. NO usar para obtener obligaciones de perfil (usar "
+                "obtener_obligaciones_perfil). Este endpoint devuelve documentos "
+                "supervisores, no obligaciones legales verificadas.\n\n"
+                f"{MCP_TOOL_ROUTING_POLICY}"
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "perfil_codigo": {"type": "string"},
+                    "tipo_documento": {"type": "string"},
+                    "vigente": {"type": "boolean", "default": True},
+                },
+                "required": ["perfil_codigo"],
             },
         },
         {
