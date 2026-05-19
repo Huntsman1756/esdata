@@ -55,7 +55,7 @@
       "id": "K-08",
       "title": "Final verification - Sprint K complete",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32024R1774','32024R1773')\" | grep -E '^2' && echo PASS || echo FAIL"
     }
   ]
