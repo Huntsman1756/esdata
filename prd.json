@@ -20,7 +20,7 @@
       "id": "L-03",
       "title": "Link normativa_esi_cnmv to obligacion_perfil",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil op JOIN norma n ON n.codigo=op.norma_codigo WHERE n.tipo_norma='circular_cnmv' OR op.norma_codigo ILIKE 'CNMV%'\"); echo \"CNMV obligacion_perfil rows: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
     },
     {
