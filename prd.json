@@ -76,7 +76,7 @@
       "id": "N-06",
       "title": "Final verification - Sprint N complete",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "N-01 through N-05 are complete.",
         "Local full test suite passes with at least the current baseline of 3142 passed.",
