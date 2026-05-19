@@ -34,7 +34,7 @@
       "id": "K-05",
       "title": "Add 32024R1773 obligations - ICT third-party contractual arrangements",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(DISTINCT perfil_codigo) FROM obligacion_perfil WHERE articulo_referencia IN ('art. 28','art. 30') AND norma_codigo='32022R2554'\"); echo \"Profiles with art.28/30: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
     },
     {
