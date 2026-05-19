@@ -34,7 +34,7 @@
       "id": "L-05",
       "title": "Add CNMV endpoint - get documents by perfil",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/api/tests/test_cnmv_perfil.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {

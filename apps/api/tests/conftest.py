@@ -161,6 +161,7 @@ STATEMENTS = [
         numero_circular TEXT,
         fecha_publicacion TEXT,
         referencia_boe TEXT,
+        sujeto_obligado TEXT,
         metadata TEXT,
         row_completeness TEXT,
         row_provenance TEXT
