@@ -93,6 +93,21 @@
 
 ---
 
+## Codex en codebases grandes
+
+- `AGENTS.md` es la fuente operativa para Codex. `CLAUDE.md` puede existir como referencia de entorno, pero no sustituye estas instrucciones.
+- Mantener instrucciones lean y por capas: raiz = reglas globales/mapa; subdirectorios = comandos y convenciones locales.
+- Empezar las tareas en el directorio mas especifico posible; leer primero el `AGENTS.md` aplicable, roadmap y archivos afectados.
+- Preferir busqueda viva (`rg`, `git grep`, lectura de archivos reales) sobre indices, resumenes o memoria historica cuando haya riesgo de desactualizacion.
+- No cargar docs o historicos completos por defecto; usar rutas, secciones y busquedas acotadas.
+- Usar skills solo cuando el tipo de tarea lo active; no duplicar workflows largos dentro de `AGENTS.md`.
+- Usar MCP/herramientas externas solo cuando aporten datos vivos o capacidades no disponibles localmente; no antes de entender el repo.
+- Si hay LSP o tooling semantico disponible, preferirlo para referencias de simbolos; si no, usar `rg` y confirmar definicion/uso antes de editar.
+- Subagentes: solo cuando el usuario pida delegacion/parallel agents; exploracion y edicion no deben mezclarse si aumenta el riesgo.
+- Revisar estas instrucciones cada 3-6 meses o tras cambios grandes de modelo/tooling; eliminar reglas que ya sean lastre.
+
+---
+
 ## Fuente activa unica y reclamo minimo
 
 - **Fuente de estado:** `docs/master-execution-roadmap.md` (unica).
@@ -105,7 +120,7 @@
 
 Consultar por ruta, nunca inyectar contenido completo:
 
-- `CLAUDE.md` — configururacion del entorno
+- `CLAUDE.md` — referencia de entorno; no sustituye `AGENTS.md` para Codex
 - `SECURITY_BASELINE.md` — controles de seguridad
 - `docs/master-execution-roadmap.md` — estado y ejecucion
 - `docs/process.md` — operaciones de trabajo
