@@ -100,6 +100,18 @@ def _make_db() -> Session:
         conn.execute(
             text(
                 """
+                CREATE TABLE modelo_regla_inclusion (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campana_id INTEGER NOT NULL,
+                    supuesto TEXT,
+                    decision TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
                 INSERT INTO perfil_entidad (codigo, nombre, supervisor, regimen_primario, activo)
                 VALUES ('sociedad_valores', 'Sociedad de Valores', 'CNMV', 'LIVMC', 1)
                 """
@@ -181,8 +193,10 @@ def test_catalog_search_returns_catalog_only_model_without_evidence_fields() -> 
     payload = items[0].model_dump()
     assert payload["codigo"] == "123"
     assert payload["instrucciones_count"] == 1
+    assert payload["reglas_inclusion_count"] == 0
     assert "verified" not in payload
     assert "evidence_notice" not in payload
+    assert "obligation_context" not in payload
 
 
 def test_catalog_tool_is_registered_with_layer_separation_description() -> None:

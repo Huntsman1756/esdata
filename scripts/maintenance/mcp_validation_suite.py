@@ -530,6 +530,130 @@ def _check_database_contracts() -> list[dict[str, Any]]:
               AND norma_codigo IN ('32017R0587','32017R0583')
             """,
         ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_normativa_ge_4",
+            """
+            SELECT COUNT(*)
+            FROM modelo_normativa mn
+            JOIN aeat_modelo am ON am.id = mn.modelo_id
+            WHERE am.codigo='289'
+            """,
+            4,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_instrucciones_ge_5",
+            """
+            SELECT COUNT(*)
+            FROM modelo_instruccion mi
+            JOIN modelo_campana mc ON mc.id = mi.campana_id
+            JOIN aeat_modelo am ON am.id = mc.modelo_id
+            WHERE am.codigo='289'
+            """,
+            5,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_reglas_inclusion_ge_6",
+            """
+            SELECT COUNT(*)
+            FROM modelo_regla_inclusion mri
+            JOIN modelo_campana mc ON mc.id = mri.campana_id
+            JOIN aeat_modelo am ON am.id = mc.modelo_id
+            WHERE am.codigo='289'
+            """,
+            6,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_trigger_keywords_ge_8",
+            """
+            SELECT COUNT(*)
+            FROM modelo_trigger_keyword mtk
+            JOIN aeat_modelo am ON am.id = mtk.modelo_id
+            WHERE am.codigo='289'
+            """,
+            8,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_casillas_ge_20",
+            """
+            SELECT COUNT(*)
+            FROM modelo_casilla mcasi
+            JOIN modelo_campana mc ON mc.id = mcasi.campana_id
+            JOIN aeat_modelo am ON am.id = mc.modelo_id
+            WHERE am.codigo='289'
+            """,
+            20,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_instrucciones_nilreport",
+            """
+            SELECT COUNT(*)
+            FROM modelo_instruccion mi
+            JOIN modelo_campana mc ON mc.id = mi.campana_id
+            JOIN aeat_modelo am ON am.id = mc.modelo_id
+            WHERE am.codigo='289'
+              AND (
+                  mi.titulo ILIKE '%NilReport%'
+                  OR mi.contenido ILIKE '%NilReport%'
+                  OR mi.titulo ILIKE '%declaracion negativa%'
+                  OR mi.contenido ILIKE '%declaracion negativa%'
+              )
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_reglas_include_exclusion",
+            """
+            SELECT COUNT(*)
+            FROM modelo_regla_inclusion mri
+            JOIN modelo_campana mc ON mc.id = mri.campana_id
+            JOIN aeat_modelo am ON am.id = mc.modelo_id
+            WHERE am.codigo='289'
+              AND mri.decision='EXCLUIR'
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_profile_obligations_verified_4",
+            """
+            SELECT COUNT(DISTINCT perfil_codigo)
+            FROM obligacion_perfil
+            WHERE modelo_aeat='289'
+              AND verified IS true
+              AND perfil_codigo IN (
+                  'sociedad_valores',
+                  'agencia_valores',
+                  'eaf',
+                  'entidad_credito'
+              )
+            """,
+            4,
+        ),
+        _check_db_zero(
+            database_url,
+            "modelo_289_profile_obligations_no_unverified_or_extra",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE modelo_aeat='289'
+              AND (
+                  verified IS NOT true
+                  OR perfil_codigo NOT IN (
+                      'sociedad_valores',
+                      'agencia_valores',
+                      'eaf',
+                      'entidad_credito'
+                  )
+              )
+            """,
+        ),
     ]
     return checks
 
@@ -1013,6 +1137,27 @@ def _validate_modelo_289_obligation_context(payload: dict[str, Any]) -> tuple[bo
         and len(sociedad_items) == 1
         and sociedad_items[0].get("verified") is True
         and "Verificado" in str(sociedad_items[0].get("obligation_evidence_notice") or "")
+    )
+    return ok, details
+
+
+def _validate_aeat_catalogo_289_crs(payload: Any) -> tuple[bool, dict[str, Any]]:
+    items = payload if isinstance(payload, list) else []
+    first = items[0] if items and isinstance(items[0], dict) else {}
+    details = {
+        "returned": len(items),
+        "codigo": first.get("codigo"),
+        "instrucciones_count": first.get("instrucciones_count"),
+        "claves_count": first.get("claves_count"),
+        "reglas_inclusion_count": first.get("reglas_inclusion_count"),
+        "keys": sorted(first.keys()) if isinstance(first, dict) else [],
+    }
+    ok = (
+        len(items) == 1
+        and first.get("codigo") == "289"
+        and int(first.get("instrucciones_count") or 0) >= 5
+        and int(first.get("reglas_inclusion_count") or 0) >= 6
+        and "obligation_context" not in first
     )
     return ok, details
 
@@ -1531,6 +1676,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"codigo": "123"},
                 _validate_aeat_catalogo_layer,
                 "aeat_catalogo_no_profile_evidence_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/catalogo",
+                {"codigo": "289"},
+                _validate_aeat_catalogo_289_crs,
+                "aeat_catalogo_modelo_289_crs_counts",
             )
         )
         checks.append(
