@@ -63,7 +63,7 @@
       "id": "N-05",
       "title": "Update mcp_validation_suite - emisor_token checks",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Add validation suite checks for emisor_token profile, >=8 obligations, all verified, required ART/EMT articles and completeness.",
         "Add validation suite check that total obligacion_perfil is >=190.",
