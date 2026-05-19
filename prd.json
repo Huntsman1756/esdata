@@ -35,7 +35,7 @@
       "id": "N-03",
       "title": "Seed EMT obligations for emisor_token (Title IV MiCA)",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: N-01 passed.",
         "Load EMT obligations for perfil_codigo='emisor_token' and norma_codigo='32023R1114'.",
