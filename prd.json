@@ -27,7 +27,7 @@
       "id": "L-04",
       "title": "Structure modelo_esi_cnmv - add cnmv_obligation_link entries",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM cnmv_obligation_link WHERE tipo_obligacion='modelo_normalizado_esi'\"); echo \"ESI model links: $COUNT\"; [ \"$COUNT\" -ge 8 ] && echo PASS || echo FAIL"
     },
     {
