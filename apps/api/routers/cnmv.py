@@ -490,6 +490,103 @@ async def buscar_cnmv(
     )
 
 
+@router.get(
+    "/perfil/{perfil_codigo}",
+    response_model=list[dict],
+    operation_id="obtener_documentos_cnmv_perfil",
+    description=(
+        "Devuelve documentos CNMV (circulares, guias tecnicas, modelos "
+        "normalizados ESI, normativa) aplicables a un perfil de entidad. "
+        "Usar cuando el usuario pregunta que circulares CNMV aplican a una "
+        "sociedad de valores, que guias tecnicas debe seguir una agencia de "
+        "valores, o que modelos normalizados CNMV existen para un tipo de "
+        "entidad. No devuelve obligaciones legales verificadas; para eso usar "
+        "obtener_obligaciones_perfil."
+    ),
+)
+async def obtener_documentos_cnmv_perfil(
+    request: Request,
+    perfil_codigo: str,
+    tipo_documento: str | None = Query(
+        None,
+        description="Filtrar por tipo de documento CNMV",
+    ),
+    vigente: bool = Query(
+        True,
+        description="Si es true, excluye documentos CNMV derogados",
+    ),
+):
+    """Devuelve documentos CNMV supervisores aplicables a un perfil."""
+    filters = [
+        "d.organismo_emisor = 'CNMV'",
+        "d.tipo_fuente = 'cnmv'",
+    ]
+    params: dict[str, str] = {"perfil_codigo": perfil_codigo}
+
+    if tipo_documento:
+        filters.append("d.tipo_documento = :tipo_documento")
+        params["tipo_documento"] = tipo_documento
+
+    if vigente:
+        filters.append("COALESCE(d.estado_vigencia, 'vigente') <> 'derogada'")
+
+    with db_session() as db:
+        dialect_name = getattr(getattr(db, "bind", None), "dialect", None)
+        dialect = getattr(dialect_name, "name", "")
+        if dialect == "postgresql":
+            filters.append(":perfil_codigo = ANY(COALESCE(d.sujeto_obligado, ARRAY[]::text[]))")
+        else:
+            filters.append(
+                "instr(',' || COALESCE(d.sujeto_obligado, '') || ',', ',' || :perfil_codigo || ',') > 0"
+            )
+
+        rows = (
+            db.execute(
+                text(
+                    f"""
+                    SELECT
+                        d.referencia,
+                        d.titulo,
+                        d.tipo_documento,
+                        d.fecha,
+                        d.url_fuente,
+                        d.estado_vigencia,
+                        d.ambito AS ambito_tematico
+                    FROM documento_interpretativo d
+                    WHERE { ' AND '.join(filters) }
+                    ORDER BY d.fecha DESC, d.referencia ASC
+                    """.strip()
+                ),
+                params,
+            )
+            .mappings()
+            .all()
+        )
+
+    docs = [
+        {
+            "referencia": row["referencia"],
+            "titulo": row["titulo"],
+            "tipo_documento": row["tipo_documento"],
+            "fecha": str(row["fecha"]) if row["fecha"] else None,
+            "url_fuente": row["url_fuente"],
+            "estado_vigencia": row["estado_vigencia"],
+            "ambito_tematico": row["ambito_tematico"],
+        }
+        for row in rows
+    ]
+    record_retrieval_query_audit(
+        request,
+        path=request.url.path,
+        query_text=perfil_codigo,
+        tool_name="obtener_documentos_cnmv_perfil",
+        items=docs,
+        total=len(docs),
+        verified=bool(docs),
+    )
+    return docs
+
+
 @router.get("/{referencia:path}/versions", response_model=CNMVVersionResponse, operation_id="get_cnmv_versions")
 async def get_cnmv_versions(referencia: str):
     """Get version history for a CNMV document (Fase 23.6)."""

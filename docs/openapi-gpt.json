@@ -751,7 +751,7 @@
           "modelos"
         ],
         "summary": "Busca modelos AEAT en el catalogo general",
-        "description": "Busca modelos AEAT por codigo o termino. Esta ruta devuelve informacion del catalogo: nombre, instrucciones disponibles, claves y completitud de datos cargados. NO indica si una entidad concreta tiene obligacion de presentarlo; para eso usar obtener_obligaciones_perfil.",
+        "description": "WHEN to use: Para saber que es un modelo, como se rellena, que campos/casillas tiene, que claves o instrucciones existen, independientemente del perfil de la entidad. Ejemplos: 'que es el modelo 303', 'como se rellena el modelo 290', 'que claves tiene el modelo 198'. Parametros: codigo opcional, por ejemplo '123' o '303'; termino opcional para buscar texto en codigo o descripcion. Devuelve codigo, nombre, completeness, instrucciones_count, claves_count, reglas_inclusion_count y source_url. EXPLICIT WARNING: Esta herramienta NO indica si una entidad tiene obligación de presentar el modelo. Para obligatoriedad, usar obtener_obligaciones_perfil. NO combinar resultados de esta herramienta con obligaciones de perfil sin separación explícita.",
         "operationId": "buscar_modelos_aeat_catalogo",
         "parameters": [
           {
@@ -1452,7 +1452,8 @@
           "norma",
           "eu"
         ],
-        "summary": "List Normas Eu",
+        "summary": "Busca normas UE cargadas",
+        "description": "Busca reglamentos, directivas, RTS, ITS y guias ESMA de la UE cargados en ESData. WHEN to use: usar cuando el usuario pregunta por una norma UE concreta como MiFIR, EMIR, DORA, CRR, UCITS, AIFMD o SFTR, por un CELEX, o por si una norma UE esta cargada en el sistema. Parametros: termino obligatorio con keyword, CELEX o nombre; tipo_norma opcional acepta reglamento_ue, directiva_ue, rts, its o guideline_esma. Devuelve codigo, CELEX, titulo oficial, fecha de publicacion DOUE, URL EUR-Lex, vigente y derogada_por. No usar para obtener obligaciones de una entidad. Para eso, usar obtener_obligaciones_perfil. NO responde si un perfil debe cumplir una norma; solo devuelve ficha normativa UE.",
         "operationId": "buscar_norma_eu",
         "parameters": [
           {
@@ -2407,7 +2408,8 @@
           "perfil",
           "aplicabilidad"
         ],
-        "summary": "Listar Perfiles",
+        "summary": "Lista perfiles de entidad supervisada",
+        "description": "Lista los tipos de entidad supervisada disponibles en ESData. Usar cuando el usuario pregunta que tipo de entidad es, que perfil tiene, o que categorias de entidad supervisada existen en el sistema. No usar para buscar obligaciones concretas: para obligaciones usar obtener_obligaciones_perfil; para vencimientos usar calendario_obligaciones_perfil. Parametros: ninguno. Devuelve codigo, nombre, supervisor y regimen_primario; NO devuelve modelos AEAT ni calendario.",
         "operationId": "listar_perfiles_entidad",
         "responses": {
           "200": {
@@ -2427,7 +2429,8 @@
           "perfil",
           "aplicabilidad"
         ],
-        "summary": "Get Perfil",
+        "summary": "Resumen de perfil de entidad supervisada",
+        "description": "Devuelve el resumen de un perfil de entidad supervisada y el recuento de obligaciones asociadas. Usar para confirmar que perfil_codigo existe antes de pedir obligaciones. No usar para calendario: usar calendario_obligaciones_perfil. No usar para catalogo AEAT: usar buscar_modelos_aeat_catalogo.",
         "operationId": "get_perfil_entidad",
         "parameters": [
           {
@@ -2458,7 +2461,8 @@
           "perfil",
           "aplicabilidad"
         ],
-        "summary": "Get Obligaciones Perfil",
+        "summary": "Obligaciones verificadas por perfil",
+        "description": "WHEN to use: usar cuando el usuario pregunta que obligaciones tiene una entidad supervisada espanola, que modelos AEAT debe presentar, que obligaciones PBC/FT o CNMV aplican, o si una sociedad de valores, agencia de valores, SGIIC, EAF, entidad de credito o empresa de servicios de pago tiene una obligacion verificada. Ejemplos: 'que modelos presenta una sociedad de valores', 'obligaciones PBC/FT de una EAF', 'obligaciones CNMV de una SGIIC'. WHEN NOT to use: No usar para preguntas de calendario o periodo; usar calendario_obligaciones_perfil. No usar para saber que es un modelo AEAT o como se rellena; usar buscar_modelos_aeat_catalogo. Parametros: perfil_codigo es obligatorio, por ejemplo 'sociedad_valores'; dominio opcional acepta FISCAL, PBC_FT, CNMV o ALL. Devuelve obligaciones verificadas de perfil con modelo_aeat, norma_codigo, articulo_referencia, periodicidad, plazo, source_url, verified y completeness. GOLDEN RULE: Si un modelo no aparece en la respuesta, significa que NO esta registrado como obligacion verificada para ese perfil. No buscar en otras herramientas como alternativa.\n\n\nPOLÍTICA DE SELECCIÓN DE HERRAMIENTAS ESDATA:\n\n1. Para obligaciones de una entidad supervisada → SIEMPRE obtener_obligaciones_perfil\n   Si el modelo no aparece en la respuesta: NO tiene obligación verificada.\n   NO buscar en catálogo AEAT como alternativa.\n   NO suplementar con buscar_modelos_aeat_catalogo.\n\n2. Para qué presentar en un trimestre/mes/período → SIEMPRE calendario_obligaciones_perfil\n   Usar parámetro quarter (ej: \"2026-Q3\") para filtrar por período.\n   Trigger: \"este trimestre\", \"Q3\", \"qué vence\", \"agenda\", \"este mes\",\n   \"qué presento en julio/octubre/enero/abril\".\n   NO usar búsqueda semántica ni catálogo para responder preguntas de calendario.\n\n3. Para información sobre un modelo AEAT (qué es, cómo se rellena) → buscar_modelos_aeat_catalogo\n   Esta herramienta NO indica obligatoriedad. Solo describe el formulario.\n   NO combinar su resultado con obligaciones de perfil sin separación explícita.\n\n4. Para normas UE (MiFIR, EMIR, DORA, CRR, UCITS) → buscar_norma_eu\n\n5. Para listar tipos de entidad → listar_perfiles_entidad\n\n6. Para circulares CNMV, guias tecnicas o modelos ESI aplicables a un perfil\n   -> obtener_documentos_cnmv_perfil\n   Trigger: \"que circulares aplican\", \"guias tecnicas CNMV\",\n   \"modelos normalizados ESI\", \"supervision CNMV\".\n   NO usar obtener_obligaciones_perfil para documentos supervisores.\n\nREGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,\nla respuesta correcta es \"no consta como obligación verificada para este perfil\",\nno \"lo busco en otro sitio\".",
         "operationId": "obtener_obligaciones_perfil",
         "parameters": [
           {
@@ -2515,7 +2519,7 @@
           "aplicabilidad"
         ],
         "summary": "Calendario de obligaciones por perfil",
-        "description": "Devuelve el calendario operativo agrupado por periodicidad. Si se proporciona el parametro quarter (ej: 2026-Q3), devuelve solo las obligaciones con vencimiento en ese trimestre segun periodicidad y plazo_descripcion estructurados.",
+        "description": "WHEN to use: usar para preguntas de calendario, vencimientos y periodos: '¿Que presento este trimestre?', '¿Que vence en Q3?', '¿Que modelos hay en julio?', 'agenda de compliance', 'calendario', 'este mes', 'proximos vencimientos'. Parametro perfil_codigo obligatorio, por ejemplo 'sociedad_valores'. Parametro quarter opcional: Formato YYYY-QN (ej: 2026-Q3) o QN (ej: Q3). SIEMPRE proporcionar quarter si el usuario menciona un periodo. Mapeo: Q1=enero-marzo, Q2=abril-junio, Q3=julio-septiembre, Q4=octubre-diciembre. Esta herramienta usa datos estructurados de periodicidad y plazo_descripcion, NO busqueda semantica. Es la unica fuente fiable para preguntas de calendario. WHEN NOT to use: No usar para saber que es un modelo AEAT; usar buscar_modelos_aeat_catalogo. No usar para listar todo el perfil sin foco temporal; usar obtener_obligaciones_perfil. Devuelve obligaciones vencidas por periodicidad o, con quarter, la lista filtrada; NO devuelve instrucciones de relleno.\n\n\nPOLÍTICA DE SELECCIÓN DE HERRAMIENTAS ESDATA:\n\n1. Para obligaciones de una entidad supervisada → SIEMPRE obtener_obligaciones_perfil\n   Si el modelo no aparece en la respuesta: NO tiene obligación verificada.\n   NO buscar en catálogo AEAT como alternativa.\n   NO suplementar con buscar_modelos_aeat_catalogo.\n\n2. Para qué presentar en un trimestre/mes/período → SIEMPRE calendario_obligaciones_perfil\n   Usar parámetro quarter (ej: \"2026-Q3\") para filtrar por período.\n   Trigger: \"este trimestre\", \"Q3\", \"qué vence\", \"agenda\", \"este mes\",\n   \"qué presento en julio/octubre/enero/abril\".\n   NO usar búsqueda semántica ni catálogo para responder preguntas de calendario.\n\n3. Para información sobre un modelo AEAT (qué es, cómo se rellena) → buscar_modelos_aeat_catalogo\n   Esta herramienta NO indica obligatoriedad. Solo describe el formulario.\n   NO combinar su resultado con obligaciones de perfil sin separación explícita.\n\n4. Para normas UE (MiFIR, EMIR, DORA, CRR, UCITS) → buscar_norma_eu\n\n5. Para listar tipos de entidad → listar_perfiles_entidad\n\n6. Para circulares CNMV, guias tecnicas o modelos ESI aplicables a un perfil\n   -> obtener_documentos_cnmv_perfil\n   Trigger: \"que circulares aplican\", \"guias tecnicas CNMV\",\n   \"modelos normalizados ESI\", \"supervision CNMV\".\n   NO usar obtener_obligaciones_perfil para documentos supervisores.\n\nREGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,\nla respuesta correcta es \"no consta como obligación verificada para este perfil\",\nno \"lo busco en otro sitio\".",
         "operationId": "calendario_obligaciones_perfil",
         "parameters": [
           {
@@ -3823,6 +3827,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv/perfil/{perfil_codigo}": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Obtener Documentos Cnmv Perfil",
+        "description": "Devuelve documentos CNMV (circulares, guias tecnicas, modelos normalizados ESI, normativa) aplicables a un perfil de entidad. Usar cuando el usuario pregunta que circulares CNMV aplican a una sociedad de valores, que guias tecnicas debe seguir una agencia de valores, o que modelos normalizados CNMV existen para un tipo de entidad. No devuelve obligaciones legales verificadas; para eso usar obtener_obligaciones_perfil.",
+        "operationId": "obtener_documentos_cnmv_perfil",
+        "parameters": [
+          {
+            "name": "perfil_codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Perfil Codigo"
+            }
+          },
+          {
+            "name": "tipo_documento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de documento CNMV",
+              "title": "Tipo Documento"
+            },
+            "description": "Filtrar por tipo de documento CNMV"
+          },
+          {
+            "name": "vigente",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si es true, excluye documentos CNMV derogados",
+              "default": true,
+              "title": "Vigente"
+            },
+            "description": "Si es true, excluye documentos CNMV derogados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "title": "Response Obtener Documentos Cnmv Perfil"
                 }
               }
             }
