@@ -18,6 +18,7 @@ PerfilCodigo = Literal[
     "entidad_credito",
     "empresa_servicios_pago",
     "casp",
+    "emisor_token",
 ]
 Periodicidad = Literal["diaria", "mensual", "trimestral", "semestral", "anual", "ad_hoc", "continua"]
 
@@ -137,17 +138,20 @@ OBTENER_OBLIGACIONES_PERFIL = MCPToolContract(
         "WHEN to use: usar cuando el usuario pregunta que obligaciones tiene una entidad "
         "supervisada espanola, que modelos AEAT debe presentar, que obligaciones PBC/FT "
         "o CNMV aplican, o si una sociedad de valores, agencia de valores, SGIIC, EAF, "
-        "entidad de credito, empresa de servicios de pago o CASP tiene una obligacion verificada. "
+        "entidad de credito, empresa de servicios de pago, CASP o emisor de token ART/EMT "
+        "tiene una obligacion verificada. "
         "Ejemplos: 'que modelos presenta una sociedad de valores', 'obligaciones PBC/FT "
         "de una EAF', 'obligaciones CNMV de una SGIIC', 'obligaciones CASP MiCA'. "
         "Para CASP y criptoactivos: perfil 'casp' cubre obligaciones MiCA (Reglamento UE 2023/1114) "
         "aplicables desde 30 diciembre 2024. Las tablas de token/wallet/white-paper pueden estar "
         "vacias y esto es esperado — no hay datos de tokenizacion en el corpus. "
+        "Para emisores de ART o EMT: usar perfil_codigo='emisor_token'. El corpus documental "
+        "supervisor ART/EMT puede estar vacio; las obligaciones base estan verificadas contra MiCA. "
         "Responder siempre desde obtener_obligaciones_perfil e identificar gaps explicitamente. "
         "WHEN NOT to use: No usar para preguntas de calendario o periodo; usar "
         "calendario_obligaciones_perfil. No usar para saber que es un modelo AEAT o como se rellena; "
         "usar buscar_modelos_aeat_catalogo. Parametros: perfil_codigo es obligatorio, por ejemplo "
-        "'sociedad_valores' o 'casp'; dominio opcional acepta FISCAL, PBC_FT, CNMV o ALL. "
+        "'sociedad_valores', 'casp' o 'emisor_token'; dominio opcional acepta FISCAL, PBC_FT, CNMV o ALL. "
         "Devuelve obligaciones verificadas de perfil con modelo_aeat, norma_codigo, "
         "articulo_referencia, periodicidad, plazo, source_url, verified y completeness. "
         "GOLDEN RULE: Si un modelo no aparece en la respuesta, significa que NO esta registrado "
@@ -165,6 +169,7 @@ OBTENER_OBLIGACIONES_PERFIL = MCPToolContract(
                 "entidad_credito",
                 "empresa_servicios_pago",
                 "casp",
+                "emisor_token",
             ],
         },
         "dominio": {
@@ -205,6 +210,7 @@ CALENDARIO_OBLIGACIONES_PERFIL = MCPToolContract(
                 "entidad_credito",
                 "empresa_servicios_pago",
                 "casp",
+                "emisor_token",
             ],
         },
         "quarter": {

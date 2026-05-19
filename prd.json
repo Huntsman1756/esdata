@@ -49,7 +49,7 @@
       "id": "N-04",
       "title": "Document ART/EMT corpus gap and update MCP routing policy",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Write docs/sprint-n-emisor-token-report.md documenting that ART/EMT supervisor corpus in documento_interpretativo is currently empty.",
         "Do not invent BdE/CNMV documents for ART/EMT.",

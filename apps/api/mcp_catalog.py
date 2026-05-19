@@ -35,12 +35,18 @@ POLITICA DE SELECCION DE HERRAMIENTAS ESDATA:
    NO usar obtener_obligaciones_perfil para documentos supervisores.
 
 7. Para CASP, criptoactivos, MiCA, activos virtuales, exchange cripto, wallet, PSAV:
-   → usar obtener_obligaciones_perfil con perfil_codigo='casp'.
+   -> usar obtener_obligaciones_perfil con perfil_codigo='casp'.
+   Para emisores de ART o EMT, white paper de criptoactivos, ficha referenciada,
+   ficha de dinero electronico o token emisor:
+   -> usar obtener_obligaciones_perfil con perfil_codigo='emisor_token'.
    Las tablas de token/wallet/white-paper pueden estar vacias y esto es esperado.
+   AVISO: corpus documental supervisor ART/EMT vacio; obtener_documentos_cnmv_perfil('emisor_token')
+   puede devolver 0 documentos y esto es esperado, no es un error.
    Responder siempre desde obtener_obligaciones_perfil e identificar gaps explicitamente.
    NO inventar obligaciones cripto no verificadas.
    Trigger: "casp", "criptoactivos", "MiCA", "activos virtuales", "exchange cripto",
-   "wallet", "PSAV", "crypto", "token", "blockchain".
+   "wallet", "PSAV", "crypto", "token", "blockchain", "ART", "EMT",
+   "white paper", "ficha referenciada", "ficha de dinero electronico", "token emisor".
 
 REGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,
 la respuesta correcta es "no consta como obligacion verificada para este perfil",
