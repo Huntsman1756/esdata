@@ -262,6 +262,15 @@ def _check_stdio_tool_descriptions() -> dict[str, Any]:
             failures.append({"check": "cnmv_perfil_routing_policy"})
         if "circulares" not in descriptions["obtener_documentos_cnmv_perfil"]:
             failures.append({"check": "cnmv_perfil_description_circulares"})
+        # MiCA CASP routing checks
+        if "casp" not in MCP_TOOL_ROUTING_POLICY.lower():
+            failures.append({"check": "routing_policy_contains_casp"})
+        if "NO inventar" not in MCP_TOOL_ROUTING_POLICY and "no inventar" not in MCP_TOOL_ROUTING_POLICY:
+            failures.append({"check": "routing_policy_no_inventar"})
+        if "casp" not in descriptions.get("obtener_obligaciones_perfil", "").lower():
+            failures.append({"check": "obtener_description_contains_casp"})
+        if "MiCA" not in descriptions.get("obtener_obligaciones_perfil", ""):
+            failures.append({"check": "obtener_description_contains_mica"})
         check.update(
             {
                 "tool_count": len(tools),
@@ -611,6 +620,7 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             SELECT COUNT(*)
             FROM perfil_entidad pe
             WHERE pe.activo IS true
+              AND pe.codigo <> 'casp'
               AND NOT EXISTS (
                   SELECT 1
                   FROM obligacion_perfil op
@@ -629,6 +639,90 @@ def _check_database_contracts() -> list[dict[str, Any]]:
               AND articulo_referencia IN ('art. 28','art. 30')
             """,
             5,
+        ),
+        # ── MiCA CASP (Sprint M) ──
+        _check_db_scalar(
+            database_url,
+            "mica_canonical_norma_loaded",
+            "SELECT COUNT(*) FROM norma WHERE celex='32023R1114' AND tipo_norma='reglamento_ue'",
+            1,
+        ),
+        _check_db_zero(
+            database_url,
+            "mica_weak_duplicate_removed",
+            "SELECT COUNT(*) FROM norma WHERE codigo='MICA_2023_1114'",
+        ),
+        _check_db_scalar(
+            database_url,
+            "casp_perfil_exists",
+            "SELECT COUNT(*) FROM perfil_entidad WHERE codigo='casp'",
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "casp_obligations_ge_6",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='casp'
+              AND norma_codigo='32023R1114'
+            """,
+            6,
+        ),
+        _check_db_scalar(
+            database_url,
+            "casp_obligations_all_verified",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='casp'
+              AND norma_codigo='32023R1114'
+              AND verified = true
+            """,
+            6,
+        ),
+        _check_db_scalar(
+            database_url,
+            "mica_rts_loaded_ge_3",
+            "SELECT COUNT(*) FROM norma WHERE norma_padre_celex='32023R1114'",
+            3,
+        ),
+        _check_db_scalar(
+            database_url,
+            "casp_art_59_present",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='casp'
+              AND norma_codigo='32023R1114'
+              AND (articulo_referencia LIKE '%59%' OR articulo_referencia LIKE '%autorizaci%')
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "casp_art_70_present",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='casp'
+              AND norma_codigo='32023R1114'
+              AND (articulo_referencia LIKE '%70%' OR articulo_referencia LIKE '%custodia%')
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "casp_pbc_completeness_parcial",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='casp'
+              AND norma_codigo='32023R1114'
+              AND obligacion_tipo='PBC_FT'
+              AND completeness='parcial'
+            """,
+            1,
         ),
         _check_db_scalar(
             database_url,

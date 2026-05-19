@@ -7,24 +7,24 @@ from mcp_tools_eu import EU_MCP_TOOL_CONTRACTS
 from mcp_tools_perfil import PERFIL_MCP_TOOL_CONTRACTS
 
 MCP_TOOL_ROUTING_POLICY = """
-POLÍTICA DE SELECCIÓN DE HERRAMIENTAS ESDATA:
+POLITICA DE SELECCION DE HERRAMIENTAS ESDATA:
 
 1. Para obligaciones de una entidad supervisada → SIEMPRE obtener_obligaciones_perfil
-   Si el modelo no aparece en la respuesta: NO tiene obligación verificada.
-   NO buscar en catálogo AEAT como alternativa.
+   Si el modelo no aparece en la respuesta: NO tiene obligacion verificada.
+   NO buscar en catalogo AEAT como alternativa.
    NO suplementar con buscar_modelos_aeat_catalogo.
 
-2. Para qué presentar en un trimestre/mes/período → SIEMPRE calendario_obligaciones_perfil
-   Usar parámetro quarter (ej: "2026-Q3") para filtrar por período.
+2. Para que presentar en un trimestre/mes/periodo → SIEMPRE calendario_obligaciones_perfil
+   Usar parametro quarter (ej: "2026-Q3") para filtrar por periodo.
    Trigger: "este trimestre", "Q3", "qué vence", "agenda", "este mes",
    "qué presento en julio/octubre/enero/abril".
-   NO usar búsqueda semántica ni catálogo para responder preguntas de calendario.
+   NO usar busqueda semantica ni catalogo para responder preguntas de calendario.
 
-3. Para información sobre un modelo AEAT (qué es, cómo se rellena) → buscar_modelos_aeat_catalogo
+3. Para informacion sobre un modelo AEAT (que es, como se rellena) → buscar_modelos_aeat_catalogo
    Esta herramienta NO indica obligatoriedad. Solo describe el formulario.
-   NO combinar su resultado con obligaciones de perfil sin separación explícita.
+   NO combinar su resultado con obligaciones de perfil sin separacion explicita.
 
-4. Para normas UE (MiFIR, EMIR, DORA, CRR, UCITS) → buscar_norma_eu
+4. Para normas UE (MiFIR, EMIR, DORA, CRR, UCITS, MiCA) → buscar_norma_eu
 
 5. Para listar tipos de entidad → listar_perfiles_entidad
 
@@ -34,8 +34,16 @@ POLÍTICA DE SELECCIÓN DE HERRAMIENTAS ESDATA:
    "modelos normalizados ESI", "supervision CNMV".
    NO usar obtener_obligaciones_perfil para documentos supervisores.
 
+7. Para CASP, criptoactivos, MiCA, activos virtuales, exchange cripto, wallet, PSAV:
+   → usar obtener_obligaciones_perfil con perfil_codigo='casp'.
+   Las tablas de token/wallet/white-paper pueden estar vacias y esto es esperado.
+   Responder siempre desde obtener_obligaciones_perfil e identificar gaps explicitamente.
+   NO inventar obligaciones cripto no verificadas.
+   Trigger: "casp", "criptoactivos", "MiCA", "activos virtuales", "exchange cripto",
+   "wallet", "PSAV", "crypto", "token", "blockchain".
+
 REGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,
-la respuesta correcta es "no consta como obligación verificada para este perfil",
+la respuesta correcta es "no consta como obligacion verificada para este perfil",
 no "lo busco en otro sitio".
 """
 
