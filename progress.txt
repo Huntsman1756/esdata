@@ -2607,3 +2607,4 @@ Resultado:
 --- Iteration 4 done: Tue May 19 21:37:28 CEST 2026
 --- Iteration 5 done: Tue May 19 21:38:16 CEST 2026
 - 2026-05-19 Sprint M M-06 suites MiCA CASP - COMPLETADO. VPS tras aplicar seeds M-01..M-04 y reconstruir `api`/`ops`: `mcp_validation_suite.py --read-only --base-url http://api:8000` => `ok=true`; `mcp_deep_contract_audit.py --base-url http://api:8000` => `ok=true`. Se ajusta el check historico `all_profiles_have_dora_obligation` para excluir `casp`, porque DORA CASP queda fuera de Sprint M.
+- 2026-05-19 Sprint M M-07 final - COMPLETADO. Local: `pytest apps/ -q --basetemp .pytest-tmp` => `3142 passed`. VPS final: `/status` => `api=ok`, `database=ok`; `obligacion_perfil=182/182 verified`; CASP MiCA `8/8 verified`; RTS MiCA hijos `3`; `MICA_2023_1114=0`; Alertmanager sin alertas activas. Informe `docs/sprint-m-mica-report.md` actualizado; `emisor_token` diferido a Sprint N. <promise>COMPLETE</promise>

@@ -16,8 +16,8 @@ POLITICA DE SELECCION DE HERRAMIENTAS ESDATA:
 
 2. Para que presentar en un trimestre/mes/periodo → SIEMPRE calendario_obligaciones_perfil
    Usar parametro quarter (ej: "2026-Q3") para filtrar por periodo.
-   Trigger: "este trimestre", "Q3", "que vence", "agenda", "este mes",
-   "que presento en julio/octubre/enero/abril".
+   Trigger: "este trimestre", "Q3", "qué vence", "agenda", "este mes",
+   "qué presento en julio/octubre/enero/abril".
    NO usar busqueda semantica ni catalogo para responder preguntas de calendario.
 
 3. Para informacion sobre un modelo AEAT (que es, como se rellena) → buscar_modelos_aeat_catalogo

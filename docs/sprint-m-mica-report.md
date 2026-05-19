@@ -35,6 +35,6 @@
 - M-02: Perfil `casp` created (CNMV supervisor)
 - M-03: 8 MiCA CASP obligations seeded (arts. 59, 62, 65, 66, 70, 72, 81, 94)
 - M-04: 3 MiCA RTS/ITS loaded (32025R0305, 32025R0299, 32025R0306)
-- M-05: Pending - fail-closed MCP behavior
-- M-06: Pending - validation suite updates
-- M-07: Pending - final verification
+- M-05: Fail-closed MCP routing for CASP/cripto gaps implemented
+- M-06: Validation suite and deep contract audit updated; VPS `ok=true`
+- M-07: Final verification complete. Local `pytest apps/ -q --basetemp .pytest-tmp` => `3142 passed`. VPS: `api=ok`, `database=ok`, `obligacion_perfil=182/182 verified`, CASP `8/8 verified`, MiCA RTS loaded `3`, Alertmanager has no active alerts.

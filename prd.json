@@ -100,7 +100,7 @@
       "id": "M-07",
       "title": "Final verification - Sprint M complete",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "M-01 through M-06 are complete.",
         "Local full test suite passes with at least the current baseline of 3131 passed.",
