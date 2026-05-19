@@ -13,7 +13,7 @@
       "id": "K-02",
       "title": "Load 32024R1774 and 32024R1773 into norma table",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32024R1774','32024R1773')\"); echo \"DORA RTS loaded: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
