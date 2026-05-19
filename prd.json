@@ -13,7 +13,7 @@
       "id": "L-02",
       "title": "Map sujeto_obligado for all 141 CNMV rows",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; NULL_COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='CNMV' AND (sujeto_obligado IS NULL OR sujeto_obligado::text = '{}' OR (metadata->>'sujeto_obligado') IS NULL) AND tipo_documento NOT IN ('registro_cnmv')\"); echo \"CNMV rows without sujeto_obligado: $NULL_COUNT\"; [ \"$NULL_COUNT\" -eq 0 ] && echo PASS || echo FAIL"
     },
     {
