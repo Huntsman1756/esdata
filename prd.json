@@ -1,62 +1,62 @@
 {
-  "projectName": "esdata-sprint-k-dora-rts",
-  "branchName": "feat/sprint-k-dora-rts",
+  "projectName": "esdata-sprint-l-cnmv-calidad",
+  "branchName": "feat/sprint-l-cnmv-calidad",
   "userStories": [
     {
-      "id": "K-01",
-      "title": "Clean up DORA_2022_2535 weak entry",
+      "id": "L-01",
+      "title": "Inspect schema - confirm sujeto_obligado storage strategy",
       "priority": 1,
       "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE codigo='DORA_2022_2535'\"); echo \"DORA_2022_2535 rows: $COUNT\"; [ \"$COUNT\" -eq 0 ] && echo PASS || echo FAIL"
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT column_name, data_type FROM information_schema.columns WHERE table_name='documento_interpretativo' AND column_name IN ('sujeto_obligado','metadata') ORDER BY column_name\" && test -f docs/schema-documento-interpretativo.md && echo PASS || echo FAIL"
     },
     {
-      "id": "K-02",
-      "title": "Load 32024R1774 and 32024R1773 into norma table",
+      "id": "L-02",
+      "title": "Map sujeto_obligado for all 141 CNMV rows",
       "priority": 2,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32024R1774','32024R1773')\"); echo \"DORA RTS loaded: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; NULL_COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='CNMV' AND (sujeto_obligado IS NULL OR sujeto_obligado::text = '{}' OR (metadata->>'sujeto_obligado') IS NULL) AND tipo_documento NOT IN ('registro_cnmv')\"); echo \"CNMV rows without sujeto_obligado: $NULL_COUNT\"; [ \"$NULL_COUNT\" -eq 0 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "K-03",
-      "title": "Seed DORA obligations - agencia_valores",
+      "id": "L-03",
+      "title": "Link normativa_esi_cnmv to obligacion_perfil",
       "priority": 3,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='agencia_valores' AND norma_codigo='32022R2554'\"); echo \"agencia_valores DORA: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil op JOIN norma n ON n.codigo=op.norma_codigo WHERE n.tipo_norma='circular_cnmv' OR op.norma_codigo ILIKE 'CNMV%'\"); echo \"CNMV obligacion_perfil rows: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "K-04",
-      "title": "Seed DORA obligations - eaf (microenterprise exemption)",
+      "id": "L-04",
+      "title": "Structure modelo_esi_cnmv - add cnmv_obligation_link entries",
       "priority": 4,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND norma_codigo='32022R2554'\"); echo \"eaf DORA: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM cnmv_obligation_link WHERE tipo_obligacion='modelo_normalizado_esi'\"); echo \"ESI model links: $COUNT\"; [ \"$COUNT\" -ge 8 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "K-05",
-      "title": "Add 32024R1773 obligations - ICT third-party contractual arrangements",
+      "id": "L-05",
+      "title": "Add CNMV endpoint - get documents by perfil",
       "priority": 5,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(DISTINCT perfil_codigo) FROM obligacion_perfil WHERE articulo_referencia IN ('art. 28','art. 30') AND norma_codigo='32022R2554'\"); echo \"Profiles with art.28/30: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "verificationCommand": "pytest apps/api/tests/test_cnmv_perfil.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
-      "id": "K-06",
-      "title": "Granularize existing DORA obligations - article ranges to specific articles",
+      "id": "L-06",
+      "title": "Expose CNMV perfil endpoint in MCP - add to mcp_catalog",
       "priority": 6,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE norma_codigo='32022R2554' AND articulo_referencia LIKE 'arts.%'\"); echo \"DORA article ranges remaining: $COUNT\"; [ \"$COUNT\" -eq 0 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "verificationCommand": "pytest apps/api/tests/test_mcp_cnmv_tool.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
-      "id": "K-07",
-      "title": "Update mcp_validation_suite - DORA RTS checks",
+      "id": "L-07",
+      "title": "Update mcp_validation_suite - CNMV quality checks",
       "priority": 7,
-      "passes": true,
+      "passes": false,
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
-      "id": "K-08",
-      "title": "Final verification - Sprint K complete",
+      "id": "L-08",
+      "title": "Final verification - Sprint L complete",
       "priority": 8,
-      "passes": true,
-      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex IN ('32024R1774','32024R1773')\" | grep -E '^2' && echo PASS || echo FAIL"
+      "passes": false,
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='CNMV' AND sujeto_obligado IS NOT NULL\" | grep -vE '^0$' && echo PASS || echo FAIL"
     }
   ]
 }
