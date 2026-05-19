@@ -117,6 +117,7 @@ def _check_mcp_transport(client: httpx.Client) -> dict[str, Any]:
         "calendario_obligaciones_perfil",
         "buscar_norma_eu",
         "buscar_modelos_aeat_catalogo",
+        "obtener_documentos_cnmv_perfil",
     }
     check: dict[str, Any] = {
         "name": "mcp_transport_tools_list",
@@ -233,6 +234,7 @@ def _check_stdio_tool_descriptions() -> dict[str, Any]:
             "calendario_obligaciones_perfil",
             "buscar_norma_eu",
             "buscar_modelos_aeat_catalogo",
+            "obtener_documentos_cnmv_perfil",
         }
         descriptions = {
             name: str((tools.get(name) or {}).get("description") or "") for name in expected
@@ -240,7 +242,7 @@ def _check_stdio_tool_descriptions() -> dict[str, Any]:
         failures: list[dict[str, Any]] = []
         missing = sorted(expected - set(tools))
         if missing:
-            failures.append({"check": "all_5_mcp_tools_registered", "missing": missing})
+            failures.append({"check": "core_mcp_tools_registered", "missing": missing})
         for name, description in descriptions.items():
             if len(description) <= 100:
                 failures.append(
@@ -256,6 +258,10 @@ def _check_stdio_tool_descriptions() -> dict[str, Any]:
             failures.append({"check": "catalog_warning_no_obligation"})
         if "calendario_obligaciones_perfil" not in MCP_TOOL_ROUTING_POLICY:
             failures.append({"check": "routing_policy_importable"})
+        if "obtener_documentos_cnmv_perfil" not in MCP_TOOL_ROUTING_POLICY:
+            failures.append({"check": "cnmv_perfil_routing_policy"})
+        if "circulares" not in descriptions["obtener_documentos_cnmv_perfil"]:
+            failures.append({"check": "cnmv_perfil_description_circulares"})
         check.update(
             {
                 "tool_count": len(tools),
@@ -747,6 +753,66 @@ def _check_database_contracts() -> list[dict[str, Any]]:
                   )
               )
             """,
+        ),
+        _check_db_zero(
+            database_url,
+            "cnmv_rows_missing_sujeto_obligado",
+            """
+            SELECT COUNT(*)
+            FROM documento_interpretativo
+            WHERE organismo_emisor='CNMV'
+              AND tipo_fuente='cnmv'
+              AND (
+                  sujeto_obligado IS NULL
+                  OR cardinality(sujeto_obligado) = 0
+              )
+            """,
+        ),
+        _check_db_scalar(
+            database_url,
+            "cnmv_sociedad_valores_docs_ge_50",
+            """
+            SELECT COUNT(*)
+            FROM documento_interpretativo
+            WHERE organismo_emisor='CNMV'
+              AND tipo_fuente='cnmv'
+              AND 'sociedad_valores' = ANY(sujeto_obligado)
+            """,
+            50,
+        ),
+        _check_db_scalar(
+            database_url,
+            "cnmv_sgiic_docs_ge_20",
+            """
+            SELECT COUNT(*)
+            FROM documento_interpretativo
+            WHERE organismo_emisor='CNMV'
+              AND tipo_fuente='cnmv'
+              AND 'sgiic' = ANY(sujeto_obligado)
+            """,
+            20,
+        ),
+        _check_db_scalar(
+            database_url,
+            "cnmv_obligacion_perfil_ge_6",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil op
+            JOIN norma n ON n.codigo = op.norma_codigo
+            WHERE n.tipo_norma='circular_cnmv'
+               OR op.norma_codigo ILIKE 'CNMV%'
+            """,
+            6,
+        ),
+        _check_db_scalar(
+            database_url,
+            "cnmv_modelo_normalizado_esi_links_ge_8",
+            """
+            SELECT COUNT(*)
+            FROM cnmv_obligation_link
+            WHERE tipo_obligacion='modelo_normalizado_esi'
+            """,
+            8,
         ),
     ]
     return checks
@@ -1591,6 +1657,29 @@ def _validate_cnmv_coverage_contract(payload: dict[str, Any]) -> tuple[bool, dic
     return ok, details
 
 
+def _validate_cnmv_perfil_documents(payload: Any) -> tuple[bool, dict[str, Any]]:
+    documents = payload if isinstance(payload, list) else []
+    missing_fields = [
+        item
+        for item in documents
+        if isinstance(item, dict)
+        and not {"referencia", "titulo", "tipo_documento"} <= set(item)
+    ]
+    details = {
+        "documents": len(documents),
+        "missing_fields_count": len(missing_fields),
+        "tipos": sorted(
+            {
+                str(item.get("tipo_documento"))
+                for item in documents
+                if isinstance(item, dict)
+            }
+        ),
+    }
+    ok = len(documents) >= 10 and not missing_fields
+    return ok, details
+
+
 def run_read_only_suite(base_url: str) -> dict[str, Any]:
     base_url = base_url.rstrip("/")
     checks: list[dict[str, Any]] = []
@@ -2051,6 +2140,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {},
                 _validate_cnmv_coverage_contract,
                 "cnmv_coverage_partial_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/cnmv/perfil/sociedad_valores",
+                {},
+                _validate_cnmv_perfil_documents,
+                "cnmv_perfil_sociedad_valores_documents",
             )
         )
         checks.append(

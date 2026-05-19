@@ -494,6 +494,15 @@ async def buscar_cnmv(
     "/perfil/{perfil_codigo}",
     response_model=list[dict],
     operation_id="obtener_documentos_cnmv_perfil",
+    description=(
+        "Devuelve documentos CNMV (circulares, guias tecnicas, modelos "
+        "normalizados ESI, normativa) aplicables a un perfil de entidad. "
+        "Usar cuando el usuario pregunta que circulares CNMV aplican a una "
+        "sociedad de valores, que guias tecnicas debe seguir una agencia de "
+        "valores, o que modelos normalizados CNMV existen para un tipo de "
+        "entidad. No devuelve obligaciones legales verificadas; para eso usar "
+        "obtener_obligaciones_perfil."
+    ),
 )
 async def obtener_documentos_cnmv_perfil(
     request: Request,

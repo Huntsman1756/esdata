@@ -1137,11 +1137,22 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
             "/v1/norma/eu",
             params={"termino": "32024R1774"},
         )
+        cnmv_perfil_status, cnmv_perfil_payload, cnmv_perfil_preview = _get_json(
+            client,
+            "/v1/cnmv/perfil/sociedad_valores",
+        )
+        cnmv_perfil_circular_status, cnmv_perfil_circular_payload, cnmv_perfil_circular_preview = _get_json(
+            client,
+            "/v1/cnmv/perfil/sociedad_valores",
+            params={"tipo_documento": "circular_cnmv"},
+        )
         details["calendar_q3_status"] = calendar_q3_status
         details["catalog_123_status"] = catalog_123_status
         details["catalog_289_status"] = catalog_289_status
         details["modelo_289_status"] = modelo_289_status
         details["dora_rts_1774_status"] = dora_rts_1774_status
+        details["cnmv_perfil_status"] = cnmv_perfil_status
+        details["cnmv_perfil_circular_status"] = cnmv_perfil_circular_status
 
     sociedad_fiscal_items = extra_payloads.get("sociedad_valores_fiscal", {}).get(
         "obligaciones", []
@@ -1154,6 +1165,12 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     catalog_123_items = catalog_123_payload if isinstance(catalog_123_payload, list) else []
     catalog_289_items = catalog_289_payload if isinstance(catalog_289_payload, list) else []
     dora_rts_1774_items = dora_rts_1774_payload if isinstance(dora_rts_1774_payload, list) else []
+    cnmv_perfil_items = cnmv_perfil_payload if isinstance(cnmv_perfil_payload, list) else []
+    cnmv_perfil_circular_items = (
+        cnmv_perfil_circular_payload
+        if isinstance(cnmv_perfil_circular_payload, list)
+        else []
+    )
     modelo_289_context = (
         modelo_289_payload.get("obligation_context")
         if isinstance(modelo_289_payload, dict)
@@ -1308,6 +1325,8 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         item.get("completeness") for item in eaf_dora_items
     ]
     details["dora_rts_1774_match"] = dora_rts_1774_match[:1]
+    details["cnmv_perfil_sociedad_valores_count"] = len(cnmv_perfil_items)
+    details["cnmv_perfil_circular_count"] = len(cnmv_perfil_circular_items)
 
     if not any("idoneidad" in str(item.get("descripcion", "")).lower() for item in eaf_items if isinstance(item, dict)):
         failures.append({"check": "eaf_cnmv_idoneidad"})
@@ -1487,6 +1506,52 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 "response": dora_rts_1774_preview,
             }
         )
+    if cnmv_perfil_status != 200 or len(cnmv_perfil_items) < 10:
+        failures.append(
+            {
+                "check": "obtener_documentos_cnmv_perfil_sociedad_valores_ge_10",
+                "status": cnmv_perfil_status,
+                "count": len(cnmv_perfil_items),
+                "response": cnmv_perfil_preview,
+            }
+        )
+    missing_cnmv_doc_fields = [
+        item
+        for item in cnmv_perfil_items
+        if isinstance(item, dict)
+        and not {"referencia", "titulo", "tipo_documento"} <= set(item)
+    ]
+    if missing_cnmv_doc_fields:
+        failures.append(
+            {
+                "check": "obtener_documentos_cnmv_perfil_required_fields",
+                "missing_count": len(missing_cnmv_doc_fields),
+            }
+        )
+    if cnmv_perfil_circular_status != 200 or any(
+        item.get("tipo_documento") != "circular_cnmv"
+        for item in cnmv_perfil_circular_items
+        if isinstance(item, dict)
+    ):
+        failures.append(
+            {
+                "check": "obtener_documentos_cnmv_perfil_tipo_filter",
+                "status": cnmv_perfil_circular_status,
+                "response": cnmv_perfil_circular_preview,
+            }
+        )
+    documento_fields_in_obligaciones = [
+        item.get("descripcion")
+        for item in sociedad_items
+        if isinstance(item, dict) and item.get("tipo_documento")
+    ]
+    if documento_fields_in_obligaciones:
+        failures.append(
+            {
+                "check": "obtener_obligaciones_perfil_no_documento_interpretativo_rows",
+                "items": documento_fields_in_obligaciones[:10],
+            }
+        )
     missing_profile_source = [
         item.get("descripcion")
         for item in all_profile_items
@@ -1558,6 +1623,7 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                     "calendario_obligaciones_perfil",
                     "buscar_norma_eu",
                     "buscar_modelos_aeat_catalogo",
+                    "obtener_documentos_cnmv_perfil",
                 }
                 present_core_tools = sorted(name for name in expected_core_tools if name in tools)
                 details["profile_mcp_tools_present"] = present_core_tools
@@ -1585,6 +1651,9 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                 catalog_description = (
                     tools.get("buscar_modelos_aeat_catalogo", {}).get("description") or ""
                 )
+                cnmv_perfil_description = (
+                    tools.get("obtener_documentos_cnmv_perfil", {}).get("description") or ""
+                )
                 if "quarter" not in calendar_description or "este trimestre" not in calendar_description:
                     failures.append(
                         {
@@ -1597,6 +1666,13 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
                         {
                             "check": "catalog_tool_layer_description",
                             "description": catalog_description[:200],
+                        }
+                    )
+                if "circulares" not in cnmv_perfil_description or "guias tecnicas" not in cnmv_perfil_description:
+                    failures.append(
+                        {
+                            "check": "cnmv_perfil_tool_description",
+                            "description": cnmv_perfil_description[:200],
                         }
                     )
     except Exception as exc:
