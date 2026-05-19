@@ -20,7 +20,7 @@
       "id": "N-02",
       "title": "Seed ART obligations for emisor_token (Title III MiCA)",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: N-01 passed.",
         "Load ART obligations for perfil_codigo='emisor_token' and norma_codigo='32023R1114'.",
