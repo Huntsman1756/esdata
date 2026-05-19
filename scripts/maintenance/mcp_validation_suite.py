@@ -271,6 +271,10 @@ def _check_stdio_tool_descriptions() -> dict[str, Any]:
             failures.append({"check": "obtener_description_contains_casp"})
         if "MiCA" not in descriptions.get("obtener_obligaciones_perfil", ""):
             failures.append({"check": "obtener_description_contains_mica"})
+        if "emisor_token" not in MCP_TOOL_ROUTING_POLICY:
+            failures.append({"check": "routing_policy_contains_emisor_token"})
+        if "emisor_token" not in descriptions.get("obtener_obligaciones_perfil", ""):
+            failures.append({"check": "obtener_description_contains_emisor_token"})
         check.update(
             {
                 "tool_count": len(tools),
@@ -620,7 +624,7 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             SELECT COUNT(*)
             FROM perfil_entidad pe
             WHERE pe.activo IS true
-              AND pe.codigo <> 'casp'
+              AND pe.codigo NOT IN ('casp', 'emisor_token')
               AND NOT EXISTS (
                   SELECT 1
                   FROM obligacion_perfil op
@@ -723,6 +727,92 @@ def _check_database_contracts() -> list[dict[str, Any]]:
               AND completeness='parcial'
             """,
             1,
+        ),
+        # MiCA token issuers (Sprint N)
+        _check_db_scalar(
+            database_url,
+            "emisor_token_perfil_exists",
+            "SELECT COUNT(*) FROM perfil_entidad WHERE codigo='emisor_token'",
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "emisor_token_obligations_ge_8",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='emisor_token'
+              AND norma_codigo='32023R1114'
+            """,
+            8,
+        ),
+        _check_db_scalar(
+            database_url,
+            "emisor_token_obligations_all_verified",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='emisor_token'
+              AND norma_codigo='32023R1114'
+              AND verified = true
+            """,
+            8,
+        ),
+        _check_db_scalar(
+            database_url,
+            "emisor_token_art_18_present",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='emisor_token'
+              AND norma_codigo='32023R1114'
+              AND articulo_referencia='art. 18'
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "emisor_token_art_48_present",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='emisor_token'
+              AND norma_codigo='32023R1114'
+              AND articulo_referencia='art. 48'
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "emisor_token_emt_obligations_parcial",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='emisor_token'
+              AND norma_codigo='32023R1114'
+              AND articulo_referencia IN ('art. 48', 'art. 51', 'art. 55')
+              AND completeness='parcial'
+            """,
+            3,
+        ),
+        _check_db_scalar(
+            database_url,
+            "emisor_token_art_base_obligations_completa",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='emisor_token'
+              AND norma_codigo='32023R1114'
+              AND articulo_referencia IN ('art. 18', 'art. 19', 'art. 35')
+              AND completeness='completa'
+            """,
+            3,
+        ),
+        _check_db_scalar(
+            database_url,
+            "obligacion_perfil_total_ge_190",
+            "SELECT COUNT(*) FROM obligacion_perfil",
+            190,
         ),
         _check_db_scalar(
             database_url,
