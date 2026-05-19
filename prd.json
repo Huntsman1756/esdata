@@ -27,7 +27,7 @@
       "id": "K-04",
       "title": "Seed DORA obligations - eaf (microenterprise exemption)",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='eaf' AND norma_codigo='32022R2554'\"); echo \"eaf DORA: $COUNT\"; [ \"$COUNT\" -ge 2 ] && echo PASS || echo FAIL"
     },
     {
