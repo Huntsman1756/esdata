@@ -55,7 +55,7 @@
       "id": "L-08",
       "title": "Final verification - Sprint L complete",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='CNMV' AND sujeto_obligado IS NOT NULL\" | grep -vE '^0$' && echo PASS || echo FAIL"
     }
   ]
