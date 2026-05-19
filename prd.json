@@ -20,7 +20,7 @@
       "id": "K-03",
       "title": "Seed DORA obligations - agencia_valores",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='agencia_valores' AND norma_codigo='32022R2554'\"); echo \"agencia_valores DORA: $COUNT\"; [ \"$COUNT\" -ge 3 ] && echo PASS || echo FAIL"
     },
     {
