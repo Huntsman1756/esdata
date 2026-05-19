@@ -1132,10 +1132,16 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
             client,
             "/v1/modelos/aeat/289",
         )
+        dora_rts_1774_status, dora_rts_1774_payload, dora_rts_1774_preview = _get_json(
+            client,
+            "/v1/norma/eu",
+            params={"termino": "32024R1774"},
+        )
         details["calendar_q3_status"] = calendar_q3_status
         details["catalog_123_status"] = catalog_123_status
         details["catalog_289_status"] = catalog_289_status
         details["modelo_289_status"] = modelo_289_status
+        details["dora_rts_1774_status"] = dora_rts_1774_status
 
     sociedad_fiscal_items = extra_payloads.get("sociedad_valores_fiscal", {}).get(
         "obligaciones", []
@@ -1147,6 +1153,7 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     calendar_q3_items = calendar_q3_payload if isinstance(calendar_q3_payload, list) else []
     catalog_123_items = catalog_123_payload if isinstance(catalog_123_payload, list) else []
     catalog_289_items = catalog_289_payload if isinstance(catalog_289_payload, list) else []
+    dora_rts_1774_items = dora_rts_1774_payload if isinstance(dora_rts_1774_payload, list) else []
     modelo_289_context = (
         modelo_289_payload.get("obligation_context")
         if isinstance(modelo_289_payload, dict)
@@ -1271,11 +1278,36 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         for item in profile_obligaciones.get("eaf", [])
         if isinstance(item, dict) and item.get("norma_codigo") in {"32017R0587", "32017R0583"}
     ]
+    agencia_dora_control_items = [
+        item
+        for item in profile_obligaciones.get("agencia_valores", [])
+        if isinstance(item, dict)
+        and item.get("norma_codigo") == "32022R2554"
+        and item.get("obligacion_tipo") == "CONTROL_INTERNO"
+    ]
+    eaf_dora_items = [
+        item
+        for item in profile_obligaciones.get("eaf", [])
+        if isinstance(item, dict) and item.get("norma_codigo") == "32022R2554"
+    ]
+    dora_rts_1774_match = [
+        item
+        for item in dora_rts_1774_items
+        if isinstance(item, dict)
+        and item.get("celex") == "32024R1774"
+        and item.get("tipo_norma") == "reglamento_delegado_ue"
+    ]
     details["sociedad_valores_rts1_rts2_count"] = len(sociedad_rts_items)
     details["sociedad_valores_rts1_descriptions"] = [
         item.get("descripcion") for item in sociedad_rts1_items
     ]
     details["eaf_rts1_rts2_count"] = len(eaf_rts_items)
+    details["agencia_valores_dora_control_count"] = len(agencia_dora_control_items)
+    details["eaf_dora_count"] = len(eaf_dora_items)
+    details["eaf_dora_completeness"] = [
+        item.get("completeness") for item in eaf_dora_items
+    ]
+    details["dora_rts_1774_match"] = dora_rts_1774_match[:1]
 
     if not any("idoneidad" in str(item.get("descripcion", "")).lower() for item in eaf_items if isinstance(item, dict)):
         failures.append({"check": "eaf_cnmv_idoneidad"})
@@ -1416,6 +1448,45 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         failures.append({"check": "sociedad_valores_rts_notas_si_conditionality"})
     if eaf_rts_items:
         failures.append({"check": "eaf_has_zero_rts1_rts2_obligations", "items": eaf_rts_items[:5]})
+    if not agencia_dora_control_items:
+        failures.append({"check": "agencia_valores_dora_control_interno_present"})
+    if not eaf_dora_items or not all(item.get("completeness") == "parcial" for item in eaf_dora_items):
+        failures.append(
+            {
+                "check": "eaf_dora_all_parcial",
+                "items": [
+                    {
+                        "descripcion": item.get("descripcion"),
+                        "completeness": item.get("completeness"),
+                    }
+                    for item in eaf_dora_items
+                ],
+            }
+        )
+    if not eaf_dora_items or not all(
+        "microempresa" in str(item.get("notas") or "").lower()
+        for item in eaf_dora_items
+    ):
+        failures.append(
+            {
+                "check": "eaf_dora_notas_microempresa",
+                "items": [
+                    {
+                        "descripcion": item.get("descripcion"),
+                        "notas": item.get("notas"),
+                    }
+                    for item in eaf_dora_items
+                ],
+            }
+        )
+    if dora_rts_1774_status != 200 or not dora_rts_1774_match:
+        failures.append(
+            {
+                "check": "buscar_norma_eu_32024R1774_reglamento_delegado",
+                "status": dora_rts_1774_status,
+                "response": dora_rts_1774_preview,
+            }
+        )
     missing_profile_source = [
         item.get("descripcion")
         for item in all_profile_items

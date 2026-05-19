@@ -532,6 +532,100 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
+            "dora_rts_1774_norma_loaded",
+            "SELECT COUNT(*) FROM norma WHERE celex='32024R1774'",
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "dora_rts_1773_norma_loaded",
+            "SELECT COUNT(*) FROM norma WHERE celex='32024R1773'",
+            1,
+        ),
+        _check_db_zero(
+            database_url,
+            "dora_weak_duplicate_removed",
+            "SELECT COUNT(*) FROM norma WHERE codigo='DORA_2022_2535'",
+        ),
+        _check_db_scalar(
+            database_url,
+            "agencia_valores_dora_obligations_ge_3",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='agencia_valores'
+              AND norma_codigo='32022R2554'
+            """,
+            3,
+        ),
+        _check_db_scalar(
+            database_url,
+            "eaf_dora_obligations_ge_2",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='eaf'
+              AND norma_codigo='32022R2554'
+            """,
+            2,
+        ),
+        _check_db_zero(
+            database_url,
+            "eaf_dora_obligations_all_parcial",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='eaf'
+              AND norma_codigo='32022R2554'
+              AND completeness <> 'parcial'
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "dora_weak_duplicate_no_obligation_references",
+            "SELECT COUNT(*) FROM obligacion_perfil WHERE norma_codigo='DORA_2022_2535'",
+        ),
+        _check_db_zero(
+            database_url,
+            "dora_obligations_no_article_ranges",
+            """
+            SELECT COUNT(*)
+            FROM obligacion_perfil
+            WHERE norma_codigo='32022R2554'
+              AND (
+                  articulo_referencia LIKE 'arts.%'
+                  OR articulo_referencia LIKE '%-%'
+              )
+            """,
+        ),
+        _check_db_zero(
+            database_url,
+            "all_profiles_have_dora_obligation",
+            """
+            SELECT COUNT(*)
+            FROM perfil_entidad pe
+            WHERE pe.activo IS true
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM obligacion_perfil op
+                  WHERE op.perfil_codigo = pe.codigo
+                    AND op.norma_codigo='32022R2554'
+              )
+            """,
+        ),
+        _check_db_scalar(
+            database_url,
+            "dora_art_28_30_profiles_ge_5",
+            """
+            SELECT COUNT(DISTINCT perfil_codigo)
+            FROM obligacion_perfil
+            WHERE norma_codigo='32022R2554'
+              AND articulo_referencia IN ('art. 28','art. 30')
+            """,
+            5,
+        ),
+        _check_db_scalar(
+            database_url,
             "modelo_289_normativa_ge_4",
             """
             SELECT COUNT(*)
