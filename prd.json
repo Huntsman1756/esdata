@@ -6,7 +6,7 @@
       "id": "M-01",
       "title": "Replace MICA_2023_1114 with canonical 32023R1114",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Verify 32023R1114 on EUR-Lex from VPS; HTTP status must be 200.",
         "Check whether a canonical norma row already exists with celex='32023R1114'.",
@@ -21,7 +21,7 @@
       "id": "M-02",
       "title": "Create perfil casp in perfil_entidad",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Inspect perfil_entidad columns before inserting.",
         "Inspect existing perfiles to match local defaults and mandatory fields.",
@@ -36,7 +36,7 @@
       "id": "M-03",
       "title": "Seed base MiCA obligations for casp - arts. 59-76",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisites: M-01 canonical 32023R1114 and M-02 perfil casp.",
         "Load at least six verified CASP obligations with perfil_codigo='casp' and norma_codigo='32023R1114'.",
@@ -51,7 +51,7 @@
       "id": "M-04",
       "title": "Verify and load 3 MiCA RTS for CASP",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Prerequisite: M-01 passed.",
         "Verify each CELEX from VPS before inserting: HTTP 200 plus content match for 2023/1114, criptoactivos, CASP, or activos virtuales.",
@@ -73,7 +73,7 @@
       "id": "M-05",
       "title": "Add fail-closed MCP behavior for missing cripto data",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "Update MCP_TOOL_ROUTING_POLICY in mcp_catalog.py for CASP and crypto queries.",
         "Policy must route CASP, criptoactivos, MiCA, activos virtuales, exchange cripto, wallet, and PSAV to obtener_obligaciones_perfil with perfil_codigo='casp'.",
@@ -88,7 +88,7 @@
       "id": "M-06",
       "title": "Update mcp_validation_suite - MiCA CASP checks",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "mcp_validation_suite.py checks canonical 32023R1114, absence of MICA_2023_1114, perfil casp, >=6 CASP obligations, all CASP obligations verified, >=3 child RTS, art. 59, art. 70, PBC completeness parcial, and routing policy contains casp.",
         "mcp_deep_contract_audit.py checks obtener_obligaciones_perfil('casp') returns >=6 items, all verified, includes norma_codigo='32023R1114', art. 59 notes mention autorizacion/CNMV, and buscar_norma_eu(celex='32023R1114') returns tipo_norma='reglamento_ue'.",

@@ -1719,6 +1719,39 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
     if sociedad_verified < 20:
         failures.append({"check": "sociedad_valores_verified_count", "value": sociedad_verified, "minimum": 20})
 
+    # MiCA CASP checks
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        casp_status, casp_payload, casp_preview = _get_json(
+            client,
+            "/v1/perfil/casp/obligaciones",
+        )
+    casp_obligaciones = casp_payload.get("obligaciones") if isinstance(casp_payload, dict) else []
+    casp_items = [item for item in (casp_obligaciones or []) if isinstance(item, dict)]
+    casp_verified = sum(1 for item in casp_items if item.get("verified"))
+    casp_norma_codes = {item.get("norma_codigo") for item in casp_items if item.get("norma_codigo")}
+    casp_pbc = [item for item in casp_items if item.get("obligacion_tipo") == "PBC_FT"]
+    casp_art59 = [item for item in casp_items if item.get("articulo_referencia") and "59" in str(item.get("articulo_referencia", ""))]
+    details.update(
+        {
+            "casp_status": casp_status,
+            "casp_total": len(casp_items),
+            "casp_verified": casp_verified,
+            "casp_normas": sorted(str(v) for v in casp_norma_codes),
+            "casp_pbc_count": len(casp_pbc),
+            "casp_art59_count": len(casp_art59),
+        }
+    )
+    if casp_status != 200 or len(casp_items) < 6:
+        failures.append({"check": "casp_obligations_ge_6", "status": casp_status, "total": len(casp_items), "preview": casp_preview})
+    if casp_status != 200 or casp_verified < len(casp_items):
+        failures.append({"check": "casp_all_verified", "verified": casp_verified, "total": len(casp_items)})
+    if "32023R1114" not in casp_norma_codes:
+        failures.append({"check": "casp_norma_32023R1114", "normas": sorted(str(v) for v in casp_norma_codes)})
+    if not casp_art59:
+        failures.append({"check": "casp_art_59_present"})
+    if casp_pbc and not all(item.get("completeness") == "parcial" for item in casp_pbc):
+        failures.append({"check": "casp_pbc_parcial"})
+
     with httpx.Client(base_url=base_url, timeout=60) as client:
         list_status, list_payload, list_preview = _get_json(client, "/v1/norma/eu")
         mifir_status, mifir_payload, mifir_preview = _get_json(client, "/v1/norma/eu", params={"termino": "MiFIR"})
@@ -1762,6 +1795,17 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
         failures.append({"check": "buscar_norma_eu_mifir", "status": mifir_status, "preview": mifir_preview})
     if dora_status != 200 or "32022R2554" not in {item.get("celex") for item in dora_items if isinstance(item, dict)}:
         failures.append({"check": "buscar_norma_eu_dora", "status": dora_status, "preview": dora_preview})
+        # MiCA CASP checks
+        mica_status, mica_payload, mica_preview = _get_json(client, "/v1/norma/eu", params={"termino": "32023R1114"})
+        mica_items = mica_payload if isinstance(mica_payload, list) else []
+        details.update(
+            {
+                "mica_status": mica_status,
+                "mica_celex": [item.get("celex") for item in mica_items if isinstance(item, dict)],
+            }
+        )
+        if mica_status != 200 or "32023R1114" not in {item.get("celex") for item in mica_items if isinstance(item, dict)}:
+            failures.append({"check": "buscar_norma_eu_mica", "status": mica_status, "preview": mica_preview})
     if "32014R0600" not in cnmv_normas:
         failures.append({"check": "perfil_cnmv_mifir_obligation", "status": cnmv_status, "preview": cnmv_preview})
 
