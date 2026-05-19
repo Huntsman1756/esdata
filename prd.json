@@ -1,62 +1,117 @@
 {
-  "projectName": "esdata-sprint-l-cnmv-calidad",
-  "branchName": "feat/sprint-l-cnmv-calidad",
+  "projectName": "esdata-sprint-m-mica-casp",
+  "branchName": "feat/sprint-m-mica-casp",
   "userStories": [
     {
-      "id": "L-01",
-      "title": "Inspect schema - confirm sujeto_obligado storage strategy",
+      "id": "M-01",
+      "title": "Replace MICA_2023_1114 with canonical 32023R1114",
       "priority": 1,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; $COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -c \"SELECT column_name, data_type FROM information_schema.columns WHERE table_name='documento_interpretativo' AND column_name IN ('sujeto_obligado','metadata') ORDER BY column_name\" && test -f docs/schema-documento-interpretativo.md && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Verify 32023R1114 on EUR-Lex from VPS; HTTP status must be 200.",
+        "Check whether a canonical norma row already exists with celex='32023R1114'.",
+        "If canonical row does not exist, insert codigo='32023R1114', celex='32023R1114', tipo_norma='reglamento_ue', vigente=true, publicacion_doue='2023-06-09', and EUR-Lex source URL.",
+        "Before deleting the weak row, update any obligacion_perfil references from MICA_2023_1114 to 32023R1114.",
+        "Delete norma.codigo='MICA_2023_1114'.",
+        "After completion, norma must have exactly the canonical 32023R1114 row populated and no MICA_2023_1114 row."
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE celex='32023R1114' AND tipo_norma IS NOT NULL AND tipo_norma != ''\"); WEAK=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE codigo='MICA_2023_1114'\"); echo \"Canonical: $COUNT, Weak: $WEAK\"; [ \"$COUNT\" -ge 1 ] && [ \"$WEAK\" -eq 0 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "L-02",
-      "title": "Map sujeto_obligado for all 141 CNMV rows",
+      "id": "M-02",
+      "title": "Create perfil casp in perfil_entidad",
       "priority": 2,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; NULL_COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='CNMV' AND (sujeto_obligado IS NULL OR sujeto_obligado::text = '{}' OR (metadata->>'sujeto_obligado') IS NULL) AND tipo_documento NOT IN ('registro_cnmv')\"); echo \"CNMV rows without sujeto_obligado: $NULL_COUNT\"; [ \"$NULL_COUNT\" -eq 0 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Inspect perfil_entidad columns before inserting.",
+        "Inspect existing perfiles to match local defaults and mandatory fields.",
+        "Insert codigo='casp', nombre='Proveedor de Servicios de Criptoactivos (CASP)', supervisor='CNMV'.",
+        "descripcion must identify CASP as an entity authorized by CNMV to provide one or more crypto-asset services under MiCA arts. 3.1.16 and 59.",
+        "Mention MiCA applies from 30 December 2024 and existing PSAV transitional period ends 30 December 2025.",
+        "Do not create emisor_token in Sprint M."
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM perfil_entidad WHERE codigo='casp'\"); echo \"casp perfil: $COUNT\"; [ \"$COUNT\" -eq 1 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "L-03",
-      "title": "Link normativa_esi_cnmv to obligacion_perfil",
+      "id": "M-03",
+      "title": "Seed base MiCA obligations for casp - arts. 59-76",
       "priority": 3,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil op JOIN norma n ON n.codigo=op.norma_codigo WHERE n.tipo_norma='circular_cnmv' OR op.norma_codigo ILIKE 'CNMV%'\"); echo \"CNMV obligacion_perfil rows: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Prerequisites: M-01 canonical 32023R1114 and M-02 perfil casp.",
+        "Load at least six verified CASP obligations with perfil_codigo='casp' and norma_codigo='32023R1114'.",
+        "Required obligations include art. 59 autorizacion CNMV, art. 65 capital, arts. 66-67 gobernanza/fit and proper, art. 70 custodia/segregacion, art. 81 continuidad, arts. 72-73 reporting/reclamaciones/conflictos, and art. 94 PBC/FT.",
+        "All rows must have source_url='https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32023R1114'.",
+        "verified=true requires norma loaded, article confirmed, and source_url resolves.",
+        "PBC/FT obligation must be completeness='parcial' because concrete Spanish AML duties live outside MiCA."
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE perfil_codigo='casp' AND norma_codigo='32023R1114'\"); echo \"casp MiCA obligations: $COUNT\"; [ \"$COUNT\" -ge 6 ] && echo PASS || echo FAIL"
     },
     {
-      "id": "L-04",
-      "title": "Structure modelo_esi_cnmv - add cnmv_obligation_link entries",
+      "id": "M-04",
+      "title": "Verify and load 3 MiCA RTS for CASP",
       "priority": 4,
-      "passes": true,
-      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM cnmv_obligation_link WHERE tipo_obligacion='modelo_normalizado_esi'\"); echo \"ESI model links: $COUNT\"; [ \"$COUNT\" -ge 8 ] && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Prerequisite: M-01 passed.",
+        "Verify each CELEX from VPS before inserting: HTTP 200 plus content match for 2023/1114, criptoactivos, CASP, or activos virtuales.",
+        "EUR-Lex may return 202 Accepted plus WAF challenge for plain curl. If that happens, retry with browser-like headers; if still blocked, use data.europa.eu ELI as the first fallback for content verification.",
+        "For example, CELEX 32025R0305 maps to https://data.europa.eu/eli/reg_del/2025/305/spa for structured Spanish metadata/content checks.",
+        "BOE DOUE Spanish mirror is an allowed fallback only when the concrete DOUE id is known.",
+        "If no automated source returns verifiable content, document the candidate as 'CELEX no verificable automaticamente - verificacion manual requerida' in docs/sprint-m-mica-report.md, mark M-04 with 0 RTS cargados, and only then mark M-04 as passed.",
+        "Candidates in priority order: 32025R0305, 32025R0299, 32025R0304, 32025R0306, 32025R0300.",
+        "Stop when three confirmed MiCA CASP RTS/ITS have been loaded.",
+        "Do not load 32024R1681 or 32024R2656.",
+        "Insert each accepted act into norma with codigo=celex, tipo_norma='reglamento_delegado_ue', vigente=true, norma_padre_celex='32023R1114', EUR-Lex URL, and title/date fetched from source rather than assumed.",
+        "Link art. 62 and art. 81 CASP obligations to corresponding RTS using fuente_secundaria where the column exists.",
+        "Document accepted and rejected CELEXs in docs/sprint-m-mica-report.md.",
+        "If candidates fail content verification, document honestly instead of inflating counts."
+      ],
+      "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM norma WHERE norma_padre_celex='32023R1114'\"); echo \"MiCA RTS loaded: $COUNT\"; if [ \"$COUNT\" -ge 3 ]; then echo PASS; elif test -f docs/sprint-m-mica-report.md && grep -qi \"0 RTS cargados\" docs/sprint-m-mica-report.md && grep -qi \"CELEX no verificable automaticamente\" docs/sprint-m-mica-report.md; then echo PASS; else echo FAIL; fi"
     },
     {
-      "id": "L-05",
-      "title": "Add CNMV endpoint - get documents by perfil",
+      "id": "M-05",
+      "title": "Add fail-closed MCP behavior for missing cripto data",
       "priority": 5,
-      "passes": true,
-      "verificationCommand": "pytest apps/api/tests/test_cnmv_perfil.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
+      "passes": false,
+      "acceptanceCriteria": [
+        "Update MCP_TOOL_ROUTING_POLICY in mcp_catalog.py for CASP and crypto queries.",
+        "Policy must route CASP, criptoactivos, MiCA, activos virtuales, exchange cripto, wallet, and PSAV to obtener_obligaciones_perfil with perfil_codigo='casp'.",
+        "Policy must state that token/wallet/white-paper tables may be empty and this is expected.",
+        "Policy must tell the agent to answer from obtener_obligaciones_perfil and explicitly identify gaps instead of inventing unverified crypto obligations.",
+        "Update stdio tool description for obtener_obligaciones_perfil to include perfil_codigo='casp' and MiCA applicability from 30 December 2024.",
+        "Add apps/api/tests/test_mcp_casp_routing.py covering casp, PSAV, NO inventar, and tool description content."
+      ],
+      "verificationCommand": "pytest apps/api/tests/test_mcp_casp_routing.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
     },
     {
-      "id": "L-06",
-      "title": "Expose CNMV perfil endpoint in MCP - add to mcp_catalog",
+      "id": "M-06",
+      "title": "Update mcp_validation_suite - MiCA CASP checks",
       "priority": 6,
-      "passes": true,
-      "verificationCommand": "pytest apps/api/tests/test_mcp_cnmv_tool.py -v 2>&1 | tail -10 | grep -E 'passed|PASSED' && echo PASS || echo FAIL"
-    },
-    {
-      "id": "L-07",
-      "title": "Update mcp_validation_suite - CNMV quality checks",
-      "priority": 7,
-      "passes": true,
+      "passes": false,
+      "acceptanceCriteria": [
+        "mcp_validation_suite.py checks canonical 32023R1114, absence of MICA_2023_1114, perfil casp, >=6 CASP obligations, all CASP obligations verified, >=3 child RTS, art. 59, art. 70, PBC completeness parcial, and routing policy contains casp.",
+        "mcp_deep_contract_audit.py checks obtener_obligaciones_perfil('casp') returns >=6 items, all verified, includes norma_codigo='32023R1114', art. 59 notes mention autorizacion/CNMV, and buscar_norma_eu(celex='32023R1114') returns tipo_norma='reglamento_ue'.",
+        "Run both suites on VPS against the full corpus; ok=true is required."
+      ],
       "verificationCommand": "docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_validation_suite.py --read-only --base-url http://api:8000 2>&1 | grep 'ok=true' && docker compose -f infra/deploy/docker-compose.prod.yml run --rm ops python mcp_deep_contract_audit.py 2>&1 | grep 'ok=true' && echo PASS || echo FAIL"
     },
     {
-      "id": "L-08",
-      "title": "Final verification - Sprint L complete",
-      "priority": 8,
-      "passes": true,
-      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM documento_interpretativo WHERE organismo_emisor='CNMV' AND sujeto_obligado IS NOT NULL\" | grep -vE '^0$' && echo PASS || echo FAIL"
+      "id": "M-07",
+      "title": "Final verification - Sprint M complete",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "M-01 through M-06 are complete.",
+        "Local full test suite passes with at least the current baseline of 3131 passed.",
+        "VPS /status reports api=ok and db=ok.",
+        "Alertmanager has 0 active alerts.",
+        "Branch feat/sprint-m-mica-casp is pushed.",
+        "docs/sprint-m-mica-report.md records CELEX accepted/rejected results and defers emisor_token to Sprint N.",
+        "docs/master-execution-roadmap.md records Sprint M complete.",
+        "Total obligacion_perfil is expected around 180+ with all rows verified after Sprint M."
+      ],
+      "verificationCommand": "pytest apps/ -q --basetemp .pytest-tmp 2>&1 | tail -3 | grep 'passed' && docker compose -f infra/deploy/docker-compose.prod.yml exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM perfil_entidad WHERE codigo='casp'\" | grep -E '^1$' && echo PASS || echo FAIL"
     }
   ]
 }
