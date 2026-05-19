@@ -41,7 +41,7 @@
       "id": "K-06",
       "title": "Granularize existing DORA obligations - article ranges to specific articles",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "verificationCommand": "COMPOSE='docker compose -f infra/deploy/docker-compose.prod.yml'; COUNT=$($COMPOSE exec postgres psql -U $PGUSER -d $PGDATABASE -tAc \"SELECT COUNT(*) FROM obligacion_perfil WHERE norma_codigo='32022R2554' AND articulo_referencia LIKE 'arts.%'\"); echo \"DORA article ranges remaining: $COUNT\"; [ \"$COUNT\" -eq 0 ] && echo PASS || echo FAIL"
     },
     {
