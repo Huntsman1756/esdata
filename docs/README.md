@@ -19,6 +19,8 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `operations/runbooks/` — runbooks repetibles
 - `integrations/README.md` — matriz activa de integraciones LLM/clientes
 - `manual-usuario/README.md` — manual vivo de uso e integracion
+- `fiscal-regulatory-coverage-matrix.md` — matriz de cobertura fiscal-regulatoria por dominio y subdominio
+- `aeat-priority-model-closeout.md` — cierre auditable de modelos AEAT prioritarios por estado
 - `reference/model-expansion-spec.md` — guia para nuevos modelos, leyes y organismos
 - `reference/v1-feature-inventory.md` — inventario activo de features, superficies y gaps para v1.0
 - `reference/mcp-remediation-plan.md` — plan activo para endurecer trazabilidad, grounding y completitud del MCP
