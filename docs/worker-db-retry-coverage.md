@@ -5,7 +5,7 @@ Status: IMPLEMENTED as of 2026-05-11.
 Scope: `apps/workers/*.py` files that create SQLAlchemy engines with `create_engine(...)`.
 Requirement: every in-scope worker must call `ensure_database_connection(engine)` before DB work so Docker DNS/network churn fails loudly and retries before sync logic starts.
 
-In-scope DB worker files: 63
+In-scope DB worker files: 68
 Missing retry guard: 0
 
 | Worker file | create_engine calls | Retry guard |
@@ -39,6 +39,8 @@ Missing retry guard: 0
 | `dora.py` | 1 | PASS |
 | `entity_identity.py` | 2 | PASS |
 | `eurlex.py` | 1 | PASS |
+| `eurlex_market.py` | 1 | PASS |
+| `eu_sanctions.py` | 1 | PASS |
 | `fraud.py` | 1 | PASS |
 | `giin.py` | 1 | PASS |
 | `insurance.py` | 1 | PASS |
@@ -71,6 +73,9 @@ Missing retry guard: 0
 | `solvency.py` | 1 | PASS |
 | `sustainable_finance.py` | 1 | PASS |
 | `teac.py` | 1 | PASS |
+| `worker_esma_dlt.py` | 1 | PASS |
+| `worker_esma_firds.py` | 1 | PASS |
+| `worker_esma_mifir_reporting.py` | 1 | PASS |
 | `xbrl.py` | 2 | PASS |
 | `xbrl_taxonomy.py` | 1 | PASS |
 
