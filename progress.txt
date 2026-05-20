@@ -2678,3 +2678,14 @@ Next: A-05 Run all cron jobs once - verify sync_log
 
 --- Iteration 1 done: Wed May 20 15:20:12 CEST 2026
 Correction: A-04b review preserved canonical codigo=32014L0065 on boe_id conflict and replaced dead-letter partial conflict target with plain ON CONFLICT DO UPDATE.
+
+=== VPS verification A-04b - 2026-05-20 ===
+Story: A-04b Fix worker-eurlex norma upsert and dead-letter idempotency
+Result: PASS
+Verification:
+- VPS branch `fix/full-audit-stale-workers-20260520` pulled and `worker-eurlex` image rebuilt.
+- `worker-eurlex --run-once` exit code: 0.
+- Output: `[run-once] Bloques: 0, Articulos: 0, Normas: 32, Nuevos SPARQL: 0`.
+- `sync_log` latest EUR-Lex row: id `1730`, `worker='cron-eurlex-weekly'`, `status='ok'`, `errors=0`.
+- `norma` row for `boe_id='EUR-CELEX-32014L0065'` remains canonical: `codigo='32014L0065'`.
+Next: A-05 Run all cron jobs once - verify sync_log.

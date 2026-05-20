@@ -82,6 +82,20 @@ Summary:
 
 ### `worker-eurlex`
 
+Status after A-04b: **fixed and verified on VPS**.
+
+Verification:
+
+- Branch deployed on VPS: `fix/full-audit-stale-workers-20260520`
+- Worker image rebuilt: `worker-eurlex`
+- Command: `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml run -T --rm worker-eurlex sh -lc 'python eurlex.py --run-once'`
+- Exit code: `0`
+- Output: `[run-once] Bloques: 0, Articulos: 0, Normas: 32, Nuevos SPARQL: 0`
+- `sync_log`: row `1730`, `worker='cron-eurlex-weekly'`, `status='ok'`, `errors=0`
+- Canonical row preserved: `boe_id='EUR-CELEX-32014L0065'`, `codigo='32014L0065'`
+
+Original failure:
+
 `worker-eurlex` fails with a database integrity error:
 
 `duplicate key value violates unique constraint "norma_boe_id_key"`
