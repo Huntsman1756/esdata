@@ -65,7 +65,7 @@
         "0 NULLs en campos criticos",
         "0 duplicados logicos en articulo"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-07",

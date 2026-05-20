@@ -2705,3 +2705,24 @@ Artifacts:
 - Harness: `scripts/maintenance/a05_cron_worker_sync_log_smoke.sh`.
 - Report: `docs/cron-worker-run-once-20260520.md`.
 Next: A-06 DB integrity - FK, NULLs, duplicates.
+
+=== Iteration A-06 - 2026-05-20 ===
+Story: A-06 DB integrity - FK, NULLs, duplicates
+Result: PASS
+Verification:
+- `scripts/integrity-check.sql` exists and ran on VPS via docker compose `postgres` stdin.
+- Added explicit logical FK check `obligacion_perfil.norma_codigo -> norma.codigo`.
+- Script now prints blocking failures before raising, making future diagnosis deterministic.
+- Initial VPS run found 1 blocking row: empty `version_articulo.texto` for `32014L0065` art. `95 bis`, `version_articulo.id=6785`.
+Fix applied:
+- `apps/workers/eurlex.py` skips empty official EUR-Lex blocks and does not insert `articulo`/`version_articulo` for them.
+- Added focused test `test_upsert_articulo_skips_empty_official_text`.
+- VPS rebuilt `worker-eurlex` and `cron-eurlex-weekly`.
+- Deleted the existing empty row (`version_articulo.id=6785`) and orphaned `articulo.id=76592`.
+Final result:
+- `Integrity failures (blocking): 0`.
+- `PASS integrity checks`.
+- Non-blocking warnings remain: 6 partial `documento_interpretativo` rows with empty text, 75 `aeat_modelo.periodo` empty.
+Artifacts:
+- Report: `docs/db-integrity-a06-20260520.md`.
+Next: A-07 Regulatory data accuracy spot-check.
