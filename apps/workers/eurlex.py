@@ -820,28 +820,46 @@ def discover_new_celexs(
 # DB helpers — upsert norma/articulo/version_articulo
 # ============================================================
 
-def _resolve_norma_conflict(codigo: str, boe_id: str) -> str:
-    """Return the conflict target column for norma upsert.
-
-    The norma table has UNIQUE constraints on both `codigo` and `boe_id`.
-    When a CELEX is re-encountered with a different internal `codigo`
-    (e.g. after CELEX normalisation in Sprint D), the INSERT must not
-    crash on `norma_boe_id_key`.  Use `boe_id` as the primary conflict
-    target because it is the canonical external identifier.
-    """
-    return "boe_id"
-
-
 def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
     """Upsert a norma record, handling conflicts on both codigo and boe_id.
 
     The norma table has UNIQUE constraints on both `codigo` and `boe_id`.
-    This function uses `boe_id` as the conflict target because it is the
-    canonical external identifier (CELEX).  When a norma was previously
-    loaded with a different internal `codigo` but the same `boe_id`, the
-    conflict resolves against `boe_id` and updates the row.
+    If a canonical CELEX row already exists for the same `boe_id`, update
+    metadata in place and preserve its existing `codigo`.
     """
-    conflict_target = _resolve_norma_conflict(norma["codigo"], norma["boe_id"])
+    params = {
+        "codigo": norma["codigo"],
+        "titulo": norma["titulo"],
+        "boe_id": norma["boe_id"],
+        "eli_uri": f"https://eur-lex.europa.eu/eli/{_eli_path(norma['boe_id'])}",
+        "jurisdiccion": "ue",
+        "tipo_fuente": "eurlex",
+        "tipo_documento": norma["tipo_documento"],
+        "ambito": norma["ambito"],
+        "estado_cobertura": "ingestada",
+        "vigente_desde": vigente_desde,
+    }
+
+    result = conn.execute(
+        text(
+            """
+            UPDATE norma
+            SET titulo = :titulo,
+                eli_uri = :eli_uri,
+                jurisdiccion = :jurisdiccion,
+                tipo_fuente = :tipo_fuente,
+                tipo_documento = :tipo_documento,
+                ambito = :ambito,
+                estado_cobertura = :estado_cobertura,
+                vigente_desde = :vigente_desde
+            WHERE boe_id = :boe_id
+            """
+        ),
+        params,
+    )
+    if result.rowcount:
+        return
+
     conn.execute(
         text(
             """
@@ -853,8 +871,7 @@ def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
                 :codigo, :titulo, :boe_id, :eli_uri, :jurisdiccion,
                 :tipo_fuente, :tipo_documento, :ambito, :estado_cobertura, :vigente_desde
             )
-            ON CONFLICT ({target}) DO UPDATE SET
-                codigo = EXCLUDED.codigo,
+            ON CONFLICT (codigo) DO UPDATE SET
                 titulo = EXCLUDED.titulo,
                 boe_id = EXCLUDED.boe_id,
                 eli_uri = EXCLUDED.eli_uri,
@@ -864,20 +881,9 @@ def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
                 ambito = EXCLUDED.ambito,
                 estado_cobertura = EXCLUDED.estado_cobertura,
                 vigente_desde = EXCLUDED.vigente_desde
-            """.format(target=conflict_target)
+            """
         ),
-        {
-            "codigo": norma["codigo"],
-            "titulo": norma["titulo"],
-            "boe_id": norma["boe_id"],
-            "eli_uri": f"https://eur-lex.europa.eu/eli/{_eli_path(norma['boe_id'])}",
-            "jurisdiccion": "ue",
-            "tipo_fuente": "eurlex",
-            "tipo_documento": norma["tipo_documento"],
-            "ambito": norma["ambito"],
-            "estado_cobertura": "ingestada",
-            "vigente_desde": vigente_desde,
-        },
+        params,
     )
 
 

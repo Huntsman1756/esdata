@@ -877,11 +877,11 @@ def test_log_sync_records_nonzero_errors_when_requested():
 
 
 def test_upsert_norma_conflict_on_boe_id_idempotent():
-    """A-04b: upsert_norma must handle conflicts on boe_id, not only codigo.
+    """A-04b: upsert_norma must preserve canonical codigo on boe_id conflict.
 
-    When a norma was previously loaded with a different internal codigo
-    (e.g. CELEX normalisation) the same boe_id must not trigger a
-    unique violation.
+    Production already has codigo=32014L0065 for boe_id=EUR-CELEX-32014L0065.
+    A rerun with legacy codigo=MIFID2_2014_65 must update metadata without
+    replacing the canonical codigo.
     """
     engine = create_engine("sqlite:///:memory:", future=True)
     with engine.begin() as conn:
@@ -909,21 +909,6 @@ def test_upsert_norma_conflict_on_boe_id_idempotent():
         eurlex.upsert_norma(
             conn,
             {
-                "codigo": "MIFID2_2014_65",
-                "boe_id": "EUR-CELEX-32014L0065",
-                "tipo_documento": "directiva",
-                "titulo": "MiFID II original",
-                "vigente_desde": "2014-07-17",
-                "ambito": "mercados_financieros",
-            },
-            "2014-07-17",
-        )
-
-    with engine.begin() as conn:
-        # Same boe_id but different codigo (CELEX normalised) — must not crash
-        eurlex.upsert_norma(
-            conn,
-            {
                 "codigo": "32014L0065",
                 "boe_id": "EUR-CELEX-32014L0065",
                 "tipo_documento": "directiva",
@@ -935,11 +920,26 @@ def test_upsert_norma_conflict_on_boe_id_idempotent():
         )
 
     with engine.begin() as conn:
+        # Same boe_id but legacy codigo must not crash or replace canonical code.
+        eurlex.upsert_norma(
+            conn,
+            {
+                "codigo": "MIFID2_2014_65",
+                "boe_id": "EUR-CELEX-32014L0065",
+                "tipo_documento": "directiva",
+                "titulo": "MiFID II rerun",
+                "vigente_desde": "2014-07-17",
+                "ambito": "mercados_financieros",
+            },
+            "2014-07-17",
+        )
+
+    with engine.begin() as conn:
         row = conn.execute(
             text("SELECT codigo, titulo FROM norma WHERE boe_id = 'EUR-CELEX-32014L0065'")
         ).one()
-        assert row[0] in ("MIFID2_2014_65", "32014L0065")
-        assert row[1] == "MiFID II normalised"
+        assert row[0] == "32014L0065"
+        assert row[1] == "MiFID II rerun"
 
 
 def test_dead_letter_idempotent_on_duplicate():

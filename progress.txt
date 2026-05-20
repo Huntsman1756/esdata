@@ -2676,3 +2676,5 @@ Fixes:
 Verification: pytest apps/workers/tests/test_eurlex.py test_eurlex.py::test_upsert_norma_conflict_on_boe_id_idempotent test_dead_letter_idempotent_on_duplicate => 2 passed; full suite => 3152 passed, 2 skipped
 Next: A-05 Run all cron jobs once - verify sync_log
 
+--- Iteration 1 done: Wed May 20 15:20:12 CEST 2026
+Correction: A-04b review preserved canonical codigo=32014L0065 on boe_id conflict and replaced dead-letter partial conflict target with plain ON CONFLICT DO UPDATE.

@@ -31,7 +31,6 @@ def add_dead_letter(
     truncated_tb = error_traceback[:2000]
 
     with engine.begin() as conn:
-        # Atomically upsert: INSERT or UPDATE on conflict
         result = conn.execute(
             text(
                 """
@@ -43,12 +42,16 @@ def add_dead_letter(
                     (:worker, :entity_id, :entity_type, :error_message,
                      :error_traceback, 1, :max_retries, :now, :now)
                 ON CONFLICT (worker_name, entity_id)
-                WHERE NOT resolved
                 DO UPDATE SET
                     retry_count = sync_dead_letter.retry_count + 1,
                     last_failed_at = EXCLUDED.last_failed_at,
                     error_message = EXCLUDED.error_message,
-                    error_traceback = EXCLUDED.error_traceback
+                    error_traceback = EXCLUDED.error_traceback,
+                    entity_type = EXCLUDED.entity_type,
+                    max_retries = EXCLUDED.max_retries,
+                    resolved = FALSE,
+                    resolved_at = NULL,
+                    resolved_by = NULL
                 RETURNING retry_count
                 """
             ),
@@ -65,64 +68,6 @@ def add_dead_letter(
         row = result.first()
         if row:
             return row[0]
-        # If the row was already resolved, INSERT still happens but
-        # the ON CONFLICT DO UPDATE WHERE NOT resolved does not fire.
-        # Fall back to the original SELECT/INSERT logic for resolved rows.
-        existing = conn.execute(
-            text(
-                """
-                SELECT id, retry_count
-                FROM sync_dead_letter
-                WHERE worker_name = :worker AND entity_id = :entity_id AND resolved = :resolved
-                """
-            ),
-            {"worker": worker_name, "entity_id": entity_id, "resolved": False},
-        ).mappings().first()
-        if existing:
-            new_count = existing["retry_count"] + 1
-            conn.execute(
-                text(
-                    """
-                    UPDATE sync_dead_letter
-                    SET retry_count = :retry_count,
-                        last_failed_at = :last_failed_at,
-                        error_message = :error_message,
-                        error_traceback = :error_traceback
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "retry_count": new_count,
-                    "last_failed_at": now,
-                    "error_message": truncated_error,
-                    "error_traceback": truncated_tb,
-                    "id": existing["id"],
-                },
-            )
-            return new_count
-        # Truly new entry (first run, no conflict at all)
-        conn.execute(
-            text(
-                """
-                INSERT INTO sync_dead_letter
-                    (worker_name, entity_id, entity_type, error_message,
-                     error_traceback, retry_count, max_retries,
-                     first_failed_at, last_failed_at)
-                VALUES
-                    (:worker, :entity_id, :entity_type, :error_message,
-                     :error_traceback, 1, :max_retries, :now, :now)
-                """
-            ),
-            {
-                "worker": worker_name,
-                "entity_id": entity_id,
-                "entity_type": entity_type,
-                "error_message": truncated_error,
-                "error_traceback": truncated_tb,
-                "max_retries": max_retries,
-                "now": now,
-            },
-        )
         return 1
 
 
