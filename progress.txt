@@ -2689,3 +2689,19 @@ Verification:
 - `sync_log` latest EUR-Lex row: id `1730`, `worker='cron-eurlex-weekly'`, `status='ok'`, `errors=0`.
 - `norma` row for `boe_id='EUR-CELEX-32014L0065'` remains canonical: `codigo='32014L0065'`.
 Next: A-05 Run all cron jobs once - verify sync_log.
+--- Iteration 1 done: Wed May 20 15:28:40 CEST 2026
+
+=== Iteration A-05 - 2026-05-20 ===
+Story: A-05 Run all cron jobs once - verify sync_log
+Result: PASS-WITH-CAVEAT
+Verification:
+- Cron services derived from live Compose profile `cron`: 28.
+- Threshold confirmed and used: `sync_log.id > 1623`.
+- All 28 cron services produced at least one new `sync_log` row above threshold.
+- `cron-eurlex-weekly` initially failed because its separate cron image still had pre-A-04b code; rebuilt `cron-eurlex-weekly` and reran successfully with `sync_log.id=1772`, `status=ok`, `errors=0`.
+- `cron-boe-daily` and `cron-modelos-daily` exceeded the 900s smoke timeout but wrote telemetry; `cron-modelos-daily` later completed with `sync_log.id=1766`, `status=ok`, `rows_processed=9126`.
+- `cron-eu-sanctions-weekly` wrote telemetry with explicit upstream `HTTP Error 403: Forbidden`; not a silent crash, DB failure, or Docker network failure.
+Artifacts:
+- Harness: `scripts/maintenance/a05_cron_worker_sync_log_smoke.sh`.
+- Report: `docs/cron-worker-run-once-20260520.md`.
+Next: A-06 DB integrity - FK, NULLs, duplicates.

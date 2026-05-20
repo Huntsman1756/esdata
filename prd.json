@@ -52,7 +52,7 @@
         "Cada ejecucion produce sync_log id nuevo (> 1623)",
         "Sin errores 5xx ni DB failures en logs"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-06",
