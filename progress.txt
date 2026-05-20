@@ -2761,3 +2761,21 @@ Caveat:
 Artifacts:
 - Report: `docs/api-smoke-a08-20260520.md`.
 Next: A-09 MCP tool accuracy spot-check.
+
+=== Iteration A-09 - 2026-05-20 ===
+Story: A-09 MCP tool accuracy spot-check
+Result: PASS-WITH-CAVEAT
+Verification:
+- MCP `/mcp` stateful JSON-RPC checked on VPS `root@212.227.227.64`.
+- `tools/list` returned `77` tools.
+- Tool contract scan: `missing_output_schema=0`, `missing_read_only_hint=0`.
+- `get_articulo(LIVA, 1)` returned official text, `BOE-A-1992-28740`, BOE source URL, `verified=true`.
+- Repealed handling: `get_articulo(LIVA, 140)` returns current non-repealed text despite historical repealed versions; `get_articulo(LIVA, 150)` returns explicit `(Derogado)` text with BOE reference/source URL.
+- Absent article `get_articulo(LIVA, 9999)` returns MCP tool error with embedded `404 Articulo no encontrado`, no 500.
+- `obtener_obligaciones_perfil(codigo='emisor_token', dominio='ALL', verified=true)` returns 8 obligations, all `verified=true`, all with `source_url`, all with `norma_codigo=32023R1114`.
+Caveat:
+- MiCA `emisor_token` obligations are EU obligations; canonical reference is CELEX `32023R1114` plus EUR-Lex `source_url`, not `boe_reference`. No synthetic BOE reference added.
+Artifacts:
+- VPS evidence: `/root/a09-mcp-spot-20260520`.
+- Report: `docs/mcp-accuracy-a09-20260520.md`.
+Next: A-10 query_audit_log append-only and MCP coverage.

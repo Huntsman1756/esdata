@@ -102,9 +102,10 @@
         "LIVA art.1 via MCP coincide con texto oficial",
         "Derogado -> campo derogado=true o equivalente explicito",
         "Not-found -> HTTP 404, no 500",
-        "source_url y boe_reference en payload MCP"
+        "source_url y boe_reference en payload MCP",
+        "obtener_obligaciones_perfil(codigo='emisor_token') devuelve 8 obligaciones verified=true con source_url y referencia canonica 32023R1114"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-10",
