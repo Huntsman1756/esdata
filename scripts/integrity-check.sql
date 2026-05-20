@@ -46,6 +46,14 @@ WHERE a.id IS NULL
 HAVING count(*) > 0;
 
 INSERT INTO integrity_failures
+SELECT 'foreign_key', 'obligacion_perfil.norma_codigo -> norma.codigo', count(*)
+FROM obligacion_perfil op
+LEFT JOIN norma n ON n.codigo = op.norma_codigo
+WHERE op.norma_codigo IS NOT NULL
+  AND n.codigo IS NULL
+HAVING count(*) > 0;
+
+INSERT INTO integrity_failures
 SELECT 'foreign_key', 'articulo_materia.articulo_id -> articulo.id', count(*)
 FROM articulo_materia am
 LEFT JOIN articulo a ON a.id = am.articulo_id
@@ -180,6 +188,15 @@ FROM version_articulo
 WHERE btrim(texto) = ''
 HAVING count(*) > 0;
 
+-- There is no articulo.source_url/boe_reference/texto column in the current schema.
+-- Article text is versioned in version_articulo; authoritative identifiers live on norma.
+-- Obligations and interpretative documents carry their own source URLs.
+INSERT INTO integrity_failures
+SELECT 'content_required', 'obligacion_perfil.source_url is empty', count(*)
+FROM obligacion_perfil
+WHERE btrim(source_url) = ''
+HAVING count(*) > 0;
+
 INSERT INTO integrity_failures
 SELECT 'content_required', 'aeat_modelo.codigo is empty', count(*)
 FROM aeat_modelo
@@ -303,6 +320,9 @@ HAVING count(*) > 0;
 
 \echo 'Integrity warnings (non-blocking):'
 TABLE integrity_warnings;
+
+\echo 'Integrity failures (blocking):'
+TABLE integrity_failures;
 
 DO $$
 DECLARE

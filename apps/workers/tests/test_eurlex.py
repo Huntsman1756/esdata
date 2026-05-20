@@ -40,6 +40,7 @@ from eurlex import (
     log_sync,
     parse_index,
     update_eurlex_quality,
+    upsert_articulo,
 )
 
 
@@ -297,6 +298,68 @@ def test_update_eurlex_quality_reconciles_official_empty_blocks():
         assert row[1] == 1
         assert row[2] == 1
         assert row[3] == "article_text_available"
+
+
+def test_upsert_articulo_skips_empty_official_text():
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER,
+                    numero TEXT,
+                    titulo TEXT,
+                    tipo TEXT,
+                    UNIQUE(norma_id, numero)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE version_articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    articulo_id INTEGER,
+                    texto TEXT,
+                    vigente_desde TEXT,
+                    vigente_hasta TEXT,
+                    boe_bloque_id TEXT
+                )
+                """
+            )
+        )
+        conn.execute(text("INSERT INTO norma (codigo) VALUES ('32014L0065')"))
+
+        inserted = upsert_articulo(
+            conn,
+            "32014L0065",
+            eurlex.BloqueTexto(
+                bloque_id="official:32014L0065:90",
+                tipo_bloque="official_consolidation",
+                numero="95 bis",
+                titulo="ArtÃ­culo 95 bis",
+                tipo_articulo="articulo",
+                texto="   ",
+                vigente_desde="2026-06-06",
+            ),
+        )
+
+        assert inserted is False
+        assert conn.execute(text("SELECT count(*) FROM articulo")).scalar_one() == 0
+        assert conn.execute(text("SELECT count(*) FROM version_articulo")).scalar_one() == 0
 
 
 def test_parse_index_basic():

@@ -118,6 +118,7 @@ Additional `worker-boe` rows appeared during the sweep from BOE-backed jobs or t
 
 ## Follow-Ups
 
-- Add an alias map for cron service name to `sync_log.worker` in stale-worker alert logic.
+- Backlog: verify that every cron image is rebuilt during main deploys, not only the API or persistent worker image. A-05 caught `cron-eurlex-weekly` running an old cron image after the `worker-eurlex` image had already been rebuilt.
+- A-11: add an alias map for cron service name to `sync_log.worker` in stale-worker alert logic. The six observed aliases are listed above; alert rules that use Compose service names only will miss those workers.
 - Add bounded smoke flags for long workers (`cron-boe-daily`, `cron-modelos-daily`) so A-05 can complete without waiting on full upstream work.
 - Keep `cron-eurlex-weekly` rebuilt after EUR-Lex worker code changes; it uses a separate cron image from `worker-eurlex`.
