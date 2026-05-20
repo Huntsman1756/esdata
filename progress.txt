@@ -2637,3 +2637,16 @@ Learnings:
 Next:
 - Decide whether to fix/defer `worker-eurlex` before A-04 pass.
 - Decide bounded smoke policy for long-running CNMV/DGT/AEAT modelos workers.
+
+=== PRD amendment - 2026-05-20 ===
+Story: A-04b Fix worker-eurlex norma upsert and dead-letter idempotency
+Result: ADDED
+Reason:
+- A-04 exposed a real production bug in `worker-eurlex`, not a smoke harness issue.
+- A-05 should not run cron sweeps before the EUR-Lex rerun path is idempotent.
+Scope:
+- Fix duplicate `norma_boe_id_key` for `EUR-CELEX-32014L0065`.
+- Fix duplicate `uq_dead_letter_worker_entity` in dead-letter handling.
+- Add focused tests and rerun `worker-eurlex --run-once` on VPS.
+Next:
+- A-04b before A-05.

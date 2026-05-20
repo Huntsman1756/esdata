@@ -27,6 +27,22 @@
       "passes": false
     },
     {
+      "id": "A-04b",
+      "priority": 4.5,
+      "title": "Fix worker-eurlex norma upsert and dead-letter idempotency",
+      "description": "Resolver el bug real expuesto por A-04: worker-eurlex falla al reinsertar una norma EUR-Lex ya existente por boe_id=EUR-CELEX-32014L0065 y despues falla tambien al registrar dead letter duplicado para (worker_name, entity_id)=(eurlex, eurlex). Este fix es bloqueante antes de A-05.",
+      "acceptance": [
+        "Reproducir y documentar el estado actual de norma para boe_id='EUR-CELEX-32014L0065' y codigo relacionado.",
+        "worker-eurlex no debe fallar con unique violation en norma_boe_id_key cuando la norma ya existe por boe_id o CELEX canonico.",
+        "El upsert de norma debe ser idempotente frente a reruns y compatible con normalizacion CELEX existente.",
+        "dead_letter.add_dead_letter debe ser idempotente para (worker_name, entity_id): si la fila existe, debe actualizar/incrementar sin unique violation.",
+        "Anadir tests unitarios o focales que cubran upsert EUR-Lex duplicado por boe_id y dead-letter duplicado.",
+        "Ejecutar worker-eurlex en VPS con --run-once y confirmar exit 0 o partial explicito con sync_log, nunca crash silencioso.",
+        "Reejecutar A-04 smoke al menos para worker-eurlex y actualizar docs/persistent-worker-smoke-20260520.md."
+      ],
+      "passes": false
+    },
+    {
       "id": "A-05",
       "priority": 5,
       "title": "Run all cron jobs once - verify sync_log",
