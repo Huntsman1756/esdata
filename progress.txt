@@ -2889,3 +2889,18 @@ Artifacts:
 - Report: `docs/aeat-models-a13-20260520.md`.
 - VPS evidence: `/root/a13-aeat-models-20260520/evidence_final.txt` and `/root/a13-aeat-models-20260520/evidence_constraints.txt`.
 Next: A-14 final population report.
+
+=== Iteration A-14 - 2026-05-20 ===
+Story: A-14 Population report final - baseline v1.13.0
+Result: PASS
+Verification:
+- VPS primary counts captured: `articulo=1970`, `version_articulo=3512`, `norma=64`, `obligacion_perfil=190`, `perfil_entidad=8`, `documento_interpretativo=19619`, `aeat_modelo=219`, `modelo_articulo=51`, `sync_log=1781`, `query_audit_log=8340`.
+- Baseline obligations confirmed: `obligacion_perfil total=190`, `verified=true=190`, `not_verified=0`.
+- MiCA profiles confirmed: `casp=8/8 verified`, `emisor_token=8/8 verified`.
+- Canonical weak duplicate check returned only `32022R2554` and `32023R1114`; no `DORA_2022_2535` or `MICA_2023_1114`.
+- AEAT baseline carried from A-13: `aeat_modelo=219`, `modelo_articulo=51`, `modelo_casilla=31685`, `modelo_clave=179`, `modelo_instruccion=70`; no seed executed.
+- `/health` returned `status=ok`, `database=ok`; Alertmanager active alerts returned `[]`.
+Artifacts:
+- Report: `docs/population-report-20260520.md`.
+- VPS evidence: `/root/a14-population-report-20260520/evidence_counts.txt` and `/root/a14-population-report-20260520/evidence_ops.txt`.
+Next: audit A-04..A-14 complete; decide merge/release or next audit line.

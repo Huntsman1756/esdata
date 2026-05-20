@@ -410,3 +410,18 @@ Operational rule:
 - If counts are populated and FK/logical checks are clean, mark the story OK without reseed.
 
 A-13 production snapshot: `aeat_modelo=219`, `modelo_articulo=51`, `modelo_casilla=31685`, `modelo_clave=179`, `modelo_instruccion=70`; 0 FK orphans and 0 duplicate model/article links.
+
+## 2026-05-20 - A-14 population baseline after stale-worker audit
+
+A-14 closed the stale-worker audit without new data mutation.
+
+Baseline snapshot:
+
+- `obligacion_perfil=190`, all `verified=true`.
+- `perfil_entidad=8`.
+- MiCA profiles remain `casp=8/8` and `emisor_token=8/8`.
+- `aeat_modelo=219`, `modelo_articulo=51`, `modelo_casilla=31685`.
+- `/health` reports `status=ok`, `database=ok`.
+- Alertmanager active alerts are `[]`.
+
+Use `docs/population-report-20260520.md` as the branch closeout snapshot for `fix/full-audit-stale-workers-20260520`.

@@ -182,7 +182,7 @@
         "Tablas cubiertas: articulo, version_articulo, norma, obligacion_perfil, aeat_modelo, sync_log (ultimas 10 entradas)",
         "obligacion_perfil: 190 total / 190 verified como baseline confirmado"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
