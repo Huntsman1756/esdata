@@ -360,3 +360,5 @@ Expected remediation shape:
 - Keep migrations/maintenance on a separate privileged role.
 - Grant runtime role `SELECT`/`INSERT` on `query_audit_log` and sequence usage only.
 - Revoke `UPDATE`, `DELETE`, `TRUNCATE`, and `TRIGGER` from the runtime role.
+
+Resolved in A-10b: API runtime now uses `esdata_api`; Alembic uses `ALEMBIC_DATABASE_URL` with privileged `esdata`. Workers/cron still use privileged `DATABASE_URL` because they perform ingestion upserts. If adding new API writes under `esdata_api`, add only the needed `INSERT`/`SELECT` grants and RLS policies; do not restore superuser runtime access.

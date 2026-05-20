@@ -134,7 +134,7 @@
         "MCP get_articulo call still creates a query_audit_log row after role change",
         "UPDATE/DELETE attempts as runtime role fail by permission denied or append-only trigger"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-11",

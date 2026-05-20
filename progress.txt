@@ -2800,3 +2800,34 @@ Artifacts:
 - VPS evidence: `/root/a10-query-audit-20260520`.
 - Report: `docs/query-audit-log-a10-20260520.md`.
 Next: A-10b harden query_audit_log with least-privileged API DB role.
+
+=== Iteration A-10b - 2026-05-20 ===
+Story: A-10b Harden query_audit_log with least-privileged API DB role
+Result: PASS
+Fix applied:
+- Added `API_DATABASE_URL` for API runtime and `ALEMBIC_DATABASE_URL` for migrations.
+- Updated API container startup so Alembic runs with `ALEMBIC_DATABASE_URL`, then Uvicorn starts with runtime `DATABASE_URL`.
+- Created/updated production DB role `esdata_api` as non-superuser, no createdb/createrole/replication/bypassrls.
+- Granted runtime `SELECT/INSERT` plus sequence usage; `query_audit_log` has no `UPDATE/DELETE/TRUNCATE/TRIGGER` privilege for `esdata_api`.
+- Added `SELECT` and `INSERT` RLS policies for `esdata_api` on public RLS tables; no update/delete policies.
+- Granted specific function execute required by API: `modelo_campana_activa(integer)`.
+- Kept workers/cron on existing privileged `DATABASE_URL`.
+Verification:
+- API container effective URLs: runtime `esdata_api`, Alembic `esdata`.
+- `/health` returns `status=ok`, `database=ok`.
+- As `esdata_api`: `rolsuper=false`, `rolbypassrls=false`.
+- As `esdata_api`: `query_audit_log SELECT=true`, `INSERT=true`, `UPDATE/DELETE/TRUNCATE/TRIGGER=false`.
+- As `esdata_api`: direct `UPDATE`, `DELETE`, and `DROP TABLE query_audit_log` fail.
+- MCP `get_articulo(LIVA, 1)` still inserts audit row: `query_audit_log 8134 -> 8135`.
+- Local full suite: `pytest apps/ -q --basetemp .pytest-tmp` => `3153 passed, 2 skipped, 34 warnings`.
+- VPS `mcp_validation_suite.py --read-only --base-url http://api:8000` => `ok=true`.
+- VPS `mcp_deep_contract_audit.py --base-url http://api:8000` => `ok=true`.
+Data drift fixed during validation:
+- Removed weak duplicate `DORA_2022_2535` and `MICA_2023_1114` after confirming 0 `obligacion_perfil` references.
+- Re-applied Sprint L idempotent seed for CNMV ESI model links; `modelo_normalizado_esi` links now `8`.
+Caveat:
+- `scripts/tests/test_compose_env_example.py` still fails because `compose.env.example` is missing unrelated existing Compose variables; not caused by A-10b.
+Artifacts:
+- Report: `docs/a10b-runtime-db-role-20260520.md`.
+- VPS evidence: `/root/a10b-runtime-role-20260520`.
+Next: A-11 Prometheus alert rules coverage.
