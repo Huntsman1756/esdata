@@ -40,7 +40,7 @@
         "Ejecutar worker-eurlex en VPS con --run-once y confirmar exit 0 o partial explicito con sync_log, nunca crash silencioso.",
         "Reejecutar A-04 smoke al menos para worker-eurlex y actualizar docs/persistent-worker-smoke-20260520.md."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-05",

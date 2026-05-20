@@ -2662,3 +2662,17 @@ Findings:
 - Harness: docker compose run -T --rm sh -lc WORKER_CMD --run-once
 - Report: docs/persistent-worker-smoke-20260520.md
 Next: A-04b fix worker-eurlex blocker.
+--- Iteration 1 done: Wed May 20 15:07:11 CEST 2026
+
+=== Iteration 1 done: Wed May 20 15:07:11 CEST 2026
+
+Story: A-04b Fix worker-eurlex norma upsert and dead-letter idempotency
+Result: PASS
+Fixes:
+- eurlex.py upsert_norma: changed ON CONFLICT from (codigo) to (boe_id) to handle CELEX normalisation conflicts
+- dead_letter.add_dead_letter: replaced racy SELECT-then-INSERT with ON CONFLICT upsert on (worker_name, entity_id)
+- Added test_upsert_norma_conflict_on_boe_id_idempotent and test_dead_letter_idempotent_on_duplicate
+- Updated test_dead_letter.py fixture to include UNIQUE constraint for SQLite compatibility
+Verification: pytest apps/workers/tests/test_eurlex.py test_eurlex.py::test_upsert_norma_conflict_on_boe_id_idempotent test_dead_letter_idempotent_on_duplicate => 2 passed; full suite => 3152 passed, 2 skipped
+Next: A-05 Run all cron jobs once - verify sync_log
+
