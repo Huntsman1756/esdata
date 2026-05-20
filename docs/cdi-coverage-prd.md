@@ -90,6 +90,8 @@ Primer lote recomendado, por valor fiscal y frecuencia de uso:
 | Mexico | `target` | Pais prioritario LatAm | Confirmar fuente y estructura |
 | Brasil | `target` | Pais prioritario LatAm | Confirmar fuente y estructura |
 
+La hipotesis por pais es deliberadamente conservadora. Que el worker historico haya cargado 86 convenios no convierte automaticamente cada pais en `partial`: hasta auditar fuente, articulo, protocolo y tipo de renta, el pais queda `target` para este PRD. Estados Unidos se mantiene como `partial` solo porque existe evidencia de superficie concreta en tests/endpoints (`ES_US_DTA`), pero no se considera cerrado.
+
 ### Tipos de renta minimos
 
 - dividendos
@@ -155,6 +157,19 @@ El sistema debe abstenerse o marcar `safe_to_answer=false` cuando:
 - el dato procede de seed historico sin evidencia oficial suficiente.
 
 No se debe devolver una tasa como definitiva solo porque exista un convenio vigente.
+
+## Revision De Coherencia 2026-05-20
+
+La revision activa confirma esta clasificacion:
+
+| Superficie | Estado coherente | Motivo |
+| --- | --- | --- |
+| Matriz fiscal-regulatoria | `implemented_partial` | Hay worker, endpoints, MCP y evidencia historica, pero falta cierre por convenio/articulo/renta |
+| Backlog de expansion | `implemented_partial` | Ya no debe figurar como `target` puro porque la infraestructura existe |
+| Hipotesis por pais | conservadora | Solo Estados Unidos parte como `partial`; el resto del lote queda `target` hasta auditoria por fuente y articulo |
+| Manual de usuario | evidencia limitada | Los endpoints son exploratorios/operativos sobre datos cargados, no una calculadora fiscal definitiva |
+
+Regla de coherencia: "convenio cargado", "convenio consultable" y "convenio utilizable para calcular retencion con evidencia suficiente" son estados distintos. La documentacion no debe tratarlos como equivalentes.
 
 ## Tareas
 

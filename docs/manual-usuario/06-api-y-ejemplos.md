@@ -202,7 +202,7 @@ curl -G -s http://127.0.0.1:8000/v1/internacional/convenios/retenciones \
   --data-urlencode "offset=0"
 ```
 
-Calcular retencion aplicable:
+Consultar retencion calculada por la superficie actual:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/v1/internacional/convenios/retencion \
@@ -213,7 +213,8 @@ curl -s -X POST http://127.0.0.1:8000/v1/internacional/convenios/retencion \
 Reglas practicas:
 
 - estos endpoints exponen convenios DTA y reglas de retencion ya cargados en la instancia; no implican cobertura exhaustiva de todos los paises
-- el calculo de `retencion` cruza la regla de withholding por tipo de renta con un convenio DTA vigente si existe para la pareja de paises consultada
+- el calculo de `retencion` cruza la regla de withholding por tipo de renta con un convenio DTA vigente si existe para la pareja de paises consultada, pero no debe tratarse como definitivo si la respuesta no aporta articulo, protocolo y evidencia suficiente
+- CDI esta clasificado como `implemented_partial`: un convenio cargado no equivale a una tasa utilizable sin revision de evidencia
 - en fixtures y compatibilidad legacy pueden coexistir codigos como `DTA_US_ES` y `ES_US_DTA`; usa en ejemplos solo los codigos verificados por tests o por la instancia objetivo
 
 ## Obligaciones regulatorias

@@ -327,7 +327,7 @@ Documentation warning:
 | `worker-cendoj` / `cron-cendoj-weekly` | continuous + weekly | implemented/partial | CENDOJ source-sensitive ingestion. |
 | `worker-eurlex` / `cron-eurlex-weekly` | continuous + weekly | partial | EUR-Lex/SPARQL; deep article fetch disabled by default and residual CELEX skips exist. |
 | `worker-bde` / `cron-bde-weekly` | continuous + weekly | implemented | Banco de Espana documents. |
-| `worker-cdi` / `cron-cdi-weekly` | continuous + weekly | implemented | CDI/DTA conventions into IRS DTA convention tables. |
+| `worker-cdi` / `cron-cdi-weekly` | continuous + weekly | implemented/partial | CDI/DTA conventions into IRS DTA convention tables; worker exists, product coverage still partial by country/article/income type. |
 | `worker-aepd` / `cron-aepd-weekly` | continuous + weekly | implemented | AEPD documents. |
 | `cron-regulatory-daily` | daily | implemented | Watches BOE, AEAT, EUR-Lex, AEPD, BDE, DGT into `source_revision`. |
 | `official-regulatory-references` | weekly | implemented | Loads compact official regulatory references and records sync telemetry. |

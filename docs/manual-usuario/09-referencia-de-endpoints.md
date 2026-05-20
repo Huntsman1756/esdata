@@ -100,13 +100,14 @@ Glosario de clasificacion:
 - `GET /v1/internacional/convenios/{codigo}` — detalle de un convenio DTA
 - `GET /v1/internacional/convenios/retenciones` — listado de reglas de retencion por tipo de renta y pais
 - `GET /v1/internacional/convenios/retenciones/{codigo}` — detalle de una regla de retencion
-- `POST /v1/internacional/convenios/retencion` — calculo cruzado de retencion aplicable segun pais de residencia, tipo de renta y convenio DTA vigente
+- `POST /v1/internacional/convenios/retencion` — calculo cruzado de retencion segun pais de residencia, tipo de renta y convenio DTA vigente en la instancia
 
 Uso recomendado:
 
 - usa `convenios` para explorar cobertura efectiva por pais en la instancia actual
 - usa `retenciones` para inspeccionar la regla base por tipo de renta
-- usa `retencion` cuando necesites la respuesta operativa final con `tipo_retencion_aplicable`, `tiene_convenio_dta`, `codigo_convenio` y `formulario_recomendado`
+- usa `retencion` como respuesta operativa condicionada por la evidencia disponible; no la trates como tasa fiscal definitiva si faltan articulo, protocolo o metadatos de fuente
+- CDI esta `implemented_partial`: distingue convenio cargado, convenio consultable y convenio utilizable para calcular retencion con evidencia suficiente
 
 ## Obligaciones, cambios y compliance
 
