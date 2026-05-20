@@ -28,4 +28,4 @@ USER app
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "echo '[MIGRATION] Running alembic upgrade heads...' && alembic upgrade heads && echo '[MIGRATION] Alembic upgrade completed successfully.' && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "RUNTIME_DATABASE_URL=\"$DATABASE_URL\" && export DATABASE_URL=\"${ALEMBIC_DATABASE_URL:-$DATABASE_URL}\" && echo '[MIGRATION] Running alembic upgrade heads...' && alembic upgrade heads && echo '[MIGRATION] Alembic upgrade completed successfully.' && export DATABASE_URL=\"$RUNTIME_DATABASE_URL\" && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
