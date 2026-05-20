@@ -1752,6 +1752,76 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
     if casp_pbc and not all(item.get("completeness") == "parcial" for item in casp_pbc):
         failures.append({"check": "casp_pbc_parcial"})
 
+    # MiCA token issuer checks
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        emisor_status, emisor_payload, emisor_preview = _get_json(
+            client,
+            "/v1/perfil/emisor_token/obligaciones",
+        )
+    emisor_obligaciones = emisor_payload.get("obligaciones") if isinstance(emisor_payload, dict) else []
+    emisor_items = [item for item in (emisor_obligaciones or []) if isinstance(item, dict)]
+    emisor_verified = sum(1 for item in emisor_items if item.get("verified"))
+    emisor_art_completa = [
+        item
+        for item in emisor_items
+        if item.get("articulo_referencia") in {"art. 18", "art. 19", "art. 35"}
+        and item.get("completeness") == "completa"
+    ]
+    emisor_emt_parcial = [
+        item
+        for item in emisor_items
+        if item.get("articulo_referencia") in {"art. 48", "art. 51", "art. 55"}
+        and item.get("completeness") == "parcial"
+    ]
+    emisor_art18 = [
+        item
+        for item in emisor_items
+        if item.get("articulo_referencia") == "art. 18"
+        and "CNMV" in str(item.get("notas") or "")
+        and "ART" in str(item.get("notas") or "")
+    ]
+    emisor_art48 = [
+        item
+        for item in emisor_items
+        if item.get("articulo_referencia") == "art. 48"
+        and (
+            "BdE" in str(item.get("notas") or "")
+            or "entidad de credito" in str(item.get("notas") or "")
+        )
+    ]
+    details.update(
+        {
+            "emisor_token_status": emisor_status,
+            "emisor_token_total": len(emisor_items),
+            "emisor_token_verified": emisor_verified,
+            "emisor_token_art_completa_count": len(emisor_art_completa),
+            "emisor_token_emt_parcial_count": len(emisor_emt_parcial),
+            "emisor_token_art18_note_count": len(emisor_art18),
+            "emisor_token_art48_note_count": len(emisor_art48),
+        }
+    )
+    if emisor_status != 200 or len(emisor_items) < 8:
+        failures.append(
+            {
+                "check": "emisor_token_obligations_ge_8",
+                "status": emisor_status,
+                "total": len(emisor_items),
+                "preview": emisor_preview,
+            }
+        )
+    if emisor_status != 200 or emisor_verified < len(emisor_items):
+        failures.append(
+            {"check": "emisor_token_all_verified", "verified": emisor_verified, "total": len(emisor_items)}
+        )
+    if len(emisor_art_completa) < 3:
+        failures.append({"check": "emisor_token_art_completa", "count": len(emisor_art_completa)})
+    if len(emisor_emt_parcial) < 3:
+        failures.append({"check": "emisor_token_emt_parcial", "count": len(emisor_emt_parcial)})
+    if not emisor_art18:
+        failures.append({"check": "emisor_token_art_18_notes"})
+    if not emisor_art48:
+        failures.append({"check": "emisor_token_art_48_notes"})
+
     with httpx.Client(base_url=base_url, timeout=60) as client:
         list_status, list_payload, list_preview = _get_json(client, "/v1/norma/eu")
         mifir_status, mifir_payload, mifir_preview = _get_json(client, "/v1/norma/eu", params={"termino": "MiFIR"})

@@ -6,7 +6,7 @@ ITERATION=0
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PROMPT_FILE="$SCRIPT_DIR/sprint-m-mica-casp.md"
+PROMPT_FILE="${RALPH_PROMPT_FILE:-$SCRIPT_DIR/sprint-n-emisor-token.md}"
 PRD_FILE="$ROOT_DIR/prd.json"
 PROGRESS_FILE="$ROOT_DIR/progress.txt"
 
