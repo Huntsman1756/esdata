@@ -2614,3 +2614,26 @@ Resultado:
 - 2026-05-19 Sprint N N-04 gap ART/EMT y routing MCP - COMPLETADO. Se escribio `docs/sprint-n-emisor-token-report.md` con gap explicito de corpus supervisor ART/EMT y se actualizo routing MCP para enrutar ART/EMT/white paper/ficha referenciada/ficha dinero electronico a `perfil_codigo='emisor_token'`, sin inventar documentos BdE/CNMV. Verificacion local: `pytest apps/api/tests/test_mcp_emisor_token_routing.py -v` => `8 passed`. Siguiente: N-05 suites MCP.
 - 2026-05-19 Sprint N N-05 suites MCP emisor_token - COMPLETADO. Se anadieron checks a `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para `emisor_token`: perfil existente, >=8 obligaciones, todas verificadas, ART completa, EMT parcial, notas art. 18 CNMV/ART y art. 48 BdE/entidad de credito, y total `obligacion_perfil>=190`. VPS `root@212.227.227.64` en rama `feat/sprint-n-emisor-token`: rebuild `api`/`ops`; `mcp_validation_suite.py --read-only --base-url http://api:8000` exit 0; `mcp_deep_contract_audit.py --base-url http://api:8000` exit 0. Siguiente: N-06 verificacion final.
 - 2026-05-19 Sprint N N-06 final - COMPLETADO. Local: `pytest apps/ -q --basetemp .pytest-tmp` => `3150 passed, 2 skipped, 34 warnings`. VPS `root@212.227.227.64`: `obligacion_perfil=190/190 verified`; `emisor_token=8/8 verified`; ART completa (`art. 18`, `art. 19`, `art. 25`, `art. 35`) y ART significativo parcial (`art. 45`); EMT parcial (`art. 48`, `art. 51`, `art. 55`); `perfil_entidad.emisor_token=1`; `/health` => `status=ok`, `database=ok`; `mcp_validation_suite.py` exit 0; `mcp_deep_contract_audit.py` exit 0; Alertmanager sin alertas activas. Informe `docs/sprint-n-emisor-token-report.md` escrito. <promise>COMPLETE</promise>
+
+=== Iteration A-04 - 2026-05-20 ===
+Story: A-04 Smoke test persistent workers reales
+Result: BLOCKED / not marked pass
+Root cause:
+- Ralph exited on historical Sprint N `<promise>COMPLETE</promise>` entries instead of executing A-04.
+- Manual A-04 smoke found real runtime blockers.
+Findings:
+- Persistent workers derived from live Compose: 14.
+- `--run-once` unsupported: 0.
+- OK within 300s: 10.
+- Timeouts at 300s: `worker-cnmv`, `worker-dgt`, `worker-modelos`.
+- Failure: `worker-eurlex` duplicate `norma_boe_id_key` for `EUR-CELEX-32014L0065`; dead-letter write also hits duplicate `uq_dead_letter_worker_entity`.
+Fix applied:
+- Added reproducible harness `scripts/maintenance/a04_persistent_worker_smoke.sh`.
+- Wrote report `docs/persistent-worker-smoke-20260520.md`.
+Learnings:
+- For persistent workers, do not run `docker compose run <service> --run-once`; this replaces the command and tries to execute `--run-once`.
+- Use the service `WORKER_CMD` from Compose: `docker compose run -T --rm <service> sh -lc "<WORKER_CMD> --run-once" < /dev/null`.
+- `docker compose run` can consume loop stdin unless stdin is disabled.
+Next:
+- Decide whether to fix/defer `worker-eurlex` before A-04 pass.
+- Decide bounded smoke policy for long-running CNMV/DGT/AEAT modelos workers.
