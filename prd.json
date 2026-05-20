@@ -170,7 +170,7 @@
         "Si poblado: counts > 0 y FK integras -> passes=true sin reseed",
         "Si vacio o roto: seed ejecutado y validado -> passes=true"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-14",

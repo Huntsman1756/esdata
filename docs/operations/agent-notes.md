@@ -397,3 +397,16 @@ Operational rule:
 - Keep Compose service names separate from `sync_log.worker` names; use A-05/A-11 aliases when documenting telemetry.
 
 Current counts: `active-persistent=14`, `active-cron=14`, `helper/module=31`, `dead/unused=9`.
+
+## 2026-05-20 - AEAT model verification is ID-based, not `tipo`-based
+
+A-13 verified `aeat_modelo` and `modelo_articulo` in production without reseeding.
+
+Operational rule:
+
+- `aeat_modelo` has no `tipo` column in production. Use existing fields such as `codigo`, `nombre`, `impuesto`, `activo`, `url_info`, and lifecycle columns for integrity checks.
+- `modelo_articulo` links by `modelo_id -> aeat_modelo(id)` and `articulo_id -> articulo(id)`, not by `modelo_codigo`.
+- Before running any AEAT seed, verify counts, FK orphans, duplicate `codigo`, duplicate `(modelo_id, articulo_id)`, and latest `worker-modelos`/`cron-modelos-daily` telemetry.
+- If counts are populated and FK/logical checks are clean, mark the story OK without reseed.
+
+A-13 production snapshot: `aeat_modelo=219`, `modelo_articulo=51`, `modelo_casilla=31685`, `modelo_clave=179`, `modelo_instruccion=70`; 0 FK orphans and 0 duplicate model/article links.

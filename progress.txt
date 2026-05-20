@@ -2872,3 +2872,20 @@ Commands:
 Artifacts:
 - Report/inventory: `docs/worker-inventory.md`.
 Next: A-13 AEAT models verify-first.
+
+=== Iteration A-13 - 2026-05-20 ===
+Story: A-13 AEAT models - verify-first, seed si vacio
+Result: PASS
+Verification:
+- VPS counts: `aeat_modelo=219`, `modelo_articulo=51`, `modelo_campana=236`, `modelo_campana_operativa=24`, `modelo_casilla=31685`, `modelo_clave=179`, `modelo_instruccion=70`, `modelo_normativa=26`.
+- `aeat_modelo`: 0 missing `codigo`, `nombre`, `activo`, `impuesto`, `url_info`; duplicate `codigo=0`.
+- `modelo_articulo`: 0 missing `modelo_id`, `articulo_id`, `fuente`, `norma`, `numero`, `metodo_enlace`.
+- FK/logical checks: orphan `modelo_id=0`, orphan `articulo_id=0`, duplicate `(modelo_id, articulo_id)=0`.
+- Constraints confirmed: `modelo_articulo` has FK to `aeat_modelo(id)` and `articulo(id)`, plus PK `(modelo_id, articulo_id)`.
+- Latest AEAT model telemetry: `cron-modelos-daily id=1766 status=ok errors=0`; `worker-modelos id=1724 status=ok errors=0`.
+Decision:
+- Tables are populated and coherent. No seed was executed.
+Artifacts:
+- Report: `docs/aeat-models-a13-20260520.md`.
+- VPS evidence: `/root/a13-aeat-models-20260520/evidence_final.txt` and `/root/a13-aeat-models-20260520/evidence_constraints.txt`.
+Next: A-14 final population report.
