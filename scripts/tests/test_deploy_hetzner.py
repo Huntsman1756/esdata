@@ -376,6 +376,23 @@ def test_worker_silent_alert_uses_exported_stale_status_instead_of_global_lag_th
     assert "worker_lag_seconds > 172800" not in alerts
 
 
+def test_worker_silent_alert_is_not_hardcoded_to_a11_incident_workers():
+    alerts = _read("infra/observability/alerts.yml")
+    worker_silent_block = alerts.split("- alert: WorkerSilent", maxsplit=1)[1].split(
+        "- alert:",
+        maxsplit=1,
+    )[0]
+
+    assert "worker_stale_status == 1" in worker_silent_block
+    for worker in (
+        "cron-psd2-weekly",
+        "official-regulatory-references",
+        "cron-pgc-boe-monthly",
+        "cron-eu-sanctions-weekly",
+    ):
+        assert worker not in worker_silent_block
+
+
 def test_cron_services_use_esdata_internal_network_for_database_resolution():
     compose = _read("infra/deploy/docker-compose.prod.yml")
 

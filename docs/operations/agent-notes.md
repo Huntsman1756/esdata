@@ -341,3 +341,87 @@ Usar notas cortas con este esquema:
 - RD 304/2014: el BOE ID correcto es `BOE-A-2014-4742`. El ID `BOE-A-2014-5438` del PRD correspondia a otro real decreto y fue descartado tras limpiar la carga erronea propia. Produccion expone `RD_304_2014` con articulos y `/v1/legislacion/RD_304_2014/articulos/4`.
 - Validacion: las suites deben correrse desde `ops` en Compose, no desde un servicio generico `worker` inexistente. Pasar `ESDATA_API_KEY` y `MCP_API_KEY` al contenedor para evitar falsos 401. `ops` incluye `httpx` y `apps/api/mcp_catalog.py`.
 - Regla practica: para back office de sociedad de valores, usar SEPBLAC `obligacion_sepblac` como evidencia operativa preliminar y resolver contra LPBC-FT/RD 304/2014 antes de convertirlo en obligacion normativa.
+
+## 2026-05-20 - query_audit_log append-only needs least-privilege role
+
+A-10 verified that `query_audit_log` has active append-only triggers and normal `UPDATE`/`DELETE` attempts fail with `query_audit_log is append-only`.
+
+However, production API currently uses `DATABASE_URL=postgresql+psycopg://esdata:***@postgres:5432/esdata`, and PostgreSQL reports `esdata` as `rolsuper=true` with `UPDATE`, `DELETE`, `TRUNCATE`, and `TRIGGER` privileges on `query_audit_log`.
+
+Operational implication:
+
+- Trigger enforcement works for ordinary DML.
+- It is not a complete least-privilege guarantee while the API role is superuser.
+- Do not claim strong append-only security for `query_audit_log` until runtime DB access moves to a non-superuser app role with only required grants.
+
+Expected remediation shape:
+
+- Create/use a dedicated non-superuser API role.
+- Keep migrations/maintenance on a separate privileged role.
+- Grant runtime role `SELECT`/`INSERT` on `query_audit_log` and sequence usage only.
+- Revoke `UPDATE`, `DELETE`, `TRUNCATE`, and `TRIGGER` from the runtime role.
+
+Resolved in A-10b: API runtime now uses `esdata_api`; Alembic uses `ALEMBIC_DATABASE_URL` with privileged `esdata`. Workers/cron still use privileged `DATABASE_URL` because they perform ingestion upserts. If adding new API writes under `esdata_api`, add only the needed `INSERT`/`SELECT` grants and RLS policies; do not restore superuser runtime access.
+
+## 2026-05-20 - WorkerSilent alerting follows status metrics, not Compose names
+
+A-11 verified `WorkerSilent` against production Prometheus and `sync_log`.
+
+Operational rule:
+
+- `WorkerSilent` must evaluate `worker_stale_status == 1`.
+- Do not hardcode per-worker lag thresholds in Prometheus rules.
+- The real worker identity comes from `sync_log.worker`, normalized by `WORKER_CADENCE_ALIASES` and `WORKER_CADENCE_EXCLUDED` before `/status` exports `worker_stale_status`.
+- Keep stale thresholds in `apps/api/services/worker_cadence.py`; weekly workers use `168h -> 252h`, monthly workers use `720h -> 1080h`.
+
+A-05 drift to remember:
+
+- `cron-aeat-current-daily` writes as `worker-aeat-current-designs`.
+- `cron-boe-modelos-daily` writes as `worker-boe-modelos`.
+- `cron-esma-dlt-weekly` writes as `worker-esma-dlt`.
+- `cron-esma-firds-daily` writes as `worker-esma-firds`.
+- `cron-esma-mifir-reporting-weekly` writes as `worker-esma-mifir-reporting`.
+- `cron-eurlex-market-monthly` writes as `worker-eurlex-market`.
+
+For MCP transport checks, a bare authenticated `GET /mcp` with `Accept: text/event-stream` can return `400 Missing session ID`; this is expected stateful MCP behavior, not an operational alert condition.
+
+## 2026-05-20 - Worker inventory classifies DB worker modules, not every Python file
+
+A-12 rebuilt `docs/worker-inventory.md` from the 68 retry-guarded DB worker files in `docs/worker-db-retry-coverage.md`.
+
+Operational rule:
+
+- Use the 68 `create_engine(...)` modules as the A-12 inventory scope.
+- Helper files without DB engines (`runtime.py`, `dead_letter.py`, `entrypoint.py`, parsers, support modules, tests) are explicitly out of scope.
+- Classify runtime by actual wiring: persistent Compose service first, cron-only service second, then helper/backlog module, then dead/unused legacy path.
+- Keep Compose service names separate from `sync_log.worker` names; use A-05/A-11 aliases when documenting telemetry.
+
+Current counts: `active-persistent=14`, `active-cron=14`, `helper/module=31`, `dead/unused=9`.
+
+## 2026-05-20 - AEAT model verification is ID-based, not `tipo`-based
+
+A-13 verified `aeat_modelo` and `modelo_articulo` in production without reseeding.
+
+Operational rule:
+
+- `aeat_modelo` has no `tipo` column in production. Use existing fields such as `codigo`, `nombre`, `impuesto`, `activo`, `url_info`, and lifecycle columns for integrity checks.
+- `modelo_articulo` links by `modelo_id -> aeat_modelo(id)` and `articulo_id -> articulo(id)`, not by `modelo_codigo`.
+- Before running any AEAT seed, verify counts, FK orphans, duplicate `codigo`, duplicate `(modelo_id, articulo_id)`, and latest `worker-modelos`/`cron-modelos-daily` telemetry.
+- If counts are populated and FK/logical checks are clean, mark the story OK without reseed.
+
+A-13 production snapshot: `aeat_modelo=219`, `modelo_articulo=51`, `modelo_casilla=31685`, `modelo_clave=179`, `modelo_instruccion=70`; 0 FK orphans and 0 duplicate model/article links.
+
+## 2026-05-20 - A-14 population baseline after stale-worker audit
+
+A-14 closed the stale-worker audit without new data mutation.
+
+Baseline snapshot:
+
+- `obligacion_perfil=190`, all `verified=true`.
+- `perfil_entidad=8`.
+- MiCA profiles remain `casp=8/8` and `emisor_token=8/8`.
+- `aeat_modelo=219`, `modelo_articulo=51`, `modelo_casilla=31685`.
+- `/health` reports `status=ok`, `database=ok`.
+- Alertmanager active alerts are `[]`.
+
+Use `docs/population-report-20260520.md` as the branch closeout snapshot for `fix/full-audit-stale-workers-20260520`.

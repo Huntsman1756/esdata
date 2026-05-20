@@ -40,6 +40,7 @@ from eurlex import (
     log_sync,
     parse_index,
     update_eurlex_quality,
+    upsert_articulo,
 )
 
 
@@ -297,6 +298,68 @@ def test_update_eurlex_quality_reconciles_official_empty_blocks():
         assert row[1] == 1
         assert row[2] == 1
         assert row[3] == "article_text_available"
+
+
+def test_upsert_articulo_skips_empty_official_text():
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    norma_id INTEGER,
+                    numero TEXT,
+                    titulo TEXT,
+                    tipo TEXT,
+                    UNIQUE(norma_id, numero)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE version_articulo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    articulo_id INTEGER,
+                    texto TEXT,
+                    vigente_desde TEXT,
+                    vigente_hasta TEXT,
+                    boe_bloque_id TEXT
+                )
+                """
+            )
+        )
+        conn.execute(text("INSERT INTO norma (codigo) VALUES ('32014L0065')"))
+
+        inserted = upsert_articulo(
+            conn,
+            "32014L0065",
+            eurlex.BloqueTexto(
+                bloque_id="official:32014L0065:90",
+                tipo_bloque="official_consolidation",
+                numero="95 bis",
+                titulo="ArtÃ­culo 95 bis",
+                tipo_articulo="articulo",
+                texto="   ",
+                vigente_desde="2026-06-06",
+            ),
+        )
+
+        assert inserted is False
+        assert conn.execute(text("SELECT count(*) FROM articulo")).scalar_one() == 0
+        assert conn.execute(text("SELECT count(*) FROM version_articulo")).scalar_one() == 0
 
 
 def test_parse_index_basic():
@@ -874,3 +937,116 @@ def test_log_sync_records_nonzero_errors_when_requested():
     assert row["status"] == "partial"
     assert row["errors"] == 2
     assert row["rows_processed"] == 5
+
+
+def test_upsert_norma_conflict_on_boe_id_idempotent():
+    """A-04b: upsert_norma must preserve canonical codigo on boe_id conflict.
+
+    Production already has codigo=32014L0065 for boe_id=EUR-CELEX-32014L0065.
+    A rerun with legacy codigo=MIFID2_2014_65 must update metadata without
+    replacing the canonical codigo.
+    """
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE norma (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    titulo TEXT NOT NULL,
+                    boe_id TEXT UNIQUE NOT NULL,
+                    eli_uri TEXT,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    tipo_documento TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    estado_cobertura TEXT NOT NULL,
+                    vigente_desde DATE NOT NULL
+                )
+                """
+            )
+        )
+
+    with engine.begin() as conn:
+        eurlex.upsert_norma(
+            conn,
+            {
+                "codigo": "32014L0065",
+                "boe_id": "EUR-CELEX-32014L0065",
+                "tipo_documento": "directiva",
+                "titulo": "MiFID II normalised",
+                "vigente_desde": "2014-07-17",
+                "ambito": "mercados_financieros",
+            },
+            "2014-07-17",
+        )
+
+    with engine.begin() as conn:
+        # Same boe_id but legacy codigo must not crash or replace canonical code.
+        eurlex.upsert_norma(
+            conn,
+            {
+                "codigo": "MIFID2_2014_65",
+                "boe_id": "EUR-CELEX-32014L0065",
+                "tipo_documento": "directiva",
+                "titulo": "MiFID II rerun",
+                "vigente_desde": "2014-07-17",
+                "ambito": "mercados_financieros",
+            },
+            "2014-07-17",
+        )
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT codigo, titulo FROM norma WHERE boe_id = 'EUR-CELEX-32014L0065'")
+        ).one()
+        assert row[0] == "32014L0065"
+        assert row[1] == "MiFID II rerun"
+
+
+def test_dead_letter_idempotent_on_duplicate():
+    """A-04b: add_dead_letter must not crash on duplicate (worker_name, entity_id).
+
+    The original SELECT-then-INSERT pattern was racy; the new ON CONFLICT
+    upsert must be safe for concurrent or repeated calls.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from dead_letter import add_dead_letter, get_dead_letters
+
+    engine = create_engine("sqlite:///:memory:", future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_dead_letter (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker_name TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    error_message TEXT,
+                    error_traceback TEXT,
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    max_retries INTEGER NOT NULL DEFAULT 3,
+                    resolved BOOLEAN NOT NULL DEFAULT FALSE,
+                    first_failed_at TEXT,
+                    last_failed_at TEXT,
+                    resolved_at TEXT,
+                    resolved_by TEXT,
+                    notes TEXT,
+                    UNIQUE(worker_name, entity_id)
+                )
+                """
+            )
+        )
+
+    r1 = add_dead_letter(engine, "worker-eurlex", "eurlex", "sync_norma", "duplicate key error")
+    assert r1 == 1
+
+    r2 = add_dead_letter(engine, "worker-eurlex", "eurlex", "sync_norma", "duplicate key error retry")
+    assert r2 == 2
+
+    letters = get_dead_letters(engine)
+    assert len(letters) == 1
+    assert letters[0]["retry_count"] == 2
+    assert letters[0]["error_message"] == "duplicate key error retry"

@@ -40,7 +40,7 @@
         "Ejecutar worker-eurlex en VPS con --run-once y confirmar exit 0 o partial explicito con sync_log, nunca crash silencioso.",
         "Reejecutar A-04 smoke al menos para worker-eurlex y actualizar docs/persistent-worker-smoke-20260520.md."
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": "A-05",
@@ -146,7 +146,7 @@
         "Reglas cubren los 4 workers: psd2-weekly, official-regulatory-references, pgc-boe-monthly, eu-sanctions-weekly",
         "Thresholds coherentes con frecuencia real de cada cron"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": "A-12",
@@ -158,7 +158,7 @@
         "Columnas: nombre, tipo, retry-guard (si/no), red (esdata-internal/otro), timer-instalado (si/no/NA)",
         "0 workers en estado ambiguo sin comentario explicativo"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": "A-13",
@@ -170,7 +170,7 @@
         "Si poblado: counts > 0 y FK integras -> passes=true sin reseed",
         "Si vacio o roto: seed ejecutado y validado -> passes=true"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": "A-14",
@@ -182,7 +182,7 @@
         "Tablas cubiertas: articulo, version_articulo, norma, obligacion_perfil, aeat_modelo, sync_log (ultimas 10 entradas)",
         "obligacion_perfil: 190 total / 190 verified como baseline confirmado"
       ],
-      "passes": true
+      "passes": false
     }
   ]
 }

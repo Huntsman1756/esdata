@@ -821,7 +821,45 @@ def discover_new_celexs(
 # ============================================================
 
 def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
-    """Upsert a norma record."""
+    """Upsert a norma record, handling conflicts on both codigo and boe_id.
+
+    The norma table has UNIQUE constraints on both `codigo` and `boe_id`.
+    If a canonical CELEX row already exists for the same `boe_id`, update
+    metadata in place and preserve its existing `codigo`.
+    """
+    params = {
+        "codigo": norma["codigo"],
+        "titulo": norma["titulo"],
+        "boe_id": norma["boe_id"],
+        "eli_uri": f"https://eur-lex.europa.eu/eli/{_eli_path(norma['boe_id'])}",
+        "jurisdiccion": "ue",
+        "tipo_fuente": "eurlex",
+        "tipo_documento": norma["tipo_documento"],
+        "ambito": norma["ambito"],
+        "estado_cobertura": "ingestada",
+        "vigente_desde": vigente_desde,
+    }
+
+    result = conn.execute(
+        text(
+            """
+            UPDATE norma
+            SET titulo = :titulo,
+                eli_uri = :eli_uri,
+                jurisdiccion = :jurisdiccion,
+                tipo_fuente = :tipo_fuente,
+                tipo_documento = :tipo_documento,
+                ambito = :ambito,
+                estado_cobertura = :estado_cobertura,
+                vigente_desde = :vigente_desde
+            WHERE boe_id = :boe_id
+            """
+        ),
+        params,
+    )
+    if result.rowcount:
+        return
+
     conn.execute(
         text(
             """
@@ -845,18 +883,7 @@ def upsert_norma(conn, norma: dict, vigente_desde: str) -> None:
                 vigente_desde = EXCLUDED.vigente_desde
             """
         ),
-        {
-            "codigo": norma["codigo"],
-            "titulo": norma["titulo"],
-            "boe_id": norma["boe_id"],
-            "eli_uri": f"https://eur-lex.europa.eu/eli/{_eli_path(norma['boe_id'])}",
-            "jurisdiccion": "ue",
-            "tipo_fuente": "eurlex",
-            "tipo_documento": norma["tipo_documento"],
-            "ambito": norma["ambito"],
-            "estado_cobertura": "ingestada",
-            "vigente_desde": vigente_desde,
-        },
+        params,
     )
 
 
@@ -978,8 +1005,18 @@ def _eli_path(boe_id: str) -> str:
     return f"{prefix}/{year}/{num}/oj"
 
 
-def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
+def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> bool:
     """Upsert articulo + version_articulo for a EUR-Lex block."""
+    texto = bloque.texto.strip()
+    if not texto:
+        logger.warning(
+            "Skipping empty official EUR-Lex block %s for %s article %s",
+            bloque.bloque_id,
+            codigo,
+            bloque.numero,
+        )
+        return False
+
     conn.execute(
         text(
             """
@@ -1040,7 +1077,7 @@ def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
         {
             "codigo": codigo,
             "numero": bloque.numero,
-            "texto": bloque.texto,
+            "texto": texto,
             "vigente_desde": bloque.vigente_desde,
             "boe_bloque_id": bloque.bloque_id,
         },
@@ -1070,11 +1107,12 @@ def upsert_articulo(conn, codigo: str, bloque: BloqueTexto) -> None:
         {
             "codigo": codigo,
             "numero": bloque.numero,
-            "texto": bloque.texto,
+            "texto": texto,
             "vigente_desde": bloque.vigente_desde,
             "boe_bloque_id": bloque.bloque_id,
         },
     )
+    return True
 
 
 # ============================================================
@@ -1257,12 +1295,13 @@ def run_sync(  # noqa: C901
                             f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}"
                         )
 
-                    upsert_articulo(conn, norma_def["codigo"], bloque)
+                    inserted = upsert_articulo(conn, norma_def["codigo"], bloque)
                     record_revision(
                         conn, worker_name, "bloque", bloque.bloque_id, bloque.texto
                     )
                     bloques_fetched += 1
-                    articulos_upserted += 1
+                    if inserted:
+                        articulos_upserted += 1
 
                     time.sleep(1)  # Rate limit EUR-Lex REST
                 update_eurlex_quality(
@@ -1347,10 +1386,11 @@ def run_sync(  # noqa: C901
                                 invalidated = invalidate_old_embeddings(conn, bloque.bloque_id)
                                 if invalidated:
                                     print(f"  [INVALIDATE] {invalidated} old embeddings for {bloque.bloque_id}")
-                                upsert_articulo(conn, f"EURLEX-{celex}", bloque)
+                                inserted = upsert_articulo(conn, f"EURLEX-{celex}", bloque)
                                 record_revision(conn, worker_name, "bloque", bloque.bloque_id, bloque.texto)
                                 bloques_fetched += 1
-                                articulos_upserted += 1
+                                if inserted:
+                                    articulos_upserted += 1
                                 time.sleep(1)
                             update_eurlex_quality(
                                 conn,
