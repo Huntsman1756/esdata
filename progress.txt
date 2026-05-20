@@ -2726,3 +2726,21 @@ Final result:
 Artifacts:
 - Report: `docs/db-integrity-a06-20260520.md`.
 Next: A-07 Regulatory data accuracy spot-check.
+
+=== Iteration A-07 - 2026-05-20 ===
+Story: A-07 Regulatory data accuracy spot-check
+Result: PASS
+Verification:
+- Reviewed 8 production rows on VPS.
+- LIVA deterministic sample: articles `84`, `170`, `67`, `80`, `86`.
+- MiCA sample deliberately includes recent `emisor_token`: CASP `art. 59`, ART `art. 18`, EMT `art. 48`.
+- BOE LIVA source `BOE-A-1992-28740` returned HTTP 200; sampled article anchors returned HTTP 200 and headings were present.
+- MiCA canonical EUR-Lex source URL returned known WAF `202`; content verified through BOE DOUE `DOUE-L-2023-80808` HTTP 200 and Publications Office DOC_1 HTTP 200.
+- LIVA latest `version_articulo.vigente_desde` populated for all 5 samples.
+- MiCA article text exists in `eurlex_article` for `art. 18`, `art. 48`, `art. 59` with non-empty official URL and `capture_date=2026-05-20`.
+Findings:
+- No blocking accuracy findings.
+- Non-blocking: MiCA profile obligations are not `version_articulo` rows; article text/source validation uses `eurlex_article`.
+Artifacts:
+- Report: `docs/accuracy-spot-check-20260520.md`.
+Next: A-08 API endpoint smoke tests.

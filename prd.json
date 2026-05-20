@@ -78,7 +78,7 @@
         "version_articulo con fecha_vigencia != NULL en todos",
         "Hallazgos documentados en docs/accuracy-spot-check-20260520.md"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-08",
