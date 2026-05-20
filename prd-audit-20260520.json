@@ -115,7 +115,24 @@
       "acceptance": [
         "Llamada MCP -> nueva fila en query_audit_log",
         "No existen triggers/permisos que permitan DELETE o UPDATE en esa tabla",
-        "Esquema tiene timestamp y tool_name como NOT NULL"
+        "Esquema tiene timestamp y tool_name como NOT NULL",
+        "Hallazgo A-10: runtime append-only pasa por trigger, pero el rol API es superuser; remediation split to A-10b"
+      ],
+      "passes": true
+    },
+    {
+      "id": "A-10b",
+      "priority": 10.5,
+      "title": "Harden query_audit_log with least-privileged API DB role",
+      "description": "A-10 confirmed MCP audit coverage and trigger-based append-only behavior, but production API uses DB role esdata, which is superuser and has UPDATE/DELETE/TRUNCATE/TRIGGER privileges. Create or migrate to a non-superuser runtime role and make query_audit_log append-only by permissions as well as trigger.",
+      "acceptance": [
+        "Production API DATABASE_URL uses a non-superuser runtime role",
+        "Runtime role has rolsuper=false and rolbypassrls=false",
+        "Runtime role has INSERT and SELECT on query_audit_log",
+        "Runtime role does not have UPDATE, DELETE, TRUNCATE, or TRIGGER on query_audit_log",
+        "Migrations/admin operations remain possible via a separate privileged role",
+        "MCP get_articulo call still creates a query_audit_log row after role change",
+        "UPDATE/DELETE attempts as runtime role fail by permission denied or append-only trigger"
       ],
       "passes": false
     },

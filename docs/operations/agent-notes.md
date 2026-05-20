@@ -341,3 +341,22 @@ Usar notas cortas con este esquema:
 - RD 304/2014: el BOE ID correcto es `BOE-A-2014-4742`. El ID `BOE-A-2014-5438` del PRD correspondia a otro real decreto y fue descartado tras limpiar la carga erronea propia. Produccion expone `RD_304_2014` con articulos y `/v1/legislacion/RD_304_2014/articulos/4`.
 - Validacion: las suites deben correrse desde `ops` en Compose, no desde un servicio generico `worker` inexistente. Pasar `ESDATA_API_KEY` y `MCP_API_KEY` al contenedor para evitar falsos 401. `ops` incluye `httpx` y `apps/api/mcp_catalog.py`.
 - Regla practica: para back office de sociedad de valores, usar SEPBLAC `obligacion_sepblac` como evidencia operativa preliminar y resolver contra LPBC-FT/RD 304/2014 antes de convertirlo en obligacion normativa.
+
+## 2026-05-20 - query_audit_log append-only needs least-privilege role
+
+A-10 verified that `query_audit_log` has active append-only triggers and normal `UPDATE`/`DELETE` attempts fail with `query_audit_log is append-only`.
+
+However, production API currently uses `DATABASE_URL=postgresql+psycopg://esdata:***@postgres:5432/esdata`, and PostgreSQL reports `esdata` as `rolsuper=true` with `UPDATE`, `DELETE`, `TRUNCATE`, and `TRIGGER` privileges on `query_audit_log`.
+
+Operational implication:
+
+- Trigger enforcement works for ordinary DML.
+- It is not a complete least-privilege guarantee while the API role is superuser.
+- Do not claim strong append-only security for `query_audit_log` until runtime DB access moves to a non-superuser app role with only required grants.
+
+Expected remediation shape:
+
+- Create/use a dedicated non-superuser API role.
+- Keep migrations/maintenance on a separate privileged role.
+- Grant runtime role `SELECT`/`INSERT` on `query_audit_log` and sequence usage only.
+- Revoke `UPDATE`, `DELETE`, `TRUNCATE`, and `TRIGGER` from the runtime role.

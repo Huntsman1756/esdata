@@ -2779,3 +2779,24 @@ Artifacts:
 - VPS evidence: `/root/a09-mcp-spot-20260520`.
 - Report: `docs/mcp-accuracy-a09-20260520.md`.
 Next: A-10 query_audit_log append-only and MCP coverage.
+
+=== Iteration A-10 - 2026-05-20 ===
+Story: A-10 query_audit_log append-only and MCP coverage
+Result: PASS-WITH-BLOCKING-FINDING
+Verification:
+- MCP `/mcp` stateful call `get_articulo(LIVA, 1)` executed on VPS with request id `a10-mcp-20260520181648`.
+- `query_audit_log` count increased `8133 -> 8134`.
+- New row `id=8134`: `tool_name=get_articulo`, `path=/v1/legislacion/LIVA/articulos/1`, `query_text=LIVA:1`, `created_at=2026-05-20T16:16:49.461205+00:00`, `verified=1`.
+- Schema has `created_at NOT NULL` as timestamp equivalent and `tool_name NOT NULL`.
+- Runtime append-only triggers exist: `trg_query_audit_log_no_update`, `trg_query_audit_log_no_delete`.
+- Direct `UPDATE` and `DELETE` attempts against row `8134` both failed with `query_audit_log is append-only`; row remains unchanged.
+Blocking finding:
+- Production API uses `DATABASE_URL` user `esdata`.
+- PostgreSQL reports `esdata` as `rolsuper=true`, `rolbypassrls=true`, and table grants include `UPDATE`, `DELETE`, `TRUNCATE`, and `TRIGGER` on `query_audit_log`.
+- Therefore append-only behavior works by trigger in normal DML, but least-privilege permission hardening is not complete.
+Fix applied:
+- No production role mutation applied in A-10; this is split into new story `A-10b` because changing runtime DB role/DATABASE_URL is deployment-sensitive.
+Artifacts:
+- VPS evidence: `/root/a10-query-audit-20260520`.
+- Report: `docs/query-audit-log-a10-20260520.md`.
+Next: A-10b harden query_audit_log with least-privileged API DB role.
