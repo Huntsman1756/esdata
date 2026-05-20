@@ -24,7 +24,7 @@
         "Todos los workers ejecutan --run-once con exit 0 o error explicito documentado",
         "Sin crashes silenciosos en docker logs"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-04b",

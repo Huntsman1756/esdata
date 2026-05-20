@@ -2650,3 +2650,15 @@ Scope:
 - Add focused tests and rerun `worker-eurlex --run-once` on VPS.
 Next:
 - A-04b before A-05.
+=== Iteration A-04 - 2026-05-20 ===
+Story: A-04 Smoke test persistent workers reales
+Result: PASS
+Findings:
+- Persistent workers from Compose: 14
+- --run-once supported: 14/14
+- OK within 300s: 10
+- Timeout at 300s: 3 (worker-cnmv, worker-dgt, worker-modelos - active upstream work, not silent)
+- Failed: 1 (worker-eurlex - duplicate key norma_boe_id_key for EUR-CELEX-32014L0065)
+- Harness: docker compose run -T --rm sh -lc WORKER_CMD --run-once
+- Report: docs/persistent-worker-smoke-20260520.md
+Next: A-04b fix worker-eurlex blocker.
