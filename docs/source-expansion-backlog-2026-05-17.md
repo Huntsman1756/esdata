@@ -15,7 +15,7 @@ This file tracks source families requested on 2026-05-17. It is not a claim that
 | Domain | Status | Notes |
 | --- | --- | --- |
 | AEAT modelos | `implemented_partial` | 219 modelos, 31k+ casillas; 187/193/198/216/290/296 with structured instructions/keys complete, 200/303 partial. |
-| AEAT CDI | `target` | Official sources identified; must be separate double-tax-treaty family, not generic AEAT docs. |
+| AEAT CDI | `implemented_partial` | Worker/API/MCP and historical production rows exist; must still close a separate double-tax-treaty contract by country, article, income type and evidence. |
 | AEAT GI42 / CRS Modelo 289 | `target` | Procedure source identified; useful for CRS/FATCA workflow expansion. |
 | BOE consolidated legislation | `implemented_partial` | Core tax laws loaded; RD 813/2023 (`RD_813_2023`) loaded on VPS with 163 articles. |
 | BOE diario | `implemented_partial` | Daily non-consolidated notices go to `documento_interpretativo` with `tipo_fuente='boe_diario'`; not automatically committed to repo, loaded by cron/DB. |
