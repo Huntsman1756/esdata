@@ -30,7 +30,8 @@ def _engine_with_dead_letter_table():
                     last_failed_at TEXT,
                     resolved_at TEXT,
                     resolved_by TEXT,
-                    notes TEXT
+                    notes TEXT,
+                    UNIQUE(worker_name, entity_id)
                 )
                 """
             )
