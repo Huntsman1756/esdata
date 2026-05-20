@@ -2744,3 +2744,20 @@ Findings:
 Artifacts:
 - Report: `docs/accuracy-spot-check-20260520.md`.
 Next: A-08 API endpoint smoke tests.
+
+=== Iteration A-08 - 2026-05-20 ===
+Story: A-08 Smoke test todos los endpoints API
+Result: PASS-WITH-CAVEAT
+Verification:
+- `/health` -> HTTP 200, `status=ok`, `database=ok`.
+- `/v1/legislacion/LIVA/articulos/1` -> HTTP 200, non-empty text, `boe_reference=BOE-A-1992-28740`, BOE source URL.
+- `/v1/buscar?q=IVA&norma=LIVA` -> HTTP 200, `10` results.
+- `POST /v1/ai/consulta` with `FATCA passive entity modelo 290` -> HTTP 200, includes `status`, `safe_to_answer`, `evidence_notice`; status `matched`, safe.
+- `/v1/eurlex/32014L0065` -> HTTP 200, canonical CELEX, `92` articles.
+- `/v1/eurlex/MIFID2_2014_65` -> HTTP 404 explicit `Documento EUR-Lex no encontrado`, no 500.
+- MCP JSON-RPC `tools/list` via `/mcp` -> HTTP 200, `77` tools.
+Caveat:
+- Initial `GET /mcp` returns HTTP 400 `Missing session ID` while still issuing `mcp-session-id`; subsequent `initialize` and `tools/list` succeed with that session id. Tool catalog is healthy, transport handshake status should be tracked later.
+Artifacts:
+- Report: `docs/api-smoke-a08-20260520.md`.
+Next: A-09 MCP tool accuracy spot-check.

@@ -91,7 +91,7 @@
         "/api/search -> resultados > 0",
         "/api/mcp/tools -> lista de tools no vacia"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-09",
