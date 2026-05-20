@@ -384,3 +384,16 @@ A-05 drift to remember:
 - `cron-eurlex-market-monthly` writes as `worker-eurlex-market`.
 
 For MCP transport checks, a bare authenticated `GET /mcp` with `Accept: text/event-stream` can return `400 Missing session ID`; this is expected stateful MCP behavior, not an operational alert condition.
+
+## 2026-05-20 - Worker inventory classifies DB worker modules, not every Python file
+
+A-12 rebuilt `docs/worker-inventory.md` from the 68 retry-guarded DB worker files in `docs/worker-db-retry-coverage.md`.
+
+Operational rule:
+
+- Use the 68 `create_engine(...)` modules as the A-12 inventory scope.
+- Helper files without DB engines (`runtime.py`, `dead_letter.py`, `entrypoint.py`, parsers, support modules, tests) are explicitly out of scope.
+- Classify runtime by actual wiring: persistent Compose service first, cron-only service second, then helper/backlog module, then dead/unused legacy path.
+- Keep Compose service names separate from `sync_log.worker` names; use A-05/A-11 aliases when documenting telemetry.
+
+Current counts: `active-persistent=14`, `active-cron=14`, `helper/module=31`, `dead/unused=9`.

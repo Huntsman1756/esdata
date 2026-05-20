@@ -2853,3 +2853,22 @@ Artifacts:
 - Report: `docs/alert-rules-a11-20260520.md`.
 - VPS evidence: `/root/a11-alert-rules-20260520/evidence.txt`.
 Next: A-12 worker inventory classification.
+
+=== Iteration A-12 - 2026-05-20 ===
+Story: A-12 Clasificar 68 workers - docs/worker-inventory.md
+Result: PASS
+Verification:
+- Rebuilt `docs/worker-inventory.md` from the A-01 retry-guard list, current Compose services, systemd timers, A-05 sync_log aliases, and A-11 cadence/status rules.
+- Inventory covers exactly 68 DB worker modules from `docs/worker-db-retry-coverage.md`.
+- Classification counts: `active-persistent=14`, `active-cron=14`, `helper/module=31`, `dead/unused=9`.
+- Active runtime rows include Compose service(s), `sync_log`/status worker names, network `esdata-internal`, and timer status.
+- All helper/dead rows have explanatory comments; no unclassified worker remains.
+- Added `scripts/tests/test_worker_inventory_doc.py` to assert inventory coverage and type validity.
+Commands:
+- VPS `systemctl list-timers --all --no-pager 'esdata*'` to confirm installed timers.
+- VPS `sync_log` grouped by worker to confirm live telemetry names.
+- Local `pytest scripts/tests/test_worker_inventory_doc.py scripts/tests/test_worker_db_retry_coverage.py apps/api/tests/test_worker_cadence.py -q` => `13 passed, 1 warning`.
+- Local inventory row count => `68`.
+Artifacts:
+- Report/inventory: `docs/worker-inventory.md`.
+Next: A-13 AEAT models verify-first.

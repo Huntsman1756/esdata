@@ -158,7 +158,7 @@
         "Columnas: nombre, tipo, retry-guard (si/no), red (esdata-internal/otro), timer-instalado (si/no/NA)",
         "0 workers en estado ambiguo sin comentario explicativo"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-13",
