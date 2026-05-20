@@ -48,9 +48,20 @@ PY
   fi
 
   PROMPT="$(cat "$PROMPT_FILE")"
-  OUTPUT=$(opencode run --dangerously-skip-permissions "$PROMPT" 2>&1 | tee /dev/stderr) || true
+  opencode run --dangerously-skip-permissions "$PROMPT" 2>&1 | tee /dev/stderr || true
 
-  if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
+  REMAINING_AFTER=$(
+    python3 - "$PRD_FILE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    prd = json.load(fh)
+
+print(sum(1 for story in prd["userStories"] if story.get("passes") is False))
+PY
+  )
+  if [ "$REMAINING_AFTER" -eq 0 ]; then
     echo "<promise>COMPLETE</promise>"
     exit 0
   fi

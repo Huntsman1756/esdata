@@ -14,6 +14,11 @@ Work exactly one story per iteration.
 
 Pick the highest-priority story in `prd.json` where `passes=false`.
 
+Ignore historical `<promise>COMPLETE</promise>` strings in `progress.txt`.
+They belong to older sprints and are not the current stop condition.
+The only current stop condition is: every story in the active `prd.json`
+has `passes=true`.
+
 Current audit context:
 
 - Baseline: `v1.13.0`
@@ -72,3 +77,33 @@ Commit only files relevant to the story with message:
 `[A-04] smoke test persistent workers`
 
 If blocked, do not mark `passes=true`; document the blocker and exit.
+
+## A-04b specific expectation
+
+If A-04b is the highest-priority pending story, fix only:
+
+1. `worker-eurlex` norma upsert idempotency.
+2. `dead_letter.add_dead_letter` idempotency.
+
+Known VPS evidence:
+
+- `norma_boe_id_key` is `UNIQUE (boe_id)`.
+- There is exactly one `norma` row for `boe_id='EUR-CELEX-32014L0065'`.
+- That row is canonical and must stay `codigo='32014L0065'`.
+- `norma` has no `updated_at`; do not add it for this fix.
+- The failing worker tried to insert `codigo='MIFID2_2014_65'` with the same `boe_id`.
+
+Required behavior:
+
+- Resolve EUR-Lex norma reruns by `boe_id`/canonical CELEX rather than crashing on `norma_boe_id_key`.
+- Do not change canonical `codigo='32014L0065'` to legacy `MIFID2_2014_65`.
+- `dead_letter.add_dead_letter` must use `ON CONFLICT (worker_name, entity_id) DO UPDATE`, not `DO NOTHING`, so repeated failures update the latest error and increment retry count.
+- Add focused tests.
+- Run focused tests locally.
+- Deploy or run on VPS only as needed to verify `worker-eurlex --run-once` no longer crashes with the duplicate-key failure.
+- Update `docs/persistent-worker-smoke-20260520.md` and `progress.txt`.
+- Mark only A-04b `passes=true` if verified.
+
+Commit message:
+
+`[A-04b] fix EUR-Lex upsert and dead-letter idempotency`
