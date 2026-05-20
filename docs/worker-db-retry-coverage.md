@@ -8,6 +8,19 @@ Requirement: every in-scope worker must call `ensure_database_connection(engine)
 In-scope DB worker files: 68
 Missing retry guard: 0
 
+## Canonical external identifiers
+
+Workers that persist entities with stable official identifiers must treat the official identifier as immutable identity and must not let a later run overwrite a canonical local `codigo` with an older alias.
+
+Pattern:
+
+- Resolve existing rows first by the official external identifier (`boe_id`, CELEX, official reference, or equivalent).
+- If a row exists, update only mutable metadata such as title, URL, coverage/status, timestamps, counters, or hashes.
+- Preserve the canonical `codigo` already stored in the database.
+- Only insert a new row when no row exists for the official external identifier.
+
+Example from A-04b: `worker-eurlex` may encounter legacy `codigo='MIFID2_2014_65'` for `boe_id='EUR-CELEX-32014L0065'`, but the canonical row must remain `codigo='32014L0065'`.
+
 | Worker file | create_engine calls | Retry guard |
 | --- | ---: | --- |
 | `aeat_current_designs.py` | 1 | PASS |

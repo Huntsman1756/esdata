@@ -107,3 +107,46 @@ Required behavior:
 Commit message:
 
 `[A-04b] fix EUR-Lex upsert and dead-letter idempotency`
+
+## A-05 specific expectation
+
+If A-05 is the highest-priority pending story, run only A-05.
+
+Required threshold:
+
+- A-05 acceptance requires every cron execution to create a new `sync_log`
+  row with `id > 1623`.
+- Do not use another threshold.
+- Before running a cron service, record the current max/count for that service.
+- After running it, verify a new row exists with `id > 1623`.
+
+Cron discovery:
+
+- Derive cron services from live Compose output:
+  `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile cron config --format json`
+- Include services with profile `cron`, including `official-regulatory-references`.
+- Do not hardcode the list.
+
+Execution pattern:
+
+- Cron services already have `WORKER_CMD` configured, usually including `--run-once`.
+- Execute the service command as configured.
+- Do not append a second `--run-once`.
+- Use non-interactive Compose:
+  `docker compose ... run -T --rm <cron-service> <configured command>` or an equivalent `sh -lc "$WORKER_CMD" < /dev/null`.
+- Avoid letting `docker compose run` consume loop stdin.
+
+Report:
+
+- Write a durable report, for example:
+  `docs/cron-worker-run-once-20260520.md`
+- Include service name, WORKER_CMD, before sync_log id/count, after sync_log id/count, exit code, outcome, and log location.
+- If a service has upstream unavailable but writes explicit telemetry, document it as a caveat.
+- If a service exits with 0 but creates no sync_log row, A-05 is blocked.
+
+After verification:
+
+- Mark only A-05 `passes=true`.
+- Update `progress.txt`.
+- Commit with:
+  `[A-05] run cron jobs once and verify sync_log`
