@@ -32,6 +32,13 @@ SCHEDULER_SERVICE_TO_STATUS_WORKER = {
     "cron-esma-dlt-weekly": "worker-esma-dlt",
 }
 
+A11_STALE_ALERT_TARGETS = {
+    "cron-psd2-weekly": ("cron_weekly", 168, 252),
+    "official-regulatory-references": ("cron_weekly", 168, 252),
+    "cron-pgc-boe-monthly": ("cron_monthly", 720, 1080),
+    "cron-eu-sanctions-weekly": ("cron_weekly", 168, 252),
+}
+
 EXPECTED_SYNC_LOG_WORKERS = {
     "cron-aepd-weekly",
     "cron-aeat-current-daily",
@@ -148,6 +155,31 @@ def test_all_known_sync_log_workers_have_cadence_config_or_alias():
     )
 
     assert missing == []
+
+
+def test_a11_stale_alert_targets_have_real_worker_cadence_entries():
+    for worker, (trigger, cadence_hours, threshold_hours) in A11_STALE_ALERT_TARGETS.items():
+        config = WORKER_CADENCE_CONFIG[worker]
+        assert config["trigger"] == trigger
+        assert config["expected_cadence_hours"] == cadence_hours
+        assert config["stale_threshold_hours"] == threshold_hours
+        assert config["stale_threshold_hours"] >= cadence_hours * 1.5
+
+
+def test_a11_compose_to_sync_log_name_drifts_are_mapped_for_status_metrics():
+    expected_aliases = {
+        "worker-aeat-current-designs": "cron-aeat-current-daily",
+        "cron-eurlex-market-monthly": "worker-eurlex-market",
+        "cron-esma-mifir-reporting-weekly": "worker-esma-mifir-reporting",
+        "cron-esma-firds-daily": "worker-esma-firds",
+        "cron-esma-dlt-weekly": "worker-esma-dlt",
+    }
+
+    for observed_worker, canonical_worker in expected_aliases.items():
+        assert WORKER_CADENCE_ALIASES[observed_worker] == canonical_worker
+
+    assert "cron-boe-modelos-daily" in WORKER_CADENCE_EXCLUDED
+    assert WORKER_CADENCE_CONFIG["worker-boe-modelos"]["notes"]
 
 
 def test_systemd_timer_cadences_match_worker_config():

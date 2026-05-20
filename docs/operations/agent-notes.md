@@ -362,3 +362,25 @@ Expected remediation shape:
 - Revoke `UPDATE`, `DELETE`, `TRUNCATE`, and `TRIGGER` from the runtime role.
 
 Resolved in A-10b: API runtime now uses `esdata_api`; Alembic uses `ALEMBIC_DATABASE_URL` with privileged `esdata`. Workers/cron still use privileged `DATABASE_URL` because they perform ingestion upserts. If adding new API writes under `esdata_api`, add only the needed `INSERT`/`SELECT` grants and RLS policies; do not restore superuser runtime access.
+
+## 2026-05-20 - WorkerSilent alerting follows status metrics, not Compose names
+
+A-11 verified `WorkerSilent` against production Prometheus and `sync_log`.
+
+Operational rule:
+
+- `WorkerSilent` must evaluate `worker_stale_status == 1`.
+- Do not hardcode per-worker lag thresholds in Prometheus rules.
+- The real worker identity comes from `sync_log.worker`, normalized by `WORKER_CADENCE_ALIASES` and `WORKER_CADENCE_EXCLUDED` before `/status` exports `worker_stale_status`.
+- Keep stale thresholds in `apps/api/services/worker_cadence.py`; weekly workers use `168h -> 252h`, monthly workers use `720h -> 1080h`.
+
+A-05 drift to remember:
+
+- `cron-aeat-current-daily` writes as `worker-aeat-current-designs`.
+- `cron-boe-modelos-daily` writes as `worker-boe-modelos`.
+- `cron-esma-dlt-weekly` writes as `worker-esma-dlt`.
+- `cron-esma-firds-daily` writes as `worker-esma-firds`.
+- `cron-esma-mifir-reporting-weekly` writes as `worker-esma-mifir-reporting`.
+- `cron-eurlex-market-monthly` writes as `worker-eurlex-market`.
+
+For MCP transport checks, a bare authenticated `GET /mcp` with `Accept: text/event-stream` can return `400 Missing session ID`; this is expected stateful MCP behavior, not an operational alert condition.

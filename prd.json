@@ -146,7 +146,7 @@
         "Reglas cubren los 4 workers: psd2-weekly, official-regulatory-references, pgc-boe-monthly, eu-sanctions-weekly",
         "Thresholds coherentes con frecuencia real de cada cron"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "A-12",

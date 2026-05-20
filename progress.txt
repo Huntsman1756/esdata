@@ -2831,3 +2831,25 @@ Artifacts:
 - Report: `docs/a10b-runtime-db-role-20260520.md`.
 - VPS evidence: `/root/a10b-runtime-role-20260520`.
 Next: A-11 Prometheus alert rules coverage.
+
+=== Iteration A-11 - 2026-05-20 ===
+Story: A-11 Prometheus alert rules - cobertura stale workers
+Result: PASS
+Verification:
+- VPS `promtool check rules /etc/prometheus/alerts.yml` => `SUCCESS: 7 rules found`.
+- `WorkerSilent` uses `worker_stale_status == 1`; no per-worker stale rules hardcode stale incident worker names.
+- Production `sync_log` has fresh rows for the 4 target workers:
+  `cron-psd2-weekly` id `1763`, `official-regulatory-references` id `1769`,
+  `cron-pgc-boe-monthly` id `1762`, `cron-eu-sanctions-weekly` id `1753`.
+- `/status` reports the 4 target workers with `cadence_declared=true` and `stale=false`.
+- `/metrics` exports `worker_stale_status=0` for all 4 target workers.
+- Prometheus query `worker_stale_status == 1` returned `[]`; Alertmanager active alerts returned `[]`.
+- Cadence policy confirmed: weekly `168h -> 252h`, monthly `720h -> 1080h`.
+- A-05 Compose/sync_log name drift is covered by `WORKER_CADENCE_ALIASES` or `WORKER_CADENCE_EXCLUDED`.
+Caveats:
+- `cron-eu-sanctions-weekly` still records upstream `HTTP 403 Forbidden`, but it writes fresh telemetry and is not stale.
+- Authenticated bare `GET /mcp` with SSE accept returns `400 Missing session ID`; this is expected stateful MCP behavior, not an operational alert condition.
+Artifacts:
+- Report: `docs/alert-rules-a11-20260520.md`.
+- VPS evidence: `/root/a11-alert-rules-20260520/evidence.txt`.
+Next: A-12 worker inventory classification.
