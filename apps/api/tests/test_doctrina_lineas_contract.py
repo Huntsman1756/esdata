@@ -23,9 +23,20 @@ REQUIRED_EVIDENCE_FIELDS = {
 
 
 def _seed_pilot_dgt_reference(
-    *, persisted_irnr_article: bool = False, estado_vigencia: str | None = None
+    *,
+    persisted_irnr_article: bool = False,
+    persisted_model_relation: bool = False,
+    estado_vigencia: str | None = None,
 ):
     with db_session() as db:
+        db.execute(
+            text(
+                """
+                DELETE FROM criterio_relacion
+                WHERE linea_codigo = 'D-01'
+                """
+            )
+        )
         db.execute(
             text(
                 """
@@ -108,6 +119,31 @@ def _seed_pilot_dgt_reference(
                     JOIN articulo a ON a.numero = '31'
                     JOIN norma n ON n.id = a.norma_id
                     WHERE d.referencia = 'V0166-25' AND n.codigo = 'TRLIRNR'
+                    """
+                )
+            )
+        if persisted_model_relation:
+            db.execute(
+                text(
+                    """
+                    INSERT OR IGNORE INTO criterio_relacion (
+                        linea_codigo, documento_referencia, norma_codigo, articulo,
+                        impuesto, modelo_aeat, tipo_renta, relacion, metodo_enlace,
+                        confianza_enlace, nota_limitacion, source_url, source_hash,
+                        capture_date, verified, completeness
+                    )
+                    VALUES (
+                        'D-01', 'V0166-25', 'TRLIRNR', '31',
+                        'IRNR', '216/296', 'retenciones_no_residentes',
+                        'modelo_supuesto', 'manual_official',
+                        1.0,
+                        'Curacion D-01: modelo 216/296 auditado por supuesto en texto oficial',
+                        'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V0166-25',
+                        'sha256-v0166-25-test',
+                        '2026-05-21T08:30:00Z',
+                        1,
+                        'complete'
+                    )
                     """
                 )
             )
@@ -309,6 +345,147 @@ def _seed_generic_hashless_doctrina_line():
         db.commit()
 
 
+def _seed_generic_complete_doctrina_line() -> str:
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+                    referencia, fecha, titulo, texto, url_fuente,
+                    estado_vigencia, row_completeness, row_provenance
+                )
+                VALUES (
+                    'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal',
+                    'V9998-26', '2026-02-06',
+                    'Consulta DGT generica con hash y relacion',
+                    'Ficha oficial de prueba con fuente DGT, articulo, source_revision y modelo.',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V9998-26',
+                    'vigente', 'complete', 'official_exact'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO source_revision (
+                    worker_name, source_entity_tipo, source_entity_id,
+                    content_hash_sha256, fetched_at, dgt_url
+                )
+                VALUES (
+                    'worker-dgt', 'consulta_vinculante', 'V9998-26',
+                    'sha256-v9998-26-test', '2026-05-21T09:00:00Z',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V9998-26'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO norma (
+                    codigo, titulo, boe_id, jurisdiccion, tipo_fuente,
+                    tipo_documento, ambito, estado_cobertura, vigente_desde
+                )
+                VALUES (
+                    'TESTFULL', 'Norma test completa', 'TESTFULL-BOE',
+                    'ES', 'boe', 'ley', 'tributario', 'ingestada', '2000-01-01'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '31', 'Articulo completo', 'articulo'
+                FROM norma
+                WHERE codigo = 'TESTFULL'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO linea_criterio (
+                    titulo, cuestion_practica, descripcion, criterio_dominante,
+                    ambitos, ultimo_cambio, estado, activo
+                )
+                SELECT
+                    'Linea generica completa DGT',
+                    'Puede una linea generica responder con evidencia completa?',
+                    'Fixture de contrato doctrina completo.',
+                    'Solo debe responder con source_revision y relacion normalizada.',
+                    '["generic_complete","doctrina_administrativa"]',
+                    '2026-05-21',
+                    'vigente',
+                    1
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM linea_criterio WHERE titulo = 'Linea generica completa DGT'
+                )
+                """
+            )
+        )
+        linea_id = db.execute(
+            text("SELECT id FROM linea_criterio WHERE titulo = 'Linea generica completa DGT'")
+        ).scalar_one()
+        codigo = f"LC-{linea_id:04d}"
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO linea_criterio_referencia (
+                    linea_id, documento_referencia, tipo_documento,
+                    organismo_emisor, fecha, rol_en_linea, orden
+                )
+                VALUES (
+                    :linea_id, 'V9998-26', 'consulta_vinculante',
+                    'DGT', '2026-02-06', 'consulta_principal', 1
+                )
+                """
+            ),
+            {"linea_id": linea_id},
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO documento_articulo (
+                    documento_id, articulo_id, metodo_enlace, confianza_enlace, nota
+                )
+                SELECT d.id, a.id, 'manual_official', 1.0, 'Fixture complete'
+                FROM documento_interpretativo d
+                JOIN articulo a ON a.numero = '31'
+                JOIN norma n ON n.id = a.norma_id
+                WHERE d.referencia = 'V9998-26' AND n.codigo = 'TESTFULL'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO criterio_relacion (
+                    linea_codigo, linea_criterio_id, documento_referencia,
+                    norma_codigo, articulo, impuesto, modelo_aeat, tipo_renta,
+                    relacion, metodo_enlace, confianza_enlace, nota_limitacion,
+                    source_url, source_hash, capture_date, verified, completeness
+                )
+                VALUES (
+                    :codigo, :linea_id, 'V9998-26',
+                    'TESTFULL', '31', 'IRNR', '216', 'servicios_profesionales',
+                    'modelo_supuesto', 'manual_official', 1.0,
+                    'Fixture: relacion modelo/supuesto persistida',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V9998-26',
+                    'sha256-v9998-26-test', '2026-05-21T09:00:00Z',
+                    1, 'complete'
+                )
+                """
+            ),
+            {"codigo": codigo, "linea_id": linea_id},
+        )
+        db.commit()
+        return codigo
+
+
 @pytest_asyncio.fixture
 async def client():
     transport = ASGITransport(app=app)
@@ -353,6 +530,26 @@ async def test_generic_db_line_with_source_and_article_but_no_hash_fails_closed(
 
 
 @pytest.mark.asyncio
+async def test_generic_db_line_with_hash_article_and_model_relation_can_answer(client):
+    codigo = _seed_generic_complete_doctrina_line()
+
+    response = await client.get(f"/v1/doctrina/lineas/{codigo}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["codigo"] == codigo
+    assert body["source_hash"] == "sha256-v9998-26-test"
+    assert body["capture_date"] == "2026-05-21T09:00:00Z"
+    assert body["impuesto"] == "IRNR"
+    assert body["articulo_referencia"] == "TESTFULL art. 31"
+    assert body["modelo_aeat_referencia"] == "216"
+    assert body["completeness"] == "complete"
+    assert body["verified"] is True
+    assert body["safe_to_answer"] is True
+    assert body["review_required"] is False
+
+
+@pytest.mark.asyncio
 async def test_doctrina_linea_detail_supports_codigo_and_required_evidence(client):
     list_response = await client.get("/v1/doctrina/lineas")
     codigo = list_response.json()["lineas"][0]["codigo"]
@@ -379,7 +576,7 @@ async def test_doctrina_pilot_line_retenciones_uses_official_evidence_fail_close
     assert body["tema"] == "retenciones_no_residentes"
     assert body["impuesto"] == "IRNR"
     assert body["articulo_referencia"] == "TRLIRNR art. 31"
-    assert body["modelo_aeat_referencia"] == "216/296"
+    assert body["modelo_aeat_referencia"] is None
     assert body["source_url"].endswith("num_consulta=V0166-25")
     assert body["source_hash"] == "sha256-v0166-25-test"
     assert body["capture_date"] == "2026-05-21T08:30:00Z"
@@ -405,9 +602,9 @@ async def test_doctrina_pilot_line_relaciones_keep_model_relation_partial(client
     assert relacion["documento_referencia"] == "V0166-25"
     assert relacion["norma_codigo"] == "TRLIRNR"
     assert relacion["articulo"] == "31"
-    assert relacion["modelo_aeat"] == "216/296"
+    assert relacion["modelo_aeat"] is None
     assert relacion["tipo_renta"] == "retenciones_no_residentes"
-    assert relacion["verified"] is True
+    assert relacion["verified"] is False
     assert relacion["completeness"] == "partial"
 
 
@@ -415,6 +612,7 @@ async def test_doctrina_pilot_line_relaciones_keep_model_relation_partial(client
 async def test_doctrina_pilot_line_retenciones_complete_requires_all_three_closures(client):
     _seed_pilot_dgt_reference(
         persisted_irnr_article=True,
+        persisted_model_relation=True,
         estado_vigencia="historico_a_fecha_consulta",
     )
 
@@ -435,6 +633,27 @@ async def test_doctrina_pilot_line_retenciones_complete_requires_all_three_closu
     assert relacion["verified"] is True
     assert "completa" in relacion["nota_limitacion"]
     assert "sigue partial" not in relacion["nota_limitacion"]
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_retenciones_stays_partial_without_persisted_model_relation(
+    client,
+):
+    _seed_pilot_dgt_reference(
+        persisted_irnr_article=True,
+        persisted_model_relation=False,
+        estado_vigencia="historico_a_fecha_consulta",
+    )
+
+    response = await client.get("/v1/doctrina/lineas/D-01")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["articulo_referencia"] == "TRLIRNR art. 31"
+    assert body["modelo_aeat_referencia"] is None
+    assert body["completeness"] == "partial"
+    assert body["safe_to_answer"] is False
+    assert body["review_required"] is True
 
 
 @pytest.mark.asyncio
