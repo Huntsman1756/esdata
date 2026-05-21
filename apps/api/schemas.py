@@ -494,6 +494,77 @@ class DoctrinaSearchResponse(BaseModel):
     resultados: list[DoctrinaSearchResult]
 
 
+class DoctrinaLineaCriterioItem(BaseModel):
+    codigo: str = Field(description="Codigo estable de la linea doctrinal")
+    id: int = Field(description="Identificador interno de linea_criterio")
+    fuente: str = Field(description="Familia doctrinal dominante: dgt, teac o mixta")
+    titulo: str
+    tema: str | None = None
+    impuesto: str | None = None
+    articulo_referencia: str | None = None
+    modelo_aeat_referencia: str | None = None
+    fecha: str | None = None
+    estado_vigente: str
+    resumen_oficial: str | None = None
+    source_url: str | None = None
+    source_hash: str | None = None
+    capture_date: str | None = None
+    verified: bool
+    completeness: str
+    safe_to_answer: bool
+    evidence_notice: str
+    review_required: bool
+    referencias_total: int = 0
+    referencias_oficiales: int = 0
+    articulos_relacionados_total: int = 0
+
+
+class DoctrinaLineaCriterioListResponse(BaseModel):
+    lineas: list[DoctrinaLineaCriterioItem] = Field(default_factory=list)
+    total: int
+    safe_to_answer: bool
+    evidence_notice: str
+    review_required: bool
+
+
+class DoctrinaLineaRelacion(BaseModel):
+    linea_criterio_id: int
+    documento_referencia: str
+    fuente: str | None = None
+    source_url: str | None = None
+    capture_date: str | None = None
+    norma_codigo: str | None = None
+    articulo: str | None = None
+    modelo_aeat: str | None = None
+    tipo_renta: str | None = None
+    relacion: str
+    nota_limitacion: str
+    verified: bool
+    completeness: str
+
+
+class DoctrinaLineaRelacionResponse(BaseModel):
+    codigo: str
+    relaciones: list[DoctrinaLineaRelacion] = Field(default_factory=list)
+    safe_to_answer: bool
+    evidence_notice: str
+    review_required: bool
+
+
+class DoctrinaCoverageResponse(BaseModel):
+    familia: str
+    estado: str
+    fuentes: list[str]
+    lineas_total: int
+    lineas_con_dgt_teac: int
+    lineas_con_fuente_oficial: int
+    lineas_con_articulo: int
+    lineas_complete: int
+    safe_to_answer: bool
+    evidence_notice: str
+    review_required: bool
+
+
 class ObligacionResumen(BaseModel):
     model_config = {"extra": "allow"}
 

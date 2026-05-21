@@ -3,10 +3,16 @@ import re
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from schemas import DoctrinaDetail as DoctrinaDetailSchema
-from schemas import DoctrinaSearchResponse
-from services.query_audit import get_query_audit_service
 from request_context import get_request_id, get_user_id
+from schemas import (
+    DoctrinaCoverageResponse,
+    DoctrinaLineaCriterioItem,
+    DoctrinaLineaCriterioListResponse,
+    DoctrinaLineaRelacionResponse,
+    DoctrinaSearchResponse,
+)
+from schemas import DoctrinaDetail as DoctrinaDetailSchema
+from services.query_audit import get_query_audit_service
 from services.search import _build_fragment, _build_tsquery_sql, _chunk_rank_boost
 from services.semantic_search import hybrid_search_doctrina
 from sqlalchemy import text
@@ -165,6 +171,1022 @@ def _record_doctrina_query_audit(
 
 
 router = APIRouter(prefix="/v1/doctrina", tags=["doctrina"])
+
+
+DOCTRINA_FUENTES = {"DGT", "TEAC"}
+
+
+PILOT_LINEAS_CRITERIO = [
+    {
+        "id": 9001,
+        "codigo": "D-01",
+        "fuente": "dgt",
+        "titulo": "Retenciones no residentes",
+        "tema": "retenciones_no_residentes",
+        "impuesto": "IRNR",
+        "modelo_aeat": "216/296",
+        "modelo_evidencia": "official_text_audited_by_suppuesto",
+        "vigencia_estado": "historico_a_fecha_consulta",
+        "referencias": [
+            {
+                "referencia": "V0166-25",
+                "fuente": "DGT",
+                "relacion": "consulta_principal",
+                "norma_codigo": "TRLIRNR",
+                "articulo": "31",
+                "articulo_evidencia": "official_text_audited",
+                "modelo_aeat": "216/296",
+                "tipo_renta": "retenciones_no_residentes",
+            },
+            {
+                "referencia": "00/02188/2017/00/00",
+                "fuente": "TEAC",
+                "relacion": "resolucion_soporte",
+                "tipo_renta": "retenciones_no_residentes",
+            },
+        ],
+        "gaps": [
+            "validar vigencia material de consulta y resolucion",
+            "persistir enlace documental TRLIRNR art. 31 en documento_articulo o tabla equivalente",
+            "cerrar relacion documental con modelo AEAT por supuesto antes de marcar complete",
+        ],
+    },
+    {
+        "id": 9002,
+        "codigo": "D-02",
+        "fuente": "mixta",
+        "titulo": "IVA intracomunitario",
+        "tema": "iva_intracomunitario",
+        "impuesto": "IVA",
+        "modelo_aeat": "349",
+        "referencias": [
+            {
+                "referencia": "V0236-26",
+                "fuente": "DGT",
+                "relacion": "consulta_principal",
+                "modelo_aeat": "349",
+            },
+            {
+                "referencia": "00/02766/2015/00/00",
+                "fuente": "TEAC",
+                "relacion": "resolucion_soporte",
+            },
+        ],
+        "gaps": ["mapear articulo LIVA exacto y alcance del modelo 303/349"],
+    },
+    {
+        "id": 9003,
+        "codigo": "D-03",
+        "fuente": "mixta",
+        "titulo": "Operaciones vinculadas",
+        "tema": "operaciones_vinculadas",
+        "impuesto": "IS",
+        "modelo_aeat": "232",
+        "referencias": [
+            {
+                "referencia": "V0144-26",
+                "fuente": "DGT",
+                "relacion": "consulta_principal",
+                "norma_codigo": "LIS",
+                "articulo": "18",
+                "tipo_renta": "operaciones_vinculadas",
+            },
+            {
+                "referencia": "00/06460/2019/00/00",
+                "fuente": "TEAC",
+                "relacion": "resolucion_soporte",
+            },
+        ],
+        "gaps": ["mapear supuesto documental del modelo 232 antes de marcar complete"],
+    },
+    {
+        "id": 9004,
+        "codigo": "D-04",
+        "fuente": "dgt",
+        "titulo": "CRS/FATCA",
+        "tema": "crs_fatca",
+        "impuesto": "informacion_fiscal",
+        "modelo_aeat": "289",
+        "modelo_evidencia": "official_text_partial",
+        "referencias": [
+            {
+                "referencia": "V0138-24",
+                "fuente": "DGT",
+                "relacion": "consulta_principal",
+                "modelo_aeat": "289",
+                "modelo_evidencia": "official_text_partial",
+            }
+        ],
+        "gaps": ["separar doctrina de normativa internacional y modelo AEAT operativo"],
+    },
+    {
+        "id": 9005,
+        "codigo": "D-05",
+        "fuente": "dgt",
+        "titulo": "Criptoactivos",
+        "tema": "criptoactivos",
+        "impuesto": "IRPF",
+        "modelo_aeat": "721",
+        "referencias": [
+            {"referencia": "V0162-26", "fuente": "DGT", "relacion": "consulta_principal"}
+        ],
+        "gaps": ["mapear impuesto/articulo por tipo de operacion y modelo trazable"],
+    },
+    {
+        "id": 9006,
+        "codigo": "D-06",
+        "fuente": "mixta",
+        "titulo": "Dividendos e intereses",
+        "tema": "dividendos_intereses",
+        "impuesto": "IRNR",
+        "modelo_aeat": "216",
+        "referencias": [
+            {
+                "referencia": "V0187-26",
+                "fuente": "DGT",
+                "relacion": "consulta_principal",
+                "modelo_aeat": "216",
+                "tipo_renta": "dividendos_intereses",
+            },
+            {
+                "referencia": "00/00185/2017/00/00",
+                "fuente": "TEAC",
+                "relacion": "resolucion_soporte",
+                "tipo_renta": "dividendos_intereses",
+            },
+        ],
+        "gaps": ["confirmar convenio/protocolo y articulo por tipo de renta"],
+    },
+    {
+        "id": 9007,
+        "codigo": "D-07",
+        "fuente": "dgt",
+        "titulo": "Canones",
+        "tema": "canones",
+        "impuesto": "IRNR",
+        "modelo_aeat": "216",
+        "referencias": [
+            {
+                "referencia": "V0228-26",
+                "fuente": "DGT",
+                "relacion": "consulta_principal",
+                "modelo_aeat": "216",
+                "tipo_renta": "canones",
+            }
+        ],
+        "gaps": ["documentar limitaciones por pais, convenio y articulo aplicable"],
+    },
+    {
+        "id": 9008,
+        "codigo": "D-08",
+        "fuente": "mixta",
+        "titulo": "Establecimiento permanente",
+        "tema": "establecimiento_permanente",
+        "impuesto": "IRNR",
+        "modelo_aeat": "200",
+        "referencias": [
+            {"referencia": "V0235-26", "fuente": "DGT", "relacion": "consulta_principal"},
+            {
+                "referencia": "00/03519/2022/00/00",
+                "fuente": "TEAC",
+                "relacion": "resolucion_soporte",
+            },
+        ],
+        "gaps": ["mantener abstencion cuando el supuesto dependa de hechos o convenio"],
+    },
+    {
+        "id": 9009,
+        "codigo": "D-09",
+        "fuente": "dgt",
+        "titulo": "Servicios profesionales",
+        "tema": "servicios_profesionales",
+        "impuesto": "IRNR",
+        "modelo_aeat": "216",
+        "referencias": [
+            {
+                "referencia": "V0191-26",
+                "fuente": "DGT",
+                "relacion": "consulta_principal",
+                "modelo_aeat": "216",
+                "tipo_renta": "servicios_profesionales",
+            }
+        ],
+        "gaps": ["relacionar pais, articulo y convenio antes de respuesta definitiva"],
+    },
+]
+
+PILOT_LINEAS_BY_CODE = {
+    item["codigo"]: item for item in PILOT_LINEAS_CRITERIO
+}
+
+
+def _linea_codigo(linea_id: int) -> str:
+    return f"LC-{linea_id:04d}"
+
+
+def _parse_linea_codigo(codigo: str) -> int | None:
+    normalized = codigo.strip().upper()
+    if normalized.startswith("LC-"):
+        normalized = normalized[3:]
+    try:
+        return int(normalized)
+    except ValueError:
+        return None
+
+
+def _infer_linea_fuente(dgt_refs: int, teac_refs: int) -> str:
+    if dgt_refs and teac_refs:
+        return "mixta"
+    if dgt_refs:
+        return "dgt"
+    if teac_refs:
+        return "teac"
+    return "sin_fuente_doctrinal"
+
+
+def _build_linea_notice(*, official_refs: int, article_links: int, safe_to_answer: bool) -> str:
+    if safe_to_answer:
+        return (
+            "Linea consultable con evidencia oficial y relacion normativa trazable; "
+            "mantener revision profesional para aplicabilidad al caso concreto."
+        )
+    if official_refs == 0:
+        return (
+            "Linea editorial o target: no hay resolucion DGT/TEAC oficial cargada "
+            "con URL trazable suficiente para responder como doctrina oficial."
+        )
+    if article_links == 0:
+        return (
+            "Hay fuente DGT/TEAC trazable, pero falta anclaje robusto a articulo, "
+            "impuesto o modelo; respuesta factual debe abstenerse."
+        )
+    return (
+        "Evidencia parcial: la linea requiere revision porque no cumple todo el "
+        "contrato de lineas de criterio fiscal."
+    )
+
+
+def _linea_payload(row) -> dict:
+    official_refs = int(row["official_refs"] or 0)
+    article_links = int(row["article_links"] or 0)
+    # Generic linea_criterio rows do not yet project source_revision hash/capture
+    # evidence or normalized tax/model links, so they must remain fail-closed.
+    safe_to_answer = False
+    completeness = "partial" if official_refs > 0 else "target"
+    source_url = row["source_url"]
+    capture_date = row["capture_date"] or row["fecha"]
+    return {
+        "codigo": _linea_codigo(int(row["id"])),
+        "id": int(row["id"]),
+        "fuente": _infer_linea_fuente(int(row["dgt_refs"] or 0), int(row["teac_refs"] or 0)),
+        "titulo": row["titulo"],
+        "tema": row["ambitos"],
+        "impuesto": None,
+        "articulo_referencia": row["articulo_referencia"],
+        "modelo_aeat_referencia": None,
+        "fecha": str(row["fecha"]) if row["fecha"] else None,
+        "estado_vigente": row["estado"],
+        "resumen_oficial": row["criterio_dominante"],
+        "source_url": source_url,
+        "source_hash": None,
+        "capture_date": str(capture_date) if capture_date else None,
+        "verified": False,
+        "completeness": completeness,
+        "safe_to_answer": safe_to_answer,
+        "evidence_notice": _build_linea_notice(
+            official_refs=official_refs,
+            article_links=article_links,
+            safe_to_answer=safe_to_answer,
+        ),
+        "review_required": not safe_to_answer,
+        "referencias_total": int(row["refs_total"] or 0),
+        "referencias_oficiales": official_refs,
+        "articulos_relacionados_total": article_links,
+    }
+
+
+def _pilot_filter_match(definition: dict, impuesto: str | None, tema: str | None, modelo: str | None) -> bool:
+    searchable = " ".join(
+        str(value or "")
+        for value in (
+            definition["codigo"],
+            definition["titulo"],
+            definition["tema"],
+            definition["impuesto"],
+            definition["modelo_aeat"],
+        )
+    ).lower()
+    if impuesto and impuesto.lower() not in searchable:
+        return False
+    if tema and tema.lower() not in searchable:
+        return False
+    if modelo and modelo.lower() not in searchable:
+        return False
+    return True
+
+
+def _fetch_pilot_doc_rows(db, definition: dict) -> list[dict]:
+    rows: list[dict] = []
+    for reference in definition["referencias"]:
+        result = db.execute(
+            text(
+                """
+                SELECT
+                    d.id AS documento_id,
+                    d.referencia,
+                    d.organismo_emisor,
+                    d.tipo_documento,
+                    d.fecha,
+                    d.titulo,
+                    d.url_fuente,
+                    d.estado_vigencia,
+                    COALESCE(d.row_completeness, 'partial') AS row_completeness,
+                    n.codigo AS norma_codigo,
+                    a.numero AS articulo,
+                    da.metodo_enlace,
+                    sr.content_hash_sha256 AS source_hash,
+                    sr.fetched_at AS source_capture_date,
+                    sr.dgt_url AS source_revision_url
+                FROM documento_interpretativo d
+                LEFT JOIN documento_articulo da ON da.documento_id = d.id
+                LEFT JOIN articulo a ON a.id = da.articulo_id
+                LEFT JOIN norma n ON n.id = a.norma_id
+                LEFT JOIN source_revision sr
+                  ON sr.source_entity_id = d.referencia
+                 AND LOWER(sr.source_entity_tipo) IN (
+                     'consulta', 'consulta_vinculante', 'documento', 'resolucion_teac'
+                 )
+                WHERE d.referencia = :referencia
+                ORDER BY
+                    CASE WHEN da.metodo_enlace IN ('manual', 'manual_official', 'auto_link_exact') THEN 0 ELSE 1 END,
+                    n.codigo,
+                    a.numero,
+                    sr.fetched_at DESC
+                """
+            ),
+            {"referencia": reference["referencia"]},
+        ).mappings()
+        rows.extend(dict(row) for row in result)
+    return rows
+
+
+def _pilot_doc_refs(rows: list[dict]) -> set[str]:
+    return {str(row["referencia"]) for row in rows if row.get("referencia")}
+
+
+def _pilot_expected_article_refs(definition: dict) -> list[dict]:
+    return [
+        reference
+        for reference in definition["referencias"]
+        if reference.get("norma_codigo") and reference.get("articulo")
+    ]
+
+
+def _first_pilot_row(rows: list[dict], key: str) -> dict | None:
+    for row in rows:
+        if row.get(key):
+            return row
+    return rows[0] if rows else None
+
+
+def _pilot_article_reference(definition: dict, rows: list[dict]) -> str | None:
+    expected_articles = _pilot_expected_article_refs(definition)
+    if not expected_articles:
+        return None
+    for reference in expected_articles:
+        expected_norma = reference.get("norma_codigo")
+        expected_articulo = reference.get("articulo")
+        for row in rows:
+            if (
+                row.get("referencia") == reference["referencia"]
+                and row.get("norma_codigo")
+                and row.get("articulo")
+                and (expected_norma is None or row["norma_codigo"] == expected_norma)
+                and (expected_articulo is None or row["articulo"] == expected_articulo)
+            ):
+                return f"{row['norma_codigo']} art. {row['articulo']}"
+        if (
+            reference.get("articulo_evidencia") == "official_text_audited"
+            and expected_norma
+            and expected_articulo
+            and any(row.get("referencia") == reference["referencia"] for row in rows)
+        ):
+            return f"{expected_norma} art. {expected_articulo}"
+    return None
+
+
+def _pilot_relation_article_row(reference: dict, rows: list[dict]) -> dict | None:
+    expected_norma = reference.get("norma_codigo")
+    expected_articulo = reference.get("articulo")
+    if not expected_norma or not expected_articulo:
+        return None
+    for row in rows:
+        if (
+            row.get("norma_codigo")
+            and row.get("articulo")
+            and (expected_norma is None or row["norma_codigo"] == expected_norma)
+            and (expected_articulo is None or row["articulo"] == expected_articulo)
+        ):
+            return row
+    if (
+        reference.get("articulo_evidencia") == "official_text_audited"
+        and expected_norma
+        and expected_articulo
+        and rows
+    ):
+        row = dict(rows[0])
+        row["norma_codigo"] = expected_norma
+        row["articulo"] = expected_articulo
+        row["metodo_enlace"] = "official_text_audited"
+        return row
+    return None
+
+
+def _pilot_has_persisted_article_relation(definition: dict, rows: list[dict]) -> bool:
+    for reference in definition["referencias"]:
+        expected_norma = reference.get("norma_codigo")
+        expected_articulo = reference.get("articulo")
+        if not expected_norma or not expected_articulo:
+            continue
+        for row in rows:
+            if (
+                row.get("referencia") == reference["referencia"]
+                and row.get("norma_codigo") == expected_norma
+                and row.get("articulo") == expected_articulo
+                and row.get("metodo_enlace") != "official_text_audited"
+            ):
+                return True
+    return False
+
+
+def _pilot_has_complete_primary_reference(definition: dict, rows: list[dict]) -> bool:
+    primary_refs = {
+        reference["referencia"]
+        for reference in definition["referencias"]
+        if reference["relacion"] == "consulta_principal"
+    }
+    return any(
+        row.get("referencia") in primary_refs
+        and row.get("organismo_emisor") in DOCTRINA_FUENTES
+        and row.get("url_fuente")
+        and row.get("source_hash")
+        and row.get("row_completeness") == "complete"
+        for row in rows
+    )
+
+
+def _pilot_notice(definition: dict, *, has_official_source: bool, has_hash: bool) -> str:
+    if not has_official_source:
+        return (
+            f"Linea piloto {definition['codigo']} target: referencia seleccionada, "
+            "pero no hay documento oficial cargado en el corpus local."
+        )
+    if definition.get("_complete"):
+        return (
+            f"Linea piloto {definition['codigo']} completa para consulta factual acotada: "
+            "fuente oficial, hash/capture_date, anclaje persistido, vigencia historica "
+            "explicita y modelo auditado por curacion del supuesto; la relacion persistida "
+            "especifica de modelo sigue pendiente. No extrapolar fuera del supuesto."
+        )
+    if not has_hash:
+        return (
+            f"Linea piloto {definition['codigo']} parcial: hay fuente oficial, "
+            "pero falta hash/capture_date de source_revision para cerrar evidencia."
+        )
+    return (
+        f"Linea piloto {definition['codigo']} curada parcialmente con evidencia oficial; "
+        "sigue fail-closed hasta cerrar vigencia, articulo/modelo aplicable y gaps: "
+        + "; ".join(definition["gaps"])
+    )
+
+
+def _pilot_linea_payload(definition: dict, rows: list[dict]) -> dict:
+    official_refs = {
+        row["referencia"]
+        for row in rows
+        if row.get("organismo_emisor") in DOCTRINA_FUENTES and row.get("url_fuente")
+    }
+    article_links = {
+        (row["referencia"], row["norma_codigo"], row["articulo"])
+        for row in rows
+        if row.get("norma_codigo") and row.get("articulo")
+    }
+    source_row = _first_pilot_row(rows, "url_fuente")
+    hash_row = _first_pilot_row(rows, "source_hash")
+    source_hash = hash_row.get("source_hash") if hash_row else None
+    capture_date = (
+        hash_row.get("source_capture_date")
+        if hash_row and hash_row.get("source_capture_date")
+        else source_row.get("fecha")
+        if source_row
+        else None
+    )
+    has_official_source = bool(official_refs)
+    verified = has_official_source and bool(source_hash)
+    complete_ready = bool(
+        has_official_source
+        and source_hash
+        and _pilot_has_complete_primary_reference(definition, rows)
+        and _pilot_has_persisted_article_relation(definition, rows)
+        and definition.get("vigencia_estado")
+        and definition.get("modelo_evidencia")
+    )
+    definition_for_notice = {**definition, "_complete": complete_ready}
+    completeness = "complete" if complete_ready else "partial" if has_official_source else "target"
+    modelo = definition["modelo_aeat"] if has_official_source and definition.get("modelo_evidencia") else None
+    articulo_referencia = _pilot_article_reference(definition, rows)
+    return {
+        "codigo": definition["codigo"],
+        "id": definition["id"],
+        "fuente": definition["fuente"] if has_official_source else "sin_fuente_doctrinal",
+        "titulo": definition["titulo"],
+        "tema": definition["tema"],
+        "impuesto": definition["impuesto"] if has_official_source else None,
+        "articulo_referencia": articulo_referencia,
+        "modelo_aeat_referencia": modelo,
+        "fecha": str(source_row["fecha"]) if source_row and source_row.get("fecha") else None,
+        "estado_vigente": (
+            definition.get("vigencia_estado")
+            or source_row.get("estado_vigencia")
+            or "vigencia_no_determinada"
+            if source_row
+            else "target"
+        ),
+        "resumen_oficial": None,
+        "source_url": source_row.get("url_fuente") if source_row else None,
+        "source_hash": source_hash,
+        "capture_date": str(capture_date) if capture_date else None,
+        "verified": verified,
+        "completeness": completeness,
+        "safe_to_answer": complete_ready,
+        "evidence_notice": _pilot_notice(
+            definition_for_notice,
+            has_official_source=has_official_source,
+            has_hash=bool(source_hash),
+        ),
+        "review_required": not complete_ready,
+        "referencias_total": len(definition["referencias"]),
+        "referencias_oficiales": len(official_refs),
+        "articulos_relacionados_total": max(len(article_links), 1 if articulo_referencia else 0),
+    }
+
+
+def _pilot_lineas_payload(
+    db, impuesto: str | None = None, tema: str | None = None, modelo: str | None = None
+) -> list[dict]:
+    lineas = []
+    for definition in PILOT_LINEAS_CRITERIO:
+        if not _pilot_filter_match(definition, impuesto, tema, modelo):
+            continue
+        lineas.append(_pilot_linea_payload(definition, _fetch_pilot_doc_rows(db, definition)))
+    return lineas
+
+
+def _pilot_relaciones_payload(definition: dict, rows: list[dict]) -> list[dict]:
+    relaciones = []
+    doc_refs = _pilot_doc_refs(rows)
+    line_complete = _pilot_linea_payload(definition, rows)["completeness"] == "complete"
+    definition_has_expected_article = any(
+        reference.get("norma_codigo") or reference.get("articulo")
+        for reference in definition["referencias"]
+    )
+    for reference in definition["referencias"]:
+        matching_rows = [row for row in rows if row.get("referencia") == reference["referencia"]]
+        row = _first_pilot_row(matching_rows, "url_fuente")
+        hash_row = _first_pilot_row(matching_rows, "source_hash")
+        article_row = (
+            None
+            if definition_has_expected_article
+            and not (reference.get("norma_codigo") or reference.get("articulo"))
+            else _pilot_relation_article_row(reference, matching_rows)
+        )
+        official = bool(row and row.get("organismo_emisor") in DOCTRINA_FUENTES and row.get("url_fuente"))
+        article_ready = bool(article_row and article_row.get("norma_codigo") and article_row.get("articulo"))
+        verified = bool(official and hash_row and hash_row.get("source_hash") and article_ready)
+        relaciones.append(
+            {
+                "linea_criterio_id": definition["id"],
+                "documento_referencia": reference["referencia"],
+                "fuente": row.get("organismo_emisor") if row else reference["fuente"],
+                "source_url": row.get("url_fuente") if row else None,
+                "capture_date": (
+                    str(hash_row["source_capture_date"])
+                    if hash_row and hash_row.get("source_capture_date")
+                    else str(row["fecha"])
+                    if row and row.get("fecha")
+                    else None
+                ),
+                "norma_codigo": article_row.get("norma_codigo") if article_row else None,
+                "articulo": article_row.get("articulo") if article_row else None,
+                "modelo_aeat": (
+                    reference.get("modelo_aeat")
+                    if official
+                    and (reference.get("modelo_evidencia") or definition.get("modelo_evidencia"))
+                    else None
+                ),
+                "tipo_renta": reference.get("tipo_renta"),
+                "relacion": reference["relacion"],
+                "nota_limitacion": (
+                    "Relacion principal completa para consulta factual acotada: fuente, hash, "
+                    "articulo, vigencia y modelo auditados; no extrapolar fuera del supuesto."
+                    if verified
+                    and line_complete
+                    and reference["relacion"] == "consulta_principal"
+                    else
+                    "Relacion trazada a documento y articulo desde texto oficial auditado; "
+                    "la linea piloto sigue partial hasta cerrar vigencia, modelo y supuestos."
+                    if article_row and article_row.get("metodo_enlace") == "official_text_audited"
+                    else "Relacion trazada a documento y articulo; la linea piloto sigue partial "
+                    "hasta cerrar vigencia, modelo y supuestos."
+                    if verified
+                    else "Relacion target/parcial: falta documento oficial cargado, hash o articulo trazable."
+                ),
+                "verified": verified,
+                "completeness": "partial" if reference["referencia"] in doc_refs else "target",
+            }
+        )
+    return relaciones
+
+
+def _lineas_base_sql(where_clause: str) -> str:
+    return f"""
+        SELECT
+            l.id,
+            l.titulo,
+            l.cuestion_practica,
+            l.criterio_dominante,
+            CAST(l.ambitos AS TEXT) AS ambitos,
+            l.estado,
+            l.ultimo_cambio AS fecha,
+            COUNT(DISTINCT r.id) AS refs_total,
+            SUM(CASE WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) = 'DGT' THEN 1 ELSE 0 END) AS dgt_refs,
+            SUM(CASE WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) = 'TEAC' THEN 1 ELSE 0 END) AS teac_refs,
+            SUM(CASE
+                WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
+                 AND d.url_fuente IS NOT NULL
+                THEN 1 ELSE 0 END
+            ) AS official_refs,
+            SUM(CASE
+                WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
+                 AND d.url_fuente IS NOT NULL
+                 AND COALESCE(d.row_completeness, 'partial') = 'complete'
+                THEN 1 ELSE 0 END
+            ) AS complete_refs,
+            COUNT(DISTINCT da.articulo_id) AS article_links,
+            MIN(CASE
+                WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
+                 AND d.url_fuente IS NOT NULL
+                THEN d.url_fuente END
+            ) AS source_url,
+            MIN(CASE
+                WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
+                 AND d.url_fuente IS NOT NULL
+                THEN COALESCE(CAST(d.fecha_publicacion AS TEXT), CAST(d.fecha AS TEXT)) END
+            ) AS capture_date,
+            MIN(CASE
+                WHEN n.codigo IS NOT NULL AND a.numero IS NOT NULL
+                THEN n.codigo || ' art. ' || a.numero END
+            ) AS articulo_referencia
+        FROM linea_criterio l
+        LEFT JOIN linea_criterio_referencia r ON r.linea_id = l.id
+        LEFT JOIN documento_interpretativo d ON d.referencia = r.documento_referencia
+        LEFT JOIN documento_articulo da ON da.documento_id = d.id
+        LEFT JOIN articulo a ON a.id = da.articulo_id
+        LEFT JOIN norma n ON n.id = a.norma_id
+        WHERE {where_clause}
+        GROUP BY l.id, l.titulo, l.cuestion_practica, l.criterio_dominante, l.ambitos, l.estado, l.ultimo_cambio
+    """
+
+
+def _lineas_filter_sql(impuesto: str | None, tema: str | None, modelo: str | None) -> tuple[str, dict]:
+    filters = ["l.activo = true"]
+    params: dict = {}
+    if tema:
+        filters.append(
+            "(LOWER(COALESCE(CAST(l.ambitos AS TEXT), '')) LIKE LOWER(:tema) "
+            "OR LOWER(l.titulo) LIKE LOWER(:tema) "
+            "OR LOWER(l.cuestion_practica) LIKE LOWER(:tema))"
+        )
+        params["tema"] = f"%{tema}%"
+    if impuesto:
+        filters.append(
+            "(LOWER(COALESCE(l.titulo, '')) LIKE LOWER(:impuesto) "
+            "OR LOWER(COALESCE(l.cuestion_practica, '')) LIKE LOWER(:impuesto) "
+            "OR LOWER(COALESCE(d.texto, '')) LIKE LOWER(:impuesto))"
+        )
+        params["impuesto"] = f"%{impuesto}%"
+    if modelo:
+        filters.append(
+            "(LOWER(COALESCE(l.titulo, '')) LIKE LOWER(:modelo) "
+            "OR LOWER(COALESCE(l.cuestion_practica, '')) LIKE LOWER(:modelo) "
+            "OR LOWER(COALESCE(d.texto, '')) LIKE LOWER(:modelo))"
+        )
+        params["modelo"] = f"%modelo {modelo}%"
+    return " AND ".join(filters), params
+
+
+def _record_lineas_audit(
+    request: Request,
+    *,
+    path: str,
+    query_text: str,
+    tool_name: str,
+    retrieved_chunks: list[dict],
+    safe_to_answer: bool,
+):
+    _record_doctrina_query_audit(
+        request,
+        path=path,
+        query_text=query_text,
+        tool_name=tool_name,
+        retrieved_chunks=retrieved_chunks,
+        response_summary=f"lineas={len(retrieved_chunks)} safe_to_answer={safe_to_answer}",
+        confidence={
+            "score": 0.9 if safe_to_answer else 0.2,
+            "label": "alta" if safe_to_answer else "baja",
+            "review_required": not safe_to_answer,
+        },
+        completeness="completa" if safe_to_answer else "parcial",
+        verified=safe_to_answer,
+    )
+
+
+@router.get(
+    "/lineas/coverage",
+    operation_id="doctrina_coverage",
+    response_model=DoctrinaCoverageResponse,
+)
+async def doctrina_coverage(request: Request):
+    with db_session() as db:
+        row = db.execute(
+            text(
+                f"""
+                SELECT
+                    COUNT(*) AS lineas_total,
+                    SUM(CASE WHEN dgt_refs > 0 OR teac_refs > 0 THEN 1 ELSE 0 END) AS lineas_con_dgt_teac,
+                    SUM(CASE WHEN official_refs > 0 THEN 1 ELSE 0 END) AS lineas_con_fuente_oficial,
+                    SUM(CASE WHEN article_links > 0 THEN 1 ELSE 0 END) AS lineas_con_articulo,
+                    0 AS lineas_complete
+                FROM (
+                    {_lineas_base_sql("l.activo = true")}
+                ) base
+                """
+            )
+        ).mappings().one()
+        pilot_lineas = _pilot_lineas_payload(db)
+
+        payload = {
+            "familia": "doctrina_administrativa_dgt_teac",
+            "estado": "implemented_partial",
+            "fuentes": ["DGT", "TEAC"],
+            "lineas_total": int(row["lineas_total"] or 0) + len(pilot_lineas),
+            "lineas_con_dgt_teac": int(row["lineas_con_dgt_teac"] or 0)
+            + sum(1 for item in pilot_lineas if item["referencias_oficiales"] > 0),
+            "lineas_con_fuente_oficial": int(row["lineas_con_fuente_oficial"] or 0)
+            + sum(1 for item in pilot_lineas if item["source_url"]),
+            "lineas_con_articulo": int(row["lineas_con_articulo"] or 0)
+            + sum(1 for item in pilot_lineas if item["articulo_referencia"]),
+            "lineas_complete": sum(1 for item in pilot_lineas if item["completeness"] == "complete"),
+            "safe_to_answer": False,
+            "evidence_notice": (
+                "DGT/TEAC existen como superficie parcial: corpus y lineas editoriales "
+                "pueden estar disponibles, pero la familia no esta completa hasta mapear "
+                "lineas por impuesto, articulo, modelo, tema y evidencia oficial."
+            ),
+            "review_required": True,
+        }
+        _record_lineas_audit(
+            request,
+            path="/v1/doctrina/lineas/coverage",
+            query_text="coverage",
+            tool_name="doctrina_coverage",
+            retrieved_chunks=[payload],
+            safe_to_answer=False,
+        )
+        return payload
+
+
+@router.get(
+    "/lineas",
+    operation_id="buscar_lineas_criterio",
+    response_model=DoctrinaLineaCriterioListResponse,
+)
+async def buscar_lineas_criterio(
+    request: Request,
+    impuesto: str | None = Query(None, description="Filtro exploratorio por impuesto"),
+    tema: str | None = Query(None, description="Filtro exploratorio por tema"),
+    modelo: str | None = Query(None, description="Filtro exploratorio por modelo AEAT"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    where_clause, params = _lineas_filter_sql(impuesto, tema, modelo)
+    with db_session() as db:
+        rows = db.execute(
+            text(
+                f"""
+                SELECT * FROM (
+                    {_lineas_base_sql(where_clause)}
+                ) base
+                ORDER BY id ASC
+                """
+            ),
+            params,
+        ).mappings()
+        all_lineas = [_linea_payload(row) for row in rows]
+        all_lineas.extend(_pilot_lineas_payload(db, impuesto, tema, modelo))
+        total = len(all_lineas)
+        lineas = all_lineas[offset : offset + limit]
+
+    safe_to_answer = bool(lineas) and all(item["safe_to_answer"] for item in lineas)
+    response = {
+        "lineas": lineas,
+        "total": int(total or 0),
+        "safe_to_answer": safe_to_answer,
+        "evidence_notice": (
+            "Listado exploratorio de lineas de criterio. Use safe_to_answer de cada "
+            "linea antes de tratarla como doctrina oficial utilizable."
+        ),
+        "review_required": not safe_to_answer,
+    }
+    _record_lineas_audit(
+        request,
+        path="/v1/doctrina/lineas",
+        query_text=f"impuesto={impuesto or ''};tema={tema or ''};modelo={modelo or ''}",
+        tool_name="buscar_lineas_criterio",
+        retrieved_chunks=lineas,
+        safe_to_answer=safe_to_answer,
+    )
+    return response
+
+
+@router.get(
+    "/lineas/{codigo}/relaciones",
+    operation_id="criterio_relacionado_con_modelo",
+    response_model=DoctrinaLineaRelacionResponse,
+)
+async def criterio_relacionado_con_modelo(request: Request, codigo: str):
+    pilot_definition = PILOT_LINEAS_BY_CODE.get(codigo.strip().upper())
+    if pilot_definition is not None:
+        with db_session() as db:
+            relaciones = _pilot_relaciones_payload(
+                pilot_definition, _fetch_pilot_doc_rows(db, pilot_definition)
+            )
+        response = {
+            "codigo": pilot_definition["codigo"],
+            "relaciones": relaciones,
+            "safe_to_answer": False,
+            "evidence_notice": (
+                "Relaciones piloto DGT/TEAC consultables parcialmente; "
+                "no usar como doctrina oficial cerrada sin curacion completa."
+            ),
+            "review_required": True,
+        }
+        _record_lineas_audit(
+            request,
+            path=f"/v1/doctrina/lineas/{codigo}/relaciones",
+            query_text=codigo,
+            tool_name="criterio_relacionado_con_modelo",
+            retrieved_chunks=relaciones,
+            safe_to_answer=False,
+        )
+        return response
+
+    linea_id = _parse_linea_codigo(codigo)
+    if linea_id is None:
+        raise HTTPException(status_code=404, detail={"error": "Linea de criterio no encontrada"})
+
+    with db_session() as db:
+        exists = db.execute(
+            text("SELECT id FROM linea_criterio WHERE id = :linea_id AND activo = true"),
+            {"linea_id": linea_id},
+        ).mappings().first()
+        if not exists:
+            raise HTTPException(status_code=404, detail={"error": "Linea de criterio no encontrada"})
+
+        rows = db.execute(
+            text(
+                """
+                SELECT
+                    r.linea_id,
+                    r.documento_referencia,
+                    COALESCE(d.organismo_emisor, r.organismo_emisor) AS fuente,
+                    d.url_fuente AS source_url,
+                    COALESCE(
+                        CAST(d.fecha_publicacion AS TEXT),
+                        CAST(d.fecha AS TEXT),
+                        CAST(r.fecha AS TEXT)
+                    ) AS capture_date,
+                    n.codigo AS norma_codigo,
+                    a.numero AS articulo,
+                    r.rol_en_linea,
+                    COALESCE(d.row_completeness, 'partial') AS row_completeness
+                FROM linea_criterio_referencia r
+                LEFT JOIN documento_interpretativo d ON d.referencia = r.documento_referencia
+                LEFT JOIN documento_articulo da ON da.documento_id = d.id
+                LEFT JOIN articulo a ON a.id = da.articulo_id
+                LEFT JOIN norma n ON n.id = a.norma_id
+                WHERE r.linea_id = :linea_id
+                ORDER BY r.orden ASC, n.codigo, a.numero
+                """
+            ),
+            {"linea_id": linea_id},
+        ).mappings()
+
+        relaciones = []
+        for row in rows:
+            official = row["fuente"] in DOCTRINA_FUENTES and row["source_url"] is not None
+            article_ready = row["norma_codigo"] is not None and row["articulo"] is not None
+            verified = bool(official and row["row_completeness"] == "complete" and article_ready)
+            relaciones.append(
+                {
+                    "linea_criterio_id": int(row["linea_id"]),
+                    "documento_referencia": row["documento_referencia"],
+                    "fuente": row["fuente"],
+                    "source_url": row["source_url"],
+                    "capture_date": str(row["capture_date"]) if row["capture_date"] else None,
+                    "norma_codigo": row["norma_codigo"],
+                    "articulo": row["articulo"],
+                    "modelo_aeat": None,
+                    "tipo_renta": None,
+                    "relacion": row["rol_en_linea"] or "soporte",
+                    "nota_limitacion": (
+                        "Relacion verificada con articulo oficial."
+                        if verified
+                        else "Relacion parcial: falta fuente DGT/TEAC oficial completa, articulo o modelo trazable."
+                    ),
+                    "verified": verified,
+                    "completeness": "partial" if official else "target",
+                }
+            )
+
+    safe_to_answer = bool(relaciones) and all(item["verified"] for item in relaciones)
+    response = {
+        "codigo": _linea_codigo(linea_id),
+        "relaciones": relaciones,
+        "safe_to_answer": safe_to_answer,
+        "evidence_notice": (
+            "Relaciones de criterio con evidencia trazable."
+            if safe_to_answer
+            else "Relaciones consultables parcialmente; no usar como doctrina oficial cerrada sin revision."
+        ),
+        "review_required": not safe_to_answer,
+    }
+    _record_lineas_audit(
+        request,
+        path=f"/v1/doctrina/lineas/{codigo}/relaciones",
+        query_text=codigo,
+        tool_name="criterio_relacionado_con_modelo",
+        retrieved_chunks=relaciones,
+        safe_to_answer=safe_to_answer,
+    )
+    return response
+
+
+@router.get(
+    "/lineas/{codigo}",
+    operation_id="detalle_linea_criterio_doctrina",
+    response_model=DoctrinaLineaCriterioItem,
+)
+async def detalle_linea_criterio_doctrina(request: Request, codigo: str):
+    pilot_definition = PILOT_LINEAS_BY_CODE.get(codigo.strip().upper())
+    if pilot_definition is not None:
+        with db_session() as db:
+            payload = _pilot_linea_payload(
+                pilot_definition, _fetch_pilot_doc_rows(db, pilot_definition)
+            )
+        _record_lineas_audit(
+            request,
+            path=f"/v1/doctrina/lineas/{codigo}",
+            query_text=codigo,
+            tool_name="detalle_linea_criterio",
+            retrieved_chunks=[payload],
+            safe_to_answer=payload["safe_to_answer"],
+        )
+        return payload
+
+    linea_id = _parse_linea_codigo(codigo)
+    if linea_id is None:
+        raise HTTPException(status_code=404, detail={"error": "Linea de criterio no encontrada"})
+
+    with db_session() as db:
+        row = db.execute(
+            text(_lineas_base_sql("l.activo = true AND l.id = :linea_id")),
+            {"linea_id": linea_id},
+        ).mappings().first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail={"error": "Linea de criterio no encontrada"})
+
+    payload = _linea_payload(row)
+    _record_lineas_audit(
+        request,
+        path=f"/v1/doctrina/lineas/{codigo}",
+        query_text=codigo,
+        tool_name="detalle_linea_criterio",
+        retrieved_chunks=[payload],
+        safe_to_answer=payload["safe_to_answer"],
+    )
+    return payload
 
 
 @router.get(

@@ -34,7 +34,7 @@ Capacidades principales hoy:
 
 - legislacion: `list_legislacion`, `get_norma`, `list_articulos`, `get_articulo`, `get_articulo_historial`, `buscar`, `buscar_legislacion`
 - materias: `list_materias`, `get_materia`
-- doctrina: `buscar_doctrina`, `get_doctrina`
+- doctrina: `buscar_doctrina`, `get_doctrina`, `listar_lineas_criterio`, `detalle_linea_criterio`, `buscar_lineas_criterio`, `detalle_linea_criterio_doctrina`, `criterio_relacionado_con_modelo`, `doctrina_coverage`
 - modelos AEAT: operaciones del catalogo HTTP para listar y consultar modelos y sus fuentes oficiales
 
 ## Recorrido stdio MCP
@@ -81,6 +81,13 @@ Ejemplos de tareas tipicas en stdio:
 - si `casillas_has_more=true`, continuar con `/v1/modelos/{codigo}/casillas` o con `casillas_next_offset`
 - limita listas relacionadas con `related_limit`; revisar `articulos_total`, `articulos_has_more`, `claves_total`, `instrucciones_total` y `normativa_total` antes de asumir que se ha visto todo
 - no interpretar una casilla devuelta como obligatoria para un caso concreto sin evidencia adicional
+
+`buscar_lineas_criterio` / `doctrina_coverage`:
+
+- consultar DGT/TEAC como familia doctrinal parcial, separada de modelos AEAT y CDI
+- revisar siempre `verified`, `completeness`, `safe_to_answer`, `evidence_notice` y `review_required`
+- no convertir una linea con `safe_to_answer=false` en doctrina oficial cerrada
+- si falta relacion trazable con articulo, impuesto o modelo, responder con abstencion o evidencia limitada
 
 Listados MCP/Actions:
 
