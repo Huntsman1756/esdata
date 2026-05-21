@@ -1,0 +1,12 @@
+accept = [200, 202, 206, 429]
+max_retries = 2
+timeout = 20
+
+exclude = [
+  '^mailto:',
+  '^tel:',
+  '^file:',
+  '^#',
+  'localhost',
+  '127\\.0\\.0\\.1',
+]

@@ -1,0 +1,19 @@
+config:
+  default: true
+  MD012: false
+  MD013: false
+  MD022: false
+  MD024:
+    siblings_only: true
+  MD029: false
+  MD032: false
+  MD033: false
+  MD034: false
+  MD040: false
+  MD041: false
+ignores:
+  - "docs/CHANGELOG.md"
+  - "docs/MEMO.md"
+  - "docs/archive/**/*.md"
+  - "docs/master-execution-roadmap.md"
+  - "docs/superpowers/**/*.md"

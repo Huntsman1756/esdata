@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from httpx import AsyncClient as HttpxAsyncClient
 
 # ── Paths ──────────────────────────────────────────────────────────────
 
@@ -52,6 +51,11 @@ DOMAIN_WEIGHTS = {
 }
 
 
+def _auth_headers() -> dict[str, str]:
+    api_key = os.getenv("ESDATA_API_KEY")
+    return {"x-api-key": api_key} if api_key else {}
+
+
 # ── Carga del golden dataset ──────────────────────────────────────────
 
 def load_golden() -> dict:
@@ -72,6 +76,7 @@ async def run_query_vs_consulta(
         r = await client.get(
             "/v1/consulta",
             params={"q": pregunta, **(params or {})},
+            headers=_auth_headers(),
             timeout=30.0,
         )
         r.raise_for_status()
@@ -88,6 +93,7 @@ async def run_query_vs_buscar(
         r = await client.get(
             "/v1/legislacion/buscar",
             params={"q": pregunta, **(params or {})},
+            headers=_auth_headers(),
             timeout=30.0,
         )
         r.raise_for_status()
@@ -104,6 +110,7 @@ async def run_query_vs_doctrina(
         r = await client.get(
             "/v1/doctrina/buscar",
             params={"q": pregunta},
+            headers=_auth_headers(),
             timeout=30.0,
         )
         r.raise_for_status()
@@ -125,6 +132,7 @@ async def run_query_vs_hybrid(
         r = await client.get(
             "/v1/legislacion/buscar/hybrid",
             params=params,
+            headers=_auth_headers(),
             timeout=30.0,
         )
         r.raise_for_status()
@@ -141,6 +149,7 @@ async def run_query_vs_borme(
         r = await client.get(
             "/v1/borme",
             params={"q": pregunta},
+            headers=_auth_headers(),
             timeout=30.0,
         )
         r.raise_for_status()
@@ -157,6 +166,7 @@ async def run_query_vs_bdns(
         r = await client.get(
             "/v1/bdns",
             params={"q": pregunta},
+            headers=_auth_headers(),
             timeout=30.0,
         )
         r.raise_for_status()
@@ -170,7 +180,11 @@ async def run_query_vs_bdns(
 def run_local_vs_consulta(client, pregunta, params=None):
     """Versión síncrona de run_query_vs_consulta usando TestClient."""
     try:
-        r = client.get("/v1/consulta", params={"q": pregunta, **(params or {})})
+        r = client.get(
+            "/v1/consulta",
+            params={"q": pregunta, **(params or {})},
+            headers=_auth_headers(),
+        )
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -180,7 +194,11 @@ def run_local_vs_consulta(client, pregunta, params=None):
 def run_local_vs_buscar(client, pregunta, params=None):
     """Versión síncrona de run_query_vs_buscar usando TestClient."""
     try:
-        r = client.get("/v1/legislacion/buscar", params={"q": pregunta, **(params or {})})
+        r = client.get(
+            "/v1/legislacion/buscar",
+            params={"q": pregunta, **(params or {})},
+            headers=_auth_headers(),
+        )
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -190,7 +208,11 @@ def run_local_vs_buscar(client, pregunta, params=None):
 def run_local_vs_doctrina(client, pregunta):
     """Versión síncrona de run_query_vs_doctrina usando TestClient."""
     try:
-        r = client.get("/v1/doctrina/buscar", params={"q": pregunta})
+        r = client.get(
+            "/v1/doctrina/buscar",
+            params={"q": pregunta},
+            headers=_auth_headers(),
+        )
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -205,6 +227,7 @@ def run_local_vs_hybrid(client, pregunta, params=None):
         r = client.get(
             "/v1/legislacion/buscar/hybrid",
             params=all_params,
+            headers=_auth_headers(),
         )
         r.raise_for_status()
         return r.json()
@@ -215,7 +238,11 @@ def run_local_vs_hybrid(client, pregunta, params=None):
 def run_local_vs_borme(client, pregunta):
     """Versión síncrona de run_query_vs_borme usando TestClient."""
     try:
-        r = client.get("/v1/borme", params={"q": pregunta})
+        r = client.get(
+            "/v1/borme",
+            params={"q": pregunta},
+            headers=_auth_headers(),
+        )
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -225,7 +252,11 @@ def run_local_vs_borme(client, pregunta):
 def run_local_vs_bdns(client, pregunta):
     """Versión síncrona de run_query_vs_bdns usando TestClient."""
     try:
-        r = client.get("/v1/bdns", params={"q": pregunta})
+        r = client.get(
+            "/v1/bdns",
+            params={"q": pregunta},
+            headers=_auth_headers(),
+        )
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -413,7 +444,6 @@ def evaluate_query_local(client, query):
 def _run_local_sync(queries):
     """Ejecuta todas las queries en modo local con TestClient."""
     import sys
-    from pathlib import Path
 
     # Use PostgreSQL (not SQLite test DB) to have real seeded data
     pg_url = os.getenv(
@@ -744,7 +774,6 @@ def _verificar_vigencia(resp: dict) -> bool:
     # Formato /v1/legislacion/buscar
     for r in resp.get("resultados", []):
         vd = r.get("vigente_desde")
-        vh = r.get("vigente_hasta")
         if vd is not None:
             return True
 
@@ -1228,7 +1257,7 @@ def compare_with_baseline(
     elif delta < 0:
         print(f"  Resultado: REGRESION ({delta:.1%} absoluto)")
     else:
-        print(f"  Resultado: SIN CAMBIOS")
+        print("  Resultado: SIN CAMBIOS")
 
     # Por dominio
     try:
@@ -1348,6 +1377,11 @@ async def main(args: argparse.Namespace) -> None:
     golden = load_golden()
     queries = golden["queries"]
     print(f"Golden dataset: {len(queries)} queries cargadas")
+    if args.summary_only:
+        domains = sorted({query["dominio"] for query in queries})
+        print("Modo summary-only: no se ejecutan queries ni quality gate.")
+        print(f"Dominios cubiertos: {len(domains)}")
+        return
 
     # Determinar base URL
     base_url = args.base_url or os.getenv(
@@ -1376,7 +1410,7 @@ async def main(args: argparse.Namespace) -> None:
         ) as client:
             # Health check
             try:
-                r = await client.get("/status")
+                r = await client.get("/status", headers=_auth_headers())
                 r.raise_for_status()
                 print(f"API conectada: {r.json().get('version', '?')}")
             except Exception as e:
@@ -1457,7 +1491,6 @@ async def main(args: argparse.Namespace) -> None:
 
     # Exit code: falla si gate no pasa o global < 0.80
     if not gate["passed"] or metrics["global_score"] < THRESHOLDS["aceptable"]:
-        exit_score = min(gate["violations"] and metrics["global_score"] or 0, metrics["global_score"])
         print(f"\n[WARN] Gate de calidad NO superado: score={metrics['global_score']:.4f}")
         sys.exit(1)
 

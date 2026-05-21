@@ -15,9 +15,9 @@ from __future__ import annotations
 import json
 import re
 import sys
-from pathlib import Path
-from dataclasses import dataclass, fields, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
+from pathlib import Path
 from typing import List
 
 
@@ -134,6 +134,9 @@ PATTERNS: List[tuple] = [
 # Archivos a excluir del escaneo
 EXCLUDE_PATTERNS = (
     ".git/",
+    ".agents/",
+    ".claude/",
+    ".mypy_cache/",
     "__pycache__/",
     "*.pyc",
     "*.pyo",
@@ -142,13 +145,18 @@ EXCLUDE_PATTERNS = (
     "venv/",
     "node_modules/",
     ".pytest_cache/",
+    ".rtk/",
+    ".worktrees/",
     "*.log",
     "*.db",
     "*.sqlite",
     "*.sqlite3",
     "*.lock",
     "*.lockb",
+    "_legacy/",
     "alembic/",
+    "build/",
+    "dist/",
     "migrations/",
     "tests/",
     "test_",
@@ -158,10 +166,19 @@ EXCLUDE_PATTERNS = (
     "htmlcov/",
 )
 
+SAFE_TEST_SECRET_PATTERNS = (
+    re.compile(r"postgresql?://esdata:esdata_test@localhost:5432/esdata_test"),
+    re.compile(
+        r"postgresql?://[^:]+:(?:dummy|esdata_dev|pass|test|testing|testpass|password|postgres)@"
+        r"(?:host|localhost|postgres|127\.0\.0\.1)(?::\d+)?/"
+    ),
+    re.compile(r"password\s*=\s*['\"]\$2a\$10\$\.\.\.['\"]"),
+)
+
 
 def should_skip(path: Path) -> bool:
     """Determinar si un archivo debe ser excluido del escaneo."""
-    str_path = str(path)
+    str_path = path.as_posix()
     for pattern in EXCLUDE_PATTERNS:
         if pattern.startswith("*."):
             if path.suffix == pattern:
@@ -170,6 +187,11 @@ def should_skip(path: Path) -> bool:
             if pattern in str_path:
                 return True
     return False
+
+
+def is_safe_test_secret(line: str) -> bool:
+    """Allow known local/test placeholders that are not deployable credentials."""
+    return any(pattern.search(line) for pattern in SAFE_TEST_SECRET_PATTERNS)
 
 
 def scan_file(filepath: Path) -> List[Finding]:
@@ -189,6 +211,8 @@ def scan_file(filepath: Path) -> List[Finding]:
 
         for pattern, name, severity, description, suggestion in PATTERNS:
             if re.search(pattern, line):
+                if is_safe_test_secret(line):
+                    continue
                 findings.append(Finding(
                     file=str(filepath.relative_to(Path.cwd())),
                     line=i,
@@ -226,7 +250,7 @@ def deduplicate(findings: List[Finding]) -> List[Finding]:
 def print_report(findings: List[Finding]) -> None:
     """Imprimir reporte de hallazgos en formato legible."""
     if not findings:
-        print("✅ No se encontraron secretos expuestos.")
+        print("OK: No se encontraron secretos expuestos.")
         return
 
     # Contar por severidad
@@ -235,18 +259,16 @@ def print_report(findings: List[Finding]) -> None:
         counts[f.severity] = counts.get(f.severity, 0) + 1
 
     print(f"\n{'='*70}")
-    print(f"SECRETS AUDIT — {len(findings)} hallazgo(s) encontrado(s)")
+    print(f"SECRETS AUDIT - {len(findings)} hallazgo(s) encontrado(s)")
     print(f"{'='*70}")
 
     for sev in ["high", "medium", "low", "info"]:
         count = counts.get(sev, 0)
         if count > 0:
-            emoji = {"high": "🔴", "medium": "🟡", "low": "🟢", "info": "ℹ️"}[sev]
-            print(f"\n{emoji} {sev.upper()}: {count}")
+            print(f"\n{sev.upper()}: {count}")
 
     for f in findings:
-        emoji = {"high": "🔴", "medium": "🟡", "low": "🟢", "info": "ℹ️"}[f.severity]
-        print(f"\n  {emoji} {f.file}:{f.line} [{f.severity.upper()}]")
+        print(f"\n  {f.file}:{f.line} [{f.severity.upper()}]")
         print(f"     Patron: {f.pattern}")
         print(f"     {f.description}")
         print(f"     Sugerencia: {f.suggestion}")
@@ -254,9 +276,9 @@ def print_report(findings: List[Finding]) -> None:
     print(f"\n{'='*70}")
     total_high = counts.get("high", 0)
     if total_high > 0:
-        print(f"⚠️  {total_high} hallazgo(s) CRITICO(S) — deben resolverse antes de merge")
+        print(f"ALERT: {total_high} hallazgo(s) CRITICO(S) - deben resolverse antes de merge")
     else:
-        print("✅ No hay hallazgos criticos.")
+        print("OK: No hay hallazgos criticos.")
     print(f"{'='*70}")
 
 

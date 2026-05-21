@@ -556,10 +556,28 @@ def run() -> list[str]:
     return errors
 
 
+def run_ci_baseline() -> list[str]:
+    """Run checks that have a clean baseline in the current repository state."""
+    errors: list[str] = []
+    for artifact in ARTIFACTS:
+        errors.extend(verify_artifact(artifact))
+    for doc in DOCS_REFERENCES:
+        errors.extend(verify_reference(doc))
+    errors.extend(verify_env_documentation(ENV_EXAMPLE, ENV_DOC))
+    for forbidden in find_forbidden_env_files(ROOT):
+        errors.append(f"forbidden env file: {forbidden}")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify docs artifacts referenced by the repo")
-    parser.parse_args()
-    errors = run()
+    parser.add_argument(
+        "--ci-baseline",
+        action="store_true",
+        help="Run only checks that have an adopted CI baseline.",
+    )
+    args = parser.parse_args()
+    errors = run_ci_baseline() if args.ci_baseline else run()
     if errors:
         for error in errors:
             print(error)

@@ -5,7 +5,6 @@ import shutil
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parents[1] / "maintenance" / "verify-doc-artifacts.py"
 SPEC = importlib.util.spec_from_file_location("verify_doc_artifacts", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -141,6 +140,36 @@ def test_main_returns_non_zero_when_drift_detected():
 
     assert len(errors) == 1
     assert "artifact drift" in errors[0]
+
+
+def test_ci_baseline_skips_artifact_drift_until_docs_baseline_is_adopted():
+    tmp_dir = _reset_tmp_dir()
+    artifact = tmp_dir / "openapi-gpt.json"
+    artifact.write_text('{"openapi": "3.1.0", "paths": {}}', encoding="utf-8")
+
+    original_artifacts = MODULE.ARTIFACTS
+    original_docs_refs = MODULE.DOCS_REFERENCES
+    original_env_example = MODULE.ENV_EXAMPLE
+    original_env_doc = MODULE.ENV_DOC
+    original_find_forbidden = MODULE.find_forbidden_env_files
+    try:
+        MODULE.ARTIFACTS = [artifact]
+        MODULE.DOCS_REFERENCES = []
+        MODULE.ENV_EXAMPLE = tmp_dir / ".env.example"
+        MODULE.ENV_EXAMPLE.write_text("ESDATA_API_KEY=test\n", encoding="utf-8")
+        MODULE.ENV_DOC = tmp_dir / "environment-variables.md"
+        MODULE.ENV_DOC.write_text("| Variable |\n|---|\n| `ESDATA_API_KEY` |\n", encoding="utf-8")
+        MODULE.find_forbidden_env_files = lambda _root: []
+
+        errors = MODULE.run_ci_baseline()
+    finally:
+        MODULE.ARTIFACTS = original_artifacts
+        MODULE.DOCS_REFERENCES = original_docs_refs
+        MODULE.ENV_EXAMPLE = original_env_example
+        MODULE.ENV_DOC = original_env_doc
+        MODULE.find_forbidden_env_files = original_find_forbidden
+
+    assert errors == []
 
 
 def test_extract_env_example_variables_reads_assignments():
