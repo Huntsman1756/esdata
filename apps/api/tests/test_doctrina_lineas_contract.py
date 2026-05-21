@@ -631,6 +631,7 @@ async def test_doctrina_pilot_line_retenciones_complete_requires_all_three_closu
     relaciones_response = await client.get("/v1/doctrina/lineas/D-01/relaciones")
     relacion = relaciones_response.json()["relaciones"][0]
     assert relacion["verified"] is True
+    assert relacion["completeness"] == "complete"
     assert "completa" in relacion["nota_limitacion"]
     assert "sigue partial" not in relacion["nota_limitacion"]
 

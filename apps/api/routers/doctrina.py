@@ -867,6 +867,11 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict], model_relation
             and complete_model_relation
             and complete_model_relation.get("documento_referencia") == reference["referencia"]
         )
+        relation_complete = bool(
+            verified
+            and line_complete
+            and reference["relacion"] == "consulta_principal"
+        )
         relaciones.append(
             {
                 "linea_criterio_id": definition["id"],
@@ -888,9 +893,7 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict], model_relation
                 "nota_limitacion": (
                     "Relacion principal completa para consulta factual acotada: fuente, hash, "
                     "articulo, vigencia y modelo/supuesto persistido; no extrapolar fuera del supuesto."
-                    if verified
-                    and line_complete
-                    and reference["relacion"] == "consulta_principal"
+                    if relation_complete
                     else
                     "Relacion trazada a documento y articulo desde texto oficial auditado; "
                     "la linea piloto sigue partial hasta cerrar vigencia, modelo y supuestos."
@@ -901,7 +904,13 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict], model_relation
                     else "Relacion target/parcial: falta documento oficial cargado, hash o articulo trazable."
                 ),
                 "verified": verified,
-                "completeness": "partial" if reference["referencia"] in doc_refs else "target",
+                "completeness": (
+                    "complete"
+                    if relation_complete
+                    else "partial"
+                    if reference["referencia"] in doc_refs
+                    else "target"
+                ),
             }
         )
     return relaciones
