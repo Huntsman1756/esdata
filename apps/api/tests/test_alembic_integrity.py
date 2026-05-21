@@ -35,6 +35,20 @@ def test_alembic_versions_define_revision_metadata_and_import_cleanly():
     )
 
 
+def test_criterio_relacion_runtime_api_rls_is_migrated_in_revision_0084():
+    revision_path = (
+        ALEMBIC_VERSIONS / "20260521_0084_criterio_relacion_api_rls.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "GRANT SELECT ON criterio_relacion TO esdata_api",
+        "CREATE POLICY esdata_api_select ON criterio_relacion",
+        "FOR SELECT TO esdata_api",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
