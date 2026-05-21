@@ -48,12 +48,24 @@ Uso recomendado:
 - `GET /v1/doctrina/buscar` — busqueda de doctrina por texto
 - `GET /v1/doctrina/buscar/hybrid` — busqueda hibrida sobre doctrina
 - `GET /v1/doctrina/{referencia}` — detalle de un documento doctrinal
+- `GET /v1/doctrina/lineas` — listado exploratorio de lineas de criterio DGT/TEAC con contrato de evidencia y `safe_to_answer`
+- `GET /v1/doctrina/lineas/{codigo}` — detalle de una linea de criterio doctrinal
+- `GET /v1/doctrina/lineas/{codigo}/relaciones` — relaciones declaradas con documentos, articulos y limitaciones
+- `GET /v1/doctrina/lineas/coverage` — cobertura de la familia doctrinal DGT/TEAC
 
 Filtros utiles:
 
 - `tipo`
 - `desde`
 - `organismo_emisor`
+- en `/lineas`: `impuesto`, `tema`, `modelo`, `limit`, `offset`
+
+Uso recomendado:
+
+- tratar `/v1/doctrina/buscar` como busqueda documental por resolucion o consulta
+- tratar `/v1/doctrina/lineas` como capa de criterio curado parcial
+- no usar una linea como doctrina oficial utilizable si `safe_to_answer=false`, `verified=false` o `review_required=true`
+- DGT/TEAC estan `implemented_partial`: hay corpus y superficie operativa, pero falta cierre por impuesto, articulo, modelo, tema y fuente oficial completa
 
 ## Materias
 

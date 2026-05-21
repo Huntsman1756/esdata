@@ -87,6 +87,12 @@ HTTP_MCP_OPERATIONS = [
     # Doctrina
     "buscar_doctrina",
     "get_doctrina",
+    "listar_lineas_criterio",
+    "detalle_linea_criterio",
+    "buscar_lineas_criterio",
+    "detalle_linea_criterio_doctrina",
+    "criterio_relacionado_con_modelo",
+    "doctrina_coverage",
     # Modelos AEAT
     "list_modelos",
     "list_modelos_campanas_operativas",
@@ -187,8 +193,20 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "list_legislacion"
     if path.startswith("/v1/modelos/"):
         return "list_modelos"
+    if path.startswith("/v1/doctrina/lineas/coverage"):
+        return "doctrina_coverage"
+    if path.startswith("/v1/doctrina/lineas/") and path.endswith("/relaciones"):
+        return "criterio_relacionado_con_modelo"
+    if path.startswith("/v1/doctrina/lineas/"):
+        return "detalle_linea_criterio_doctrina"
+    if path.startswith("/v1/doctrina/lineas"):
+        return "buscar_lineas_criterio"
     if path.startswith("/v1/doctrina/"):
         return "buscar_doctrina"
+    if path.startswith("/v1/criterio/"):
+        return "detalle_linea_criterio"
+    if path.startswith("/v1/criterio"):
+        return "listar_lineas_criterio"
     if path.startswith("/v1/domain-availability"):
         return "list_domain_availability"
     if path.startswith("/v1/borme"):
