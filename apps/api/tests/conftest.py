@@ -1615,6 +1615,31 @@ STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS criterio_relacion (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        linea_codigo TEXT NOT NULL,
+        linea_criterio_id INTEGER REFERENCES linea_criterio(id) ON DELETE CASCADE,
+        documento_referencia TEXT NOT NULL,
+        norma_codigo TEXT,
+        articulo TEXT,
+        impuesto TEXT,
+        modelo_aeat TEXT,
+        tipo_renta TEXT,
+        relacion TEXT NOT NULL,
+        metodo_enlace TEXT NOT NULL,
+        confianza_enlace REAL NOT NULL DEFAULT 0,
+        nota_limitacion TEXT,
+        source_url TEXT,
+        source_hash TEXT,
+        capture_date TEXT,
+        verified BOOLEAN NOT NULL DEFAULT 0,
+        completeness TEXT NOT NULL DEFAULT 'partial',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(linea_codigo, documento_referencia, modelo_aeat, tipo_renta, relacion)
+    )
+    """,
+    """
     INSERT INTO linea_criterio (
         titulo, cuestion_practica, descripcion, criterio_dominante, matices,
         excepciones, ambitos, ultimo_cambio, estado, autor_id, revisor_id, activo

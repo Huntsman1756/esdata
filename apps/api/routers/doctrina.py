@@ -429,28 +429,36 @@ def _build_linea_notice(*, official_refs: int, article_links: int, safe_to_answe
 def _linea_payload(row) -> dict:
     official_refs = int(row["official_refs"] or 0)
     article_links = int(row["article_links"] or 0)
-    # Generic linea_criterio rows do not yet project source_revision hash/capture
-    # evidence or normalized tax/model links, so they must remain fail-closed.
-    safe_to_answer = False
-    completeness = "partial" if official_refs > 0 else "target"
+    complete_refs = int(row["complete_refs"] or 0)
+    relation_links = int(row["relation_links"] or 0)
+    source_hash = row["source_hash"]
+    capture_date = row["source_capture_date"] or row["capture_date"] or row["fecha"]
+    safe_to_answer = bool(
+        official_refs > 0
+        and complete_refs > 0
+        and article_links > 0
+        and relation_links > 0
+        and source_hash
+        and capture_date
+    )
+    completeness = "complete" if safe_to_answer else "partial" if official_refs > 0 else "target"
     source_url = row["source_url"]
-    capture_date = row["capture_date"] or row["fecha"]
     return {
         "codigo": _linea_codigo(int(row["id"])),
         "id": int(row["id"]),
         "fuente": _infer_linea_fuente(int(row["dgt_refs"] or 0), int(row["teac_refs"] or 0)),
         "titulo": row["titulo"],
         "tema": row["ambitos"],
-        "impuesto": None,
+        "impuesto": row["impuesto"],
         "articulo_referencia": row["articulo_referencia"],
-        "modelo_aeat_referencia": None,
+        "modelo_aeat_referencia": row["modelo_aeat_referencia"],
         "fecha": str(row["fecha"]) if row["fecha"] else None,
         "estado_vigente": row["estado"],
         "resumen_oficial": row["criterio_dominante"],
         "source_url": source_url,
-        "source_hash": None,
+        "source_hash": source_hash,
         "capture_date": str(capture_date) if capture_date else None,
-        "verified": False,
+        "verified": safe_to_answer,
         "completeness": completeness,
         "safe_to_answer": safe_to_answer,
         "evidence_notice": _build_linea_notice(
@@ -635,6 +643,61 @@ def _pilot_has_complete_primary_reference(definition: dict, rows: list[dict]) ->
     )
 
 
+def _fetch_criterio_relaciones(db, linea_codigo: str) -> list[dict]:
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                linea_codigo,
+                linea_criterio_id,
+                documento_referencia,
+                norma_codigo,
+                articulo,
+                impuesto,
+                modelo_aeat,
+                tipo_renta,
+                relacion,
+                metodo_enlace,
+                confianza_enlace,
+                nota_limitacion,
+                source_url,
+                source_hash,
+                capture_date,
+                verified,
+                completeness
+            FROM criterio_relacion
+            WHERE linea_codigo = :linea_codigo
+            ORDER BY id ASC
+            """
+        ),
+        {"linea_codigo": linea_codigo},
+    ).mappings()
+    return [dict(row) for row in rows]
+
+
+def _complete_model_relation(definition: dict, relations: list[dict]) -> dict | None:
+    expected_model = definition.get("modelo_aeat")
+    if not expected_model:
+        return None
+    primary_refs = {
+        reference["referencia"]
+        for reference in definition["referencias"]
+        if reference["relacion"] == "consulta_principal"
+    }
+    for relation in relations:
+        if (
+            relation.get("documento_referencia") in primary_refs
+            and relation.get("modelo_aeat") == expected_model
+            and relation.get("source_hash")
+            and relation.get("capture_date")
+            and relation.get("verified")
+            and relation.get("completeness") == "complete"
+        ):
+            return relation
+    return None
+
+
 def _pilot_notice(definition: dict, *, has_official_source: bool, has_hash: bool) -> str:
     if not has_official_source:
         return (
@@ -645,8 +708,8 @@ def _pilot_notice(definition: dict, *, has_official_source: bool, has_hash: bool
         return (
             f"Linea piloto {definition['codigo']} completa para consulta factual acotada: "
             "fuente oficial, hash/capture_date, anclaje persistido, vigencia historica "
-            "explicita y modelo auditado por curacion del supuesto; la relacion persistida "
-            "especifica de modelo sigue pendiente. No extrapolar fuera del supuesto."
+            "explicita y relacion modelo/supuesto persistida por curacion auditada. "
+            "No extrapolar fuera del supuesto."
         )
     if not has_hash:
         return (
@@ -660,7 +723,7 @@ def _pilot_notice(definition: dict, *, has_official_source: bool, has_hash: bool
     )
 
 
-def _pilot_linea_payload(definition: dict, rows: list[dict]) -> dict:
+def _pilot_linea_payload(definition: dict, rows: list[dict], relations: list[dict]) -> dict:
     official_refs = {
         row["referencia"]
         for row in rows
@@ -683,17 +746,26 @@ def _pilot_linea_payload(definition: dict, rows: list[dict]) -> dict:
     )
     has_official_source = bool(official_refs)
     verified = has_official_source and bool(source_hash)
+    complete_model_relation = _complete_model_relation(definition, relations)
+    if complete_model_relation and complete_model_relation.get("source_hash") != source_hash:
+        complete_model_relation = None
     complete_ready = bool(
         has_official_source
         and source_hash
         and _pilot_has_complete_primary_reference(definition, rows)
         and _pilot_has_persisted_article_relation(definition, rows)
         and definition.get("vigencia_estado")
-        and definition.get("modelo_evidencia")
+        and complete_model_relation
     )
     definition_for_notice = {**definition, "_complete": complete_ready}
     completeness = "complete" if complete_ready else "partial" if has_official_source else "target"
-    modelo = definition["modelo_aeat"] if has_official_source and definition.get("modelo_evidencia") else None
+    modelo = (
+        complete_model_relation.get("modelo_aeat")
+        if complete_model_relation
+        else definition["modelo_aeat"]
+        if has_official_source and definition.get("modelo_evidencia") == "official_text_partial"
+        else None
+    )
     articulo_referencia = _pilot_article_reference(definition, rows)
     return {
         "codigo": definition["codigo"],
@@ -715,7 +787,9 @@ def _pilot_linea_payload(definition: dict, rows: list[dict]) -> dict:
         "resumen_oficial": None,
         "source_url": source_row.get("url_fuente") if source_row else None,
         "source_hash": source_hash,
-        "capture_date": str(capture_date) if capture_date else None,
+        "capture_date": str(complete_model_relation.get("capture_date") if complete_model_relation else capture_date)
+        if (complete_model_relation or capture_date)
+        else None,
         "verified": verified,
         "completeness": completeness,
         "safe_to_answer": complete_ready,
@@ -738,14 +812,28 @@ def _pilot_lineas_payload(
     for definition in PILOT_LINEAS_CRITERIO:
         if not _pilot_filter_match(definition, impuesto, tema, modelo):
             continue
-        lineas.append(_pilot_linea_payload(definition, _fetch_pilot_doc_rows(db, definition)))
+        lineas.append(
+            _pilot_linea_payload(
+                definition,
+                _fetch_pilot_doc_rows(db, definition),
+                _fetch_criterio_relaciones(db, definition["codigo"]),
+            )
+        )
     return lineas
 
 
-def _pilot_relaciones_payload(definition: dict, rows: list[dict]) -> list[dict]:
+def _pilot_relaciones_payload(definition: dict, rows: list[dict], model_relations: list[dict]) -> list[dict]:
     relaciones = []
     doc_refs = _pilot_doc_refs(rows)
-    line_complete = _pilot_linea_payload(definition, rows)["completeness"] == "complete"
+    line_complete = _pilot_linea_payload(definition, rows, model_relations)["completeness"] == "complete"
+    complete_model_relation = _complete_model_relation(definition, model_relations)
+    hash_row_for_relation = _first_pilot_row(rows, "source_hash")
+    if (
+        complete_model_relation
+        and hash_row_for_relation
+        and complete_model_relation.get("source_hash") != hash_row_for_relation.get("source_hash")
+    ):
+        complete_model_relation = None
     definition_has_expected_article = any(
         reference.get("norma_codigo") or reference.get("articulo")
         for reference in definition["referencias"]
@@ -762,7 +850,23 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict]) -> list[dict]:
         )
         official = bool(row and row.get("organismo_emisor") in DOCTRINA_FUENTES and row.get("url_fuente"))
         article_ready = bool(article_row and article_row.get("norma_codigo") and article_row.get("articulo"))
-        verified = bool(official and hash_row and hash_row.get("source_hash") and article_ready)
+        relation_model = (
+            complete_model_relation.get("modelo_aeat")
+            if complete_model_relation
+            and complete_model_relation.get("documento_referencia") == reference["referencia"]
+            else reference.get("modelo_aeat")
+            if official
+            and (reference.get("modelo_evidencia") or definition.get("modelo_evidencia") == "official_text_partial")
+            else None
+        )
+        verified = bool(
+            official
+            and hash_row
+            and hash_row.get("source_hash")
+            and article_ready
+            and complete_model_relation
+            and complete_model_relation.get("documento_referencia") == reference["referencia"]
+        )
         relaciones.append(
             {
                 "linea_criterio_id": definition["id"],
@@ -778,17 +882,12 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict]) -> list[dict]:
                 ),
                 "norma_codigo": article_row.get("norma_codigo") if article_row else None,
                 "articulo": article_row.get("articulo") if article_row else None,
-                "modelo_aeat": (
-                    reference.get("modelo_aeat")
-                    if official
-                    and (reference.get("modelo_evidencia") or definition.get("modelo_evidencia"))
-                    else None
-                ),
+                "modelo_aeat": relation_model,
                 "tipo_renta": reference.get("tipo_renta"),
                 "relacion": reference["relacion"],
                 "nota_limitacion": (
                     "Relacion principal completa para consulta factual acotada: fuente, hash, "
-                    "articulo, vigencia y modelo auditados; no extrapolar fuera del supuesto."
+                    "articulo, vigencia y modelo/supuesto persistido; no extrapolar fuera del supuesto."
                     if verified
                     and line_complete
                     and reference["relacion"] == "consulta_principal"
@@ -833,6 +932,15 @@ def _lineas_base_sql(where_clause: str) -> str:
                 THEN 1 ELSE 0 END
             ) AS complete_refs,
             COUNT(DISTINCT da.articulo_id) AS article_links,
+            COUNT(DISTINCT CASE
+                WHEN cr.verified = true
+                 AND cr.completeness = 'complete'
+                 AND cr.modelo_aeat IS NOT NULL
+                 AND cr.impuesto IS NOT NULL
+                 AND cr.source_hash = sr.content_hash_sha256
+                 AND cr.capture_date IS NOT NULL
+                THEN cr.id END
+            ) AS relation_links,
             MIN(CASE
                 WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
                  AND d.url_fuente IS NOT NULL
@@ -841,18 +949,47 @@ def _lineas_base_sql(where_clause: str) -> str:
             MIN(CASE
                 WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
                  AND d.url_fuente IS NOT NULL
+                THEN sr.content_hash_sha256 END
+            ) AS source_hash,
+            MIN(CASE
+                WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
+                 AND d.url_fuente IS NOT NULL
+                THEN CAST(sr.fetched_at AS TEXT) END
+            ) AS source_capture_date,
+            MIN(CASE
+                WHEN UPPER(COALESCE(d.organismo_emisor, r.organismo_emisor, '')) IN ('DGT', 'TEAC')
+                 AND d.url_fuente IS NOT NULL
                 THEN COALESCE(CAST(d.fecha_publicacion AS TEXT), CAST(d.fecha AS TEXT)) END
             ) AS capture_date,
             MIN(CASE
                 WHEN n.codigo IS NOT NULL AND a.numero IS NOT NULL
                 THEN n.codigo || ' art. ' || a.numero END
-            ) AS articulo_referencia
+            ) AS articulo_referencia,
+            MIN(CASE
+                WHEN cr.verified = true AND cr.completeness = 'complete'
+                 AND cr.source_hash = sr.content_hash_sha256
+                 AND cr.capture_date IS NOT NULL
+                THEN cr.impuesto END
+            ) AS impuesto,
+            MIN(CASE
+                WHEN cr.verified = true AND cr.completeness = 'complete'
+                 AND cr.source_hash = sr.content_hash_sha256
+                 AND cr.capture_date IS NOT NULL
+                THEN cr.modelo_aeat END
+            ) AS modelo_aeat_referencia
         FROM linea_criterio l
         LEFT JOIN linea_criterio_referencia r ON r.linea_id = l.id
         LEFT JOIN documento_interpretativo d ON d.referencia = r.documento_referencia
+        LEFT JOIN source_revision sr
+          ON sr.source_entity_id = d.referencia
+         AND LOWER(sr.source_entity_tipo) IN (
+             'consulta', 'consulta_vinculante', 'documento', 'resolucion_teac'
+         )
         LEFT JOIN documento_articulo da ON da.documento_id = d.id
         LEFT JOIN articulo a ON a.id = da.articulo_id
         LEFT JOIN norma n ON n.id = a.norma_id
+        LEFT JOIN criterio_relacion cr ON cr.linea_criterio_id = l.id
+         AND cr.documento_referencia = r.documento_referencia
         WHERE {where_clause}
         GROUP BY l.id, l.titulo, l.cuestion_practica, l.criterio_dominante, l.ambitos, l.estado, l.ultimo_cambio
     """
@@ -1028,8 +1165,11 @@ async def criterio_relacionado_con_modelo(request: Request, codigo: str):
     pilot_definition = PILOT_LINEAS_BY_CODE.get(codigo.strip().upper())
     if pilot_definition is not None:
         with db_session() as db:
+            rows = _fetch_pilot_doc_rows(db, pilot_definition)
             relaciones = _pilot_relaciones_payload(
-                pilot_definition, _fetch_pilot_doc_rows(db, pilot_definition)
+                pilot_definition,
+                rows,
+                _fetch_criterio_relaciones(db, pilot_definition["codigo"]),
             )
         response = {
             "codigo": pilot_definition["codigo"],
@@ -1079,12 +1219,28 @@ async def criterio_relacionado_con_modelo(request: Request, codigo: str):
                     n.codigo AS norma_codigo,
                     a.numero AS articulo,
                     r.rol_en_linea,
-                    COALESCE(d.row_completeness, 'partial') AS row_completeness
+                    COALESCE(d.row_completeness, 'partial') AS row_completeness,
+                    sr.content_hash_sha256 AS source_hash,
+                    sr.fetched_at AS source_capture_date,
+                    cr.modelo_aeat,
+                    cr.tipo_renta,
+                    cr.source_hash AS relacion_source_hash,
+                    cr.capture_date AS relacion_capture_date,
+                    cr.verified AS relacion_verified,
+                    cr.completeness AS relacion_completeness,
+                    cr.nota_limitacion
                 FROM linea_criterio_referencia r
                 LEFT JOIN documento_interpretativo d ON d.referencia = r.documento_referencia
+                LEFT JOIN source_revision sr
+                  ON sr.source_entity_id = d.referencia
+                 AND LOWER(sr.source_entity_tipo) IN (
+                     'consulta', 'consulta_vinculante', 'documento', 'resolucion_teac'
+                 )
                 LEFT JOIN documento_articulo da ON da.documento_id = d.id
                 LEFT JOIN articulo a ON a.id = da.articulo_id
                 LEFT JOIN norma n ON n.id = a.norma_id
+                LEFT JOIN criterio_relacion cr ON cr.linea_criterio_id = r.linea_id
+                 AND cr.documento_referencia = r.documento_referencia
                 WHERE r.linea_id = :linea_id
                 ORDER BY r.orden ASC, n.codigo, a.numero
                 """
@@ -1096,26 +1252,43 @@ async def criterio_relacionado_con_modelo(request: Request, codigo: str):
         for row in rows:
             official = row["fuente"] in DOCTRINA_FUENTES and row["source_url"] is not None
             article_ready = row["norma_codigo"] is not None and row["articulo"] is not None
-            verified = bool(official and row["row_completeness"] == "complete" and article_ready)
+            verified = bool(
+                official
+                and row["row_completeness"] == "complete"
+                and article_ready
+                and row["source_hash"]
+                and row["source_capture_date"]
+                and row["modelo_aeat"]
+                and row["relacion_source_hash"] == row["source_hash"]
+                and row["relacion_capture_date"]
+                and row["relacion_verified"]
+                and row["relacion_completeness"] == "complete"
+            )
             relaciones.append(
                 {
                     "linea_criterio_id": int(row["linea_id"]),
                     "documento_referencia": row["documento_referencia"],
                     "fuente": row["fuente"],
                     "source_url": row["source_url"],
-                    "capture_date": str(row["capture_date"]) if row["capture_date"] else None,
+                    "capture_date": (
+                        str(row["source_capture_date"])
+                        if row["source_capture_date"]
+                        else str(row["capture_date"])
+                        if row["capture_date"]
+                        else None
+                    ),
                     "norma_codigo": row["norma_codigo"],
                     "articulo": row["articulo"],
-                    "modelo_aeat": None,
-                    "tipo_renta": None,
+                    "modelo_aeat": row["modelo_aeat"],
+                    "tipo_renta": row["tipo_renta"],
                     "relacion": row["rol_en_linea"] or "soporte",
                     "nota_limitacion": (
-                        "Relacion verificada con articulo oficial."
+                        row["nota_limitacion"] or "Relacion verificada con evidencia completa."
                         if verified
                         else "Relacion parcial: falta fuente DGT/TEAC oficial completa, articulo o modelo trazable."
                     ),
                     "verified": verified,
-                    "completeness": "partial" if official else "target",
+                    "completeness": "complete" if verified else "partial" if official else "target",
                 }
             )
 
@@ -1152,7 +1325,9 @@ async def detalle_linea_criterio_doctrina(request: Request, codigo: str):
     if pilot_definition is not None:
         with db_session() as db:
             payload = _pilot_linea_payload(
-                pilot_definition, _fetch_pilot_doc_rows(db, pilot_definition)
+                pilot_definition,
+                _fetch_pilot_doc_rows(db, pilot_definition),
+                _fetch_criterio_relaciones(db, pilot_definition["codigo"]),
             )
         _record_lineas_audit(
             request,
