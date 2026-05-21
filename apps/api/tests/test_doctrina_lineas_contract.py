@@ -202,6 +202,113 @@ def _seed_pilot_document(
         db.commit()
 
 
+def _seed_generic_hashless_doctrina_line():
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                DELETE FROM source_revision
+                WHERE source_entity_id = 'V9999-26'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+                    referencia, fecha, titulo, texto, url_fuente,
+                    estado_vigencia, row_completeness, row_provenance
+                )
+                VALUES (
+                    'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal',
+                    'V9999-26', '2026-02-05',
+                    'Consulta DGT generica sin hash de revision',
+                    'Ficha oficial de prueba con fuente DGT y articulo enlazado, pero sin source_revision.',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V9999-26',
+                    'vigente', 'complete', 'official_exact'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO norma (
+                    codigo, titulo, boe_id, jurisdiccion, tipo_fuente,
+                    tipo_documento, ambito, estado_cobertura, vigente_desde
+                )
+                VALUES (
+                    'TESTHASH', 'Norma test hashless', 'TESTHASH-BOE',
+                    'ES', 'boe', 'ley', 'tributario', 'ingestada', '2000-01-01'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '1', 'Articulo hashless', 'articulo'
+                FROM norma
+                WHERE codigo = 'TESTHASH'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO linea_criterio (
+                    titulo, cuestion_practica, descripcion, criterio_dominante,
+                    ambitos, ultimo_cambio, estado, activo
+                )
+                SELECT
+                    'Linea generica hashless DGT',
+                    'Puede una linea generica responder sin hash?',
+                    'Fixture de contrato doctrina fail-closed.',
+                    'No debe responder sin source_revision.',
+                    '["hashless","doctrina_administrativa"]',
+                    '2026-05-21',
+                    'vigente',
+                    1
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM linea_criterio WHERE titulo = 'Linea generica hashless DGT'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO linea_criterio_referencia (
+                    linea_id, documento_referencia, tipo_documento,
+                    organismo_emisor, fecha, rol_en_linea, orden
+                )
+                SELECT
+                    l.id, 'V9999-26', 'consulta_vinculante',
+                    'DGT', '2026-02-05', 'consulta_principal', 1
+                FROM linea_criterio l
+                WHERE l.titulo = 'Linea generica hashless DGT'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO documento_articulo (
+                    documento_id, articulo_id, metodo_enlace, confianza_enlace, nota
+                )
+                SELECT d.id, a.id, 'manual_official', 1.0, 'Fixture hashless'
+                FROM documento_interpretativo d
+                JOIN articulo a ON a.numero = '1'
+                JOIN norma n ON n.id = a.norma_id
+                WHERE d.referencia = 'V9999-26' AND n.codigo = 'TESTHASH'
+                """
+            )
+        )
+        db.commit()
+
+
 @pytest_asyncio.fixture
 async def client():
     transport = ASGITransport(app=app)
@@ -225,6 +332,24 @@ async def test_doctrina_lineas_list_exposes_fail_closed_contract(client):
     assert first["completeness"] in {"partial", "target"}
     assert first["safe_to_answer"] is False
     assert first["review_required"] is True
+
+
+@pytest.mark.asyncio
+async def test_generic_db_line_with_source_and_article_but_no_hash_fails_closed(client):
+    _seed_generic_hashless_doctrina_line()
+
+    response = await client.get("/v1/doctrina/lineas", params={"tema": "hashless"})
+
+    assert response.status_code == 200
+    body = response.json()
+    line = next(item for item in body["lineas"] if item["titulo"] == "Linea generica hashless DGT")
+    assert line["source_url"].endswith("num_consulta=V9999-26")
+    assert line["source_hash"] is None
+    assert line["articulo_referencia"] == "TESTHASH art. 1"
+    assert line["completeness"] == "partial"
+    assert line["safe_to_answer"] is False
+    assert line["review_required"] is True
+    assert body["safe_to_answer"] is False
 
 
 @pytest.mark.asyncio

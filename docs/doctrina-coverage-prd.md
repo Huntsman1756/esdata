@@ -182,7 +182,7 @@ Lote piloto seleccionado para curacion. Tras el cierre D-01, una linea queda `co
 
 Regla de cierre: D-01 queda `complete` porque cumple el contrato completo; ninguna otra linea queda `complete` hasta crear o endurecer el contrato de linea con impuesto, articulo, tema, modelo cuando aplique, estado vigente/historico y proyeccion de `source_hash`/`capture_date`.
 
-Regla D-01: si el documento pertenece a otro marco normativo distinto de IRNR, no se fuerza a retenciones no residentes aunque tenga fuente, hash y texto completo. `V0223-26` queda descartada como principal D-01 por este motivo. `V0166-25` queda como consulta principal completa porque cita TRLIRNR art. 31 y modelos 216/296, tiene hash/captura, enlace persistido `manual_official`, vigencia historica explicita y modelo auditado por supuesto.
+Regla D-01: si el documento pertenece a otro marco normativo distinto de IRNR, no se fuerza a retenciones no residentes aunque tenga fuente, hash y texto completo. `V0223-26` queda descartada como principal D-01 por este motivo. `V0166-25` queda como consulta principal completa porque cita TRLIRNR art. 31 y modelos 216/296, tiene hash/captura, enlace persistido `manual_official`, vigencia historica explicita y modelo auditado por curacion del supuesto. La relacion de modelo queda pendiente de una relacion persistida especifica; la curacion auditada no debe presentarse como tabla relacional cerrada.
 
 ## Curacion Local Lote Piloto 2026-05-21
 
@@ -190,7 +190,7 @@ El contrato local expone ahora las nueve lineas piloto como codigos estables `D-
 
 | Codigo | Tema | Impuesto | Modelo relacionado | Estado contractual |
 | --- | --- | --- | --- | --- |
-| `D-01` | Retenciones no residentes | IRNR | 216/296 | `complete` con DGT `V0166-25`; TRLIRNR art. 31 persistido, vigencia historica explicita y modelo auditado por supuesto |
+| `D-01` | Retenciones no residentes | IRNR | 216/296 | `complete` con DGT `V0166-25`; TRLIRNR art. 31 persistido, vigencia historica explicita y modelo auditado por curacion del supuesto, pendiente de relacion persistida especifica |
 | `D-02` | IVA intracomunitario | IVA | 349 | `partial`; `V0236-26` no se usa como cierre porque trata tipo impositivo/LIVA 91, no supuesto intracomunitario expreso |
 | `D-03` | Operaciones vinculadas | IS | 232 | `partial`; `V0144-26` permite `LIS art. 18`, pero no modelo 232 ni vigencia cerrada |
 | `D-04` | CRS/FATCA | Informacion fiscal | 289 | `partial`; modelo 289 trazable en `V0138-24`, pero falta articulo/supuesto normalizado y vigencia |
@@ -204,7 +204,7 @@ Reglas aplicadas:
 
 - Las lineas piloto se resuelven contra `documento_interpretativo`, `source_revision` y `documento_articulo`; no usan resumen LLM como evidencia.
 - `source_hash` y `capture_date` proceden de `source_revision` cuando existe.
-- La relacion con modelo AEAT solo se expone cuando hay evidencia documental auditada. En D-01 la relacion 216/296 queda auditada por supuesto; D-04 conserva 289 como evidencia parcial; D-02, D-03, D-05, D-06, D-07, D-08 y D-09 no exponen modelo por conocimiento general.
+- La relacion con modelo AEAT solo se expone cuando hay evidencia documental auditada. En D-01 la relacion 216/296 queda auditada por curacion del supuesto, pendiente de relacion persistida especifica; D-04 conserva 289 como evidencia parcial; D-02, D-03, D-05, D-06, D-07, D-08 y D-09 no exponen modelo por conocimiento general.
 - `lineas_complete` permanece en `1` por D-01. La familia completa sigue `implemented_partial` porque D-02 a D-09 no cumplen todavia los ocho puntos del criterio de hecho.
 
 ## Tareas

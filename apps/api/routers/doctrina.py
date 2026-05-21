@@ -429,8 +429,9 @@ def _build_linea_notice(*, official_refs: int, article_links: int, safe_to_answe
 def _linea_payload(row) -> dict:
     official_refs = int(row["official_refs"] or 0)
     article_links = int(row["article_links"] or 0)
-    complete_refs = int(row["complete_refs"] or 0)
-    safe_to_answer = official_refs > 0 and complete_refs > 0 and article_links > 0
+    # Generic linea_criterio rows do not yet project source_revision hash/capture
+    # evidence or normalized tax/model links, so they must remain fail-closed.
+    safe_to_answer = False
     completeness = "partial" if official_refs > 0 else "target"
     source_url = row["source_url"]
     capture_date = row["capture_date"] or row["fecha"]
@@ -449,7 +450,7 @@ def _linea_payload(row) -> dict:
         "source_url": source_url,
         "source_hash": None,
         "capture_date": str(capture_date) if capture_date else None,
-        "verified": complete_refs > 0 and source_url is not None,
+        "verified": False,
         "completeness": completeness,
         "safe_to_answer": safe_to_answer,
         "evidence_notice": _build_linea_notice(
@@ -644,7 +645,8 @@ def _pilot_notice(definition: dict, *, has_official_source: bool, has_hash: bool
         return (
             f"Linea piloto {definition['codigo']} completa para consulta factual acotada: "
             "fuente oficial, hash/capture_date, anclaje persistido, vigencia historica "
-            "explicita y modelo por supuesto auditado. No extrapolar fuera del supuesto."
+            "explicita y modelo auditado por curacion del supuesto; la relacion persistida "
+            "especifica de modelo sigue pendiente. No extrapolar fuera del supuesto."
         )
     if not has_hash:
         return (

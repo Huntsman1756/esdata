@@ -8,19 +8,28 @@
 - Metodo inicial: consultas SQL read-only via `docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml exec -T postgres psql`.
 - Actualizacion posterior 2026-05-21: despliegue acotado de `api` y escritura productiva minima en `documento_articulo` para persistir el enlace auditado D-01 `V0166-25` -> `TRLIRNR art. 31`.
 
-## Resultado ejecutivo
+## Estado inicial read-only
 
-DGT/TEAC existen en produccion como corpus doctrinal parcial y consultable, pero no como familia de lineas de criterio completa.
+DGT/TEAC existian en produccion como corpus doctrinal parcial y consultable, pero no como familia de lineas de criterio completa.
 
-Hallazgos principales:
+Hallazgos iniciales contra el VPS antes del despliegue del contrato doctrinal:
 
 - DGT tiene `18.631` consultas vinculantes cargadas, todas con URL oficial PETETE y texto.
 - TEAC tiene `558` resoluciones DYCTEA cargadas, todas con URL oficial; `290` estan `complete` y `268` `partial`.
 - `source_revision` conserva hash SHA-256 para `18.631` consultas DGT y `558` documentos TEAC, pero `documento_interpretativo` no tiene columnas directas `source_hash` ni `capture_date`.
-- Produccion aun no tiene desplegado el endpoint local nuevo `/v1/doctrina/lineas/coverage`: en commit `30154a3` devuelve `404` por caer en el router legacy `/{referencia:path}`.
-- Existen `7` filas activas en `linea_criterio`, pero son editoriales/genericas y ninguna tiene referencia DGT/TEAC cargada con URL oficial. No hay ninguna linea completa.
+- En el commit productivo inicial `30154a3`, produccion aun no tenia desplegado el endpoint local nuevo `/v1/doctrina/lineas/coverage`: devolvia `404` por caer en el router legacy `/{referencia:path}`.
+- En ese estado inicial existian `7` filas activas en `linea_criterio`, pero eran editoriales/genericas y ninguna tenia referencia DGT/TEAC cargada con URL oficial. No habia ninguna linea completa.
 
-Conclusion: la familia debe seguir `implemented_partial`. D-01 queda como primera linea piloto `complete` para consulta factual acotada porque ya tiene fuente oficial, hash/captura, anclaje `TRLIRNR art. 31`, vigencia historica explicita y modelo 216/296 auditado por supuesto. El resto del lote sigue `partial` o `target` hasta completar la misma curacion.
+## Estado tras despliegue y curacion
+
+Tras el despliegue acotado de `api` y la curacion D-01, el contrato doctrinal responde en produccion, pero la familia completa sigue `implemented_partial`.
+
+- `/v1/doctrina/lineas/coverage` devuelve HTTP 200 con `estado=implemented_partial`, `lineas_total=16`, `lineas_complete=1` y `safe_to_answer=false`.
+- D-01 queda como primera linea piloto `complete` para consulta factual acotada porque ya tiene fuente oficial, hash/captura, anclaje persistido `TRLIRNR art. 31` y vigencia historica explicita.
+- La relacion con modelos 216/296 esta auditada por curacion del supuesto en `V0166-25`, pero sigue pendiente una relacion persistida especifica de modelo/supuesto; no se debe presentar como tabla relacional cerrada.
+- El resto del lote sigue `partial` o `target` hasta completar la misma curacion.
+
+Conclusion: la familia debe seguir `implemented_partial`. La diferencia entre estado inicial y estado final es el despliegue del contrato y el cierre acotado de D-01, no una cobertura doctrinal completa.
 
 ## Corpus real de produccion
 
@@ -87,11 +96,11 @@ Estado inicial del lote: `target_for_curation`. Las referencias existen en produ
 
 Estado local y VPS tras curacion piloto 2026-05-21: la API read-only reconoce codigos `D-01` a `D-09`, resuelve sus referencias contra `documento_interpretativo`, `source_revision` y `documento_articulo`, y expone `source_hash`/`capture_date` cuando existen. D-01 queda `complete` y `safe_to_answer=true` por cumplir los cierres auditados; las otras lineas siguen fail-closed. Esto demuestra el contrato doctrinal, pero no cambia la familia a `complete`.
 
-Despliegue VPS 2026-05-21: se reconstruyo solo `api`; no hubo migraciones. Se persistio en produccion `documento_articulo` para `V0166-25` -> `TRLIRNR art. 31` con `metodo_enlace='manual_official'`, `confianza_enlace=1.00` y nota de curacion D-01. Validacion productiva con API key: `/v1/doctrina/lineas/coverage` devuelve HTTP 200 con `estado=implemented_partial`, `lineas_total=16`, `lineas_complete=1`, `lineas_con_articulo=2`, `safe_to_answer=false`; `/v1/doctrina/lineas/D-01` devuelve HTTP 200 con URL PETETE, SHA-256, `capture_date`, `articulo_referencia=TRLIRNR art. 31`, `modelo_aeat_referencia=216/296`, `estado_vigente=historico_a_fecha_consulta`, `completeness=complete`, `safe_to_answer=true` y `review_required=false`.
+Despliegue VPS 2026-05-21: se reconstruyo solo `api`; no hubo migraciones. Se persistio en produccion `documento_articulo` para `V0166-25` -> `TRLIRNR art. 31` con `metodo_enlace='manual_official'`, `confianza_enlace=1.00` y nota de curacion D-01. Validacion productiva con API key: `/v1/doctrina/lineas/coverage` devuelve HTTP 200 con `estado=implemented_partial`, `lineas_total=16`, `lineas_complete=1`, `lineas_con_articulo=2`, `safe_to_answer=false`; `/v1/doctrina/lineas/D-01` devuelve HTTP 200 con URL PETETE, SHA-256, `capture_date`, `articulo_referencia=TRLIRNR art. 31`, `modelo_aeat_referencia=216/296`, `estado_vigente=historico_a_fecha_consulta`, `completeness=complete`, `safe_to_answer=true` y `review_required=false`. El modelo 216/296 esta auditado por curacion del supuesto, pendiente de una relacion persistida especifica de modelo.
 
 | Linea piloto | Estado ahora | Fuente base | Evidencia productiva | Motivo de seleccion | Siguiente accion |
 | --- | --- | --- | --- | --- | --- |
-| D-01 Retenciones no residentes | `complete` | DGT `V0166-25`; TEAC `00/02188/2017/00/00` como soporte parcial | DGT complete con URL PETETE, SHA-256, `capture_date`, enlace persistido `TRLIRNR art. 31`, vigencia historica explicita y modelos 216/296 auditados por supuesto; TEAC mantiene URL/hash pero sin anclaje TRLIRNR propio | Tema frecuente, alto riesgo de sobreafirmar, conecta IRNR/modelos | No extrapolar fuera del supuesto de `V0166-25`; curar D-02 como siguiente linea |
+| D-01 Retenciones no residentes | `complete` | DGT `V0166-25`; TEAC `00/02188/2017/00/00` como soporte parcial | DGT complete con URL PETETE, SHA-256, `capture_date`, enlace persistido `TRLIRNR art. 31`, vigencia historica explicita y modelos 216/296 auditados por curacion del supuesto; pendiente relacion persistida especifica de modelo. TEAC mantiene URL/hash pero sin anclaje TRLIRNR propio | Tema frecuente, alto riesgo de sobreafirmar, conecta IRNR/modelos | No extrapolar fuera del supuesto de `V0166-25`; curar D-02 como siguiente linea |
 | D-02 IVA intracomunitario | `partial` | DGT `V0236-26`; TEAC `00/02766/2015/00/00` | DGT complete con URL/hash pero trata tipo impositivo y `LIVA art. 91`; no se usa como anclaje intracomunitario. TEAC ROI es partial y sin articulo trazable | Alto volumen DGT y utilidad fiscal | Buscar fuente principal que trate expresamente operacion intracomunitaria; no exponer 349 sin supuesto |
 | D-03 Operaciones vinculadas | `partial` | DGT `V0144-26`; TEAC `00/06460/2019/00/00` | DGT complete con URL/hash y `LIS art. 18` persistido; TEAC soporte procedimental LGT. No hay evidencia de modelo 232 ni vigencia cerrada | Buen volumen y trazabilidad suficiente para curacion | Cerrar vigencia y modelo 232 por supuesto antes de `complete` |
 | D-04 CRS/FATCA | `partial` | DGT `V0138-24` | Complete, URL PETETE, hash, CRS/FATCA, RD 1021/2015 y modelo 289 mencionados; falta articulo/supuesto normalizado y vigencia | Bajo volumen y buen candidato para curacion controlada | Normalizar RD/Orden aplicable y articulo o supuesto antes de `complete` |
@@ -127,7 +136,7 @@ Resultado: ninguna linea adicional pasa a `complete`.
 
 | Linea | Estado | Fuente principal | Fuente soporte | Articulo expuesto | Modelo expuesto | Motivo exacto del estado | Siguiente evidencia necesaria |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| D-01 Retenciones no residentes | `complete` | DGT `V0166-25` | TEAC `00/02188/2017/00/00` parcial | `TRLIRNR art. 31` | `216/296` | Cumple fuente oficial, hash/captura, enlace persistido, vigencia historica y modelo auditado por supuesto | No extrapolar fuera del supuesto; usar como patron de cierre |
+| D-01 Retenciones no residentes | `complete` | DGT `V0166-25` | TEAC `00/02188/2017/00/00` parcial | `TRLIRNR art. 31` | `216/296` | Cumple fuente oficial, hash/captura, enlace persistido, vigencia historica y modelo auditado por curacion del supuesto; pendiente relacion persistida especifica de modelo | No extrapolar fuera del supuesto; usar como patron de cierre |
 | D-02 IVA intracomunitario | `partial` | DGT `V0236-26` | TEAC `00/02766/2015/00/00` parcial | Bloqueado: `LIVA art. 91` no corresponde al supuesto intracomunitario | Bloqueado: `349` no esta ligado al supuesto | La fuente principal trata tipo impositivo, no operacion intracomunitaria expresa | Nueva consulta/resolucion con supuesto intracomunitario, articulo LIVA correcto y modelo 349/303 trazable |
 | D-03 Operaciones vinculadas | `partial` | DGT `V0144-26` | TEAC `00/06460/2019/00/00` procedimental | `LIS art. 18` | Bloqueado: `232` sin evidencia por supuesto | Hay anclaje normativo, pero falta vigencia y relacion documental con modelo | Cierre de vigencia y prueba oficial de aplicabilidad del modelo 232 al supuesto |
 | D-04 CRS/FATCA | `partial` | DGT `V0138-24` | Ninguna | Bloqueado: falta articulo/supuesto normalizado | `289` parcial | La fuente menciona CRS/FATCA, RD 1021/2015 y modelo 289, pero no cierra articulo/supuesto y vigencia | Normalizar RD/Orden/articulo o supuesto reportable y vigencia historica |
@@ -146,6 +155,7 @@ Resultado: D-01 pasa a `complete` para consulta factual acotada.
 - `00/02188/2017/00/00` queda como soporte TEAC parcial: tiene URL/hash y trata IRNR/dividendos/retencion, pero su enlace `documento_articulo` productivo no confirma TRLIRNR; no se usa para completar articulo.
 - Se persiste `documento_articulo` para `V0166-25` -> `TRLIRNR art. 31` con metodo `manual_official`, confianza `1.00` y nota `Curacion D-01: texto oficial auditado`.
 - La API exige simultaneamente fuente/hash, referencia primaria completa, enlace persistido, `vigencia_estado=historico_a_fecha_consulta` y `modelo_evidencia=official_text_audited_by_suppuesto`; si falta cualquiera, D-01 vuelve a `partial`.
+- El modelo 216/296 esta auditado por curacion del supuesto en la fuente oficial; no existe todavia una tabla doctrinal especifica de relacion modelo/supuesto, por lo que esa persistencia queda como siguiente endurecimiento y no se inventa en este parche.
 - La validacion VPS confirma `completeness=complete`, `safe_to_answer=true` y `review_required=false` para `/v1/doctrina/lineas/D-01`. La familia mantiene `safe_to_answer=false` en `/coverage` porque el resto del lote no esta completo.
 
 ## Abstencion segura
