@@ -49,6 +49,27 @@ def test_criterio_relacion_runtime_api_rls_is_migrated_in_revision_0084():
         assert fragment in contents
 
 
+def test_doctrina_partial_pilot_relations_are_seeded_in_revision_0085():
+    revision_path = (
+        ALEMBIC_VERSIONS / "20260522_0085_doctrina_partial_pilot_relations.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "D-03",
+        "V0144-26",
+        "LIS",
+        "18",
+        "articulo_supuesto",
+        "D-04",
+        "V0138-24",
+        "289",
+        "modelo_supuesto",
+        "'partial'",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
@@ -248,7 +269,7 @@ def test_freshness_tables_are_owned_by_alembic_revision_0068():
     assert 'down_revision = "20260510_0067_monitoring_rls_closure"' in contents
     for table_name in ("source_freshness_snapshot", "data_freshness_alerts"):
         assert f'"{table_name}"' in contents
-        assert f"ALTER TABLE IF EXISTS {{table_name}} ENABLE ROW LEVEL SECURITY" in contents
+        assert "ALTER TABLE IF EXISTS {table_name} ENABLE ROW LEVEL SECURITY" in contents
 
     for fragment in (
         "op.create_table(",
