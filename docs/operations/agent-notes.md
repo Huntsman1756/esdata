@@ -8,6 +8,13 @@ No guarda estado activo del proyecto. Para estado actual, riesgos vivos y siguie
 
 Aqui solo deben entrar hallazgos que ahorran tiempo o evitan regresiones porque no son obvios al leer solo el codigo.
 
+## 2026-05-23 - MCP 2026-07-28 RC no sustituye `/mcp` legacy en caliente
+
+- Scope: `apps/api/mcp_server.py`, `apps/api/mcp_stdio.py`, `apps/api/mcp_security.py`, `apps/api/main.py`, `apps/api/tests/test_mcp_20260728_contract.py`, `docs/reference/mcp-2026-07-28-compatibility-audit.md`.
+- Hallazgo: el transporte actual usa `fastapi-mcp==0.4.0`, session manager, handshake `initialize`, `Mcp-Session-Id` y `protocolVersion=2025-03-26`. La RC `2026-07-28` elimina handshake y sesiones de protocolo y exige requests autocontenidas con `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name` y `_meta`.
+- Regla practica: no sustituir `/mcp` mientras existan clientes legacy. Cualquier soporte `2026-07-28` debe entrar como compatibilidad dual, preferiblemente `/mcp/stateless` o negociacion estricta por version, con tests separados y sin tocar las tools fiscales.
+- Trampa recurrente: un `GET /mcp` con `Accept: text/event-stream` y respuesta `400 Missing session ID` sigue siendo evidencia de salud del transporte legacy, pero no vale como evidencia para la ruta stateless nueva.
+
 ## Cuando actualizarlo
 
 - cuando un fix descubre una restriccion no evidente del repo

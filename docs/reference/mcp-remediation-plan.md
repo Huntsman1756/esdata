@@ -30,6 +30,12 @@ Llevar `esdata` a un estado en el que el MCP solo pueda devolver respuestas:
 - no mezclar superficies MCP ni corpus oficiales/curados sin marcarlo
 - cada fase debe cerrar con evidencia fresca del scope afectado
 
+## Nota de compatibilidad MCP 2026-07-28
+
+El plan base de remediacion MCP sigue aplicando al transporte actual `2025-03-26`. La RC `2026-07-28` introduce un core stateless con breaking changes: elimina `initialize`, `Mcp-Session-Id` y sesiones de protocolo. La auditoria activa vive en `docs/reference/mcp-2026-07-28-compatibility-audit.md`.
+
+Regla: no usar este plan para sustituir `/mcp` en caliente. La compatibilidad `2026-07-28` debe trabajarse como bloque separado de transporte/versionado, manteniendo las tools y contratos fiscales intactos.
+
 ## Fases
 
 ### Fase 0 - Congelar la superficie de verdad
