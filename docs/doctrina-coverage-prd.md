@@ -171,7 +171,7 @@ Lote piloto seleccionado para curacion. Tras el cierre D-01, una linea queda `co
 | Linea piloto | Referencias productivas iniciales | Estado |
 | --- | --- | --- |
 | Retenciones no residentes | DGT `V0166-25`; TEAC `00/02188/2017/00/00` como soporte parcial | `complete` |
-| IVA intracomunitario | DGT `V0236-26`; TEAC `00/02766/2015/00/00` | `partial` |
+| IVA intracomunitario | DGT `V0963-25`; TEAC `00/02766/2015/00/00`; `V0236-26` descartada para cierre | `partial` en produccion; `complete` tras migracion 0086 |
 | Operaciones vinculadas | DGT `V0144-26`; TEAC `00/06460/2019/00/00` | `partial` |
 | CRS/FATCA | DGT `V0138-24` | `partial` |
 | Criptoactivos | DGT `V0162-26` | `partial` |
@@ -191,7 +191,7 @@ El contrato local expone ahora las nueve lineas piloto como codigos estables `D-
 | Codigo | Tema | Impuesto | Modelo relacionado | Estado contractual |
 | --- | --- | --- | --- | --- |
 | `D-01` | Retenciones no residentes | IRNR | 216/296 | `complete` con DGT `V0166-25`; TRLIRNR art. 31 persistido, vigencia historica explicita y relacion modelo/supuesto persistida |
-| `D-02` | IVA intracomunitario | IVA | 349 | `partial`; el contrato de cierre queda acotado a entrega intracomunitaria con `LIVA art. 25`, modelo 349 por supuesto y vigencia explicita; `V0236-26` no se usa como cierre porque trata tipo impositivo/LIVA 91 |
+| `D-02` | IVA intracomunitario | IVA | 349 | `partial` en produccion; la migracion 0086 cierra DGT `V0963-25` solo para adquisicion intracomunitaria de bienes con `LIVA art. 13`, modelo 349 por supuesto y vigencia historica. `V0236-26` no se usa como cierre porque trata tipo impositivo/LIVA 91 |
 | `D-03` | Operaciones vinculadas | IS | 232 | `partial`; `V0144-26` permite `LIS art. 18` y queda como relacion parcial persistida, pero no modelo 232 ni vigencia cerrada |
 | `D-04` | CRS/FATCA | Informacion fiscal | 289 | `partial`; modelo 289 trazable en `V0138-24` y relacion parcial persistida, pero falta articulo/supuesto normalizado y vigencia |
 | `D-05` | Criptoactivos | IRPF | 721 | `partial`; hay monedas virtuales, pero no modelo 721 ni articulo operativo suficiente |
@@ -204,7 +204,7 @@ Reglas aplicadas:
 
 - Las lineas piloto se resuelven contra `documento_interpretativo`, `source_revision` y `documento_articulo`; no usan resumen LLM como evidencia.
 - `source_hash` y `capture_date` proceden de `source_revision` cuando existe.
-- La relacion con modelo AEAT solo se expone cuando hay evidencia documental auditada. En D-01 la relacion 216/296 queda persistida en `criterio_relacion`; D-03 persiste `LIS art. 18` como relacion parcial sin modelo; D-04 conserva 289 como evidencia parcial persistida; D-02 solo puede exponer 349 si existe una relacion `modelo_supuesto` completa con supuesto intracomunitario expreso, `LIVA art. 25`, hash/captura y vigencia; D-05, D-06, D-07, D-08 y D-09 no exponen modelo por conocimiento general.
+- La relacion con modelo AEAT solo se expone cuando hay evidencia documental auditada. En D-01 la relacion 216/296 queda persistida en `criterio_relacion`; D-02 persiste `V0963-25` -> `LIVA art. 13` + modelo 349 solo para `adquisicion_intracomunitaria_bienes`; D-03 persiste `LIS art. 18` como relacion parcial sin modelo; D-04 conserva 289 como evidencia parcial persistida; D-05, D-06, D-07, D-08 y D-09 no exponen modelo por conocimiento general.
 - Las lineas genericas DB-backed pueden dejar de estar fail-closed solo si proyectan `source_revision` y una fila `criterio_relacion` completa con impuesto, articulo/modelo o tipo de supuesto, `verified=true` y `completeness=complete`.
 - `lineas_complete` permanece en `1` por D-01. La familia completa sigue `implemented_partial` porque D-02 a D-09 no cumplen todavia los ocho puntos del criterio de hecho.
 

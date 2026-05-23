@@ -70,6 +70,26 @@ def test_doctrina_partial_pilot_relations_are_seeded_in_revision_0085():
         assert fragment in contents
 
 
+def test_doctrina_d02_intracomunitaria_is_seeded_in_revision_0086():
+    revision_path = (
+        ALEMBIC_VERSIONS / "20260523_0086_doctrina_d02_intracomunitaria.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "V0963-25",
+        "D-02",
+        "LIVA",
+        "13",
+        "349",
+        "adquisicion_intracomunitaria_bienes",
+        "'complete'",
+        "documento_articulo",
+        "manual_official",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

@@ -943,7 +943,7 @@ async def test_doctrina_pilot_line_iva_intracomunitario_does_not_reuse_wrong_liv
 
     assert response.status_code == 200
     body = response.json()
-    assert body["completeness"] == "partial"
+    assert body["completeness"] == "target"
     assert body["safe_to_answer"] is False
     assert body["articulo_referencia"] is None
     assert body["modelo_aeat_referencia"] is None
@@ -954,24 +954,23 @@ async def test_doctrina_pilot_line_iva_intracomunitario_can_complete_with_tracea
     client,
 ):
     _seed_pilot_document(
-        referencia="V0236-26",
-        titulo="Entregas intracomunitarias de bienes",
+        referencia="V0963-25",
+        titulo="Adquisiciones intracomunitarias de bienes",
         texto=(
-            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
-            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+            "Consulta oficial de prueba sobre adquisiciones intracomunitarias de bienes, "
+            "LIVA articulo 13 y declaracion recapitulativa modelo 349."
         ),
         norma_codigo="LIVA",
-        articulo="25",
-        estado_vigencia="historico_a_fecha_consulta",
+        articulo="13",
     )
     _seed_pilot_criterio_relation(
         linea_codigo="D-02",
-        documento_referencia="V0236-26",
+        documento_referencia="V0963-25",
         norma_codigo="LIVA",
-        articulo="25",
+        articulo="13",
         impuesto="IVA",
         modelo_aeat="349",
-        tipo_renta="entrega_intracomunitaria_bienes",
+        tipo_renta="adquisicion_intracomunitaria_bienes",
     )
 
     response = await client.get("/v1/doctrina/lineas/D-02")
@@ -979,7 +978,7 @@ async def test_doctrina_pilot_line_iva_intracomunitario_can_complete_with_tracea
     assert response.status_code == 200
     body = response.json()
     assert body["codigo"] == "D-02"
-    assert body["articulo_referencia"] == "LIVA art. 25"
+    assert body["articulo_referencia"] == "LIVA art. 13"
     assert body["modelo_aeat_referencia"] == "349"
     assert body["estado_vigente"] == "historico_a_fecha_consulta"
     assert body["completeness"] == "complete"
@@ -992,59 +991,58 @@ async def test_doctrina_pilot_line_iva_intracomunitario_stays_partial_without_pe
     client,
 ):
     _seed_pilot_document(
-        referencia="V0236-26",
-        titulo="Entregas intracomunitarias de bienes",
+        referencia="V0963-25",
+        titulo="Adquisiciones intracomunitarias de bienes",
         texto=(
-            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
-            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+            "Consulta oficial de prueba sobre adquisiciones intracomunitarias de bienes, "
+            "LIVA articulo 13 y declaracion recapitulativa modelo 349."
         ),
         norma_codigo="LIVA",
-        articulo="25",
-        estado_vigencia="historico_a_fecha_consulta",
+        articulo="13",
     )
 
     response = await client.get("/v1/doctrina/lineas/D-02")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["articulo_referencia"] == "LIVA art. 25"
+    assert body["articulo_referencia"] == "LIVA art. 13"
     assert body["modelo_aeat_referencia"] is None
     assert body["completeness"] == "partial"
     assert body["safe_to_answer"] is False
 
 
 @pytest.mark.asyncio
-async def test_doctrina_pilot_line_iva_intracomunitario_stays_partial_with_unknown_vigencia(
+async def test_doctrina_pilot_line_iva_intracomunitario_uses_curated_historical_status(
     client,
 ):
     _seed_pilot_document(
-        referencia="V0236-26",
-        titulo="Entregas intracomunitarias de bienes",
+        referencia="V0963-25",
+        titulo="Adquisiciones intracomunitarias de bienes",
         texto=(
-            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
-            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+            "Consulta oficial de prueba sobre adquisiciones intracomunitarias de bienes, "
+            "LIVA articulo 13 y declaracion recapitulativa modelo 349."
         ),
         norma_codigo="LIVA",
-        articulo="25",
+        articulo="13",
     )
     _seed_pilot_criterio_relation(
         linea_codigo="D-02",
-        documento_referencia="V0236-26",
+        documento_referencia="V0963-25",
         norma_codigo="LIVA",
-        articulo="25",
+        articulo="13",
         impuesto="IVA",
         modelo_aeat="349",
-        tipo_renta="entrega_intracomunitaria_bienes",
+        tipo_renta="adquisicion_intracomunitaria_bienes",
     )
 
     response = await client.get("/v1/doctrina/lineas/D-02")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["estado_vigente"] == "vigencia_no_determinada"
+    assert body["estado_vigente"] == "historico_a_fecha_consulta"
     assert body["modelo_aeat_referencia"] == "349"
-    assert body["completeness"] == "partial"
-    assert body["safe_to_answer"] is False
+    assert body["completeness"] == "complete"
+    assert body["safe_to_answer"] is True
 
 
 @pytest.mark.asyncio
@@ -1052,31 +1050,30 @@ async def test_doctrina_pilot_line_iva_intracomunitario_stays_partial_without_tr
     client,
 ):
     _seed_pilot_document(
-        referencia="V0236-26",
-        titulo="Entregas intracomunitarias de bienes",
+        referencia="V0963-25",
+        titulo="Adquisiciones intracomunitarias de bienes",
         texto=(
-            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
-            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+            "Consulta oficial de prueba sobre adquisiciones intracomunitarias de bienes, "
+            "LIVA articulo 13 y declaracion recapitulativa modelo 349."
         ),
         norma_codigo="LIVA",
-        articulo="25",
-        estado_vigencia="historico_a_fecha_consulta",
+        articulo="13",
     )
     _seed_pilot_criterio_relation(
         linea_codigo="D-02",
-        documento_referencia="V0236-26",
+        documento_referencia="V0963-25",
         norma_codigo="LIVA",
-        articulo="25",
+        articulo="13",
         impuesto="IVA",
         modelo_aeat=None,
-        tipo_renta="entrega_intracomunitaria_bienes",
+        tipo_renta="adquisicion_intracomunitaria_bienes",
     )
 
     response = await client.get("/v1/doctrina/lineas/D-02")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["articulo_referencia"] == "LIVA art. 25"
+    assert body["articulo_referencia"] == "LIVA art. 13"
     assert body["modelo_aeat_referencia"] is None
     assert body["completeness"] == "partial"
     assert body["safe_to_answer"] is False
@@ -1087,25 +1084,24 @@ async def test_doctrina_pilot_line_iva_intracomunitario_fails_closed_without_sou
     client,
 ):
     _seed_pilot_document(
-        referencia="V0236-26",
-        titulo="Entregas intracomunitarias de bienes",
+        referencia="V0963-25",
+        titulo="Adquisiciones intracomunitarias de bienes",
         texto=(
-            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
-            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+            "Consulta oficial de prueba sobre adquisiciones intracomunitarias de bienes, "
+            "LIVA articulo 13 y declaracion recapitulativa modelo 349."
         ),
         norma_codigo="LIVA",
-        articulo="25",
-        estado_vigencia="historico_a_fecha_consulta",
+        articulo="13",
         with_source_revision=False,
     )
     _seed_pilot_criterio_relation(
         linea_codigo="D-02",
-        documento_referencia="V0236-26",
+        documento_referencia="V0963-25",
         norma_codigo="LIVA",
-        articulo="25",
+        articulo="13",
         impuesto="IVA",
         modelo_aeat="349",
-        tipo_renta="entrega_intracomunitaria_bienes",
+        tipo_renta="adquisicion_intracomunitaria_bienes",
     )
 
     response = await client.get("/v1/doctrina/lineas/D-02")
