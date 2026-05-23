@@ -221,13 +221,13 @@ PILOT_LINEAS_CRITERIO = [
         "modelo_aeat": "349",
         "referencias": [
             {
-                "referencia": "V0236-26",
+                "referencia": "V0963-25",
                 "fuente": "DGT",
                 "relacion": "consulta_principal",
                 "norma_codigo": "LIVA",
-                "articulo": "25",
+                "articulo": "13",
                 "modelo_aeat": "349",
-                "tipo_renta": "entrega_intracomunitaria_bienes",
+                "tipo_renta": "adquisicion_intracomunitaria_bienes",
             },
             {
                 "referencia": "00/02766/2015/00/00",
@@ -236,10 +236,11 @@ PILOT_LINEAS_CRITERIO = [
             },
         ],
         "gaps": [
-            "localizar fuente principal que trate expresamente entrega intracomunitaria",
-            "persistir anclaje LIVA art. 25 solo si el supuesto intracomunitario consta en la fuente",
+            "validar despliegue productivo de la relacion DGT V0963-25 con LIVA art. 13",
+            "mantener acotacion a adquisicion intracomunitaria de bienes, sin extrapolar a entregas",
             "cerrar relacion documental con modelo 349 por supuesto antes de marcar complete",
         ],
+        "vigencia_estado": "historico_a_fecha_consulta",
     },
     {
         "id": 9003,
