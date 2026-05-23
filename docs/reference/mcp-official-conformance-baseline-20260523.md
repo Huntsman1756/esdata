@@ -112,7 +112,7 @@ La suite oficial espera tools genericas de prueba. ESData expone tools de domini
 
 Este test se ejecuto contra un proxy temporal autenticado, no contra una exposicion publica sin API key. Aun asi, el resultado revela que la capa MCP/proxy local no rechaza `Host`/`Origin` invalidos. Debe tratarse como hardening pendiente si se quiere acercar el servidor al perfil oficial.
 
-Seguimiento 2026-05-23: este hallazgo se separa como remediacion acotada de transporte. El baseline original no se reescribe; cualquier mejora debe validarse con una nueva ejecucion focal o un nuevo baseline.
+Seguimiento 2026-05-23: este hallazgo se separo como remediacion acotada de transporte. Tras desplegar el fix en VPS, la prueba oficial focal `dns-rebinding-protection` paso `2/2` via proxy local autenticado (`CONFORMANCE_DNS_STATUS=0`). El baseline completo original no se reescribe; cualquier mejora adicional debe validarse con una nueva ejecucion focal o un nuevo baseline completo.
 
 ## Relacion con MCP 2026-07-28
 
