@@ -164,14 +164,14 @@ Hallazgos principales contra VPS `steamcases-vps`, con contrato doctrinal desple
 | TEAC `resolucion_teac` | `558` resoluciones; `290 complete`, `268 partial`; todas con URL DYCTEA, `552` con texto | `implemented_partial` |
 | `source_revision` | SHA-256 para `18.631` DGT y `558` TEAC, pero no proyectado directamente en `documento_interpretativo` | `partial` |
 | `linea_criterio` | `7` lineas activas editoriales; ninguna referencia DGT/TEAC resuelve a documento oficial cargado | `target` para doctrina fiscal |
-| `/v1/doctrina/lineas/coverage` en produccion | HTTP 200; `estado=implemented_partial`, `lineas_total=16`, `lineas_complete=1`, `safe_to_answer=false` | `implemented_partial` |
+| `/v1/doctrina/lineas/coverage` en produccion | HTTP 200; `estado=implemented_partial`, `lineas_total=16`, `lineas_complete=2`, `safe_to_answer=false` | `implemented_partial` |
 
 Lote piloto seleccionado para curacion. Tras el cierre D-01, una linea queda `complete`; el resto sigue `partial`:
 
 | Linea piloto | Referencias productivas iniciales | Estado |
 | --- | --- | --- |
 | Retenciones no residentes | DGT `V0166-25`; TEAC `00/02188/2017/00/00` como soporte parcial | `complete` |
-| IVA intracomunitario | DGT `V0963-25`; TEAC `00/02766/2015/00/00`; `V0236-26` descartada para cierre | `partial` en produccion; `complete` tras migracion 0086 |
+| IVA intracomunitario | DGT `V0963-25`; TEAC `00/02766/2015/00/00`; `V0236-26` descartada para cierre | `complete` acotada a adquisicion intracomunitaria de bienes |
 | Operaciones vinculadas | DGT `V0144-26`; TEAC `00/06460/2019/00/00` | `partial` |
 | CRS/FATCA | DGT `V0138-24` | `partial` |
 | Criptoactivos | DGT `V0162-26` | `partial` |
