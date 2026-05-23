@@ -224,7 +224,10 @@ PILOT_LINEAS_CRITERIO = [
                 "referencia": "V0236-26",
                 "fuente": "DGT",
                 "relacion": "consulta_principal",
+                "norma_codigo": "LIVA",
+                "articulo": "25",
                 "modelo_aeat": "349",
+                "tipo_renta": "entrega_intracomunitaria_bienes",
             },
             {
                 "referencia": "00/02766/2015/00/00",
@@ -232,7 +235,11 @@ PILOT_LINEAS_CRITERIO = [
                 "relacion": "resolucion_soporte",
             },
         ],
-        "gaps": ["mapear articulo LIVA exacto y alcance del modelo 303/349"],
+        "gaps": [
+            "localizar fuente principal que trate expresamente entrega intracomunitaria",
+            "persistir anclaje LIVA art. 25 solo si el supuesto intracomunitario consta en la fuente",
+            "cerrar relacion documental con modelo 349 por supuesto antes de marcar complete",
+        ],
     },
     {
         "id": 9003,
@@ -680,22 +687,89 @@ def _complete_model_relation(definition: dict, relations: list[dict]) -> dict | 
     expected_model = definition.get("modelo_aeat")
     if not expected_model:
         return None
-    primary_refs = {
-        reference["referencia"]
+    primary_refs = [
+        reference
         for reference in definition["referencias"]
         if reference["relacion"] == "consulta_principal"
-    }
+    ]
     for relation in relations:
-        if (
-            relation.get("documento_referencia") in primary_refs
-            and relation.get("modelo_aeat") == expected_model
-            and relation.get("source_hash")
+        matching_reference = next(
+            (
+                reference
+                for reference in primary_refs
+                if relation.get("documento_referencia") == reference["referencia"]
+            ),
+            None,
+        )
+        if not matching_reference:
+            continue
+        expected_norma = matching_reference.get("norma_codigo")
+        expected_articulo = matching_reference.get("articulo")
+        expected_tipo_renta = matching_reference.get("tipo_renta")
+        if expected_norma and relation.get("norma_codigo") != expected_norma:
+            continue
+        if expected_articulo and relation.get("articulo") != expected_articulo:
+            continue
+        if expected_tipo_renta and relation.get("tipo_renta") != expected_tipo_renta:
+            continue
+        if definition.get("impuesto") and relation.get("impuesto") != definition["impuesto"]:
+            continue
+        if relation.get("relacion") != "modelo_supuesto":
+            continue
+        if relation.get("modelo_aeat") != expected_model:
+            continue
+        if not (
+            relation.get("source_hash")
             and relation.get("capture_date")
             and relation.get("verified")
             and relation.get("completeness") == "complete"
         ):
-            return relation
+            continue
+        return relation
     return None
+
+
+def _persisted_relation_for_reference(
+    reference: dict,
+    relations: list[dict],
+    hash_row: dict | None,
+) -> dict | None:
+    for relation in relations:
+        if relation.get("documento_referencia") != reference["referencia"]:
+            continue
+        if reference.get("norma_codigo") and relation.get("norma_codigo") != reference["norma_codigo"]:
+            continue
+        if reference.get("articulo") and relation.get("articulo") != reference["articulo"]:
+            continue
+        if reference.get("tipo_renta") and relation.get("tipo_renta") != reference["tipo_renta"]:
+            continue
+        if not (
+            relation.get("verified")
+            and relation.get("source_hash")
+            and relation.get("capture_date")
+        ):
+            continue
+        if hash_row and hash_row.get("source_hash") and relation.get("source_hash") != hash_row.get("source_hash"):
+            continue
+        return relation
+    return None
+
+
+def _pilot_vigencia_estado(definition: dict, source_row: dict | None) -> str:
+    if definition.get("vigencia_estado"):
+        return definition["vigencia_estado"]
+    if source_row and source_row.get("estado_vigencia"):
+        return source_row["estado_vigencia"]
+    if source_row:
+        return "vigencia_no_determinada"
+    return "target"
+
+
+def _pilot_has_explicit_vigencia(definition: dict, source_row: dict | None) -> bool:
+    return _pilot_vigencia_estado(definition, source_row) not in {
+        "target",
+        "vigencia_no_determinada",
+    }
 
 
 def _pilot_notice(definition: dict, *, has_official_source: bool, has_hash: bool) -> str:
@@ -754,7 +828,7 @@ def _pilot_linea_payload(definition: dict, rows: list[dict], relations: list[dic
         and source_hash
         and _pilot_has_complete_primary_reference(definition, rows)
         and _pilot_has_persisted_article_relation(definition, rows)
-        and definition.get("vigencia_estado")
+        and _pilot_has_explicit_vigencia(definition, source_row)
         and complete_model_relation
     )
     definition_for_notice = {**definition, "_complete": complete_ready}
@@ -777,13 +851,7 @@ def _pilot_linea_payload(definition: dict, rows: list[dict], relations: list[dic
         "articulo_referencia": articulo_referencia,
         "modelo_aeat_referencia": modelo,
         "fecha": str(source_row["fecha"]) if source_row and source_row.get("fecha") else None,
-        "estado_vigente": (
-            definition.get("vigencia_estado")
-            or source_row.get("estado_vigencia")
-            or "vigencia_no_determinada"
-            if source_row
-            else "target"
-        ),
+        "estado_vigente": _pilot_vigencia_estado(definition, source_row),
         "resumen_oficial": None,
         "source_url": source_row.get("url_fuente") if source_row else None,
         "source_hash": source_hash,
@@ -842,30 +910,46 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict], model_relation
         matching_rows = [row for row in rows if row.get("referencia") == reference["referencia"]]
         row = _first_pilot_row(matching_rows, "url_fuente")
         hash_row = _first_pilot_row(matching_rows, "source_hash")
+        persisted_relation = _persisted_relation_for_reference(reference, model_relations, hash_row)
         article_row = (
             None
             if definition_has_expected_article
             and not (reference.get("norma_codigo") or reference.get("articulo"))
             else _pilot_relation_article_row(reference, matching_rows)
         )
+        if persisted_relation and persisted_relation.get("norma_codigo") and persisted_relation.get("articulo"):
+            article_row = {
+                "norma_codigo": persisted_relation["norma_codigo"],
+                "articulo": persisted_relation["articulo"],
+                "metodo_enlace": persisted_relation.get("metodo_enlace"),
+            }
         official = bool(row and row.get("organismo_emisor") in DOCTRINA_FUENTES and row.get("url_fuente"))
         article_ready = bool(article_row and article_row.get("norma_codigo") and article_row.get("articulo"))
         relation_model = (
             complete_model_relation.get("modelo_aeat")
             if complete_model_relation
             and complete_model_relation.get("documento_referencia") == reference["referencia"]
+            else persisted_relation.get("modelo_aeat")
+            if persisted_relation and persisted_relation.get("modelo_aeat")
             else reference.get("modelo_aeat")
             if official
             and (reference.get("modelo_evidencia") or definition.get("modelo_evidencia") == "official_text_partial")
             else None
         )
         verified = bool(
-            official
-            and hash_row
-            and hash_row.get("source_hash")
-            and article_ready
-            and complete_model_relation
-            and complete_model_relation.get("documento_referencia") == reference["referencia"]
+            (
+                official
+                and persisted_relation
+                and persisted_relation.get("verified")
+            )
+            or (
+                official
+                and hash_row
+                and hash_row.get("source_hash")
+                and article_ready
+                and complete_model_relation
+                and complete_model_relation.get("documento_referencia") == reference["referencia"]
+            )
         )
         relation_complete = bool(
             verified
@@ -888,12 +972,19 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict], model_relation
                 "norma_codigo": article_row.get("norma_codigo") if article_row else None,
                 "articulo": article_row.get("articulo") if article_row else None,
                 "modelo_aeat": relation_model,
-                "tipo_renta": reference.get("tipo_renta"),
+                "tipo_renta": (
+                    persisted_relation.get("tipo_renta")
+                    if persisted_relation and persisted_relation.get("tipo_renta")
+                    else reference.get("tipo_renta")
+                ),
                 "relacion": reference["relacion"],
                 "nota_limitacion": (
                     "Relacion principal completa para consulta factual acotada: fuente, hash, "
                     "articulo, vigencia y modelo/supuesto persistido; no extrapolar fuera del supuesto."
                     if relation_complete
+                    else "Relacion persistida parcial: evidencia trazable, pero la linea sigue partial "
+                    "hasta cerrar articulo/modelo/supuesto y vigencia segun corresponda."
+                    if persisted_relation and persisted_relation.get("completeness") == "partial"
                     else
                     "Relacion trazada a documento y articulo desde texto oficial auditado; "
                     "la linea piloto sigue partial hasta cerrar vigencia, modelo y supuestos."
@@ -907,6 +998,8 @@ def _pilot_relaciones_payload(definition: dict, rows: list[dict], model_relation
                 "completeness": (
                     "complete"
                     if relation_complete
+                    else "partial"
+                    if persisted_relation
                     else "partial"
                     if reference["referencia"] in doc_refs
                     else "target"
@@ -944,7 +1037,7 @@ def _lineas_base_sql(where_clause: str) -> str:
             COUNT(DISTINCT CASE
                 WHEN cr.verified = true
                  AND cr.completeness = 'complete'
-                 AND cr.modelo_aeat IS NOT NULL
+                 AND (cr.modelo_aeat IS NOT NULL OR cr.tipo_renta IS NOT NULL)
                  AND cr.impuesto IS NOT NULL
                  AND cr.source_hash = sr.content_hash_sha256
                  AND cr.capture_date IS NOT NULL

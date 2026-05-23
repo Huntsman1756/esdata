@@ -24,6 +24,7 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `cdi-coverage-prd.md` — PRD para cerrar CDI como familia fiscal propia por pais, articulo y tipo de renta
 - `doctrina-coverage-prd.md` — PRD para cerrar DGT/TEAC como familia de lineas de criterio fiscal con evidencia y fail-closed
 - `doctrina-production-audit-20260521.md` — auditoria productiva DGT/TEAC y lote piloto de lineas de criterio
+- `doctrina-operational-coverage-matrix.md` — matriz operativa viva de lineas D-01..D-09, relaciones persistidas, gaps y siguiente accion
 - `reference/model-expansion-spec.md` — guia para nuevos modelos, leyes y organismos
 - `reference/v1-feature-inventory.md` — inventario activo de features, superficies y gaps para v1.0
 - `reference/mcp-remediation-plan.md` — plan activo para endurecer trazabilidad, grounding y completitud del MCP

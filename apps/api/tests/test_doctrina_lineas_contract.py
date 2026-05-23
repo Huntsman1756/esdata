@@ -157,12 +157,14 @@ def _seed_pilot_document(
     texto: str,
     norma_codigo: str | None = None,
     articulo: str | None = None,
+    estado_vigencia: str | None = None,
+    with_source_revision: bool = True,
 ):
     with db_session() as db:
         db.execute(
             text(
                 """
-                INSERT OR IGNORE INTO documento_interpretativo (
+                INSERT INTO documento_interpretativo (
                     tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
                     referencia, fecha, titulo, texto, url_fuente,
                     estado_vigencia, row_completeness, row_provenance
@@ -171,15 +173,37 @@ def _seed_pilot_document(
                     'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal',
                     :referencia, '2026-02-05', :titulo, :texto,
                     'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=' || :referencia,
-                    NULL, 'complete', 'official_exact'
+                    :estado_vigencia, 'complete', 'official_exact'
                 )
+                ON CONFLICT(referencia) DO UPDATE SET
+                    titulo = excluded.titulo,
+                    texto = excluded.texto,
+                    url_fuente = excluded.url_fuente,
+                    estado_vigencia = excluded.estado_vigencia,
+                    row_completeness = excluded.row_completeness,
+                    row_provenance = excluded.row_provenance
                 """
             ),
-            {"referencia": referencia, "titulo": titulo, "texto": texto},
+            {
+                "referencia": referencia,
+                "titulo": titulo,
+                "texto": texto,
+                "estado_vigencia": estado_vigencia,
+            },
         )
         db.execute(
             text(
                 """
+                DELETE FROM source_revision
+                WHERE source_entity_id = :referencia
+                """
+            ),
+            {"referencia": referencia},
+        )
+        if with_source_revision:
+            db.execute(
+                text(
+                    """
                 INSERT OR IGNORE INTO source_revision (
                     worker_name, source_entity_tipo, source_entity_id,
                     content_hash_sha256, fetched_at, dgt_url
@@ -189,6 +213,26 @@ def _seed_pilot_document(
                     'sha256-' || lower(:referencia) || '-test', '2026-05-21T08:30:00Z',
                     'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=' || :referencia
                 )
+                """
+                ),
+                {"referencia": referencia},
+            )
+        db.execute(
+            text(
+                """
+                DELETE FROM documento_articulo
+                WHERE documento_id = (
+                    SELECT id FROM documento_interpretativo WHERE referencia = :referencia
+                )
+                """
+            ),
+            {"referencia": referencia},
+        )
+        db.execute(
+            text(
+                """
+                DELETE FROM criterio_relacion
+                WHERE documento_referencia = :referencia
                 """
             ),
             {"referencia": referencia},
@@ -235,6 +279,68 @@ def _seed_pilot_document(
                 ),
                 {"referencia": referencia, "norma_codigo": norma_codigo, "articulo": articulo},
             )
+        db.commit()
+
+
+def _seed_pilot_criterio_relation(
+    *,
+    linea_codigo: str,
+    documento_referencia: str,
+    norma_codigo: str | None,
+    articulo: str | None,
+    impuesto: str,
+    modelo_aeat: str | None,
+    tipo_renta: str,
+    relacion: str = "modelo_supuesto",
+    completeness: str = "complete",
+    verified: bool = True,
+):
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                DELETE FROM criterio_relacion
+                WHERE linea_codigo = :linea_codigo
+                """
+            ),
+            {"linea_codigo": linea_codigo},
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO criterio_relacion (
+                    linea_codigo, documento_referencia, norma_codigo, articulo,
+                    impuesto, modelo_aeat, tipo_renta, relacion, metodo_enlace,
+                    confianza_enlace, nota_limitacion, source_url, source_hash,
+                    capture_date, verified, completeness
+                )
+                VALUES (
+                    :linea_codigo, :documento_referencia, :norma_codigo, :articulo,
+                    :impuesto, :modelo_aeat, :tipo_renta,
+                    :relacion, 'manual_official',
+                    1.0,
+                    'Fixture: modelo/supuesto intracomunitario auditado por texto oficial',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=' || :documento_referencia,
+                    'sha256-' || lower(:documento_referencia) || '-test',
+                    '2026-05-21T08:30:00Z',
+                    :verified,
+                    :completeness
+                )
+                """
+            ),
+            {
+                "linea_codigo": linea_codigo,
+                "documento_referencia": documento_referencia,
+                "norma_codigo": norma_codigo,
+                "articulo": articulo,
+                "impuesto": impuesto,
+                "modelo_aeat": modelo_aeat,
+                "tipo_renta": tipo_renta,
+                "relacion": relacion,
+                "verified": verified,
+                "completeness": completeness,
+            },
+        )
         db.commit()
 
 
@@ -486,6 +592,151 @@ def _seed_generic_complete_doctrina_line() -> str:
         return codigo
 
 
+def _seed_generic_complete_type_only_doctrina_line() -> str:
+    with db_session() as db:
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO documento_interpretativo (
+                    tipo_documento, organismo_emisor, jurisdiccion, tipo_fuente, ambito,
+                    referencia, fecha, titulo, texto, url_fuente,
+                    estado_vigencia, row_completeness, row_provenance
+                )
+                VALUES (
+                    'consulta_vinculante', 'DGT', 'es', 'dgt', 'fiscal',
+                    'V9997-26', '2026-02-07',
+                    'Consulta DGT generica con tipo de supuesto',
+                    'Ficha oficial de prueba con fuente DGT, articulo, source_revision y tipo de supuesto.',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V9997-26',
+                    'vigente', 'complete', 'official_exact'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO source_revision (
+                    worker_name, source_entity_tipo, source_entity_id,
+                    content_hash_sha256, fetched_at, dgt_url
+                )
+                VALUES (
+                    'worker-dgt', 'consulta_vinculante', 'V9997-26',
+                    'sha256-v9997-26-test', '2026-05-21T09:15:00Z',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V9997-26'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO norma (
+                    codigo, titulo, boe_id, jurisdiccion, tipo_fuente,
+                    tipo_documento, ambito, estado_cobertura, vigente_desde
+                )
+                VALUES (
+                    'TESTTYPE', 'Norma test tipo supuesto', 'TESTTYPE-BOE',
+                    'ES', 'boe', 'ley', 'tributario', 'ingestada', '2000-01-01'
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO articulo (norma_id, numero, titulo, tipo)
+                SELECT id, '7', 'Articulo tipo supuesto', 'articulo'
+                FROM norma
+                WHERE codigo = 'TESTTYPE'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT INTO linea_criterio (
+                    titulo, cuestion_practica, descripcion, criterio_dominante,
+                    ambitos, ultimo_cambio, estado, activo
+                )
+                SELECT
+                    'Linea generica completa por tipo supuesto DGT',
+                    'Puede una linea generica responder con tipo de supuesto sin modelo?',
+                    'Fixture de contrato doctrina completo por tipo de supuesto.',
+                    'Solo debe responder con source_revision y relacion normalizada.',
+                    '["generic_complete_type","doctrina_administrativa"]',
+                    '2026-05-21',
+                    'vigente',
+                    1
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM linea_criterio
+                    WHERE titulo = 'Linea generica completa por tipo supuesto DGT'
+                )
+                """
+            )
+        )
+        linea_id = db.execute(
+            text(
+                "SELECT id FROM linea_criterio "
+                "WHERE titulo = 'Linea generica completa por tipo supuesto DGT'"
+            )
+        ).scalar_one()
+        codigo = f"LC-{linea_id:04d}"
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO linea_criterio_referencia (
+                    linea_id, documento_referencia, tipo_documento,
+                    organismo_emisor, fecha, rol_en_linea, orden
+                )
+                VALUES (
+                    :linea_id, 'V9997-26', 'consulta_vinculante',
+                    'DGT', '2026-02-07', 'consulta_principal', 1
+                )
+                """
+            ),
+            {"linea_id": linea_id},
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO documento_articulo (
+                    documento_id, articulo_id, metodo_enlace, confianza_enlace, nota
+                )
+                SELECT d.id, a.id, 'manual_official', 1.0, 'Fixture complete by type'
+                FROM documento_interpretativo d
+                JOIN articulo a ON a.numero = '7'
+                JOIN norma n ON n.id = a.norma_id
+                WHERE d.referencia = 'V9997-26' AND n.codigo = 'TESTTYPE'
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR IGNORE INTO criterio_relacion (
+                    linea_codigo, linea_criterio_id, documento_referencia,
+                    norma_codigo, articulo, impuesto, modelo_aeat, tipo_renta,
+                    relacion, metodo_enlace, confianza_enlace, nota_limitacion,
+                    source_url, source_hash, capture_date, verified, completeness
+                )
+                VALUES (
+                    :codigo, :linea_id, 'V9997-26',
+                    'TESTTYPE', '7', 'IVA', NULL, 'tipo_supuesto_test',
+                    'tipo_supuesto', 'manual_official', 1.0,
+                    'Fixture: relacion tipo de supuesto persistida',
+                    'https://petete.tributos.hacienda.gob.es/consultas/?num_consulta=V9997-26',
+                    'sha256-v9997-26-test', '2026-05-21T09:15:00Z',
+                    1, 'complete'
+                )
+                """
+            ),
+            {"codigo": codigo, "linea_id": linea_id},
+        )
+        db.commit()
+        return codigo
+
+
 @pytest_asyncio.fixture
 async def client():
     transport = ASGITransport(app=app)
@@ -545,6 +796,25 @@ async def test_generic_db_line_with_hash_article_and_model_relation_can_answer(c
     assert body["modelo_aeat_referencia"] == "216"
     assert body["completeness"] == "complete"
     assert body["verified"] is True
+    assert body["safe_to_answer"] is True
+    assert body["review_required"] is False
+
+
+@pytest.mark.asyncio
+async def test_generic_db_line_with_hash_article_and_type_relation_can_answer_without_model(client):
+    codigo = _seed_generic_complete_type_only_doctrina_line()
+
+    response = await client.get(f"/v1/doctrina/lineas/{codigo}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["codigo"] == codigo
+    assert body["source_hash"] == "sha256-v9997-26-test"
+    assert body["capture_date"] == "2026-05-21T09:15:00Z"
+    assert body["impuesto"] == "IVA"
+    assert body["articulo_referencia"] == "TESTTYPE art. 7"
+    assert body["modelo_aeat_referencia"] is None
+    assert body["completeness"] == "complete"
     assert body["safe_to_answer"] is True
     assert body["review_required"] is False
 
@@ -680,6 +950,174 @@ async def test_doctrina_pilot_line_iva_intracomunitario_does_not_reuse_wrong_liv
 
 
 @pytest.mark.asyncio
+async def test_doctrina_pilot_line_iva_intracomunitario_can_complete_with_traceable_supposition(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0236-26",
+        titulo="Entregas intracomunitarias de bienes",
+        texto=(
+            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
+            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+        ),
+        norma_codigo="LIVA",
+        articulo="25",
+        estado_vigencia="historico_a_fecha_consulta",
+    )
+    _seed_pilot_criterio_relation(
+        linea_codigo="D-02",
+        documento_referencia="V0236-26",
+        norma_codigo="LIVA",
+        articulo="25",
+        impuesto="IVA",
+        modelo_aeat="349",
+        tipo_renta="entrega_intracomunitaria_bienes",
+    )
+
+    response = await client.get("/v1/doctrina/lineas/D-02")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["codigo"] == "D-02"
+    assert body["articulo_referencia"] == "LIVA art. 25"
+    assert body["modelo_aeat_referencia"] == "349"
+    assert body["estado_vigente"] == "historico_a_fecha_consulta"
+    assert body["completeness"] == "complete"
+    assert body["safe_to_answer"] is True
+    assert body["review_required"] is False
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_iva_intracomunitario_stays_partial_without_persisted_relation(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0236-26",
+        titulo="Entregas intracomunitarias de bienes",
+        texto=(
+            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
+            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+        ),
+        norma_codigo="LIVA",
+        articulo="25",
+        estado_vigencia="historico_a_fecha_consulta",
+    )
+
+    response = await client.get("/v1/doctrina/lineas/D-02")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["articulo_referencia"] == "LIVA art. 25"
+    assert body["modelo_aeat_referencia"] is None
+    assert body["completeness"] == "partial"
+    assert body["safe_to_answer"] is False
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_iva_intracomunitario_stays_partial_with_unknown_vigencia(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0236-26",
+        titulo="Entregas intracomunitarias de bienes",
+        texto=(
+            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
+            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+        ),
+        norma_codigo="LIVA",
+        articulo="25",
+    )
+    _seed_pilot_criterio_relation(
+        linea_codigo="D-02",
+        documento_referencia="V0236-26",
+        norma_codigo="LIVA",
+        articulo="25",
+        impuesto="IVA",
+        modelo_aeat="349",
+        tipo_renta="entrega_intracomunitaria_bienes",
+    )
+
+    response = await client.get("/v1/doctrina/lineas/D-02")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["estado_vigente"] == "vigencia_no_determinada"
+    assert body["modelo_aeat_referencia"] == "349"
+    assert body["completeness"] == "partial"
+    assert body["safe_to_answer"] is False
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_iva_intracomunitario_stays_partial_without_traced_model(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0236-26",
+        titulo="Entregas intracomunitarias de bienes",
+        texto=(
+            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
+            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+        ),
+        norma_codigo="LIVA",
+        articulo="25",
+        estado_vigencia="historico_a_fecha_consulta",
+    )
+    _seed_pilot_criterio_relation(
+        linea_codigo="D-02",
+        documento_referencia="V0236-26",
+        norma_codigo="LIVA",
+        articulo="25",
+        impuesto="IVA",
+        modelo_aeat=None,
+        tipo_renta="entrega_intracomunitaria_bienes",
+    )
+
+    response = await client.get("/v1/doctrina/lineas/D-02")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["articulo_referencia"] == "LIVA art. 25"
+    assert body["modelo_aeat_referencia"] is None
+    assert body["completeness"] == "partial"
+    assert body["safe_to_answer"] is False
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_iva_intracomunitario_fails_closed_without_source_hash(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0236-26",
+        titulo="Entregas intracomunitarias de bienes",
+        texto=(
+            "Consulta oficial de prueba sobre entrega intracomunitaria de bienes, "
+            "LIVA articulo 25 y declaracion recapitulativa modelo 349."
+        ),
+        norma_codigo="LIVA",
+        articulo="25",
+        estado_vigencia="historico_a_fecha_consulta",
+        with_source_revision=False,
+    )
+    _seed_pilot_criterio_relation(
+        linea_codigo="D-02",
+        documento_referencia="V0236-26",
+        norma_codigo="LIVA",
+        articulo="25",
+        impuesto="IVA",
+        modelo_aeat="349",
+        tipo_renta="entrega_intracomunitaria_bienes",
+    )
+
+    response = await client.get("/v1/doctrina/lineas/D-02")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source_hash"] is None
+    assert body["completeness"] == "partial"
+    assert body["safe_to_answer"] is False
+
+
+@pytest.mark.asyncio
 async def test_doctrina_pilot_line_operaciones_vinculadas_keeps_model_partial_without_232_trace(
     client,
 ):
@@ -699,6 +1137,96 @@ async def test_doctrina_pilot_line_operaciones_vinculadas_keeps_model_partial_wi
     assert body["safe_to_answer"] is False
     assert body["articulo_referencia"] == "LIS art. 18"
     assert body["modelo_aeat_referencia"] is None
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_operaciones_vinculadas_exposes_partial_persisted_relation(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0144-26",
+        titulo="Operaciones vinculadas y valor de mercado",
+        texto="Consulta sobre operaciones vinculadas. Ley 27/2014 articulo 18 y valor de mercado.",
+        norma_codigo="LIS",
+        articulo="18",
+    )
+    _seed_pilot_criterio_relation(
+        linea_codigo="D-03",
+        documento_referencia="V0144-26",
+        norma_codigo="LIS",
+        articulo="18",
+        impuesto="IS",
+        modelo_aeat=None,
+        tipo_renta="operaciones_vinculadas",
+        relacion="articulo_supuesto",
+        completeness="partial",
+    )
+
+    line_response = await client.get("/v1/doctrina/lineas/D-03")
+    relation_response = await client.get("/v1/doctrina/lineas/D-03/relaciones")
+
+    assert line_response.status_code == 200
+    line = line_response.json()
+    assert line["completeness"] == "partial"
+    assert line["safe_to_answer"] is False
+    assert line["modelo_aeat_referencia"] is None
+
+    assert relation_response.status_code == 200
+    body = relation_response.json()
+    relation = next(
+        item for item in body["relaciones"] if item["documento_referencia"] == "V0144-26"
+    )
+    assert relation["norma_codigo"] == "LIS"
+    assert relation["articulo"] == "18"
+    assert relation["modelo_aeat"] is None
+    assert relation["tipo_renta"] == "operaciones_vinculadas"
+    assert relation["verified"] is True
+    assert relation["completeness"] == "partial"
+    assert body["safe_to_answer"] is False
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_crs_fatca_exposes_partial_model_relation_fail_closed(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0138-24",
+        titulo="CRS FATCA y declaracion informativa",
+        texto="Consulta sobre CRS/FATCA, Real Decreto 1021/2015 y modelo 289.",
+        estado_vigencia="historico_a_fecha_consulta",
+    )
+    _seed_pilot_criterio_relation(
+        linea_codigo="D-04",
+        documento_referencia="V0138-24",
+        norma_codigo=None,
+        articulo=None,
+        impuesto="informacion_fiscal",
+        modelo_aeat="289",
+        tipo_renta="crs_fatca",
+        relacion="modelo_supuesto",
+        completeness="partial",
+    )
+
+    line_response = await client.get("/v1/doctrina/lineas/D-04")
+    relation_response = await client.get("/v1/doctrina/lineas/D-04/relaciones")
+
+    assert line_response.status_code == 200
+    line = line_response.json()
+    assert line["completeness"] == "partial"
+    assert line["safe_to_answer"] is False
+    assert line["modelo_aeat_referencia"] == "289"
+
+    assert relation_response.status_code == 200
+    body = relation_response.json()
+    relation = body["relaciones"][0]
+    assert relation["documento_referencia"] == "V0138-24"
+    assert relation["norma_codigo"] is None
+    assert relation["articulo"] is None
+    assert relation["modelo_aeat"] == "289"
+    assert relation["tipo_renta"] == "crs_fatca"
+    assert relation["verified"] is True
+    assert relation["completeness"] == "partial"
+    assert body["safe_to_answer"] is False
 
 
 @pytest.mark.asyncio
