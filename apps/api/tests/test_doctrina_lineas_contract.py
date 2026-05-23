@@ -1220,9 +1220,45 @@ async def test_doctrina_pilot_line_crs_fatca_exposes_partial_model_relation_fail
     assert relation["articulo"] is None
     assert relation["modelo_aeat"] == "289"
     assert relation["tipo_renta"] == "crs_fatca"
-    assert relation["verified"] is True
+    assert relation["verified"] is False
     assert relation["completeness"] == "partial"
     assert body["safe_to_answer"] is False
+
+
+@pytest.mark.asyncio
+async def test_doctrina_pilot_line_crs_fatca_can_complete_with_lgt_da22_and_model_289(
+    client,
+):
+    _seed_pilot_document(
+        referencia="V0138-24",
+        titulo="CRS FATCA y declaracion informativa",
+        texto=(
+            "Consulta sobre CRS/FATCA, Real Decreto 1021/2015, "
+            "disposicion adicional vigesimo segunda de la LGT y modelo 289."
+        ),
+        norma_codigo="LGT",
+        articulo="vigésimo segunda",
+    )
+    _seed_pilot_criterio_relation(
+        linea_codigo="D-04",
+        documento_referencia="V0138-24",
+        norma_codigo="LGT",
+        articulo="vigésimo segunda",
+        impuesto="informacion_fiscal",
+        modelo_aeat="289",
+        tipo_renta="crs_fatca",
+    )
+
+    response = await client.get("/v1/doctrina/lineas/D-04")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["articulo_referencia"] == "LGT art. vigésimo segunda"
+    assert body["modelo_aeat_referencia"] == "289"
+    assert body["estado_vigente"] == "historico_a_fecha_consulta"
+    assert body["completeness"] == "complete"
+    assert body["safe_to_answer"] is True
+    assert body["review_required"] is False
 
 
 @pytest.mark.asyncio

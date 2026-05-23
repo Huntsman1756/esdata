@@ -281,11 +281,17 @@ PILOT_LINEAS_CRITERIO = [
                 "referencia": "V0138-24",
                 "fuente": "DGT",
                 "relacion": "consulta_principal",
+                "norma_codigo": "LGT",
+                "articulo": "vigésimo segunda",
                 "modelo_aeat": "289",
                 "modelo_evidencia": "official_text_partial",
+                "tipo_renta": "crs_fatca",
             }
         ],
-        "gaps": ["separar doctrina de normativa internacional y modelo AEAT operativo"],
+        "gaps": [
+            "cierre acotado a CRS/FATCA y modelo 289; no usar como procedimiento completo de reporte"
+        ],
+        "vigencia_estado": "historico_a_fecha_consulta",
     },
     {
         "id": 9005,

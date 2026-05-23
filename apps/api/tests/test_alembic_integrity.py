@@ -90,6 +90,25 @@ def test_doctrina_d02_intracomunitaria_is_seeded_in_revision_0086():
         assert fragment in contents
 
 
+def test_doctrina_d04_crs_fatca_is_seeded_in_revision_0087():
+    revision_path = ALEMBIC_VERSIONS / "20260523_0087_doctrina_d04_crs_fatca.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "V0138-24",
+        "D-04",
+        "LGT",
+        "vigésimo segunda",
+        "289",
+        "crs_fatca",
+        "'complete'",
+        "documento_articulo",
+        "manual_official",
+        "Real Decreto 1021/2015",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
