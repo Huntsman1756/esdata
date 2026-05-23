@@ -29,6 +29,7 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `reference/v1-feature-inventory.md` — inventario activo de features, superficies y gaps para v1.0
 - `reference/mcp-remediation-plan.md` — plan activo para endurecer trazabilidad, grounding y completitud del MCP
 - `reference/mcp-2026-07-28-compatibility-audit.md` — auditoria de compatibilidad dual MCP `2025-03-26` / `2026-07-28` sin romper `/mcp` legacy
+- `reference/mcp-official-conformance-baseline-20260523.md` — baseline ejecutado contra la suite oficial `@modelcontextprotocol/conformance`; MCP legacy parcialmente conforme, no optimo oficial
 - `reference/source-compliance-register.md` — restricciones de scraping, licencias y validacion real por fuente
 - `repository-structure.md` — mapa del repo
 
