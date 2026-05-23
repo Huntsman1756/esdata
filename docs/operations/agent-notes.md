@@ -22,6 +22,13 @@ Aqui solo deben entrar hallazgos que ahorran tiempo o evitan regresiones porque 
 - Impacto: ejecutar la suite activa completa en rafaga puede mezclar fallos reales con `429 Too Many Requests`; ese resultado no sirve como baseline limpio.
 - Regla practica: para auditoria oficial, ejecutar escenarios secuenciales con pausa o ajustar rate limit de forma controlada. Interpretar fallos de fixtures (`test_image_content`, `json_schema_2020_12_tool`, etc.) como gaps de conformance oficial, no como rotura de las tools fiscales.
 
+## 2026-05-23 - MCP Host/Origin hardening depende de `API_DOMAIN`
+
+- Scope: `apps/api/mcp_security.py`, `infra/deploy/docker-compose.prod.yml`.
+- Hallazgo: el test oficial `dns-rebinding-protection` fallo porque la ruta MCP local/proxy aceptaba Host/Origin invalidos. El guard MCP ahora valida `Host` y, cuando existe, `Origin` antes de API key y transporte.
+- Impacto: si el contenedor `api` no recibe `API_DOMAIN`, una peticion real con `Host: <dominio-api>` puede quedar bloqueada aunque Caddy este bien configurado.
+- Regla practica: mantener `API_DOMAIN` inyectado en el servicio `api`; usar `ESDATA_MCP_ALLOWED_HOSTS` solo para hosts adicionales explicitos. No ampliar el allowlist con comodines.
+
 ## Cuando actualizarlo
 
 - cuando un fix descubre una restriccion no evidente del repo

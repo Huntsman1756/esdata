@@ -112,6 +112,8 @@ La suite oficial espera tools genericas de prueba. ESData expone tools de domini
 
 Este test se ejecuto contra un proxy temporal autenticado, no contra una exposicion publica sin API key. Aun asi, el resultado revela que la capa MCP/proxy local no rechaza `Host`/`Origin` invalidos. Debe tratarse como hardening pendiente si se quiere acercar el servidor al perfil oficial.
 
+Seguimiento 2026-05-23: este hallazgo se separa como remediacion acotada de transporte. El baseline original no se reescribe; cualquier mejora debe validarse con una nueva ejecucion focal o un nuevo baseline.
+
 ## Relacion con MCP 2026-07-28
 
 Este baseline mide el MCP legacy actual. No valida la RC `2026-07-28`.

@@ -85,6 +85,7 @@ services:
       DATABASE_URL: ${API_DATABASE_URL:?API_DATABASE_URL is required}
       ALEMBIC_DATABASE_URL: ${ALEMBIC_DATABASE_URL:?ALEMBIC_DATABASE_URL is required}
       APP_ENV: ${APP_ENV:-production}
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN is required}
       ESDATA_API_KEY: ${ESDATA_API_KEY:?ESDATA_API_KEY is required}
       MCP_API_KEY: ${MCP_API_KEY:?MCP_API_KEY is required}
     depends_on:

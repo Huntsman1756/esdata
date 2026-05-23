@@ -216,6 +216,59 @@ async def test_mcp_http_accepts_valid_api_key_when_enabled():
 
 
 @pytest.mark.asyncio
+async def test_mcp_http_rejects_invalid_host_header():
+    async with _client_with_env(MCP_API_KEY="secret", APP_ENV="production") as client:
+        response = await client.get(
+            "/mcp",
+            headers={
+                "Accept": "text/event-stream",
+                "Host": "attacker.example",
+                "X-API-Key": "secret",
+            },
+        )
+
+    assert response.status_code == 421
+    assert response.json()["detail"] == "Invalid MCP Host header"
+
+
+@pytest.mark.asyncio
+async def test_mcp_http_rejects_invalid_origin_header():
+    async with _client_with_env(MCP_API_KEY="secret", APP_ENV="production") as client:
+        response = await client.get(
+            "/mcp",
+            headers={
+                "Accept": "text/event-stream",
+                "Host": "127.0.0.1",
+                "Origin": "https://attacker.example",
+                "X-API-Key": "secret",
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Invalid MCP Origin header"
+
+
+@pytest.mark.asyncio
+async def test_mcp_http_accepts_configured_api_domain_host_and_origin():
+    async with _client_with_env(
+        MCP_API_KEY="secret",
+        APP_ENV="production",
+        API_DOMAIN="api.example.test",
+    ) as client:
+        response = await client.get(
+            "/mcp",
+            headers={
+                "Host": "api.example.test",
+                "Origin": "https://api.example.test",
+                "X-API-Key": "secret",
+            },
+        )
+
+    assert response.status_code == 406
+    assert response.json()["detail"] == "MCP requires Accept: text/event-stream for GET requests"
+
+
+@pytest.mark.asyncio
 async def test_mcp_http_rate_limits_repeated_requests():
     async with _client_with_env(
         MCP_API_KEY="secret",
