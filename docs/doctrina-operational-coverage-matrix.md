@@ -17,8 +17,8 @@ Esta matriz describe el estado operativo de las lineas piloto DGT/TEAC. No susti
 | --- | --- | --- | --- | --- | --- | --- |
 | D-01 Retenciones no residentes | `complete` | DGT `V0166-25` | Si: `TRLIRNR art. 31`, `216/296`, `retenciones_no_residentes`, `complete` | Si: `216/296` | Si: historico a fecha de consulta | No extrapolar fuera del supuesto auditado |
 | D-02 IVA intracomunitario | `complete` | DGT `V0963-25`; `V0236-26` descartada para cierre | Migracion `20260523_0086_doctrina_d02_intracomunitaria`: `LIVA art. 13`, `349`, `adquisicion_intracomunitaria_bienes` | Si: `349` ligado al supuesto de adquisicion intracomunitaria en relacion `modelo_supuesto` | Si: `historico_a_fecha_consulta` | Completa solo para adquisicion intracomunitaria de bienes; no extrapolar a entregas intracomunitarias ni IVA generico |
-| D-03 Operaciones vinculadas | `partial` | DGT `V0144-26` | Si: `LIS art. 18`, `operaciones_vinculadas`, `partial` | No: `232` no trazado por supuesto | No cerrada | Relacion documental con modelo 232 y vigencia o estado historico explicito |
-| D-04 CRS/FATCA | `partial` | DGT `V0138-24` | Si: modelo `289`, `crs_fatca`, `partial`; sin articulo normalizado | Parcial: `289` como evidencia documental incompleta | No cerrada | Articulo, supuesto reportable y vigencia/historico; separar doctrina, modelo y normativa internacional |
+| D-03 Operaciones vinculadas | `partial` | DGT `V0144-26` | Si: `LIS art. 18`, `operaciones_vinculadas`, `partial` | No: `232` no aparece en DGT cargada con operaciones vinculadas | No cerrada | Nueva fuente oficial o relacion documental que conecte modelo 232 con el supuesto; no completar por `LIS art. 18` solo |
+| D-04 CRS/FATCA | `partial` en produccion; `complete` tras migracion 0087 | DGT `V0138-24` | Migracion `20260523_0087_doctrina_d04_crs_fatca`: `LGT art. vigésimo segunda`, `289`, `crs_fatca` | Si: `289` ligado al supuesto CRS/FATCA en relacion `modelo_supuesto` | Si: `historico_a_fecha_consulta` | Desplegar migracion 0087 y validar que D-04 queda complete solo para CRS/FATCA/modelo 289; no usar como procedimiento completo de reporte |
 | D-05 Criptoactivos | `partial` | DGT `V0162-26` | No: falta anclaje operativo suficiente | No: `721` no trazado | No cerrada | Articulo fiscal exacto, modelo si aparece en fuente oficial y tipo de operacion |
 | D-06 Dividendos e intereses | `partial` | DGT `V0187-26` | No: falta separar dividendos/intereses y decidir articulo | No: `216` no trazado por supuesto | No cerrada | Separar tipos de renta, persistir articulo correcto y validar modelo |
 | D-07 Canones | `partial` | DGT `V0228-26` descartada como cierre | No: fuente actual trata LIVA/servicios, no canon IRNR | No: `216` no trazado | No cerrada | Nueva fuente canon/royalty IRNR con convenio o articulo aplicable y modelo |
@@ -41,6 +41,6 @@ Si falta hash, captura o relacion suficiente, la respuesta debe seguir `partial`
 
 ## Siguiente accion
 
-1. Cerrar D-03 solo si aparece relacion documental con modelo 232 y vigencia.
-2. Normalizar D-04 por articulo o supuesto CRS/FATCA antes de intentar `complete`.
+1. Desplegar y validar D-04 con DGT `V0138-24` como CRS/FATCA acotado a modelo 289.
+2. Cerrar D-03 solo si aparece relacion documental con modelo 232 y vigencia.
 3. No persistir D-05..D-09 hasta tener anclaje real por articulo/modelo/supuesto.
