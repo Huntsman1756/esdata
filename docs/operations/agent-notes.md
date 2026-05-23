@@ -15,6 +15,13 @@ Aqui solo deben entrar hallazgos que ahorran tiempo o evitan regresiones porque 
 - Regla practica: no sustituir `/mcp` mientras existan clientes legacy. Cualquier soporte `2026-07-28` debe entrar como compatibilidad dual, preferiblemente `/mcp/stateless` o negociacion estricta por version, con tests separados y sin tocar las tools fiscales.
 - Trampa recurrente: un `GET /mcp` con `Accept: text/event-stream` y respuesta `400 Missing session ID` sigue siendo evidencia de salud del transporte legacy, pero no vale como evidencia para la ruta stateless nueva.
 
+## 2026-05-23 - Suite oficial MCP conformance requiere proxy y ejecucion secuencial
+
+- Scope: `/mcp`, `docs/reference/mcp-official-conformance-baseline-20260523.md`.
+- Hallazgo: `npx --yes @modelcontextprotocol/conformance server --help` no expone una opcion para enviar `X-API-Key`. Para medir VPS sin imprimir secretos se uso un proxy temporal local en el VPS que lee `/etc/esdata/esdata.env`, inyecta `X-API-Key` y reenvia a `http://127.0.0.1:8000/mcp`.
+- Impacto: ejecutar la suite activa completa en rafaga puede mezclar fallos reales con `429 Too Many Requests`; ese resultado no sirve como baseline limpio.
+- Regla practica: para auditoria oficial, ejecutar escenarios secuenciales con pausa o ajustar rate limit de forma controlada. Interpretar fallos de fixtures (`test_image_content`, `json_schema_2020_12_tool`, etc.) como gaps de conformance oficial, no como rotura de las tools fiscales.
+
 ## Cuando actualizarlo
 
 - cuando un fix descubre una restriccion no evidente del repo
