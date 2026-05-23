@@ -135,7 +135,7 @@ Estado honesto del proyecto:
 
 1. Mantener esta auditoria como baseline no bloqueante hasta decidir si se busca conformance oficial completa.
 2. Crear un fichero de `expected-failures` si se quiere ejecutar la suite oficial en CI sin mezclar gaps conocidos con regresiones.
-3. Corregir hardening `Host`/`Origin` en la superficie MCP local/proxy.
+3. Mantener el hardening `Host`/`Origin` como gate de regresion; ya fue corregido y validado focalmente tras este baseline.
 4. Decidir explicitamente si ESData debe implementar `resources`, `prompts`, `completion`, `logging`, `progress`, `sampling` y `elicitation`, o si quedan fuera de producto.
 5. Si se persigue conformance oficial completa, anadir fixtures/tools de compatibilidad o adaptar el scope de la suite para no confundir herramientas fiscales con fixtures genericas.
 6. Mantener la fase B `2026-07-28` como bloque separado de transporte stateless.
