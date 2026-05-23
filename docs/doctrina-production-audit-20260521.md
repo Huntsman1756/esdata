@@ -24,7 +24,7 @@ Hallazgos iniciales contra el VPS antes del despliegue del contrato doctrinal:
 
 Tras el despliegue acotado de `api` y la curacion D-01, el contrato doctrinal responde en produccion, pero la familia completa sigue `implemented_partial`.
 
-- `/v1/doctrina/lineas/coverage` devuelve HTTP 200 con `estado=implemented_partial`, `lineas_total=16`, `lineas_complete=1` y `safe_to_answer=false`.
+- `/v1/doctrina/lineas/coverage` devuelve HTTP 200 con `estado=implemented_partial`, `lineas_total=16`, `lineas_complete=2` y `safe_to_answer=false`.
 - D-01 queda como primera linea piloto `complete` para consulta factual acotada porque ya tiene fuente oficial, hash/captura, anclaje persistido `TRLIRNR art. 31`, vigencia historica explicita y relacion modelo/supuesto persistida en `criterio_relacion`.
 - La relacion con modelos 216/296 esta auditada por curacion del supuesto en `V0166-25` y queda persistida como relacion especifica de modelo/supuesto; no debe extrapolarse fuera de ese supuesto.
 - El resto del lote sigue `partial` o `target` hasta completar la misma curacion.
@@ -101,7 +101,7 @@ Despliegue VPS 2026-05-21: se reconstruyo solo `api`; no hubo migraciones en esa
 | Linea piloto | Estado ahora | Fuente base | Evidencia productiva | Motivo de seleccion | Siguiente accion |
 | --- | --- | --- | --- | --- | --- |
 | D-01 Retenciones no residentes | `complete` | DGT `V0166-25`; TEAC `00/02188/2017/00/00` como soporte parcial | DGT complete con URL PETETE, SHA-256, `capture_date`, enlace persistido `TRLIRNR art. 31`, vigencia historica explicita y modelos 216/296 persistidos en `criterio_relacion` por curacion del supuesto. TEAC mantiene URL/hash pero sin anclaje TRLIRNR propio | Tema frecuente, alto riesgo de sobreafirmar, conecta IRNR/modelos | No extrapolar fuera del supuesto de `V0166-25`; curar D-02 como siguiente linea |
-| D-02 IVA intracomunitario | `partial` en produccion; `complete` tras migracion 0086 | DGT `V0963-25`; `V0236-26` descartada; TEAC `00/02766/2015/00/00` soporte parcial | DGT `V0963-25` complete con URL PETETE, SHA-256, `capture_date`, supuesto de adquisicion intracomunitaria de bienes, `LIVA art. 13` y modelo 349; la migracion 0086 persiste `documento_articulo` y `criterio_relacion` como `complete`. `V0236-26` sigue descartada porque trata tipo impositivo/`LIVA art. 91`. TEAC ROI es partial y sin articulo trazable | Alto volumen DGT y utilidad fiscal | Desplegar 0086 y validar que el cierre queda acotado a adquisicion intracomunitaria; no extrapolar a entregas ni a otros supuestos IVA |
+| D-02 IVA intracomunitario | `complete` | DGT `V0963-25`; `V0236-26` descartada; TEAC `00/02766/2015/00/00` soporte parcial | DGT `V0963-25` complete con URL PETETE, SHA-256, `capture_date`, supuesto de adquisicion intracomunitaria de bienes, `LIVA art. 13` y modelo 349; la migracion 0086 persiste `documento_articulo` y `criterio_relacion` como `complete`. `V0236-26` sigue descartada porque trata tipo impositivo/`LIVA art. 91`. TEAC ROI es partial y sin articulo trazable | Alto volumen DGT y utilidad fiscal | Cierre acotado a adquisicion intracomunitaria; no extrapolar a entregas ni a otros supuestos IVA |
 | D-03 Operaciones vinculadas | `partial` | DGT `V0144-26`; TEAC `00/06460/2019/00/00` | DGT complete con URL/hash y `LIS art. 18` persistido como relacion parcial en `criterio_relacion`; TEAC soporte procedimental LGT. No hay evidencia de modelo 232 ni vigencia cerrada | Buen volumen y trazabilidad suficiente para curacion | Cerrar vigencia y modelo 232 por supuesto antes de `complete` |
 | D-04 CRS/FATCA | `partial` | DGT `V0138-24` | Complete, URL PETETE, hash, CRS/FATCA, RD 1021/2015 y modelo 289 mencionados; modelo 289 queda persistido como relacion parcial en `criterio_relacion`; falta articulo/supuesto normalizado y vigencia | Bajo volumen y buen candidato para curacion controlada | Normalizar RD/Orden aplicable y articulo o supuesto antes de `complete` |
 | D-05 Criptoactivos | `partial` | DGT `V0162-26` | Complete, URL PETETE, hash y texto sobre monedas virtuales; no confirma modelo 721 ni articulo fiscal operativo suficiente | Tema prioritario con corpus DGT suficiente | Elegir anclaje normativo exacto y modelo si aparece en fuente oficial |
@@ -118,7 +118,7 @@ Despliegue VPS 2026-05-21: se reconstruyo solo `api`; no hubo migraciones en esa
 - Cuando la linea declara un articulo esperado, la API no sustituye ese anclaje por otro articulo detectado en el documento; si no coincide, `articulo_referencia` queda `null`.
 - `/v1/doctrina/lineas/{codigo}/relaciones` declara relaciones por documento, articulo, modelo y tipo de renta. En D-01 la consulta DGT principal queda verificada, mientras TEAC sigue como soporte parcial sin articulo/modelo propio. Tras la migracion 0085, D-03 y D-04 pueden exponer relaciones parciales persistidas con `verified=true` y `completeness=partial`; el endpoint conserva `safe_to_answer=false` porque la linea no esta completa.
 - `/v1/doctrina/lineas?tema=...&impuesto=...&modelo=...` incluye el lote piloto en filtros exploratorios.
-- `/v1/doctrina/lineas/coverage` suma las 9 lineas piloto, devuelve `lineas_complete=1` y `lineas_con_articulo=2`, y conserva la familia como `implemented_partial`.
+- `/v1/doctrina/lineas/coverage` suma las 9 lineas piloto, devuelve `lineas_complete=2` y `lineas_con_articulo=3` tras desplegar 0086, y conserva la familia como `implemented_partial`.
 
 ### Curacion D-02 a D-09 2026-05-21
 
@@ -138,7 +138,7 @@ Resultado: ninguna linea adicional pasa a `complete`.
 | Linea | Estado | Fuente principal | Fuente soporte | Articulo expuesto | Modelo expuesto | Motivo exacto del estado | Siguiente evidencia necesaria |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | D-01 Retenciones no residentes | `complete` | DGT `V0166-25` | TEAC `00/02188/2017/00/00` parcial | `TRLIRNR art. 31` | `216/296` | Cumple fuente oficial, hash/captura, enlace persistido, vigencia historica y modelo/supuesto persistido en `criterio_relacion` | No extrapolar fuera del supuesto; usar como patron de cierre |
-| D-02 IVA intracomunitario | `partial` en produccion; `complete` tras 0086 | DGT `V0963-25` | TEAC `00/02766/2015/00/00` parcial; `V0236-26` descartada | `LIVA art. 13` para adquisicion intracomunitaria de bienes | `349` por relacion `modelo_supuesto` persistida | La fuente principal trata adquisiciones intracomunitarias de bienes y obligaciones de declaracion recapitulativa; se persisten hash/captura, articulo, modelo y vigencia historica. `V0236-26` queda fuera por `LIVA art. 91` | Desplegar 0086 y validar API/VPS; no usar esta linea para entregas intracomunitarias ni supuestos de tipo impositivo |
+| D-02 IVA intracomunitario | `complete` | DGT `V0963-25` | TEAC `00/02766/2015/00/00` parcial; `V0236-26` descartada | `LIVA art. 13` para adquisicion intracomunitaria de bienes | `349` por relacion `modelo_supuesto` persistida | La fuente principal trata adquisiciones intracomunitarias de bienes y obligaciones de declaracion recapitulativa; se persisten hash/captura, articulo, modelo y vigencia historica. `V0236-26` queda fuera por `LIVA art. 91` | No usar esta linea para entregas intracomunitarias ni supuestos de tipo impositivo |
 | D-03 Operaciones vinculadas | `partial` | DGT `V0144-26` | TEAC `00/06460/2019/00/00` procedimental | `LIS art. 18`; relacion parcial persistida | Bloqueado: `232` sin evidencia por supuesto | Hay anclaje normativo, pero falta vigencia y relacion documental con modelo | Cierre de vigencia y prueba oficial de aplicabilidad del modelo 232 al supuesto |
 | D-04 CRS/FATCA | `partial` | DGT `V0138-24` | Ninguna | Bloqueado: falta articulo/supuesto normalizado | `289` parcial persistido | La fuente menciona CRS/FATCA, RD 1021/2015 y modelo 289, pero no cierra articulo/supuesto y vigencia | Normalizar RD/Orden/articulo o supuesto reportable y vigencia historica |
 | D-05 Criptoactivos | `partial` | DGT `V0162-26` | Ninguna | Bloqueado: enlaces actuales no cierran el criterio cripto fiscal | Bloqueado: `721` no consta como relacion suficiente | Hay texto sobre monedas virtuales, pero no articulo operativo ni modelo cerrado | Fuente o relacion documental con articulo/modelo exactos y tipo de operacion |
@@ -171,8 +171,8 @@ Reglas confirmadas por auditoria:
 
 ## Siguiente accion exacta
 
-1. Desplegar y validar D-02 IVA intracomunitario con DGT `V0963-25`: cierre acotado a adquisicion intracomunitaria de bienes con `LIVA art. 13`, modelo 349 por relacion `modelo_supuesto`, vigencia historica, hash/captura y tests de abstencion.
-2. Crear una migracion aditiva o vista materializada si se decide persistir `source_hash` y `capture_date` fuera de `source_revision`.
-3. Crear/actualizar lineas piloto restantes con referencias oficiales cargadas, no referencias desnudas.
-4. Poblar y ampliar `criterio_relacion` para nuevas lineas con impuesto, articulo, tema, modelo o tipo de supuesto verificable.
+1. Cerrar D-03 solo si aparece relacion documental con modelo 232 y vigencia.
+2. Normalizar D-04 por articulo o supuesto CRS/FATCA antes de intentar `complete`.
+3. Crear una migracion aditiva o vista materializada si se decide persistir `source_hash` y `capture_date` fuera de `source_revision`.
+4. Crear/actualizar lineas piloto restantes con referencias oficiales cargadas, no referencias desnudas.
 5. Mantener cada linea piloto como `partial` hasta que pase los 8 puntos del criterio de hecho.

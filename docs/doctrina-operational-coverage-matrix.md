@@ -16,7 +16,7 @@ Esta matriz describe el estado operativo de las lineas piloto DGT/TEAC. No susti
 | Linea | Estado | Fuente principal | Relacion persistida | Modelo confirmado | Vigencia explicita | Que falta exactamente |
 | --- | --- | --- | --- | --- | --- | --- |
 | D-01 Retenciones no residentes | `complete` | DGT `V0166-25` | Si: `TRLIRNR art. 31`, `216/296`, `retenciones_no_residentes`, `complete` | Si: `216/296` | Si: historico a fecha de consulta | No extrapolar fuera del supuesto auditado |
-| D-02 IVA intracomunitario | `partial` en produccion; `complete` tras migracion 0086 | DGT `V0963-25`; `V0236-26` descartada para cierre | Migracion `20260523_0086_doctrina_d02_intracomunitaria`: `LIVA art. 13`, `349`, `adquisicion_intracomunitaria_bienes` | Si: `349` ligado al supuesto de adquisicion intracomunitaria en relacion `modelo_supuesto` | Si: `historico_a_fecha_consulta` | Desplegar migracion 0086 y validar que D-02 queda complete solo para adquisicion intracomunitaria de bienes; no extrapolar a entregas intracomunitarias |
+| D-02 IVA intracomunitario | `complete` | DGT `V0963-25`; `V0236-26` descartada para cierre | Migracion `20260523_0086_doctrina_d02_intracomunitaria`: `LIVA art. 13`, `349`, `adquisicion_intracomunitaria_bienes` | Si: `349` ligado al supuesto de adquisicion intracomunitaria en relacion `modelo_supuesto` | Si: `historico_a_fecha_consulta` | Completa solo para adquisicion intracomunitaria de bienes; no extrapolar a entregas intracomunitarias ni IVA generico |
 | D-03 Operaciones vinculadas | `partial` | DGT `V0144-26` | Si: `LIS art. 18`, `operaciones_vinculadas`, `partial` | No: `232` no trazado por supuesto | No cerrada | Relacion documental con modelo 232 y vigencia o estado historico explicito |
 | D-04 CRS/FATCA | `partial` | DGT `V0138-24` | Si: modelo `289`, `crs_fatca`, `partial`; sin articulo normalizado | Parcial: `289` como evidencia documental incompleta | No cerrada | Articulo, supuesto reportable y vigencia/historico; separar doctrina, modelo y normativa internacional |
 | D-05 Criptoactivos | `partial` | DGT `V0162-26` | No: falta anclaje operativo suficiente | No: `721` no trazado | No cerrada | Articulo fiscal exacto, modelo si aparece en fuente oficial y tipo de operacion |
@@ -41,7 +41,6 @@ Si falta hash, captura o relacion suficiente, la respuesta debe seguir `partial`
 
 ## Siguiente accion
 
-1. Desplegar y validar D-02 con DGT `V0963-25` como adquisicion intracomunitaria de bienes.
-2. Cerrar D-03 solo si aparece relacion documental con modelo 232 y vigencia.
-3. Normalizar D-04 por articulo o supuesto CRS/FATCA antes de intentar `complete`.
-4. No persistir D-05..D-09 hasta tener anclaje real por articulo/modelo/supuesto.
+1. Cerrar D-03 solo si aparece relacion documental con modelo 232 y vigencia.
+2. Normalizar D-04 por articulo o supuesto CRS/FATCA antes de intentar `complete`.
+3. No persistir D-05..D-09 hasta tener anclaje real por articulo/modelo/supuesto.
