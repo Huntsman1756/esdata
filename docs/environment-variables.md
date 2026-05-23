@@ -38,7 +38,7 @@
 | `API_PORT` | No | `8000` | `runtime deploy` | Puerto publicado de API |
 | `WEB_BIND_ADDRESS` | No | `127.0.0.1` | `runtime deploy` | Bind publicado de Web |
 | `WEB_PORT` | No | `3000` | `runtime deploy` | Puerto publicado de Web |
-| `API_DOMAIN` | Si | | `runtime deploy` | Caddy / TLS API |
+| `API_DOMAIN` | Si | | `runtime deploy` | Caddy / TLS API + allowlist Host MCP |
 | `WEB_DOMAIN` | Si | | `runtime deploy` | Caddy / TLS Web |
 | `CADDY_EMAIL` | No | vacio | `runtime deploy` | Email ACME de Caddy |
 | `ESDATA_API_BASE_URL` | Si | | `runtime deploy` | Web SSR -> API |
