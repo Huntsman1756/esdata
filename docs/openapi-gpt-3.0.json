@@ -492,6 +492,285 @@
         }
       }
     },
+    "/v1/criterio": {
+      "get": {
+        "tags": [
+          "criterio"
+        ],
+        "summary": "Listar Lineas Criterio",
+        "operationId": "listar_lineas_criterio",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por estado (borrador, vigente, revisar, obsoleto)",
+              "title": "Estado"
+            },
+            "description": "Filtrar por estado (borrador, vigente, revisar, obsoleto)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Buscar por titulo o cuestion practica",
+              "title": "Q"
+            },
+            "description": "Buscar por titulo o cuestion practica"
+          },
+          {
+            "name": "activo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Filtrar por estado activo/inactivo",
+              "title": "Activo"
+            },
+            "description": "Filtrar por estado activo/inactivo"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Skip"
+            },
+            "description": "Offset de paginacion"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Numero de resultados (max 100)",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Numero de resultados (max 100)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineaCriterioListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/criterio/{linea_id}": {
+      "get": {
+        "tags": [
+          "criterio"
+        ],
+        "summary": "Obtener Linea Criterio",
+        "operationId": "detalle_linea_criterio",
+        "parameters": [
+          {
+            "name": "linea_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Linea Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineaCriterioDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/doctrina/lineas/coverage": {
+      "get": {
+        "tags": [
+          "doctrina"
+        ],
+        "summary": "Doctrina Coverage",
+        "operationId": "doctrina_coverage",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctrinaCoverageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/doctrina/lineas": {
+      "get": {
+        "tags": [
+          "doctrina"
+        ],
+        "summary": "Buscar Lineas Criterio",
+        "operationId": "buscar_lineas_criterio",
+        "parameters": [
+          {
+            "name": "impuesto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtro exploratorio por impuesto",
+              "title": "Impuesto"
+            },
+            "description": "Filtro exploratorio por impuesto"
+          },
+          {
+            "name": "tema",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtro exploratorio por tema",
+              "title": "Tema"
+            },
+            "description": "Filtro exploratorio por tema"
+          },
+          {
+            "name": "modelo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtro exploratorio por modelo AEAT",
+              "title": "Modelo"
+            },
+            "description": "Filtro exploratorio por modelo AEAT"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctrinaLineaCriterioListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/doctrina/lineas/{codigo}/relaciones": {
+      "get": {
+        "tags": [
+          "doctrina"
+        ],
+        "summary": "Criterio Relacionado Con Modelo",
+        "operationId": "criterio_relacionado_con_modelo",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctrinaLineaRelacionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/doctrina/lineas/{codigo}": {
+      "get": {
+        "tags": [
+          "doctrina"
+        ],
+        "summary": "Detalle Linea Criterio Doctrina",
+        "operationId": "detalle_linea_criterio_doctrina",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctrinaLineaCriterioItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/doctrina/buscar": {
       "get": {
         "tags": [
@@ -751,7 +1030,7 @@
           "modelos"
         ],
         "summary": "Busca modelos AEAT en el catalogo general",
-        "description": "Busca modelos AEAT por codigo o termino. Esta ruta devuelve informacion del catalogo: nombre, instrucciones disponibles, claves y completitud de datos cargados. NO indica si una entidad concreta tiene obligacion de presentarlo; para eso usar obtener_obligaciones_perfil.",
+        "description": "WHEN to use: Para saber que es un modelo, como se rellena, que campos/casillas tiene, que claves o instrucciones existen, independientemente del perfil de la entidad. Ejemplos: 'que es el modelo 303', 'como se rellena el modelo 290', 'que claves tiene el modelo 198'. Parametros: codigo opcional, por ejemplo '123' o '303'; termino opcional para buscar texto en codigo o descripcion. Devuelve codigo, nombre, completeness, instrucciones_count, claves_count, reglas_inclusion_count y source_url. EXPLICIT WARNING: Esta herramienta NO indica si una entidad tiene obligación de presentar el modelo. Para obligatoriedad, usar obtener_obligaciones_perfil. NO combinar resultados de esta herramienta con obligaciones de perfil sin separación explícita.",
         "operationId": "buscar_modelos_aeat_catalogo",
         "parameters": [
           {
@@ -1452,7 +1731,8 @@
           "norma",
           "eu"
         ],
-        "summary": "List Normas Eu",
+        "summary": "Busca normas UE cargadas",
+        "description": "Busca reglamentos, directivas, RTS, ITS y guias ESMA de la UE cargados en ESData. WHEN to use: usar cuando el usuario pregunta por una norma UE concreta como MiFIR, EMIR, DORA, CRR, UCITS, AIFMD o SFTR, por un CELEX, o por si una norma UE esta cargada en el sistema. Parametros: termino obligatorio con keyword, CELEX o nombre; tipo_norma opcional acepta reglamento_ue, directiva_ue, rts, its o guideline_esma. Devuelve codigo, CELEX, titulo oficial, fecha de publicacion DOUE, URL EUR-Lex, vigente y derogada_por. No usar para obtener obligaciones de una entidad. Para eso, usar obtener_obligaciones_perfil. NO responde si un perfil debe cumplir una norma; solo devuelve ficha normativa UE.",
         "operationId": "buscar_norma_eu",
         "parameters": [
           {
@@ -2407,7 +2687,8 @@
           "perfil",
           "aplicabilidad"
         ],
-        "summary": "Listar Perfiles",
+        "summary": "Lista perfiles de entidad supervisada",
+        "description": "Lista los tipos de entidad supervisada disponibles en ESData. Usar cuando el usuario pregunta que tipo de entidad es, que perfil tiene, o que categorias de entidad supervisada existen en el sistema. No usar para buscar obligaciones concretas: para obligaciones usar obtener_obligaciones_perfil; para vencimientos usar calendario_obligaciones_perfil. Parametros: ninguno. Devuelve codigo, nombre, supervisor y regimen_primario; NO devuelve modelos AEAT ni calendario.",
         "operationId": "listar_perfiles_entidad",
         "responses": {
           "200": {
@@ -2427,7 +2708,8 @@
           "perfil",
           "aplicabilidad"
         ],
-        "summary": "Get Perfil",
+        "summary": "Resumen de perfil de entidad supervisada",
+        "description": "Devuelve el resumen de un perfil de entidad supervisada y el recuento de obligaciones asociadas. Usar para confirmar que perfil_codigo existe antes de pedir obligaciones. No usar para calendario: usar calendario_obligaciones_perfil. No usar para catalogo AEAT: usar buscar_modelos_aeat_catalogo.",
         "operationId": "get_perfil_entidad",
         "parameters": [
           {
@@ -2458,7 +2740,8 @@
           "perfil",
           "aplicabilidad"
         ],
-        "summary": "Get Obligaciones Perfil",
+        "summary": "Obligaciones verificadas por perfil",
+        "description": "WHEN to use: usar cuando el usuario pregunta que obligaciones tiene una entidad supervisada espanola, que modelos AEAT debe presentar, que obligaciones PBC/FT o CNMV aplican, o si una sociedad de valores, agencia de valores, SGIIC, EAF, entidad de credito, empresa de servicios de pago, CASP o emisor de token ART/EMT tiene una obligacion verificada. Ejemplos: 'que modelos presenta una sociedad de valores', 'obligaciones PBC/FT de una EAF', 'obligaciones CNMV de una SGIIC', 'obligaciones CASP MiCA'. Para CASP y criptoactivos: perfil 'casp' cubre obligaciones MiCA (Reglamento UE 2023/1114) aplicables desde 30 diciembre 2024. Las tablas de token/wallet/white-paper pueden estar vacias y esto es esperado — no hay datos de tokenizacion en el corpus. Para emisores de ART o EMT: usar perfil_codigo='emisor_token'. El corpus documental supervisor ART/EMT puede estar vacio; las obligaciones base estan verificadas contra MiCA. Responder siempre desde obtener_obligaciones_perfil e identificar gaps explicitamente. WHEN NOT to use: No usar para preguntas de calendario o periodo; usar calendario_obligaciones_perfil. No usar para saber que es un modelo AEAT o como se rellena; usar buscar_modelos_aeat_catalogo. Parametros: perfil_codigo es obligatorio, por ejemplo 'sociedad_valores', 'casp' o 'emisor_token'; dominio opcional acepta FISCAL, PBC_FT, CNMV o ALL. Devuelve obligaciones verificadas de perfil con modelo_aeat, norma_codigo, articulo_referencia, periodicidad, plazo, source_url, verified y completeness. GOLDEN RULE: Si un modelo no aparece en la respuesta, significa que NO esta registrado como obligacion verificada para ese perfil. No buscar en otras herramientas como alternativa.\n\n\nPOLITICA DE SELECCION DE HERRAMIENTAS ESDATA:\n\n1. Para obligaciones de una entidad supervisada → SIEMPRE obtener_obligaciones_perfil\n   Si el modelo no aparece en la respuesta: NO tiene obligacion verificada.\n   NO buscar en catalogo AEAT como alternativa.\n   NO suplementar con buscar_modelos_aeat_catalogo.\n\n2. Para que presentar en un trimestre/mes/periodo → SIEMPRE calendario_obligaciones_perfil\n   Usar parametro quarter (ej: \"2026-Q3\") para filtrar por periodo.\n   Trigger: \"este trimestre\", \"Q3\", \"qué vence\", \"agenda\", \"este mes\",\n   \"qué presento en julio/octubre/enero/abril\".\n   NO usar busqueda semantica ni catalogo para responder preguntas de calendario.\n\n3. Para informacion sobre un modelo AEAT (que es, como se rellena) → buscar_modelos_aeat_catalogo\n   Esta herramienta NO indica obligatoriedad. Solo describe el formulario.\n   NO combinar su resultado con obligaciones de perfil sin separacion explicita.\n\n4. Para normas UE (MiFIR, EMIR, DORA, CRR, UCITS, MiCA) → buscar_norma_eu\n\n5. Para listar tipos de entidad → listar_perfiles_entidad\n\n6. Para circulares CNMV, guias tecnicas o modelos ESI aplicables a un perfil\n   -> obtener_documentos_cnmv_perfil\n   Trigger: \"que circulares aplican\", \"guias tecnicas CNMV\",\n   \"modelos normalizados ESI\", \"supervision CNMV\".\n   NO usar obtener_obligaciones_perfil para documentos supervisores.\n\n7. Para CASP, criptoactivos, MiCA, activos virtuales, exchange cripto, wallet, PSAV:\n   -> usar obtener_obligaciones_perfil con perfil_codigo='casp'.\n   Para emisores de ART o EMT, white paper de criptoactivos, ficha referenciada,\n   ficha de dinero electronico o token emisor:\n   -> usar obtener_obligaciones_perfil con perfil_codigo='emisor_token'.\n   Las tablas de token/wallet/white-paper pueden estar vacias y esto es esperado.\n   AVISO: corpus documental supervisor ART/EMT vacio; obtener_documentos_cnmv_perfil('emisor_token')\n   puede devolver 0 documentos y esto es esperado, no es un error.\n   Responder siempre desde obtener_obligaciones_perfil e identificar gaps explicitamente.\n   NO inventar obligaciones cripto no verificadas.\n   Trigger: \"casp\", \"criptoactivos\", \"MiCA\", \"activos virtuales\", \"exchange cripto\",\n   \"wallet\", \"PSAV\", \"crypto\", \"token\", \"blockchain\", \"ART\", \"EMT\",\n   \"white paper\", \"ficha referenciada\", \"ficha de dinero electronico\", \"token emisor\".\n\nREGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,\nla respuesta correcta es \"no consta como obligacion verificada para este perfil\",\nno \"lo busco en otro sitio\".",
         "operationId": "obtener_obligaciones_perfil",
         "parameters": [
           {
@@ -2515,7 +2798,7 @@
           "aplicabilidad"
         ],
         "summary": "Calendario de obligaciones por perfil",
-        "description": "Devuelve el calendario operativo agrupado por periodicidad. Si se proporciona el parametro quarter (ej: 2026-Q3), devuelve solo las obligaciones con vencimiento en ese trimestre segun periodicidad y plazo_descripcion estructurados.",
+        "description": "WHEN to use: usar para preguntas de calendario, vencimientos y periodos: '¿Que presento este trimestre?', '¿Que vence en Q3?', '¿Que modelos hay en julio?', 'agenda de compliance', 'calendario', 'este mes', 'proximos vencimientos'. Parametro perfil_codigo obligatorio, por ejemplo 'sociedad_valores'. Parametro quarter opcional: Formato YYYY-QN (ej: 2026-Q3) o QN (ej: Q3). SIEMPRE proporcionar quarter si el usuario menciona un periodo. Mapeo: Q1=enero-marzo, Q2=abril-junio, Q3=julio-septiembre, Q4=octubre-diciembre. Esta herramienta usa datos estructurados de periodicidad y plazo_descripcion, NO busqueda semantica. Es la unica fuente fiable para preguntas de calendario. WHEN NOT to use: No usar para saber que es un modelo AEAT; usar buscar_modelos_aeat_catalogo. No usar para listar todo el perfil sin foco temporal; usar obtener_obligaciones_perfil. Devuelve obligaciones vencidas por periodicidad o, con quarter, la lista filtrada; NO devuelve instrucciones de relleno.\n\n\nPOLITICA DE SELECCION DE HERRAMIENTAS ESDATA:\n\n1. Para obligaciones de una entidad supervisada → SIEMPRE obtener_obligaciones_perfil\n   Si el modelo no aparece en la respuesta: NO tiene obligacion verificada.\n   NO buscar en catalogo AEAT como alternativa.\n   NO suplementar con buscar_modelos_aeat_catalogo.\n\n2. Para que presentar en un trimestre/mes/periodo → SIEMPRE calendario_obligaciones_perfil\n   Usar parametro quarter (ej: \"2026-Q3\") para filtrar por periodo.\n   Trigger: \"este trimestre\", \"Q3\", \"qué vence\", \"agenda\", \"este mes\",\n   \"qué presento en julio/octubre/enero/abril\".\n   NO usar busqueda semantica ni catalogo para responder preguntas de calendario.\n\n3. Para informacion sobre un modelo AEAT (que es, como se rellena) → buscar_modelos_aeat_catalogo\n   Esta herramienta NO indica obligatoriedad. Solo describe el formulario.\n   NO combinar su resultado con obligaciones de perfil sin separacion explicita.\n\n4. Para normas UE (MiFIR, EMIR, DORA, CRR, UCITS, MiCA) → buscar_norma_eu\n\n5. Para listar tipos de entidad → listar_perfiles_entidad\n\n6. Para circulares CNMV, guias tecnicas o modelos ESI aplicables a un perfil\n   -> obtener_documentos_cnmv_perfil\n   Trigger: \"que circulares aplican\", \"guias tecnicas CNMV\",\n   \"modelos normalizados ESI\", \"supervision CNMV\".\n   NO usar obtener_obligaciones_perfil para documentos supervisores.\n\n7. Para CASP, criptoactivos, MiCA, activos virtuales, exchange cripto, wallet, PSAV:\n   -> usar obtener_obligaciones_perfil con perfil_codigo='casp'.\n   Para emisores de ART o EMT, white paper de criptoactivos, ficha referenciada,\n   ficha de dinero electronico o token emisor:\n   -> usar obtener_obligaciones_perfil con perfil_codigo='emisor_token'.\n   Las tablas de token/wallet/white-paper pueden estar vacias y esto es esperado.\n   AVISO: corpus documental supervisor ART/EMT vacio; obtener_documentos_cnmv_perfil('emisor_token')\n   puede devolver 0 documentos y esto es esperado, no es un error.\n   Responder siempre desde obtener_obligaciones_perfil e identificar gaps explicitamente.\n   NO inventar obligaciones cripto no verificadas.\n   Trigger: \"casp\", \"criptoactivos\", \"MiCA\", \"activos virtuales\", \"exchange cripto\",\n   \"wallet\", \"PSAV\", \"crypto\", \"token\", \"blockchain\", \"ART\", \"EMT\",\n   \"white paper\", \"ficha referenciada\", \"ficha de dinero electronico\", \"token emisor\".\n\nREGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,\nla respuesta correcta es \"no consta como obligacion verificada para este perfil\",\nno \"lo busco en otro sitio\".",
         "operationId": "calendario_obligaciones_perfil",
         "parameters": [
           {
@@ -3455,7 +3738,8 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": true
                   },
                   "title": "Response Listar Obligaciones Operativas"
                 }
@@ -3508,7 +3792,8 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": true
                   },
                   "title": "Response Listar Deadlines"
                 }
@@ -3823,6 +4108,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cnmv/perfil/{perfil_codigo}": {
+      "get": {
+        "tags": [
+          "cnmv"
+        ],
+        "summary": "Obtener Documentos Cnmv Perfil",
+        "description": "Devuelve documentos CNMV (circulares, guias tecnicas, modelos normalizados ESI, normativa) aplicables a un perfil de entidad. Usar cuando el usuario pregunta que circulares CNMV aplican a una sociedad de valores, que guias tecnicas debe seguir una agencia de valores, o que modelos normalizados CNMV existen para un tipo de entidad. No devuelve obligaciones legales verificadas; para eso usar obtener_obligaciones_perfil.",
+        "operationId": "obtener_documentos_cnmv_perfil",
+        "parameters": [
+          {
+            "name": "perfil_codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Perfil Codigo"
+            }
+          },
+          {
+            "name": "tipo_documento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de documento CNMV",
+              "title": "Tipo Documento"
+            },
+            "description": "Filtrar por tipo de documento CNMV"
+          },
+          {
+            "name": "vigente",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si es true, excluye documentos CNMV derogados",
+              "default": true,
+              "title": "Vigente"
+            },
+            "description": "Si es true, excluye documentos CNMV derogados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Obtener Documentos Cnmv Perfil"
                 }
               }
             }
@@ -5218,6 +5564,7 @@
       "ClaimCitation": {
         "properties": {
           "claim": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Claim",
             "description": "Afirmacion factual estructurada"
@@ -5279,6 +5626,7 @@
           },
           "modelos": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -5287,6 +5635,7 @@
           },
           "resultados": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -5314,16 +5663,19 @@
             "description": "Aviso de evidencia limitada o abstencion cuando safe_to_answer=false"
           },
           "result_metadata": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Result Metadata",
             "description": "Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos."
           },
           "relevancia": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Relevancia",
             "description": "Información de relevancia de los resultados"
           },
           "confianza": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Confianza",
             "description": "Información de confianza (faithfulness, grounding)"
@@ -5687,6 +6039,72 @@
         ],
         "title": "DocInterpretativoListResponse"
       },
+      "DoctrinaCoverageResponse": {
+        "properties": {
+          "familia": {
+            "type": "string",
+            "title": "Familia"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "fuentes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fuentes"
+          },
+          "lineas_total": {
+            "type": "integer",
+            "title": "Lineas Total"
+          },
+          "lineas_con_dgt_teac": {
+            "type": "integer",
+            "title": "Lineas Con Dgt Teac"
+          },
+          "lineas_con_fuente_oficial": {
+            "type": "integer",
+            "title": "Lineas Con Fuente Oficial"
+          },
+          "lineas_con_articulo": {
+            "type": "integer",
+            "title": "Lineas Con Articulo"
+          },
+          "lineas_complete": {
+            "type": "integer",
+            "title": "Lineas Complete"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice"
+          },
+          "review_required": {
+            "type": "boolean",
+            "title": "Review Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "familia",
+          "estado",
+          "fuentes",
+          "lineas_total",
+          "lineas_con_dgt_teac",
+          "lineas_con_fuente_oficial",
+          "lineas_con_articulo",
+          "lineas_complete",
+          "safe_to_answer",
+          "evidence_notice",
+          "review_required"
+        ],
+        "title": "DoctrinaCoverageResponse"
+      },
       "DoctrinaDetail": {
         "properties": {
           "referencia": {
@@ -5741,6 +6159,254 @@
           "confianza"
         ],
         "title": "DoctrinaDetail"
+      },
+      "DoctrinaLineaCriterioItem": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo",
+            "description": "Codigo estable de la linea doctrinal"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Identificador interno de linea_criterio"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente",
+            "description": "Familia doctrinal dominante: dgt, teac o mixta"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tema": {
+            "type": "string",
+            "title": "Tema"
+          },
+          "impuesto": {
+            "type": "string",
+            "title": "Impuesto"
+          },
+          "articulo_referencia": {
+            "type": "string",
+            "title": "Articulo Referencia"
+          },
+          "modelo_aeat_referencia": {
+            "type": "string",
+            "title": "Modelo Aeat Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "estado_vigente": {
+            "type": "string",
+            "title": "Estado Vigente"
+          },
+          "resumen_oficial": {
+            "type": "string",
+            "title": "Resumen Oficial"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice"
+          },
+          "review_required": {
+            "type": "boolean",
+            "title": "Review Required"
+          },
+          "referencias_total": {
+            "type": "integer",
+            "title": "Referencias Total",
+            "default": 0
+          },
+          "referencias_oficiales": {
+            "type": "integer",
+            "title": "Referencias Oficiales",
+            "default": 0
+          },
+          "articulos_relacionados_total": {
+            "type": "integer",
+            "title": "Articulos Relacionados Total",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "id",
+          "fuente",
+          "titulo",
+          "estado_vigente",
+          "verified",
+          "completeness",
+          "safe_to_answer",
+          "evidence_notice",
+          "review_required"
+        ],
+        "title": "DoctrinaLineaCriterioItem"
+      },
+      "DoctrinaLineaCriterioListResponse": {
+        "properties": {
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/DoctrinaLineaCriterioItem"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice"
+          },
+          "review_required": {
+            "type": "boolean",
+            "title": "Review Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "safe_to_answer",
+          "evidence_notice",
+          "review_required"
+        ],
+        "title": "DoctrinaLineaCriterioListResponse"
+      },
+      "DoctrinaLineaRelacion": {
+        "properties": {
+          "linea_criterio_id": {
+            "type": "integer",
+            "title": "Linea Criterio Id"
+          },
+          "documento_referencia": {
+            "type": "string",
+            "title": "Documento Referencia"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date"
+          },
+          "norma_codigo": {
+            "type": "string",
+            "title": "Norma Codigo"
+          },
+          "articulo": {
+            "type": "string",
+            "title": "Articulo"
+          },
+          "modelo_aeat": {
+            "type": "string",
+            "title": "Modelo Aeat"
+          },
+          "tipo_renta": {
+            "type": "string",
+            "title": "Tipo Renta"
+          },
+          "relacion": {
+            "type": "string",
+            "title": "Relacion"
+          },
+          "nota_limitacion": {
+            "type": "string",
+            "title": "Nota Limitacion"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness"
+          }
+        },
+        "type": "object",
+        "required": [
+          "linea_criterio_id",
+          "documento_referencia",
+          "relacion",
+          "nota_limitacion",
+          "verified",
+          "completeness"
+        ],
+        "title": "DoctrinaLineaRelacion"
+      },
+      "DoctrinaLineaRelacionResponse": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "relaciones": {
+            "items": {
+              "$ref": "#/components/schemas/DoctrinaLineaRelacion"
+            },
+            "type": "array",
+            "title": "Relaciones"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer"
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice"
+          },
+          "review_required": {
+            "type": "boolean",
+            "title": "Review Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "safe_to_answer",
+          "evidence_notice",
+          "review_required"
+        ],
+        "title": "DoctrinaLineaRelacionResponse"
       },
       "DoctrinaRelacionada": {
         "properties": {
@@ -6490,6 +7156,30 @@
           "notas": {
             "type": "string",
             "title": "Notas"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "default": false
+          },
+          "completeness": {
+            "type": "string",
+            "title": "Completeness",
+            "default": "partial"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "default": false
+          },
+          "evidence_notice": {
+            "type": "string",
+            "title": "Evidence Notice"
+          },
+          "review_required": {
+            "type": "boolean",
+            "title": "Review Required",
+            "default": true
           }
         },
         "type": "object",
@@ -6778,6 +7468,194 @@
           "resultados"
         ],
         "title": "LegislacionSearchResponse"
+      },
+      "LineaCriterioDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "cuestion_practica": {
+            "type": "string",
+            "title": "Cuestion Practica"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "autor_id": {
+            "type": "integer",
+            "title": "Autor Id"
+          },
+          "revisor_id": {
+            "type": "integer",
+            "title": "Revisor Id"
+          },
+          "ultimo_cambio": {
+            "type": "string",
+            "title": "Ultimo Cambio"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "criterio_dominante": {
+            "type": "string",
+            "title": "Criterio Dominante"
+          },
+          "matices": {
+            "type": "string",
+            "title": "Matices"
+          },
+          "excepciones": {
+            "type": "string",
+            "title": "Excepciones"
+          },
+          "referencias": {
+            "items": {
+              "$ref": "#/components/schemas/LineaCriterioReferencia"
+            },
+            "type": "array",
+            "title": "Referencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "titulo",
+          "cuestion_practica",
+          "estado",
+          "activo"
+        ],
+        "title": "LineaCriterioDetail"
+      },
+      "LineaCriterioListResponse": {
+        "properties": {
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaCriterioSummary"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "LineaCriterioListResponse"
+      },
+      "LineaCriterioReferencia": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "documento_referencia": {
+            "type": "string",
+            "title": "Documento Referencia"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
+          "organismo_emisor": {
+            "type": "string",
+            "title": "Organismo Emisor"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "rol_en_linea": {
+            "type": "string",
+            "title": "Rol En Linea"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "documento_referencia",
+          "orden"
+        ],
+        "title": "LineaCriterioReferencia"
+      },
+      "LineaCriterioSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "cuestion_practica": {
+            "type": "string",
+            "title": "Cuestion Practica"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "autor_id": {
+            "type": "integer",
+            "title": "Autor Id"
+          },
+          "revisor_id": {
+            "type": "integer",
+            "title": "Revisor Id"
+          },
+          "ultimo_cambio": {
+            "type": "string",
+            "title": "Ultimo Cambio"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "titulo",
+          "cuestion_practica",
+          "estado",
+          "activo"
+        ],
+        "title": "LineaCriterioSummary"
       },
       "ModeloArtefacto": {
         "properties": {
@@ -7154,6 +8032,7 @@
             "description": "Offset para continuar, si hay mas"
           },
           "filters": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Filters",
             "description": "Filtros aplicados"
@@ -7189,6 +8068,7 @@
             "description": "Aviso operativo sobre limites de evidencia"
           },
           "confidence": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza y revision requerida"
@@ -7943,6 +8823,16 @@
             "title": "Source Url",
             "description": "URL oficial o trazable"
           },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "Hash o equivalente de la fuente cargada"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date",
+            "description": "Fecha de captura de la fuente"
+          },
           "excerpt": {
             "type": "string",
             "title": "Excerpt",
@@ -8061,6 +8951,7 @@
             "description": "Si la aplicabilidad esta verificada con evidencia explicita"
           },
           "scenario_inputs": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Scenario Inputs",
             "description": "Parametros del supuesto usados"
@@ -8090,6 +8981,7 @@
             "description": "Advertencias de no invencion"
           },
           "confidence": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza operacional"
@@ -8306,6 +9198,7 @@
           },
           "documentos": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -8530,6 +9423,7 @@
       "ObligacionesAplicablesResponse": {
         "properties": {
           "perfil": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Perfil"
           },
@@ -8549,6 +9443,7 @@
             "title": "Verified"
           },
           "confidence": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Confidence"
           },

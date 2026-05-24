@@ -9,8 +9,8 @@
                   "local_only":  true
               },
     "summary":  {
-                    "total_tables":  180,
-                    "populated":  89,
+                    "total_tables":  181,
+                    "populated":  90,
                     "blocker":  0,
                     "derived_blocker":  0,
                     "workflow_empty":  53,
@@ -227,6 +227,17 @@
                        "action":  "Verify provenance and freshness in later gate stories.",
                        "rls_enabled":  true,
                        "verification_sql":  "SELECT count(*) FROM public.\"control_interno\";"
+                   },
+                   {
+                       "table":  "criterio_relacion",
+                       "row_count":  4,
+                       "classification":  "populated",
+                       "domain":  "Already Populated",
+                       "official_source_family":  "official_source_required",
+                       "target_path":  "worker_or_script_required",
+                       "action":  "Relationship table for curated doctrine/criterion lines; verify provenance and freshness together with linea_criterio.",
+                       "rls_enabled":  true,
+                       "verification_sql":  "SELECT count(*) FROM public.\"criterio_relacion\";"
                    },
                    {
                        "table":  "crd_brrd_emir_entity",

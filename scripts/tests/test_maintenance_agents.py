@@ -239,6 +239,83 @@ def test_mcp_validation_suite_requires_fail_closed_empty_domain_response():
     assert "wallet_custodian" in details["tables"]
 
 
+def test_mcp_validation_suite_accepts_modelo_289_fail_closed_obligation_context():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_modelo_289_obligation_context(
+        {
+            "codigo": "289",
+            "form_completeness": "parcial",
+            "obligation_context": [
+                {
+                    "perfil_codigo": "sociedad_valores",
+                    "verified": False,
+                    "safe_to_answer": False,
+                    "review_required": True,
+                    "source_hash": None,
+                    "capture_date": "2026-05-17",
+                    "obligation_evidence_notice": (
+                        "evidence_limited: falta hash o fecha de captura de la fuente"
+                    ),
+                }
+            ],
+        }
+    )
+
+    assert ok is True
+    assert details["accepted_state"] == "fail_closed"
+
+
+def test_mcp_validation_suite_rejects_modelo_289_unsafe_context_without_hash():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_modelo_289_obligation_context(
+        {
+            "codigo": "289",
+            "form_completeness": "parcial",
+            "obligation_context": [
+                {
+                    "perfil_codigo": "sociedad_valores",
+                    "verified": True,
+                    "safe_to_answer": True,
+                    "review_required": False,
+                    "source_hash": None,
+                    "capture_date": "2026-05-17",
+                    "obligation_evidence_notice": "Verificado contra LGT DA 22.ª ap. 1",
+                }
+            ],
+        }
+    )
+
+    assert ok is False
+    assert details["accepted_state"] == "invalid"
+
+
+def test_deep_contract_audit_accepts_verified_or_fail_closed_obligation_items():
+    audit = _load_deep_contract_audit()
+
+    assert audit._obligation_item_verified_or_fail_closed(
+        {
+            "verified": False,
+            "safe_to_answer": False,
+            "review_required": True,
+            "source_hash": None,
+            "capture_date": "2026-05-17",
+            "evidence_notice": "evidence_limited: falta hash o fecha de captura de la fuente",
+        }
+    )
+    assert not audit._obligation_item_verified_or_fail_closed(
+        {
+            "verified": True,
+            "safe_to_answer": True,
+            "review_required": False,
+            "source_hash": None,
+            "capture_date": "2026-05-17",
+            "evidence_notice": "Verificado contra LGT DA 22.ª ap. 1",
+        }
+    )
+
+
 def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
     suite = _load_validation_suite()
 
@@ -284,6 +361,8 @@ def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
                                 {"name": "obtener_obligaciones_perfil"},
                                 {"name": "calendario_obligaciones_perfil"},
                                 {"name": "buscar_norma_eu"},
+                                {"name": "buscar_modelos_aeat_catalogo"},
+                                {"name": "obtener_documentos_cnmv_perfil"},
                             ]
                         }
                     }
@@ -340,6 +419,8 @@ def test_mcp_validation_suite_accepts_mcp_session_id_on_missing_session_handshak
                             {"name": "obtener_obligaciones_perfil"},
                             {"name": "calendario_obligaciones_perfil"},
                             {"name": "buscar_norma_eu"},
+                            {"name": "buscar_modelos_aeat_catalogo"},
+                            {"name": "obtener_documentos_cnmv_perfil"},
                         ]
                     }
                 }

@@ -151,6 +151,23 @@ No hay base suficiente para cambiar `verified=true`, `completeness=complete` ni
 
 `CRS/DAC2 operativo` permanece `implemented_partial`.
 
+## MCP-DATA-02 follow-up - contrato fail-closed
+
+El bloque `MCP-DATA-02` confirma el cierre conservador de las 4 obligaciones
+`obligacion_perfil` del Modelo 289:
+
+- No hay `source_revision` con match exacto para la URL legacy persistida en
+  esas obligaciones.
+- Existen recursos documentales 289 con hash para RD 1021/2015,
+  HAP/1695/2016, GI42, manual CRS y XSD/WSDL, pero no prueban por si solos
+  cada perfil operativo como sujeto obligado concreto.
+- Por tanto, no se crea migracion de recuperacion y no se cambia ningun flag de
+  datos.
+- El contrato local de validacion se ajusta para aceptar el estado seguro real:
+  verificado con hash/captura, o fail-closed explicito con `verified=false`,
+  `safe_to_answer=false`, `review_required=true`, `source_hash=null`,
+  `capture_date` y notice `evidence_limited`.
+
 ## Siguiente accion exacta
 
 1. Mantener GI42 con hash actual `1c00efed...` como evidencia 0098; no volver

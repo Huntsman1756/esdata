@@ -441,7 +441,6 @@ def _check_database_contracts() -> list[dict[str, Any]]:
               AND (
                   norma_codigo <> 'LGT'
                   OR articulo_referencia NOT LIKE 'DA 22.% ap. 1'
-                  OR verified IS NOT true
               )
             """,
         ),
@@ -905,12 +904,11 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
-            "modelo_289_profile_obligations_verified_4",
+            "modelo_289_profile_obligations_expected_4",
             """
             SELECT COUNT(DISTINCT perfil_codigo)
             FROM obligacion_perfil
             WHERE modelo_aeat='289'
-              AND verified IS true
               AND perfil_codigo IN (
                   'sociedad_valores',
                   'agencia_valores',
@@ -920,21 +918,48 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             """,
             4,
         ),
+        _check_db_scalar(
+            database_url,
+            "modelo_289_profile_obligations_verified_or_fail_closed_4",
+            """
+            SELECT COUNT(DISTINCT perfil_codigo)
+            FROM obligacion_perfil
+            WHERE modelo_aeat='289'
+              AND perfil_codigo IN (
+                  'sociedad_valores',
+                  'agencia_valores',
+                  'eaf',
+                  'entidad_credito'
+              )
+              AND (
+                  (
+                      verified IS true
+                      AND source_hash IS NOT NULL
+                      AND capture_date IS NOT NULL
+                  )
+                  OR (
+                      verified IS NOT true
+                      AND safe_to_answer IS NOT true
+                      AND source_hash IS NULL
+                      AND capture_date IS NOT NULL
+                      AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                  )
+              )
+            """,
+            4,
+        ),
         _check_db_zero(
             database_url,
-            "modelo_289_profile_obligations_no_unverified_or_extra",
+            "modelo_289_profile_obligations_no_extra_profiles",
             """
             SELECT COUNT(*)
             FROM obligacion_perfil
             WHERE modelo_aeat='289'
-              AND (
-                  verified IS NOT true
-                  OR perfil_codigo NOT IN (
-                      'sociedad_valores',
-                      'agencia_valores',
-                      'eaf',
-                      'entidad_credito'
-                  )
+              AND perfil_codigo NOT IN (
+                  'sociedad_valores',
+                  'agencia_valores',
+                  'eaf',
+                  'entidad_credito'
               )
             """,
         ),
@@ -1475,12 +1500,31 @@ def _validate_modelo_289_obligation_context(payload: dict[str, Any]) -> tuple[bo
         "obligation_context_count": len(context),
         "sociedad_valores_context": sociedad_items[:1],
     }
+    sociedad_item = sociedad_items[0] if sociedad_items else {}
+    notice = str(sociedad_item.get("obligation_evidence_notice") or "")
+    verified_ok = (
+        sociedad_item.get("verified") is True
+        and sociedad_item.get("source_hash")
+        and sociedad_item.get("capture_date")
+        and "Verificado" in notice
+    )
+    fail_closed_ok = (
+        sociedad_item.get("verified") is False
+        and sociedad_item.get("safe_to_answer") is False
+        and sociedad_item.get("review_required") is True
+        and not sociedad_item.get("source_hash")
+        and sociedad_item.get("capture_date")
+        and "evidence_limited" in notice
+        and "falta hash" in notice
+    )
+    details["accepted_state"] = (
+        "verified" if verified_ok else "fail_closed" if fail_closed_ok else "invalid"
+    )
     ok = (
         payload.get("codigo") == "289"
         and "form_completeness" in payload
         and len(sociedad_items) == 1
-        and sociedad_items[0].get("verified") is True
-        and "Verificado" in str(sociedad_items[0].get("obligation_evidence_notice") or "")
+        and (verified_ok or fail_closed_ok)
     )
     return ok, details
 

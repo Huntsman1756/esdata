@@ -92,7 +92,7 @@ Example from A-04b: `worker-eurlex` may encounter legacy `codigo='MIFID2_2014_65
 | `xbrl.py` | 2 | PASS |
 | `xbrl_taxonomy.py` | 1 | PASS |
 
-Out-of-scope helper/dataset modules without `create_engine(...)`: `__init__.py`, `boe_modelos.py`, `boe_pdf_parser.py`, `change_detection.py`, `dead_letter.py`, `embeddings.py`, `entrypoint.py`, `ley112021.py`, `ley12010.py`, `ley222010.py`, `ley272014.py`, `ley62018.py`, `micro_obligations.py`, `modelos_support.py`, `nrv9.py`, `pgc_dataset.py`, `rd2172008.py`, `trlmv.py`, `vocabulary.py`, `vocabulary_validation.py`.
+Out-of-scope helper/dataset/wrapper modules without `create_engine(...)`: `__init__.py`, `boe_modelos.py`, `boe_pdf_parser.py`, `change_detection.py`, `dead_letter.py`, `embeddings.py`, `entrypoint.py`, `ley112021.py`, `ley12010.py`, `ley222010.py`, `ley272014.py`, `ley62018.py`, `micro_obligations.py`, `modelos_support.py`, `nrv9.py`, `pgc_dataset.py`, `rd2172008.py`, `runtime.py`, `trlmv.py`, `vocabulary.py`, `vocabulary_validation.py`, `worker_eurlex_market.py`.
 
 Verification:
 

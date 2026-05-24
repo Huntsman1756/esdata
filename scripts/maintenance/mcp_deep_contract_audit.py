@@ -57,6 +57,27 @@ class CheckResult:
     details: dict[str, Any]
 
 
+def _obligation_item_verified_or_fail_closed(item: dict[str, Any]) -> bool:
+    notice = str(item.get("obligation_evidence_notice") or item.get("evidence_notice") or "")
+    if (
+        item.get("verified") is True
+        and item.get("source_hash")
+        and item.get("capture_date")
+        and "Verificado" in notice
+        and "evidence_limited" not in notice
+    ):
+        return True
+    return (
+        item.get("verified") is False
+        and item.get("safe_to_answer") is False
+        and item.get("review_required") is True
+        and not item.get("source_hash")
+        and item.get("capture_date")
+        and "evidence_limited" in notice
+        and "falta hash" in notice
+    )
+
+
 def _headers() -> dict[str, str]:
     api_key = os.getenv("ESDATA_API_KEY", "")
     return {"X-API-Key": api_key} if api_key else {}
@@ -1425,22 +1446,21 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     if (
         modelo_289_status != 200
         or not modelo_289_sociedad_context
-        or modelo_289_sociedad_context[0].get("verified") is not True
+        or not _obligation_item_verified_or_fail_closed(modelo_289_sociedad_context[0])
     ):
         failures.append(
             {
-                "check": "modelo_289_obligation_context_verified",
+                "check": "modelo_289_obligation_context_verified_or_fail_closed",
                 "status": modelo_289_status,
                 "response": modelo_289_preview,
             }
         )
-    if not any(
-        "Verificado" in str(item.get("evidence_notice") or "")
-        and "evidence_limited" not in str(item.get("evidence_notice") or "")
+    if not modelo_289_profile_items or not all(
+        _obligation_item_verified_or_fail_closed(item)
         for item in modelo_289_profile_items
         if isinstance(item, dict)
     ):
-        failures.append({"check": "modelo_289_profile_evidence_notice_verified"})
+        failures.append({"check": "modelo_289_profile_evidence_notice_verified_or_fail_closed"})
     if not sociedad_rts1_items:
         failures.append({"check": "sociedad_valores_rts1_obligation_present"})
     if not any(
