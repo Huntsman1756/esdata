@@ -1,29 +1,29 @@
 {
-  "sprint": "sprint-v-obligacion-perfil-global-fail-close",
-  "projectName": "esdata-obligacion-perfil-global-fail-close",
-  "branchName": "codex/obligacion-perfil-global-fail-close",
-  "version_baseline": "post-PR-91",
-  "description": "Sanear globalmente obligacion_perfil para que ninguna obligacion sea verified/safe sin hash y captura normalizados.",
+  "sprint": "sprint-w-obligacion-perfil-recover-111-115",
+  "projectName": "esdata-obligacion-perfil-recover-111-115",
+  "branchName": "codex/obligacion-perfil-recover-111-115",
+  "version_baseline": "post-PR-93",
+  "description": "Recuperar obligaciones 111/115 solo cuando exista source_revision univoca, manteniendo 196/290 fail-closed por hashes ambiguos.",
   "context": {
-    "unsafe_total": "157 filas obligacion_perfil con safe_to_answer=true y verified=true sin source_hash",
-    "distribution": "137 sin modelo AEAT, 111=6, 115=6, 289=4, 290=3, 196=1",
-    "risk": "API publica puede exponer verified=true aunque MCP perfil degrade correctamente"
+    "recoverable": "111 y 115 tienen una source_revision exacta por modelo AEAT",
+    "blocked": "196 tiene varios hashes en modelo_recurso; 290 tiene dos source_revision FATCA para la misma URL",
+    "risk": "recuperar seguridad desde hashes candidatos ambiguos"
   },
   "userStories": [
     {
-      "id": "V-01",
+      "id": "W-01",
       "priority": 1,
-      "title": "Fail-close global de obligacion_perfil sin evidencia normalizada",
-      "description": "Degradar cualquier obligacion de perfil sin source_hash o capture_date y alinear modelos/norma con el mismo contrato efectivo.",
+      "title": "Recuperar 111/115 con source_revision univoca",
+      "description": "Poblar hash/captura y restaurar seguridad solo en obligaciones 111/115 con fuente exacta no ambigua.",
       "acceptance": [
-        "Ninguna fila obligacion_perfil con source_hash o capture_date ausente queda safe_to_answer=true",
-        "Ninguna fila obligacion_perfil sin evidencia normalizada queda verified=true",
-        "GET /v1/modelos/aeat/{codigo} degrada obligation_context.verified cuando falta evidencia",
-        "GET /v1/norma/{codigo} no propaga verified=true sin hash/captura",
-        "No se recupera seguridad por inferencia; recuperaciones futuras deben cargar hashes reales"
+        "111/115 recuperan source_hash desde source_revision solo con COUNT(DISTINCT hash)=1",
+        "111/115 pueden quedar complete/safe por perfil tras cargar evidencia",
+        "196 no se recupera si modelo_recurso tiene hashes multiples",
+        "290 no se recupera si source_revision FATCA es ambigua",
+        "No se modifica ninguna fila sin emparejamiento exacto de URL y entidad"
       ],
       "passes": true,
-      "notes": "Revision 0095 degrada globalmente obligacion_perfil sin hash/captura; API modelos/norma aplica fail-closed efectivo."
+      "notes": "Revision 0096 recupera 111/115 desde source_revision univoca y documenta 196/290 como bloqueados por ambiguedad."
     }
   ]
 }
