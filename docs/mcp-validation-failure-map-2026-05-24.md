@@ -357,7 +357,7 @@ Checklist de salida:
 
 ### Issue MCP-DATA-05 - Reconciliar MiCA CASP y `emisor_token` verified/completeness
 
-Estado local: IMPLEMENTED AS FAIL-CLOSED CONTRACT. `docs/mica-casp-emisor-token-audit-2026-05-24.md` documenta que CASP y `emisor_token` tienen filas/articulos esperados, pero todas las filas estan `verified=false`, `safe_to_answer=false`, `source_hash=NULL`, `capture_date=2026-05-19` y las normas MiCA no tienen articulos parseados ni `content_hash`.
+Estado VPS: IMPLEMENTED AS FAIL-CLOSED CONTRACT. Commit `fa9a39a` reduce `mcp_validation_suite.py` de 5 a 2 fallos; CASP, `emisor_token` y ART base pasan como evidencia fuerte o fail-closed. `docs/mica-casp-emisor-token-audit-2026-05-24.md` documenta que CASP y `emisor_token` tienen filas/articulos esperados, pero todas las filas estan `verified=false`, `safe_to_answer=false`, `source_hash=NULL`, `capture_date=2026-05-19` y las normas MiCA no tienen articulos parseados ni `content_hash`.
 
 Impacto: bloquea `casp_obligations_all_verified`, `emisor_token_obligations_all_verified`, `emisor_token_art_base_obligations_completa`, `casp_all_verified`, `emisor_token_all_verified` y `emisor_token_art_completa`.
 
@@ -379,7 +379,7 @@ Checklist de salida:
 - [x] Separar ART base de EMT parcial en `emisor_token`.
 - [x] Confirmar que no existe evidencia normalizada suficiente; mantener gap explicito.
 - [x] Promover solo filas con evidencia primaria completa: ninguna promocion aplicada.
-- [ ] Reejecutar `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para contratos MiCA.
+- [x] Reejecutar `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para contratos MiCA.
 
 ### Issue MCP-DATA-06 - Resolver aplicabilidad Modelo 303 en `empresa_servicios_pago`
 

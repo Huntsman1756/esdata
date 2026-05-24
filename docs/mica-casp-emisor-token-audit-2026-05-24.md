@@ -119,13 +119,24 @@ The safe contract is:
 explicitly fail-closed. ART base is checked through the same contract instead of
 requiring `completeness='completa'`.
 
-## Expected VPS Result
+## VPS Result
 
-After deployment:
+After deployment of commit `fa9a39a`:
 
-- CASP no longer fails merely because rows are unverified.
-- `emisor_token` no longer fails merely because rows are unverified.
-- ART base no longer fails merely because it is partial; it must be present and
-  verified/fail-closed.
-- Remaining semantic failures should be limited to `sociedad_valores` aggregate
-  coverage and global profile percentage unless another non-MiCA issue appears.
+- `mcp_validation_suite.py --read-only --base-url http://api:8000`:
+  `ok=false`, `checks=133`, `failures=2`.
+- `casp_obligations_verified_or_fail_closed`: `value=0`, OK.
+- `emisor_token_obligations_verified_or_fail_closed`: `value=0`, OK.
+- `emisor_token_art_base_obligations_present_3`: `value=3`, OK.
+- `emisor_token_art_base_obligations_verified_or_fail_closed_3`: `value=3`, OK.
+- Remaining semantic failures:
+  - `sociedad_valores_verified_ge_24`
+  - `all_profiles_pct_verified_ge_70`
+
+`mcp_deep_contract_audit.py --base-url http://api:8000`:
+
+- `ok=false`, `checks=12`, `failures=3`.
+- `eu_norm_contracts` no longer contains CASP or `emisor_token`; it only keeps
+  `sociedad_valores_verified_count`.
+- The nested semantic suite only keeps `sociedad_valores_verified_ge_24` and
+  `all_profiles_pct_verified_ge_70`.
