@@ -1128,6 +1128,20 @@ SOCIEDAD_VALORES_EXCLUDED = {
 }
 
 
+IRNR_296_TIPO_RENTA_CLAVES = {
+    "dividendos": {
+        "codigo": "1",
+        "label": "tipo_renta_dividendos",
+        "needle": "dividend",
+    },
+    "intereses": {
+        "codigo": "2",
+        "label": "tipo_renta_intereses",
+        "needle": "inter",
+    },
+}
+
+
 def _model_rows_by_code(db, codigos: list[str]) -> dict[str, dict]:
     if not codigos:
         return {}
@@ -1144,6 +1158,60 @@ def _model_rows_by_code(db, codigos: list[str]) -> dict[str, dict]:
         {f"c{i}": codigo for i, codigo in enumerate(codigos)},
     ).mappings()
     return {row["codigo"]: dict(row) for row in rows}
+
+
+def _modelo_296_tipo_renta_evidence(db, tipo_renta_norm: str) -> dict | None:
+    config = IRNR_296_TIPO_RENTA_CLAVES.get(tipo_renta_norm)
+    if not config:
+        return None
+    row = db.execute(
+        text(
+            """
+            SELECT
+                cl.codigo,
+                cl.etiqueta,
+                cl.descripcion,
+                cl.criterio_aplicacion,
+                cl.source_url,
+                cl.source_hash,
+                cl.capture_date
+            FROM aeat_modelo m
+            JOIN modelo_campana mc ON mc.modelo_id = m.id
+            JOIN modelo_clave cl ON cl.campana_id = mc.id
+            WHERE m.codigo = '296'
+              AND COALESCE(m.activo, true) = true
+              AND COALESCE(mc.activo, true) = true
+              AND COALESCE(cl.activa, true) = true
+              AND cl.codigo = :codigo
+              AND COALESCE(cl.source_hash, '') <> ''
+              AND cl.capture_date IS NOT NULL
+              AND lower(COALESCE(cl.etiqueta, '') || ' ' || COALESCE(cl.descripcion, '')) LIKE :needle
+            ORDER BY mc.id DESC, cl.id DESC
+            LIMIT 1
+            """
+        ),
+        {
+            "codigo": config["codigo"],
+            "needle": f"%{config['needle']}%",
+        },
+    ).mappings().first()
+    if not row:
+        return None
+    capture_date = row["capture_date"]
+    return {
+        "label": config["label"],
+        "source": "modelo_clave",
+        "source_document": f"296:CLAVE_RENTA:{row['codigo']}",
+        "source_url": row["source_url"],
+        "source_hash": row["source_hash"],
+        "capture_date": (
+            capture_date.isoformat()
+            if hasattr(capture_date, "isoformat")
+            else str(capture_date)
+        ),
+        "excerpt": row["etiqueta"] or row["descripcion"] or row["criterio_aplicacion"],
+        "official": True,
+    }
 
 
 def list_modelos_por_supuesto(
@@ -1206,6 +1274,7 @@ def list_modelos_por_supuesto(
             ordered_codes.append(codigo)
 
     rows = _model_rows_by_code(db, ordered_codes + list(SOCIEDAD_VALORES_EXCLUDED))
+    tipo_renta_296_evidence = _modelo_296_tipo_renta_evidence(db, tipo_renta_norm)
     modelos = []
     for codigo in ordered_codes:
         row = rows.get(codigo)
@@ -1214,6 +1283,26 @@ def list_modelos_por_supuesto(
         rule = SOCIEDAD_VALORES_MODEL_RULES[codigo]
         clasificacion = rule.get("clasificacion", "candidato")
         missing_factors = ["evidencia_explicita_de_obligatoriedad_para_sociedad_valores"]
+        matched_factors = list(rule["matched_factors"])
+        evidencias = [
+            {
+                "source": "aeat_modelo",
+                "source_document": codigo,
+                "source_url": row.get("url_info"),
+                "source_hash": None,
+                "capture_date": None,
+                "excerpt": row["nombre"],
+                "official": True,
+            }
+        ]
+        if codigo == "296" and tipo_renta_norm in IRNR_296_TIPO_RENTA_CLAVES:
+            if tipo_renta_296_evidence:
+                matched_factors.append(tipo_renta_296_evidence["label"])
+                evidencias.append(tipo_renta_296_evidence)
+                missing_factors.append("convenio_o_regla_domestica_por_pais")
+                missing_factors.append("certificado_residencia_o_protocolo_si_aplica")
+            else:
+                missing_factors.append(f"tipo_renta_{tipo_renta_norm}_sin_hash_o_captura")
         modelos.append(
             {
                 "codigo": codigo,
@@ -1228,17 +1317,9 @@ def list_modelos_por_supuesto(
                 "periodo": row.get("periodo"),
                 "impuesto": row.get("impuesto"),
                 "candidate_score": 0.65 if clasificacion == "candidato" else 0.35,
-                "matched_factors": rule["matched_factors"],
+                "matched_factors": matched_factors,
                 "missing_factors": missing_factors,
-                "evidencia": [
-                    {
-                        "source": "aeat_modelo",
-                        "source_document": codigo,
-                        "source_url": row.get("url_info"),
-                        "excerpt": row["nombre"],
-                        "official": True,
-                    }
-                ],
+                "evidencia": evidencias,
             }
         )
 

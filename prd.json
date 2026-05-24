@@ -26,8 +26,8 @@
         "Tests cubren: renta soportada con evidencia, renta no soportada, ausencia de hash/capture y no contaminacion entre tipos de renta",
         "Docs/matriz indican exactamente que rentas avanzaron y que falta para safe_to_answer=true"
       ],
-      "passes": false,
-      "notes": "Primer candidato: dividendos e intereses IRNR por su relacion con D-06 y modelo 296. Si la evidencia no alcanza, documentar partial y no sembrar."
+      "passes": true,
+      "notes": "Cerrada localmente: produccion acredita claves oficiales 296 para dividendos (CLAVE_RENTA 1) e intereses (CLAVE_RENTA 2) con URL/hash/captura. Se persisten reglas CONDICIONAL solo para 296 y el clasificador proyecta evidencia de modelo_clave sin declarar obligacion segura; 216 queda sin granularizar por falta de clave de renta equivalente."
     },
     {
       "id": "O-02",

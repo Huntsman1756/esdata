@@ -72,10 +72,108 @@ def _seed_sociedad_valores_modelos():
             )
 
 
+def _seed_modelo_296_income_keys(*, dividend_hash: str | None = "hash-dividendos"):
+    from db import engine
+
+    with engine.begin() as conn:
+        model_id = conn.execute(
+            text("SELECT id FROM aeat_modelo WHERE codigo = '296'")
+        ).scalar_one()
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_campana (
+                    modelo_id, campana, activo, estado_publicacion,
+                    url_instrucciones, url_normativa, url_formato
+                )
+                VALUES (
+                    :modelo_id, '2025', 1, 'publicada',
+                    'https://sede.agenciatributaria.gob.es/modelo-296',
+                    'https://www.boe.es/buscar/act.php?id=BOE-A-2008-18497',
+                    NULL
+                )
+                """
+            ),
+            {"modelo_id": model_id},
+        )
+        campana_id = conn.execute(
+            text(
+                """
+                SELECT id
+                FROM modelo_campana
+                WHERE modelo_id = :modelo_id
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ),
+            {"modelo_id": model_id},
+        ).scalar_one()
+        for codigo, etiqueta, source_hash in (
+            (
+                "1",
+                "Dividendos y otras rentas derivadas de la participacion en fondos propios de entidades",
+                dividend_hash,
+            ),
+            (
+                "2",
+                "Intereses y otras rentas derivadas de la cesion a terceros de capitales propios",
+                "hash-intereses",
+            ),
+        ):
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO modelo_clave (
+                        campana_id, codigo, etiqueta, descripcion, tipo_clave, tipo,
+                        criterio_aplicacion, source_url, source_hash, capture_date, activa
+                    )
+                    VALUES (
+                        :campana_id, :codigo, :etiqueta, :etiqueta,
+                        'CLAVE_RENTA', 'CLAVE_RENTA',
+                        'Usar en posiciones 100-101 segun el tipo de renta declarado.',
+                        'https://www.boe.es/buscar/act.php?id=BOE-A-2008-18497',
+                        :source_hash, '2026-05-14', 1
+                    )
+                    """
+                ),
+                {
+                    "campana_id": campana_id,
+                    "codigo": codigo,
+                    "etiqueta": etiqueta,
+                    "source_hash": source_hash,
+                },
+            )
+
+
 def _cleanup_sociedad_valores_modelos():
     from db import engine
 
     with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                DELETE FROM modelo_clave
+                WHERE campana_id IN (
+                    SELECT mc.id
+                    FROM modelo_campana mc
+                    JOIN aeat_modelo m ON m.id = mc.modelo_id
+                    WHERE m.codigo IN ('123', '124', '193', '216', '296')
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                DELETE FROM modelo_campana
+                WHERE modelo_id IN (
+                    SELECT id
+                    FROM aeat_modelo
+                    WHERE codigo IN ('123', '124', '193', '216', '296')
+                )
+                """
+            )
+        )
         conn.execute(
             text(
                 """
@@ -308,6 +406,89 @@ async def test_modelos_por_supuesto_sociedad_valores_fail_closed_without_explici
         assert "111" in excluded
         assert "115" in excluded
         assert "190" in excluded
+    finally:
+        _cleanup_sociedad_valores_modelos()
+
+
+@pytest.mark.asyncio
+async def test_modelos_por_supuesto_uses_296_income_key_evidence_without_confirming_obligation():
+    _cleanup_sociedad_valores_modelos()
+    _seed_sociedad_valores_modelos()
+    _seed_modelo_296_income_keys()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"x-api-key": "test-secret-key"},
+        ) as client:
+            response = await client.get(
+                "/v1/modelos/por-supuesto",
+                params={
+                    "tipo_entidad": "sociedad_valores",
+                    "clientes_no_residentes": True,
+                    "tipo_renta": "dividendos",
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["status"] == "evidence_limited"
+        assert data["verified"] is False
+        by_codigo = {item["codigo"]: item for item in data["modelos"]}
+        modelo_296 = by_codigo["296"]
+        assert modelo_296["clasificacion"] == "candidato"
+        assert "tipo_renta_dividendos" in modelo_296["matched_factors"]
+        assert "convenio_o_regla_domestica_por_pais" in modelo_296["missing_factors"]
+        key_evidence = [
+            item
+            for item in modelo_296["evidencia"]
+            if item["source"] == "modelo_clave"
+        ]
+        assert len(key_evidence) == 1
+        assert key_evidence[0]["source_document"] == "296:CLAVE_RENTA:1"
+        assert key_evidence[0]["source_hash"] == "hash-dividendos"
+        assert key_evidence[0]["capture_date"] == "2026-05-14"
+        assert "Dividendos" in key_evidence[0]["excerpt"]
+
+        modelo_216 = by_codigo["216"]
+        assert "tipo_renta_dividendos" not in modelo_216["matched_factors"]
+        assert not any(item["source"] == "modelo_clave" for item in modelo_216["evidencia"])
+    finally:
+        _cleanup_sociedad_valores_modelos()
+
+
+@pytest.mark.asyncio
+async def test_modelos_por_supuesto_ignores_income_key_without_hash_evidence():
+    _cleanup_sociedad_valores_modelos()
+    _seed_sociedad_valores_modelos()
+    _seed_modelo_296_income_keys(dividend_hash=None)
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"x-api-key": "test-secret-key"},
+        ) as client:
+            response = await client.get(
+                "/v1/modelos/por-supuesto",
+                params={
+                    "tipo_entidad": "sociedad_valores",
+                    "clientes_no_residentes": True,
+                    "tipo_renta": "dividendos",
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        by_codigo = {item["codigo"]: item for item in data["modelos"]}
+        modelo_296 = by_codigo["296"]
+        assert "tipo_renta_dividendos" not in modelo_296["matched_factors"]
+        assert not any(item["source"] == "modelo_clave" for item in modelo_296["evidencia"])
+        assert "tipo_renta_dividendos_sin_hash_o_captura" in modelo_296["missing_factors"]
+        assert data["verified"] is False
     finally:
         _cleanup_sociedad_valores_modelos()
 

@@ -1,6 +1,6 @@
 # IRNR Rentas, CDI y Siguiente AEAT
 
-Estado: `planned`.
+Estado: `in_progress`.
 
 Este bloque arranca despues del cierre de AEAT IRNR `216/296`. No intenta aumentar cobertura por volumen; separa tres historias para desbloquearlas con metodo Ralph, una por iteracion.
 
@@ -11,6 +11,16 @@ Este bloque arranca despues del cierre de AEAT IRNR `216/296`. No intenta aument
 | O-01 | Granularizar `216/296` por tipo de renta IRNR, empezando por dividendos e intereses | Reglas/relaciones persistidas si hay evidencia, o `partial` documentado |
 | O-02 | Preparar CDI despues de una renta domestica trazada | Relacion CDI estrecha si hay pais/articulo/fuente, o bloqueo documentado |
 | O-03 | Elegir siguiente modelo AEAT limpio | Un candidato defendible para sprint posterior, o ningun candidato si falta evidencia |
+
+## Estado O-01
+
+O-01 queda cerrada como avance parcial trazable:
+
+- `296` tiene claves oficiales cargadas para dividendos (`CLAVE_RENTA 1`) e intereses (`CLAVE_RENTA 2`) con URL, hash y captura.
+- `20260524_0089_aeat_irnr_income_type_rules` persiste reglas `CONDICIONAL` para ambas rentas en `modelo_regla_inclusion`.
+- `/v1/modelos/por-supuesto` proyecta evidencia de `modelo_clave` solo si hay `source_hash` y `capture_date`.
+- La salida sigue `evidence_limited` y `verified=false`; no se declara obligacion segura por falta de convenio, protocolo, residencia efectiva y cierre de retencion por supuesto.
+- `216` no se granulariza por dividendos/intereses porque no hay clave de renta equivalente en el modelo cargado.
 
 ## Regla De Producto
 
