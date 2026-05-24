@@ -1,65 +1,34 @@
 {
-  "sprint": "sprint-o-irnr-rentas-cdi-aeat",
-  "projectName": "esdata-aeat-irnr-rentas-cdi",
-  "branchName": "feat/sprint-o-irnr-rentas-cdi-aeat",
-  "version_baseline": "post-PR-81",
-  "description": "Ralph sprint para desbloquear tres historias fiscales tras cerrar AEAT IRNR 216/296: granularizar por tipo de renta, preparar enlace CDI solo cuando haya renta base trazada y seleccionar el siguiente modelo AEAT limpio.",
+  "sprint": "sprint-p-modelo-193-rentas-residentes",
+  "projectName": "esdata-aeat-modelo-193-rentas-residentes",
+  "branchName": "codex/sprint-p-modelo-193-rentas-residentes",
+  "version_baseline": "post-PR-83",
+  "description": "Ralph sprint para ejecutar el candidato seleccionado en O-03: Modelo 193 como bloque residente de dividendos e intereses, sin convertirlo en obligacion universal.",
   "context": {
-    "doctrina_d01": "complete: DGT V0166-25, TRLIRNR art. 31, modelos 216/296, hash/captura y relacion modelo/supuesto",
-    "modelo_216": "complete como modelo/formulario; 47 casillas, 5 claves, 6 instrucciones, 3 reglas inclusion/exclusion IRNR tras 20260524_0088",
-    "modelo_296": "complete como modelo/formulario; 124 casillas, 35 claves, 8 instrucciones, 4 reglas inclusion/exclusion IRNR tras 20260524_0088",
-    "aplicabilidad_irnr": "partial: por-supuesto mantiene 216/296 como candidatos y safe_to_answer=false salvo evidencia completa",
-    "mcp": "legacy estable para scope ESData; no tocar salvo exposicion de contrato fiscal nuevo"
+    "modelo_193": "complete como modelo/formulario en produccion: 71 casillas, 38 claves, 5 instrucciones, recursos oficiales con hash",
+    "modelo_296": "granularizado en O-01 para dividendos/intereses IRNR solo como reglas CONDICIONAL",
+    "cdi": "fail-closed en O-02; no usar convenio como fuente de obligacion domestica",
+    "mcp": "legacy estable para scope ESData; no tocar salvo exposicion fiscal necesaria"
   },
   "userStories": [
     {
-      "id": "O-01",
+      "id": "P-01",
       "priority": 1,
-      "title": "Granularizar 216/296 por tipo de renta IRNR",
-      "description": "Auditar y, si hay evidencia oficial suficiente, persistir reglas de inclusion/exclusion para tipos de renta IRNR dentro de 216/296, empezando por dividendos e intereses. No calcular retencion ni aplicabilidad final. No cerrar por mera clave del modelo 296 si falta supuesto, articulo o fuente trazable.",
+      "title": "Granularizar Modelo 193 por dividendos e intereses residentes",
+      "description": "Auditar produccion y persistir reglas condicionales del Modelo 193 para dividendos e intereses residentes solo si existen claves oficiales con URL, hash y capture_date. No calcular retencion ni aplicabilidad final.",
       "acceptance": [
-        "Auditoria de produccion documenta claves/subclaves 296 ya cargadas para dividendos e intereses, con source_url, source_hash y capture_date",
-        "Solo se persisten reglas o relaciones nuevas si la fuente oficial identifica tipo de renta y modelo 216/296 de forma trazable",
-        "Dividendos e intereses quedan diferenciados; no se mezclan con canones, servicios profesionales ni ganancias patrimoniales",
-        "D-01 se usa solo como soporte de retencion IRNR general; no sustituye el cierre por tipo de renta",
-        "Las respuestas por supuesto siguen fail-closed si falta convenio, protocolo, residencia, tipo de renta o articulo aplicable",
-        "Tests cubren: renta soportada con evidencia, renta no soportada, ausencia de hash/capture y no contaminacion entre tipos de renta",
-        "Docs/matriz indican exactamente que rentas avanzaron y que falta para safe_to_answer=true"
+        "Auditoria de produccion documenta Modelo 193 completo y claves de dividendos/intereses con source_url, source_hash y capture_date",
+        "Dividendos requieren doble anclaje PERCEPCION_A + NAT_A_02",
+        "Intereses requieren doble anclaje PERCEPCION_B + NAT_BD_01",
+        "Solo se persisten reglas CONDICIONAL si ambas claves tienen hash/captura",
+        "El clasificador por supuesto proyecta evidencia de modelo_clave para 193 sin marcar confirmado",
+        "No se contaminan 123/124 ni 216/296 con la evidencia especifica de 193",
+        "Las respuestas siguen evidence_limited/verified=false si falta pagador, perceptor, exencion o retencion concreta",
+        "Tests cubren renta soportada, ausencia de hash/captura y no contaminacion entre modelos",
+        "Docs/roadmap indican limites y siguiente accion"
       ],
       "passes": true,
-      "notes": "Cerrada localmente: produccion acredita claves oficiales 296 para dividendos (CLAVE_RENTA 1) e intereses (CLAVE_RENTA 2) con URL/hash/captura. Se persisten reglas CONDICIONAL solo para 296 y el clasificador proyecta evidencia de modelo_clave sin declarar obligacion segura; 216 queda sin granularizar por falta de clave de renta equivalente."
-    },
-    {
-      "id": "O-02",
-      "priority": 2,
-      "title": "Preparar conexion CDI despues de tipo de renta",
-      "description": "Disenar y, solo si O-01 deja una renta base trazada, conectar esa renta con CDI por articulo y pais sin mezclar convenio con la regla base del modelo. El CDI puede modular el resultado, pero no debe crear por si solo obligacion 216/296.",
-      "acceptance": [
-        "Se audita el corpus CDI existente y su exposicion por pais/renta/articulo antes de crear enlaces nuevos",
-        "No se abre CDI si O-01 no deja al menos una renta base trazada en 216/296",
-        "Las relaciones CDI se persisten solo cuando pais, articulo CDI, tipo de renta y fuente oficial tienen URL, hash/captura o equivalente",
-        "La respuesta distingue regla domestica IRNR, posible modulacion CDI y gaps de protocolo/residencia efectiva",
-        "safe_to_answer=false cuando falte pais, convenio, protocolo, certificado de residencia o tipo de renta",
-        "Tests cubren: CDI relacionado, CDI ausente, protocolo faltante y no mezclar CDI con obligacion base AEAT"
-      ],
-      "passes": true,
-      "notes": "Cerrada localmente como preparacion fail-closed: O-01 deja renta domestica trazada solo en 296; produccion CDI tiene 86 convenios pero 0 source_revision CDI y solo una regla FDAP IRS en irs_withholding_rule. No se persiste relacion CDI con 216/296; el calculo DTA ahora declara verified=false, completeness=partial, safe_to_answer=false, review_required=true y evidence_notice."
-    },
-    {
-      "id": "O-03",
-      "priority": 3,
-      "title": "Seleccionar siguiente modelo AEAT limpio",
-      "description": "Auditar candidatos de modelo AEAT con fuentes oficiales deterministas y elegir uno para el siguiente sprint. No implementar cobertura masiva en esta historia; dejar un candidato defendible con PRD operativo o documentar que no hay candidato limpio.",
-      "acceptance": [
-        "Se revisan al menos tres candidatos AEAT con fuente oficial limpia y alto valor fiscal",
-        "Para cada candidato se comprueba existencia de instrucciones, claves/casillas o diseno determinista, source_url, source_hash/capture_date y estado de completitud",
-        "Se descartan expresamente candidatos que dependan de PDF esquematico, FAQ, ejemplo XML o inferencia",
-        "Se elige un solo candidato para sprint siguiente o se documenta que no hay candidato defendible",
-        "No se modifica cobertura productiva de ese modelo salvo hallazgo trivial de documentacion",
-        "Docs/roadmap dejan siguiente accion exacta y criterio de salida del candidato"
-      ],
-      "passes": true,
-      "notes": "Cerrada localmente: auditados 187, 193, 198, 200, 232 y 303. Se selecciona 193 como siguiente modelo AEAT por continuidad con dividendos/intereses residentes y evidencia limpia; 187/198 quedan como candidatos validos alternativos; 100, 200, 232 y 303 se descartan para este corte por amplitud o estado parcial."
+      "notes": "Cerrada localmente: produccion acredita claves 193 PERCEPCION_A, NAT_A_02, PERCEPCION_B y NAT_BD_01 con URL/hash/captura. Se persisten reglas CONDICIONAL en 0090 y el clasificador proyecta evidencia sin declarar obligacion segura."
     }
   ]
 }

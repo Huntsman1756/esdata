@@ -125,6 +125,24 @@ def test_aeat_irnr_income_type_rules_are_seeded_in_revision_0089():
         assert fragment in contents
 
 
+def test_aeat_193_income_type_rules_are_seeded_in_revision_0090():
+    revision_path = ALEMBIC_VERSIONS / "20260524_0090_aeat_193_income_type_rules.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "tipo_renta_dividendos_residentes_193",
+        "tipo_renta_intereses_residentes_193",
+        "PERCEPCION_A",
+        "NAT_A_02",
+        "PERCEPCION_B",
+        "NAT_BD_01",
+        "source_hash IS NOT NULL",
+        "capture_date IS NOT NULL",
+        "CONDICIONAL",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

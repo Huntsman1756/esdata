@@ -1142,6 +1142,24 @@ IRNR_296_TIPO_RENTA_CLAVES = {
 }
 
 
+RESIDENTE_193_TIPO_RENTA_CLAVES = {
+    "dividendos": {
+        "label": "tipo_renta_dividendos_residentes",
+        "keys": (
+            ("CLAVE_PERCEPCION", "PERCEPCION_A", "participacion"),
+            ("NATURALEZA", "NAT_A_02", "dividend"),
+        ),
+    },
+    "intereses": {
+        "label": "tipo_renta_intereses_residentes",
+        "keys": (
+            ("CLAVE_PERCEPCION", "PERCEPCION_B", "cesion"),
+            ("NATURALEZA", "NAT_BD_01", "inter"),
+        ),
+    },
+}
+
+
 def _model_rows_by_code(db, codigos: list[str]) -> dict[str, dict]:
     if not codigos:
         return {}
@@ -1214,6 +1232,72 @@ def _modelo_296_tipo_renta_evidence(db, tipo_renta_norm: str) -> dict | None:
     }
 
 
+def _modelo_193_tipo_renta_evidence(db, tipo_renta_norm: str) -> dict | None:
+    config = RESIDENTE_193_TIPO_RENTA_CLAVES.get(tipo_renta_norm)
+    if not config:
+        return None
+    evidences = []
+    for tipo, codigo, needle in config["keys"]:
+        row = db.execute(
+            text(
+                """
+                SELECT
+                    cl.codigo,
+                    cl.tipo,
+                    cl.tipo_clave,
+                    cl.etiqueta,
+                    cl.descripcion,
+                    cl.criterio_aplicacion,
+                    cl.source_url,
+                    cl.source_hash,
+                    cl.capture_date
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id = m.id
+                JOIN modelo_clave cl ON cl.campana_id = mc.id
+                WHERE m.codigo = '193'
+                  AND COALESCE(m.activo, true) = true
+                  AND COALESCE(mc.activo, true) = true
+                  AND COALESCE(cl.activa, true) = true
+                  AND cl.codigo = :codigo
+                  AND COALESCE(cl.tipo, cl.tipo_clave) = :tipo
+                  AND COALESCE(cl.source_hash, '') <> ''
+                  AND cl.capture_date IS NOT NULL
+                  AND lower(COALESCE(cl.etiqueta, '') || ' ' || COALESCE(cl.descripcion, '')) LIKE :needle
+                ORDER BY mc.id DESC, cl.id DESC
+                LIMIT 1
+                """
+            ),
+            {
+                "codigo": codigo,
+                "tipo": tipo,
+                "needle": f"%{needle}%",
+            },
+        ).mappings().first()
+        if not row:
+            return None
+        capture_date = row["capture_date"]
+        source_type = row["tipo"] or row["tipo_clave"] or tipo
+        evidences.append(
+            {
+                "source": "modelo_clave",
+                "source_document": f"193:{source_type}:{row['codigo']}",
+                "source_url": row["source_url"],
+                "source_hash": row["source_hash"],
+                "capture_date": (
+                    capture_date.isoformat()
+                    if hasattr(capture_date, "isoformat")
+                    else str(capture_date)
+                ),
+                "excerpt": row["etiqueta"] or row["descripcion"] or row["criterio_aplicacion"],
+                "official": True,
+            }
+        )
+    return {
+        "label": config["label"],
+        "evidences": evidences,
+    }
+
+
 def list_modelos_por_supuesto(
     db,
     *,
@@ -1275,6 +1359,7 @@ def list_modelos_por_supuesto(
 
     rows = _model_rows_by_code(db, ordered_codes + list(SOCIEDAD_VALORES_EXCLUDED))
     tipo_renta_296_evidence = _modelo_296_tipo_renta_evidence(db, tipo_renta_norm)
+    tipo_renta_193_evidence = _modelo_193_tipo_renta_evidence(db, tipo_renta_norm)
     modelos = []
     for codigo in ordered_codes:
         row = rows.get(codigo)
@@ -1303,6 +1388,16 @@ def list_modelos_por_supuesto(
                 missing_factors.append("certificado_residencia_o_protocolo_si_aplica")
             else:
                 missing_factors.append(f"tipo_renta_{tipo_renta_norm}_sin_hash_o_captura")
+        if codigo == "193" and tipo_renta_norm in RESIDENTE_193_TIPO_RENTA_CLAVES:
+            if tipo_renta_193_evidence:
+                matched_factors.append(tipo_renta_193_evidence["label"])
+                evidencias.extend(tipo_renta_193_evidence["evidences"])
+                missing_factors.append("perceptor_y_retencion_concreta")
+                missing_factors.append("exencion_o_no_sujecion_si_aplica")
+            else:
+                missing_factors.append(
+                    f"tipo_renta_{tipo_renta_norm}_residentes_sin_doble_clave_hash_o_captura"
+                )
         modelos.append(
             {
                 "codigo": codigo,

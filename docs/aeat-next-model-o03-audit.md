@@ -1,6 +1,6 @@
 # AEAT Siguiente Modelo - Auditoria O-03
 
-Estado: `candidate_selected`.
+Estado: `candidate_executed`.
 
 O-03 no implementa nueva cobertura productiva. Solo selecciona un candidato para el siguiente sprint a partir de evidencia ya cargada en produccion.
 
@@ -44,3 +44,12 @@ Objetivo inicial del sprint siguiente:
 - No elegir `200`: ya tiene gran volumen de casillas, pero sigue `partial`/`inferido` y abriria demasiados supuestos IS/IRNR.
 - No elegir `232`: encaja con D-03, pero no tiene instrucciones/claves operativas suficientes en produccion.
 - No elegir `303`: alto valor, pero el bloque IVA requiere un sprint propio por amplitud y por no mezclarlo con capital mobiliario.
+
+## Ejecucion Posterior
+
+El candidato `193` se ejecuta en el bloque `P-01`:
+
+- documento de contrato: `docs/aeat-modelo-193-rentas-residentes-contract.md`;
+- migracion: `20260524_0090_aeat_193_income_type_rules`;
+- alcance: dividendos e intereses residentes;
+- salida: reglas `CONDICIONAL`, no obligacion segura universal.
