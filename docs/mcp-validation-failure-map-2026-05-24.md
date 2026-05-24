@@ -411,6 +411,8 @@ Checklist de salida:
 
 ### Issue MCP-DATA-07 - Resolver aplicabilidad Modelo 303 en `empresa_servicios_pago`
 
+Estado local: IMPLEMENTED / PENDIENTE VPS. `docs/aeat-303-empresa-servicios-pago-audit-2026-05-24.md` inventaria la fila productiva: Modelo 303 presente para `empresa_servicios_pago`, `verified=false`, `safe_to_answer=false`, `review_required=true`, `source_hash=NULL`, `capture_date=2026-05-17`, `completeness=parcial` y notas fail-closed.
+
 Impacto: bloquea `empresa_servicios_pago_modelo_303_completa` dentro de `profile_applicability_contracts`.
 
 Owner propuesto: AEAT fiscal profiles.
@@ -423,11 +425,11 @@ Artefactos a cambiar:
 
 Descripcion:
 
-El deep audit detecta que el contrato de aplicabilidad espera Modelo 303 completo para `empresa_servicios_pago`, pero el estado actual no lo cumple. Este fallo no aparece entre los 12 checks semanticos principales, pero si bloquea el deep audit.
+El deep audit detectaba que el contrato de aplicabilidad esperaba Modelo 303 completo para `empresa_servicios_pago`, pero el estado actual no lo cumple. Este fallo no aparece entre los checks semanticos principales, pero si bloquea el deep audit. El contrato local se ajusta para exigir presencia del 303 y estado verificado o fail-closed, no `completa` sin evidencia normalizada en `obligacion_perfil`.
 
 Checklist de salida:
 
-- [ ] Inspeccionar payload de `/v1/perfil/empresa_servicios_pago/obligaciones?dominio=FISCAL`.
-- [ ] Confirmar fuente primaria de aplicabilidad de Modelo 303 para el perfil.
-- [ ] Decidir si se recupera evidencia o si el contrato debe dejar de exigir `completa`.
+- [x] Inspeccionar payload de `/v1/perfil/empresa_servicios_pago/obligaciones?dominio=FISCAL`.
+- [x] Confirmar que hay recursos oficiales Modelo 303 con hash a nivel modelo/campana, pero no `source_hash` normalizado en la fila `obligacion_perfil`.
+- [x] Decidir que el contrato debe dejar de exigir `completa` y aceptar verified/fail-closed explicito.
 - [ ] Reejecutar `mcp_deep_contract_audit.py` y confirmar que `profile_applicability_contracts` pasa o queda con un fallo distinto documentado.

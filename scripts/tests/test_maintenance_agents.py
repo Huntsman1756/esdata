@@ -355,6 +355,27 @@ def test_deep_contract_audit_accepts_mica_fail_closed_obligation_items():
     )
 
 
+def test_deep_contract_audit_accepts_modelo_303_fail_closed_obligation_items():
+    audit = _load_deep_contract_audit()
+
+    assert audit._obligation_item_verified_or_fail_closed(
+        {
+            "descripcion": "Modelo 303 - IVA autoliquidacion",
+            "modelo_aeat": "303",
+            "norma_codigo": "LIVA",
+            "articulo_referencia": "art. 164",
+            "verified": False,
+            "safe_to_answer": False,
+            "review_required": True,
+            "source_url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G414.shtml",
+            "source_hash": None,
+            "capture_date": "2026-05-17",
+            "evidence_notice": "evidence_limited: falta hash o fecha de captura de la fuente",
+            "completeness": "parcial",
+        }
+    )
+
+
 def test_mcp_validation_suite_uses_sociedad_valores_fail_closed_threshold():
     source = (ROOT / "scripts" / "maintenance" / "mcp_validation_suite.py").read_text(encoding="utf-8")
 

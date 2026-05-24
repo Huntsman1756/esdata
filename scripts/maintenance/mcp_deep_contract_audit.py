@@ -1225,6 +1225,12 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     details["empresa_servicios_pago_fiscal_modelos"] = [
         item.get("modelo_aeat") for item in esp_items if isinstance(item, dict)
     ]
+    esp_modelo_303_items = [
+        item
+        for item in esp_items
+        if isinstance(item, dict) and item.get("modelo_aeat") == "303"
+    ]
+    details["empresa_servicios_pago_modelo_303"] = esp_modelo_303_items[:1]
     details["sgiic_cnmv_descriptions"] = [item.get("descripcion") for item in sgiic_items if isinstance(item, dict)]
     sociedad_items = profile_obligaciones.get("sociedad_valores", [])
     sociedad_ifr_obligations = [
@@ -1365,12 +1371,10 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
         for needle in ("corep", "finrep")
     ):
         failures.append({"check": "entidad_credito_corep_finrep"})
-    if not any(
-        item.get("modelo_aeat") == "303" and item.get("completeness") == "completa"
-        for item in esp_items
-        if isinstance(item, dict)
-    ):
-        failures.append({"check": "empresa_servicios_pago_modelo_303_completa"})
+    if not esp_modelo_303_items:
+        failures.append({"check": "empresa_servicios_pago_modelo_303_present"})
+    elif not any(_obligation_item_verified_or_fail_closed(item) for item in esp_modelo_303_items):
+        failures.append({"check": "empresa_servicios_pago_modelo_303_verified_or_fail_closed"})
     if not any("annex iv" in str(item.get("descripcion", "")).lower() for item in sgiic_items if isinstance(item, dict)):
         failures.append({"check": "sgiic_aifmd_annex_iv"})
     if not sociedad_ifr_obligations:
