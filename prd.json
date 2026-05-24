@@ -1,29 +1,29 @@
 {
-  "sprint": "sprint-x-aeat-289-metadata-evidence",
-  "projectName": "esdata-aeat-289-metadata-evidence",
-  "branchName": "codex/aeat-289-metadata-evidence",
-  "version_baseline": "post-PR-96",
-  "description": "Normalizar evidencia auxiliar del Modelo 289 sin promover obligaciones ni cerrar aplicabilidad CRS/DAC2.",
+  "sprint": "sprint-y-aeat-modelo-clave-source-audit",
+  "projectName": "esdata-aeat-modelo-clave-source-audit",
+  "branchName": "codex/aeat-modelo-clave-source-audit",
+  "version_baseline": "post-PR-97",
+  "description": "Auditar claves AEAT legacy sin fuente por fila y bloquear normalizacion cuando no exista evidencia oficial deterministica.",
   "context": {
-    "scope": "modelo_regla_inclusion y modelo_instruccion del Modelo 289",
-    "not_in_scope": "obligacion_perfil, modelo_clave, safe_to_answer, verified, completeness funcional",
-    "risk": "confundir metadata auxiliar con obligacion segura por perfil"
+    "scope": "modelo_clave sin source_url en modelos 111, 190, 196 y 303",
+    "not_in_scope": "obligacion_perfil, safe_to_answer, verified, completeness funcional, modelo_instruccion generica",
+    "risk": "rellenar hash/captura desde un recurso activo del modelo sin que pruebe la clave concreta"
   },
   "userStories": [
     {
-      "id": "X-01",
+      "id": "Y-01",
       "priority": 1,
-      "title": "Normalizar hash/captura en metadata auxiliar 289",
-      "description": "Poblar source_hash en reglas e instrucciones 289 con fuentes oficiales exactas ya auditadas, manteniendo el modelo parcial donde falte contrato de aplicabilidad.",
+      "title": "Auditar modelo_clave sin fuente por fila",
+      "description": "Verificar si las claves legacy 111/190/196/303 pueden trazarse a fuente oficial exacta antes de cualquier migracion de normalizacion.",
       "acceptance": [
-        "Las reglas 289 con fuente BOE RD 1021/2015 tienen source_hash y capture_date",
-        "Las instrucciones 289 con fuente BOE, AEAT GI42 o PDF CRS tienen source_hash y capture_date",
-        "No se modifica obligacion_perfil",
-        "No se marca safe_to_answer=true ni verified=true desde esta normalizacion",
-        "Modelo 289 sigue partial/evidence_limited para aplicabilidad por perfil"
+        "Se confirma que no quedan filas auxiliares con source_url y evidencia incompleta",
+        "Se inventarian claves legacy sin source_url por modelo",
+        "No se normaliza ninguna clave sin fuente oficial que pruebe codigo y descripcion",
+        "No se toca obligacion_perfil ni se promueve safe_to_answer",
+        "El roadmap deja bloqueada la normalizacion hasta localizar fuente deterministica"
       ],
       "passes": true,
-      "notes": "Revision 0097 desplegada: metadata auxiliar 289 sin missing evidence; obligacion_perfil sigue con safe_true=0 y verified_true=0."
+      "notes": "Auditoria cerrada sin migracion: 20 claves legacy sin source_url quedan bloqueadas por falta de fuente oficial por fila."
     }
   ]
 }

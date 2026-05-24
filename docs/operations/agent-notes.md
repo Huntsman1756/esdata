@@ -54,6 +54,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-24 - `modelo_clave`: recurso activo del modelo no prueba clave legacy
+
+- Scope: `modelo_clave` en modelos AEAT `111`, `190`, `196`, `303`.
+- Hallazgo: quedan claves legacy sin `source_url`, pero los recursos oficiales activos del modelo solo prueban categorias generales, instrucciones o paginas de modelo; no prueban automaticamente el codigo y descripcion de cada clave legacy.
+- Impacto: rellenar `source_hash`/`capture_date` desde el recurso activo del modelo daria apariencia de trazabilidad por fila sin evidencia directa.
+- Regla practica: normalizar `modelo_clave` solo si la fuente oficial contiene la clave concreta y su descripcion. Si solo hay similitud tematica o categoria general, documentar como bloqueado.
+
 ### 2026-05-24 - Modelo 289: metadata auxiliar no equivale a obligacion segura
 
 - Scope: `modelo_regla_inclusion`, `modelo_instruccion`, Modelo AEAT `289`.
