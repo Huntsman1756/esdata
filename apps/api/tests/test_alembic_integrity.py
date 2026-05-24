@@ -278,6 +278,38 @@ def test_obligacion_perfil_111_115_recovery_uses_unique_source_revision_in_0096(
         assert forbidden not in contents
 
 
+def test_aeat_289_auxiliary_metadata_evidence_is_normalized_in_0097():
+    revision_path = (
+        ALEMBIC_VERSIONS / "20260524_0097_aeat_289_metadata_evidence.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '289'",
+        "modelo_regla_inclusion",
+        "modelo_instruccion",
+        "https://www.boe.es/buscar/doc.php?id=BOE-A-2015-12399",
+        "423708790f64e673977e020d223ee8af89e99bea7970d793c998264e0fbc7b75",
+        "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI42.shtml",
+        "c73351f50935086f4fbeda39d5123563587a6964e2aaa8d254a4ba7b38b4b9a1",
+        "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI42/Ayuda/CRS_Presentac_289_SWeb_2.6.pdf",
+        "ce76a21a629125961efe6a1ed9800262f4d253ab55c72a7f04e358936a448be3",
+        "2026-05-24",
+        "source_hash IS NULL",
+        "capture_date IS NULL",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "INSERT INTO modelo_clave",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
