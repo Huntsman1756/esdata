@@ -384,7 +384,7 @@ Checklist de salida:
 
 ### Issue MCP-DATA-06 - Reconciliar umbral de `sociedad_valores` como verified/fail-closed
 
-Estado local: IMPLEMENTED / PENDIENTE VPS. `docs/sociedad-valores-profile-threshold-audit-2026-05-24.md` inventaria el RED productivo y clasifica `38` obligaciones: `4` verificadas con evidencia normalizada y `34` fail-closed explicitas.
+Estado VPS: IMPLEMENTED AS FAIL-CLOSED CONTRACT. Commit `3e8092a` reduce `mcp_validation_suite.py` de 2 a 1 fallo; `sociedad_valores_verified_or_fail_closed_ge_24` pasa con `value=38`. `eu_norm_contracts` pasa en deep audit con `sociedad_valores_verified_count=4`, `sociedad_valores_fail_closed_count=34` y `sociedad_valores_verified_or_fail_closed_count=38`.
 
 Impacto: bloquea `sociedad_valores_verified_ge_24`, `sociedad_valores_verified_count` y la parte `sociedad_valores` de `eu_norm_contracts`.
 
@@ -407,7 +407,7 @@ Checklist de salida:
 - [x] Cambiar el check a `sociedad_valores_verified_or_fail_closed_ge_24` sin modificar datos productivos.
 - [x] Cambiar deep audit para mantener `sociedad_valores_verified_count` como detalle y fallar solo por `sociedad_valores_verified_or_fail_closed_count`.
 - [x] Reejecutar validacion local focal.
-- [ ] Reejecutar validacion VPS; confirmar que el unico fallo semantico principal restante es `all_profiles_pct_verified_ge_70`.
+- [x] Reejecutar validacion VPS; confirmar que el unico fallo semantico principal restante es `all_profiles_pct_verified_ge_70`.
 
 ### Issue MCP-DATA-07 - Resolver aplicabilidad Modelo 303 en `empresa_servicios_pago`
 

@@ -1,6 +1,6 @@
 # Sociedad valores profile threshold audit - 2026-05-24
 
-Estado: COMPLETADO LOCAL / PENDIENTE VPS
+Estado: COMPLETADO VPS
 
 Alcance Ralph: reconciliar el umbral historico `sociedad_valores_verified_ge_24` sin promover obligaciones por analogia ni usar `all_profiles_pct_verified_ge_70` como objetivo directo.
 
@@ -105,3 +105,38 @@ python scripts/maintenance/verify-doc-contracts.py
 python scripts/maintenance/verify-doc-artifacts.py --ci-baseline
 # docs artifacts verified
 ```
+
+## Validacion VPS
+
+Despliegue:
+
+- Commit `3e8092a` en `/srv/esdata` por `git pull --ff-only`.
+- Imagen `ops` reconstruida correctamente.
+- API y Postgres permanecen `healthy`; `/health` devuelve `status=ok`, `database=ok`.
+
+Suite principal:
+
+```text
+python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000
+# ok=false
+# checks=133
+# failures=1
+# failure_names=['all_profiles_pct_verified_ge_70']
+# sociedad_valores_verified_or_fail_closed_ge_24: ok=true, value=38, minimum=24
+```
+
+Deep audit:
+
+```text
+python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000
+# ok=false
+# checks=12
+# failures=2
+# failure_names=['profile_applicability_contracts', 'semantic_fail_closed_and_pagination_suite']
+# eu_norm_contracts: ok=true
+# sociedad_valores_verified_count=4
+# sociedad_valores_fail_closed_count=34
+# sociedad_valores_verified_or_fail_closed_count=38
+```
+
+Resultado: el bloque `sociedad_valores` deja de ser fallo semantico y de `eu_norm_contracts`. La deuda restante queda separada en Modelo 303 de `empresa_servicios_pago` y en la metrica agregada de perfiles.
