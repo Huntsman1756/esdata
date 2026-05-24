@@ -5,12 +5,11 @@ from contextlib import contextmanager
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from mcp_tools_perfil import obtener_obligaciones_perfil
+from routers import modelos as modelos_router
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from mcp_tools_perfil import obtener_obligaciones_perfil
-from routers import modelos as modelos_router
 
 
 def _make_session_factory() -> sessionmaker[Session]:
@@ -51,6 +50,8 @@ def _make_session_factory() -> sessionmaker[Session]:
                     verified BOOLEAN NOT NULL,
                     completeness TEXT NOT NULL,
                     source_url TEXT NOT NULL,
+                    source_hash TEXT,
+                    capture_date TEXT,
                     notas TEXT
                 )
                 """
@@ -260,14 +261,14 @@ def _make_session_factory() -> sessionmaker[Session]:
                     perfil_codigo, obligacion_tipo, descripcion, periodicidad,
                     plazo_descripcion, modelo_aeat, norma_codigo,
                     articulo_referencia, fuente_secundaria, verified,
-                    completeness, source_url
+                    completeness, source_url, source_hash, capture_date
                 ) VALUES (
                     'sociedad_valores', 'DECLARACION_INFORMATIVA',
                     'Modelo 289 - CRS/DAC2', 'anual',
                     'Del 1 al 31 de enero del año siguiente',
                     '289', 'LGT', 'DA 22.ª ap. 1',
                     'RD 1021/2015', 1, 'parcial',
-                    'https://example.test/289'
+                    'https://example.test/289', 'hash-289', '2026-05-24'
                 )
                 """
             )
