@@ -102,11 +102,25 @@ Local:
 - `python -m py_compile scripts\maintenance\mcp_validation_suite.py scripts\maintenance\mcp_deep_contract_audit.py`
   -> expected OK.
 
-Expected VPS result after deployment:
+VPS after deployment of commit `8a3b5d7`:
 
-- RTS1/RTS2 no longer fails because rows are unverified; it fails only if a row
-  is neither verified with evidence nor explicit fail-closed.
+- `mcp_validation_suite.py --read-only --base-url http://api:8000`:
+  `ok=false`, `checks=132`, `failures=5`.
+- `rts1_rts2_obligations_verified_or_fail_closed` passes with `value=0`.
+- Remaining validation failures:
+  - `sociedad_valores_verified_ge_24`
+  - `all_profiles_pct_verified_ge_70`
+  - `casp_obligations_all_verified`
+  - `emisor_token_obligations_all_verified`
+  - `emisor_token_art_base_obligations_completa`
+- `mcp_deep_contract_audit.py --base-url http://api:8000`: `ok=false`,
+  `checks=12`, `failures=3`.
 - `profile_applicability_contracts` no longer contains
-  `sociedad_valores_rts1_evidence_notice_verified`; remaining failure should be
-  scoped to Modelo 303 for `empresa_servicios_pago` unless a new non-RTS issue
-  appears.
+  `sociedad_valores_rts1_evidence_notice_verified`; it now only reports
+  `empresa_servicios_pago_modelo_303_completa`.
+
+Deployment note:
+
+- First `ops` rebuild failed because of a Docker cache snapshot error
+  (`parent snapshot ... does not exist`).
+- Rebuilding `ops` with `--no-cache` succeeded.

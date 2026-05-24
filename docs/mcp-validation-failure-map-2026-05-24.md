@@ -332,7 +332,7 @@ Checklist de salida:
 
 ### Issue MCP-DATA-04 - RTS1/RTS2 para `sociedad_valores`: evidencia primaria o fail-closed
 
-Estado local: IMPLEMENTED AS FAIL-CLOSED CONTRACT. `docs/rts1-rts2-sociedad-valores-audit-2026-05-24.md` documenta que las filas RTS1/RTS2 tienen EUR-Lex URL y `capture_date`, pero no `source_hash`, articulos parseados ni `content_hash` normalizado en `norma`.
+Estado VPS: IMPLEMENTED AS FAIL-CLOSED CONTRACT. Commit `8a3b5d7` reduce `mcp_validation_suite.py` de 6 a 5 fallos; `rts1_rts2_obligations_verified_or_fail_closed` pasa. `docs/rts1-rts2-sociedad-valores-audit-2026-05-24.md` documenta que las filas RTS1/RTS2 tienen EUR-Lex URL y `capture_date`, pero no `source_hash`, articulos parseados ni `content_hash` normalizado en `norma`.
 
 Impacto: bloquea `rts1_rts2_obligations_all_verified` y `sociedad_valores_rts1_evidence_notice_verified`.
 
@@ -353,7 +353,7 @@ Checklist de salida:
 - [x] Listar las 12 obligaciones no verificadas con norma/articulo/source.
 - [x] Confirmar que no hay base para promocion: `source_hash=NULL`, normas sin articulos parseados y aplicabilidad condicional.
 - [x] Confirmar que no se contaminan perfiles excluidos (`eaf`, `empresa_servicios_pago`).
-- [ ] Reejecutar `mcp_validation_suite.py` y deep audit de `profile_applicability_contracts`.
+- [x] Reejecutar `mcp_validation_suite.py` y deep audit de `profile_applicability_contracts`.
 
 ### Issue MCP-DATA-05 - Reconciliar MiCA CASP y `emisor_token` verified/completeness
 
