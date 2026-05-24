@@ -54,6 +54,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-24 - `modelo_instruccion`: texto resumen legacy no hereda evidencia del modelo
+
+- Scope: `modelo_instruccion` en modelos AEAT `100`, `111`, `036`, `347`, `349`.
+- Hallazgo: varias instrucciones legacy sin `source_url` son textos resumidos o reformulados. Las fuentes oficiales activas comparten terminos, pero no contienen necesariamente la redaccion exacta por fila.
+- Impacto: asignar `source_hash` desde una ficha o manual activo a una instruccion resumida crea una cita falsa aunque la idea general sea correcta.
+- Regla practica: normalizar instrucciones solo si la fuente oficial prueba el texto concreto o se reemplaza la fila por una instruccion oficial verificable. No usar solapamiento tematico.
+
 ### 2026-05-24 - `modelo_clave`: recurso activo del modelo no prueba clave legacy
 
 - Scope: `modelo_clave` en modelos AEAT `111`, `190`, `196`, `303`.

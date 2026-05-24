@@ -1,29 +1,29 @@
 {
-  "sprint": "sprint-y-aeat-modelo-clave-source-audit",
-  "projectName": "esdata-aeat-modelo-clave-source-audit",
-  "branchName": "codex/aeat-modelo-clave-source-audit",
-  "version_baseline": "post-PR-97",
-  "description": "Auditar claves AEAT legacy sin fuente por fila y bloquear normalizacion cuando no exista evidencia oficial deterministica.",
+  "sprint": "sprint-z-aeat-modelo-instruccion-source-audit",
+  "projectName": "esdata-aeat-modelo-instruccion-source-audit",
+  "branchName": "codex/aeat-modelo-instruccion-source-audit",
+  "version_baseline": "post-PR-98",
+  "description": "Auditar instrucciones AEAT legacy sin fuente por fila y bloquear normalizacion cuando el texto sea resumen no trazable.",
   "context": {
-    "scope": "modelo_clave sin source_url en modelos 111, 190, 196 y 303",
-    "not_in_scope": "obligacion_perfil, safe_to_answer, verified, completeness funcional, modelo_instruccion generica",
-    "risk": "rellenar hash/captura desde un recurso activo del modelo sin que pruebe la clave concreta"
+    "scope": "modelo_instruccion sin source_url en modelos 100, 111, 036, 347 y 349",
+    "not_in_scope": "obligacion_perfil, safe_to_answer, verified, completeness funcional, modelo_clave",
+    "risk": "rellenar hash/captura desde una ficha o manual activo aunque no pruebe la instruccion resumida"
   },
   "userStories": [
     {
-      "id": "Y-01",
+      "id": "Z-01",
       "priority": 1,
-      "title": "Auditar modelo_clave sin fuente por fila",
-      "description": "Verificar si las claves legacy 111/190/196/303 pueden trazarse a fuente oficial exacta antes de cualquier migracion de normalizacion.",
+      "title": "Auditar modelo_instruccion sin fuente por fila",
+      "description": "Verificar si las instrucciones legacy pueden trazarse a texto oficial exacto antes de cualquier migracion de normalizacion.",
       "acceptance": [
-        "Se confirma que no quedan filas auxiliares con source_url y evidencia incompleta",
-        "Se inventarian claves legacy sin source_url por modelo",
-        "No se normaliza ninguna clave sin fuente oficial que pruebe codigo y descripcion",
+        "Se confirma que no quedan instrucciones con source_url y evidencia incompleta",
+        "Se inventarian instrucciones legacy sin source_url por modelo",
+        "No se normaliza ninguna instruccion si la fuente solo comparte tema o terminos",
         "No se toca obligacion_perfil ni se promueve safe_to_answer",
-        "El roadmap deja bloqueada la normalizacion hasta localizar fuente deterministica"
+        "El roadmap deja bloqueada la normalizacion hasta reemplazar por instrucciones oficiales verificables"
       ],
       "passes": true,
-      "notes": "Auditoria cerrada sin migracion: 20 claves legacy sin source_url quedan bloqueadas por falta de fuente oficial por fila."
+      "notes": "Auditoria cerrada sin migracion: 17 instrucciones legacy sin source_url quedan bloqueadas por ser textos resumen no trazables."
     }
   ]
 }
