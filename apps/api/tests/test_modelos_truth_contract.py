@@ -482,7 +482,7 @@ async def test_modelos_por_supuesto_sociedad_valores_fail_closed_without_explici
 
         by_codigo = {item["codigo"]: item for item in data["modelos"]}
         assert by_codigo["123"]["clasificacion"] == "candidato"
-        assert by_codigo["124"]["clasificacion"] == "candidato"
+        assert "124" not in by_codigo
         assert by_codigo["193"]["clasificacion"] == "candidato"
         assert by_codigo["216"]["clasificacion"] == "candidato"
         assert by_codigo["296"]["clasificacion"] == "candidato"
@@ -490,10 +490,48 @@ async def test_modelos_por_supuesto_sociedad_valores_fail_closed_without_explici
         assert by_codigo["296"]["evidencia"][0]["source"] == "aeat_modelo"
 
         excluded = {item["codigo"]: item["reason"] for item in data["excluded_modelos"]}
+        assert "activos_financieros_no_confirmados_para_124" in excluded["124"]
         assert "100" in excluded
         assert "111" in excluded
         assert "115" in excluded
         assert "190" in excluded
+    finally:
+        _cleanup_sociedad_valores_modelos()
+
+
+@pytest.mark.asyncio
+async def test_modelos_por_supuesto_includes_124_only_for_specific_financial_asset_operation():
+    _cleanup_sociedad_valores_modelos()
+    _seed_sociedad_valores_modelos()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"x-api-key": "test-secret-key"},
+        ) as client:
+            response = await client.get(
+                "/v1/modelos/por-supuesto",
+                params={
+                    "tipo_entidad": "sociedad_valores",
+                    "clientes_residentes": True,
+                    "tipo_renta": "capital_mobiliario",
+                    "tipo_operacion": "transmision de activos financieros",
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        by_codigo = {item["codigo"]: item for item in data["modelos"]}
+        modelo_124 = by_codigo["124"]
+        assert modelo_124["clasificacion"] == "candidato"
+        assert "operacion_activos_financieros_124" in modelo_124["matched_factors"]
+        assert "evidencia_explicita_de_obligatoriedad_para_sociedad_valores" in modelo_124[
+            "missing_factors"
+        ]
+        assert data["verified"] is False
+        assert data["confidence"]["review_required"] is True
     finally:
         _cleanup_sociedad_valores_modelos()
 
