@@ -2,7 +2,7 @@
   "sprint": "sprint-x-aeat-289-metadata-evidence",
   "projectName": "esdata-aeat-289-metadata-evidence",
   "branchName": "codex/aeat-289-metadata-evidence",
-  "version_baseline": "post-PR-95",
+  "version_baseline": "post-PR-96",
   "description": "Normalizar evidencia auxiliar del Modelo 289 sin promover obligaciones ni cerrar aplicabilidad CRS/DAC2.",
   "context": {
     "scope": "modelo_regla_inclusion y modelo_instruccion del Modelo 289",
@@ -23,7 +23,7 @@
         "Modelo 289 sigue partial/evidence_limited para aplicabilidad por perfil"
       ],
       "passes": true,
-      "notes": "Revision 0097 normaliza metadata auxiliar 289 con hashes oficiales capturados el 2026-05-24; no toca obligacion_perfil ni promueve seguridad."
+      "notes": "Revision 0097 desplegada: metadata auxiliar 289 sin missing evidence; obligacion_perfil sigue con safe_true=0 y verified_true=0."
     }
   ]
 }
