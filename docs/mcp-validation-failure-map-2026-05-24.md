@@ -357,6 +357,8 @@ Checklist de salida:
 
 ### Issue MCP-DATA-05 - Reconciliar MiCA CASP y `emisor_token` verified/completeness
 
+Estado local: IMPLEMENTED AS FAIL-CLOSED CONTRACT. `docs/mica-casp-emisor-token-audit-2026-05-24.md` documenta que CASP y `emisor_token` tienen filas/articulos esperados, pero todas las filas estan `verified=false`, `safe_to_answer=false`, `source_hash=NULL`, `capture_date=2026-05-19` y las normas MiCA no tienen articulos parseados ni `content_hash`.
+
 Impacto: bloquea `casp_obligations_all_verified`, `emisor_token_obligations_all_verified`, `emisor_token_art_base_obligations_completa`, `casp_all_verified`, `emisor_token_all_verified` y `emisor_token_art_completa`.
 
 Owner propuesto: MiCA evidence.
@@ -369,14 +371,14 @@ Artefactos a cambiar:
 
 Descripcion:
 
-La suite historica espera CASP y `emisor_token` verificados, pero el estado productivo actual devuelve `0` verified y `0` ART completa. Hay que reconciliar si esto es drift de datos tras fail-closed, perdida de evidencia, o un contrato de suite que quedo mas optimista que el producto.
+La suite historica espera CASP y `emisor_token` verificados, pero el estado productivo actual devuelve `0` verified y `0` ART completa. La reconciliacion confirma contrato de suite mas optimista que el producto: hay filas y articulos esperados, pero falta evidencia normalizada para promover `verified=true` o ART `completa`.
 
 Checklist de salida:
 
-- [ ] Inventariar CASP y `emisor_token`: total, verified, completeness, source hash y capture date.
-- [ ] Separar ART base de EMT parcial en `emisor_token`.
-- [ ] Confirmar si existe corpus supervisor suficiente o si debe mantenerse gap explicito.
-- [ ] Promover solo filas con evidencia primaria completa.
+- [x] Inventariar CASP y `emisor_token`: total, verified, completeness, source hash y capture date.
+- [x] Separar ART base de EMT parcial en `emisor_token`.
+- [x] Confirmar que no existe evidencia normalizada suficiente; mantener gap explicito.
+- [x] Promover solo filas con evidencia primaria completa: ninguna promocion aplicada.
 - [ ] Reejecutar `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para contratos MiCA.
 
 ### Issue MCP-DATA-06 - Resolver aplicabilidad Modelo 303 en `empresa_servicios_pago`

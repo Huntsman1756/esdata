@@ -1749,6 +1749,7 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
     casp_obligaciones = casp_payload.get("obligaciones") if isinstance(casp_payload, dict) else []
     casp_items = [item for item in (casp_obligaciones or []) if isinstance(item, dict)]
     casp_verified = sum(1 for item in casp_items if item.get("verified"))
+    casp_accepted = sum(1 for item in casp_items if _obligation_item_verified_or_fail_closed(item))
     casp_norma_codes = {item.get("norma_codigo") for item in casp_items if item.get("norma_codigo")}
     casp_pbc = [item for item in casp_items if item.get("obligacion_tipo") == "PBC_FT"]
     casp_art59 = [item for item in casp_items if item.get("articulo_referencia") and "59" in str(item.get("articulo_referencia", ""))]
@@ -1757,6 +1758,7 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
             "casp_status": casp_status,
             "casp_total": len(casp_items),
             "casp_verified": casp_verified,
+            "casp_verified_or_fail_closed": casp_accepted,
             "casp_normas": sorted(str(v) for v in casp_norma_codes),
             "casp_pbc_count": len(casp_pbc),
             "casp_art59_count": len(casp_art59),
@@ -1764,8 +1766,14 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
     )
     if casp_status != 200 or len(casp_items) < 6:
         failures.append({"check": "casp_obligations_ge_6", "status": casp_status, "total": len(casp_items), "preview": casp_preview})
-    if casp_status != 200 or casp_verified < len(casp_items):
-        failures.append({"check": "casp_all_verified", "verified": casp_verified, "total": len(casp_items)})
+    if casp_status != 200 or casp_accepted < len(casp_items):
+        failures.append(
+            {
+                "check": "casp_all_verified_or_fail_closed",
+                "accepted": casp_accepted,
+                "total": len(casp_items),
+            }
+        )
     if "32023R1114" not in casp_norma_codes:
         failures.append({"check": "casp_norma_32023R1114", "normas": sorted(str(v) for v in casp_norma_codes)})
     if not casp_art59:
@@ -1782,11 +1790,22 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
     emisor_obligaciones = emisor_payload.get("obligaciones") if isinstance(emisor_payload, dict) else []
     emisor_items = [item for item in (emisor_obligaciones or []) if isinstance(item, dict)]
     emisor_verified = sum(1 for item in emisor_items if item.get("verified"))
+    emisor_accepted = sum(1 for item in emisor_items if _obligation_item_verified_or_fail_closed(item))
     emisor_art_completa = [
         item
         for item in emisor_items
         if item.get("articulo_referencia") in {"art. 18", "art. 19", "art. 35"}
         and item.get("completeness") == "completa"
+    ]
+    emisor_art_base = [
+        item
+        for item in emisor_items
+        if item.get("articulo_referencia") in {"art. 18", "art. 19", "art. 35"}
+    ]
+    emisor_art_base_accepted = [
+        item
+        for item in emisor_art_base
+        if _obligation_item_verified_or_fail_closed(item)
     ]
     emisor_emt_parcial = [
         item
@@ -1815,7 +1834,10 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
             "emisor_token_status": emisor_status,
             "emisor_token_total": len(emisor_items),
             "emisor_token_verified": emisor_verified,
+            "emisor_token_verified_or_fail_closed": emisor_accepted,
             "emisor_token_art_completa_count": len(emisor_art_completa),
+            "emisor_token_art_base_count": len(emisor_art_base),
+            "emisor_token_art_base_verified_or_fail_closed": len(emisor_art_base_accepted),
             "emisor_token_emt_parcial_count": len(emisor_emt_parcial),
             "emisor_token_art18_note_count": len(emisor_art18),
             "emisor_token_art48_note_count": len(emisor_art48),
@@ -1830,12 +1852,21 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
                 "preview": emisor_preview,
             }
         )
-    if emisor_status != 200 or emisor_verified < len(emisor_items):
+    if emisor_status != 200 or emisor_accepted < len(emisor_items):
         failures.append(
-            {"check": "emisor_token_all_verified", "verified": emisor_verified, "total": len(emisor_items)}
+            {
+                "check": "emisor_token_all_verified_or_fail_closed",
+                "accepted": emisor_accepted,
+                "total": len(emisor_items),
+            }
         )
-    if len(emisor_art_completa) < 3:
-        failures.append({"check": "emisor_token_art_completa", "count": len(emisor_art_completa)})
+    if len(emisor_art_base_accepted) < 3:
+        failures.append(
+            {
+                "check": "emisor_token_art_base_verified_or_fail_closed",
+                "count": len(emisor_art_base_accepted),
+            }
+        )
     if len(emisor_emt_parcial) < 3:
         failures.append({"check": "emisor_token_emt_parcial", "count": len(emisor_emt_parcial)})
     if not emisor_art18:

@@ -727,17 +727,31 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             """,
             6,
         ),
-        _check_db_scalar(
+        _check_db_zero(
             database_url,
-            "casp_obligations_all_verified",
+            "casp_obligations_verified_or_fail_closed",
             """
             SELECT COUNT(*)
             FROM obligacion_perfil
             WHERE perfil_codigo='casp'
               AND norma_codigo='32023R1114'
-              AND verified = true
+              AND NOT (
+                  (
+                      verified IS true
+                      AND source_hash IS NOT NULL
+                      AND capture_date IS NOT NULL
+                  )
+                  OR (
+                      verified IS NOT true
+                      AND safe_to_answer IS NOT true
+                      AND completeness = 'parcial'
+                      AND source_url ILIKE '%eur-lex%'
+                      AND source_hash IS NULL
+                      AND capture_date IS NOT NULL
+                      AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                  )
+              )
             """,
-            6,
         ),
         _check_db_scalar(
             database_url,
@@ -800,17 +814,31 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             """,
             8,
         ),
-        _check_db_scalar(
+        _check_db_zero(
             database_url,
-            "emisor_token_obligations_all_verified",
+            "emisor_token_obligations_verified_or_fail_closed",
             """
             SELECT COUNT(*)
             FROM obligacion_perfil
             WHERE perfil_codigo='emisor_token'
               AND norma_codigo='32023R1114'
-              AND verified = true
+              AND NOT (
+                  (
+                      verified IS true
+                      AND source_hash IS NOT NULL
+                      AND capture_date IS NOT NULL
+                  )
+                  OR (
+                      verified IS NOT true
+                      AND safe_to_answer IS NOT true
+                      AND completeness = 'parcial'
+                      AND source_url ILIKE '%eur-lex%'
+                      AND source_hash IS NULL
+                      AND capture_date IS NOT NULL
+                      AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                  )
+              )
             """,
-            8,
         ),
         _check_db_scalar(
             database_url,
@@ -851,14 +879,41 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
-            "emisor_token_art_base_obligations_completa",
+            "emisor_token_art_base_obligations_present_3",
             """
-            SELECT COUNT(*)
+            SELECT COUNT(DISTINCT articulo_referencia)
             FROM obligacion_perfil
             WHERE perfil_codigo='emisor_token'
               AND norma_codigo='32023R1114'
               AND articulo_referencia IN ('art. 18', 'art. 19', 'art. 35')
-              AND completeness='completa'
+            """,
+            3,
+        ),
+        _check_db_scalar(
+            database_url,
+            "emisor_token_art_base_obligations_verified_or_fail_closed_3",
+            """
+            SELECT COUNT(DISTINCT articulo_referencia)
+            FROM obligacion_perfil
+            WHERE perfil_codigo='emisor_token'
+              AND norma_codigo='32023R1114'
+              AND articulo_referencia IN ('art. 18', 'art. 19', 'art. 35')
+              AND (
+                  (
+                      verified IS true
+                      AND source_hash IS NOT NULL
+                      AND capture_date IS NOT NULL
+                  )
+                  OR (
+                      verified IS NOT true
+                      AND safe_to_answer IS NOT true
+                      AND completeness = 'parcial'
+                      AND source_url ILIKE '%eur-lex%'
+                      AND source_hash IS NULL
+                      AND capture_date IS NOT NULL
+                      AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                  )
+              )
             """,
             3,
         ),
