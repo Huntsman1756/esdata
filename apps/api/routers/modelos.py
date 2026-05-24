@@ -1,21 +1,22 @@
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
+from mcp_tools_aeat_catalogo import BUSCAR_MODELOS_AEAT_CATALOGO, buscar_modelos_aeat_catalogo
+from request_context import get_request_id, get_user_id
 from schemas import (
     AEATModeloDetail,
     AEATModeloListResponse,
     ModeloArtefactosResponse,
     ModeloCampanaOperativaResponse,
+    ModeloCasillasResponse,
     ModeloFuentesOficialesResponse,
-    ModelosPorSupuestoResponse,
     ModeloResumenOperativoResponse,
     ModelosCampanasOperativasResponse,
     ModelosListResponse,
+    ModelosPorSupuestoResponse,
 )
 from schemas import (
     ModeloDetail as ModeloDetailSchema,
-    ModeloCasillasResponse,
 )
-from mcp_tools_aeat_catalogo import BUSCAR_MODELOS_AEAT_CATALOGO, buscar_modelos_aeat_catalogo
 from services.modelos import (
     build_modelo_truth_contract,
     count_campaign_casillas,
@@ -41,7 +42,6 @@ from services.modelos import (
     list_related_doctrina,
 )
 from services.query_audit import get_query_audit_service
-from request_context import get_request_id, get_user_id
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -84,6 +84,9 @@ def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
 
 
 def _obligation_evidence_notice(row) -> str:
+    if not bool(row.get("safe_to_answer")) and row["completeness"] == "completa":
+        if not row.get("source_hash") or not row.get("capture_date"):
+            return "evidence_limited: falta hash o fecha de captura de la fuente"
     if bool(row["verified"]):
         norma = row["norma_codigo"] or "fuente oficial"
         articulo = row["articulo_referencia"] or ""
@@ -101,11 +104,15 @@ def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
                 """
                 SELECT
                     perfil_codigo,
+                    descripcion,
                     verified,
+                    safe_to_answer,
                     norma_codigo,
                     articulo_referencia,
                     completeness,
-                    source_url
+                    source_url,
+                    source_hash,
+                    CAST(capture_date AS TEXT) AS capture_date
                 FROM obligacion_perfil
                 WHERE modelo_aeat = :codigo
                 ORDER BY perfil_codigo
@@ -114,19 +121,58 @@ def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
             {"codigo": codigo},
         ).mappings()
     except SQLAlchemyError:
-        return []
-    return [
-        {
+        try:
+            rows = db.execute(
+                text(
+                    """
+                    SELECT
+                        perfil_codigo,
+                        descripcion,
+                        verified,
+                        norma_codigo,
+                        articulo_referencia,
+                        completeness,
+                        source_url
+                    FROM obligacion_perfil
+                    WHERE modelo_aeat = :codigo
+                    ORDER BY perfil_codigo
+                    """
+                ),
+                {"codigo": codigo},
+            ).mappings()
+        except SQLAlchemyError:
+            return []
+    payload = []
+    for row in rows:
+        source_hash = row.get("source_hash")
+        capture_date = row.get("capture_date")
+        stored_safe = bool(row.get("safe_to_answer", False))
+        completeness = row["completeness"]
+        verified = bool(row["verified"])
+        safe_to_answer = bool(
+            stored_safe
+            and verified
+            and completeness == "completa"
+            and row["source_url"]
+            and source_hash
+            and capture_date
+        )
+        row_dict = {
             "perfil_codigo": row["perfil_codigo"],
-            "verified": bool(row["verified"]),
+            "descripcion": row["descripcion"],
+            "verified": verified,
+            "safe_to_answer": safe_to_answer,
+            "review_required": not safe_to_answer,
             "norma_codigo": row["norma_codigo"],
             "articulo_referencia": row["articulo_referencia"],
-            "completeness": row["completeness"],
+            "completeness": completeness,
             "source_url": row["source_url"],
-            "obligation_evidence_notice": _obligation_evidence_notice(row),
+            "source_hash": source_hash,
+            "capture_date": capture_date,
         }
-        for row in rows
-    ]
+        row_dict["obligation_evidence_notice"] = _obligation_evidence_notice(row_dict)
+        payload.append(row_dict)
+    return payload
 
 
 def _record_modelo_query_audit(

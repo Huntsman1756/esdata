@@ -842,11 +842,16 @@ class AEATCampanaDetail(BaseModel):
 
 class AEATObligationContext(BaseModel):
     perfil_codigo: str = Field(description="Perfil de entidad supervisada")
+    descripcion: str | None = Field(default=None, description="Descripcion de la obligacion de perfil")
     verified: bool = Field(description="Estado de verificacion de la obligacion de perfil")
+    safe_to_answer: bool = Field(default=False, description="Si la obligacion de perfil puede responderse sin revision")
+    review_required: bool = Field(default=True, description="Si requiere revision humana o evidencia adicional")
     norma_codigo: str | None = Field(default=None, description="Norma primaria de la obligacion")
     articulo_referencia: str | None = Field(default=None, description="Articulo verificado")
     completeness: str | None = Field(default=None, description="Completitud de la obligacion de perfil")
     source_url: str | None = Field(default=None, description="Fuente oficial de la obligacion de perfil")
+    source_hash: str | None = Field(default=None, description="Hash de la fuente oficial de la obligacion")
+    capture_date: str | None = Field(default=None, description="Fecha de captura de la fuente oficial")
     obligation_evidence_notice: str = Field(description="Aviso de evidencia de la obligacion de perfil")
 
 
