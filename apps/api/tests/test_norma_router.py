@@ -6,11 +6,10 @@ from contextlib import contextmanager
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from routers import norma as norma_router
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-
-from routers import norma as norma_router
 
 
 @pytest.fixture()
@@ -61,6 +60,8 @@ def norma_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
                     verified BOOLEAN,
                     completeness TEXT,
                     source_url TEXT,
+                    source_hash TEXT,
+                    capture_date TEXT,
                     notas TEXT
                 )
                 """
@@ -157,6 +158,20 @@ def test_get_norma_detail_includes_referenced_obligations(norma_client: TestClie
 
     assert response.status_code == 200
     assert response.json()["obligaciones_referenciadas"]
+
+
+def test_get_norma_detail_fails_closed_for_referenced_obligation_without_hash(
+    norma_client: TestClient,
+) -> None:
+    response = norma_client.get("/v1/norma/32014R0600")
+
+    assert response.status_code == 200
+    obligation = response.json()["obligaciones_referenciadas"][0]
+    assert obligation["verified"] is False
+    assert obligation["completeness"] == "parcial"
+    assert obligation["source_hash"] is None
+    assert obligation["capture_date"] is None
+    assert obligation["review_required"] is True
 
 
 def test_get_norma_unknown_returns_404(norma_client: TestClient) -> None:

@@ -466,3 +466,7 @@ Operational rule:
 - The same rule applies to `200/202/303`: even if legacy rows carry LIS/LIVA
   articles, they are not safe profile obligations without normalized source
   hash and capture date.
+- Sprint V generalizes this to all `obligacion_perfil` rows: API surfaces must
+  not expose `verified=true` or `safe_to_answer=true` without `source_hash` and
+  `capture_date`, even when the stored row still carries legacy source URL,
+  article, model, or completeness flags.

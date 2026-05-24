@@ -231,6 +231,25 @@ def test_aeat_200_202_303_legacy_obligations_fail_closed_in_revision_0094():
         assert fragment in contents
 
 
+def test_obligacion_perfil_global_fail_closed_in_revision_0095():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260524_0095_obligacion_perfil_global_fail_closed.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = false",
+        "verified = false",
+        "completeness = 'parcial'",
+        "source_hash IS NULL",
+        "capture_date IS NULL",
+        "global profile obligation without normalized evidence",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
