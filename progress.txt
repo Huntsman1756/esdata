@@ -2936,3 +2936,18 @@ Commands:
 Artifacts:
 - `docs/cdi-irnr-linkage-o02-audit.md`.
 Next: O-03 Seleccionar siguiente modelo AEAT limpio.
+
+=== Iteration O-03 - 2026-05-24 ===
+Story: O-03 Seleccionar siguiente modelo AEAT limpio
+Result: PASS local
+Verification:
+- Auditados en produccion: `187`, `193`, `198`, `200`, `232`, `303`.
+- `187`, `193` y `198` estan `complete`/`curado` con casillas, claves, instrucciones y recursos con hash.
+- `200` y `303` quedan descartados por amplitud y estado `partial`/`inferido`; `232` queda descartado por falta de claves/instrucciones operativas suficientes; `100` no se abre por amplitud.
+- Candidato seleccionado para siguiente sprint: `193`.
+Commands:
+- `python scripts/maintenance/verify-doc-contracts.py` => `docs contracts verified`.
+- `git diff --check` => OK.
+Artifacts:
+- `docs/aeat-next-model-o03-audit.md`.
+Next: suite focal completa del sprint, PR y deploy de migracion `20260524_0089`.

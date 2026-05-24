@@ -58,8 +58,8 @@
         "No se modifica cobertura productiva de ese modelo salvo hallazgo trivial de documentacion",
         "Docs/roadmap dejan siguiente accion exacta y criterio de salida del candidato"
       ],
-      "passes": false,
-      "notes": "Evitar Modelo 100 de entrada salvo fuente/casillas muy limpias; priorizar modelos con contrato determinista y bajo riesgo de abrir demasiados frentes."
+      "passes": true,
+      "notes": "Cerrada localmente: auditados 187, 193, 198, 200, 232 y 303. Se selecciona 193 como siguiente modelo AEAT por continuidad con dividendos/intereses residentes y evidencia limpia; 187/198 quedan como candidatos validos alternativos; 100, 200, 232 y 303 se descartan para este corte por amplitud o estado parcial."
     }
   ]
 }

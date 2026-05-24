@@ -32,6 +32,16 @@ O-02 queda cerrada como preparacion fail-closed:
 - `POST /v1/internacional/convenios/retencion` mantiene la salida exploratoria heredada pero ahora declara `verified=false`, `completeness=partial`, `safe_to_answer=false`, `review_required=true` y `evidence_notice`.
 - Auditoria detallada: `docs/cdi-irnr-linkage-o02-audit.md`.
 
+## Estado O-03
+
+O-03 queda cerrada como seleccion de candidato:
+
+- Se auditan `187`, `193`, `198`, `200`, `232` y `303`.
+- `187`, `193` y `198` estan completos/curados con fuentes y hashes.
+- Se selecciona `193` como siguiente modelo por continuidad con dividendos/intereses y capital mobiliario residente.
+- Se descartan `100`, `200`, `232` y `303` para evitar amplitud excesiva o estado parcial.
+- Auditoria detallada: `docs/aeat-next-model-o03-audit.md`.
+
 ## Regla De Producto
 
 `216/296` estan completos como modelos/formularios, pero no como respuesta universal sobre retenciones no residentes. La aplicabilidad sigue condicionada por tipo de renta, residencia, convenio, protocolo, certificado y supuesto exacto.
@@ -69,4 +79,4 @@ El sprint termina cuando:
 
 - O-01 queda cerrado como persistencia real o `partial` documentado.
 - O-02 queda cerrado como relacion CDI estrecha o bloqueo documentado.
-- O-03 deja un candidato AEAT siguiente o explica por que no hay candidato limpio.
+- O-03 deja `193` como candidato AEAT siguiente.
