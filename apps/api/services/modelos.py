@@ -1085,6 +1085,31 @@ def list_modelos_campanas_operativas(db, codigos: list[str], campana: str | None
     return resultados
 
 
+MODELO_124_OPERATION_TERMS = (
+    "activo financiero",
+    "activos financieros",
+    "transmision",
+    "transmisión",
+    "amortizacion",
+    "amortización",
+    "reembolso",
+    "canje",
+    "conversion",
+    "conversión",
+)
+
+
+def _is_modelo_124_specific_operation(tipo_operacion: str, tipo_renta: str) -> bool:
+    operation_text = f"{tipo_operacion} {tipo_renta}".lower()
+    has_financial_asset = "activo financiero" in operation_text or "activos financieros" in operation_text
+    has_specific_operation = any(
+        term in operation_text
+        for term in MODELO_124_OPERATION_TERMS
+        if term not in {"activo financiero", "activos financieros"}
+    )
+    return has_financial_asset and has_specific_operation
+
+
 SOCIEDAD_VALORES_MODEL_RULES = {
     "123": {
         "ambito": "retenciones_residentes",
@@ -1092,7 +1117,7 @@ SOCIEDAD_VALORES_MODEL_RULES = {
         "matched_factors": ["clientes_residentes", "capital_mobiliario", "retenciones"],
     },
     "124": {
-        "ambito": "retenciones_residentes",
+        "ambito": "retenciones_activos_financieros",
         "condicion_aplicacion": "Si existen rentas o rendimientos del capital mobiliario derivados de transmision, amortizacion, reembolso, canje o conversion de activos.",
         "matched_factors": ["clientes_residentes", "capital_mobiliario", "retenciones"],
     },
@@ -1345,8 +1370,17 @@ def list_modelos_por_supuesto(
         }
 
     candidate_codes: list[str] = []
+    dynamic_excluded: dict[str, str] = {}
     if clientes_residentes:
-        candidate_codes.extend(["123", "124", "193"])
+        candidate_codes.extend(["123", "193"])
+        if _is_modelo_124_specific_operation(tipo_operacion_norm, tipo_renta_norm):
+            candidate_codes.append("124")
+        else:
+            dynamic_excluded["124"] = (
+                "activos_financieros_no_confirmados_para_124: el Modelo 124 solo se "
+                "ofrece como candidato cuando el supuesto identifica transmision, "
+                "amortizacion, reembolso, canje o conversion de activos financieros."
+            )
     if clientes_no_residentes:
         candidate_codes.extend(["216", "296"])
     if incluir_obligacion_sociedad:
@@ -1398,6 +1432,9 @@ def list_modelos_por_supuesto(
                 missing_factors.append(
                     f"tipo_renta_{tipo_renta_norm}_residentes_sin_doble_clave_hash_o_captura"
                 )
+        if codigo == "124":
+            matched_factors.append("operacion_activos_financieros_124")
+            missing_factors.append("claves_instrucciones_y_reglas_124_pendientes")
         modelos.append(
             {
                 "codigo": codigo,
@@ -1420,7 +1457,7 @@ def list_modelos_por_supuesto(
 
     excluded_modelos = [
         {"codigo": codigo, "reason": reason}
-        for codigo, reason in SOCIEDAD_VALORES_EXCLUDED.items()
+        for codigo, reason in {**dynamic_excluded, **SOCIEDAD_VALORES_EXCLUDED}.items()
     ]
 
     return {

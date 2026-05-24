@@ -229,11 +229,12 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 - Hipotesis inicial: partial probable.
 - Fuente oficial: XLSX AEAT.
 - Produccion: D-13 reporta 39 casillas.
-- API/MCP: aparece como candidato, no confirmado, en contrato por supuesto.
-- Tests: `test_modelos_por_supuesto_sociedad_valores_fail_closed_without_explicit_obligation`.
+- API/MCP: no aparece como candidato por capital mobiliario residente generico; solo se ofrece como candidato si el supuesto identifica transmision, amortizacion, reembolso, canje o conversion de activos financieros.
+- Tests: `test_modelos_por_supuesto_sociedad_valores_fail_closed_without_explicit_obligation`, `test_modelos_por_supuesto_includes_124_only_for_specific_financial_asset_operation`.
 - Documentacion: D-13.
-- Gaps: falta profundidad documental y aplicabilidad por supuesto.
-- Siguiente accion: completar instrucciones/claves o mantener candidato.
+- Documentacion adicional: `docs/aeat-capital-mobiliario-123-124-193-routing.md`.
+- Gaps: falta profundidad documental, claves/instrucciones/reglas y aplicabilidad por supuesto.
+- Siguiente accion: completar instrucciones/claves especificas de activos financieros o mantener excluido/candidato condicionado.
 
 ### Modelo 200
 

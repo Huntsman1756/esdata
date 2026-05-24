@@ -1,30 +1,30 @@
 {
-  "sprint": "sprint-q-modelo-193-aplicabilidad-domestica",
-  "projectName": "esdata-aeat-modelo-193-domestic-applicability",
-  "branchName": "codex/modelo-193-domestic-applicability",
-  "version_baseline": "post-PR-84",
-  "description": "Ralph sprint para auditar si el Modelo 193 puede pasar de evidencia de tipo de renta a obligacion domestica segura por supuesto.",
+  "sprint": "sprint-r-capital-mobiliario-123-124-193-routing",
+  "projectName": "esdata-aeat-capital-mobiliario-routing",
+  "branchName": "codex/aeat-capital-mobiliario-routing",
+  "version_baseline": "post-PR-85",
+  "description": "Endurecer el routing semantico de la familia AEAT 123/124/193 sin promover obligaciones ni abrir curacion completa de 123/124.",
   "context": {
-    "modelo_193": "complete como formulario/modelo y granularizado por dividendos/intereses residentes en Sprint P",
-    "risk": "produccion tenia obligaciones de perfil 193 legacy como complete/safe sin source_hash",
-    "mcp": "no tocar MCP salvo que la exposicion de obligaciones por perfil necesite fail-closed"
+    "modelo_193": "saneado como referencia; sigue sin obligacion domestica segura por perfil",
+    "modelo_123": "partial; candidato generico de retenciones de capital mobiliario sin cierre por supuesto",
+    "modelo_124": "partial; debe aparecer solo cuando el supuesto identifica activos financieros y transmision/amortizacion/reembolso/canje/conversion",
+    "risk": "por-supuesto podia ofrecer 124 por capital mobiliario residente generico, creando confusion semantica aunque siguiera evidence_limited"
   },
   "userStories": [
     {
-      "id": "Q-01",
+      "id": "R-01",
       "priority": 1,
-      "title": "Auditar aplicabilidad domestica del Modelo 193",
-      "description": "Verificar si existen pagador, perceptor, articulo, tipo de renta y exencion/no sujecion con fuente oficial hash/captura para cerrar el Modelo 193 como obligacion domestica segura.",
+      "title": "Endurecer routing semantico del Modelo 124",
+      "description": "Excluir Modelo 124 de supuestos residentes genericos y permitirlo solo como candidato condicionado por operacion especifica de activos financieros.",
       "acceptance": [
-        "La auditoria de produccion separa claves de renta de obligacion efectiva",
-        "No se siembran nuevas reglas complete si falta articulo o sujeto trazado",
-        "Las obligaciones de perfil 193 sin source_hash o capture_date quedan fail-closed",
-        "La salida de obtener_obligaciones_perfil no queda safe_to_answer=true por verified legacy sin hash",
-        "El periodo del Modelo 193 queda corregido a anual",
-        "Docs/roadmap explican que el siguiente avance requiere pagador, perceptor, articulo y exencion/no sujecion trazados"
+        "124 no aparece para clientes_residentes=true y tipo_renta=capital_mobiliario sin tipo_operacion especifica",
+        "124 aparece como candidato si tipo_operacion identifica transmision, amortizacion, reembolso, canje o conversion de activos financieros",
+        "123 y 193 siguen como candidatos prudentes sin obligacion confirmada",
+        "La respuesta global sigue verified=false y review_required=true",
+        "Docs y matriz explican que 124 sigue partial y condicionado"
       ],
       "passes": true,
-      "notes": "La auditoria encuentra claves 193 completas para dividendos/intereses y naturalezas de exencion/no retencion, pero no enlace persistido a articulo de pagos a cuenta ni RIRPF. Se crea 0091 para corregir periodo a anual y degradar obligaciones 193 legacy sin hash/captura a partial/fail-closed."
+      "notes": "RED confirmado localmente antes del cambio; GREEN focal y suite de modelos tras condicionar 124 por operacion especifica."
     }
   ]
 }
