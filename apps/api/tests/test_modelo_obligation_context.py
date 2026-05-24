@@ -346,7 +346,12 @@ def test_form_completeness_is_independent_of_obligation_verified(monkeypatch) ->
     data = client.get("/v1/modelos/aeat/289").json()
 
     assert data["form_completeness"] == "parcial"
-    assert all(entry["verified"] is True for entry in data["obligation_context"])
+    assert all(entry["verified"] is False for entry in data["obligation_context"])
+    assert all(entry["safe_to_answer"] is False for entry in data["obligation_context"])
+    assert all(
+        "falta hash o fecha de captura" in entry["obligation_evidence_notice"]
+        for entry in data["obligation_context"]
+    )
 
 
 def test_modelo_290_context_sources_do_not_point_to_lis(monkeypatch) -> None:
@@ -485,8 +490,8 @@ def test_complete_obligation_context_fails_closed_without_hash_or_capture(monkey
         for entry in context
         if entry["descripcion"] == "Modelo 198 - operaciones con activos financieros"
     )
-    assert valores_context["completeness"] == "completa"
-    assert valores_context["verified"] is True
+    assert valores_context["completeness"] == "parcial"
+    assert valores_context["verified"] is False
     assert valores_context["safe_to_answer"] is False
     assert valores_context["review_required"] is True
     assert "falta hash o fecha de captura" in valores_context["obligation_evidence_notice"]

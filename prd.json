@@ -1,30 +1,29 @@
 {
-  "sprint": "sprint-u-fail-close-200-202-303",
-  "projectName": "esdata-aeat-fail-close-200-202-303",
-  "branchName": "codex/aeat-fail-close-200-202-303",
-  "version_baseline": "post-PR-89",
-  "description": "Sanear obligaciones legacy de modelos AEAT 200/202/303 para que fallen cerrado cuando falte evidencia normalizada.",
+  "sprint": "sprint-v-obligacion-perfil-global-fail-close",
+  "projectName": "esdata-obligacion-perfil-global-fail-close",
+  "branchName": "codex/obligacion-perfil-global-fail-close",
+  "version_baseline": "post-PR-91",
+  "description": "Sanear globalmente obligacion_perfil para que ninguna obligacion sea verified/safe sin hash y captura normalizados.",
   "context": {
-    "modelo_200": "modelo parcial con mucho corpus, pero obligaciones legacy seguras sin source_hash",
-    "modelo_202": "modelo parcial con fuente oficial clara, pero obligaciones legacy seguras sin source_hash",
-    "modelo_303": "modelo parcial con corpus IVA, pero obligaciones legacy seguras sin source_hash",
-    "risk": "mantener safe_to_answer persistido aunque falte evidencia normalizada"
+    "unsafe_total": "157 filas obligacion_perfil con safe_to_answer=true y verified=true sin source_hash",
+    "distribution": "137 sin modelo AEAT, 111=6, 115=6, 289=4, 290=3, 196=1",
+    "risk": "API publica puede exponer verified=true aunque MCP perfil degrade correctamente"
   },
   "userStories": [
     {
-      "id": "U-01",
+      "id": "V-01",
       "priority": 1,
-      "title": "Fail-close obligaciones legacy 200/202/303 sin evidencia",
-      "description": "Degradar obligaciones de perfil de 200/202/303 cuando falte source_hash o capture_date, sin promover modelos ni crear reglas nuevas.",
+      "title": "Fail-close global de obligacion_perfil sin evidencia normalizada",
+      "description": "Degradar cualquier obligacion de perfil sin source_hash o capture_date y alinear modelos/norma con el mismo contrato efectivo.",
       "acceptance": [
-        "200, 202 y 303 conservan estado partial",
-        "Las obligaciones legacy sin source_hash o capture_date quedan partial y safe_to_answer=false",
-        "No se modifica 349 ni 390",
-        "No se crean obligaciones nuevas",
-        "Docs y matriz distinguen modelo parcial de obligacion por perfil segura"
+        "Ninguna fila obligacion_perfil con source_hash o capture_date ausente queda safe_to_answer=true",
+        "Ninguna fila obligacion_perfil sin evidencia normalizada queda verified=true",
+        "GET /v1/modelos/aeat/{codigo} degrada obligation_context.verified cuando falta evidencia",
+        "GET /v1/norma/{codigo} no propaga verified=true sin hash/captura",
+        "No se recupera seguridad por inferencia; recuperaciones futuras deben cargar hashes reales"
       ],
       "passes": true,
-      "notes": "Revision 0094 degrada obligaciones 200/202/303 sin hash/captura y conserva los modelos como partial."
+      "notes": "Revision 0095 degrada globalmente obligacion_perfil sin hash/captura; API modelos/norma aplica fail-closed efectivo."
     }
   ]
 }

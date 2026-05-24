@@ -84,6 +84,8 @@ def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
 
 
 def _obligation_evidence_notice(row) -> str:
+    if not row.get("source_hash") or not row.get("capture_date"):
+        return "evidence_limited: falta hash o fecha de captura de la fuente"
     if not bool(row.get("safe_to_answer")) and row["completeness"] == "completa":
         if not row.get("source_hash") or not row.get("capture_date"):
             return "evidence_limited: falta hash o fecha de captura de la fuente"
@@ -132,7 +134,9 @@ def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
                         norma_codigo,
                         articulo_referencia,
                         completeness,
-                        source_url
+                        source_url,
+                        source_hash,
+                        CAST(capture_date AS TEXT) AS capture_date
                     FROM obligacion_perfil
                     WHERE modelo_aeat = :codigo
                     ORDER BY perfil_codigo
@@ -147,15 +151,14 @@ def _list_modelo_obligation_context(db, codigo: str) -> list[dict]:
         source_hash = row.get("source_hash")
         capture_date = row.get("capture_date")
         stored_safe = bool(row.get("safe_to_answer", False))
-        completeness = row["completeness"]
-        verified = bool(row["verified"])
+        has_normalized_evidence = bool(row["source_url"] and source_hash and capture_date)
+        completeness = row["completeness"] if has_normalized_evidence else "parcial"
+        verified = bool(row["verified"]) and has_normalized_evidence
         safe_to_answer = bool(
             stored_safe
             and verified
             and completeness == "completa"
-            and row["source_url"]
-            and source_hash
-            and capture_date
+            and has_normalized_evidence
         )
         row_dict = {
             "perfil_codigo": row["perfil_codigo"],
