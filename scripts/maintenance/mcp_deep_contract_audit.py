@@ -1464,10 +1464,11 @@ def audit_profile_applicability_contracts(base_url: str) -> CheckResult:
     if not sociedad_rts1_items:
         failures.append({"check": "sociedad_valores_rts1_obligation_present"})
     if not any(
-        "Verificado" in str(item.get("evidence_notice") or "")
+        _obligation_item_verified_or_fail_closed(item)
         for item in sociedad_rts1_items
+        if isinstance(item, dict)
     ):
-        failures.append({"check": "sociedad_valores_rts1_evidence_notice_verified"})
+        failures.append({"check": "sociedad_valores_rts1_evidence_notice_verified_or_fail_closed"})
     if not all(item.get("completeness") == "parcial" for item in sociedad_rts_items):
         failures.append({"check": "sociedad_valores_rts_completeness_parcial"})
     sociedad_rts_pre_trade_items = [

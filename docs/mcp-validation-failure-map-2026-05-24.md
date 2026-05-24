@@ -330,7 +330,9 @@ Checklist de salida:
 - [x] Resolver que el contrato exige 6 perfiles cargados y estado verificado o fail-closed explicito.
 - [x] Reejecutar check focal de Modelo 202 y routing fiscal.
 
-### Issue MCP-DATA-04 - Recuperar evidencia RTS1/RTS2 o ajustar contrato parcial
+### Issue MCP-DATA-04 - RTS1/RTS2 para `sociedad_valores`: evidencia primaria o fail-closed
+
+Estado local: IMPLEMENTED AS FAIL-CLOSED CONTRACT. `docs/rts1-rts2-sociedad-valores-audit-2026-05-24.md` documenta que las filas RTS1/RTS2 tienen EUR-Lex URL y `capture_date`, pero no `source_hash`, articulos parseados ni `content_hash` normalizado en `norma`.
 
 Impacto: bloquea `rts1_rts2_obligations_all_verified` y `sociedad_valores_rts1_evidence_notice_verified`.
 
@@ -340,17 +342,17 @@ Artefactos a cambiar:
 
 - Datos/migraciones de obligaciones RTS1/RTS2.
 - Docs de Sprint I RTS1/RTS2 si se confirma drift.
-- `mcp_validation_suite.py` solo si el contrato esperado debe aceptar parcialidad.
+- `mcp_validation_suite.py` si el contrato esperado debe aceptar fail-closed.
 
 Descripcion:
 
-Las obligaciones RTS1/RTS2 existen, pero 12 no estan verificadas. La decision es binaria: recuperar evidencia EUR-Lex con hash/captura suficiente o mantenerlas parciales y hacer que el contrato lo refleje sin reclamar verificacion.
+Las obligaciones RTS1/RTS2 existen, pero 12 no estan verificadas. La decision aplicada es no promocionar: EUR-Lex existe como URL/norma, pero falta `source_hash`, articulos parseados y prueba exacta de aplicabilidad por perfil. El contrato acepta solo evidencia fuerte o fail-closed explicito.
 
 Checklist de salida:
 
-- [ ] Listar las 12 obligaciones no verificadas con norma/articulo/source.
-- [ ] Verificar fuente EUR-Lex y capturar hash/fecha para cada obligacion promocionada.
-- [ ] Confirmar que no se contaminan perfiles excluidos (`eaf`, `empresa_servicios_pago`).
+- [x] Listar las 12 obligaciones no verificadas con norma/articulo/source.
+- [x] Confirmar que no hay base para promocion: `source_hash=NULL`, normas sin articulos parseados y aplicabilidad condicional.
+- [x] Confirmar que no se contaminan perfiles excluidos (`eaf`, `empresa_servicios_pago`).
 - [ ] Reejecutar `mcp_validation_suite.py` y deep audit de `profile_applicability_contracts`.
 
 ### Issue MCP-DATA-05 - Reconciliar MiCA CASP y `emisor_token` verified/completeness

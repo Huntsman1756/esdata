@@ -316,6 +316,25 @@ def test_deep_contract_audit_accepts_verified_or_fail_closed_obligation_items():
     )
 
 
+def test_deep_contract_audit_accepts_rts_fail_closed_obligation_items():
+    audit = _load_deep_contract_audit()
+
+    assert audit._obligation_item_verified_or_fail_closed(
+        {
+            "descripcion": "Publicacion post-negociacion de operaciones (RTS 1)",
+            "norma_codigo": "32017R0587",
+            "verified": False,
+            "safe_to_answer": False,
+            "review_required": True,
+            "source_url": "https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32017R0587",
+            "source_hash": None,
+            "capture_date": "2026-05-18",
+            "evidence_notice": "evidence_limited: falta hash o fecha de captura de la fuente",
+            "completeness": "parcial",
+        }
+    )
+
+
 def test_mcp_validation_suite_accepts_modelo_202_fail_closed_routing():
     suite = _load_validation_suite()
 

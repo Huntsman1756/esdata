@@ -550,12 +550,27 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_zero(
             database_url,
-            "rts1_rts2_obligations_all_verified",
+            "rts1_rts2_obligations_verified_or_fail_closed",
             """
             SELECT COUNT(*)
             FROM obligacion_perfil
             WHERE norma_codigo IN ('32017R0587','32017R0583')
-              AND verified IS NOT true
+              AND NOT (
+                  (
+                      verified IS true
+                      AND source_hash IS NOT NULL
+                      AND capture_date IS NOT NULL
+                  )
+                  OR (
+                      verified IS NOT true
+                      AND safe_to_answer IS NOT true
+                      AND completeness = 'parcial'
+                      AND source_url ILIKE '%eur-lex%'
+                      AND source_hash IS NULL
+                      AND capture_date IS NOT NULL
+                      AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                  )
+              )
             """,
         ),
         _check_db_zero(
