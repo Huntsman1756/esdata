@@ -446,3 +446,20 @@ Baseline snapshot:
 - Alertmanager active alerts are `[]`.
 
 Use `docs/population-report-20260520.md` as the branch closeout snapshot for `fix/full-audit-stale-workers-20260520`.
+
+## 2026-05-24 - AEAT model completeness is not obligation safety
+
+Sprint T on `187/198` confirmed a recurring trap: a model can be `complete` as
+form/instructions/keys while legacy `obligacion_perfil` rows for the same code
+must stay fail-closed.
+
+Operational rule:
+
+- Do not use `aeat_modelo.verified`, casillas, claves or instrucciones as proof
+  that an obligation applies to a profile.
+- `obligacion_perfil.safe_to_answer=true` requires at least source URL,
+  `source_hash`, `capture_date`, `verified=true` and `completeness='completa'`.
+- For `187/198`, `modelo_regla_inclusion` rules are scope evidence only:
+  `iic_transmisiones_reembolsos_187` and
+  `activos_financieros_valores_mobiliarios_198` do not close profile
+  applicability by themselves.

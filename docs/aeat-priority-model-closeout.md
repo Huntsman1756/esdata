@@ -112,8 +112,8 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 - API/MCP: contrato `completa`, `verified=true` segun `docs/aeat-instructions-coverage-report.md`.
 - Tests: validado por suite completa I-11; conservar como regression.
 - Documentacion: `docs/aeat-docs-map.md`, `docs/aeat-documentation-coverage-report.md`, `docs/aeat-instructions-coverage-report.md`.
-- Gaps: sin gap critico para el alcance de modelo.
-- Siguiente accion: mantener freshness y tests.
+- Gaps: sin gap critico para el alcance documental del modelo; la obligacion de perfil queda separada y debe ser `partial`/`safe_to_answer=false` si falta hash/captura o relacion completa.
+- Siguiente accion: mantener freshness, tests y contrato `docs/aeat-valores-187-198-contract.md`.
 
 ### Modelo 193
 
@@ -136,8 +136,8 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 - API/MCP: `mcp_validation_suite.py` contiene `aeat_modelo_198_completed_contract`.
 - Tests: suite I-11 y contrato MCP especifico.
 - Documentacion: informes D-13/I-11.
-- Gaps: sin gap critico para el alcance de modelo.
-- Siguiente accion: mantener test especifico.
+- Gaps: sin gap critico para el alcance documental del modelo; la obligacion de perfil queda separada y debe ser `partial`/`safe_to_answer=false` si falta hash/captura o relacion completa.
+- Siguiente accion: mantener test especifico y contrato `docs/aeat-valores-187-198-contract.md`.
 
 ### Modelo 216
 
