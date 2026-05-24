@@ -1,3 +1,9 @@
+=== Sprint O planned - 2026-05-24T07:15:00+02:00 ===
+Story queue: O-01 Granularizar 216/296 por tipo de renta IRNR; O-02 Preparar CDI despues de renta domestica trazada; O-03 Seleccionar siguiente modelo AEAT limpio.
+Method: Ralph one story per iteration, using prd.json and scripts/ralph/sprint-o-irnr-rentas-cdi-aeat.md.
+Guardrails: no complete by inference, no CDI as domestic obligation, no MCP work unless fiscal exposure requires it.
+Next: O-01.
+
 === Iteration 1 - 2026-05-11T19:40:00+02:00 ===
 Story: P-01 Diagnose and fix cron-psd2-weekly stale alert
 Verification run: local focused pytest and VPS manual cron run with sync_log before/after.
