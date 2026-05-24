@@ -36,6 +36,21 @@ En ese caso se devuelve como excluido con motivo `activos_financieros_no_confirm
 
 La clasificacion sigue siendo `candidato`, no `confirmado`.
 
+## Reglas Persistidas
+
+La migracion `20260524_0092_aeat_capital_mobiliario_123_124_rules` persiste reglas de alcance, no reglas de obligacion completa:
+
+| Modelo | Regla | Decision | Fuente |
+| --- | --- | --- | --- |
+| `123` | `capital_mobiliario_general_123` | `CONDICIONAL` | Ficha AEAT `GH04` cacheada con hash/captura |
+| `123` | `aplicabilidad_no_confirmada_123` | `EVIDENCE_LIMITED` | Ficha AEAT `GH04` cacheada con hash/captura |
+| `124` | `activos_financieros_124` | `CONDICIONAL` | Ficha AEAT `GH05` cacheada con hash/captura |
+| `124` | `activos_financieros_no_generico_124` | `EXCLUIR` | Ficha AEAT `GH05` cacheada con hash/captura |
+
+Tambien se corrige el metadato de `124` a `IRPF/IS/IRNR`, porque la ficha AEAT lo presenta como retenciones e ingresos a cuenta de esos impuestos; no se mantiene como modelo puramente IRNR.
+
+Estas reglas no cargan `modelo_clave` ni `modelo_instruccion`: no se han localizado claves/instrucciones deterministas equivalentes a las de `193`.
+
 ## Reglas
 
 - No convertir `124` en obligacion segura por analogia con `123` o `193`.

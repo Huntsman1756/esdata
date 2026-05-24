@@ -164,6 +164,29 @@ def test_aeat_193_domestic_applicability_fails_closed_in_revision_0091():
         assert fragment in contents
 
 
+def test_aeat_123_124_capital_mobiliario_rules_are_seeded_in_revision_0092():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260524_0092_aeat_capital_mobiliario_123_124_rules.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '124'",
+        "IRPF/IS/IRNR",
+        "capital_mobiliario_general_123",
+        "activos_financieros_124",
+        "activos_financieros_no_generico_124",
+        "GH04.shtml",
+        "GH05.shtml",
+        "sha256_contenido IS NOT NULL",
+        "last_seen_at IS NOT NULL",
+        "CONDICIONAL",
+        "EXCLUIR",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

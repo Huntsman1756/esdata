@@ -12,25 +12,23 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import aeat_models
-
 from aeat_models import (
     FallbackRequired,
     HttpxClient,
     PlaywrightClient,
+    _classify_resource,
     _discover_aeat_models,
     _extract_model_name,
+    _get_existing_codes,
     _infer_impuesto,
-    _classify_resource,
     _is_official_model_resource,
+    _mark_deprecated_models,
     _normalize_aeat_url,
     _record_sync_log,
     _store_modelo_recurso_version,
-    _mark_deprecated_models,
     _upsert_aeat_model,
-    _get_existing_codes,
     get_portal_client,
 )
-
 
 # ---------------------------------------------------------------------------
 # Model name extraction
@@ -351,6 +349,13 @@ class TestFetchModelMetadata:
             "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
             "Modelo 290. Declaración informativa anual de cuentas financieras FATCA.",
         ) == "INFORMATIVO"
+
+        assert _infer_impuesto(
+            "124",
+            noisy_nav,
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH05.shtml",
+            "Modelo 124. Retenciones e ingresos a cuenta sobre activos financieros.",
+        ) == "IRPF/IS/IRNR"
 
     def test_informative_models_are_not_classified_as_iva_from_nav_noise(self):
         assert _infer_impuesto(
