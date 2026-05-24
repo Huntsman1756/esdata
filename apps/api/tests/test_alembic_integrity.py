@@ -250,6 +250,34 @@ def test_obligacion_perfil_global_fail_closed_in_revision_0095():
         assert fragment in contents
 
 
+def test_obligacion_perfil_111_115_recovery_uses_unique_source_revision_in_0096():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260524_0096_obligacion_perfil_recover_111_115.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "source_entity_id IN ('AEAT-MODELO-111', 'AEAT-MODELO-115')",
+        "COUNT(DISTINCT content_hash_sha256) = 1",
+        "modelo_aeat IN ('111', '115')",
+        "source_hash = ur.source_hash",
+        "capture_date = COALESCE(op.capture_date, ur.capture_date)",
+        "verified = true",
+        "completeness = 'completa'",
+        "safe_to_answer = true",
+        "111/115 profile obligation recovered from unique source_revision evidence",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "modelo_aeat IN ('196', '290')",
+        "AEAT-MODELO-196",
+        "FATCA",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

@@ -470,3 +470,7 @@ Operational rule:
   not expose `verified=true` or `safe_to_answer=true` without `source_hash` and
   `capture_date`, even when the stored row still carries legacy source URL,
   article, model, or completeness flags.
+- Sprint W recovers only `111/115` because they have one exact
+  `source_revision` per AEAT model. Do not recover `196` from `modelo_recurso`
+  or `290` from FATCA source revisions until the hash/source relation is
+  unambiguous.

@@ -58,3 +58,16 @@ La auditoria localizo hashes candidatos para algunos subconjuntos:
 
 Estas recuperaciones deben abrirse como bloques separados y solo promover filas
 cuando la relacion entre obligacion y fuente sea trazable.
+
+## Recuperacion 111/115
+
+El bloque posterior `20260524_0096_obligacion_perfil_recover_111_115` recupera
+solo `111` y `115`, y no desde `modelo_recurso`, porque la auditoria encontro
+varios hashes distintos por URL en esa tabla. La recuperacion usa
+`source_revision` con `source_entity_id` exacto `AEAT-MODELO-111` /
+`AEAT-MODELO-115` y exige `COUNT(DISTINCT content_hash_sha256)=1`.
+
+`196` queda fail-closed porque `modelo_recurso` tenia varios hashes por URL y
+no habia `source_revision` exacta. `290` queda fail-closed porque la URL FATCA
+tenia dos hashes en `source_revision` (`FATCA` y `FATCA_IGA_ES`), sin cierre
+univoco para la obligacion de perfil.
