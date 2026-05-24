@@ -1,6 +1,6 @@
 # IRNR Rentas, CDI y Siguiente AEAT
 
-Estado: `planned`.
+Estado: `in_progress`.
 
 Este bloque arranca despues del cierre de AEAT IRNR `216/296`. No intenta aumentar cobertura por volumen; separa tres historias para desbloquearlas con metodo Ralph, una por iteracion.
 
@@ -11,6 +11,36 @@ Este bloque arranca despues del cierre de AEAT IRNR `216/296`. No intenta aument
 | O-01 | Granularizar `216/296` por tipo de renta IRNR, empezando por dividendos e intereses | Reglas/relaciones persistidas si hay evidencia, o `partial` documentado |
 | O-02 | Preparar CDI despues de una renta domestica trazada | Relacion CDI estrecha si hay pais/articulo/fuente, o bloqueo documentado |
 | O-03 | Elegir siguiente modelo AEAT limpio | Un candidato defendible para sprint posterior, o ningun candidato si falta evidencia |
+
+## Estado O-01
+
+O-01 queda cerrada como avance parcial trazable:
+
+- `296` tiene claves oficiales cargadas para dividendos (`CLAVE_RENTA 1`) e intereses (`CLAVE_RENTA 2`) con URL, hash y captura.
+- `20260524_0089_aeat_irnr_income_type_rules` persiste reglas `CONDICIONAL` para ambas rentas en `modelo_regla_inclusion`.
+- `/v1/modelos/por-supuesto` proyecta evidencia de `modelo_clave` solo si hay `source_hash` y `capture_date`.
+- La salida sigue `evidence_limited` y `verified=false`; no se declara obligacion segura por falta de convenio, protocolo, residencia efectiva y cierre de retencion por supuesto.
+- `216` no se granulariza por dividendos/intereses porque no hay clave de renta equivalente en el modelo cargado.
+
+## Estado O-02
+
+O-02 queda cerrada como preparacion fail-closed:
+
+- Produccion tiene `86` convenios en `irs_dta_convention`, pero no hay `source_revision` CDI con hash/captura.
+- `irs_withholding_rule` contiene una unica regla `FDAP` de origen IRS, no una regla Espana-CDI para dividendos/intereses IRNR.
+- No se persiste relacion CDI con `216/296` porque faltan pais, articulo CDI, protocolo y evidencia normalizada.
+- `POST /v1/internacional/convenios/retencion` mantiene la salida exploratoria heredada pero ahora declara `verified=false`, `completeness=partial`, `safe_to_answer=false`, `review_required=true` y `evidence_notice`.
+- Auditoria detallada: `docs/cdi-irnr-linkage-o02-audit.md`.
+
+## Estado O-03
+
+O-03 queda cerrada como seleccion de candidato:
+
+- Se auditan `187`, `193`, `198`, `200`, `232` y `303`.
+- `187`, `193` y `198` estan completos/curados con fuentes y hashes.
+- Se selecciona `193` como siguiente modelo por continuidad con dividendos/intereses y capital mobiliario residente.
+- Se descartan `100`, `200`, `232` y `303` para evitar amplitud excesiva o estado parcial.
+- Auditoria detallada: `docs/aeat-next-model-o03-audit.md`.
 
 ## Regla De Producto
 
@@ -49,4 +79,4 @@ El sprint termina cuando:
 
 - O-01 queda cerrado como persistencia real o `partial` documentado.
 - O-02 queda cerrado como relacion CDI estrecha o bloqueo documentado.
-- O-03 deja un candidato AEAT siguiente o explica por que no hay candidato limpio.
+- O-03 deja `193` como candidato AEAT siguiente.

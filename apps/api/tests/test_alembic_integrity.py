@@ -109,6 +109,22 @@ def test_doctrina_d04_crs_fatca_is_seeded_in_revision_0087():
         assert fragment in contents
 
 
+def test_aeat_irnr_income_type_rules_are_seeded_in_revision_0089():
+    revision_path = ALEMBIC_VERSIONS / "20260524_0089_aeat_irnr_income_type_rules.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "tipo_renta_dividendos_irnr_296",
+        "tipo_renta_intereses_irnr_296",
+        "Modelo 296, clave de renta 1",
+        "Modelo 296, clave de renta 2",
+        "source_hash IS NOT NULL",
+        "capture_date IS NOT NULL",
+        "CONDICIONAL",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

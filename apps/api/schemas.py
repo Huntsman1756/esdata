@@ -762,6 +762,8 @@ class ModeloSupuestoEvidencia(BaseModel):
     source: str = Field(description="Tabla o fuente interna usada como evidencia")
     source_document: str | None = Field(default=None, description="Identificador documental")
     source_url: str | None = Field(default=None, description="URL oficial o trazable")
+    source_hash: str | None = Field(default=None, description="Hash o equivalente de la fuente cargada")
+    capture_date: str | None = Field(default=None, description="Fecha de captura de la fuente")
     excerpt: str = Field(description="Texto exacto o resumen de evidencia")
     official: bool = Field(description="Si la fuente procede del corpus oficial")
 
@@ -3249,6 +3251,11 @@ class IrsFiscalCheckResponse(BaseModel):
     requiere_w8: bool
     formulario_recomendado: str | None = None
     notas: str | None = None
+    verified: bool = False
+    completeness: str = "partial"
+    safe_to_answer: bool = False
+    evidence_notice: str | None = None
+    review_required: bool = True
 
 
 class PriipsKidSummary(BaseModel):

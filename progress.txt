@@ -2910,3 +2910,44 @@ Artifacts:
 - Report: `docs/population-report-20260520.md`.
 - VPS evidence: `/root/a14-population-report-20260520/evidence_counts.txt` and `/root/a14-population-report-20260520/evidence_ops.txt`.
 Next: audit A-04..A-14 complete; decide merge/release or next audit line.
+
+=== Iteration O-01 - 2026-05-24 ===
+Story: O-01 Granularizar 216/296 por tipo de renta IRNR
+Result: PASS local
+Verification:
+- Produccion auditada: Modelo 296 expone `CLAVE_RENTA 1` dividendos y `CLAVE_RENTA 2` intereses con `source_url`, `source_hash` y `capture_date=2026-05-14`.
+- Modelo 216 no tiene clave de renta equivalente; no se granulariza por inferencia.
+- Migracion `20260524_0089_aeat_irnr_income_type_rules` persiste reglas `CONDICIONAL` solo para 296.
+- `/v1/modelos/por-supuesto` proyecta evidencia de `modelo_clave` para `tipo_renta=dividendos/intereses` solo si hay hash y captura; mantiene `evidence_limited`, `verified=false` y `review_required=true`.
+Commands:
+- `python -m pytest apps/api/tests/test_modelos_truth_contract.py apps/api/tests/test_alembic_integrity.py -q` => `40 passed`.
+Next: O-02 Preparar conexion CDI despues de tipo de renta, sin usar CDI como obligacion domestica.
+
+=== Iteration O-02 - 2026-05-24 ===
+Story: O-02 Preparar conexion CDI despues de tipo de renta
+Result: PASS local
+Verification:
+- Produccion auditada: `irs_dta_convention=86`, `irs_withholding_rule=1`.
+- `source_revision` CDI no tiene filas con hash/captura normalizada; no se persiste relacion CDI.
+- La unica regla de retencion productiva es `FDAP` IRS, no dividendos/intereses IRNR Espana-CDI.
+- `POST /v1/internacional/convenios/retencion` queda explicitamente fail-closed: `verified=false`, `completeness=partial`, `safe_to_answer=false`, `review_required=true`, `evidence_notice`.
+Commands:
+- `python -m pytest apps/api/tests/test_dta_convenios.py -q` => `19 passed`.
+Artifacts:
+- `docs/cdi-irnr-linkage-o02-audit.md`.
+Next: O-03 Seleccionar siguiente modelo AEAT limpio.
+
+=== Iteration O-03 - 2026-05-24 ===
+Story: O-03 Seleccionar siguiente modelo AEAT limpio
+Result: PASS local
+Verification:
+- Auditados en produccion: `187`, `193`, `198`, `200`, `232`, `303`.
+- `187`, `193` y `198` estan `complete`/`curado` con casillas, claves, instrucciones y recursos con hash.
+- `200` y `303` quedan descartados por amplitud y estado `partial`/`inferido`; `232` queda descartado por falta de claves/instrucciones operativas suficientes; `100` no se abre por amplitud.
+- Candidato seleccionado para siguiente sprint: `193`.
+Commands:
+- `python scripts/maintenance/verify-doc-contracts.py` => `docs contracts verified`.
+- `git diff --check` => OK.
+Artifacts:
+- `docs/aeat-next-model-o03-audit.md`.
+Next: suite focal completa del sprint, PR y deploy de migracion `20260524_0089`.

@@ -358,6 +358,12 @@ async def calcular_retencion(req: IrsFiscalCheckRequest):
             formulario_recomendado = "W-8BEN"
 
         notas = condiciones
+        safe_to_answer = False
+        evidence_notice = (
+            "EVIDENCIA LIMITADA: el calculo DTA es exploratorio. "
+            "No hay contrato CDI completo con hash/captura, articulo por tipo de renta, "
+            "protocolo y certificado de residencia; no usar como tasa definitiva."
+        )
 
         return {
             "pais_residencia": req.pais_residencia,
@@ -368,4 +374,9 @@ async def calcular_retencion(req: IrsFiscalCheckRequest):
             "requiere_w8": requiere_w8,
             "formulario_recomendado": formulario_recomendado,
             "notas": notas,
+            "verified": False,
+            "completeness": "partial",
+            "safe_to_answer": safe_to_answer,
+            "evidence_notice": evidence_notice,
+            "review_required": True,
         }
