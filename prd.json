@@ -1,188 +1,65 @@
 {
-  "sprint": "audit-stale-workers",
-  "projectName": "esdata-audit-stale-workers",
-  "branchName": "fix/full-audit-stale-workers-20260520",
-  "version_baseline": "v1.13.0",
-  "description": "Auditoria completa post-alertas stale workers. Bloques P-01..P-03 y A-01..A-03 cerrados. Este PRD cubre A-04..A-14.",
+  "sprint": "sprint-o-irnr-rentas-cdi-aeat",
+  "projectName": "esdata-aeat-irnr-rentas-cdi",
+  "branchName": "feat/sprint-o-irnr-rentas-cdi-aeat",
+  "version_baseline": "post-PR-81",
+  "description": "Ralph sprint para desbloquear tres historias fiscales tras cerrar AEAT IRNR 216/296: granularizar por tipo de renta, preparar enlace CDI solo cuando haya renta base trazada y seleccionar el siguiente modelo AEAT limpio.",
   "context": {
-    "workers_documented": 68,
-    "obligacion_perfil": 190,
-    "obligacion_verified": 190,
-    "alerts_p01_p03": "resueltas - ya tenian retry guard y red correcta",
-    "a01": "docs/worker-db-retry-coverage.md corregido a 68 workers",
-    "a02": "cron-eu-sanctions-weekly instalado y habilitado en VPS - drift corregido",
-    "a03": "todos cron services declaran esdata-internal - validado"
+    "doctrina_d01": "complete: DGT V0166-25, TRLIRNR art. 31, modelos 216/296, hash/captura y relacion modelo/supuesto",
+    "modelo_216": "complete como modelo/formulario; 47 casillas, 5 claves, 6 instrucciones, 3 reglas inclusion/exclusion IRNR tras 20260524_0088",
+    "modelo_296": "complete como modelo/formulario; 124 casillas, 35 claves, 8 instrucciones, 4 reglas inclusion/exclusion IRNR tras 20260524_0088",
+    "aplicabilidad_irnr": "partial: por-supuesto mantiene 216/296 como candidatos y safe_to_answer=false salvo evidencia completa",
+    "mcp": "legacy estable para scope ESData; no tocar salvo exposicion de contrato fiscal nuevo"
   },
   "userStories": [
     {
-      "id": "A-04",
-      "priority": 4,
-      "title": "Smoke test persistent workers reales",
-      "description": "Obtener lista real de persistent workers desde docker-compose.prod.yml. Ejecutar cada uno con --run-once. Verificar exit 0 y ausencia de crash/fallo silencioso en logs. Documentar cualquier worker que no soporte --run-once.",
+      "id": "O-01",
+      "priority": 1,
+      "title": "Granularizar 216/296 por tipo de renta IRNR",
+      "description": "Auditar y, si hay evidencia oficial suficiente, persistir reglas de inclusion/exclusion para tipos de renta IRNR dentro de 216/296, empezando por dividendos e intereses. No calcular retencion ni aplicabilidad final. No cerrar por mera clave del modelo 296 si falta supuesto, articulo o fuente trazable.",
       "acceptance": [
-        "Lista de persistent workers derivada del Compose, no hardcodeada",
-        "Todos los workers ejecutan --run-once con exit 0 o error explicito documentado",
-        "Sin crashes silenciosos en docker logs"
+        "Auditoria de produccion documenta claves/subclaves 296 ya cargadas para dividendos e intereses, con source_url, source_hash y capture_date",
+        "Solo se persisten reglas o relaciones nuevas si la fuente oficial identifica tipo de renta y modelo 216/296 de forma trazable",
+        "Dividendos e intereses quedan diferenciados; no se mezclan con canones, servicios profesionales ni ganancias patrimoniales",
+        "D-01 se usa solo como soporte de retencion IRNR general; no sustituye el cierre por tipo de renta",
+        "Las respuestas por supuesto siguen fail-closed si falta convenio, protocolo, residencia, tipo de renta o articulo aplicable",
+        "Tests cubren: renta soportada con evidencia, renta no soportada, ausencia de hash/capture y no contaminacion entre tipos de renta",
+        "Docs/matriz indican exactamente que rentas avanzaron y que falta para safe_to_answer=true"
       ],
-      "passes": true
+      "passes": false,
+      "notes": "Primer candidato: dividendos e intereses IRNR por su relacion con D-06 y modelo 296. Si la evidencia no alcanza, documentar partial y no sembrar."
     },
     {
-      "id": "A-04b",
-      "priority": 4.5,
-      "title": "Fix worker-eurlex norma upsert and dead-letter idempotency",
-      "description": "Resolver el bug real expuesto por A-04: worker-eurlex falla al reinsertar una norma EUR-Lex ya existente por boe_id=EUR-CELEX-32014L0065 y despues falla tambien al registrar dead letter duplicado para (worker_name, entity_id)=(eurlex, eurlex). Este fix es bloqueante antes de A-05.",
+      "id": "O-02",
+      "priority": 2,
+      "title": "Preparar conexion CDI despues de tipo de renta",
+      "description": "Disenar y, solo si O-01 deja una renta base trazada, conectar esa renta con CDI por articulo y pais sin mezclar convenio con la regla base del modelo. El CDI puede modular el resultado, pero no debe crear por si solo obligacion 216/296.",
       "acceptance": [
-        "Reproducir y documentar el estado actual de norma para boe_id='EUR-CELEX-32014L0065' y codigo relacionado.",
-        "worker-eurlex no debe fallar con unique violation en norma_boe_id_key cuando la norma ya existe por boe_id o CELEX canonico.",
-        "El upsert de norma debe ser idempotente frente a reruns y compatible con normalizacion CELEX existente.",
-        "dead_letter.add_dead_letter debe ser idempotente para (worker_name, entity_id): si la fila existe, debe actualizar/incrementar sin unique violation.",
-        "Anadir tests unitarios o focales que cubran upsert EUR-Lex duplicado por boe_id y dead-letter duplicado.",
-        "Ejecutar worker-eurlex en VPS con --run-once y confirmar exit 0 o partial explicito con sync_log, nunca crash silencioso.",
-        "Reejecutar A-04 smoke al menos para worker-eurlex y actualizar docs/persistent-worker-smoke-20260520.md."
+        "Se audita el corpus CDI existente y su exposicion por pais/renta/articulo antes de crear enlaces nuevos",
+        "No se abre CDI si O-01 no deja al menos una renta base trazada en 216/296",
+        "Las relaciones CDI se persisten solo cuando pais, articulo CDI, tipo de renta y fuente oficial tienen URL, hash/captura o equivalente",
+        "La respuesta distingue regla domestica IRNR, posible modulacion CDI y gaps de protocolo/residencia efectiva",
+        "safe_to_answer=false cuando falte pais, convenio, protocolo, certificado de residencia o tipo de renta",
+        "Tests cubren: CDI relacionado, CDI ausente, protocolo faltante y no mezclar CDI con obligacion base AEAT"
       ],
-      "passes": true
+      "passes": false,
+      "notes": "Bloque dependiente de O-01. No empezar por CDI si no hay tipo de renta domestico bien separado."
     },
     {
-      "id": "A-05",
-      "priority": 5,
-      "title": "Run all cron jobs once - verify sync_log",
-      "description": "Derivar lista de cron jobs desde docker-compose.prod.yml (todos los servicios con perfil cron o equivalente). Ejecutar cada uno manualmente. Verificar que generan nueva entrada en sync_log con id > 1623.",
+      "id": "O-03",
+      "priority": 3,
+      "title": "Seleccionar siguiente modelo AEAT limpio",
+      "description": "Auditar candidatos de modelo AEAT con fuentes oficiales deterministas y elegir uno para el siguiente sprint. No implementar cobertura masiva en esta historia; dejar un candidato defendible con PRD operativo o documentar que no hay candidato limpio.",
       "acceptance": [
-        "Lista de cron jobs derivada del Compose, no hardcodeada",
-        "Cada ejecucion produce sync_log id nuevo (> 1623)",
-        "Sin errores 5xx ni DB failures en logs"
+        "Se revisan al menos tres candidatos AEAT con fuente oficial limpia y alto valor fiscal",
+        "Para cada candidato se comprueba existencia de instrucciones, claves/casillas o diseno determinista, source_url, source_hash/capture_date y estado de completitud",
+        "Se descartan expresamente candidatos que dependan de PDF esquematico, FAQ, ejemplo XML o inferencia",
+        "Se elige un solo candidato para sprint siguiente o se documenta que no hay candidato defendible",
+        "No se modifica cobertura productiva de ese modelo salvo hallazgo trivial de documentacion",
+        "Docs/roadmap dejan siguiente accion exacta y criterio de salida del candidato"
       ],
-      "passes": true
-    },
-    {
-      "id": "A-06",
-      "priority": 6,
-      "title": "DB integrity - FK, NULLs, duplicates",
-      "description": "Ejecutar scripts/integrity-check.sql contra la DB. Validar: FK huerfanas, NULLs en campos NOT NULL (boe_reference, source_url, texto), duplicados logicos en articulo + norma_id. Si scripts/integrity-check.sql no existe, crearlo primero.",
-      "acceptance": [
-        "scripts/integrity-check.sql existe y es ejecutable",
-        "0 FK huerfanas",
-        "0 NULLs en campos criticos",
-        "0 duplicados logicos en articulo"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-07",
-      "priority": 7,
-      "title": "Regulatory data accuracy spot-check",
-      "description": "Muestreo manual de exactitud regulatoria: 5 articulos aleatorios de LIVA, 3 de MiCA (casp + emisor_token). Verificar boe_reference valido, source_url autoritativa (BOE/EUR-Lex), campos version_articulo poblados, fecha_vigencia coherente.",
-      "acceptance": [
-        "8 articulos revisados manualmente",
-        "boe_reference y source_url correctos en todos",
-        "version_articulo con fecha_vigencia != NULL en todos",
-        "Hallazgos documentados en docs/accuracy-spot-check-20260520.md"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-08",
-      "priority": 8,
-      "title": "Smoke test todos los endpoints API",
-      "description": "Ejecutar smoke contra: /health, /api/legislacion/{norma}/articulo/1, /api/search?q=..., /api/mcp/tools. Verificar HTTP 200 y payload coherente. Debe cubrir al menos LIVA, MiCA y un endpoint de busqueda.",
-      "acceptance": [
-        "/health -> {status:ok, database:ok}",
-        "LIVA art.1 -> texto no vacio, boe_reference presente",
-        "/api/search -> resultados > 0",
-        "/api/mcp/tools -> lista de tools no vacia"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-09",
-      "priority": 9,
-      "title": "MCP tool accuracy spot-check",
-      "description": "Validacion manual de exactitud MCP: LIVA art. 1 (texto correcto), articulo derogado (devuelve derogado explicito), articulo inexistente (devuelve not-found explicito, no 500), source_url y boe_reference presentes en respuesta.",
-      "acceptance": [
-        "LIVA art.1 via MCP coincide con texto oficial",
-        "Derogado -> campo derogado=true o equivalente explicito",
-        "Not-found -> HTTP 404, no 500",
-        "source_url y boe_reference en payload MCP",
-        "obtener_obligaciones_perfil(codigo='emisor_token') devuelve 8 obligaciones verified=true con source_url y referencia canonica 32023R1114"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-10",
-      "priority": 10,
-      "title": "query_audit_log - append-only y cobertura MCP",
-      "description": "Verificar que invocaciones MCP crean entradas en query_audit_log. Verificar que no hay DELETE ni UPDATE en query_audit_log (append-only). Confirmar presencia de columnas: timestamp, tool_name, query_params, user_agent o equivalente.",
-      "acceptance": [
-        "Llamada MCP -> nueva fila en query_audit_log",
-        "No existen triggers/permisos que permitan DELETE o UPDATE en esa tabla",
-        "Esquema tiene timestamp y tool_name como NOT NULL",
-        "Hallazgo A-10: runtime append-only pasa por trigger, pero el rol API es superuser; remediation split to A-10b"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-10b",
-      "priority": 10.5,
-      "title": "Harden query_audit_log with least-privileged API DB role",
-      "description": "A-10 confirmed MCP audit coverage and trigger-based append-only behavior, but production API uses DB role esdata, which is superuser and has UPDATE/DELETE/TRUNCATE/TRIGGER privileges. Create or migrate to a non-superuser runtime role and make query_audit_log append-only by permissions as well as trigger.",
-      "acceptance": [
-        "Production API DATABASE_URL uses a non-superuser runtime role",
-        "Runtime role has rolsuper=false and rolbypassrls=false",
-        "Runtime role has INSERT and SELECT on query_audit_log",
-        "Runtime role does not have UPDATE, DELETE, TRUNCATE, or TRIGGER on query_audit_log",
-        "Migrations/admin operations remain possible via a separate privileged role",
-        "MCP get_articulo call still creates a query_audit_log row after role change",
-        "UPDATE/DELETE attempts as runtime role fail by permission denied or append-only trigger"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-11",
-      "priority": 11,
-      "title": "Prometheus alert rules - cobertura stale workers",
-      "description": "Revisar reglas Prometheus (infra/monitoring/). Verificar cobertura para los workers originalmente alertados (P-01..P-03) y para cron-eu-sanctions-weekly (drift corregido en A-02). Ejecutar promtool check rules. Ajustar si faltan reglas o threshold desactualizados.",
-      "acceptance": [
-        "promtool check rules -> 0 errores",
-        "Reglas cubren los 4 workers: psd2-weekly, official-regulatory-references, pgc-boe-monthly, eu-sanctions-weekly",
-        "Thresholds coherentes con frecuencia real de cada cron"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-12",
-      "priority": 12,
-      "title": "Clasificar 68 workers - docs/worker-inventory.md",
-      "description": "Partir de los 68 workers documentados en docs/worker-db-retry-coverage.md. Clasificar cada uno como: active-persistent, active-cron, helper/module, dead/unused. Documentar en docs/worker-inventory.md con columnas: nombre, tipo, tiene-retry-guard, red-compose, timer-systemd.",
-      "acceptance": [
-        "docs/worker-inventory.md con los 68 workers clasificados",
-        "Columnas: nombre, tipo, retry-guard (si/no), red (esdata-internal/otro), timer-instalado (si/no/NA)",
-        "0 workers en estado ambiguo sin comentario explicativo"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-13",
-      "priority": 13,
-      "title": "AEAT models - verify-first, seed si vacio",
-      "description": "Verificar estado actual de aeat_modelo y modelo_articulo. Si ya estan pobladas y coherentes, documentar counts y marcar como OK. Solo ejecutar seed-modelos si las tablas estan vacias o hay inconsistencias. No reseed destructivo sobre datos existentes.",
-      "acceptance": [
-        "SELECT COUNT(*) en aeat_modelo y modelo_articulo ejecutado y documentado",
-        "Si poblado: counts > 0 y FK integras -> passes=true sin reseed",
-        "Si vacio o roto: seed ejecutado y validado -> passes=true"
-      ],
-      "passes": true
-    },
-    {
-      "id": "A-14",
-      "priority": 14,
-      "title": "Population report final - baseline v1.13.0",
-      "description": "Reporte final de poblacion de todas las tablas de compliance. Baseline: 190/190 obligacion_perfil verified, perfiles casp + emisor_token. Documentar en docs/population-report-20260520.md con snapshot de counts por tabla.",
-      "acceptance": [
-        "docs/population-report-20260520.md generado",
-        "Tablas cubiertas: articulo, version_articulo, norma, obligacion_perfil, aeat_modelo, sync_log (ultimas 10 entradas)",
-        "obligacion_perfil: 190 total / 190 verified como baseline confirmado"
-      ],
-      "passes": true
+      "passes": false,
+      "notes": "Evitar Modelo 100 de entrada salvo fuente/casillas muy limpias; priorizar modelos con contrato determinista y bajo riesgo de abrir demasiados frentes."
     }
   ]
 }
