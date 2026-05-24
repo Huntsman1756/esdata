@@ -54,6 +54,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-24 - Modelo 289: metadata auxiliar no equivale a obligacion segura
+
+- Scope: `modelo_regla_inclusion`, `modelo_instruccion`, Modelo AEAT `289`.
+- Hallazgo: las reglas e instrucciones auxiliares CRS/DAC2 pueden tener URL, hash y captura normalizados sin cerrar por si mismas la aplicabilidad por perfil.
+- Impacto: promover `obligacion_perfil` o `safe_to_answer=true` desde metadata auxiliar del `289` crearia un falso positivo operativo.
+- Regla practica: tratar normalizaciones de hash/captura en metadata auxiliar como higiene de fuente. Para cerrar `289` por perfil hace falta bloque separado con sujeto obligado, cuenta reportable, articulo/supuesto y evidencia completa.
+
 ### 2026-05-12 - BORME: discovery oficial no debe ser seed-only
 
 - Scope: `apps/workers/borme.py`, `cron-borme-weekly`, tabla `sync_log`.
