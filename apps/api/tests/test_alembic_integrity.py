@@ -310,6 +310,40 @@ def test_aeat_289_auxiliary_metadata_evidence_is_normalized_in_0097():
         assert forbidden not in contents
 
 
+def test_aeat_289_documental_source_refresh_is_scoped_in_0098():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260524_0098_aeat_289_documental_source_refresh.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '289'",
+        "BOE-A-2016-9834",
+        "502a67740152eb23bdf66a59c1a2a69d0a34d8e4054b26191bb7dcfef7d05794",
+        "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI42.shtml",
+        "1c00efed01d8d917591907c134abdc8dde84d87e51a6b69ca5a6acf830a26e1c",
+        "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI42/Ayuda/XSD_WSDL/289_XSD_2.0_WSDL_2.0.1.zip",
+        "6948eec877d04ca637b099f59fa944996aa878c8d68181dfffde87fd056a048d",
+        "normativa_hap_1695",
+        "procedimiento_gi42",
+        "xsd_wsdl",
+        "XSD:MessageSpec/SendingCompanyIN",
+        "XSD:AccountReport/Payment/PaymentAmnt",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+        "INSERT INTO modelo_clave",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

@@ -90,7 +90,7 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 | 124 | partial probable | `partial` | D-13: 39 casillas desde XLSX AEAT, `verified=false`, `parcial`; aparece como candidato, no confirmado, en contrato por supuesto | Falta profundidad documental y confirmacion de aplicabilidad por supuesto | Completar instrucciones/claves o mantener como candidato con review_required |
 | 200 | partial probable | `partial` | D-13: 6.807 casillas desde XLS/anexos AEAT; `docs/aeat-instructions-coverage-report.md`: 5 instrucciones, `parcial`, `verified=false` | Sin conjunto determinista de claves/reglas completo; contrato sigue parcial | Determinar gap exacto de IS: claves, reglas y aplicabilidad operativa |
 | 202 | partial probable | `partial` | `mcp_validation_suite.py` valida obligacion Modelo 202 por perfiles y calendario; no hay cierre documental especifico equivalente a D-13/I-11 | Evidencia de obligacion/aplicabilidad, pero no cierre completo de formulario/instrucciones/casillas por modelo | Crear mini-auditoria Modelo 202: fuente, casillas, instrucciones, plazo y perfil |
-| 289 | partial probable | `partial` | `mcp_validation_suite.py` exige normativa >=4, instrucciones >=5, reglas >=6, keywords >=8, casillas >=20 y obligaciones verificadas; D-13 conserva contrato parcial | CRS/DAC2 tiene buena base, pero el procedimiento completo y contrato de modelo siguen sin graduarse a `complete` | Separar cierre del formulario 289 de PRD CRS/DAC2 operativo |
+| 289 | partial probable | `partial` | `mcp_validation_suite.py` exige normativa >=4, instrucciones >=5, reglas >=6, keywords >=8, casillas >=20 y obligaciones verificadas; D-13 conserva contrato parcial; Sprint X normalizo hashes/capturas auxiliares sin promover `safe_to_answer`/`verified`/`completeness`; 0098 desplegada en VPS normaliza HAP/1695/2016, GI42 actual y XSD/WSDL como evidencia documental; auditoria 2026-05-24 mantiene `partial` | CRS/DAC2 tiene buena base, pero el procedimiento completo y contrato de modelo siguen sin graduarse a `complete`; el estado documental del 289 no debe contaminar CRS/DAC2 operativo; suite live pasa checks documentales 289 pero falla obligaciones de perfil no verificadas/sin hash | No promover `289`; abrir auditoria separada de `obligacion_perfil` o CRS/DAC2 operativo si se quiere cerrar esa capa |
 | 303 | partial probable | `partial` | D-13: 432 casillas desde XLSX AEAT 300-399; `docs/aeat-instructions-coverage-report.md`: 5 instrucciones, `parcial`, `verified=false`; tests fuerzan parcial en campana-operativa | Falta precision operativa/reglas/claves suficientes; contrato runtime parcial | Auditar quirurgicamente IVA 303 para decidir cierre o gaps finales |
 | 180 | target/auditar | `target` | Hay referencias legacy/seed y calendario en el repo, pero no cierre oficial en D-13/I-11 ni contrato especifico por modelo prioritario | Base insuficiente para tratarlo como producto cerrado | Auditar desde fuente AEAT y decidir si entra a `partial` |
 | 184 | target/auditar | `target` | Hay referencias legacy/seed, pero no cierre oficial en D-13/I-11 ni contrato especifico por modelo prioritario | Base insuficiente para tratarlo como producto cerrado | Auditar desde fuente AEAT y decidir si entra a `partial` |
@@ -265,13 +265,13 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 
 - Estado final: `partial`.
 - Hipotesis inicial: partial probable.
-- Fuente oficial: ZIP XSD/WSDL AEAT y manual CRS/DAC2.
-- Produccion: D-13 reporta 134 casillas; mcp suite exige normativa, instrucciones, reglas, keywords y obligaciones verificadas.
-- API/MCP: contrato CRS fuerte, pero no graduado a complete por procedimiento global.
-- Tests: `modelo_289_*` y `aeat_catalogo_modelo_289_crs_counts`.
-- Documentacion: D-13, Sprint J y source backlog.
-- Gaps: procedimiento CRS/DAC2 completo y familia CRS siguen abiertos.
-- Siguiente accion: separar cierre de formulario 289 de PRD CRS/DAC2.
+- Fuente oficial: BOE RD 1021/2015, BOE Orden HAP/1695/2016, GI42, manual CRS/DAC2 y ZIP XSD/WSDL AEAT.
+- Produccion: D-13 reporta 134 casillas; mcp suite exige normativa, instrucciones, reglas, keywords y obligaciones verificadas. La normalizacion 0098 ya esta aplicada en VPS y verifica 5 recursos documentales activos.
+- API/MCP: contrato CRS fuerte, pero no graduado a complete por procedimiento global. El PRD activo exige que cualquier `complete` futuro del `289` sea solo contractual/documental y no implique mejora ni degradacion automatica de CRS/DAC2 operativo.
+- Tests: `test_alembic_integrity.py` valida 0098 y prohibe promociones; en VPS pasan los checks documentales 289 y `aeat_catalogo_modelo_289_crs_counts`, pero `modelo_289_obligation_context_contract` mantiene fail-closed.
+- Documentacion: D-13, Sprint J, source backlog, `docs/aeat-289-metadata-evidence.md`, `docs/aeat-289-documental-closeout-prd.md`, `docs/aeat-289-documental-audit-2026-05-24.md` y `docs/crs-dac2-coverage-prd.md`.
+- Gaps: trazabilidad XSD aun a nivel recurso y no por campo, y `obligation_context` sigue fuera del cierre documental con 4 filas no verificadas/sin hash. Procedimiento CRS/DAC2 completo y familia CRS siguen abiertos.
+- Siguiente accion: no tocar `obligacion_perfil` salvo auditoria especifica por sujeto obligado/supuesto; mantener CRS/DAC2 como familia separada.
 
 ### Modelo 303
 
@@ -388,7 +388,7 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 | 100 | Contrato documental fuerte pero subendpoints runtime parciales | Reconciliar `verified/completeness` por subendpoint |
 | 200 | Casillas masivas e instrucciones parciales sin claves/reglas completas | Definir cierre de IS |
 | 202 | Obligacion/perfil validada, formulario no cerrado | Mini-auditoria Modelo 202 |
-| 289 | CRS fuerte pero procedimiento/familia no cerrados | Separar cierre modelo de PRD CRS/DAC2 |
+| 289 | CRS fuerte pero cierre documental formal y procedimiento/familia no cerrados | Ejecutar `docs/aeat-289-documental-closeout-prd.md` y mantener CRS/DAC2 separado en `docs/crs-dac2-coverage-prd.md` |
 | 303 | IVA prioritario con contrato parcial | Auditoria quirurgica de reglas e instrucciones |
 | 180/184/190/232/347/349/390 | Sin closeout oficial por modelo | Auditar fuente AEAT y pasar a `partial` solo con evidencia |
 | 233 | `STATUS-E` sin plantilla determinista | Localizar fuente oficial no autenticada/determinista |
