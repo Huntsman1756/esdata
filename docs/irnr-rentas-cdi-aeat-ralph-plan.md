@@ -22,6 +22,16 @@ O-01 queda cerrada como avance parcial trazable:
 - La salida sigue `evidence_limited` y `verified=false`; no se declara obligacion segura por falta de convenio, protocolo, residencia efectiva y cierre de retencion por supuesto.
 - `216` no se granulariza por dividendos/intereses porque no hay clave de renta equivalente en el modelo cargado.
 
+## Estado O-02
+
+O-02 queda cerrada como preparacion fail-closed:
+
+- Produccion tiene `86` convenios en `irs_dta_convention`, pero no hay `source_revision` CDI con hash/captura.
+- `irs_withholding_rule` contiene una unica regla `FDAP` de origen IRS, no una regla Espana-CDI para dividendos/intereses IRNR.
+- No se persiste relacion CDI con `216/296` porque faltan pais, articulo CDI, protocolo y evidencia normalizada.
+- `POST /v1/internacional/convenios/retencion` mantiene la salida exploratoria heredada pero ahora declara `verified=false`, `completeness=partial`, `safe_to_answer=false`, `review_required=true` y `evidence_notice`.
+- Auditoria detallada: `docs/cdi-irnr-linkage-o02-audit.md`.
+
 ## Regla De Producto
 
 `216/296` estan completos como modelos/formularios, pero no como respuesta universal sobre retenciones no residentes. La aplicabilidad sigue condicionada por tipo de renta, residencia, convenio, protocolo, certificado y supuesto exacto.

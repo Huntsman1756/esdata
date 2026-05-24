@@ -3251,6 +3251,11 @@ class IrsFiscalCheckResponse(BaseModel):
     requiere_w8: bool
     formulario_recomendado: str | None = None
     notas: str | None = None
+    verified: bool = False
+    completeness: str = "partial"
+    safe_to_answer: bool = False
+    evidence_notice: str | None = None
+    review_required: bool = True
 
 
 class PriipsKidSummary(BaseModel):

@@ -42,8 +42,8 @@
         "safe_to_answer=false cuando falte pais, convenio, protocolo, certificado de residencia o tipo de renta",
         "Tests cubren: CDI relacionado, CDI ausente, protocolo faltante y no mezclar CDI con obligacion base AEAT"
       ],
-      "passes": false,
-      "notes": "Bloque dependiente de O-01. No empezar por CDI si no hay tipo de renta domestico bien separado."
+      "passes": true,
+      "notes": "Cerrada localmente como preparacion fail-closed: O-01 deja renta domestica trazada solo en 296; produccion CDI tiene 86 convenios pero 0 source_revision CDI y solo una regla FDAP IRS en irs_withholding_rule. No se persiste relacion CDI con 216/296; el calculo DTA ahora declara verified=false, completeness=partial, safe_to_answer=false, review_required=true y evidence_notice."
     },
     {
       "id": "O-03",

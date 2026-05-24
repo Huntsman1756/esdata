@@ -3,7 +3,6 @@
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 API_DIR = Path(__file__).resolve().parents[1]
@@ -207,6 +206,25 @@ class TestCalcularRetencion:
             "requiere_w8",
             "formulario_recomendado",
             "notas",
+            "verified",
+            "completeness",
+            "safe_to_answer",
+            "evidence_notice",
+            "review_required",
         ]
         for field in required_fields:
             assert field in data, f"Missing field: {field}"
+
+    def test_calculo_retencion_declara_fail_closed_sin_contrato_cdi_completo(self):
+        resp = client.post(
+            "/v1/internacional/convenios/retencion",
+            json={"pais_residencia": "US", "tipo_renta": "dividends"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["verified"] is False
+        assert data["completeness"] == "partial"
+        assert data["safe_to_answer"] is False
+        assert data["review_required"] is True
+        assert "EVIDENCIA LIMITADA" in data["evidence_notice"]

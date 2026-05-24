@@ -2922,3 +2922,17 @@ Verification:
 Commands:
 - `python -m pytest apps/api/tests/test_modelos_truth_contract.py apps/api/tests/test_alembic_integrity.py -q` => `40 passed`.
 Next: O-02 Preparar conexion CDI despues de tipo de renta, sin usar CDI como obligacion domestica.
+
+=== Iteration O-02 - 2026-05-24 ===
+Story: O-02 Preparar conexion CDI despues de tipo de renta
+Result: PASS local
+Verification:
+- Produccion auditada: `irs_dta_convention=86`, `irs_withholding_rule=1`.
+- `source_revision` CDI no tiene filas con hash/captura normalizada; no se persiste relacion CDI.
+- La unica regla de retencion productiva es `FDAP` IRS, no dividendos/intereses IRNR Espana-CDI.
+- `POST /v1/internacional/convenios/retencion` queda explicitamente fail-closed: `verified=false`, `completeness=partial`, `safe_to_answer=false`, `review_required=true`, `evidence_notice`.
+Commands:
+- `python -m pytest apps/api/tests/test_dta_convenios.py -q` => `19 passed`.
+Artifacts:
+- `docs/cdi-irnr-linkage-o02-audit.md`.
+Next: O-03 Seleccionar siguiente modelo AEAT limpio.
