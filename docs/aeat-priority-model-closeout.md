@@ -217,11 +217,11 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 - Hipotesis inicial: partial probable.
 - Fuente oficial: XLS AEAT.
 - Produccion: D-13 reporta 44 casillas.
-- API/MCP: catalogo AEAT probado sin evidence de perfil; contrato de aplicabilidad conserva `review_required`.
-- Tests: `aeat_catalogo_no_profile_evidence_contract`.
-- Documentacion: D-13.
-- Gaps: falta profundidad documental y aplicabilidad por supuesto.
-- Siguiente accion: completar instrucciones/claves o mantener candidato.
+- API/MCP: catalogo AEAT probado sin evidence de perfil; `/por-supuesto` lo mantiene como candidato prudente.
+- Tests: `aeat_catalogo_no_profile_evidence_contract`, `test_aeat_123_124_capital_mobiliario_rules_are_seeded_in_revision_0092`.
+- Documentacion: D-13 y `docs/aeat-capital-mobiliario-123-124-193-routing.md`.
+- Gaps: falta profundidad documental, claves/instrucciones deterministicas y aplicabilidad por supuesto.
+- Siguiente accion: completar claves/instrucciones oficiales si existe fuente determinista; no promover por casillas.
 
 ### Modelo 124
 
@@ -230,11 +230,12 @@ Si falta un punto, el modelo no puede marcarse `complete`.
 - Fuente oficial: XLSX AEAT.
 - Produccion: D-13 reporta 39 casillas.
 - API/MCP: no aparece como candidato por capital mobiliario residente generico; solo se ofrece como candidato si el supuesto identifica transmision, amortizacion, reembolso, canje o conversion de activos financieros.
-- Tests: `test_modelos_por_supuesto_sociedad_valores_fail_closed_without_explicit_obligation`, `test_modelos_por_supuesto_includes_124_only_for_specific_financial_asset_operation`.
+- Tests: `test_modelos_por_supuesto_sociedad_valores_fail_closed_without_explicit_obligation`, `test_modelos_por_supuesto_includes_124_only_for_specific_financial_asset_operation`, `test_aeat_123_124_capital_mobiliario_rules_are_seeded_in_revision_0092`.
 - Documentacion: D-13.
 - Documentacion adicional: `docs/aeat-capital-mobiliario-123-124-193-routing.md`.
-- Gaps: falta profundidad documental, claves/instrucciones/reglas y aplicabilidad por supuesto.
-- Siguiente accion: completar instrucciones/claves especificas de activos financieros o mantener excluido/candidato condicionado.
+- Cambios Sprint S: metadato fiscal corregido a `IRPF/IS/IRNR`; reglas `CONDICIONAL`/`EXCLUIR` persistidas desde ficha AEAT `GH05` si hay hash/captura.
+- Gaps: falta profundidad documental, claves/instrucciones especificas y aplicabilidad por supuesto.
+- Siguiente accion: completar instrucciones/claves especificas de activos financieros si existe fuente determinista o mantener excluido/candidato condicionado.
 
 ### Modelo 200
 

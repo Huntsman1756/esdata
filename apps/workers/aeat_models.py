@@ -13,13 +13,13 @@ Uso:
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
 import hashlib
 import json
 import os
 import re
 import subprocess
 import time
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
@@ -60,7 +60,7 @@ MODEL_TAX_OVERRIDES = {
     "111": "IRPF",
     "115": "IRPF",
     "123": "IRPF/IS/IRNR",
-    "124": "IRNR",
+    "124": "IRPF/IS/IRNR",
     "130": "IRPF",
     "156": "INFORMATIVO",
     "159": "INFORMATIVO",

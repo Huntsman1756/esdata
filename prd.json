@@ -1,30 +1,31 @@
 {
-  "sprint": "sprint-r-capital-mobiliario-123-124-193-routing",
-  "projectName": "esdata-aeat-capital-mobiliario-routing",
-  "branchName": "codex/aeat-capital-mobiliario-routing",
-  "version_baseline": "post-PR-85",
-  "description": "Endurecer el routing semantico de la familia AEAT 123/124/193 sin promover obligaciones ni abrir curacion completa de 123/124.",
+  "sprint": "sprint-s-evidencia-oficial-123-124-193",
+  "projectName": "esdata-aeat-capital-mobiliario-evidence",
+  "branchName": "codex/aeat-sprint-s-123-124-evidence",
+  "version_baseline": "post-PR-86",
+  "description": "Profundizar la familia AEAT 123/124/193 con reglas oficiales trazables sin promover obligaciones completas.",
   "context": {
-    "modelo_193": "saneado como referencia; sigue sin obligacion domestica segura por perfil",
-    "modelo_123": "partial; candidato generico de retenciones de capital mobiliario sin cierre por supuesto",
-    "modelo_124": "partial; debe aparecer solo cuando el supuesto identifica activos financieros y transmision/amortizacion/reembolso/canje/conversion",
-    "risk": "por-supuesto podia ofrecer 124 por capital mobiliario residente generico, creando confusion semantica aunque siguiera evidence_limited"
+    "modelo_193": "referencia saneada; claves y reglas de tipo de renta existentes, obligacion domestica sigue parcial",
+    "modelo_123": "casillas oficiales cargadas, sin claves/instrucciones deterministicas suficientes",
+    "modelo_124": "casillas oficiales cargadas, routing condicionado a activos financieros especificos",
+    "risk": "confundir reglas de alcance o casillas con obligacion fiscal segura"
   },
   "userStories": [
     {
-      "id": "R-01",
+      "id": "S-01",
       "priority": 1,
-      "title": "Endurecer routing semantico del Modelo 124",
-      "description": "Excluir Modelo 124 de supuestos residentes genericos y permitirlo solo como candidato condicionado por operacion especifica de activos financieros.",
+      "title": "Auditar y persistir reglas oficiales minimas de 123/124",
+      "description": "Usar fichas AEAT GH04/GH05 cacheadas con hash/captura para persistir reglas de alcance y exclusiones semanticas, sin cerrar obligacion.",
       "acceptance": [
-        "124 no aparece para clientes_residentes=true y tipo_renta=capital_mobiliario sin tipo_operacion especifica",
-        "124 aparece como candidato si tipo_operacion identifica transmision, amortizacion, reembolso, canje o conversion de activos financieros",
-        "123 y 193 siguen como candidatos prudentes sin obligacion confirmada",
-        "La respuesta global sigue verified=false y review_required=true",
-        "Docs y matriz explican que 124 sigue partial y condicionado"
+        "123 conserva estado partial y no se vuelve safe por casillas",
+        "124 conserva estado partial y solo se ofrece para operacion especifica de activos financieros",
+        "124 queda con impuesto IRPF/IS/IRNR, no solo IRNR",
+        "Las reglas 123/124 solo se insertan si hay source_hash y capture_date equivalentes",
+        "No se cargan claves/instrucciones si no hay fuente deterministica suficiente",
+        "Docs y matriz distinguen reglas de alcance de obligacion completa"
       ],
       "passes": true,
-      "notes": "RED confirmado localmente antes del cambio; GREEN focal y suite de modelos tras condicionar 124 por operacion especifica."
+      "notes": "Revision 0092 persiste reglas condicionales desde modelo_recurso GH04/GH05 con sha256_contenido y last_seen_at; no crea obligaciones de perfil ni completa 123/124."
     }
   ]
 }
