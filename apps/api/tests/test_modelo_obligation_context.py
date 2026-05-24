@@ -5,11 +5,10 @@ from contextlib import contextmanager
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from routers import modelos as modelos_router
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from routers import modelos as modelos_router
 
 
 def _make_session_factory() -> sessionmaker[Session]:
@@ -34,9 +33,12 @@ def _make_session_factory() -> sessionmaker[Session]:
                     norma_codigo TEXT,
                     articulo_referencia TEXT,
                     fuente_secundaria TEXT,
+                    safe_to_answer BOOLEAN DEFAULT 1,
                     verified BOOLEAN NOT NULL,
                     completeness TEXT NOT NULL,
                     source_url TEXT NOT NULL,
+                    source_hash TEXT,
+                    capture_date TEXT,
                     notas TEXT
                 )
                 """
@@ -220,7 +222,6 @@ def _make_session_factory() -> sessionmaker[Session]:
                 ),
                 {"modelo_id": model.lastrowid, "url_info": f"https://example.test/modelo-{codigo}"},
             )
-            campana_id = model.lastrowid
             actual_campana_id = conn.execute(
                 text("SELECT id FROM modelo_campana WHERE modelo_id = :modelo_id"),
                 {"modelo_id": model.lastrowid},
@@ -358,3 +359,63 @@ def test_modelo_290_context_sources_do_not_point_to_lis(monkeypatch) -> None:
         "BOE-A-2014-12328" not in entry["source_url"]
         for entry in data["obligation_context"]
     )
+
+
+def test_partial_irnr_obligation_context_fails_closed_even_if_stored_safe(monkeypatch) -> None:
+    session_factory = _make_session_factory()
+    with session_factory.begin() as session:
+        model = session.execute(
+            text(
+                """
+                INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info, activo)
+                VALUES ('296', 'Modelo 296 IRNR', 'anual', 'IRNR', 'https://example.test/296', 1)
+                """
+            )
+        )
+        session.execute(
+            text(
+                """
+                INSERT INTO modelo_campana (
+                    modelo_id, campana, activo, estado_publicacion,
+                    url_instrucciones, url_normativa, url_formato,
+                    fecha_publicacion_portal, fecha_actualizacion_portal
+                )
+                VALUES (
+                    :modelo_id, '2025', 1, 'publicada',
+                    'https://example.test/296', 'https://example.test/296', NULL, NULL, NULL
+                )
+                """
+            ),
+            {"modelo_id": model.lastrowid},
+        )
+        session.execute(
+            text(
+                """
+                INSERT INTO obligacion_perfil (
+                    perfil_codigo, obligacion_tipo, descripcion, periodicidad,
+                    plazo_descripcion, modelo_aeat, norma_codigo,
+                    articulo_referencia, fuente_secundaria, safe_to_answer,
+                    verified, completeness, source_url, source_hash, capture_date
+                ) VALUES (
+                    'sociedad_valores', 'DECLARACION_INFORMATIVA',
+                    'Modelo 296 - IRNR retenciones resumen anual', 'anual',
+                    'enero', '296', 'TRLIRNR', 'art. 31',
+                    'AEAT modelo 296', 1, 1, 'parcial',
+                    'https://www.boe.es/buscar/act.php?id=BOE-A-2008-18497',
+                    NULL, '2026-05-24'
+                )
+                """
+            )
+        )
+
+    client = _client_with_db(session_factory, monkeypatch)
+    data = client.get("/v1/modelos/aeat/296").json()
+
+    context = data["obligation_context"]
+    assert context
+    irnr_context = next(
+        entry for entry in context if entry["descripcion"] == "Modelo 296 - IRNR retenciones resumen anual"
+    )
+    assert irnr_context["completeness"] == "parcial"
+    assert irnr_context["safe_to_answer"] is False
+    assert irnr_context["review_required"] is True
