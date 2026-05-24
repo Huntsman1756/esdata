@@ -411,7 +411,7 @@ Checklist de salida:
 
 ### Issue MCP-DATA-07 - Resolver aplicabilidad Modelo 303 en `empresa_servicios_pago`
 
-Estado local: IMPLEMENTED / PENDIENTE VPS. `docs/aeat-303-empresa-servicios-pago-audit-2026-05-24.md` inventaria la fila productiva: Modelo 303 presente para `empresa_servicios_pago`, `verified=false`, `safe_to_answer=false`, `review_required=true`, `source_hash=NULL`, `capture_date=2026-05-17`, `completeness=parcial` y notas fail-closed.
+Estado VPS: IMPLEMENTED AS FAIL-CLOSED CONTRACT. Commit `f097537` hace pasar `profile_applicability_contracts`; el deep audit queda con un unico fallo, `semantic_fail_closed_and_pagination_suite`, causado por `all_profiles_pct_verified_ge_70`.
 
 Impacto: bloquea `empresa_servicios_pago_modelo_303_completa` dentro de `profile_applicability_contracts`.
 
@@ -432,4 +432,4 @@ Checklist de salida:
 - [x] Inspeccionar payload de `/v1/perfil/empresa_servicios_pago/obligaciones?dominio=FISCAL`.
 - [x] Confirmar que hay recursos oficiales Modelo 303 con hash a nivel modelo/campana, pero no `source_hash` normalizado en la fila `obligacion_perfil`.
 - [x] Decidir que el contrato debe dejar de exigir `completa` y aceptar verified/fail-closed explicito.
-- [ ] Reejecutar `mcp_deep_contract_audit.py` y confirmar que `profile_applicability_contracts` pasa o queda con un fallo distinto documentado.
+- [x] Reejecutar `mcp_deep_contract_audit.py` y confirmar que `profile_applicability_contracts` pasa; queda solo la metrica agregada global.

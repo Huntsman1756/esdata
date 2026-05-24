@@ -1,6 +1,6 @@
 # AEAT Modelo 303 empresa servicios pago audit - 2026-05-24
 
-Estado: COMPLETADO LOCAL / PENDIENTE VPS
+Estado: COMPLETADO VPS
 
 Alcance Ralph: resolver el fallo `empresa_servicios_pago_modelo_303_completa` de `profile_applicability_contracts` sin promover `completeness='completa'`, `verified=true` ni `safe_to_answer=true` sin evidencia primaria normalizada.
 
@@ -94,3 +94,34 @@ El contrato correcto queda:
 - `profile_applicability_contracts` deja de fallar por `empresa_servicios_pago_modelo_303_completa`.
 - Si queda fallo en deep audit, debe ser otro contrato separado y documentado.
 - `mcp_validation_suite.py` sigue reflejando la deuda agregada global sin manipularla.
+
+## Validacion VPS
+
+Despliegue:
+
+- Commit `f097537` en `/srv/esdata` por `git pull --ff-only`.
+- Imagen `ops` reconstruida correctamente.
+- API y Postgres permanecen `healthy`; `/health` devuelve `status=ok`, `database=ok`.
+
+Deep audit:
+
+```text
+python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000
+# ok=false
+# checks=12
+# failures=1
+# failure_names=['semantic_fail_closed_and_pagination_suite']
+# profile_applicability_contracts: ok=true
+```
+
+Suite principal:
+
+```text
+python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000
+# ok=false
+# checks=133
+# failures=1
+# failure_names=['all_profiles_pct_verified_ge_70']
+```
+
+Resultado: Modelo 303 de `empresa_servicios_pago` deja de bloquear el deep audit. La unica deuda viva queda en la metrica agregada global.
