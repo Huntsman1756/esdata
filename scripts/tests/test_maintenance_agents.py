@@ -316,6 +316,56 @@ def test_deep_contract_audit_accepts_verified_or_fail_closed_obligation_items():
     )
 
 
+def test_mcp_validation_suite_accepts_modelo_202_fail_closed_routing():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_sociedad_valores_fiscal_routing(
+        {
+            "perfil": {"codigo": "sociedad_valores"},
+            "obligaciones": [
+                {
+                    "modelo_aeat": "202",
+                    "verified": False,
+                    "safe_to_answer": False,
+                    "review_required": True,
+                    "source_url": "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/modelo-202.html",
+                    "source_hash": None,
+                    "capture_date": "2026-05-17",
+                    "evidence_notice": "evidence_limited: falta hash o fecha de captura de la fuente",
+                }
+            ],
+        }
+    )
+
+    assert ok is True
+    assert details["modelo_202_accepted_states"] == ["fail_closed"]
+
+
+def test_mcp_validation_suite_rejects_modelo_202_verified_without_hash():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_sociedad_valores_fiscal_routing(
+        {
+            "perfil": {"codigo": "sociedad_valores"},
+            "obligaciones": [
+                {
+                    "modelo_aeat": "202",
+                    "verified": True,
+                    "safe_to_answer": True,
+                    "review_required": False,
+                    "source_url": "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/modelo-202.html",
+                    "source_hash": None,
+                    "capture_date": "2026-05-17",
+                    "evidence_notice": "Verificado contra LIS art. 40",
+                }
+            ],
+        }
+    )
+
+    assert ok is False
+    assert details["modelo_202_accepted_states"] == ["invalid"]
+
+
 def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
     suite = _load_validation_suite()
 

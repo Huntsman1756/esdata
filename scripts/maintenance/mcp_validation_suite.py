@@ -461,7 +461,47 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             SELECT COUNT(DISTINCT perfil_codigo)
             FROM obligacion_perfil
             WHERE modelo_aeat='202'
-              AND verified=true
+              AND perfil_codigo IN (
+                  'sociedad_valores',
+                  'agencia_valores',
+                  'eaf',
+                  'entidad_credito',
+                  'empresa_servicios_pago',
+                  'sgiic'
+              )
+            """,
+            6,
+        ),
+        _check_db_scalar(
+            database_url,
+            "modelo_202_profiles_verified_or_fail_closed_6",
+            """
+            SELECT COUNT(DISTINCT perfil_codigo)
+            FROM obligacion_perfil
+            WHERE modelo_aeat='202'
+              AND perfil_codigo IN (
+                  'sociedad_valores',
+                  'agencia_valores',
+                  'eaf',
+                  'entidad_credito',
+                  'empresa_servicios_pago',
+                  'sgiic'
+              )
+              AND (
+                  (
+                      verified IS true
+                      AND source_hash IS NOT NULL
+                      AND capture_date IS NOT NULL
+                  )
+                  OR (
+                      verified IS NOT true
+                      AND safe_to_answer IS NOT true
+                      AND source_url IS NOT NULL
+                      AND source_hash IS NULL
+                      AND capture_date IS NOT NULL
+                      AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                  )
+              )
             """,
             6,
         ),
@@ -1455,19 +1495,47 @@ def _validate_sociedad_valores_fiscal_routing(payload: dict[str, Any]) -> tuple[
         for item in obligaciones
         if isinstance(item, dict) and item.get("modelo_aeat") == "202"
     ]
+    modelo_202_accepted_states = [
+        _profile_obligation_acceptance_state(item)
+        for item in modelo_202_items
+        if isinstance(item, dict)
+    ]
     details = {
         "perfil": (payload.get("perfil") or {}).get("codigo"),
         "modelos": sorted(str(modelo) for modelo in modelos),
         "modelo_202_count": len(modelo_202_items),
         "modelo_202_verified": [item.get("verified") for item in modelo_202_items],
+        "modelo_202_accepted_states": modelo_202_accepted_states,
     }
     ok = (
         (payload.get("perfil") or {}).get("codigo") == "sociedad_valores"
         and "202" in modelos
         and not ({"123", "124"} & modelos)
-        and any(item.get("verified") is True for item in modelo_202_items)
+        and any(state in {"verified", "fail_closed"} for state in modelo_202_accepted_states)
     )
     return ok, details
+
+
+def _profile_obligation_acceptance_state(item: dict[str, Any]) -> str:
+    notice = str(item.get("evidence_notice") or item.get("obligation_evidence_notice") or "")
+    if (
+        item.get("verified") is True
+        and item.get("source_hash")
+        and item.get("capture_date")
+    ):
+        return "verified"
+    if (
+        item.get("verified") is False
+        and item.get("safe_to_answer") is False
+        and item.get("review_required") is True
+        and item.get("source_hash") is None
+        and bool(item.get("source_url"))
+        and bool(item.get("capture_date"))
+        and "evidence_limited" in notice
+        and "falta hash" in notice.lower()
+    ):
+        return "fail_closed"
+    return "invalid"
 
 
 def _validate_aeat_catalogo_layer(payload: Any) -> tuple[bool, dict[str, Any]]:

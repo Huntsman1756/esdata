@@ -251,7 +251,9 @@ Checklist de salida:
 - [ ] Si hay evidencia suficiente, migrar solo filas probadas y conservar trazabilidad.
 - [x] Confirmar contrato local de `/v1/modelos/aeat/289` y `mcp_validation_suite.py` sin promocion indebida.
 
-### Issue MCP-DATA-03 - Auditar Modelo 202 y routing fiscal de `sociedad_valores`
+### Issue MCP-DATA-03 - Aplicabilidad fiscal y routing de `sociedad_valores`
+
+Estado local: IMPLEMENTED AS FAIL-CLOSED CONTRACT. `docs/aeat-202-profile-routing-audit-2026-05-24.md` documenta el RED productivo y la decision de no promover `verified=true` sin `source_hash`.
 
 Impacto: bloquea `modelo_202_all_profiles_loaded` y `perfil_sociedad_valores_fiscal_routing_contract`.
 
@@ -259,7 +261,7 @@ Owner propuesto: AEAT fiscal profiles.
 
 Historia Ralph:
 
-Como mantenedor de perfiles fiscales AEAT, quiero auditar Modelo 202 en los perfiles esperados y resolver si hay evidencia primaria suficiente para marcarlo verificado, para que el routing fiscal de `sociedad_valores` no dependa de una obligacion fiscal sin hash.
+Como mantenedor de perfiles fiscales AEAT, quiero auditar la aplicabilidad fiscal y el routing de perfil para `sociedad_valores`, usando Modelo 202 como obligacion concreta de prueba, para que el contrato distinga entre obligacion cargada, obligacion verificada y obligacion fail-closed.
 
 No-objetivos:
 
@@ -271,6 +273,7 @@ RED inicial:
 
 - `mcp_validation_suite.py`: `modelo_202_all_profiles_loaded=0` frente a minimo `6`.
 - `perfil_sociedad_valores_fiscal_routing_contract=false`: `/v1/perfil/sociedad_valores/obligaciones?dominio=FISCAL` incluye `modelo_202_count=1`, pero `modelo_202_verified=[false]`.
+- Produccion tiene 6 filas `obligacion_perfil` para Modelo 202 (`agencia_valores`, `eaf`, `empresa_servicios_pago`, `entidad_credito`, `sgiic`, `sociedad_valores`), todas con `verified=false`, `safe_to_answer=false`, `source_hash=NULL`, `capture_date=2026-05-17` y notas fail-closed.
 
 Entrada minima:
 
@@ -299,13 +302,15 @@ GREEN permitido A - evidencia recuperada:
 GREEN permitido B - fail-closed explicito:
 
 - Si Modelo 202 no puede probarse por los 6 perfiles, mantener `verified=false` y `safe_to_answer=false`.
-- Ajustar `modelo_202_all_profiles_loaded` solo si el nuevo contrato declara explicitamente cobertura parcial/fail-closed.
+- `modelo_202_all_profiles_loaded` comprueba presencia de los 6 perfiles esperados.
+- `modelo_202_profiles_verified_or_fail_closed_6` comprueba que cada perfil este verificado con hash/captura o fail-closed explicito.
 - Documentar que el routing fiscal puede listar modelos presentes pero no verificados, y que consumidores deben respetar `verified=false`.
 
 Criterio de salida:
 
-- `perfil_sociedad_valores_fiscal_routing_contract` pasa con evidencia o queda como fallo esperado/documentado por fail-closed.
-- `modelo_202_all_profiles_loaded` deja de ser un umbral historico opaco: tiene evidencia por perfil o una decision de contrato trazable.
+- `perfil_sociedad_valores_fiscal_routing_contract` pasa con evidencia o fail-closed explicito; nunca por ocultar el 202.
+- `modelo_202_all_profiles_loaded` deja de ser un umbral historico opaco: verifica presencia de los 6 perfiles esperados.
+- `modelo_202_profiles_verified_or_fail_closed_6` impide que `verified=true` sin `source_hash` cuente como cierre.
 
 Artefactos a cambiar:
 
@@ -319,10 +324,10 @@ El endpoint fiscal de `sociedad_valores` incluye Modelo 202 y excluye 123/124, p
 
 Checklist de salida:
 
-- [ ] Inventariar perfiles con Modelo 202 y estado de evidencia.
-- [ ] Confirmar fuente primaria y articulo/base legal aplicable por perfil.
+- [x] Inventariar perfiles con Modelo 202 y estado de evidencia.
+- [x] Confirmar que existen recursos oficiales activos del Modelo 202 con hash a nivel modelo/campana, pero no reconciliados en `obligacion_perfil`.
 - [ ] No usar casillas o ficha general como prueba de obligacion por sujeto si no basta.
-- [ ] Resolver si el contrato exige 6 perfiles verificados o si debe quedar fail-closed.
+- [x] Resolver que el contrato exige 6 perfiles cargados y estado verificado o fail-closed explicito.
 - [ ] Reejecutar check focal de Modelo 202 y routing fiscal.
 
 ### Issue MCP-DATA-04 - Recuperar evidencia RTS1/RTS2 o ajustar contrato parcial
