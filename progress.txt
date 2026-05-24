@@ -2951,3 +2951,19 @@ Commands:
 Artifacts:
 - `docs/aeat-next-model-o03-audit.md`.
 Next: suite focal completa del sprint, PR y deploy de migracion `20260524_0089`.
+
+=== Iteration P-01 - 2026-05-24 ===
+Story: P-01 Granularizar Modelo 193 por dividendos e intereses residentes
+Result: PASS local
+Verification:
+- Produccion auditada: Modelo 193 esta `complete`/`curado` con `71` casillas, `38` claves y `5` instrucciones.
+- Dividendos residentes tienen doble anclaje `PERCEPCION_A` + `NAT_A_02`, ambos con URL/hash/captura.
+- Intereses residentes tienen doble anclaje `PERCEPCION_B` + `NAT_BD_01`, ambos con URL/hash/captura.
+- Migracion `20260524_0090_aeat_193_income_type_rules` persiste reglas `CONDICIONAL` para ambas rentas.
+- `/v1/modelos/por-supuesto` proyecta evidencia de `modelo_clave` para `193` solo si hay doble clave con hash/captura; mantiene `evidence_limited`, `verified=false` y `review_required=true`.
+Commands:
+- RED inicial: `python -m pytest apps/api/tests/test_modelos_truth_contract.py -k "193_income_key or 296_income_key" -q` => 2 fallos esperados en `193`.
+- GREEN focal: `python -m pytest apps/api/tests/test_modelos_truth_contract.py -k "193_income_key or 296_income_key" -q` => `3 passed`.
+Artifacts:
+- `docs/aeat-modelo-193-rentas-residentes-contract.md`.
+Next: suite focal completa, PR y deploy de migracion `20260524_0090`.
