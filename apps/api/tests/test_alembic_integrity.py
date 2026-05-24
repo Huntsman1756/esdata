@@ -143,6 +143,27 @@ def test_aeat_193_income_type_rules_are_seeded_in_revision_0090():
         assert fragment in contents
 
 
+def test_aeat_193_domestic_applicability_fails_closed_in_revision_0091():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260524_0091_aeat_193_domestic_applicability_fail_closed.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '193'",
+        "periodo = 'anual'",
+        "modelo_aeat = '193'",
+        "verified = false",
+        "safe_to_answer = false",
+        "completeness = 'parcial'",
+        "source_hash IS NULL",
+        "capture_date IS NULL",
+        "hash/captura normalizada",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

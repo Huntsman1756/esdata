@@ -56,4 +56,6 @@ La respuesta sigue:
 
 ## Siguiente Accion
 
-El siguiente avance util seria cerrar reglas de inclusion/exclusion del Modelo `193` por supuesto domestico, con articulos IRPF/IS aplicables y abstencion segura cuando falte pagador, perceptor o exencion.
+La auditoria posterior de aplicabilidad domestica queda documentada en `docs/aeat-modelo-193-domestic-applicability-audit.md`.
+
+Resultado: no hay base suficiente para cerrar obligacion domestica segura del Modelo `193`. Las obligaciones heredadas de perfil sin `source_hash` o `capture_date` deben quedar `partial`, `verified=false` y `safe_to_answer=false` hasta que exista relacion completa de pagador, perceptor, articulo, tipo de renta y exencion/no sujecion.

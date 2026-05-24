@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from mcp_tools_perfil import (
     CALENDARIO_PERIODICIDADES,
     PERFIL_MCP_TOOL_CONTRACTS,
-    ObligacionItem,
     ObligacionesResponse,
+    ObligacionItem,
     PerfilResumen,
-    build_calendario_response,
     _evidence_notice,
+    build_calendario_response,
 )
+from pydantic import ValidationError
 
 
 def _obligacion(*, verified: bool) -> ObligacionItem:
@@ -27,6 +26,10 @@ def _obligacion(*, verified: bool) -> ObligacionItem:
         verified=verified,
         completeness="completa" if verified else "evidence_limited",
         source_url="https://www.boe.es/buscar/act.php?id=BOE-A-2010-6146",
+        source_hash="hash-ley10" if verified else None,
+        capture_date="2026-05-24" if verified else None,
+        safe_to_answer=verified,
+        review_required=not verified,
         evidence_notice="Verificado contra LEY10_2010 art. 18"
         if verified
         else "evidence_limited: pendiente verificacion articulo",
@@ -71,6 +74,9 @@ def test_verified_partial_obligation_notice_is_conditional_not_evidence_limited(
             "norma_codigo": "LGT",
             "articulo_referencia": "DA 22. ap. 1",
             "completeness": "parcial",
+            "source_url": "https://www.boe.es/buscar/act.php?id=BOE-A-2003-23186",
+            "source_hash": "hash-lgt",
+            "capture_date": "2026-05-24",
         }
     )
 

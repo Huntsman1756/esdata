@@ -2967,3 +2967,13 @@ Commands:
 Artifacts:
 - `docs/aeat-modelo-193-rentas-residentes-contract.md`.
 Next: suite focal completa, PR y deploy de migracion `20260524_0090`.
+=== Iteration Q-01 - 2026-05-24T11:27:35+02:00 ===
+Story: Q-01 Auditar aplicabilidad domestica del Modelo 193
+Result:
+  - Produccion acredita Modelo 193, claves de dividendos/intereses y naturalezas de exencion/no retencion con URL/hash/capture_date.
+  - No hay enlace persistido del Modelo 193 a LIRPF art. 99/100/101 ni RIRPF, por lo que no se siembran reglas de aplicabilidad domestica complete.
+  - Se detectan obligaciones de perfil 193 heredadas como verified/completa/safe_to_answer=true sin source_hash; se endurece la herramienta de obligaciones por perfil para degradarlas y se prepara migracion 0091.
+Validation:
+  - RED: python -m pytest apps/api/tests/test_mcp_tools_perfil.py::test_obtener_obligaciones_perfil_fiscal_fails_closed_without_hash -q => failed before implementation.
+  - GREEN: python -m pytest apps/api/tests/test_mcp_tools_perfil.py -q => 8 passed.
+Next: suite focal completa, docs contracts, commit/PR, aplicar 0091 en VPS.

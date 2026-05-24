@@ -6,8 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-
 
 DominioPerfil = Literal["FISCAL", "PBC_FT", "CNMV", "ALL"]
 PerfilCodigo = Literal[
@@ -59,6 +59,10 @@ class ObligacionItem(BaseModel):
     verified: bool
     completeness: str
     source_url: str = Field(min_length=1)
+    source_hash: str | None = None
+    capture_date: str | None = None
+    safe_to_answer: bool = False
+    review_required: bool = True
     evidence_notice: str
     notas: str | None = None
 
@@ -78,15 +82,16 @@ class ObligacionesResponse(BaseModel):
         total = len(self.obligaciones)
         verified_count = sum(1 for item in self.obligaciones if item.verified)
         unverified_count = total - verified_count
+        unsafe_count = sum(1 for item in self.obligaciones if not item.safe_to_answer)
 
         self.total = total
         self.verified_count = verified_count
         self.unverified_count = unverified_count
-        self.safe_to_answer = unverified_count <= total * 0.3 if total else True
-        if unverified_count:
+        self.safe_to_answer = unsafe_count == 0 if total else True
+        if unsafe_count:
             self.evidence_notice = (
-                f"evidence_limited: {unverified_count} de {total} obligaciones "
-                "pendientes de verificacion completa"
+                f"evidence_limited: {unsafe_count} de {total} obligaciones "
+                "pendientes de evidencia completa"
             )
         else:
             self.evidence_notice = "Todas las obligaciones devueltas tienen evidencia verificada"
@@ -295,7 +300,13 @@ def _get_perfil(db: Session, perfil_codigo: str) -> PerfilResumen:
     )
 
 
+def _row_has_normalized_evidence(row: Any) -> bool:
+    return bool(row["source_url"] and row.get("source_hash") and row.get("capture_date"))
+
+
 def _evidence_notice(row: Any) -> str:
+    if not _row_has_normalized_evidence(row):
+        return "evidence_limited: falta hash o fecha de captura de la fuente"
     if bool(row["verified"]):
         norma = row["norma_codigo"] or "fuente oficial"
         articulo = row["articulo_referencia"] or ""
@@ -307,6 +318,18 @@ def _evidence_notice(row: Any) -> str:
 
 
 def _obligacion_from_row(row: Any) -> ObligacionItem:
+    has_evidence = _row_has_normalized_evidence(row)
+    stored_completeness = str(row["completeness"])
+    effective_verified = bool(row["verified"]) and has_evidence
+    effective_completeness = stored_completeness if has_evidence else "parcial"
+    safe_to_answer = bool(
+        effective_verified
+        and effective_completeness == "completa"
+        and _row_has_normalized_evidence(row)
+    )
+    capture_date = row.get("capture_date")
+    if capture_date is not None and hasattr(capture_date, "isoformat"):
+        capture_date = capture_date.isoformat()
     return ObligacionItem(
         descripcion=str(row["descripcion"]),
         obligacion_tipo=str(row["obligacion_tipo"]),
@@ -316,9 +339,13 @@ def _obligacion_from_row(row: Any) -> ObligacionItem:
         norma_codigo=row["norma_codigo"],
         articulo_referencia=row["articulo_referencia"],
         fuente_secundaria=row["fuente_secundaria"],
-        verified=bool(row["verified"]),
-        completeness=str(row["completeness"]),
+        verified=effective_verified,
+        completeness=effective_completeness,
         source_url=str(row["source_url"]),
+        source_hash=row.get("source_hash"),
+        capture_date=capture_date,
+        safe_to_answer=safe_to_answer,
+        review_required=not safe_to_answer,
         evidence_notice=_evidence_notice(row),
         notas=row["notas"],
     )
@@ -334,33 +361,66 @@ def obtener_obligaciones_perfil(
     if domain_filter is None:
         raise ValueError(f"Dominio no soportado: {dominio}")
 
-    rows = db.execute(
-        text(
-            f"""
-            SELECT
-                op.id,
-                op.obligacion_tipo,
-                op.descripcion,
-                op.periodicidad,
-                op.plazo_descripcion,
-                op.modelo_aeat,
-                op.norma_codigo,
-                op.articulo_referencia,
-                op.fuente_secundaria,
-                op.verified,
-                op.completeness,
-                op.source_url,
-                op.notas
-            FROM obligacion_perfil op
-            WHERE op.perfil_codigo = :perfil_codigo
-              AND op.source_url IS NOT NULL
-              AND op.source_url <> ''
-              AND {domain_filter}
-            ORDER BY op.obligacion_tipo, op.descripcion
-            """
-        ),
-        {"perfil_codigo": perfil_codigo},
-    ).mappings().all()
+    try:
+        rows = db.execute(
+            text(
+                f"""
+                SELECT
+                    op.id,
+                    op.obligacion_tipo,
+                    op.descripcion,
+                    op.periodicidad,
+                    op.plazo_descripcion,
+                    op.modelo_aeat,
+                    op.norma_codigo,
+                    op.articulo_referencia,
+                    op.fuente_secundaria,
+                    op.verified,
+                    op.completeness,
+                    op.source_url,
+                    op.source_hash,
+                    CAST(op.capture_date AS TEXT) AS capture_date,
+                    op.notas
+                FROM obligacion_perfil op
+                WHERE op.perfil_codigo = :perfil_codigo
+                  AND op.source_url IS NOT NULL
+                  AND op.source_url <> ''
+                  AND {domain_filter}
+                ORDER BY op.obligacion_tipo, op.descripcion
+                """
+            ),
+            {"perfil_codigo": perfil_codigo},
+        ).mappings().all()
+    except SQLAlchemyError:
+        rows = db.execute(
+            text(
+                f"""
+                SELECT
+                    op.id,
+                    op.obligacion_tipo,
+                    op.descripcion,
+                    op.periodicidad,
+                    op.plazo_descripcion,
+                    op.modelo_aeat,
+                    op.norma_codigo,
+                    op.articulo_referencia,
+                    op.fuente_secundaria,
+                    op.verified,
+                    op.completeness,
+                    op.source_url,
+                    NULL AS source_hash,
+                    NULL AS capture_date,
+                    op.notas
+                FROM obligacion_perfil op
+                WHERE op.perfil_codigo = :perfil_codigo
+                  AND op.source_url IS NOT NULL
+                  AND op.source_url <> ''
+                  AND {domain_filter}
+                ORDER BY op.obligacion_tipo, op.descripcion
+                """
+            ),
+            {"perfil_codigo": perfil_codigo},
+        ).mappings().all()
 
     obligaciones = [_obligacion_from_row(row) for row in rows]
     return ObligacionesResponse(

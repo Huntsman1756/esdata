@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session
-
 from mcp_catalog import get_stdio_tool_definitions
 from mcp_tools_perfil import (
     PerfilNotFoundError,
     calendario_obligaciones_perfil,
     obtener_obligaciones_perfil,
 )
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
 
 
 @pytest.fixture()
@@ -191,6 +190,20 @@ def test_obtener_obligaciones_perfil_fiscal_has_model_or_norma(perfil_db: Sessio
 
     assert response.total >= 8
     assert all(item.modelo_aeat or item.norma_codigo for item in response.obligaciones)
+
+
+def test_obtener_obligaciones_perfil_fiscal_fails_closed_without_hash(
+    perfil_db: Session,
+) -> None:
+    response = obtener_obligaciones_perfil(perfil_db, "sociedad_valores", "FISCAL")
+
+    modelo_193 = next(item for item in response.obligaciones if item.modelo_aeat == "193")
+    assert modelo_193.verified is False
+    assert modelo_193.completeness == "parcial"
+    assert modelo_193.evidence_notice == (
+        "evidence_limited: falta hash o fecha de captura de la fuente"
+    )
+    assert response.safe_to_answer is False
 
 
 def test_obtener_obligaciones_perfil_never_returns_missing_source_url(perfil_db: Session) -> None:

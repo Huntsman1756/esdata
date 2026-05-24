@@ -1,34 +1,30 @@
 {
-  "sprint": "sprint-p-modelo-193-rentas-residentes",
-  "projectName": "esdata-aeat-modelo-193-rentas-residentes",
-  "branchName": "codex/sprint-p-modelo-193-rentas-residentes",
-  "version_baseline": "post-PR-83",
-  "description": "Ralph sprint para ejecutar el candidato seleccionado en O-03: Modelo 193 como bloque residente de dividendos e intereses, sin convertirlo en obligacion universal.",
+  "sprint": "sprint-q-modelo-193-aplicabilidad-domestica",
+  "projectName": "esdata-aeat-modelo-193-domestic-applicability",
+  "branchName": "codex/modelo-193-domestic-applicability",
+  "version_baseline": "post-PR-84",
+  "description": "Ralph sprint para auditar si el Modelo 193 puede pasar de evidencia de tipo de renta a obligacion domestica segura por supuesto.",
   "context": {
-    "modelo_193": "complete como modelo/formulario en produccion: 71 casillas, 38 claves, 5 instrucciones, recursos oficiales con hash",
-    "modelo_296": "granularizado en O-01 para dividendos/intereses IRNR solo como reglas CONDICIONAL",
-    "cdi": "fail-closed en O-02; no usar convenio como fuente de obligacion domestica",
-    "mcp": "legacy estable para scope ESData; no tocar salvo exposicion fiscal necesaria"
+    "modelo_193": "complete como formulario/modelo y granularizado por dividendos/intereses residentes en Sprint P",
+    "risk": "produccion tenia obligaciones de perfil 193 legacy como complete/safe sin source_hash",
+    "mcp": "no tocar MCP salvo que la exposicion de obligaciones por perfil necesite fail-closed"
   },
   "userStories": [
     {
-      "id": "P-01",
+      "id": "Q-01",
       "priority": 1,
-      "title": "Granularizar Modelo 193 por dividendos e intereses residentes",
-      "description": "Auditar produccion y persistir reglas condicionales del Modelo 193 para dividendos e intereses residentes solo si existen claves oficiales con URL, hash y capture_date. No calcular retencion ni aplicabilidad final.",
+      "title": "Auditar aplicabilidad domestica del Modelo 193",
+      "description": "Verificar si existen pagador, perceptor, articulo, tipo de renta y exencion/no sujecion con fuente oficial hash/captura para cerrar el Modelo 193 como obligacion domestica segura.",
       "acceptance": [
-        "Auditoria de produccion documenta Modelo 193 completo y claves de dividendos/intereses con source_url, source_hash y capture_date",
-        "Dividendos requieren doble anclaje PERCEPCION_A + NAT_A_02",
-        "Intereses requieren doble anclaje PERCEPCION_B + NAT_BD_01",
-        "Solo se persisten reglas CONDICIONAL si ambas claves tienen hash/captura",
-        "El clasificador por supuesto proyecta evidencia de modelo_clave para 193 sin marcar confirmado",
-        "No se contaminan 123/124 ni 216/296 con la evidencia especifica de 193",
-        "Las respuestas siguen evidence_limited/verified=false si falta pagador, perceptor, exencion o retencion concreta",
-        "Tests cubren renta soportada, ausencia de hash/captura y no contaminacion entre modelos",
-        "Docs/roadmap indican limites y siguiente accion"
+        "La auditoria de produccion separa claves de renta de obligacion efectiva",
+        "No se siembran nuevas reglas complete si falta articulo o sujeto trazado",
+        "Las obligaciones de perfil 193 sin source_hash o capture_date quedan fail-closed",
+        "La salida de obtener_obligaciones_perfil no queda safe_to_answer=true por verified legacy sin hash",
+        "El periodo del Modelo 193 queda corregido a anual",
+        "Docs/roadmap explican que el siguiente avance requiere pagador, perceptor, articulo y exencion/no sujecion trazados"
       ],
       "passes": true,
-      "notes": "Cerrada localmente: produccion acredita claves 193 PERCEPCION_A, NAT_A_02, PERCEPCION_B y NAT_BD_01 con URL/hash/captura. Se persisten reglas CONDICIONAL en 0090 y el clasificador proyecta evidencia sin declarar obligacion segura."
+      "notes": "La auditoria encuentra claves 193 completas para dividendos/intereses y naturalezas de exencion/no retencion, pero no enlace persistido a articulo de pagos a cuenta ni RIRPF. Se crea 0091 para corregir periodo a anual y degradar obligaciones 193 legacy sin hash/captura a partial/fail-closed."
     }
   ]
 }
