@@ -212,6 +212,25 @@ def test_aeat_187_198_valores_contract_is_seeded_in_revision_0093():
         assert fragment in contents
 
 
+def test_aeat_200_202_303_legacy_obligations_fail_closed_in_revision_0094():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260524_0094_aeat_fail_close_200_202_303_obligations.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "modelo_aeat IN ('200', '202', '303')",
+        "safe_to_answer = false",
+        "verified = false",
+        "completeness = 'parcial'",
+        "source_hash IS NULL",
+        "capture_date IS NULL",
+        "200/202/303 legacy profile obligation without normalized evidence",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

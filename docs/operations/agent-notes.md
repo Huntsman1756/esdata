@@ -463,3 +463,6 @@ Operational rule:
   `iic_transmisiones_reembolsos_187` and
   `activos_financieros_valores_mobiliarios_198` do not close profile
   applicability by themselves.
+- The same rule applies to `200/202/303`: even if legacy rows carry LIS/LIVA
+  articles, they are not safe profile obligations without normalized source
+  hash and capture date.

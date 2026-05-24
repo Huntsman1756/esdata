@@ -1,29 +1,30 @@
 {
-  "sprint": "sprint-t-valores-187-198",
-  "projectName": "esdata-aeat-valores-187-198-contract",
-  "branchName": "codex/aeat-valores-187-198-contract",
-  "version_baseline": "post-PR-87",
-  "description": "Endurecer la familia AEAT 187/198 como valores/IIC, manteniendo modelos completos pero obligaciones fail-closed si falta evidencia normalizada.",
+  "sprint": "sprint-u-fail-close-200-202-303",
+  "projectName": "esdata-aeat-fail-close-200-202-303",
+  "branchName": "codex/aeat-fail-close-200-202-303",
+  "version_baseline": "post-PR-89",
+  "description": "Sanear obligaciones legacy de modelos AEAT 200/202/303 para que fallen cerrado cuando falte evidencia normalizada.",
   "context": {
-    "modelo_187": "modelo completo con casillas, claves e instrucciones oficiales; obligaciones legacy sin hash/captura no pueden ser seguras",
-    "modelo_198": "modelo completo con casillas, claves e instrucciones oficiales; obligaciones legacy sin hash/captura no pueden ser seguras",
-    "risk": "confundir contrato documental completo del modelo con obligacion de perfil segura"
+    "modelo_200": "modelo parcial con mucho corpus, pero obligaciones legacy seguras sin source_hash",
+    "modelo_202": "modelo parcial con fuente oficial clara, pero obligaciones legacy seguras sin source_hash",
+    "modelo_303": "modelo parcial con corpus IVA, pero obligaciones legacy seguras sin source_hash",
+    "risk": "mantener safe_to_answer persistido aunque falte evidencia normalizada"
   },
   "userStories": [
     {
-      "id": "T-01",
+      "id": "U-01",
       "priority": 1,
-      "title": "Endurecer obligaciones legacy 187/198 y persistir reglas de alcance",
-      "description": "Usar fuentes oficiales AEAT/BOE cacheadas con hash/captura para persistir reglas de alcance 187/198 y degradar obligaciones de perfil sin evidencia normalizada.",
+      "title": "Fail-close obligaciones legacy 200/202/303 sin evidencia",
+      "description": "Degradar obligaciones de perfil de 200/202/303 cuando falte source_hash o capture_date, sin promover modelos ni crear reglas nuevas.",
       "acceptance": [
-        "187 y 198 conservan estado complete como modelos documentales",
-        "Las obligaciones legacy 187/198 sin source_hash o capture_date quedan partial y safe_to_answer=false",
-        "Las reglas de alcance solo se insertan si hay sha256_contenido y last_seen_at",
-        "Las reglas de alcance no se presentan como obligacion completa de perfil",
-        "Docs y matriz distinguen completitud de modelo frente a aplicabilidad por perfil"
+        "200, 202 y 303 conservan estado partial",
+        "Las obligaciones legacy sin source_hash o capture_date quedan partial y safe_to_answer=false",
+        "No se modifica 349 ni 390",
+        "No se crean obligaciones nuevas",
+        "Docs y matriz distinguen modelo parcial de obligacion por perfil segura"
       ],
       "passes": true,
-      "notes": "Revision 0093 degrada obligaciones 187/198 sin hash/captura y persiste reglas condicionales/evidence_limited desde modelo_recurso oficial con sha256_contenido y last_seen_at."
+      "notes": "Revision 0094 degrada obligaciones 200/202/303 sin hash/captura y conserva los modelos como partial."
     }
   ]
 }
