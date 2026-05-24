@@ -1,31 +1,29 @@
 {
-  "sprint": "sprint-s-evidencia-oficial-123-124-193",
-  "projectName": "esdata-aeat-capital-mobiliario-evidence",
-  "branchName": "codex/aeat-sprint-s-123-124-evidence",
-  "version_baseline": "post-PR-86",
-  "description": "Profundizar la familia AEAT 123/124/193 con reglas oficiales trazables sin promover obligaciones completas.",
+  "sprint": "sprint-t-valores-187-198",
+  "projectName": "esdata-aeat-valores-187-198-contract",
+  "branchName": "codex/aeat-valores-187-198-contract",
+  "version_baseline": "post-PR-87",
+  "description": "Endurecer la familia AEAT 187/198 como valores/IIC, manteniendo modelos completos pero obligaciones fail-closed si falta evidencia normalizada.",
   "context": {
-    "modelo_193": "referencia saneada; claves y reglas de tipo de renta existentes, obligacion domestica sigue parcial",
-    "modelo_123": "casillas oficiales cargadas, sin claves/instrucciones deterministicas suficientes",
-    "modelo_124": "casillas oficiales cargadas, routing condicionado a activos financieros especificos",
-    "risk": "confundir reglas de alcance o casillas con obligacion fiscal segura"
+    "modelo_187": "modelo completo con casillas, claves e instrucciones oficiales; obligaciones legacy sin hash/captura no pueden ser seguras",
+    "modelo_198": "modelo completo con casillas, claves e instrucciones oficiales; obligaciones legacy sin hash/captura no pueden ser seguras",
+    "risk": "confundir contrato documental completo del modelo con obligacion de perfil segura"
   },
   "userStories": [
     {
-      "id": "S-01",
+      "id": "T-01",
       "priority": 1,
-      "title": "Auditar y persistir reglas oficiales minimas de 123/124",
-      "description": "Usar fichas AEAT GH04/GH05 cacheadas con hash/captura para persistir reglas de alcance y exclusiones semanticas, sin cerrar obligacion.",
+      "title": "Endurecer obligaciones legacy 187/198 y persistir reglas de alcance",
+      "description": "Usar fuentes oficiales AEAT/BOE cacheadas con hash/captura para persistir reglas de alcance 187/198 y degradar obligaciones de perfil sin evidencia normalizada.",
       "acceptance": [
-        "123 conserva estado partial y no se vuelve safe por casillas",
-        "124 conserva estado partial y solo se ofrece para operacion especifica de activos financieros",
-        "124 queda con impuesto IRPF/IS/IRNR, no solo IRNR",
-        "Las reglas 123/124 solo se insertan si hay source_hash y capture_date equivalentes",
-        "No se cargan claves/instrucciones si no hay fuente deterministica suficiente",
-        "Docs y matriz distinguen reglas de alcance de obligacion completa"
+        "187 y 198 conservan estado complete como modelos documentales",
+        "Las obligaciones legacy 187/198 sin source_hash o capture_date quedan partial y safe_to_answer=false",
+        "Las reglas de alcance solo se insertan si hay sha256_contenido y last_seen_at",
+        "Las reglas de alcance no se presentan como obligacion completa de perfil",
+        "Docs y matriz distinguen completitud de modelo frente a aplicabilidad por perfil"
       ],
       "passes": true,
-      "notes": "Revision 0092 persiste reglas condicionales desde modelo_recurso GH04/GH05 con sha256_contenido y last_seen_at; no crea obligaciones de perfil ni completa 123/124."
+      "notes": "Revision 0093 degrada obligaciones 187/198 sin hash/captura y persiste reglas condicionales/evidence_limited desde modelo_recurso oficial con sha256_contenido y last_seen_at."
     }
   ]
 }

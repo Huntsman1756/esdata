@@ -187,6 +187,31 @@ def test_aeat_123_124_capital_mobiliario_rules_are_seeded_in_revision_0092():
         assert fragment in contents
 
 
+def test_aeat_187_198_valores_contract_is_seeded_in_revision_0093():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260524_0093_aeat_valores_187_198_contract.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo IN ('187', '198')",
+        "modelo_aeat IN ('187', '198')",
+        "safe_to_answer = false",
+        "verified = false",
+        "completeness = 'parcial'",
+        "source_hash IS NULL",
+        "capture_date IS NULL",
+        "iic_transmisiones_reembolsos_187",
+        "activos_financieros_valores_mobiliarios_198",
+        "sha256_contenido IS NOT NULL",
+        "last_seen_at IS NOT NULL",
+        "CONDICIONAL",
+        "EVIDENCE_LIMITED",
+    ):
+        assert fragment in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

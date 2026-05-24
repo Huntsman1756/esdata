@@ -419,3 +419,74 @@ def test_partial_irnr_obligation_context_fails_closed_even_if_stored_safe(monkey
     assert irnr_context["completeness"] == "parcial"
     assert irnr_context["safe_to_answer"] is False
     assert irnr_context["review_required"] is True
+
+
+def test_complete_obligation_context_fails_closed_without_hash_or_capture(monkeypatch) -> None:
+    session_factory = _make_session_factory()
+    with session_factory.begin() as session:
+        model = session.execute(
+            text(
+                """
+                INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info, activo)
+                VALUES (
+                    '198',
+                    'Modelo 198 activos financieros',
+                    'anual',
+                    'IRPF',
+                    'https://example.test/198',
+                    1
+                )
+                """
+            )
+        )
+        session.execute(
+            text(
+                """
+                INSERT INTO modelo_campana (
+                    modelo_id, campana, activo, estado_publicacion,
+                    url_instrucciones, url_normativa, url_formato,
+                    fecha_publicacion_portal, fecha_actualizacion_portal
+                )
+                VALUES (
+                    :modelo_id, '2025', 1, 'publicada',
+                    'https://example.test/198', 'https://example.test/198', NULL, NULL, NULL
+                )
+                """
+            ),
+            {"modelo_id": model.lastrowid},
+        )
+        session.execute(
+            text(
+                """
+                INSERT INTO obligacion_perfil (
+                    perfil_codigo, obligacion_tipo, descripcion, periodicidad,
+                    plazo_descripcion, modelo_aeat, norma_codigo,
+                    articulo_referencia, fuente_secundaria, safe_to_answer,
+                    verified, completeness, source_url, source_hash, capture_date
+                ) VALUES (
+                    'sociedad_valores', 'DECLARACION_INFORMATIVA',
+                    'Modelo 198 - operaciones con activos financieros', 'anual',
+                    'enero', '198', 'LGT', 'art. 93',
+                    'AEAT modelo 198', 1, 1, 'completa',
+                    'https://www.boe.es/diario_boe/txt.php?id=BOE-A-2004-20157',
+                    NULL, NULL
+                )
+                """
+            )
+        )
+
+    client = _client_with_db(session_factory, monkeypatch)
+    data = client.get("/v1/modelos/aeat/198").json()
+
+    context = data["obligation_context"]
+    assert context
+    valores_context = next(
+        entry
+        for entry in context
+        if entry["descripcion"] == "Modelo 198 - operaciones con activos financieros"
+    )
+    assert valores_context["completeness"] == "completa"
+    assert valores_context["verified"] is True
+    assert valores_context["safe_to_answer"] is False
+    assert valores_context["review_required"] is True
+    assert "falta hash o fecha de captura" in valores_context["obligation_evidence_notice"]
