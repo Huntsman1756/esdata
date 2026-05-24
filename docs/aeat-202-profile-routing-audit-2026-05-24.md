@@ -89,12 +89,17 @@ Local:
 - `python -m pytest scripts/tests/test_maintenance_agents.py -q` -> `21 passed`.
 - `python -m py_compile scripts\maintenance\mcp_validation_suite.py` -> OK.
 
-Expected VPS result after deployment:
+VPS after deployment of commit `8cf04d4`:
 
+- `mcp_validation_suite.py --read-only --base-url http://api:8000`:
+  `ok=false`, `checks=132`, `failures=6`.
 - `modelo_202_all_profiles_loaded` passes with six loaded profiles.
 - `modelo_202_profiles_verified_or_fail_closed_6` passes with six fail-closed
   profiles.
 - `perfil_sociedad_valores_fiscal_routing_contract` passes with
   `modelo_202_accepted_states=['fail_closed']`.
+- `mcp_deep_contract_audit.py --base-url http://api:8000`: `ok=false`,
+  `checks=12`, `failures=3`.
 - Remaining validation failures stay scoped to `sociedad_valores` verified
-  threshold, RTS1/RTS2, CASP, `emisor_token` and aggregate coverage.
+  threshold, RTS1/RTS2, CASP, `emisor_token`, profile-applicability leftovers
+  for Modelo 303/RTS1 and aggregate coverage.

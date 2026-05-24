@@ -253,7 +253,7 @@ Checklist de salida:
 
 ### Issue MCP-DATA-03 - Aplicabilidad fiscal y routing de `sociedad_valores`
 
-Estado local: IMPLEMENTED AS FAIL-CLOSED CONTRACT. `docs/aeat-202-profile-routing-audit-2026-05-24.md` documenta el RED productivo y la decision de no promover `verified=true` sin `source_hash`.
+Estado VPS: IMPLEMENTED AS FAIL-CLOSED CONTRACT. Commit `8cf04d4` reduce `mcp_validation_suite.py` de 8 a 6 fallos; `modelo_202_all_profiles_loaded`, `modelo_202_profiles_verified_or_fail_closed_6` y `perfil_sociedad_valores_fiscal_routing_contract` pasan. `docs/aeat-202-profile-routing-audit-2026-05-24.md` documenta el RED productivo y la decision de no promover `verified=true` sin `source_hash`.
 
 Impacto: bloquea `modelo_202_all_profiles_loaded` y `perfil_sociedad_valores_fiscal_routing_contract`.
 
@@ -326,9 +326,9 @@ Checklist de salida:
 
 - [x] Inventariar perfiles con Modelo 202 y estado de evidencia.
 - [x] Confirmar que existen recursos oficiales activos del Modelo 202 con hash a nivel modelo/campana, pero no reconciliados en `obligacion_perfil`.
-- [ ] No usar casillas o ficha general como prueba de obligacion por sujeto si no basta.
+- [x] No usar casillas o ficha general como prueba de obligacion por sujeto si no basta.
 - [x] Resolver que el contrato exige 6 perfiles cargados y estado verificado o fail-closed explicito.
-- [ ] Reejecutar check focal de Modelo 202 y routing fiscal.
+- [x] Reejecutar check focal de Modelo 202 y routing fiscal.
 
 ### Issue MCP-DATA-04 - Recuperar evidencia RTS1/RTS2 o ajustar contrato parcial
 
