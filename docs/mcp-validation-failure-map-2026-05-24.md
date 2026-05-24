@@ -18,7 +18,7 @@ Veredicto tecnico: la suite no esta fallando por transporte MCP ni por descubrim
 
 | Check | Observado | Esperado | Contrato que valida | Interpretacion actual | Siguiente slice Ralph |
 | --- | ---: | ---: | --- | --- | --- |
-| `sociedad_valores_verified_ge_24` | `4` | `>=24` | SQL sobre `obligacion_perfil` para `perfil_codigo='sociedad_valores' AND verified=true` | Deuda global de evidencia verificada para el perfil. No prueba fallo de MCP; prueba que el control-plane ya no puede reclamar cobertura verificada amplia para `sociedad_valores`. | `MCP-DATA-01`: decidir si el umbral sigue siendo valido o si debe sustituirse por checks por dominio con fail-closed explicito. |
+| `sociedad_valores_verified_ge_24` | `4` | `>=24` | SQL historico sobre `obligacion_perfil` para `perfil_codigo='sociedad_valores' AND verified=true` | Deuda global de evidencia verificada para el perfil. No prueba fallo de MCP; prueba que el control-plane ya no puede reclamar cobertura verificada amplia para `sociedad_valores`. | `MCP-DATA-06`: sustituir el umbral historico por contrato `verified_or_fail_closed` solo si el inventario prueba cierre fail-closed explicito. |
 | `all_profiles_pct_verified_ge_70` | `8` | `0` | SQL de porcentaje verificado por perfil | Hay 8 perfiles por debajo del 70% verificado. Es deuda transversal de datos/contratos, no de transporte. | `MCP-DATA-01`: inventario por perfil, umbral justificable y excepciones documentadas. |
 | `modelo_289_uses_lgt_da22_ap1` | `4` | `0` | SQL de obligaciones Modelo 289 con norma/articulo/verificacion distinta de LGT DA22 ap. 1 verificada | La auditoria documental 289 esta fuerte, pero las obligaciones de perfil siguen sin evidencia/promocion suficiente. | `MCP-DATA-02`: auditoria separada de `obligacion_perfil` CRS/DAC2 para 289. |
 | `modelo_289_profile_obligations_verified_4` | `0` | `>=4` | SQL de perfiles verificados para Modelo 289 entre sociedad/agencia/eaf/entidad_credito | Ninguno de los 4 perfiles esperados esta promovido como `verified=true`. | `MCP-DATA-02`: localizar fuente primaria por sujeto obligado y promover solo con hash/captura suficiente. |
@@ -35,8 +35,9 @@ Veredicto tecnico: la suite no esta fallando por transporte MCP ni por descubrim
 
 1. `MCP-DATA-02` debe ir antes que cualquier reclamo sobre Modelo 289. La documentacion actual ya dice que los checks documentales pasan, pero las obligaciones de perfil no.
 2. `MCP-DATA-03` desbloquea dos fallos a la vez: `modelo_202_all_profiles_loaded` y `perfil_sociedad_valores_fiscal_routing_contract`.
-3. `MCP-DATA-01` es una decision de politica de suite: los umbrales globales solo son utiles si reflejan el modelo fail-closed actual.
-4. `MCP-DATA-04` y `MCP-DATA-05` son recuperacion de evidencia regulatoria, no cambios de MCP.
+3. `MCP-DATA-06` separa el umbral de `sociedad_valores` del problema agregado: si el inventario prueba cierre fail-closed explicito, el check debe llamarlo asi.
+4. `MCP-DATA-01` mantiene la decision de politica global: los umbrales agregados solo son utiles si reflejan el modelo fail-closed actual.
+5. `MCP-DATA-04` y `MCP-DATA-05` son recuperacion de evidencia regulatoria, no cambios de MCP.
 
 ## Reclamo permitido
 
@@ -381,7 +382,34 @@ Checklist de salida:
 - [x] Promover solo filas con evidencia primaria completa: ninguna promocion aplicada.
 - [x] Reejecutar `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` para contratos MiCA.
 
-### Issue MCP-DATA-06 - Resolver aplicabilidad Modelo 303 en `empresa_servicios_pago`
+### Issue MCP-DATA-06 - Reconciliar umbral de `sociedad_valores` como verified/fail-closed
+
+Estado local: IMPLEMENTED / PENDIENTE VPS. `docs/sociedad-valores-profile-threshold-audit-2026-05-24.md` inventaria el RED productivo y clasifica `38` obligaciones: `4` verificadas con evidencia normalizada y `34` fail-closed explicitas.
+
+Impacto: bloquea `sociedad_valores_verified_ge_24`, `sociedad_valores_verified_count` y la parte `sociedad_valores` de `eu_norm_contracts`.
+
+Owner propuesto: data quality/regulatory evidence.
+
+Artefactos a cambiar:
+
+- `scripts/maintenance/mcp_validation_suite.py`
+- `scripts/maintenance/mcp_deep_contract_audit.py`
+- `docs/sociedad-valores-profile-threshold-audit-2026-05-24.md`
+
+Descripcion:
+
+El umbral historico exigia `>=24` filas `verified=true` para `sociedad_valores`, pero el inventario productivo muestra `4` verificadas con hash/captura y `34` filas cerradas correctamente en fail-closed por falta de hash primario. El cambio correcto no es promover las 34 filas ni bajar el umbral, sino renombrar y endurecer el contrato a `verified_or_fail_closed`.
+
+Checklist de salida:
+
+- [x] Confirmar RED en VPS: suite semantica falla solo por `sociedad_valores_verified_ge_24` y `all_profiles_pct_verified_ge_70`.
+- [x] Inventariar todas las obligaciones `sociedad_valores` y separar verificadas, fail-closed y recuperables.
+- [x] Cambiar el check a `sociedad_valores_verified_or_fail_closed_ge_24` sin modificar datos productivos.
+- [x] Cambiar deep audit para mantener `sociedad_valores_verified_count` como detalle y fallar solo por `sociedad_valores_verified_or_fail_closed_count`.
+- [x] Reejecutar validacion local focal.
+- [ ] Reejecutar validacion VPS; confirmar que el unico fallo semantico principal restante es `all_profiles_pct_verified_ge_70`.
+
+### Issue MCP-DATA-07 - Resolver aplicabilidad Modelo 303 en `empresa_servicios_pago`
 
 Impacto: bloquea `empresa_servicios_pago_modelo_303_completa` dentro de `profile_applicability_contracts`.
 

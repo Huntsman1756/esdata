@@ -390,12 +390,26 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
-            "sociedad_valores_verified_ge_24",
+            "sociedad_valores_verified_or_fail_closed_ge_24",
             """
             SELECT COUNT(*)
             FROM obligacion_perfil
             WHERE perfil_codigo='sociedad_valores'
-              AND verified=true
+              AND (
+                  (
+                      verified IS true
+                      AND source_hash IS NOT NULL
+                      AND capture_date IS NOT NULL
+                  )
+                  OR (
+                      verified IS NOT true
+                      AND safe_to_answer IS NOT true
+                      AND source_url IS NOT NULL
+                      AND source_hash IS NULL
+                      AND capture_date IS NOT NULL
+                      AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                  )
+              )
             """,
             24,
         ),

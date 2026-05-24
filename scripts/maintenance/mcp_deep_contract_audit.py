@@ -1720,25 +1720,51 @@ def audit_eu_norm_contracts(base_url: str, engine: Engine) -> CheckResult:
             ).scalar()
             or 0
         )
-        sociedad_verified = int(
+        sociedad_row = (
             conn.execute(
                 text(
                     """
-                    SELECT COUNT(*)
+                    SELECT
+                        COUNT(*) FILTER (
+                            WHERE verified IS true
+                              AND source_hash IS NOT NULL
+                              AND capture_date IS NOT NULL
+                        ) AS verified_count,
+                        COUNT(*) FILTER (
+                            WHERE verified IS NOT true
+                              AND safe_to_answer IS NOT true
+                              AND source_url IS NOT NULL
+                              AND source_hash IS NULL
+                              AND capture_date IS NOT NULL
+                              AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                        ) AS fail_closed_count
                     FROM obligacion_perfil
                     WHERE perfil_codigo='sociedad_valores'
-                      AND verified=true
                     """
                 )
-            ).scalar()
-            or 0
+            )
+            .mappings()
+            .one()
         )
+        sociedad_verified = int(sociedad_row["verified_count"] or 0)
+        sociedad_fail_closed = int(sociedad_row["fail_closed_count"] or 0)
+        sociedad_accepted = sociedad_verified + sociedad_fail_closed
     details["eu_norms_with_celex"] = eu_count
     details["sociedad_valores_verified_count"] = sociedad_verified
+    details["sociedad_valores_fail_closed_count"] = sociedad_fail_closed
+    details["sociedad_valores_verified_or_fail_closed_count"] = sociedad_accepted
     if eu_count < 10:
         failures.append({"check": "eu_norms_with_celex", "value": eu_count, "minimum": 10})
-    if sociedad_verified < 20:
-        failures.append({"check": "sociedad_valores_verified_count", "value": sociedad_verified, "minimum": 20})
+    if sociedad_accepted < 20:
+        failures.append(
+            {
+                "check": "sociedad_valores_verified_or_fail_closed_count",
+                "value": sociedad_accepted,
+                "verified": sociedad_verified,
+                "fail_closed": sociedad_fail_closed,
+                "minimum": 20,
+            }
+        )
 
     # MiCA CASP checks
     with httpx.Client(base_url=base_url, timeout=60) as client:

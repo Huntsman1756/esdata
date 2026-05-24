@@ -355,6 +355,14 @@ def test_deep_contract_audit_accepts_mica_fail_closed_obligation_items():
     )
 
 
+def test_mcp_validation_suite_uses_sociedad_valores_fail_closed_threshold():
+    source = (ROOT / "scripts" / "maintenance" / "mcp_validation_suite.py").read_text(encoding="utf-8")
+
+    assert "sociedad_valores_verified_or_fail_closed_ge_24" in source
+    assert "sociedad_valores_verified_ge_24" not in source
+    assert "fail-closed until source_hash and capture_date are loaded" in source
+
+
 def test_mcp_validation_suite_accepts_modelo_202_fail_closed_routing():
     suite = _load_validation_suite()
 
