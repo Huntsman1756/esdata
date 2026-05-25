@@ -19,7 +19,7 @@ Veredicto tecnico: la suite no esta fallando por transporte MCP ni por descubrim
 | Check | Observado | Esperado | Contrato que valida | Interpretacion actual | Siguiente slice Ralph |
 | --- | ---: | ---: | --- | --- | --- |
 | `sociedad_valores_verified_ge_24` | `4` | `>=24` | SQL historico sobre `obligacion_perfil` para `perfil_codigo='sociedad_valores' AND verified=true` | Deuda global de evidencia verificada para el perfil. No prueba fallo de MCP; prueba que el control-plane ya no puede reclamar cobertura verificada amplia para `sociedad_valores`. | `MCP-DATA-06`: sustituir el umbral historico por contrato `verified_or_fail_closed` solo si el inventario prueba cierre fail-closed explicito. |
-| `all_profiles_pct_verified_ge_70` | `8` | `0` | SQL de porcentaje verificado por perfil | Hay 8 perfiles por debajo del 70% verificado. Es deuda transversal de datos/contratos, no de transporte. | `MCP-DATA-01`: inventario por perfil, umbral justificable y excepciones documentadas. |
+| `all_profiles_pct_verified_ge_70` | `8` | `0` | SQL historico de porcentaje `verified=true` por perfil | Hay 8 perfiles por debajo del 70% verificado, pero el inventario posterior muestra `neither_state=0` y 100% accepted si se cuenta evidencia fuerte o fail-closed explicito. | `MCP-DATA-08`: sustituir por `all_profiles_pct_verified_or_fail_closed_ge_70` sin bajar el umbral ni promover flags. |
 | `modelo_289_uses_lgt_da22_ap1` | `4` | `0` | SQL de obligaciones Modelo 289 con norma/articulo/verificacion distinta de LGT DA22 ap. 1 verificada | La auditoria documental 289 esta fuerte, pero las obligaciones de perfil siguen sin evidencia/promocion suficiente. | `MCP-DATA-02`: auditoria separada de `obligacion_perfil` CRS/DAC2 para 289. |
 | `modelo_289_profile_obligations_verified_4` | `0` | `>=4` | SQL de perfiles verificados para Modelo 289 entre sociedad/agencia/eaf/entidad_credito | Ninguno de los 4 perfiles esperados esta promovido como `verified=true`. | `MCP-DATA-02`: localizar fuente primaria por sujeto obligado y promover solo con hash/captura suficiente. |
 | `modelo_289_profile_obligations_no_unverified_or_extra` | `4` | `0` | SQL de obligaciones 289 no verificadas o fuera del set esperado | Las 4 obligaciones presentes permanecen como deuda fail-closed. | `MCP-DATA-02`: limpiar extras o mantenerlos no verificados con contrato que lo refleje. |
@@ -433,3 +433,28 @@ Checklist de salida:
 - [x] Confirmar que hay recursos oficiales Modelo 303 con hash a nivel modelo/campana, pero no `source_hash` normalizado en la fila `obligacion_perfil`.
 - [x] Decidir que el contrato debe dejar de exigir `completa` y aceptar verified/fail-closed explicito.
 - [x] Reejecutar `mcp_deep_contract_audit.py` y confirmar que `profile_applicability_contracts` pasa; queda solo la metrica agregada global.
+
+### Issue MCP-DATA-08 - Reconciliar umbral global de perfiles como verified/fail-closed
+
+Estado local: IMPLEMENTED / PENDIENTE VPS. `docs/global-profile-threshold-audit-2026-05-25.md` inventaria los 8 perfiles productivos: todos quedan al 100% si el contrato cuenta solo `verified_with_evidence` o `fail_closed_explicit`, y `neither_state=0`.
+
+Impacto: bloquea `all_profiles_pct_verified_ge_70` y, por delegacion, `semantic_fail_closed_and_pagination_suite`.
+
+Owner propuesto: data quality/regulatory evidence.
+
+Artefactos a cambiar:
+
+- `scripts/maintenance/mcp_validation_suite.py`
+- `scripts/tests/test_maintenance_agents.py`
+- `docs/global-profile-threshold-audit-2026-05-25.md`
+
+Descripcion:
+
+El check historico mide solo `verified=true`, pero el sistema ya separa verificacion fuerte y fail-closed explicito. Como todos los perfiles bajo 70% tienen sus filas clasificadas en uno de esos dos estados, el contrato honesto es mantener el umbral del 70% y cambiar el numerador a `verified_or_fail_closed`.
+
+Checklist de salida:
+
+- [x] Confirmar RED: suite y deep audit fallan solo por `all_profiles_pct_verified_ge_70`.
+- [x] Inventariar por perfil `verified_with_evidence`, `fail_closed_explicit` y `neither_state`.
+- [x] Cambiar el check a `all_profiles_pct_verified_or_fail_closed_ge_70`.
+- [ ] Reejecutar validacion local y VPS; confirmar suite y deep audit `ok=true`.

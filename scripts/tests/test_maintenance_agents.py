@@ -384,6 +384,15 @@ def test_mcp_validation_suite_uses_sociedad_valores_fail_closed_threshold():
     assert "fail-closed until source_hash and capture_date are loaded" in source
 
 
+def test_mcp_validation_suite_uses_global_fail_closed_profile_threshold():
+    source = (ROOT / "scripts" / "maintenance" / "mcp_validation_suite.py").read_text(encoding="utf-8")
+
+    assert "all_profiles_pct_verified_or_fail_closed_ge_70" in source
+    assert "all_profiles_pct_verified_ge_70" not in source
+    assert "safe_to_answer IS NOT true" in source
+    assert "fail-closed until source_hash and capture_date are loaded" in source
+
+
 def test_mcp_validation_suite_accepts_modelo_202_fail_closed_routing():
     suite = _load_validation_suite()
 

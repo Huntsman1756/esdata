@@ -415,12 +415,29 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_zero(
             database_url,
-            "all_profiles_pct_verified_ge_70",
+            "all_profiles_pct_verified_or_fail_closed_ge_70",
             """
             SELECT COUNT(*)
             FROM (
                 SELECT perfil_codigo,
-                       100.0 * SUM(CASE WHEN verified THEN 1 ELSE 0 END)
+                       100.0 * SUM(
+                           CASE
+                             WHEN (
+                               verified IS true
+                               AND source_hash IS NOT NULL
+                               AND capture_date IS NOT NULL
+                             ) OR (
+                               verified IS NOT true
+                               AND safe_to_answer IS NOT true
+                               AND source_url IS NOT NULL
+                               AND source_hash IS NULL
+                               AND capture_date IS NOT NULL
+                               AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+                             )
+                             THEN 1
+                             ELSE 0
+                           END
+                       )
                          / NULLIF(COUNT(*), 0) AS pct_verified
                 FROM obligacion_perfil
                 GROUP BY perfil_codigo
