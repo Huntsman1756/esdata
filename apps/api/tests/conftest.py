@@ -2688,6 +2688,12 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     """,
     """
     INSERT INTO modelo_recurso (campana_id, tipo_recurso, formato, url_recurso, sha256_contenido, fecha_publicacion_recurso, activa, first_seen_at, last_seen_at)
+    SELECT mc.id, 'recurso_oficial', 'html', 'https://sede.agenciatributaria.gob.es/Sede/condiciones-uso-sede-electronica/accesibilidad/declaracion-accesibilidad.html', 'hash-generic-accessibility-v1', '2025-04-01', 1, '2025-04-01T00:00:00Z', '2025-04-02T00:00:00Z'
+    FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
+    WHERE m.codigo = '100' AND mc.campana = '2025'
+    """,
+    """
+    INSERT INTO modelo_recurso (campana_id, tipo_recurso, formato, url_recurso, sha256_contenido, fecha_publicacion_recurso, activa, first_seen_at, last_seen_at)
     SELECT mc.id, 'instrucciones', 'pdf', 'https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2024.pdf', 'hash-modelo100-2024-v1', '2024-04-01', 0, '2024-04-01T00:00:00Z', '2024-04-03T00:00:00Z'
     FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
     WHERE m.codigo = '100' AND mc.campana = '2024'

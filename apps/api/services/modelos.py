@@ -146,6 +146,22 @@ def _modelo_recurso_title(codigo: str, tipo_recurso: str, formato: str | None = 
     return f"{label} del modelo {codigo}"
 
 
+GENERIC_MODELO_RECURSO_URL_FRAGMENTS = (
+    "/Sede/condiciones-uso-sede-electronica/",
+    "/Sede/inicio.html",
+    "/Sede/todas-gestiones.html",
+    "/Sede/impuestos-tasas.html",
+)
+
+
+def _is_exposable_modelo_recurso(tipo_recurso: str | None, url_recurso: str | None) -> bool:
+    if not url_recurso:
+        return False
+    if tipo_recurso == "recurso_oficial":
+        return False
+    return not any(fragment in url_recurso for fragment in GENERIC_MODELO_RECURSO_URL_FRAGMENTS)
+
+
 def get_modelo_runtime_truth_contract(
     db, codigo: str, campana: str | None = None
 ) -> tuple[str, bool]:
@@ -416,7 +432,7 @@ def list_modelo_normativa(db, codigo: str):
 
 
 def list_campaign_recursos(db, campana_id: int):
-    return db.execute(
+    rows = db.execute(
         text(
             """
             SELECT
@@ -433,6 +449,11 @@ def list_campaign_recursos(db, campana_id: int):
         ),
         {"campana_id": campana_id},
     ).mappings()
+    return [
+        row
+        for row in rows
+        if _is_exposable_modelo_recurso(row["tipo_recurso"], row["url_recurso"])
+    ]
 
 
 def _campaign_casillas_filters(

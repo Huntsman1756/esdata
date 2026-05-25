@@ -428,6 +428,11 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
     urls = {item["url"] for item in response.json()["fuentes_oficiales"]}
     assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2025.pdf" in urls
     assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2024.pdf" not in urls
+    assert (
+        "https://sede.agenciatributaria.gob.es/Sede/condiciones-uso-sede-electronica/"
+        "accesibilidad/declaracion-accesibilidad.html"
+        not in urls
+    )
 
 
 @pytest.mark.asyncio
@@ -444,6 +449,11 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
     urls = {item["url"] for item in artefactos}
     assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2025.pdf" in urls
     assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2024.pdf" not in urls
+    assert (
+        "https://sede.agenciatributaria.gob.es/Sede/condiciones-uso-sede-electronica/"
+        "accesibilidad/declaracion-accesibilidad.html"
+        not in urls
+    )
     assert any(item["tipo"] == "modelo_recurso:instrucciones" for item in artefactos)
 
 
