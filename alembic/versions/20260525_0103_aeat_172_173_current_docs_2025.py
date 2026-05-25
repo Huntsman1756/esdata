@@ -221,6 +221,21 @@ def _ensure_model_campaign(bind, codigo: str, info: dict[str, str]) -> None:
     bind.execute(
         sa.text(
             """
+            UPDATE modelo_campana mc
+            SET activo = false,
+                updated_at = now()
+            FROM aeat_modelo am
+            WHERE am.id = mc.modelo_id
+              AND am.codigo = :codigo
+              AND mc.campana <> :campaign
+              AND mc.activo = true
+            """
+        ),
+        {"codigo": codigo, "campaign": CAMPAIGN},
+    )
+    bind.execute(
+        sa.text(
+            """
             INSERT INTO aeat_modelo (codigo, nombre, periodo, impuesto, url_info, activo, updated_at)
             SELECT :codigo, :nombre, 'anual', 'INFORMATIVO', :url_info, true, now()
             WHERE NOT EXISTS (SELECT 1 FROM aeat_modelo WHERE codigo = :codigo)
