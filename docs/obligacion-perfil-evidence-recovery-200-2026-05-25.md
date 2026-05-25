@@ -1,6 +1,6 @@
 # Obligacion perfil evidence recovery - Modelo 200 - 2026-05-25
 
-Estado: COMPLETADO LOCAL / PENDIENTE VPS
+Estado: COMPLETADO VPS
 
 Alcance Ralph: recuperar evidencia primaria normalizada para filas `obligacion_perfil` que estaban fail-closed, sin tocar contratos ni promover por analogia.
 
@@ -59,3 +59,47 @@ La migracion:
 - Las `6` filas Modelo 200 quedan con `source_hash`, `verified=true`, `safe_to_answer=true`, `completeness='completa'`.
 - Modelos `303` y `290` permanecen fail-closed.
 - `mcp_validation_suite.py` y `mcp_deep_contract_audit.py` siguen `ok=true`.
+
+## Validacion VPS
+
+Despliegue:
+
+- Commit `6eea782` sincronizado en `/srv/esdata`.
+- Imagen `ops` reconstruida correctamente.
+- `alembic upgrade head` aplicado.
+- `alembic_version=20260525_0099_obligacion_perfil_recover_200`.
+- API y Postgres permanecen `healthy`; `/health` devuelve `status=ok`, `database=ok`.
+
+Resultado de datos:
+
+| Modelo | Total | With hash | Verified | Safe | Completa | Nota recuperacion |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `200` | 6 | 6 | 6 | 6 | 6 | 6 |
+
+Filas recuperadas:
+
+| Perfil | Hash | Capture date | Estado |
+| --- | --- | --- | --- |
+| `agencia_valores` | `e836e7b8c52e3411...` | `2026-05-17` | `verified=true`, `safe_to_answer=true`, `completa` |
+| `eaf` | `e836e7b8c52e3411...` | `2026-05-17` | `verified=true`, `safe_to_answer=true`, `completa` |
+| `empresa_servicios_pago` | `e836e7b8c52e3411...` | `2026-05-17` | `verified=true`, `safe_to_answer=true`, `completa` |
+| `entidad_credito` | `e836e7b8c52e3411...` | `2026-05-17` | `verified=true`, `safe_to_answer=true`, `completa` |
+| `sgiic` | `e836e7b8c52e3411...` | `2026-05-17` | `verified=true`, `safe_to_answer=true`, `completa` |
+| `sociedad_valores` | `e836e7b8c52e3411...` | `2026-05-17` | `verified=true`, `safe_to_answer=true`, `completa` |
+
+Bloqueos mantenidos:
+
+| Modelo | Total | With hash | Verified | Safe | Completeness |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `290` | 3 | 0 | 0 | 0 | `parcial` |
+| `303` | 5 | 0 | 0 | 0 | `parcial` |
+
+Suites:
+
+```text
+mcp_validation_suite.py --read-only --base-url http://api:8000
+# ok=true, checks=133, failures=0
+
+mcp_deep_contract_audit.py --base-url http://api:8000
+# ok=true, checks=12, failures=0
+```
