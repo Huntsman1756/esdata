@@ -250,6 +250,8 @@ export interface ModeloDetail {
   campana_resolution_status: string | null;
   campana_verification_level: string | null;
   campana_safe_to_assert: boolean;
+  campana_assertion_code: string;
+  campana_assertion_warning: string | null;
   campana_user_notice: string | null;
   campanas: ModeloCampana[];
   articulos: ModeloArticulo[];

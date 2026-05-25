@@ -727,6 +727,10 @@ async def get_modelo(
                 "campana_verification_level", "insufficient"
             ),
             "campana_safe_to_assert": campana_assertion.get("campana_safe_to_assert", False),
+            "campana_assertion_code": campana_assertion.get(
+                "campana_assertion_code", "INSUFFICIENT_EVIDENCE"
+            ),
+            "campana_assertion_warning": campana_assertion.get("campana_assertion_warning"),
             "campana_user_notice": campana_assertion.get("campana_user_notice"),
             "campanas": campanas,
             "campanas_total": len(all_camp_rows),

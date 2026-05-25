@@ -447,6 +447,8 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
     assert data["campana_resolution_status"] == "conflict"
     assert data["campana_verification_level"] == "contradictory"
     assert data["campana_safe_to_assert"] is False
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert "do not treat" in data["campana_assertion_warning"].lower()
     assert "no afirmable" in data["campana_user_notice"].lower()
     assert data["campana_conflict"] is True
     assert data["campana_conflict_severity"] == "weak"
@@ -491,6 +493,8 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
     assert data["campana_resolution_status"] == "conflict"
     assert data["campana_verification_level"] == "contradictory"
     assert data["campana_safe_to_assert"] is False
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert "do not treat" in data["campana_assertion_warning"].lower()
     assert "no afirmable" in data["campana_user_notice"].lower()
     assert data["campana_conflict"] is True
     assert data["campana_conflict_severity"] == "weak"
@@ -525,6 +529,8 @@ def test_campana_selection_marks_resource_only_conflict_fail_closed():
     assert selection["campana_afirmable"] is None
     assert selection["campana_safe_to_assert"] is False
     assert selection["campana_verification_level"] == "contradictory"
+    assert selection["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert "do not treat" in selection["campana_assertion_warning"].lower()
     assert selection["campana_conflict"] is True
     assert selection["campana_conflict_severity"] == "strong"
     assert selection["campana_conflict_years"] == ["2019", "2026"]
@@ -541,6 +547,8 @@ def test_campana_selection_marks_non_conflicting_persisted_year_as_weak_not_asse
     assert selection["campana_resolution_status"] == "resolved_weak"
     assert selection["campana_verification_level"] == "inferred_internal"
     assert selection["campana_safe_to_assert"] is False
+    assert selection["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
+    assert "do not treat" in selection["campana_assertion_warning"].lower()
     assert "no afirmable" in selection["campana_user_notice"].lower()
 
 
@@ -564,6 +572,8 @@ def test_campana_selection_only_asserts_when_resource_explicitly_proves_campaign
     assert selection["campana_resolution_status"] == "resolved_strong"
     assert selection["campana_verification_level"] == "direct_official"
     assert selection["campana_safe_to_assert"] is True
+    assert selection["campana_assertion_code"] == "ASSERTABLE_DIRECT_OFFICIAL"
+    assert selection["campana_assertion_warning"] is None
 
 
 @pytest.mark.asyncio
@@ -1283,6 +1293,8 @@ async def test_modelo_detail_reports_casillas_fallback_campaign_transparently():
     assert data["campana_afirmable"] is None
     assert data["campana_safe_to_assert"] is False
     assert data["campana_resolution_status"] == "resolved_weak"
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
+    assert "do not treat" in data["campana_assertion_warning"].lower()
     assert "no afirmable" in data["campana_user_notice"]
     assert data["casillas_campana"] == "2025"
     assert data["casillas_total"] == 1

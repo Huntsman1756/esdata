@@ -439,6 +439,14 @@ class ModeloDetail(BaseModel):
     campana_safe_to_assert: bool = Field(
         default=False, description="True solo cuando campana_afirmable puede exponerse como verdad fiscal"
     )
+    campana_assertion_code: str = Field(
+        default="INSUFFICIENT_EVIDENCE",
+        description="Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*",
+    )
+    campana_assertion_warning: str | None = Field(
+        default=None,
+        description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false",
+    )
     campana_user_notice: str | None = Field(
         default=None, description="Aviso obligatorio cuando la campana no es afirmable"
     )
@@ -779,6 +787,8 @@ class ModeloFuentesOficialesResponse(BaseModel):
     campana_resolution_status: str = Field(default="insufficient_evidence", description="Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected")
     campana_verification_level: str = Field(default="insufficient", description="Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale")
     campana_safe_to_assert: bool = Field(default=False, description="True solo cuando la campana es afirmable por MCP")
+    campana_assertion_code: str = Field(default="INSUFFICIENT_EVIDENCE", description="Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*")
+    campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
@@ -809,6 +819,8 @@ class ModeloResumenOperativoResponse(BaseModel):
     campana_resolution_status: str = Field(default="insufficient_evidence", description="Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected")
     campana_verification_level: str = Field(default="insufficient", description="Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale")
     campana_safe_to_assert: bool = Field(default=False, description="True solo cuando la campana es afirmable por MCP")
+    campana_assertion_code: str = Field(default="INSUFFICIENT_EVIDENCE", description="Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*")
+    campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
@@ -849,6 +861,8 @@ class ModeloArtefactosResponse(BaseModel):
     campana_resolution_status: str = Field(default="insufficient_evidence", description="Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected")
     campana_verification_level: str = Field(default="insufficient", description="Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale")
     campana_safe_to_assert: bool = Field(default=False, description="True solo cuando la campana es afirmable por MCP")
+    campana_assertion_code: str = Field(default="INSUFFICIENT_EVIDENCE", description="Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*")
+    campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")

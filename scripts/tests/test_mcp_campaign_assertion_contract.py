@@ -28,6 +28,8 @@ def test_web_model_type_exposes_assertion_contract_fields():
     assert "campana_persistida: string | null;" in source
     assert "campana_afirmable: string | null;" in source
     assert "campana_safe_to_assert: boolean;" in source
+    assert "campana_assertion_code: string;" in source
+    assert "campana_assertion_warning: string | null;" in source
     assert "campana_verification_level: string | null;" in source
     assert "campana_user_notice: string | null;" in source
 
@@ -38,6 +40,8 @@ def test_public_schemas_mark_campana_activa_as_deprecated_persisted_only():
 
     assert source.count("DEPRECATED: campana persistida") >= 3
     assert source.count("campana_safe_to_assert para afirmaciones fiscales") >= 3
+    assert "campana_assertion_code" in source
+    assert "campana_assertion_warning" in source
 
 
 def test_mcp_stdio_labels_campaign_metadata_as_unverified():

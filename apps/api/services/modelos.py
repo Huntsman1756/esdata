@@ -216,6 +216,39 @@ def _campaign_notice(status: str) -> str:
     return "Campana no afirmable: no hay evidencia suficiente para determinar una campana afirmable."
 
 
+def _campaign_assertion_code(status: str) -> str:
+    return {
+        "resolved_strong": "ASSERTABLE_DIRECT_OFFICIAL",
+        "resolved_weak": "NOT_ASSERTABLE_INFERRED_INTERNAL",
+        "conflict": "NOT_ASSERTABLE_CONFLICT",
+        "insufficient_evidence": "INSUFFICIENT_EVIDENCE",
+        "stale_suspected": "STALE_SUSPECTED",
+    }.get(status, "INSUFFICIENT_EVIDENCE")
+
+
+def _campaign_assertion_warning(status: str) -> str | None:
+    if status == "resolved_strong":
+        return None
+    if status == "resolved_weak":
+        return (
+            "Campaign is inferred internally but not verified with official evidence; "
+            "do not treat as active fiscal year."
+        )
+    if status == "conflict":
+        return (
+            "Campaign evidence is contradictory; do not treat any candidate as active "
+            "fiscal year without manual official-source review."
+        )
+    if status == "stale_suspected":
+        return (
+            "Campaign may be stale; do not treat as active fiscal year without "
+            "fresh official-source review."
+        )
+    return (
+        "Campaign has insufficient official evidence; do not treat as active fiscal year."
+    )
+
+
 def _build_campana_selection(campana_activa: str | None, resources: list[dict]) -> dict:
     evidence = []
     resource_years: set[str] = set()
@@ -285,6 +318,8 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         "campana_resolution_status": resolution_status,
         "campana_verification_level": verification_level,
         "campana_safe_to_assert": safe_to_assert,
+        "campana_assertion_code": _campaign_assertion_code(resolution_status),
+        "campana_assertion_warning": _campaign_assertion_warning(resolution_status),
         "campana_user_notice": _campaign_notice(resolution_status),
         "campana_evidence": evidence if resolution_status in {"resolved_strong", "resolved_weak"} else [],
         "campana_conflict": conflict,
