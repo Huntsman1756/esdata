@@ -12,6 +12,16 @@ y tambien casillas/campos activos. Esos modelos no deben
 tratarse como "ultima version validada" hasta revisar su contrato documental
 modelo a modelo.
 
+Lectura operativa:
+
+- Infraestructura de fuentes: `validated`.
+- Pipeline de ingestion: `guarded_against_implausible_years`.
+- Dataset AEAT para MCP: `partial_with_15_critical_campaign_findings`.
+
+Contrato semantico de siguiente fase:
+
+- `docs/aeat-campana-activa-contract-2026-05-25.md`
+
 Artefacto machine-readable:
 
 - `docs/aeat-official-source-audit-2026-05-25.json`
@@ -123,6 +133,11 @@ Orden de inferencia observado antes del guardrail:
 Riesgo de reintroduccion: sin validar rango, una pagina con una referencia
 historica como `1922` puede volver a crear o activar una campana falsa tras el
 siguiente sync.
+
+El guardrail de rango (`1990..ano_actual`) elimina anos corruptos, pero no
+valida anos plausibles incorrectos como `2013`, `2015` o `2020`. Esa validacion
+requiere contrato documental explicito y persistencia de fuente/confianza por
+campana.
 
 ## Siguiente paso seguro
 

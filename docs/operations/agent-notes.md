@@ -522,3 +522,23 @@ Operational rule:
 - This only validates the model documentation/form contract. It does not make
   `obligacion_perfil` rows safe unless they also have normalized source URL,
   source hash, capture date, verified state and complete applicability evidence.
+
+## 2026-05-25 - AEAT campaign truth is semantic, not connectivity
+
+The official-source audit closed URL reachability for active AEAT/BOE resources
+but did not close semantic truth for all `modelo_campana.campana` values.
+
+Operational rule:
+
+- Treat `718/718` HTTP 200 as infrastructure evidence only; it does not prove
+  that `campana_activa` is current or semantically correct.
+- `apps/workers/aeat_models.py` now rejects numeric campaign years outside
+  `1990..current_year`, but plausible old years (`2013`, `2015`, `2020`) can
+  still be wrong unless backed by an explicit source/rule.
+- Do not promote a model from P1 to complete just because the source URL
+  resolves. Require the contract in
+  `docs/aeat-campana-activa-contract-2026-05-25.md`: source type, source URL,
+  derivation rule, confidence, review state and evidence.
+- Current allowed claim: source infrastructure validated; ingestion guarded
+  against implausible years; dataset remains partial with 15 critical campaign
+  findings until model-by-model semantic remediation.
