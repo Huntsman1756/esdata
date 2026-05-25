@@ -405,6 +405,30 @@ def test_aeat_290_current_docs_migration_is_scoped_in_0100():
         assert forbidden not in contents
 
 
+def test_aeat_290_legacy_field_cleanup_in_0101():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260525_0101_aeat_290_remove_legacy_fields.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "am.codigo = '290'",
+        "mc.campana = '2025'",
+        "cs.activa = true",
+        "cs.tipo_casilla <> 'diseno_registro_xsd_campo'",
+        "SET activa = false",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "DELETE FROM modelo_casilla",
+        "safe_to_answer = true",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

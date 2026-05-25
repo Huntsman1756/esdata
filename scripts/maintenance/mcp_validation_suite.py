@@ -16,6 +16,7 @@ import httpx
 from sqlalchemy import create_engine, text
 
 EXPECTED_MODELO_290_CAMPAIGN = str(datetime.now(UTC).year - 1)
+EXPECTED_MODELO_290_XSD_FIELDS = 152
 
 
 def _repo_root() -> Path:
@@ -1344,6 +1345,7 @@ def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, 
         "verified": payload.get("verified"),
         "completeness": payload.get("completeness"),
         "campana_actual": (payload.get("campana_actual") or {}).get("campana"),
+        "casillas_total": payload.get("casillas_total"),
         "obligation_context_source_urls": [
             item.get("source_url")
             for item in (payload.get("obligation_context") or [])
@@ -1359,6 +1361,7 @@ def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, 
         and payload.get("verified") is True
         and payload.get("completeness") == "completa"
         and (payload.get("campana_actual") or {}).get("campana") == EXPECTED_MODELO_290_CAMPAIGN
+        and payload.get("casillas_total") == EXPECTED_MODELO_290_XSD_FIELDS
         and len(claves) > 0
         and len(instrucciones) > 0
         and len(reglas) > 0

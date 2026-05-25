@@ -33,6 +33,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 EXPECTED_MODELO_290_CAMPAIGN = str(datetime.now(UTC).year - 1)
+EXPECTED_MODELO_290_XSD_FIELDS = 152
 
 
 def _repo_root() -> Path:
@@ -748,6 +749,7 @@ def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
                 "verified": payload.get("verified"),
                 "completeness": payload.get("completeness"),
                 "campana_actual": (payload.get("campana_actual") or {}).get("campana"),
+                "casillas_total": payload.get("casillas_total"),
                 "claves": len(payload.get("claves") or []),
                 "instrucciones": len(payload.get("instrucciones") or []),
                 "reglas": len(reglas),
@@ -761,6 +763,15 @@ def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
                         "check": "modelo_290_detail",
                         "reason": "unexpected_active_campaign",
                         "expected": EXPECTED_MODELO_290_CAMPAIGN,
+                        "details": details["modelo_290"],
+                    }
+                )
+            if payload.get("casillas_total") != EXPECTED_MODELO_290_XSD_FIELDS:
+                failures.append(
+                    {
+                        "check": "modelo_290_detail",
+                        "reason": "unexpected_xsd_field_count",
+                        "expected": EXPECTED_MODELO_290_XSD_FIELDS,
                         "details": details["modelo_290"],
                     }
                 )
