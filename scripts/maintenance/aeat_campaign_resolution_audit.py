@@ -107,7 +107,7 @@ def _candidate_support(
 
 
 def _summarize_support(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    resolved = [row for row in rows if row["campana_resolution_status"] == "resolved"]
+    resolved = [row for row in rows if str(row["campana_resolution_status"]).startswith("resolved")]
     support_counts: Counter[str] = Counter(row["campana_support_level"] for row in resolved)
     total_resolved = len(resolved)
 
@@ -130,6 +130,7 @@ def audit(base_url: str, api_key: str | None, limit: int, request_delay: float) 
     status_counts: Counter[str] = Counter()
     severity_counts: Counter[str] = Counter()
     candidate_count = 0
+    safe_to_assert_count = 0
     rows = []
 
     for code in codes:
@@ -143,6 +144,8 @@ def audit(base_url: str, api_key: str | None, limit: int, request_delay: float) 
         severity_counts[severity] += 1
         if candidate is not None:
             candidate_count += 1
+        if payload.get("campana_safe_to_assert") is True:
+            safe_to_assert_count += 1
         support_level, support_evidence = _candidate_support(
             str(candidate) if candidate is not None else None,
             payload.get("fuentes_oficiales") or [],
@@ -153,6 +156,7 @@ def audit(base_url: str, api_key: str | None, limit: int, request_delay: float) 
                 "campana_activa": payload.get("campana_activa"),
                 "campana_candidata": candidate,
                 "campana_resolution_status": status,
+                "campana_safe_to_assert": payload.get("campana_safe_to_assert") is True,
                 "campana_support_level": support_level,
                 "campana_support_evidence": support_evidence,
                 "campana_conflict": bool(payload.get("campana_conflict")),
@@ -173,6 +177,8 @@ def audit(base_url: str, api_key: str | None, limit: int, request_delay: float) 
         "severity_counts": dict(sorted(severity_counts.items())),
         "campana_candidata_non_null": candidate_count,
         "campana_candidata_non_null_pct": pct(candidate_count),
+        "campana_safe_to_assert": safe_to_assert_count,
+        "campana_safe_to_assert_pct": pct(safe_to_assert_count),
         "campana_conflict_pct": pct(status_counts.get("conflict", 0)),
         **_summarize_support(rows),
         "review_queues": {
@@ -190,7 +196,7 @@ def audit(base_url: str, api_key: str | None, limit: int, request_delay: float) 
             "resolved_without_direct_aeat_year": [
                 row["codigo"]
                 for row in rows
-                if row["campana_resolution_status"] == "resolved"
+                if str(row["campana_resolution_status"]).startswith("resolved")
                 and row["campana_support_level"] != "explicit_aeat_year"
             ][:50],
         },

@@ -433,10 +433,21 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
         "accesibilidad/declaracion-accesibilidad.html"
         not in urls
     )
+    instrucciones = next(
+        item for item in response.json()["fuentes_oficiales"]
+        if item["url"] == "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2025.pdf"
+    )
+    assert instrucciones["proves_campaign"] is False
+    assert instrucciones["campaign_evidence_role"] == "weak"
     data = response.json()
     assert data["campana_activa"] == "2025"
+    assert data["campana_persistida"] == "2025"
+    assert data["campana_afirmable"] is None
     assert data["campana_candidata"] is None
     assert data["campana_resolution_status"] == "conflict"
+    assert data["campana_verification_level"] == "contradictory"
+    assert data["campana_safe_to_assert"] is False
+    assert "no afirmable" in data["campana_user_notice"].lower()
     assert data["campana_conflict"] is True
     assert data["campana_conflict_severity"] == "weak"
     assert data["campana_conflict_years"] == ["2025", "2026"]
@@ -466,10 +477,21 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
         not in urls
     )
     assert any(item["tipo"] == "modelo_recurso:instrucciones" for item in artefactos)
+    instrucciones = next(
+        item for item in artefactos
+        if item["url"] == "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2025.pdf"
+    )
+    assert instrucciones["proves_campaign"] is False
+    assert instrucciones["campaign_evidence_role"] == "weak"
     data = response.json()
     assert data["campana_activa"] == "2025"
+    assert data["campana_persistida"] == "2025"
+    assert data["campana_afirmable"] is None
     assert data["campana_candidata"] is None
     assert data["campana_resolution_status"] == "conflict"
+    assert data["campana_verification_level"] == "contradictory"
+    assert data["campana_safe_to_assert"] is False
+    assert "no afirmable" in data["campana_user_notice"].lower()
     assert data["campana_conflict"] is True
     assert data["campana_conflict_severity"] == "weak"
     assert data["campana_conflict_years"] == ["2025", "2026"]
@@ -500,9 +522,48 @@ def test_campana_selection_marks_resource_only_conflict_fail_closed():
 
     assert selection["campana_candidata"] is None
     assert selection["campana_resolution_status"] == "conflict"
+    assert selection["campana_afirmable"] is None
+    assert selection["campana_safe_to_assert"] is False
+    assert selection["campana_verification_level"] == "contradictory"
     assert selection["campana_conflict"] is True
     assert selection["campana_conflict_severity"] == "strong"
     assert selection["campana_conflict_years"] == ["2019", "2026"]
+
+
+def test_campana_selection_marks_non_conflicting_persisted_year_as_weak_not_assertable():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection("2025", [])
+
+    assert selection["campana_persistida"] == "2025"
+    assert selection["campana_candidata"] == "2025"
+    assert selection["campana_afirmable"] is None
+    assert selection["campana_resolution_status"] == "resolved_weak"
+    assert selection["campana_verification_level"] == "inferred_internal"
+    assert selection["campana_safe_to_assert"] is False
+    assert "no afirmable" in selection["campana_user_notice"].lower()
+
+
+def test_campana_selection_only_asserts_when_resource_explicitly_proves_campaign():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        "2025",
+        [
+            {
+                "tipo": "aeat_instrucciones",
+                "url": "https://sede.agenciatributaria.gob.es/modelo-100",
+                "campana": "2025",
+                "proves_campaign": True,
+            }
+        ],
+    )
+
+    assert selection["campana_candidata"] == "2025"
+    assert selection["campana_afirmable"] == "2025"
+    assert selection["campana_resolution_status"] == "resolved_strong"
+    assert selection["campana_verification_level"] == "direct_official"
+    assert selection["campana_safe_to_assert"] is True
 
 
 @pytest.mark.asyncio

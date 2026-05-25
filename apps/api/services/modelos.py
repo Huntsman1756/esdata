@@ -168,6 +168,13 @@ CAMPAIGN_BEARING_RESOURCE_TYPES = {
 }
 
 
+CAMPAIGN_NOT_ASSERTABLE_NOTICE = (
+    "Campana no afirmable con maxima exactitud fiscal: el valor disponible es "
+    "persistido o inferido internamente, pero no esta verificado por evidencia "
+    "oficial directa o vinculo documental inequivoco."
+)
+
+
 def _is_exposable_modelo_recurso(tipo_recurso: str | None, url_recurso: str | None) -> bool:
     if not url_recurso:
         return False
@@ -185,6 +192,28 @@ def _extract_campaign_candidate_years(*values: str | None) -> list[str]:
             if 1990 <= year <= current_year + 1:
                 years.add(match)
     return sorted(years)
+
+
+def _resource_proves_campaign(resource: dict, candidate: str | None) -> bool:
+    if not candidate:
+        return False
+    if resource.get("proves_campaign") is not True:
+        return False
+    years = resource.get("years") or []
+    return candidate in years or resource.get("campana") == candidate
+
+
+def _campaign_notice(status: str) -> str:
+    if status == "resolved_strong":
+        return "Campana afirmable: existe evidencia oficial directa o vinculo documental inequivoco."
+    if status == "resolved_weak":
+        return CAMPAIGN_NOT_ASSERTABLE_NOTICE
+    if status == "conflict":
+        return (
+            "Campana no afirmable: existen anos documentales contradictorios. "
+            "El sistema debe abstenerse de seleccionar campana."
+        )
+    return "Campana no afirmable: no hay evidencia suficiente para determinar una campana activa."
 
 
 def _build_campana_selection(campana_activa: str | None, resources: list[dict]) -> dict:
@@ -225,9 +254,22 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
     if conflict:
         resolution_status = "conflict"
     elif active_year or resource_years:
-        resolution_status = "resolved"
+        candidate = campana_activa or next(iter(sorted(resource_years)), None)
+        resolution_status = (
+            "resolved_strong"
+            if any(_resource_proves_campaign(resource, candidate) for resource in resources)
+            else "resolved_weak"
+        )
     else:
         resolution_status = "insufficient_evidence"
+    candidate = None if conflict else campana_activa or next(iter(sorted(resource_years)), None)
+    safe_to_assert = resolution_status == "resolved_strong"
+    verification_level = {
+        "resolved_strong": "direct_official",
+        "resolved_weak": "inferred_internal",
+        "conflict": "contradictory",
+        "insufficient_evidence": "insufficient",
+    }.get(resolution_status, "insufficient")
     notice = None
     if conflict:
         notice = (
@@ -237,8 +279,14 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         )
 
     return {
-        "campana_candidata": None if conflict else campana_activa or next(iter(sorted(resource_years)), None),
+        "campana_persistida": campana_activa,
+        "campana_afirmable": candidate if safe_to_assert else None,
+        "campana_candidata": candidate,
         "campana_resolution_status": resolution_status,
+        "campana_verification_level": verification_level,
+        "campana_safe_to_assert": safe_to_assert,
+        "campana_user_notice": _campaign_notice(resolution_status),
+        "campana_evidence": evidence if resolution_status in {"resolved_strong", "resolved_weak"} else [],
         "campana_conflict": conflict,
         "campana_conflict_severity": conflict_severity,
         "campana_conflict_years": conflict_years if conflict else [],
@@ -841,6 +889,8 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
         boe_id: str | None = None,
         fecha: str | None = None,
         nota: str | None = None,
+        proves_campaign: bool = False,
+        campaign_evidence_role: str | None = None,
     ):
         if not url:
             return
@@ -859,6 +909,9 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                 "fecha": fecha,
                 "oficial": oficial,
                 "nota": nota,
+                "proves_campaign": proves_campaign,
+                "campaign_evidence_role": campaign_evidence_role
+                or ("weak" if tipo in CAMPAIGN_BEARING_RESOURCE_TYPES else "none"),
             }
         )
 
@@ -976,6 +1029,8 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
         fecha: str | None = None,
         formato: str | None = None,
         nota: str | None = None,
+        proves_campaign: bool = False,
+        campaign_evidence_role: str | None = None,
     ):
         if not url:
             return
@@ -994,6 +1049,9 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                 "formato": formato,
                 "oficial": oficial,
                 "nota": nota,
+                "proves_campaign": proves_campaign,
+                "campaign_evidence_role": campaign_evidence_role
+                or ("weak" if tipo in CAMPAIGN_BEARING_RESOURCE_TYPES else "none"),
             }
         )
 
@@ -1107,8 +1165,14 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
         "impuesto": model_row["impuesto"],
         "periodo": model_row["periodo"],
         "campana_activa": campana_activa,
+        "campana_persistida": (fuentes or {}).get("campana_persistida", campana_activa),
+        "campana_afirmable": (fuentes or {}).get("campana_afirmable"),
         "campana_candidata": (fuentes or {}).get("campana_candidata"),
         "campana_resolution_status": (fuentes or {}).get("campana_resolution_status", "insufficient_evidence"),
+        "campana_verification_level": (fuentes or {}).get("campana_verification_level", "insufficient"),
+        "campana_safe_to_assert": (fuentes or {}).get("campana_safe_to_assert", False),
+        "campana_user_notice": (fuentes or {}).get("campana_user_notice"),
+        "campana_evidence": (fuentes or {}).get("campana_evidence", []),
         "campana_conflict": (fuentes or {}).get("campana_conflict", False),
         "campana_conflict_severity": (fuentes or {}).get("campana_conflict_severity", "none"),
         "campana_conflict_years": (fuentes or {}).get("campana_conflict_years", []),
