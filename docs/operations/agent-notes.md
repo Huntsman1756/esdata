@@ -496,19 +496,24 @@ Operational rule:
   or `290` from FATCA source revisions until the hash/source relation is
   unambiguous.
 
-## 2026-05-25 - Modelo 290 campaign is the reported financial year, not the FATCA agreement year
+## 2026-05-25 - Annual web-service information campaigns use the reported financial year
 
-GI38 contains historic legal dates from the Spain-US FATCA agreement, including
-2013. Do not infer `modelo_campana.campana=2013` from that page text.
+GI38/GI42/GI53/GI54 contain historic legal dates and technical document
+version dates. Do not infer `modelo_campana.campana` from the first bare year
+in those pages.
 
 Operational rule:
 
-- For Modelo 290/FATCA GI38, the active filing campaign is the financial year
-  being reported. On 2026-05-25 AEAT states the filing window is 2026-01-01 to
-  2026-06-01 for the immediately previous year, so the active campaign is
-  `2025`.
+- For annual web-service information models `172`, `173`, `289` and `290`, the
+  active filing campaign is the financial year being reported, not the legal
+  agreement/order year. On 2026-05-25 the active campaign is `2025`.
 - The current documentary set is GI38, plazos, FAQ, presentation XSD/WSDL 2.0
   / 2.1.1, manual tecnico 2.16, and consulta-errores resources.
+- For `172`/`173`, the current documentary set is GI53/GI54, plazos
+  2026-01-01 to 2026-02-02, FAQ, anexos, service-web manuals,
+  validations/errors PDFs, and XSD/WSDL ZIPs. The old Modelo 172
+  `GI53/Esquemas172.zip` URL is stale; use
+  `GI53/2024/Esquemas_WSDL_servicios_web.zip`.
 - For FATCA communication answers, do not rely only on GI38 as an indirect
   container. Store and cite the linked reference sources explicitly: TIN
   validation guidance, competent-authorities agreement, GI38 procedure sheet,

@@ -47,6 +47,30 @@ class TestInferCampaign:
 
         assert campaign == "2025"
 
+    def test_annual_information_web_service_models_use_previous_year(self):
+        for url, text in (
+            (
+                "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI42.shtml",
+                "Modelo 289. Declaracion informativa anual de cuentas financieras.",
+            ),
+            (
+                "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI53.shtml",
+                "Modelo 172. Declaracion informativa anual sobre saldos en monedas virtuales.",
+            ),
+            (
+                "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI54.shtml",
+                "Modelo 173. Declaracion informativa anual sobre operaciones con monedas virtuales.",
+            ),
+        ):
+            assert (
+                _infer_campaign(
+                    text,
+                    url,
+                    today=aeat_models.datetime(2026, 5, 25, tzinfo=aeat_models.UTC),
+                )
+                == "2025"
+            )
+
     def test_non_290_pages_keep_explicit_url_year(self):
         assert _infer_campaign("", "https://example.test/modelo-303-2026.html") == "2026"
 

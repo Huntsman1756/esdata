@@ -227,14 +227,32 @@ def _current_previous_year_campaign(today: datetime | None = None) -> str:
     return str(reference_date.year - 1)
 
 
-def _is_modelo_290_fatca_page(page_text: str, url_info: str | None = None) -> bool:
+ANNUAL_PREVIOUS_YEAR_MODEL_PAGES = {
+    "gi38",  # Modelo 290 FATCA
+    "gi42",  # Modelo 289 CRS/DAC2
+    "gi53",  # Modelo 172 virtual currency balances
+    "gi54",  # Modelo 173 virtual currency operations
+}
+
+
+def _is_previous_year_annual_information_page(
+    page_text: str,
+    url_info: str | None = None,
+) -> bool:
     normalized_url = (url_info or "").lower()
     normalized_text = (page_text or "").lower()
+    if any(page_code in normalized_url for page_code in ANNUAL_PREVIOUS_YEAR_MODEL_PAGES):
+        return True
+
     return (
-        "gi38" in normalized_url
-        or (
-            "modelo 290" in normalized_text
-            and ("fatca" in normalized_text or "personas estadounidenses" in normalized_text)
+        "declaraci" in normalized_text
+        and "informativa" in normalized_text
+        and "anual" in normalized_text
+        and (
+            "modelo 172" in normalized_text
+            or "modelo 173" in normalized_text
+            or "modelo 289" in normalized_text
+            or "modelo 290" in normalized_text
         )
     )
 
@@ -245,7 +263,7 @@ def _infer_campaign(
     *,
     today: datetime | None = None,
 ) -> str:
-    if _is_modelo_290_fatca_page(page_text, url_info):
+    if _is_previous_year_annual_information_page(page_text, url_info):
         return _current_previous_year_campaign(today)
 
     if url_info:

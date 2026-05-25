@@ -459,6 +459,36 @@ def test_aeat_290_reference_sources_migration_is_scoped_in_0102():
         assert forbidden not in contents
 
 
+def test_aeat_172_173_current_docs_migration_is_scoped_in_0103():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260525_0103_aeat_172_173_current_docs_2025.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "GI53.shtml",
+        "GI54.shtml",
+        "Esquemas_WSDL_servicios_web.zip",
+        "Esquemas172.zip",
+        "Esquemas173.zip",
+        "2026-01-01/2026-02-02",
+        "modelo_172_173_current_docs",
+        "xsd_fields_verified",
+        "reported_financial_year",
+        "mc.campana = :campaign",
+        "mc.campana <> :campaign",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "DELETE FROM modelo_casilla",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
