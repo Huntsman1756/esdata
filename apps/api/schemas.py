@@ -715,10 +715,22 @@ class ModeloFuenteOficial(BaseModel):
     nota: str | None = Field(default=None, description="Nota descriptiva")
 
 
+class ModeloCampanaConflictEvidence(BaseModel):
+    tipo: str = Field(description="Tipo de fuente o artefacto que aporta el ano")
+    url: str | None = Field(default=None, description="URL donde aparece el ano")
+    years: list[str] = Field(default_factory=list, description="Anos detectados en el recurso")
+    reason: str = Field(description="Regla que hizo relevante esta evidencia")
+
+
 class ModeloFuentesOficialesResponse(BaseModel):
     codigo: str = Field(description="Código del modelo")
     nombre: str | None = Field(default=None, description="Nombre completo")
     campana_activa: str | None = Field(default=None, description="Campaña activa")
+    campana_candidata: str | None = Field(default=None, description="Campana candidata si no hay conflicto semantico")
+    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana activa y recursos tecnicos/anuales")
+    campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
+    campana_conflict_notice: str | None = Field(default=None, description="Aviso fail-closed sobre el conflicto")
+    campana_conflict_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Recursos que explican el conflicto")
     fuentes_oficiales: list[ModeloFuenteOficial] = Field(default_factory=list, description="Fuentes oficiales")
 
 
@@ -730,6 +742,11 @@ class ModeloResumenOperativoResponse(BaseModel):
     campana_activa: str | None = Field(default=None, description="Campaña activa")
     quien_debe_presentarlo: str | None = Field(default=None, description="Quién debe presentarlo")
     plazo_presentacion: str | None = Field(default=None, description="Plazo de presentación")
+    campana_candidata: str | None = Field(default=None, description="Campana candidata si no hay conflicto semantico")
+    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana activa y recursos tecnicos/anuales")
+    campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
+    campana_conflict_notice: str | None = Field(default=None, description="Aviso fail-closed sobre el conflicto")
+    campana_conflict_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Recursos que explican el conflicto")
     fuentes_recomendadas: list[ModeloFuenteOficial] = Field(default_factory=list, description="Fuentes recomendadas")
 
 
@@ -749,6 +766,11 @@ class ModeloArtefactosResponse(BaseModel):
     codigo: str = Field(description="Código del modelo")
     campana_activa: str | None = Field(default=None, description="Campaña activa")
     criterio_validacion: str = Field(description="Criterio de validación")
+    campana_candidata: str | None = Field(default=None, description="Campana candidata si no hay conflicto semantico")
+    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana activa y recursos tecnicos/anuales")
+    campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
+    campana_conflict_notice: str | None = Field(default=None, description="Aviso fail-closed sobre el conflicto")
+    campana_conflict_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Recursos que explican el conflicto")
     artefactos: list[ModeloArtefacto] = Field(default_factory=list, description="Artefactos del modelo")
 
 

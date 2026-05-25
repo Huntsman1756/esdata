@@ -1,3 +1,6 @@
+import re
+from datetime import UTC, datetime
+
 from sqlalchemy import text
 
 
@@ -154,12 +157,79 @@ GENERIC_MODELO_RECURSO_URL_FRAGMENTS = (
 )
 
 
+CAMPAIGN_BEARING_RESOURCE_TYPES = {
+    "aeat_formato",
+    "aeat_instrucciones",
+    "modelo_recurso:ayuda_tecnica_presentacion",
+    "modelo_recurso:diseno_registro",
+    "modelo_recurso:formulario_html",
+    "modelo_recurso:formulario_pdf",
+    "modelo_recurso:instrucciones",
+}
+
+
 def _is_exposable_modelo_recurso(tipo_recurso: str | None, url_recurso: str | None) -> bool:
     if not url_recurso:
         return False
     if tipo_recurso == "recurso_oficial":
         return False
     return not any(fragment in url_recurso for fragment in GENERIC_MODELO_RECURSO_URL_FRAGMENTS)
+
+
+def _extract_campaign_candidate_years(*values: str | None) -> list[str]:
+    current_year = datetime.now(UTC).year
+    years: set[str] = set()
+    for value in values:
+        for match in re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", value or ""):
+            year = int(match)
+            if 1990 <= year <= current_year + 1:
+                years.add(match)
+    return sorted(years)
+
+
+def _build_campana_selection(campana_activa: str | None, resources: list[dict]) -> dict:
+    evidence = []
+    resource_years: set[str] = set()
+
+    for resource in resources:
+        tipo = resource.get("tipo")
+        if tipo not in CAMPAIGN_BEARING_RESOURCE_TYPES:
+            continue
+        years = _extract_campaign_candidate_years(
+            resource.get("url"),
+            resource.get("titulo"),
+            resource.get("fecha"),
+        )
+        if not years:
+            continue
+        resource_years.update(years)
+        evidence.append(
+            {
+                "tipo": tipo,
+                "url": resource.get("url"),
+                "years": years,
+                "reason": "campaign_bearing_resource_year",
+            }
+        )
+
+    active_year = campana_activa if campana_activa and campana_activa.isdigit() else None
+    conflict = bool(active_year and any(year != active_year for year in resource_years))
+    conflict_years = sorted(({active_year} if active_year else set()) | resource_years)
+    notice = None
+    if conflict:
+        notice = (
+            "Conflicto semantico: existen recursos tecnicos/anuales con anos distintos "
+            "de campana_activa. No seleccionar automaticamente una campana como verdad "
+            "definitiva sin revision documental."
+        )
+
+    return {
+        "campana_candidata": None if conflict else campana_activa,
+        "campana_conflict": conflict,
+        "campana_conflict_years": conflict_years if conflict else [],
+        "campana_conflict_notice": notice,
+        "campana_conflict_evidence": evidence if conflict else [],
+    }
 
 
 def get_modelo_runtime_truth_contract(
@@ -860,6 +930,7 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
     return {
         "codigo": codigo,
         "campana_activa": campana_activa,
+        **_build_campana_selection(campana_activa, fuentes),
         "criterio_uso": (
             "En esdata, la fuente maestra debe ser siempre oficial y primaria "
             "(AEAT, BOE o equivalente público). Las referencias derivadas solo "
@@ -972,6 +1043,7 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
     return {
         "codigo": codigo,
         "campana_activa": campana_activa,
+        **_build_campana_selection(campana_activa, artefactos),
         "criterio_validacion": (
             "Estos artefactos sirven para validacion local, trazabilidad y trabajo tecnico "
             "sobre el modelo. La aceptacion formal del modelo solo puede confirmarse contra "
@@ -1020,6 +1092,11 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
         "impuesto": model_row["impuesto"],
         "periodo": model_row["periodo"],
         "campana_activa": campana_activa,
+        "campana_candidata": (fuentes or {}).get("campana_candidata"),
+        "campana_conflict": (fuentes or {}).get("campana_conflict", False),
+        "campana_conflict_years": (fuentes or {}).get("campana_conflict_years", []),
+        "campana_conflict_notice": (fuentes or {}).get("campana_conflict_notice"),
+        "campana_conflict_evidence": (fuentes or {}).get("campana_conflict_evidence", []),
         "quien_debe_presentarlo": quien_debe,
         "plazo_presentacion": plazo,
         "fuentes_recomendadas": (fuentes or {}).get("fuentes_oficiales", []),

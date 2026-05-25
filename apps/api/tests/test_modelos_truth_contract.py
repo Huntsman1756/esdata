@@ -433,6 +433,15 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
         "accesibilidad/declaracion-accesibilidad.html"
         not in urls
     )
+    data = response.json()
+    assert data["campana_activa"] == "2025"
+    assert data["campana_candidata"] is None
+    assert data["campana_conflict"] is True
+    assert data["campana_conflict_years"] == ["2025", "2026"]
+    assert any(
+        "2026" in item["years"]
+        for item in data["campana_conflict_evidence"]
+    ), data["campana_conflict_evidence"]
 
 
 @pytest.mark.asyncio
@@ -455,6 +464,15 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
         not in urls
     )
     assert any(item["tipo"] == "modelo_recurso:instrucciones" for item in artefactos)
+    data = response.json()
+    assert data["campana_activa"] == "2025"
+    assert data["campana_candidata"] is None
+    assert data["campana_conflict"] is True
+    assert data["campana_conflict_years"] == ["2025", "2026"]
+    assert any(
+        "2026" in item["years"]
+        for item in data["campana_conflict_evidence"]
+    ), data["campana_conflict_evidence"]
 
 
 @pytest.mark.asyncio
