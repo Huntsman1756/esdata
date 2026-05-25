@@ -26,7 +26,8 @@ RECOVERY_NOTE = "200 profile obligation recovered from unique source_revision ev
 
 
 def upgrade() -> None:
-    op.execute(
+    bind = op.get_bind()
+    bind.execute(
         sa.text(
             """
             WITH unique_revision AS (
@@ -80,7 +81,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
+    bind = op.get_bind()
+    bind.execute(
         sa.text(
             """
             UPDATE obligacion_perfil
