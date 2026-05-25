@@ -436,7 +436,7 @@ Checklist de salida:
 
 ### Issue MCP-DATA-08 - Reconciliar umbral global de perfiles como verified/fail-closed
 
-Estado local: IMPLEMENTED / PENDIENTE VPS. `docs/global-profile-threshold-audit-2026-05-25.md` inventaria los 8 perfiles productivos: todos quedan al 100% si el contrato cuenta solo `verified_with_evidence` o `fail_closed_explicit`, y `neither_state=0`.
+Estado VPS: IMPLEMENTED AS FAIL-CLOSED CONTRACT. Commit `440a833` hace pasar `mcp_validation_suite.py` (`ok=true`, `checks=133`, `failures=0`) y `mcp_deep_contract_audit.py` (`ok=true`, `checks=12`, `failures=0`). `docs/global-profile-threshold-audit-2026-05-25.md` inventaria los 8 perfiles productivos: todos quedan al 100% si el contrato cuenta solo `verified_with_evidence` o `fail_closed_explicit`, y `neither_state=0`.
 
 Impacto: bloquea `all_profiles_pct_verified_ge_70` y, por delegacion, `semantic_fail_closed_and_pagination_suite`.
 
@@ -457,4 +457,4 @@ Checklist de salida:
 - [x] Confirmar RED: suite y deep audit fallan solo por `all_profiles_pct_verified_ge_70`.
 - [x] Inventariar por perfil `verified_with_evidence`, `fail_closed_explicit` y `neither_state`.
 - [x] Cambiar el check a `all_profiles_pct_verified_or_fail_closed_ge_70`.
-- [ ] Reejecutar validacion local y VPS; confirmar suite y deep audit `ok=true`.
+- [x] Reejecutar validacion local y VPS; confirmar suite y deep audit `ok=true`.

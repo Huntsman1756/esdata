@@ -1,6 +1,6 @@
 # Global profile threshold audit - 2026-05-25
 
-Estado: COMPLETADO LOCAL / PENDIENTE VPS
+Estado: COMPLETADO VPS
 
 Alcance Ralph: reconciliar el ultimo fallo `all_profiles_pct_verified_ge_70` sin promover obligaciones ni usar el porcentaje como objetivo artificial.
 
@@ -63,3 +63,32 @@ El contrato correcto queda:
 - `mcp_validation_suite.py` pasa sin fallos por el contrato global reformulado.
 - `mcp_deep_contract_audit.py` pasa porque delega en la suite semantica.
 - El roadmap deja claro que el cierre es de contrato, no de recuperacion de evidencia primaria.
+
+## Validacion VPS
+
+Despliegue:
+
+- Commit `440a833` en `/srv/esdata` por `git pull --ff-only`.
+- Imagen `ops` reconstruida correctamente.
+- API y Postgres permanecen `healthy`; `/health` devuelve `status=ok`, `database=ok`.
+
+Suite principal:
+
+```text
+python scripts/maintenance/mcp_validation_suite.py --read-only --base-url http://api:8000
+# ok=true
+# checks=133
+# failures=0
+# all_profiles_pct_verified_or_fail_closed_ge_70: ok=true, value=0
+```
+
+Deep audit:
+
+```text
+python scripts/maintenance/mcp_deep_contract_audit.py --base-url http://api:8000
+# ok=true
+# checks=12
+# failures=0
+```
+
+Resultado: el ultimo fallo semantico queda cerrado sin mutar datos productivos ni promover verificaciones.
