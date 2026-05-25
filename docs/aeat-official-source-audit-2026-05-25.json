@@ -1,0 +1,4308 @@
+{
+  "summary": {
+    "audited_at": "2026-05-25",
+    "models_total": 217,
+    "models_with_fields": 68,
+    "resources_total_official_exported": 1116,
+    "unique_urls_fetched": 631,
+    "resources_checked_status_200": 904,
+    "findings_total": 126,
+    "findings_by_severity": {
+      "P3": 106,
+      "P1": 20
+    },
+    "findings_by_type": {
+      "old_active_campaign_no_fields": 106,
+      "old_active_campaign_with_fields": 20
+    }
+  },
+  "findings": [
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "001",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G304.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "004",
+      "campana": "2008",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ13.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "005",
+      "campana": "2021",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ17.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "006",
+      "campana": "2012",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G503.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "01C",
+      "campana": "2003",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G303.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "035",
+      "campana": "2021",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G333.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "039",
+      "campana": "2014",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ33.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "043",
+      "campana": "1997",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC09.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "044",
+      "campana": "1997",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC10.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "045",
+      "campana": "1997",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC11.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "111",
+      "campana": "2020",
+      "casillas": 63,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "113",
+      "campana": "2015",
+      "casillas": 89,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G614.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "115",
+      "campana": "2020",
+      "casillas": 37,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH02.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "117",
+      "campana": "2020",
+      "casillas": 43,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH03.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "121",
+      "campana": "2015",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G616.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "122",
+      "campana": "2015",
+      "casillas": 54,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G617.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "124",
+      "campana": "2013",
+      "casillas": 39,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH05.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "126",
+      "campana": "2013",
+      "casillas": 44,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH06.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "128",
+      "campana": "2013",
+      "casillas": 39,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH07.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "136",
+      "campana": "2018",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH09.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "140",
+      "campana": "2006",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ25.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "143",
+      "campana": "2006",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G613.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "145",
+      "campana": "2015",
+      "casillas": 59,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G603.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "146",
+      "campana": "2015",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G604.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "147",
+      "campana": "2015",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G605.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "149",
+      "campana": "2015",
+      "casillas": 91,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G606.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "150",
+      "campana": "2015",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G607.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "151",
+      "campana": "2023",
+      "casillas": 110,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G615.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "186",
+      "campana": "2003",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI06.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "210",
+      "campana": "2019",
+      "casillas": 167,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "211",
+      "campana": "2023",
+      "casillas": 314,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "213",
+      "campana": "2023",
+      "casillas": 294,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF03.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "217",
+      "campana": "1922",
+      "casillas": 106,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE06.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "221",
+      "campana": "2017",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE07.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "226",
+      "campana": "2015",
+      "casillas": 96,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF08.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "228",
+      "campana": "2015",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF07.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "230",
+      "campana": "2013",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G235.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "231",
+      "campana": "2020",
+      "casillas": 59,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI41.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "232",
+      "campana": "2023",
+      "casillas": 223,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI43.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "234",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI46.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "235",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI47.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "236",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI48.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "237",
+      "campana": "2021",
+      "casillas": 42,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE08.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "247",
+      "campana": "2003",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF06.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P1",
+      "type": "old_active_campaign_with_fields",
+      "codigo": "282",
+      "campana": "2019",
+      "casillas": 57,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI40.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "308",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G403.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "309",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G404.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "318",
+      "campana": "2019",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G419.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "341",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ10.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "360",
+      "campana": "2016",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ09.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "364",
+      "campana": "2008",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ86.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "365",
+      "campana": "2008",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ87.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "368",
+      "campana": "2015",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G330.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "369",
+      "campana": "2021",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G420.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "380",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DB06.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "381",
+      "campana": "2008",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ92.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "410",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH10.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "411",
+      "campana": "2015",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC38.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "480",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC04.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "490",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC45.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "504",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN05.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "506",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "507",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ02.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "508",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ03.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "510",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "512",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DE03.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "515",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DE04.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "518",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DG01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "521",
+      "campana": "2010",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF13.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "522",
+      "campana": "2010",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF12.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "523",
+      "campana": "2005",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "524",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ04.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "544",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DH01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "545",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ05.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "546",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ06.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "547",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DH02.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "548",
+      "campana": "2013",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF15.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "559",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "560",
+      "campana": "2021",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI02.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "561",
+      "campana": "2013",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI03.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "562",
+      "campana": "2013",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI04.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "563",
+      "campana": "2013",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI05.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "566",
+      "campana": "2013",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI07.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "568",
+      "campana": "2009",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G501.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "571",
+      "campana": "2005",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN02.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "572",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ07.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "576",
+      "campana": "2007",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G502.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "581",
+      "campana": "2019",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI06.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "583",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR01.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "584",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR02.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "585",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR03.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "586",
+      "campana": "2018",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR08.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "587",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR10.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "589",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR13.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "591",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR12.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "592",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR14.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "593",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR15.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "595",
+      "campana": "2006",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI09.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "596",
+      "campana": "2006",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF10.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "600",
+      "campana": "1927",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC12.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "602",
+      "campana": "1997",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC43.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "650",
+      "campana": "2009",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G702.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "651",
+      "campana": "2009",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G703.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "655",
+      "campana": "2009",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G704.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "681",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC13.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "682",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC14.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "683",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC15.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "684",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC16.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "685",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC17.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "695",
+      "campana": "1997",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC26.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "696",
+      "campana": "1997",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC07.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "720",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI34.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "763",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC18.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "770",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC41.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "771",
+      "campana": "2020",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC42.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "791",
+      "campana": "1998",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/B201.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "792",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC59.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "793",
+      "campana": "2023",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC60.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "795",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC55.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "796",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC56.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "797",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC57.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "798",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC58.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "840",
+      "campana": "2003",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G323.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "952",
+      "campana": "1992",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G416.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "A22",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR20.shtml",
+      "page_updated": null
+    },
+    {
+      "severity": "P3",
+      "type": "old_active_campaign_no_fields",
+      "codigo": "A23",
+      "campana": "2022",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR19.shtml",
+      "page_updated": null
+    }
+  ],
+  "models": [
+    {
+      "codigo": "001",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G304.shtml",
+      "nombre": "Agencia Tributaria  Certificados tributarios. Expedición de certificados tributarios. Estar al corriente de obligacio..."
+    },
+    {
+      "codigo": "004",
+      "campana": "2008",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ13.shtml",
+      "nombre": "Agencia Tributaria  Reconocimiento del derecho al tipo reducido de IVA del 4% en las operaciones relativas a vehículo..."
+    },
+    {
+      "codigo": "005",
+      "campana": "2021",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ17.shtml",
+      "nombre": "Agencia Tributaria  Modelo 05. Reconocimiento previo de determinados supuestos de no sujeción, exención o reducción e..."
+    },
+    {
+      "codigo": "006",
+      "campana": "2012",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G503.shtml",
+      "nombre": "Agencia Tributaria  Modelo 06. Impuesto Especial sobre determinados medios de transporte. Exenciones y no sujeción si..."
+    },
+    {
+      "codigo": "01C",
+      "campana": "2003",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G303.shtml",
+      "nombre": "Agencia Tributaria  Certificados tributarios. Expedición de certificados tributarios. Contratistas y subcontratistas."
+    },
+    {
+      "codigo": "030",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G321.shtml",
+      "nombre": "Agencia Tributaria  Modelo 030. Censo de obligados tributarios Declaración censal de alta, cambio de domicilio y/o de..."
+    },
+    {
+      "codigo": "035",
+      "campana": "2021",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G333.shtml",
+      "nombre": "Agencia Tributaria  Formulario 035. Registro Censal de los regímenes especiales aplicables a las prestaciones de serv..."
+    },
+    {
+      "codigo": "036",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G322.shtml",
+      "nombre": "Agencia Tributaria  Modelo 036. Censo de empresarios, profesionales y retenedores   Declaración censal de alta, modif..."
+    },
+    {
+      "codigo": "038",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI29.shtml",
+      "nombre": "Agencia Tributaria  Modelo 038. Declaración Informativa. Relación de operaciones realizadas por entidades inscritas e..."
+    },
+    {
+      "codigo": "039",
+      "campana": "2014",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ33.shtml",
+      "nombre": "Agencia Tributaria  Comprobación censal del régimen especial del grupo de entidades en el IVA."
+    },
+    {
+      "codigo": "040",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G335.shtml",
+      "nombre": "Agencia Tributaria  Modelo 040. Registros de Operadores de Plataforma."
+    },
+    {
+      "codigo": "043",
+      "campana": "1997",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 3,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC09.shtml",
+      "nombre": "Agencia Tributaria  Modelo 043. Tasa fiscal sobre el juego. Salas de bingo. Solicitud liquidación."
+    },
+    {
+      "codigo": "044",
+      "campana": "1997",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 3,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC10.shtml",
+      "nombre": "Agencia Tributaria  Modelo 044. Tasa fiscal sobre el juego. Casas de juego."
+    },
+    {
+      "codigo": "045",
+      "campana": "1997",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 3,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC11.shtml",
+      "nombre": "Agencia Tributaria  Modelo 045. Tasa fiscal sobre el juego. Máquinas o aparatos automáticos. Declaración liquidación."
+    },
+    {
+      "codigo": "100",
+      "campana": "2025",
+      "casillas": 2521,
+      "claves": 0,
+      "instrucciones": 4,
+      "recursos": 9,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G229.shtml",
+      "nombre": "Agencia Tributaria  Modelo 100. Impuesto sobre la Renta de las Personas Físicas. Declaración anual."
+    },
+    {
+      "codigo": "102",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-100-mode-declaracion-documentos-devolucion_/descarga-modelo-102.html",
+      "nombre": "Modelo 102. IRPF. Segundo plazo del fraccionamiento de la declaracion anual."
+    },
+    {
+      "codigo": "111",
+      "campana": "2020",
+      "casillas": 63,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 111. Retenciones e ingresos a cuenta. Rendimientos del trabajo y de actividades económicas..."
+    },
+    {
+      "codigo": "113",
+      "campana": "2015",
+      "casillas": 89,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G614.shtml",
+      "nombre": "Agencia Tributaria  Modelo 113. Comunicación de datos relativos a las ganancias patrimoniales por cambio de residenc..."
+    },
+    {
+      "codigo": "115",
+      "campana": "2020",
+      "casillas": 37,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 115. Retenciones e ingresos a cuenta. Rentas o rendimientos procedentes del arrendamiento ..."
+    },
+    {
+      "codigo": "117",
+      "campana": "2020",
+      "casillas": 43,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 117. Retenciones e ingresos a cuenta en Impuesto sobre la renta de las personas físicas, I..."
+    },
+    {
+      "codigo": "121",
+      "campana": "2015",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G616.shtml",
+      "nombre": "Agencia Tributaria  Modelo 121. IRPF. Deducciones por familia numerosa o por personas con discapacidad a cargo. Comun..."
+    },
+    {
+      "codigo": "122",
+      "campana": "2015",
+      "casillas": 54,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G617.shtml",
+      "nombre": "Agencia Tributaria  Modelo 122. IRPF. Deducciones por familia numerosa, por personas con discapacidad a cargo o por a..."
+    },
+    {
+      "codigo": "123",
+      "campana": "2024",
+      "casillas": 44,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH04.shtml",
+      "nombre": "Agencia Tributaria  Modelo 123. Retenciones e ingresos a cuenta del Impuesto sobre la Renta de las Personas Físicas, ..."
+    },
+    {
+      "codigo": "124",
+      "campana": "2013",
+      "casillas": 39,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH05.shtml",
+      "nombre": "Agencia Tributaria  Modelo 124. Retenciones e ingresos a cuenta. Rentas y rendimientos del capital mobiliario derivad..."
+    },
+    {
+      "codigo": "126",
+      "campana": "2013",
+      "casillas": 44,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 126. Retenciones e ingresos a cuenta. Rendimientos del capital mobiliario obtenidos por la..."
+    },
+    {
+      "codigo": "128",
+      "campana": "2013",
+      "casillas": 39,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 128. Retenciones e ingresos a cuenta. Rentas o rendimientos del capital mobiliario procede..."
+    },
+    {
+      "codigo": "130",
+      "campana": "2026",
+      "casillas": 51,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G601.shtml",
+      "nombre": "Agencia Tributaria  Modelo 130. IRPF. Empresarios y profesionales en Estimación Directa. Pago fraccionado."
+    },
+    {
+      "codigo": "131",
+      "campana": "2026",
+      "casillas": 162,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G602.shtml",
+      "nombre": "Agencia Tributaria  Modelo 131. IRPF. Empresarios y profesionales en Estimación Objetiva. Pago fraccionado."
+    },
+    {
+      "codigo": "136",
+      "campana": "2018",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH09.shtml",
+      "nombre": "Agencia Tributaria  Modelo 136. Impuesto sobre la Renta de las Personas Físicas e Impuesto sobre la Renta de no Resid..."
+    },
+    {
+      "codigo": "140",
+      "campana": "2006",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ25.shtml",
+      "nombre": "Agencia Tributaria  Modelo 140. IRPF. Deducción por maternidad. Solicitud del abono anticipado y comunicación de vari..."
+    },
+    {
+      "codigo": "143",
+      "campana": "2006",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G613.shtml",
+      "nombre": "Agencia Tributaria  Modelo 143. IRPF. Abono anticipado deducción de familia numerosa, por ascendiente con dos hijos o..."
+    },
+    {
+      "codigo": "145",
+      "campana": "2015",
+      "casillas": 59,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G603.shtml",
+      "nombre": "Agencia Tributaria  Modelo 145. Retenciones sobre rendimientos del trabajo. Comunicación de datos al pagador."
+    },
+    {
+      "codigo": "146",
+      "campana": "2015",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G604.shtml",
+      "nombre": "Agencia Tributaria  Modelo 146. IRPF. Pensionistas con dos o más pagadores. Solicitud de determinación del importe de..."
+    },
+    {
+      "codigo": "147",
+      "campana": "2015",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G605.shtml",
+      "nombre": "Agencia Tributaria  Modelo 147. IRPF. Comunicación del desplazamiento a territorio español efectuado por trabajadores..."
+    },
+    {
+      "codigo": "149",
+      "campana": "2015",
+      "casillas": 91,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G606.shtml",
+      "nombre": "Agencia Tributaria  Modelo 149. IRPF. Régimen especial aplicable a los trabajadores, profesionales, emprendedores e i..."
+    },
+    {
+      "codigo": "150",
+      "campana": "2015",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G607.shtml",
+      "nombre": "Agencia Tributaria  Modelo 150. IRPF. Régimen especial aplicable a los trabajadores desplazados a territorio español...."
+    },
+    {
+      "codigo": "151",
+      "campana": "2023",
+      "casillas": 110,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G615.shtml",
+      "nombre": "Agencia Tributaria  Modelo 151. Régimen especial aplicable a los trabajadores, profesionales, emprendedores e inverso..."
+    },
+    {
+      "codigo": "156",
+      "campana": "2025",
+      "casillas": 27,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G608.shtml",
+      "nombre": "Agencia Tributaria  Modelo 156. Declaración Informativa. Cotizaciones de afiliados y mutualidades a efectos de la ded..."
+    },
+    {
+      "codigo": "159",
+      "campana": "2025",
+      "casillas": 94,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI31.shtml",
+      "nombre": "Agencia Tributaria  Modelo 159. Declaración Informativa. Declaración anual de consumo de energía eléctrica."
+    },
+    {
+      "codigo": "165",
+      "campana": "2025",
+      "casillas": 38,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI35.shtml",
+      "nombre": "Agencia Tributaria  Modelo 165. Declaración Informativa de certificaciones individuales emitidas a los socios o partí..."
+    },
+    {
+      "codigo": "170",
+      "campana": "2026",
+      "casillas": 31,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI32.shtml",
+      "nombre": "Agencia Tributaria  Modelo 170. Declaración mensual de operaciones realizadas por los empresarios o profesionales ad..."
+    },
+    {
+      "codigo": "171",
+      "campana": "2025",
+      "casillas": 28,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI33.shtml",
+      "nombre": "Agencia Tributaria  Modelo 171. Declaración Informativa. Declaración anual de imposiciones, disposiciones de fondos y..."
+    },
+    {
+      "codigo": "172",
+      "campana": "2025",
+      "casillas": 35,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 8,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI53.shtml",
+      "nombre": "Modelo 172. Declaracion informativa sobre saldos en monedas virtuales."
+    },
+    {
+      "codigo": "173",
+      "campana": "2025",
+      "casillas": 45,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 8,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI54.shtml",
+      "nombre": "Modelo 173. Declaracion informativa sobre operaciones con monedas virtuales."
+    },
+    {
+      "codigo": "179",
+      "campana": "2024",
+      "casillas": 47,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI44.shtml",
+      "nombre": "Agencia Tributaria  Modelo 179. Declaración informativa anual de la cesión de uso de viviendas con fines turísticos"
+    },
+    {
+      "codigo": "180",
+      "campana": "2025",
+      "casillas": 39,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI00.shtml",
+      "nombre": "Agencia Tributaria  Modelo 180. Declaración Informativa. Retenciones e ingresos a cuenta. Rendimientos procedentes d..."
+    },
+    {
+      "codigo": "181",
+      "campana": "2025",
+      "casillas": 69,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 181. Declaración Informativa. Préstamos y créditos, y operaciones financieras relacionadas..."
+    },
+    {
+      "codigo": "182",
+      "campana": "2025",
+      "casillas": 36,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 182. Declaración Informativa. Donativos, donaciones y aportaciones recibidas."
+    },
+    {
+      "codigo": "184",
+      "campana": "2025",
+      "casillas": 86,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI04.shtml",
+      "nombre": "Agencia Tributaria  Modelo 184. Declaración Informativa. Entidades en régimen de atribución de rentas. Declaración an..."
+    },
+    {
+      "codigo": "185",
+      "campana": "2026",
+      "casillas": 31,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI05.shtml",
+      "nombre": "Agencia Tributaria  Modelo 185. Declaración Informativa. Declaración informativa mensual de los órganos y entidades g..."
+    },
+    {
+      "codigo": "186",
+      "campana": "2003",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 186. Declaración Informativa. Suministro de información relativa a nacimientos y defuncion..."
+    },
+    {
+      "codigo": "187",
+      "campana": "2025",
+      "casillas": 50,
+      "claves": 28,
+      "instrucciones": 5,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 187. Declaración Informativa. Acciones y participaciones representativas del capital o del..."
+    },
+    {
+      "codigo": "188",
+      "campana": "2025",
+      "casillas": 40,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI08.shtml",
+      "nombre": "Agencia Tributaria  Modelo 188. Declaración Informativa. Retenciones e ingresos a cuenta. Rentas o rendimientos del c..."
+    },
+    {
+      "codigo": "189",
+      "campana": "2025",
+      "casillas": 36,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI09.shtml",
+      "nombre": "Agencia Tributaria  Modelo 189. Declaración Informativa. Valores, seguros y rentas. Declaración anual."
+    },
+    {
+      "codigo": "190",
+      "campana": "2025",
+      "casillas": 72,
+      "claves": 4,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI10.shtml",
+      "nombre": "Agencia Tributaria  Modelo 190. Declaración Informativa. Retenciones e ingresos a cuenta. Rendimientos del trabajo y ..."
+    },
+    {
+      "codigo": "192",
+      "campana": "2025",
+      "casillas": 38,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI11.shtml",
+      "nombre": "Agencia Tributaria  Modelo 192. Declaración Informativa. Operaciones con Letras del Tesoro. Declaración anual."
+    },
+    {
+      "codigo": "193",
+      "campana": "2025",
+      "casillas": 71,
+      "claves": 38,
+      "instrucciones": 5,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI12.shtml",
+      "nombre": "Agencia Tributaria  Modelo 193. Declaración Informativa. Retenciones e ingresos a cuenta del IRPF sobre determinados ..."
+    },
+    {
+      "codigo": "194",
+      "campana": "2025",
+      "casillas": 46,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI13.shtml",
+      "nombre": "Agencia Tributaria  Modelo 194. Declaración Informativa. Retenciones e ingresos a cuenta del IRPF, IS e IRNR (estable..."
+    },
+    {
+      "codigo": "195",
+      "campana": "2026",
+      "casillas": 27,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI14.shtml",
+      "nombre": "Agencia Tributaria  Modelo 195. Declaración Informativa. Declaración trimestral de cuentas u operaciones cuyos titula..."
+    },
+    {
+      "codigo": "196",
+      "campana": "2026",
+      "casillas": 62,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI15.shtml",
+      "nombre": "Agencia Tributaria  Modelo 196. Declaración Informativa mensual de cuentas en toda clase de instituciones financieras..."
+    },
+    {
+      "codigo": "198",
+      "campana": "2025",
+      "casillas": 72,
+      "claves": 46,
+      "instrucciones": 7,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI17.shtml",
+      "nombre": "Agencia Tributaria  Modelo 198. Declaración Informativa. Declaración anual de operaciones con activos financieros y o..."
+    },
+    {
+      "codigo": "199",
+      "campana": "2025",
+      "casillas": 28,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI18.shtml",
+      "nombre": "Agencia Tributaria  Modelo 199. Declaración Informativa. Declaración anual de identificación de las operaciones con c..."
+    },
+    {
+      "codigo": "200",
+      "campana": "2024",
+      "casillas": 6807,
+      "claves": 0,
+      "instrucciones": 5,
+      "recursos": 8,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml",
+      "nombre": "Agencia Tributaria  Modelo 200. IS. Impuesto sobre Sociedades e Impuesto sobre la Renta de no Residentes. Documentos ..."
+    },
+    {
+      "codigo": "202",
+      "campana": "2026",
+      "casillas": 118,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 8,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE00.shtml",
+      "nombre": "Agencia Tributaria  Modelo 202. IS. Impuesto sobre Sociedades e Impuesto sobre la Renta de no Residentes (establecimi..."
+    },
+    {
+      "codigo": "206",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml",
+      "nombre": "Modelo 206. IS/IRNR. Documento de ingreso o devolucion. (Modelo 200 y 206)."
+    },
+    {
+      "codigo": "210",
+      "campana": "2019",
+      "casillas": 167,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml",
+      "nombre": "Agencia Tributaria  Modelo 210. IRNR. Impuesto sobre la Renta de no Residentes sin establecimiento permanente."
+    },
+    {
+      "codigo": "211",
+      "campana": "2023",
+      "casillas": 314,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 211. IRNR. Impuesto sobre la Renta de no Residentes. Retención en la adquisición de bienes..."
+    },
+    {
+      "codigo": "213",
+      "campana": "2023",
+      "casillas": 294,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 213. IRNR. Gravamen especial sobre bienes inmuebles de entidades no residentes."
+    },
+    {
+      "codigo": "216",
+      "campana": "2024",
+      "casillas": 47,
+      "claves": 5,
+      "instrucciones": 6,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF05.shtml",
+      "nombre": "Agencia Tributaria  Modelo 216. IRNR. Impuesto sobre la Renta de no Residentes. Rentas obtenidas sin mediación de est..."
+    },
+    {
+      "codigo": "217",
+      "campana": "1922",
+      "casillas": 106,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 217. Gravamen especial SOCIMI"
+    },
+    {
+      "codigo": "220",
+      "campana": "2024",
+      "casillas": 16723,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 220. IS. Régimen de consolidación fiscal. Documento de ingreso o devolución."
+    },
+    {
+      "codigo": "221",
+      "campana": "2017",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 221. Prestación patrimonial por conversión de activos por impuesto diferido en crédito exi..."
+    },
+    {
+      "codigo": "222",
+      "campana": "2026",
+      "casillas": 137,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 8,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 222. IS. Régimen de consolidación fiscal. Pago fraccionado."
+    },
+    {
+      "codigo": "226",
+      "campana": "2015",
+      "casillas": 96,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF08.shtml",
+      "nombre": "Agencia Tributaria  Modelo 226. Solicitud de aplicación del régimen opcional para contribuyentes personas físicas res..."
+    },
+    {
+      "codigo": "228",
+      "campana": "2015",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 228. Solicitud de devolución por exención por reinversión en vivienda habitual para contri..."
+    },
+    {
+      "codigo": "230",
+      "campana": "2013",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G235.shtml",
+      "nombre": "Agencia Tributaria  Modelo 230. Impuesto sobre la Renta de las Personas Físicas e Impuesto sobre la Renta de No Resid..."
+    },
+    {
+      "codigo": "231",
+      "campana": "2020",
+      "casillas": 59,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI41.shtml",
+      "nombre": "Agencia Tributaria  Modelo 231. Declaración Informativa. Declaración de información país por país (CBC/DAC4)"
+    },
+    {
+      "codigo": "232",
+      "campana": "2023",
+      "casillas": 223,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI43.shtml",
+      "nombre": "Agencia Tributaria  Modelo 232. Declaración informativa de operaciones vinculadas y de operaciones y situaciones rela..."
+    },
+    {
+      "codigo": "233",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI45.shtml",
+      "nombre": "Agencia Tributaria  Modelo 233. Declaración informativa por gastos en guarderías o centros de educación infantil auto..."
+    },
+    {
+      "codigo": "234",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI46.shtml",
+      "nombre": "Agencia Tributaria  Modelo 234. Declaración informativa de mecanismos transfronterizos"
+    },
+    {
+      "codigo": "235",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI47.shtml",
+      "nombre": "Agencia Tributaria  Modelo 235 Declaración de información de actualización de mecanismos transfronterizos comercializ..."
+    },
+    {
+      "codigo": "236",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI48.shtml",
+      "nombre": "Agencia Tributaria  Modelo 236 Declaración de información de la utilización de determinados mecanismos transfronteriz..."
+    },
+    {
+      "codigo": "237",
+      "campana": "2021",
+      "casillas": 42,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE08.shtml",
+      "nombre": "Agencia Tributaria  Modelo 237. Gravamen especial sobre beneficios no distribuidos por SOCIMI."
+    },
+    {
+      "codigo": "238",
+      "campana": "2024",
+      "casillas": 153,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI52.shtml",
+      "nombre": "Agencia Tributaria  Modelo 238. Declaración informativa para la comunicación de información por parte de operadores ..."
+    },
+    {
+      "codigo": "239",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI57.shtml",
+      "nombre": "Agencia Tributaria  Modelo 239. Declaración informativa de mecanismos de planificación fiscal en el ámbito del AMAC..."
+    },
+    {
+      "codigo": "240",
+      "campana": "2024",
+      "casillas": 36,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 8,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI60.shtml",
+      "nombre": "Agencia Tributaria  Modelo 240. Comunicación de la entidad constitutiva declarante de la declaración informativa del ..."
+    },
+    {
+      "codigo": "241",
+      "campana": "2024",
+      "casillas": 403,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI59.shtml",
+      "nombre": "Agencia Tributaria  Modelo 241. Declaración informativa del Impuesto Complementario por parte de grupos multinacional..."
+    },
+    {
+      "codigo": "242",
+      "campana": "2026",
+      "casillas": 84,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE09.shtml",
+      "nombre": "Agencia Tributaria  Modelo 242. Autoliquidación del Impuesto Complementario"
+    },
+    {
+      "codigo": "247",
+      "campana": "2003",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 247. IRNR. Impuesto sobre la Renta de no Residentes. Comunicación del desplazamiento al ex..."
+    },
+    {
+      "codigo": "270",
+      "campana": "2025",
+      "casillas": 37,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI36.shtml",
+      "nombre": "Agencia Tributaria  Modelo 270. Resumen anual de retenciones e ingresos a cuenta del gravamen especial sobre los prem..."
+    },
+    {
+      "codigo": "280",
+      "campana": "2025",
+      "casillas": 44,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI39.shtml",
+      "nombre": "Agencia Tributaria  Modelo 280. Declaración informativa anual de Planes de Ahorro a Largo Plazo."
+    },
+    {
+      "codigo": "281",
+      "campana": "2026",
+      "casillas": 22,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI56.shtml",
+      "nombre": "Agencia Tributaria  Modelo 281. Declaración informativa trimestral de operaciones de comercio de bienes corporales re..."
+    },
+    {
+      "codigo": "282",
+      "campana": "2019",
+      "casillas": 57,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI40.shtml",
+      "nombre": "Agencia Tributaria  Modelo 282. Declaración informativa anual de ayudas recibidas en el marco del REF de Canarias y o..."
+    },
+    {
+      "codigo": "283",
+      "campana": "2025",
+      "casillas": 19,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI58.shtml",
+      "nombre": "Agencia Tributaria  Modelo 283. Declaración informativa anual de ayudas recibidas en el marco del Régimen Fiscal Es..."
+    },
+    {
+      "codigo": "289",
+      "campana": "2025",
+      "casillas": 161,
+      "claves": 0,
+      "instrucciones": 5,
+      "recursos": 12,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI42.shtml",
+      "nombre": "Agencia Tributaria  Modelo 289. Declaración informativa anual de cuentas financieras en el ámbito de la asistencia mu..."
+    },
+    {
+      "codigo": "290",
+      "campana": "2025",
+      "casillas": 152,
+      "claves": 7,
+      "instrucciones": 7,
+      "recursos": 18,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
+      "nombre": "Modelo 290. Declaracion informativa anual de cuentas financieras de determinadas personas estadounidenses (FATCA)."
+    },
+    {
+      "codigo": "291",
+      "campana": "2025",
+      "casillas": 50,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI19.shtml",
+      "nombre": "Agencia Tributaria  Modelo 291. Declaración Informativa. Impuesto sobre la Renta de no Residentes. Cuentas de no resi..."
+    },
+    {
+      "codigo": "294",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI20.shtml",
+      "nombre": "Agencia Tributaria  Modelo 294. Declaración Informativa. Relación individualizada de los clientes perceptores de bene..."
+    },
+    {
+      "codigo": "295",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI21.shtml",
+      "nombre": "Agencia Tributaria  Modelo 295. Declaración Informativa. Relación anual individualizada de los clientes con la posici..."
+    },
+    {
+      "codigo": "296",
+      "campana": "2025",
+      "casillas": 124,
+      "claves": 35,
+      "instrucciones": 8,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI22.shtml",
+      "nombre": "Agencia Tributaria  Modelo 296. Declaración Informativa. Retenciones e ingresos a cuenta del Impuesto sobre la Renta ..."
+    },
+    {
+      "codigo": "303",
+      "campana": "2026",
+      "casillas": 432,
+      "claves": 0,
+      "instrucciones": 5,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G414.shtml",
+      "nombre": "Agencia Tributaria  Modelo 303. IVA. Autoliquidación."
+    },
+    {
+      "codigo": "308",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G403.shtml",
+      "nombre": "Agencia Tributaria  Modelo 308. IVA. Régimen Especial del Recargo Equivalencia, artículo 30 bis del Reglamento del IV..."
+    },
+    {
+      "codigo": "309",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G404.shtml",
+      "nombre": "Agencia Tributaria  Modelo 309. IVA. Declaración   Liquidación no periódica."
+    },
+    {
+      "codigo": "318",
+      "campana": "2019",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G419.shtml",
+      "nombre": "Agencia Tributaria  Modelo 318. Regularización de las proporciones de tributación de los períodos de liquidación ante..."
+    },
+    {
+      "codigo": "319",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC68.shtml",
+      "nombre": "Agencia Tributaria  Modelo 319. Pago a cuenta del IVA correspondiente a las entregas de gasolinas, gasóleos y biocar..."
+    },
+    {
+      "codigo": "322",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G407.shtml",
+      "nombre": "Agencia Tributaria  Modelo 322. IVA. Grupos de entidades. Modelo individual. Autoliquidación mensual."
+    },
+    {
+      "codigo": "341",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ10.shtml",
+      "nombre": "Agencia Tributaria  Modelo 341. IVA. Reintegro de compensaciones en el régimen especial de agricultura, ganadería y p..."
+    },
+    {
+      "codigo": "345",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI25.shtml",
+      "nombre": "Agencia Tributaria  Modelo 345. Declaración Informativa. Planes, fondos de pensiones y sistemas alternativos. Mutuali..."
+    },
+    {
+      "codigo": "346",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI26.shtml",
+      "nombre": "Agencia Tributaria  Modelo 346. Declaración Informativa. Subvenciones e indemnizaciones satisfechas por Entidades Púb..."
+    },
+    {
+      "codigo": "347",
+      "campana": "2025",
+      "casillas": 16,
+      "claves": 0,
+      "instrucciones": 3,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI27.shtml",
+      "nombre": "Agencia Tributaria  Modelo 347. Declaración Informativa. Declaración anual de operaciones con terceras personas."
+    },
+    {
+      "codigo": "349",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI28.shtml",
+      "nombre": "Agencia Tributaria  Modelo 349. Declaración Informativa. Declaración recapitulativa de operaciones intracomunitarias."
+    },
+    {
+      "codigo": "353",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G408.shtml",
+      "nombre": "Agencia Tributaria  Modelo 353. IVA. Grupo de entidades. Modelo agregado. Autoliquidación mensual."
+    },
+    {
+      "codigo": "360",
+      "campana": "2016",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ09.shtml",
+      "nombre": "Agencia Tributaria  Modelo 360 Modelo 361. IVA. Gestión de devoluciones a empresarios o profesionales no establecidos..."
+    },
+    {
+      "codigo": "364",
+      "campana": "2008",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ86.shtml",
+      "nombre": "Agencia Tributaria  Modelo 364. Impuesto sobre el Valor Añadido. Solicitud de reembolso de las cuotas tributarias sop..."
+    },
+    {
+      "codigo": "365",
+      "campana": "2008",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ87.shtml",
+      "nombre": "Agencia Tributaria  Modelo 365. Impuesto sobre el Valor Añadido. Solicitud de reconocimiento previo de las exenciones..."
+    },
+    {
+      "codigo": "368",
+      "campana": "2015",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G330.shtml",
+      "nombre": "Agencia Tributaria  Modelo 368. Declaración de IVA de los regímenes especiales de servicios de telecomunicaciones, de..."
+    },
+    {
+      "codigo": "369",
+      "campana": "2021",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G420.shtml",
+      "nombre": "Agencia Tributaria  Modelo 369. Declaraciones de IVA del régimen One Stop Shop (OSS)"
+    },
+    {
+      "codigo": "379",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI51.shtml",
+      "nombre": "Agencia Tributaria  Modelo 379. Declaración informativa sobre pagos transfronterizos"
+    },
+    {
+      "codigo": "380",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DB06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 380. IVA. Operaciones asimiladas a las importaciones"
+    },
+    {
+      "codigo": "381",
+      "campana": "2008",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ92.shtml",
+      "nombre": "Agencia Tributaria  Modelo 381. IVA. Solicitud de reembolso de las cuotas tributarias relativas a las Fuerzas Armada..."
+    },
+    {
+      "codigo": "390",
+      "campana": "2025",
+      "casillas": 24,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G412.shtml",
+      "nombre": "Agencia Tributaria  Modelo 390. IVA. Declaración Resumen Anual."
+    },
+    {
+      "codigo": "410",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH10.shtml",
+      "nombre": "Agencia Tributaria  Modelo 410. Pago a cuenta del Impuesto sobre los Depósitos de las Entidades de Crédito."
+    },
+    {
+      "codigo": "411",
+      "campana": "2015",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC38.shtml",
+      "nombre": "Agencia Tributaria  Modelo 411. Impuesto sobre los Depósitos en las Entidades de Crédito"
+    },
+    {
+      "codigo": "430",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 430. Primas de seguros. Declaración liquidación"
+    },
+    {
+      "codigo": "480",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 7,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC04.shtml",
+      "nombre": "Agencia Tributaria  Modelo 480. Primas de seguros. Declaración Resumen anual."
+    },
+    {
+      "codigo": "490",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC45.shtml",
+      "nombre": "Agencia Tributaria  Modelo 490. Impuesto sobre Determinados Servicios Digitales. Autoliquidación"
+    },
+    {
+      "codigo": "504",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN05.shtml",
+      "nombre": "Agencia Tributaria  II. EE. Modelo 504/505. Recepción de productos sujetos a Impuestos Especiales procedentes de la U..."
+    },
+    {
+      "codigo": "506",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 506. II. EE. Solicitud de devolución por introducción en depósito fiscal."
+    },
+    {
+      "codigo": "507",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 507. II. EE. Solicitud de devolución en el sistema de envíos garantizados."
+    },
+    {
+      "codigo": "508",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 508. II. EE. Solicitud de devolución por el sistema de ventas a distancia."
+    },
+    {
+      "codigo": "510",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 510. II. EE. Declaración de operaciones de recepción del resto de la UE."
+    },
+    {
+      "codigo": "512",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DE03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 512. II. EE. Destinatarios de productos de tarifa segunda."
+    },
+    {
+      "codigo": "515",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DE04.shtml",
+      "nombre": "Agencia Tributaria  Modelos 515 y 517. II. EE. Petición de marcas fiscales a la Oficina Gestora de Impuestos Especial..."
+    },
+    {
+      "codigo": "518",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DG01.shtml",
+      "nombre": "Agencia Tributaria  Modelos 518/519/520. II. EE. Declaraciones de trabajo."
+    },
+    {
+      "codigo": "521",
+      "campana": "2010",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF13.shtml",
+      "nombre": "Agencia Tributaria  Modelo 521. II. EE. Relación trimestral de primeras materias entregadas."
+    },
+    {
+      "codigo": "522",
+      "campana": "2010",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF12.shtml",
+      "nombre": "Agencia Tributaria  Modelo 522. II. EE. Parte trimestral de productos a que se refiere el artículo 108 ter del Reglam..."
+    },
+    {
+      "codigo": "523",
+      "campana": "2005",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN01.shtml",
+      "nombre": "Agencia Tributaria  II. EE. Modelo 523. Aplicación del beneficio de devolución de los IIEE sobre el alcohol y bebidas..."
+    },
+    {
+      "codigo": "524",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ04.shtml",
+      "nombre": "Agencia Tributaria  Modelo 524. II. EE. Solicitud de devolución sobre el alcohol y las bebidas alcohólicas."
+    },
+    {
+      "codigo": "544",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DH01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 544. II. EE. Pagos efectuados mediante cheque o tarjetas de gasóleo bonificado."
+    },
+    {
+      "codigo": "545",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ05.shtml",
+      "nombre": "Agencia Tributaria  Modelo 545. II. EE. Suministros de carburantes para relaciones internacionales con devolución del..."
+    },
+    {
+      "codigo": "546",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 546. II. EE. Avituallamiento de gasóleo a embarcaciones con derecho a la devolución del im..."
+    },
+    {
+      "codigo": "547",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DH02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 547. II. EE. Relación de abonos realizados a detallistas de gasóleo bonificado."
+    },
+    {
+      "codigo": "548",
+      "campana": "2013",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF15.shtml",
+      "nombre": "Agencia Tributaria  Modelo 548. Declaración informativa de cuotas repercutidas."
+    },
+    {
+      "codigo": "553",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 553. II. EE. Declaración de operaciones en fábricas y depósitos de vino y bebidas fermenta..."
+    },
+    {
+      "codigo": "559",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 559. II. EE. Impuesto sobre el alcohol y bebidas derivadas. Regímenes de destilación artes..."
+    },
+    {
+      "codigo": "560",
+      "campana": "2021",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 560. II. EE. Impuesto sobre la electricidad."
+    },
+    {
+      "codigo": "561",
+      "campana": "2013",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 561. II. EE. Impuesto sobre la cerveza."
+    },
+    {
+      "codigo": "562",
+      "campana": "2013",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI04.shtml",
+      "nombre": "Agencia Tributaria  Modelo 562. II. EE. Impuesto sobre productos intermedios."
+    },
+    {
+      "codigo": "563",
+      "campana": "2013",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI05.shtml",
+      "nombre": "Agencia Tributaria  Modelo 563. II. EE. Impuesto sobre el alcohol y bebidas derivadas"
+    },
+    {
+      "codigo": "566",
+      "campana": "2013",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 566. II. EE. Impuesto sobre las labores del tabaco."
+    },
+    {
+      "codigo": "568",
+      "campana": "2009",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G501.shtml",
+      "nombre": "Agencia Tributaria  Modelo 568. Impuesto Especial sobre Determinados Medios de Transporte. Solicitud de devolución po..."
+    },
+    {
+      "codigo": "571",
+      "campana": "2005",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN02.shtml",
+      "nombre": "Agencia Tributaria  II. EE. Modelo 571. Aplicación del beneficio devolución de los impuestos especiales hidrocarburo..."
+    },
+    {
+      "codigo": "572",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 572. II. EE. Solicitud de devolución del Impuesto sobre Hidrocarburos."
+    },
+    {
+      "codigo": "573",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI10.shtml",
+      "nombre": "Agencia Tributaria  Modelo 573. II. EE. Impuesto sobre los líquidos para cigarrillos electrónicos y otros productos r..."
+    },
+    {
+      "codigo": "576",
+      "campana": "2007",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G502.shtml",
+      "nombre": "Agencia Tributaria  Modelo 576. Impuesto Especial sobre Determinados Medios de Transporte. Autoliquidación."
+    },
+    {
+      "codigo": "581",
+      "campana": "2019",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 581.Declaración Liquidación. Impuestos sobre Hidrocarburos."
+    },
+    {
+      "codigo": "582",
+      "campana": "current",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 0,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI06.shtml",
+      "nombre": "Modelo 582"
+    },
+    {
+      "codigo": "583",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR01.shtml",
+      "nombre": "Agencia Tributaria  Modelo 583/588. Impuesto sobre el valor de la producción de la energía eléctrica. Autoliquidación..."
+    },
+    {
+      "codigo": "584",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR02.shtml",
+      "nombre": "Agencia Tributaria  Modelo 584. Declaración Liquidación. Impuesto sobre la Producción de combustible nuclear gastado ..."
+    },
+    {
+      "codigo": "585",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR03.shtml",
+      "nombre": "Agencia Tributaria  Modelo 585. Impuesto sobre el almacenamiento de combustible nuclear gastado y residuos radiactivo..."
+    },
+    {
+      "codigo": "586",
+      "campana": "2018",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR08.shtml",
+      "nombre": "Agencia Tributaria  Modelo 586. Declaración Informativa. Gases Fluorados."
+    },
+    {
+      "codigo": "587",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR10.shtml",
+      "nombre": "Agencia Tributaria  Modelo 587. Declaración Liquidación Gases Fluorados Efecto Invernadero."
+    },
+    {
+      "codigo": "588",
+      "campana": "current",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 0,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR01.shtml",
+      "nombre": "Modelo 588"
+    },
+    {
+      "codigo": "589",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR13.shtml",
+      "nombre": "Agencia Tributaria  Modelo 589. Impuesto sobre el valor de la extracción de gas, petróleo y condensados. Autoliquidac..."
+    },
+    {
+      "codigo": "590",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ08.shtml",
+      "nombre": "Agencia Tributaria  Modelo 590. II. EE. Solicitud de devolución por exportación o expedición."
+    },
+    {
+      "codigo": "591",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR12.shtml",
+      "nombre": "Agencia Tributaria  Modelo 591. Impuesto sobre el valor de la producción de la energía eléctrica. Declaración anual ..."
+    },
+    {
+      "codigo": "592",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR14.shtml",
+      "nombre": "Agencia Tributaria  Modelo 592. Declaración Liquidación Impuesto especial sobre los envases de plástico no reutilizab..."
+    },
+    {
+      "codigo": "593",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 3,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR15.shtml",
+      "nombre": "Agencia Tributaria  Modelo 593. Impuesto sobre el depósito de residuos en vertederos, la incineración y la coincinera..."
+    },
+    {
+      "codigo": "595",
+      "campana": "2006",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI09.shtml",
+      "nombre": "Agencia Tributaria  Modelo 595. II. EE. Impuesto sobre el carbón."
+    },
+    {
+      "codigo": "596",
+      "campana": "2006",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF10.shtml",
+      "nombre": "Agencia Tributaria  Modelo 596. II. EE. Declaración anual de operaciones realizadas. Impuesto sobre el carbón."
+    },
+    {
+      "codigo": "600",
+      "campana": "1927",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC12.shtml",
+      "nombre": "Agencia Tributaria  Modelos 600 610 615 620 630. Transmisiones Patrimoniales y Actos Jurídicos Documentados   Autoliq..."
+    },
+    {
+      "codigo": "602",
+      "campana": "1997",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC43.shtml",
+      "nombre": "Agencia Tributaria  Modelo 602. Tasa por la gestión administrativa del juego"
+    },
+    {
+      "codigo": "604",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC44.shtml",
+      "nombre": "Agencia Tributaria  Modelo 604. Impuesto sobre las Transacciones Financieras. Autoliquidación"
+    },
+    {
+      "codigo": "611",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC05.shtml",
+      "nombre": "Agencia Tributaria  Modelo 611. Declaración Informativa. Pagos en metálico del impuesto que grava los documentos nego..."
+    },
+    {
+      "codigo": "616",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 616. Declaración Informativa. Pagos en metálico del impuesto que grava la emisión de docum..."
+    },
+    {
+      "codigo": "650",
+      "campana": "2009",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G702.shtml",
+      "nombre": "Agencia Tributaria  Modelo 650. Impuesto sobre Sucesiones y Donaciones. Autoliquidación adquisición “mortis causa”."
+    },
+    {
+      "codigo": "651",
+      "campana": "2009",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G703.shtml",
+      "nombre": "Agencia Tributaria  Modelo 651. Impuesto sobre Sucesiones y Donaciones. Autoliquidación adquisición “inter vivos”."
+    },
+    {
+      "codigo": "655",
+      "campana": "2009",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G704.shtml",
+      "nombre": "Agencia Tributaria  Modelo 655. Impuesto sobre Sucesiones y Donaciones. Consolidación de dominio por extinción de usu..."
+    },
+    {
+      "codigo": "681",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC13.shtml",
+      "nombre": "Agencia Tributaria  Modelo 681. Tasa por la prestación de servicios de gestión de residuos radiactivos a que se refi..."
+    },
+    {
+      "codigo": "682",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC14.shtml",
+      "nombre": "Agencia Tributaria  Modelo 682. Tasa por la prestación de servicios de gestión de residuos radiactivos a que se refie..."
+    },
+    {
+      "codigo": "683",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC15.shtml",
+      "nombre": "Agencia Tributaria  Modelo 683. Tasa por la prestación de servicios de gestión de residuos radiactivos derivados de l..."
+    },
+    {
+      "codigo": "684",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC16.shtml",
+      "nombre": "Agencia Tributaria  Modelo 684. Tasa por la prestación de servicios de gestión de residuos radiactivos generados en o..."
+    },
+    {
+      "codigo": "685",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC17.shtml",
+      "nombre": "Agencia Tributaria  Modelo 685. Tasa sobre apuestas y combinaciones aleatorias, autoliquidación."
+    },
+    {
+      "codigo": "695",
+      "campana": "1997",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC26.shtml",
+      "nombre": "Agencia Tributaria  Modelo 695. Solicitud de devolución tasa judicial."
+    },
+    {
+      "codigo": "696",
+      "campana": "1997",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 696.Tasa por el ejercicio de la potestad jurisdiccional en los órdenes civil, contencioso ..."
+    },
+    {
+      "codigo": "714",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G611.shtml",
+      "nombre": "Agencia Tributaria  Modelo 714. Impuesto sobre el Patrimonio. Declaración y documento de ingreso"
+    },
+    {
+      "codigo": "718",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC62.shtml",
+      "nombre": "Agencia Tributaria  Modelo 718. Impuesto temporal de Solidaridad de las Grandes Fortunas."
+    },
+    {
+      "codigo": "720",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI34.shtml",
+      "nombre": "Agencia Tributaria  Modelo 720. Declaración Informativa. Declaración sobre bienes y derechos situados en el extranjer..."
+    },
+    {
+      "codigo": "721",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI55.shtml",
+      "nombre": "Agencia Tributaria  Modelo 721. Declaración informativa sobre monedas virtuales situadas en el extranjero"
+    },
+    {
+      "codigo": "763",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC18.shtml",
+      "nombre": "Agencia Tributaria  Modelo 763. Autoliquidación del Impuesto sobre actividades de juego en los supuestos de actividad..."
+    },
+    {
+      "codigo": "770",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC41.shtml",
+      "nombre": "Agencia Tributaria  Modelo 770. Autoliquidación de intereses de demora y recargos para la regularización voluntaria p..."
+    },
+    {
+      "codigo": "771",
+      "campana": "2020",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC42.shtml",
+      "nombre": "Agencia Tributaria  Modelo 771. Autoliquidación de cuotas de conceptos y ejercicios sin modelo disponible en la Sede ..."
+    },
+    {
+      "codigo": "780",
+      "campana": "2024",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC66.shtml",
+      "nombre": "Agencia Tributaria  Modelo 780. Impuesto sobre el margen de intereses y comisiones de determinadas entidades financie..."
+    },
+    {
+      "codigo": "781",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC67.shtml",
+      "nombre": "Agencia Tributaria  Modelo 781. Impuesto sobre el margen de intereses y comisiones de determinadas entidades financie..."
+    },
+    {
+      "codigo": "791",
+      "campana": "1998",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/B201.shtml",
+      "nombre": "Agencia Tributaria  Modelo 791. Empleo Público. Presentación instancias oposiciones."
+    },
+    {
+      "codigo": "792",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC59.shtml",
+      "nombre": "Agencia Tributaria  Modelo 792. Autoliquidación de la aportación a realizar por los prestadores del servicio de comun..."
+    },
+    {
+      "codigo": "793",
+      "campana": "2023",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC60.shtml",
+      "nombre": "Agencia Tributaria  Modelo 793. Pagos a cuenta de la aportación a realizar por los prestadores del servicio de comuni..."
+    },
+    {
+      "codigo": "795",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC55.shtml",
+      "nombre": "Agencia Tributaria  Modelo 795. Gravamen temporal energético. Declaración del ingreso de la prestación"
+    },
+    {
+      "codigo": "796",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC56.shtml",
+      "nombre": "Agencia Tributaria  Modelo 796. Gravamen temporal energético. Pago anticipado"
+    },
+    {
+      "codigo": "797",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC57.shtml",
+      "nombre": "Agencia Tributaria  Modelo 797. Gravamen temporal de entidades de crédito y establecimientos financieros de crédito. ..."
+    },
+    {
+      "codigo": "798",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC58.shtml",
+      "nombre": "Agencia Tributaria  Modelo 798. Gravamen temporal de entidades de crédito y establecimientos financieros de crédito. ..."
+    },
+    {
+      "codigo": "840",
+      "campana": "2003",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G323.shtml",
+      "nombre": "Agencia Tributaria  IAE. Declaración de alta, variación o baja en el Impuesto sobre Actividades Económicas (IAE) y co..."
+    },
+    {
+      "codigo": "901",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC46.shtml",
+      "nombre": "Agencia Tributaria  Modelo 901. Información de las CC. AA. sobre datos consignados en el certificado de eficiencia e..."
+    },
+    {
+      "codigo": "933",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC40.shtml",
+      "nombre": "Agencia Tributaria  Modelo 933. Información de las CC. AA. sobre guarderías y centros de educación infantil autorizad..."
+    },
+    {
+      "codigo": "952",
+      "campana": "1992",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 6,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G416.shtml",
+      "nombre": "Agencia Tributaria  Modelo 952. IVA. Comunicación de la modificación de la base imponible en supuestos de concurso y ..."
+    },
+    {
+      "codigo": "980",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA23.shtml",
+      "nombre": "Agencia Tributaria  Modelo 980. Información de los intereses de demora pagados a los contribuyentes por las CC. AA."
+    },
+    {
+      "codigo": "981",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC39.shtml",
+      "nombre": "Agencia Tributaria  Modelo 981. Suministro de información sobre la prestación por maternidad/paternidad"
+    },
+    {
+      "codigo": "990",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC32.shtml",
+      "nombre": "Agencia Tributaria  Modelo 990. Información mensual por parte de las CC. AA. sobre familias numerosas o con personas ..."
+    },
+    {
+      "codigo": "991",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI49.shtml",
+      "nombre": "Agencia Tributaria  Modelo 991. Declaración informativa de fianzas derivadas del arrendamiento de inmuebles."
+    },
+    {
+      "codigo": "992",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC30.shtml",
+      "nombre": "Agencia Tributaria  Modelo 992. Tributos cedidos sobre el Juego de Comunidades Autónomas"
+    },
+    {
+      "codigo": "993",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC22.shtml",
+      "nombre": "Agencia Tributaria  Modelo 993. Control de deducciones autonómicas."
+    },
+    {
+      "codigo": "995",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA06.shtml",
+      "nombre": "Agencia Tributaria  Modelo 995. Cesión de Información Urbanística por Entidades Locales."
+    },
+    {
+      "codigo": "996",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA07.shtml",
+      "nombre": "Agencia Tributaria  Modelo 996. Embargo de devoluciones gestionadas por la AEAT."
+    },
+    {
+      "codigo": "997",
+      "campana": "2026",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 5,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA09.shtml",
+      "nombre": "Agencia Tributaria  Modelo 997. Embargo de pagos presupuestarios de otras Administraciones Públicas."
+    },
+    {
+      "codigo": "A22",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 3,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR20.shtml",
+      "nombre": "Agencia Tributaria  Modelo A22. Impuesto especial sobre los envases de plástico no reutilizables. Solicitud de devolu..."
+    },
+    {
+      "codigo": "A23",
+      "campana": "2022",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR19.shtml",
+      "nombre": "Agencia Tributaria  Modelo A23. Impuesto sobre los Gases Fluorados de Efecto Invernadero. Solicitud de devolución"
+    },
+    {
+      "codigo": "A24",
+      "campana": "2025",
+      "casillas": 0,
+      "claves": 0,
+      "instrucciones": 0,
+      "recursos": 4,
+      "url_info": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ28.shtml",
+      "nombre": "Agencia Tributaria  Modelo A24. II. EE. Solicitud de devolución del impuesto sobre líquidos para cigarrillos electró..."
+    }
+  ],
+  "model_status": {
+    "001": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G304.shtml"
+    },
+    "004": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ13.shtml"
+    },
+    "005": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ17.shtml"
+    },
+    "006": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G503.shtml"
+    },
+    "01C": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G303.shtml"
+    },
+    "030": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G321.shtml"
+    },
+    "035": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G333.shtml"
+    },
+    "036": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G322.shtml"
+    },
+    "038": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI29.shtml"
+    },
+    "039": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ33.shtml"
+    },
+    "040": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G335.shtml"
+    },
+    "043": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC09.shtml"
+    },
+    "044": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC10.shtml"
+    },
+    "045": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC11.shtml"
+    },
+    "100": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G229.shtml"
+    },
+    "102": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-100-mode-declaracion-documentos-devolucion_/descarga-modelo-102.html"
+    },
+    "111": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH01.shtml"
+    },
+    "113": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G614.shtml"
+    },
+    "115": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH02.shtml"
+    },
+    "117": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH03.shtml"
+    },
+    "121": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G616.shtml"
+    },
+    "122": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G617.shtml"
+    },
+    "123": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH04.shtml"
+    },
+    "124": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH05.shtml"
+    },
+    "126": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH06.shtml"
+    },
+    "128": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH07.shtml"
+    },
+    "130": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G601.shtml"
+    },
+    "131": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G602.shtml"
+    },
+    "136": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH09.shtml"
+    },
+    "140": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ25.shtml"
+    },
+    "143": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G613.shtml"
+    },
+    "145": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G603.shtml"
+    },
+    "146": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G604.shtml"
+    },
+    "147": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G605.shtml"
+    },
+    "149": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G606.shtml"
+    },
+    "150": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G607.shtml"
+    },
+    "151": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G615.shtml"
+    },
+    "156": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G608.shtml"
+    },
+    "159": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI31.shtml"
+    },
+    "165": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI35.shtml"
+    },
+    "170": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI32.shtml"
+    },
+    "171": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI33.shtml"
+    },
+    "172": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI53.shtml"
+    },
+    "173": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI54.shtml"
+    },
+    "179": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI44.shtml"
+    },
+    "180": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI00.shtml"
+    },
+    "181": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI01.shtml"
+    },
+    "182": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI02.shtml"
+    },
+    "184": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI04.shtml"
+    },
+    "185": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI05.shtml"
+    },
+    "186": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI06.shtml"
+    },
+    "187": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI07.shtml"
+    },
+    "188": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI08.shtml"
+    },
+    "189": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI09.shtml"
+    },
+    "190": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI10.shtml"
+    },
+    "192": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI11.shtml"
+    },
+    "193": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI12.shtml"
+    },
+    "194": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI13.shtml"
+    },
+    "195": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI14.shtml"
+    },
+    "196": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI15.shtml"
+    },
+    "198": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI17.shtml"
+    },
+    "199": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI18.shtml"
+    },
+    "200": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml"
+    },
+    "202": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE00.shtml"
+    },
+    "206": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml"
+    },
+    "210": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml"
+    },
+    "211": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF01.shtml"
+    },
+    "213": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF03.shtml"
+    },
+    "216": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF05.shtml"
+    },
+    "217": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE06.shtml"
+    },
+    "220": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE02.shtml"
+    },
+    "221": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE07.shtml"
+    },
+    "222": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE03.shtml"
+    },
+    "226": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF08.shtml"
+    },
+    "228": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF07.shtml"
+    },
+    "230": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G235.shtml"
+    },
+    "231": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI41.shtml"
+    },
+    "232": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI43.shtml"
+    },
+    "233": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI45.shtml"
+    },
+    "234": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI46.shtml"
+    },
+    "235": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI47.shtml"
+    },
+    "236": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI48.shtml"
+    },
+    "237": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE08.shtml"
+    },
+    "238": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI52.shtml"
+    },
+    "239": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI57.shtml"
+    },
+    "240": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI60.shtml"
+    },
+    "241": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI59.shtml"
+    },
+    "242": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE09.shtml"
+    },
+    "247": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF06.shtml"
+    },
+    "270": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI36.shtml"
+    },
+    "280": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI39.shtml"
+    },
+    "281": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI56.shtml"
+    },
+    "282": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI40.shtml"
+    },
+    "283": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI58.shtml"
+    },
+    "289": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI42.shtml"
+    },
+    "290": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml"
+    },
+    "291": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI19.shtml"
+    },
+    "294": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI20.shtml"
+    },
+    "295": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI21.shtml"
+    },
+    "296": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI22.shtml"
+    },
+    "303": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G414.shtml"
+    },
+    "308": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G403.shtml"
+    },
+    "309": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G404.shtml"
+    },
+    "318": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G419.shtml"
+    },
+    "319": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC68.shtml"
+    },
+    "322": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G407.shtml"
+    },
+    "341": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ10.shtml"
+    },
+    "345": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI25.shtml"
+    },
+    "346": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI26.shtml"
+    },
+    "347": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI27.shtml"
+    },
+    "349": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI28.shtml"
+    },
+    "353": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G408.shtml"
+    },
+    "360": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ09.shtml"
+    },
+    "364": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ86.shtml"
+    },
+    "365": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ87.shtml"
+    },
+    "368": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G330.shtml"
+    },
+    "369": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G420.shtml"
+    },
+    "379": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI51.shtml"
+    },
+    "380": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DB06.shtml"
+    },
+    "381": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ92.shtml"
+    },
+    "390": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G412.shtml"
+    },
+    "410": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GH10.shtml"
+    },
+    "411": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC38.shtml"
+    },
+    "430": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC03.shtml"
+    },
+    "480": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC04.shtml"
+    },
+    "490": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC45.shtml"
+    },
+    "504": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN05.shtml"
+    },
+    "506": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ01.shtml"
+    },
+    "507": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ02.shtml"
+    },
+    "508": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ03.shtml"
+    },
+    "510": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF01.shtml"
+    },
+    "512": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DE03.shtml"
+    },
+    "515": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DE04.shtml"
+    },
+    "518": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DG01.shtml"
+    },
+    "521": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF13.shtml"
+    },
+    "522": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF12.shtml"
+    },
+    "523": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN01.shtml"
+    },
+    "524": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ04.shtml"
+    },
+    "544": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DH01.shtml"
+    },
+    "545": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ05.shtml"
+    },
+    "546": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ06.shtml"
+    },
+    "547": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DH02.shtml"
+    },
+    "548": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF15.shtml"
+    },
+    "553": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF02.shtml"
+    },
+    "559": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI01.shtml"
+    },
+    "560": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI02.shtml"
+    },
+    "561": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI03.shtml"
+    },
+    "562": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI04.shtml"
+    },
+    "563": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI05.shtml"
+    },
+    "566": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI07.shtml"
+    },
+    "568": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G501.shtml"
+    },
+    "571": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DN02.shtml"
+    },
+    "572": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ07.shtml"
+    },
+    "573": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI10.shtml"
+    },
+    "576": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G502.shtml"
+    },
+    "581": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI06.shtml"
+    },
+    "582": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI06.shtml"
+    },
+    "583": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR01.shtml"
+    },
+    "584": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR02.shtml"
+    },
+    "585": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR03.shtml"
+    },
+    "586": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR08.shtml"
+    },
+    "587": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR10.shtml"
+    },
+    "588": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR01.shtml"
+    },
+    "589": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR13.shtml"
+    },
+    "590": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ08.shtml"
+    },
+    "591": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR12.shtml"
+    },
+    "592": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR14.shtml"
+    },
+    "593": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR15.shtml"
+    },
+    "595": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DI09.shtml"
+    },
+    "596": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DF10.shtml"
+    },
+    "600": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC12.shtml"
+    },
+    "602": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC43.shtml"
+    },
+    "604": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC44.shtml"
+    },
+    "611": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC05.shtml"
+    },
+    "616": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC06.shtml"
+    },
+    "650": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G702.shtml"
+    },
+    "651": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G703.shtml"
+    },
+    "655": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G704.shtml"
+    },
+    "681": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC13.shtml"
+    },
+    "682": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC14.shtml"
+    },
+    "683": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC15.shtml"
+    },
+    "684": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC16.shtml"
+    },
+    "685": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC17.shtml"
+    },
+    "695": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC26.shtml"
+    },
+    "696": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC07.shtml"
+    },
+    "714": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G611.shtml"
+    },
+    "718": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC62.shtml"
+    },
+    "720": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI34.shtml"
+    },
+    "721": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI55.shtml"
+    },
+    "763": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC18.shtml"
+    },
+    "770": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC41.shtml"
+    },
+    "771": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC42.shtml"
+    },
+    "780": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC66.shtml"
+    },
+    "781": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC67.shtml"
+    },
+    "791": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/B201.shtml"
+    },
+    "792": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC59.shtml"
+    },
+    "793": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC60.shtml"
+    },
+    "795": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC55.shtml"
+    },
+    "796": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC56.shtml"
+    },
+    "797": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC57.shtml"
+    },
+    "798": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC58.shtml"
+    },
+    "840": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G323.shtml"
+    },
+    "901": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC46.shtml"
+    },
+    "933": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC40.shtml"
+    },
+    "952": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G416.shtml"
+    },
+    "980": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA23.shtml"
+    },
+    "981": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC39.shtml"
+    },
+    "990": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC32.shtml"
+    },
+    "991": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI49.shtml"
+    },
+    "992": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC30.shtml"
+    },
+    "993": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GC22.shtml"
+    },
+    "995": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA06.shtml"
+    },
+    "996": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA07.shtml"
+    },
+    "997": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZA09.shtml"
+    },
+    "A22": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR20.shtml"
+    },
+    "A23": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DR19.shtml"
+    },
+    "A24": {
+      "status": 200,
+      "page_updated": null,
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/DJ28.shtml"
+    }
+  }
+}
