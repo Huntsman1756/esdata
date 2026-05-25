@@ -213,8 +213,21 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         )
 
     active_year = campana_activa if campana_activa and campana_activa.isdigit() else None
-    conflict = bool(active_year and any(year != active_year for year in resource_years))
-    conflict_years = sorted(({active_year} if active_year else set()) | resource_years)
+    evidence_years = ({active_year} if active_year else set()) | resource_years
+    conflict = len(evidence_years) > 1
+    conflict_years = sorted(evidence_years)
+    conflict_span = (
+        max(int(year) for year in conflict_years) - min(int(year) for year in conflict_years)
+        if conflict
+        else 0
+    )
+    conflict_severity = "strong" if conflict_span >= 3 else "weak" if conflict else "none"
+    if conflict:
+        resolution_status = "conflict"
+    elif active_year or resource_years:
+        resolution_status = "resolved"
+    else:
+        resolution_status = "insufficient_evidence"
     notice = None
     if conflict:
         notice = (
@@ -224,8 +237,10 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         )
 
     return {
-        "campana_candidata": None if conflict else campana_activa,
+        "campana_candidata": None if conflict else campana_activa or next(iter(sorted(resource_years)), None),
+        "campana_resolution_status": resolution_status,
         "campana_conflict": conflict,
+        "campana_conflict_severity": conflict_severity,
         "campana_conflict_years": conflict_years if conflict else [],
         "campana_conflict_notice": notice,
         "campana_conflict_evidence": evidence if conflict else [],
@@ -1093,7 +1108,9 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
         "periodo": model_row["periodo"],
         "campana_activa": campana_activa,
         "campana_candidata": (fuentes or {}).get("campana_candidata"),
+        "campana_resolution_status": (fuentes or {}).get("campana_resolution_status", "insufficient_evidence"),
         "campana_conflict": (fuentes or {}).get("campana_conflict", False),
+        "campana_conflict_severity": (fuentes or {}).get("campana_conflict_severity", "none"),
         "campana_conflict_years": (fuentes or {}).get("campana_conflict_years", []),
         "campana_conflict_notice": (fuentes or {}).get("campana_conflict_notice"),
         "campana_conflict_evidence": (fuentes or {}).get("campana_conflict_evidence", []),

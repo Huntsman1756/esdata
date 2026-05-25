@@ -436,7 +436,9 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
     data = response.json()
     assert data["campana_activa"] == "2025"
     assert data["campana_candidata"] is None
+    assert data["campana_resolution_status"] == "conflict"
     assert data["campana_conflict"] is True
+    assert data["campana_conflict_severity"] == "weak"
     assert data["campana_conflict_years"] == ["2025", "2026"]
     assert any(
         "2026" in item["years"]
@@ -467,12 +469,40 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
     data = response.json()
     assert data["campana_activa"] == "2025"
     assert data["campana_candidata"] is None
+    assert data["campana_resolution_status"] == "conflict"
     assert data["campana_conflict"] is True
+    assert data["campana_conflict_severity"] == "weak"
     assert data["campana_conflict_years"] == ["2025", "2026"]
     assert any(
         "2026" in item["years"]
         for item in data["campana_conflict_evidence"]
     ), data["campana_conflict_evidence"]
+
+
+def test_campana_selection_marks_resource_only_conflict_fail_closed():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        None,
+        [
+            {
+                "tipo": "modelo_recurso:diseno_registro",
+                "url": "https://sede.agenciatributaria.gob.es/dr210_2019.xlsx",
+                "titulo": "Diseño registro 2019",
+            },
+            {
+                "tipo": "modelo_recurso:diseno_registro",
+                "url": "https://sede.agenciatributaria.gob.es/dr210_2026.xlsx",
+                "titulo": "Diseño registro 2026",
+            },
+        ],
+    )
+
+    assert selection["campana_candidata"] is None
+    assert selection["campana_resolution_status"] == "conflict"
+    assert selection["campana_conflict"] is True
+    assert selection["campana_conflict_severity"] == "strong"
+    assert selection["campana_conflict_years"] == ["2019", "2026"]
 
 
 @pytest.mark.asyncio
