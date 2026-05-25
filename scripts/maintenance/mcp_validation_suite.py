@@ -15,6 +15,8 @@ from typing import Any
 import httpx
 from sqlalchemy import create_engine, text
 
+EXPECTED_MODELO_290_CAMPAIGN = str(datetime.now(UTC).year - 1)
+
 
 def _repo_root() -> Path:
     current = Path(__file__).resolve()
@@ -1341,6 +1343,7 @@ def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, 
         "codigo": payload.get("codigo"),
         "verified": payload.get("verified"),
         "completeness": payload.get("completeness"),
+        "campana_actual": (payload.get("campana_actual") or {}).get("campana"),
         "obligation_context_source_urls": [
             item.get("source_url")
             for item in (payload.get("obligation_context") or [])
@@ -1355,6 +1358,7 @@ def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, 
         payload.get("codigo") == "290"
         and payload.get("verified") is True
         and payload.get("completeness") == "completa"
+        and (payload.get("campana_actual") or {}).get("campana") == EXPECTED_MODELO_290_CAMPAIGN
         and len(claves) > 0
         and len(instrucciones) > 0
         and len(reglas) > 0

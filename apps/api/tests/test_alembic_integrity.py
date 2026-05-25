@@ -375,6 +375,36 @@ def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
         assert forbidden not in contents
 
 
+def test_aeat_290_current_docs_migration_is_scoped_in_0100():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260525_0100_aeat_290_current_docs_2025.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "mc.campana = :campaign",
+        "reported_financial_year",
+        "2026-01-01/2026-06-01",
+        "290_XSD_2.0_WSDL_2.1.1.zip",
+        "b816f86d4778b858b87ac63a6926297b9170d91473af3285d513b8389bf20a59",
+        "FATCA-Presentac_290_SWeb_2.16.pdf",
+        "91033373633a7e6e3e9aa65e6081fe8cd53abdfb0d2b95303a8a27e57d049431",
+        "WS_consulta_errores_290.zip",
+        "completeness_estado",
+        "aeat_gi38_current_docs",
+        "UPDATE modelo_campana mc",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "op.modelo_aeat",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"

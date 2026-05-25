@@ -20,6 +20,7 @@ from aeat_models import (
     _discover_aeat_models,
     _extract_model_name,
     _get_existing_codes,
+    _infer_campaign,
     _infer_impuesto,
     _is_official_model_resource,
     _mark_deprecated_models,
@@ -29,6 +30,25 @@ from aeat_models import (
     _upsert_aeat_model,
     get_portal_client,
 )
+
+
+class TestInferCampaign:
+    def test_modelo_290_gi38_uses_previous_year_not_fatca_agreement_year(self):
+        text = (
+            "Modelo 290. Declaracion informativa anual FATCA. "
+            "Acuerdo hecho en Madrid el 14 de mayo de 2013."
+        )
+
+        campaign = _infer_campaign(
+            text,
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI38.shtml",
+            today=aeat_models.datetime(2026, 5, 25, tzinfo=aeat_models.UTC),
+        )
+
+        assert campaign == "2025"
+
+    def test_non_290_pages_keep_explicit_url_year(self):
+        assert _infer_campaign("", "https://example.test/modelo-303-2026.html") == "2026"
 
 # ---------------------------------------------------------------------------
 # Model name extraction

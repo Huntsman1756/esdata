@@ -32,6 +32,8 @@ import httpx
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
+EXPECTED_MODELO_290_CAMPAIGN = str(datetime.now(UTC).year - 1)
+
 
 def _repo_root() -> Path:
     current = Path(__file__).resolve()
@@ -745,6 +747,7 @@ def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
             details["modelo_290"] = {
                 "verified": payload.get("verified"),
                 "completeness": payload.get("completeness"),
+                "campana_actual": (payload.get("campana_actual") or {}).get("campana"),
                 "claves": len(payload.get("claves") or []),
                 "instrucciones": len(payload.get("instrucciones") or []),
                 "reglas": len(reglas),
@@ -752,6 +755,15 @@ def audit_aeat_instruction_key_contracts(base_url: str) -> CheckResult:
             }
             if payload.get("verified") is not True or payload.get("completeness") != "completa":
                 failures.append({"check": "modelo_290_detail", "reason": "not_verified_complete", "details": details["modelo_290"]})
+            if (payload.get("campana_actual") or {}).get("campana") != EXPECTED_MODELO_290_CAMPAIGN:
+                failures.append(
+                    {
+                        "check": "modelo_290_detail",
+                        "reason": "unexpected_active_campaign",
+                        "expected": EXPECTED_MODELO_290_CAMPAIGN,
+                        "details": details["modelo_290"],
+                    }
+                )
             if not payload.get("claves") or not payload.get("instrucciones") or not reglas:
                 failures.append({"check": "modelo_290_detail", "reason": "missing_keys_instructions_or_rules", "details": details["modelo_290"]})
 

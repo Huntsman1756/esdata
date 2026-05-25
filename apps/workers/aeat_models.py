@@ -222,7 +222,32 @@ def _is_valid_aeat_page(html: str) -> bool:
     return "erro4033.html" not in lowered and "acceso denegado" not in lowered
 
 
-def _infer_campaign(page_text: str, url_info: str | None = None) -> str:
+def _current_previous_year_campaign(today: datetime | None = None) -> str:
+    reference_date = today or datetime.now(UTC)
+    return str(reference_date.year - 1)
+
+
+def _is_modelo_290_fatca_page(page_text: str, url_info: str | None = None) -> bool:
+    normalized_url = (url_info or "").lower()
+    normalized_text = (page_text or "").lower()
+    return (
+        "gi38" in normalized_url
+        or (
+            "modelo 290" in normalized_text
+            and ("fatca" in normalized_text or "personas estadounidenses" in normalized_text)
+        )
+    )
+
+
+def _infer_campaign(
+    page_text: str,
+    url_info: str | None = None,
+    *,
+    today: datetime | None = None,
+) -> str:
+    if _is_modelo_290_fatca_page(page_text, url_info):
+        return _current_previous_year_campaign(today)
+
     if url_info:
         match = re.search(r"(?:19|20)\d{2}", url_info)
         if match:

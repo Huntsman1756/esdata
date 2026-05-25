@@ -495,3 +495,20 @@ Operational rule:
   `source_revision` per AEAT model. Do not recover `196` from `modelo_recurso`
   or `290` from FATCA source revisions until the hash/source relation is
   unambiguous.
+
+## 2026-05-25 - Modelo 290 campaign is the reported financial year, not the FATCA agreement year
+
+GI38 contains historic legal dates from the Spain-US FATCA agreement, including
+2013. Do not infer `modelo_campana.campana=2013` from that page text.
+
+Operational rule:
+
+- For Modelo 290/FATCA GI38, the active filing campaign is the financial year
+  being reported. On 2026-05-25 AEAT states the filing window is 2026-01-01 to
+  2026-06-01 for the immediately previous year, so the active campaign is
+  `2025`.
+- The current documentary set is GI38, plazos, FAQ, presentation XSD/WSDL 2.0
+  / 2.1.1, manual tecnico 2.16, and consulta-errores resources.
+- This only validates the model documentation/form contract. It does not make
+  `obligacion_perfil` rows safe unless they also have normalized source URL,
+  source hash, capture date, verified state and complete applicability evidence.
