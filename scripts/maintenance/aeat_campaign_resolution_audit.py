@@ -81,7 +81,7 @@ def audit(base_url: str, api_key: str | None, limit: int) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default=os.getenv("ESDATA_BASE_URL", "http://localhost:8000"))
-    parser.add_argument("--api-key", default=os.getenv("ESDATA_API_KEY"))
+    parser.add_argument("--api-key", default=os.getenv("ESDATA_API_KEY") or os.getenv("API_KEY"))
     parser.add_argument("--limit", type=int, default=500)
     args = parser.parse_args()
 
