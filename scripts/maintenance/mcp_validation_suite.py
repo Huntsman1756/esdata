@@ -17,6 +17,10 @@ from sqlalchemy import create_engine, text
 
 EXPECTED_MODELO_290_CAMPAIGN = str(datetime.now(UTC).year - 1)
 EXPECTED_MODELO_290_XSD_FIELDS = 152
+EXPECTED_ANNUAL_INFORMATION_XSD_FIELDS = {
+    "172": 35,
+    "173": 45,
+}
 
 
 def _repo_root() -> Path:
@@ -1376,6 +1380,34 @@ def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, 
     return ok, details
 
 
+def _validate_annual_information_xsd_model(expected_codigo: str):
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        recursos = (payload.get("campana_actual") or {}).get("recursos") or []
+        resource_urls = [str(item.get("url_recurso") or "") for item in recursos]
+        expected_fields = EXPECTED_ANNUAL_INFORMATION_XSD_FIELDS[expected_codigo]
+        details = {
+            "codigo": payload.get("codigo"),
+            "verified": payload.get("verified"),
+            "completeness": payload.get("completeness"),
+            "campana_actual": (payload.get("campana_actual") or {}).get("campana"),
+            "casillas_total": payload.get("casillas_total"),
+            "recursos": len(recursos),
+            "has_stale_172_zip": any("GI53/Esquemas172.zip" in url for url in resource_urls),
+        }
+        ok = (
+            payload.get("codigo") == expected_codigo
+            and (payload.get("campana_actual") or {}).get("campana") == EXPECTED_MODELO_290_CAMPAIGN
+            and payload.get("casillas_total") == expected_fields
+            and payload.get("verified") is True
+            and payload.get("completeness") == "completa"
+            and len(recursos) > 0
+            and not details["has_stale_172_zip"]
+        )
+        return ok, details
+
+    return validator
+
+
 def _validate_fatca_query_routes_to_290(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     modelos = payload.get("modelos") or []
     codigos = [item.get("codigo") for item in modelos]
@@ -2247,6 +2279,16 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 "modelo_290_fatca_rules_contract",
             )
         )
+        for modelo_codigo in ("172", "173"):
+            checks.append(
+                _check_json_contract(
+                    client,
+                    f"/v1/modelos/aeat/{modelo_codigo}",
+                    {},
+                    _validate_annual_information_xsd_model(modelo_codigo),
+                    f"modelo_{modelo_codigo}_annual_information_xsd_contract",
+                )
+            )
         checks.append(
             _check_json_contract(
                 client,
