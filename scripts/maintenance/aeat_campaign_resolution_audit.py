@@ -7,6 +7,8 @@ import argparse
 import json
 import os
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
@@ -18,8 +20,21 @@ def _request_json(base_url: str, path: str, api_key: str | None) -> dict[str, An
     request = urllib.request.Request(urllib.parse.urljoin(base_url.rstrip("/") + "/", path.lstrip("/")))
     if api_key:
         request.add_header("x-api-key", api_key)
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            if exc.code != 429 or attempt == 4:
+                raise
+            try:
+                delay = float(exc.headers.get("Retry-After", ""))
+            except ValueError:
+                delay = 2.0 * (attempt + 1)
+            if delay <= 0:
+                delay = 2.0 * (attempt + 1)
+            time.sleep(delay)
+    raise RuntimeError("unreachable retry state")
 
 
 def _list_model_codes(base_url: str, api_key: str | None, limit: int) -> list[str]:
@@ -33,7 +48,7 @@ def _list_model_codes(base_url: str, api_key: str | None, limit: int) -> list[st
     return sorted(set(codes))
 
 
-def audit(base_url: str, api_key: str | None, limit: int) -> dict[str, Any]:
+def audit(base_url: str, api_key: str | None, limit: int, request_delay: float) -> dict[str, Any]:
     codes = _list_model_codes(base_url, api_key, limit)
     status_counts: Counter[str] = Counter()
     severity_counts: Counter[str] = Counter()
@@ -42,6 +57,8 @@ def audit(base_url: str, api_key: str | None, limit: int) -> dict[str, Any]:
 
     for code in codes:
         payload = _request_json(base_url, f"/v1/modelos/{code}/fuentes-oficiales", api_key)
+        if request_delay:
+            time.sleep(request_delay)
         status = payload.get("campana_resolution_status") or "unknown"
         severity = payload.get("campana_conflict_severity") or "none"
         candidate = payload.get("campana_candidata")
@@ -83,9 +100,16 @@ def main() -> int:
     parser.add_argument("--base-url", default=os.getenv("ESDATA_BASE_URL", "http://localhost:8000"))
     parser.add_argument("--api-key", default=os.getenv("ESDATA_API_KEY") or os.getenv("API_KEY"))
     parser.add_argument("--limit", type=int, default=500)
+    parser.add_argument("--request-delay", type=float, default=0.1)
     args = parser.parse_args()
 
-    print(json.dumps(audit(args.base_url, args.api_key, args.limit), ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            audit(args.base_url, args.api_key, args.limit, args.request_delay),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
