@@ -416,6 +416,38 @@ async def test_modelo_fuentes_oficiales_keeps_partial_truth_contract_for_model_1
 
 
 @pytest.mark.asyncio
+async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/100/fuentes-oficiales")
+
+    assert response.status_code == 200
+    urls = {item["url"] for item in response.json()["fuentes_oficiales"]}
+    assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2025.pdf" in urls
+    assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2024.pdf" not in urls
+
+
+@pytest.mark.asyncio
+async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/100/artefactos")
+
+    assert response.status_code == 200
+    artefactos = response.json()["artefactos"]
+    urls = {item["url"] for item in artefactos}
+    assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2025.pdf" in urls
+    assert "https://sede.agenciatributaria.gob.es/modelo-100-instrucciones-2024.pdf" not in urls
+    assert any(item["tipo"] == "modelo_recurso:instrucciones" for item in artefactos)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("path", "tool_name"),
     [

@@ -139,6 +139,13 @@ def _modelo_evidence_notice(completeness: str, verified: bool) -> str:
     return "ESData tiene evidencia suficiente para el contrato operativo declarado."
 
 
+def _modelo_recurso_title(codigo: str, tipo_recurso: str, formato: str | None = None) -> str:
+    label = (tipo_recurso or "recurso_oficial").replace("_", " ").strip().title()
+    if formato:
+        return f"{label} del modelo {codigo} ({formato})"
+    return f"{label} del modelo {codigo}"
+
+
 def get_modelo_runtime_truth_contract(
     db, codigo: str, campana: str | None = None
 ) -> tuple[str, bool]:
@@ -405,6 +412,26 @@ def list_modelo_normativa(db, codigo: str):
             """
         ),
         {"codigo": codigo},
+    ).mappings()
+
+
+def list_campaign_recursos(db, campana_id: int):
+    return db.execute(
+        text(
+            """
+            SELECT
+                tipo_recurso,
+                formato,
+                url_recurso,
+                sha256_contenido,
+                fecha_publicacion_recurso
+            FROM modelo_recurso
+            WHERE campana_id = :campana_id
+              AND COALESCE(activa, true) = true
+            ORDER BY tipo_recurso, url_recurso
+            """
+        ),
+        {"campana_id": campana_id},
     ).mappings()
 
 
@@ -767,6 +794,23 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
             nota="Referencia técnica de formato cuando AEAT la publica.",
         )
 
+        for row in list_campaign_recursos(db, camp_row["id"]):
+            url = row["url_recurso"]
+            organismo = "BOE" if url and "boe.es" in url else "AEAT"
+            add_source(
+                tipo=f"modelo_recurso:{row['tipo_recurso']}",
+                titulo=_modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"]),
+                url=url,
+                organismo=organismo,
+                oficial=True,
+                campana_value=campana_activa,
+                fecha=str(row["fecha_publicacion_recurso"]) if row["fecha_publicacion_recurso"] else None,
+                nota=(
+                    "Recurso oficial activo cacheado en modelo_recurso; "
+                    f"sha256={str(row['sha256_contenido'])[:12]}..."
+                ),
+            )
+
     for row in list_modelo_normativa(db, codigo):
         add_source(
             tipo="boe",
@@ -874,6 +918,21 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
             formato="html",
             nota="Artefacto técnico útil para importación, validación o intercambio de datos.",
         )
+
+        for row in list_campaign_recursos(db, camp_row["id"]):
+            add_artefacto(
+                tipo=f"modelo_recurso:{row['tipo_recurso']}",
+                titulo=_modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"]),
+                url=row["url_recurso"],
+                oficial=True,
+                campana_value=campana_activa,
+                fecha=str(row["fecha_publicacion_recurso"]) if row["fecha_publicacion_recurso"] else None,
+                formato=row["formato"],
+                nota=(
+                    "Recurso oficial activo cacheado en modelo_recurso; "
+                    f"sha256={str(row['sha256_contenido'])[:12]}..."
+                ),
+            )
 
     for row in list_modelo_normativa(db, codigo):
         url = row["url_boe"]
