@@ -81,8 +81,8 @@ Ejemplos de tareas tipicas en stdio:
 - si `casillas_has_more=true`, continuar con `/v1/modelos/{codigo}/casillas` o con `casillas_next_offset`
 - limita listas relacionadas con `related_limit`; revisar `articulos_total`, `articulos_has_more`, `claves_total`, `instrucciones_total` y `normativa_total` antes de asumir que se ha visto todo
 - no interpretar una casilla devuelta como obligatoria para un caso concreto sin evidencia adicional
-- solo afirmar campana fiscal si `campana_safe_to_assert=true` y `campana_afirmable` no es `null`
-- si `campana_assertion_code` empieza por `NOT_ASSERTABLE_`, o si devuelve `INSUFFICIENT_EVIDENCE`, abstenerse de afirmar campana y mostrar la advertencia estructurada
+- solo afirmar campana fiscal si `campana_safe_to_assert=true`, `campana_afirmable` no es `null` y `campana_assertion_code=ASSERTABLE_DIRECT_OFFICIAL`
+- si `campana_assertion_code` no es `ASSERTABLE_DIRECT_OFFICIAL`, abstenerse de afirmar campana y mostrar la advertencia estructurada
 
 `buscar_lineas_criterio` / `doctrina_coverage`:
 

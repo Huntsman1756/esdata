@@ -21,7 +21,9 @@ export default async function ModeloPage({
   }
 
   const campanaAfirmable =
-    data.campana_safe_to_assert && data.campana_afirmable
+    data.campana_safe_to_assert &&
+    data.campana_assertion_code === "ASSERTABLE_DIRECT_OFFICIAL" &&
+    data.campana_afirmable
       ? data.campana_afirmable
       : null;
   const hasUnverifiedCampaign =

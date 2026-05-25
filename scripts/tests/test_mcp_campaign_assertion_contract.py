@@ -10,6 +10,7 @@ def test_web_model_page_never_asserts_persisted_campaign_as_active():
     assert "CampaÃ±a {data.campana_activa}" not in source
     assert "data.campana_safe_to_assert" in source
     assert "data.campana_afirmable" in source
+    assert 'data.campana_assertion_code === "ASSERTABLE_DIRECT_OFFICIAL"' in source
     assert "no verificada" in source
 
 
@@ -50,3 +51,17 @@ def test_mcp_stdio_labels_campaign_metadata_as_unverified():
 
     assert "Campaa: {modelo['campana']}" not in source
     assert "Campana interna no verificada" in source
+
+
+def test_aeat_precision_contract_defines_only_direct_official_assertion_gate():
+    contract = ROOT / "docs" / "aeat" / "precision-contract.md"
+    source = contract.read_text(encoding="utf-8")
+
+    assert "`campana_safe_to_assert = true`" in source
+    assert "`campana_afirmable != null`" in source
+    assert "`campana_assertion_code = ASSERTABLE_DIRECT_OFFICIAL`" in source
+    assert "`NOT_ASSERTABLE_INFERRED_INTERNAL`" in source
+    assert "`NOT_ASSERTABLE_CONFLICT`" in source
+    assert "`INSUFFICIENT_EVIDENCE`" in source
+    assert "`STALE_SUSPECTED`" in source
+    assert "Never use `campana_activa`, `campana_persistida` or `campana_candidata`" in source
