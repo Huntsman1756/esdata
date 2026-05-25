@@ -344,6 +344,37 @@ def test_aeat_289_documental_source_refresh_is_scoped_in_0098():
         assert forbidden not in contents
 
 
+def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260525_0099_obligacion_perfil_recover_200.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "source_entity_id = 'AEAT-MODELO-200'",
+        "COUNT(DISTINCT content_hash_sha256) = 1",
+        "op.modelo_aeat = '200'",
+        "source_hash = ur.source_hash",
+        "capture_date = COALESCE(op.capture_date, ur.capture_date)",
+        "verified = true",
+        "completeness = 'completa'",
+        "safe_to_answer = true",
+        "200 profile obligation recovered from unique source_revision evidence",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "AEAT-MODELO-202",
+        "AEAT-MODELO-303",
+        "source_entity_id = 'FATCA'",
+        "source_entity_id = 'FATCA_IGA_ES'",
+        "op.modelo_aeat = '303'",
+        "op.modelo_aeat IN ('200', '303')",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
