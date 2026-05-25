@@ -50,6 +50,7 @@ AEAT_USER_AGENT = "Mozilla/5.0 (compatible; esdata-bot/1.0; fiscal data worker)"
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("AEAT_MODELS_SYNC_INTERVAL", 86400)
 DEFAULT_CAMPAIGN = "current"
+MIN_NUMERIC_CAMPAIGN_YEAR = 1990
 PLAYWRIGHT_BROWSERS_PATH = "/tmp/ms-playwright"
 AEAT_SYNC_LOCK_KEY = 88420031
 AEAT_RESOURCE_FETCH_RETRIES = 3
@@ -190,6 +191,8 @@ def _normalize_aeat_url(url: str) -> str:
     normalized = url.strip()
     if normalized.startswith("ttps://"):
         normalized = "h" + normalized
+    elif normalized.startswith("http://www.boe.es/"):
+        normalized = "https://" + normalized[len("http://") :]
     elif normalized.startswith("http://www1.agenciatributaria.gob.es/"):
         normalized = "https://" + normalized[len("http://") :]
     elif normalized.startswith("//"):
@@ -225,6 +228,22 @@ def _is_valid_aeat_page(html: str) -> bool:
 def _current_previous_year_campaign(today: datetime | None = None) -> str:
     reference_date = today or datetime.now(UTC)
     return str(reference_date.year - 1)
+
+
+def _is_plausible_numeric_campaign(year: str, today: datetime | None = None) -> bool:
+    reference_date = today or datetime.now(UTC)
+    try:
+        numeric_year = int(year)
+    except ValueError:
+        return False
+    return MIN_NUMERIC_CAMPAIGN_YEAR <= numeric_year <= reference_date.year
+
+
+def _first_plausible_numeric_campaign(text_value: str, today: datetime | None = None) -> str | None:
+    for year in re.findall(r"(?:19|20)\d{2}", text_value or ""):
+        if _is_plausible_numeric_campaign(year, today):
+            return year
+    return None
 
 
 ANNUAL_PREVIOUS_YEAR_MODEL_PAGES = {
@@ -267,17 +286,17 @@ def _infer_campaign(
         return _current_previous_year_campaign(today)
 
     if url_info:
-        match = re.search(r"(?:19|20)\d{2}", url_info)
-        if match:
-            return match.group(0)
+        url_year = _first_plausible_numeric_campaign(url_info, today)
+        if url_year:
+            return url_year
 
     match = re.search(r"(?:campa(?:n|ñ)a|ejercicio)\s*(?:de\s*)?((?:19|20)\d{2})", page_text, re.IGNORECASE)
-    if match:
+    if match and _is_plausible_numeric_campaign(match.group(1), today):
         return match.group(1)
 
-    bare_years = re.findall(r"(?:19|20)\d{2}", page_text)
-    if bare_years:
-        return bare_years[0]
+    bare_year = _first_plausible_numeric_campaign(page_text, today)
+    if bare_year:
+        return bare_year
 
     return DEFAULT_CAMPAIGN
 

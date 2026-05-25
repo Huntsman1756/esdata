@@ -74,6 +74,39 @@ class TestInferCampaign:
     def test_non_290_pages_keep_explicit_url_year(self):
         assert _infer_campaign("", "https://example.test/modelo-303-2026.html") == "2026"
 
+    def test_implausible_historical_year_is_not_used_as_campaign(self):
+        campaign = _infer_campaign(
+            "Modelo 217. Referencia historica de 1922 sin campana oficial vigente.",
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE06.shtml",
+            today=aeat_models.datetime(2026, 5, 25, tzinfo=aeat_models.UTC),
+        )
+
+        assert campaign == "current"
+
+    def test_implausible_explicit_campaign_is_not_used(self):
+        campaign = _infer_campaign(
+            "Campana 1922. Texto historico que no debe activar una campana operativa.",
+            today=aeat_models.datetime(2026, 5, 25, tzinfo=aeat_models.UTC),
+        )
+
+        assert campaign == "current"
+
+    def test_future_campaign_beyond_current_year_is_not_used(self):
+        campaign = _infer_campaign(
+            "Campana 2030. Referencia futura no publicada como campana actual.",
+            today=aeat_models.datetime(2026, 5, 25, tzinfo=aeat_models.UTC),
+        )
+
+        assert campaign == "current"
+
+    def test_plausible_explicit_campaign_is_used(self):
+        campaign = _infer_campaign(
+            "Ejercicio 2024 con instrucciones vigentes.",
+            today=aeat_models.datetime(2026, 5, 25, tzinfo=aeat_models.UTC),
+        )
+
+        assert campaign == "2024"
+
 # ---------------------------------------------------------------------------
 # Model name extraction
 # ---------------------------------------------------------------------------
@@ -576,6 +609,11 @@ class TestNormalizeAeatUrl:
     def test_upgrades_http_scheme_for_www1_aeat_host(self):
         assert _normalize_aeat_url("http://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592") == (
             "https://www1.agenciatributaria.gob.es/wlpl/REGD-JDIT/FG?fTramite=GC592"
+        )
+
+    def test_upgrades_http_scheme_for_boe_host(self):
+        assert _normalize_aeat_url("http://www.boe.es/buscar/act.php?id=BOE-A-2015-2629") == (
+            "https://www.boe.es/buscar/act.php?id=BOE-A-2015-2629"
         )
 
 
