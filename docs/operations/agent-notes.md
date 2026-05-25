@@ -509,6 +509,11 @@ Operational rule:
   `2025`.
 - The current documentary set is GI38, plazos, FAQ, presentation XSD/WSDL 2.0
   / 2.1.1, manual tecnico 2.16, and consulta-errores resources.
+- For FATCA communication answers, do not rely only on GI38 as an indirect
+  container. Store and cite the linked reference sources explicitly: TIN
+  validation guidance, competent-authorities agreement, GI38 procedure sheet,
+  and BOE references `BOE-A-2014-6854`, `BOE-A-2014-6922`,
+  `BOE-A-2015-2629`, `BOE-A-2015-14021`, `BOE-A-2016-9834`.
 - This only validates the model documentation/form contract. It does not make
   `obligacion_perfil` rows safe unless they also have normalized source URL,
   source hash, capture date, verified state and complete applicability evidence.

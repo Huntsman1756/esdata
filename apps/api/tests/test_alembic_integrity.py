@@ -429,6 +429,36 @@ def test_aeat_290_legacy_field_cleanup_in_0101():
         assert forbidden not in contents
 
 
+def test_aeat_290_reference_sources_migration_is_scoped_in_0102():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260525_0102_aeat_290_fatca_reference_sources.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "modelo_290_fatca_reference_sources",
+        "validaciones_tin_eeuu",
+        "acuerdo_autoridades_competentes_fatca",
+        "ficha_procedimiento_gi38",
+        "normativa_acuerdo_espana_eeuu_fatca",
+        "normativa_orden_hap_1136_2014",
+        "normativa_orden_hap_1695_2016",
+        "BOE-A-2014-6854",
+        "BOE-A-2014-6922",
+        "row_provenance = 'official_exact'",
+        "mc.campana = :campaign",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+    ):
+        assert forbidden not in contents
+
+
 def test_alembic_versions_do_not_use_exec_driver_sql():
     revision_files = sorted(ALEMBIC_VERSIONS.glob("*.py"))
     assert revision_files, "expected Alembic revision files"
