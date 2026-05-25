@@ -574,7 +574,7 @@ async def get_modelo(
     codigo: str,
     campana: str = Query(
         None,
-        description="Campana especifica (ej: 2025). Si no se indica, usa la activa.",
+        description="Campana especifica (ej: 2025). Si no se indica, usa la campana persistida internamente.",
     ),
     casillas_limit: int = Query(
         200,
@@ -596,8 +596,8 @@ async def get_modelo(
     normativa y doctrina relacionada.
 
     Query params:
-    - campana: filtra por campaña específica (ej: '2025'). Si no se indica,
-      usa la campaña activa más reciente.
+    - campana: filtra por campana especifica (ej: '2025'). Si no se indica,
+      usa la campana persistida internamente. No equivale a campana afirmable.
     """
     with db_session() as db:
         model_row = get_model_row(db, codigo)
@@ -702,6 +702,7 @@ async def get_modelo(
         camp_rows = all_camp_rows[:related_limit]
         campanas = [dict(r) for r in camp_rows]
         doctrina_relacionada = list_related_doctrina(db, articulos)
+        campana_assertion = list_modelo_fuentes_oficiales(db, codigo, campana) or {}
         completeness, verified = build_modelo_truth_contract(
             has_instructions=bool(instrucciones),
             has_casillas=bool(casillas),
@@ -716,6 +717,17 @@ async def get_modelo(
             "impuesto": model_row["impuesto"],
             "url_info": model_row["url_info"],
             "campana_activa": campana_activa,
+            "campana_persistida": campana_assertion.get("campana_persistida", campana_activa),
+            "campana_afirmable": campana_assertion.get("campana_afirmable"),
+            "campana_candidata": campana_assertion.get("campana_candidata"),
+            "campana_resolution_status": campana_assertion.get(
+                "campana_resolution_status", "insufficient_evidence"
+            ),
+            "campana_verification_level": campana_assertion.get(
+                "campana_verification_level", "insufficient"
+            ),
+            "campana_safe_to_assert": campana_assertion.get("campana_safe_to_assert", False),
+            "campana_user_notice": campana_assertion.get("campana_user_notice"),
             "campanas": campanas,
             "campanas_total": len(all_camp_rows),
             "articulos": articulos,
@@ -886,7 +898,7 @@ async def get_modelo_casillas(
                 "filters": filters,
                 "classification": "requiere_verificacion",
                 "obligation_notice": (
-                    "No hay campana activa o coincidente. No afirmar obligatoriedad ni completitud."
+                    "No hay campana persistida o coincidente. No afirmar obligatoriedad ni completitud."
                 ),
             }
             completeness, verified = get_modelo_runtime_truth_contract(db, codigo, campana)

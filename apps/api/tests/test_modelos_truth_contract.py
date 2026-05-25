@@ -1262,7 +1262,7 @@ async def test_modelo_casillas_falls_back_to_latest_campaign_with_fields_when_ac
     assert data["classification"] == "confirmado"
     assert data["verified"] is False
     assert data["confidence"]["review_required"] is True
-    assert "campana activa 2013 no tiene casillas" in data["selection_notice"]
+    assert "campana persistida 2013 no tiene casillas" in data["selection_notice"]
 
 
 @pytest.mark.asyncio
@@ -1279,12 +1279,17 @@ async def test_modelo_detail_reports_casillas_fallback_campaign_transparently():
     assert response.status_code == 200
     data = response.json()
     assert data["campana_activa"] == "2013"
+    assert data["campana_persistida"] == "2013"
+    assert data["campana_afirmable"] is None
+    assert data["campana_safe_to_assert"] is False
+    assert data["campana_resolution_status"] == "resolved_weak"
+    assert "no afirmable" in data["campana_user_notice"]
     assert data["casillas_campana"] == "2025"
     assert data["casillas_total"] == 1
     assert data["verified"] is False
     assert data["evidence_status"] == "evidence_limited"
     assert "Evidencia limitada" in data["evidence_notice"]
-    assert "campana activa 2013 no tiene casillas" in data["casillas_selection_notice"]
+    assert "campana persistida 2013 no tiene casillas" in data["casillas_selection_notice"]
 
 
 @pytest.mark.asyncio
@@ -1306,7 +1311,7 @@ async def test_modelo_aeat_detail_reports_casillas_fallback_campaign_transparent
     assert data["verified"] is False
     assert data["evidence_status"] == "evidence_limited"
     assert "Evidencia limitada" in data["evidence_notice"]
-    assert "campana activa 2013 no tiene casillas" in data["casillas_selection_notice"]
+    assert "campana persistida 2013 no tiene casillas" in data["casillas_selection_notice"]
 
 
 @pytest.mark.asyncio

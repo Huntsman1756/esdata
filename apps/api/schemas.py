@@ -276,7 +276,11 @@ class ModeloCasillasResponse(BaseModel):
     codigo: str = Field(description="Codigo del modelo")
     campana: str | None = Field(default=None, description="Campana consultada")
     campana_activa: str | None = Field(
-        default=None, description="Campana marcada como activa para el modelo"
+        default=None,
+        description=(
+            "DEPRECATED: campana persistida; use campana_afirmable and "
+            "campana_safe_to_assert para afirmaciones fiscales"
+        ),
     )
     selection_notice: str | None = Field(
         default=None, description="Aviso si la campana usada difiere de la activa"
@@ -360,7 +364,7 @@ class ModeloNormativa(BaseModel):
 class ModeloCampanaOperativaResponse(BaseModel):
     codigo: str = Field(description="Código del modelo")
     nombre: str = Field(description="Nombre completo")
-    campana: str | None = Field(default=None, description="Campaña activa")
+    campana: str | None = Field(default=None, description="Campana persistida internamente")
     impuesto: str = Field(description="Impuesto asociado")
     periodo: str | None = Field(default=None, description="Periodo")
     frecuencia_presentacion: str | None = Field(default=None, description="Frecuencia de presentación")
@@ -393,7 +397,7 @@ class ModeloCampanaOperativaResponse(BaseModel):
 
 class ModeloCampana(BaseModel):
     campana: str = Field(description="Año/campaña (2025, 2024, etc.)")
-    activo: bool = Field(description="Si es la campaña activa")
+    activo: bool = Field(description="Si es la campana persistida internamente")
 
 
 class ModeloDetail(BaseModel):
@@ -402,7 +406,42 @@ class ModeloDetail(BaseModel):
     periodo: str | None = Field(default=None, description="Periodo")
     impuesto: str = Field(description="Impuesto asociado")
     url_info: str | None = Field(default=None, description="URL a la sede AEAT")
-    campana_activa: str | None = Field(default=None, description="Campaña activa (año)")
+    campana_activa: str | None = Field(
+        default=None,
+        description=(
+            "DEPRECATED: campana persistida; use campana_afirmable and "
+            "campana_safe_to_assert para afirmaciones fiscales"
+        ),
+    )
+    campana_persistida: str | None = Field(
+        default=None, description="Campana persistida internamente; no afirmable por si sola"
+    )
+    campana_afirmable: str | None = Field(
+        default=None, description="Campana que se puede afirmar; null salvo resolved_strong"
+    )
+    campana_candidata: str | None = Field(
+        default=None, description="Campana candidata no afirmable si no hay evidencia fuerte"
+    )
+    campana_resolution_status: str = Field(
+        default="insufficient_evidence",
+        description=(
+            "Estado derivado: resolved_strong, resolved_weak, conflict, "
+            "insufficient_evidence o stale_suspected"
+        ),
+    )
+    campana_verification_level: str = Field(
+        default="insufficient",
+        description=(
+            "Nivel de verificacion: direct_official, inferred_internal, "
+            "contradictory, insufficient o stale"
+        ),
+    )
+    campana_safe_to_assert: bool = Field(
+        default=False, description="True solo cuando campana_afirmable puede exponerse como verdad fiscal"
+    )
+    campana_user_notice: str | None = Field(
+        default=None, description="Aviso obligatorio cuando la campana no es afirmable"
+    )
     campanas: list[ModeloCampana] = Field(
         default_factory=list, description="Campañas disponibles"
     )
@@ -727,7 +766,13 @@ class ModeloCampanaConflictEvidence(BaseModel):
 class ModeloFuentesOficialesResponse(BaseModel):
     codigo: str = Field(description="Código del modelo")
     nombre: str | None = Field(default=None, description="Nombre completo")
-    campana_activa: str | None = Field(default=None, description="Campaña activa")
+    campana_activa: str | None = Field(
+        default=None,
+        description=(
+            "DEPRECATED: campana persistida; use campana_afirmable and "
+            "campana_safe_to_assert para afirmaciones fiscales"
+        ),
+    )
     campana_persistida: str | None = Field(default=None, description="Campana persistida internamente; no afirmable por si sola")
     campana_afirmable: str | None = Field(default=None, description="Campana que MCP puede afirmar; null salvo resolved_strong")
     campana_candidata: str | None = Field(default=None, description="Campana candidata si no hay conflicto semantico")
@@ -736,7 +781,7 @@ class ModeloFuentesOficialesResponse(BaseModel):
     campana_safe_to_assert: bool = Field(default=False, description="True solo cuando la campana es afirmable por MCP")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
-    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana activa y recursos tecnicos/anuales")
+    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
     campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
     campana_conflict_notice: str | None = Field(default=None, description="Aviso fail-closed sobre el conflicto")
@@ -749,7 +794,13 @@ class ModeloResumenOperativoResponse(BaseModel):
     nombre: str = Field(description="Nombre completo")
     impuesto: str = Field(description="Impuesto asociado")
     periodo: str | None = Field(default=None, description="Periodo")
-    campana_activa: str | None = Field(default=None, description="Campaña activa")
+    campana_activa: str | None = Field(
+        default=None,
+        description=(
+            "DEPRECATED: campana persistida; use campana_afirmable and "
+            "campana_safe_to_assert para afirmaciones fiscales"
+        ),
+    )
     quien_debe_presentarlo: str | None = Field(default=None, description="Quién debe presentarlo")
     plazo_presentacion: str | None = Field(default=None, description="Plazo de presentación")
     campana_persistida: str | None = Field(default=None, description="Campana persistida internamente; no afirmable por si sola")
@@ -760,7 +811,7 @@ class ModeloResumenOperativoResponse(BaseModel):
     campana_safe_to_assert: bool = Field(default=False, description="True solo cuando la campana es afirmable por MCP")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
-    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana activa y recursos tecnicos/anuales")
+    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
     campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
     campana_conflict_notice: str | None = Field(default=None, description="Aviso fail-closed sobre el conflicto")
@@ -784,7 +835,13 @@ class ModeloArtefacto(BaseModel):
 
 class ModeloArtefactosResponse(BaseModel):
     codigo: str = Field(description="Código del modelo")
-    campana_activa: str | None = Field(default=None, description="Campaña activa")
+    campana_activa: str | None = Field(
+        default=None,
+        description=(
+            "DEPRECATED: campana persistida; use campana_afirmable and "
+            "campana_safe_to_assert para afirmaciones fiscales"
+        ),
+    )
     criterio_validacion: str = Field(description="Criterio de validación")
     campana_persistida: str | None = Field(default=None, description="Campana persistida internamente; no afirmable por si sola")
     campana_afirmable: str | None = Field(default=None, description="Campana que MCP puede afirmar; null salvo resolved_strong")
@@ -794,7 +851,7 @@ class ModeloArtefactosResponse(BaseModel):
     campana_safe_to_assert: bool = Field(default=False, description="True solo cuando la campana es afirmable por MCP")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
-    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana activa y recursos tecnicos/anuales")
+    campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
     campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
     campana_conflict_notice: str | None = Field(default=None, description="Aviso fail-closed sobre el conflicto")
@@ -862,7 +919,7 @@ class AEATModeloListItem(BaseModel):
     nombre: str = Field(description="Nombre completo")
     activo: bool = Field(description="Si el modelo sigue activo en el portal")
     impuesto: str | None = Field(default=None, description="Impuesto asociado")
-    campana: str | None = Field(default=None, description="Campana activa o solicitada")
+    campana: str | None = Field(default=None, description="Campana persistida o solicitada; no afirmable por si sola")
     estado_publicacion: str | None = Field(default=None, description="Estado de publicacion detectado")
     recursos_activos: int = Field(description="Numero de recursos activos para la campana")
 
@@ -885,7 +942,7 @@ class AEATModeloRecurso(BaseModel):
 
 class AEATCampanaDetail(BaseModel):
     campana: str = Field(description="Campana fiscal")
-    activo: bool = Field(description="Si es la campana activa")
+    activo: bool = Field(description="Si es la campana persistida internamente")
     estado_publicacion: str | None = Field(default=None, description="Estado de publicacion detectado")
     fecha_publicacion_portal: str | None = Field(default=None, description="Fecha publicada en el portal")
     fecha_actualizacion_portal: str | None = Field(default=None, description="Fecha de actualizacion del portal")

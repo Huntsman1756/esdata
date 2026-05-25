@@ -213,7 +213,7 @@ def _campaign_notice(status: str) -> str:
             "Campana no afirmable: existen anos documentales contradictorios. "
             "El sistema debe abstenerse de seleccionar campana."
         )
-    return "Campana no afirmable: no hay evidencia suficiente para determinar una campana activa."
+    return "Campana no afirmable: no hay evidencia suficiente para determinar una campana afirmable."
 
 
 def _build_campana_selection(campana_activa: str | None, resources: list[dict]) -> dict:
@@ -701,7 +701,7 @@ def get_campaign_for_casillas(db, codigo: str, campana: str | None = None) -> di
             "campaign": fallback_row,
             "active_campaign": active_campaign,
             "selection_notice": (
-                f"La campana activa {active_campaign} no tiene casillas parseadas; "
+                f"La campana persistida {active_campaign} no tiene casillas parseadas; "
                 f"se devuelven casillas oficiales de la campana {fallback_row['campana']}."
             ),
         }

@@ -242,7 +242,15 @@ export interface ModeloDetail {
   periodo: string | null;
   impuesto: string | null;
   url_info: string | null;
+  // Persisted-only compatibility field. Do not present as verified campaign.
   campana_activa: string | null;
+  campana_persistida: string | null;
+  campana_afirmable: string | null;
+  campana_candidata: string | null;
+  campana_resolution_status: string | null;
+  campana_verification_level: string | null;
+  campana_safe_to_assert: boolean;
+  campana_user_notice: string | null;
   campanas: ModeloCampana[];
   articulos: ModeloArticulo[];
   casillas: ModeloCasilla[];

@@ -79,7 +79,7 @@ export default function ConsultaClient() {
 
         {m.campana && (
           <div style={{ fontSize: 13, marginBottom: 8 }}>
-            <strong>Campana:</strong> {m.campana} {m.version_form && `| Versión: ${m.version_form}`}
+            <strong>Campana no verificada:</strong> dato interno {m.campana} {m.version_form && `| Versión: ${m.version_form}`}
           </div>
         )}
 

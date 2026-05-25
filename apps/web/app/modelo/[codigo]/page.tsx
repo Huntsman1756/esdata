@@ -20,6 +20,14 @@ export default async function ModeloPage({
     return notFound();
   }
 
+  const campanaAfirmable =
+    data.campana_safe_to_assert && data.campana_afirmable
+      ? data.campana_afirmable
+      : null;
+  const hasUnverifiedCampaign =
+    !campanaAfirmable &&
+    Boolean(data.campana_candidata || data.campana_persistida || data.campana_activa);
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -40,11 +48,19 @@ export default async function ModeloPage({
           <span className="font-mono text-sm text-stone-500">
             Modelo {data.codigo}
           </span>
-          {data.campana_activa && (
+          {campanaAfirmable && (
             <>
               <span className="text-sm text-stone-300">·</span>
               <span className="text-sm text-stone-400">
-                Campaña {data.campana_activa}
+                Campana verificada {campanaAfirmable}
+              </span>
+            </>
+          )}
+          {hasUnverifiedCampaign && (
+            <>
+              <span className="text-sm text-stone-300">·</span>
+              <span className="text-sm text-amber-700">
+                Campana no verificada
               </span>
             </>
           )}
@@ -77,6 +93,12 @@ export default async function ModeloPage({
           </a>
         )}
 
+        {hasUnverifiedCampaign && data.campana_user_notice && (
+          <p className="mb-6 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+            Campana no verificada: {data.campana_user_notice}
+          </p>
+        )}
+
         {/* Campaign selector */}
         {data.campanas.length > 1 && (
           <div className="mb-6 flex items-center gap-2 flex-wrap">
@@ -91,7 +113,7 @@ export default async function ModeloPage({
                     : "bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600 cursor-pointer"
                 }`}
               >
-                {c.campana} {c.activo ? "(activa)" : ""}
+                {c.campana} {c.activo ? "(persistida)" : ""}
               </Link>
             ))}
           </div>

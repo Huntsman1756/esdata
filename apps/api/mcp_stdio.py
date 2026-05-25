@@ -1575,7 +1575,8 @@ class MCPStdioServer:
             if modelo.get("canal"):
                 lines.append(f"  Canal: {modelo['canal']}")
             if modelo.get("campana"):
-                lines.append(f"  Campaa: {modelo['campana']}")
+                lines.append(f"  Campana interna no verificada: {modelo['campana']}")
+                lines.append("  No afirmarla como verdad fiscal sin campana_afirmable.")
 
             for inst in modelo.get("instrucciones", []):
                 lines.append(f"  [{inst['seccion'].upper()}] {inst['titulo']}:")
