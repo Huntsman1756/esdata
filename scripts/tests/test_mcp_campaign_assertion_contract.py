@@ -1,6 +1,23 @@
+import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
+AFFIRMATIVE_CAMPAIGN_RE = re.compile(
+    r"\bcampa(?:n|ñ)a\s+(?:activa|vigente|verificada)\s+(?:es\s+)?\d{4}\b",
+    re.IGNORECASE,
+)
+
+
+def assert_no_weak_campaign_assertion(payload: dict, rendered_text: str) -> None:
+    can_assert = (
+        payload.get("campana_safe_to_assert") is True
+        and payload.get("campana_afirmable") is not None
+        and payload.get("campana_assertion_code") == "ASSERTABLE_DIRECT_OFFICIAL"
+    )
+    if not can_assert:
+        assert not AFFIRMATIVE_CAMPAIGN_RE.search(rendered_text)
 
 
 def test_web_model_page_never_asserts_persisted_campaign_as_active():
@@ -65,3 +82,34 @@ def test_aeat_precision_contract_defines_only_direct_official_assertion_gate():
     assert "`INSUFFICIENT_EVIDENCE`" in source
     assert "`STALE_SUSPECTED`" in source
     assert "Never use `campana_activa`, `campana_persistida` or `campana_candidata`" in source
+
+
+def test_weak_campaign_payload_detector_blocks_affirmative_text():
+    weak_payload = {
+        "campana_activa": "2025",
+        "campana_persistida": "2025",
+        "campana_candidata": "2025",
+        "campana_afirmable": None,
+        "campana_safe_to_assert": False,
+        "campana_assertion_code": "NOT_ASSERTABLE_INFERRED_INTERNAL",
+    }
+
+    assert_no_weak_campaign_assertion(
+        weak_payload,
+        "Campana no verificada: dato interno 2025",
+    )
+    with pytest.raises(AssertionError):
+        assert_no_weak_campaign_assertion(weak_payload, "La campana activa es 2025")
+
+
+def test_strong_campaign_payload_detector_allows_affirmative_text():
+    strong_payload = {
+        "campana_activa": "2025",
+        "campana_persistida": "2025",
+        "campana_candidata": "2025",
+        "campana_afirmable": "2025",
+        "campana_safe_to_assert": True,
+        "campana_assertion_code": "ASSERTABLE_DIRECT_OFFICIAL",
+    }
+
+    assert_no_weak_campaign_assertion(strong_payload, "La campana verificada 2025")

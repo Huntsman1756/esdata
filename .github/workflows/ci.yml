@@ -114,6 +114,9 @@ jobs:
       - name: Run MCP doc contracts gate
         run: python scripts/maintenance/verify-doc-contracts.py
 
+      - name: Run AEAT campaign assertion contract gate
+        run: python -m pytest scripts/tests/test_mcp_campaign_assertion_contract.py -q
+
       - name: Run MCP private regression tests
         run: python -m pytest apps/api/tests/test_mcp_private.py -q
 
