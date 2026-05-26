@@ -3,6 +3,8 @@
 This is the integration contract for AEAT campaign assertions in API, MCP, UI,
 CLI clients and downstream automations.
 
+Campaign data curation rules live in `docs/aeat/curation-rules.md`.
+
 ## Campaign assertion gate
 
 Only assert a fiscal campaign as current when all three conditions are true:

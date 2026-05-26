@@ -74,6 +74,7 @@ def test_aeat_precision_contract_defines_only_direct_official_assertion_gate():
     contract = ROOT / "docs" / "aeat" / "precision-contract.md"
     source = contract.read_text(encoding="utf-8")
 
+    assert "docs/aeat/curation-rules.md" in source
     assert "`campana_safe_to_assert = true`" in source
     assert "`campana_afirmable != null`" in source
     assert "`campana_assertion_code = ASSERTABLE_DIRECT_OFFICIAL`" in source
@@ -113,3 +114,16 @@ def test_strong_campaign_payload_detector_allows_affirmative_text():
     }
 
     assert_no_weak_campaign_assertion(strong_payload, "La campana verificada 2025")
+
+
+def test_aeat_curation_rules_reject_heuristic_promotion():
+    rules = ROOT / "docs" / "aeat" / "curation-rules.md"
+    source = rules.read_text(encoding="utf-8")
+
+    assert "promoted to `resolved_strong` only when there is direct official" in source
+    assert "BOE publication date alone is not campaign evidence" in source
+    assert "File name, XSD/WSDL" in source
+    assert "Never promote campaigns in bulk" in source
+    assert "Do not select the latest\nyear automatically" in source
+    assert "prefer\n`stale_suspected`" in source
+    assert "Do not use total `resolved` count as a fiscal precision KPI" in source

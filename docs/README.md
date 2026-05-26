@@ -23,6 +23,7 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `aeat-priority-model-closeout.md` — cierre auditable de modelos AEAT prioritarios por estado
 - `aeat-precision-policy.md` — regla de maxima exactitud para afirmar campanas AEAT en API/MCP/UI
 - `aeat/precision-contract.md` — contrato de integracion para no afirmar campanas AEAT sin evidencia oficial directa
+- `aeat/curation-rules.md` — reglas de curacion modelo a modelo para promover campanas AEAT solo con evidencia directa
 - `cdi-coverage-prd.md` — PRD para cerrar CDI como familia fiscal propia por pais, articulo y tipo de renta
 - `doctrina-coverage-prd.md` — PRD para cerrar DGT/TEAC como familia de lineas de criterio fiscal con evidencia y fail-closed
 - `doctrina-production-audit-20260521.md` — auditoria productiva DGT/TEAC y lote piloto de lineas de criterio
