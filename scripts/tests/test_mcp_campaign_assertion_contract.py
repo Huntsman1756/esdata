@@ -127,3 +127,19 @@ def test_aeat_curation_rules_reject_heuristic_promotion():
     assert "Do not select the latest\nyear automatically" in source
     assert "prefer\n`stale_suspected`" in source
     assert "Do not use total `resolved` count as a fiscal precision KPI" in source
+
+
+def test_aeat_ai_agents_are_read_only_copilots_not_decision_makers():
+    agents = ROOT / "docs" / "aeat" / "ai-agents.md"
+    source = agents.read_text(encoding="utf-8")
+
+    assert "documentary copilots" in source
+    assert "call read-only MCP/API tools" in source
+    assert "write `UNKNOWN`" in source
+    assert "must not:" in source
+    assert "write to the database" in source
+    assert "run migrations" in source
+    assert "deploy to VPS or production" in source
+    assert "decide `resolved_strong` or `ASSERTABLE_DIRECT_OFFICIAL`" in source
+    assert "http://host.docker.internal:8010/mcp" in source
+    assert "sampling:\n      enabled: false" in source

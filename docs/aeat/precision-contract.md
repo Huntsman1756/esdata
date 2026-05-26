@@ -4,6 +4,7 @@ This is the integration contract for AEAT campaign assertions in API, MCP, UI,
 CLI clients and downstream automations.
 
 Campaign data curation rules live in `docs/aeat/curation-rules.md`.
+AI-agent curation limits live in `docs/aeat/ai-agents.md`.
 
 ## Campaign assertion gate
 
