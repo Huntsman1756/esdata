@@ -16,20 +16,18 @@ import argparse
 import hashlib
 import io
 import json
-import os
 import re
+import xml.etree.ElementTree as ET
 import zipfile
 from datetime import UTC, date, datetime
 from urllib.parse import urljoin, urlparse
-import xml.etree.ElementTree as ET
 
 import httpx
 import openpyxl
 import xlrd
 from bs4 import BeautifulSoup
-from runtime import configure_logging, get_database_url, ensure_database_connection
+from runtime import configure_logging, ensure_database_connection, get_database_url
 from sqlalchemy import create_engine, text
-
 
 logger = configure_logging("worker-aeat-current-designs")
 
@@ -49,8 +47,8 @@ FORCE_RELOAD_DESIGN_MODELS = {
 SUPPLEMENTAL_CURRENT_DESIGN_LINKS = [
     {
         "codigo": "172",
-        "label": "Modelo 172 - Esquemas XSD declaracion informativa sobre saldos en monedas virtuales",
-        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI53/Esquemas172.zip",
+        "label": "Modelo 172 - Esquemas XSD/WSDL declaracion informativa sobre saldos en monedas virtuales",
+        "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/GI53/2024/Esquemas_WSDL_servicios_web.zip",
         "tipo_recurso": "diseno_registro_xsd",
         "formato": "zip",
         "source_index": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI53.shtml",
@@ -988,6 +986,7 @@ def run_sync(engine) -> dict:
         "pdf_fields": 0,
         "xsd_fields": 0,
         "parse_errors": 0,
+        "fetch_errors": 0,
         "calendar_entries": 0,
         "calendar_inserted": 0,
         "skipped": 0,
@@ -1028,7 +1027,15 @@ def run_sync(engine) -> dict:
                 stats["skipped"] += 1
                 continue
             campana_id, _campana = campaign
-            payload = _fetch_bytes(client, link["url"])
+            try:
+                payload = _fetch_bytes(client, link["url"])
+            except httpx.HTTPError as exc:
+                stats["fetch_errors"] += 1
+                logger.warning(
+                    "Could not fetch official AEAT design resource",
+                    extra={"codigo": link["codigo"], "url": link["url"], "error": str(exc)},
+                )
+                continue
             outcome = _store_design_resource(conn, campana_id, link, payload)
             if outcome == "unchanged":
                 stats["resources_unchanged"] += 1

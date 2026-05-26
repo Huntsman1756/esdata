@@ -276,6 +276,17 @@ def test_supplemental_links_include_modelo_289_official_xsd_zip():
     assert "agenciatributaria.gob.es" in link["url"]
 
 
+def test_supplemental_links_use_current_modelo_172_xsd_wsdl_zip():
+    links = {link["codigo"]: link for link in worker.SUPPLEMENTAL_CURRENT_DESIGN_LINKS}
+
+    link = links["172"]
+
+    assert link["tipo_recurso"] == "diseno_registro_xsd"
+    assert link["formato"] == "zip"
+    assert link["url"].endswith("GI53/2024/Esquemas_WSDL_servicios_web.zip")
+    assert "Esquemas172.zip" not in link["url"]
+
+
 def test_supplemental_links_include_modelo_303_official_design_xlsx():
     links = {link["codigo"]: link for link in worker.SUPPLEMENTAL_CURRENT_DESIGN_LINKS}
 

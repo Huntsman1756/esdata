@@ -523,6 +523,26 @@ Operational rule:
   `obligacion_perfil` rows safe unless they also have normalized source URL,
   source hash, capture date, verified state and complete applicability evidence.
 
+## 2026-05-26 - WorkerSilent `cron-aeat-current-daily` can regress if worker constants keep stale AEAT URLs
+
+Incident pattern:
+
+- `modelo_recurso` and Alembic can already have the corrected AEAT resource
+  (`GI53/2024/Esquemas_WSDL_servicios_web.zip`) while
+  `apps/workers/aeat_current_designs.py` still contains the old supplemental
+  constant (`GI53/Esquemas172.zip`).
+- In that state the daily timer fires, but the worker aborts on HTTP 404 before
+  writing a fresh `sync_log` row; `/status` then correctly marks
+  `cron-aeat-current-daily` as stale and `WorkerSilent` fires.
+
+Operational rule:
+
+- When replacing an official AEAT resource in migrations or `modelo_recurso`,
+  check all worker supplemental constants for the same URL.
+- A single supplemental AEAT resource fetch failure should be counted as
+  `fetch_errors` and skipped, not allowed to abort the whole daily freshness
+  run.
+
 ## 2026-05-25 - AEAT campaign truth is semantic, not connectivity
 
 The official-source audit closed URL reachability for active AEAT/BOE resources
