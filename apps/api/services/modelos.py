@@ -203,7 +203,17 @@ def _extract_campaign_candidate_years(*values: str | None) -> list[str]:
     current_year = datetime.now(UTC).year
     years: set[str] = set()
     for value in values:
-        for match in re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", value or ""):
+        text_value = value or ""
+        exercise_years = re.findall(
+            r"ejercicios?\s+((?:19|20)\d{2})",
+            text_value,
+            flags=re.IGNORECASE,
+        )
+        candidate_matches = exercise_years or re.findall(
+            r"(?<!\d)(?:19|20)\d{2}(?!\d)",
+            text_value,
+        )
+        for match in candidate_matches:
             year = int(match)
             if 1990 <= year <= current_year + 1:
                 years.add(match)

@@ -641,6 +641,34 @@ def test_campana_selection_marks_resource_only_conflict_fail_closed():
     assert selection["campana_conflict_years"] == ["2019", "2026"]
 
 
+def test_campaign_year_extraction_prefers_exercise_year_over_order_year():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        "2013",
+        [
+            {
+                "tipo": "modelo_recurso:diseno_registro",
+                "titulo": "126 - Orden EHA/3435/2007 (Ejercicios 2020 y siguientes)",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/static_files/Sede/"
+                    "Disenyo_registro/DR_100_199/archivos_20/126v01e2020_v1.07.xlsx"
+                ),
+                "label": "126 - Orden EHA/3435/2007 (Ejercicios 2020 y siguientes)",
+                "source_index": (
+                    "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
+                    "disenos-registro/modelos-100-199.html"
+                ),
+            }
+        ],
+    )
+
+    assert selection["campana_resolution_status"] == "conflict"
+    assert selection["campana_conflict_years"] == ["2013", "2020"]
+    assert "2007" not in selection["campana_conflict_years"]
+    assert selection["technical_exercise_coverage"][0]["from_year"] == 2020
+
+
 def test_technical_exercise_coverage_is_non_assertive_even_when_official():
     from services.modelos import _build_campana_selection
 
