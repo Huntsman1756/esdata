@@ -1,4 +1,6 @@
+import json
 import re
+import unicodedata
 from datetime import UTC, datetime
 
 from sqlalchemy import text
@@ -175,6 +177,20 @@ CAMPAIGN_NOT_ASSERTABLE_NOTICE = (
 )
 
 
+def _parse_metadata(value) -> dict:
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
 def _is_exposable_modelo_recurso(tipo_recurso: str | None, url_recurso: str | None) -> bool:
     if not url_recurso:
         return False
@@ -201,6 +217,70 @@ def _resource_proves_campaign(resource: dict, candidate: str | None) -> bool:
         return False
     years = resource.get("years") or []
     return candidate in years or resource.get("campana") == candidate
+
+
+def _fold_accents(value: str) -> str:
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", value)
+        if not unicodedata.combining(char)
+    )
+
+
+def _technical_scope_from_text(value: str) -> str:
+    text_value = _fold_accents(value).lower()
+    if "presentacion por lotes" in text_value:
+        return "presentacion_por_lotes"
+    if "diseno" in text_value or "registro" in text_value:
+        return "diseno_registro"
+    if "xsd" in text_value or "wsdl" in text_value:
+        return "xsd_wsdl"
+    return "technical_resource"
+
+
+def _extract_technical_exercise_coverage(resources: list[dict]) -> list[dict]:
+    coverage = []
+    seen = set()
+    for resource in resources:
+        tipo = resource.get("tipo")
+        if tipo not in CAMPAIGN_BEARING_RESOURCE_TYPES:
+            continue
+        text_value = " ".join(
+            str(value)
+            for value in (
+                resource.get("titulo"),
+                resource.get("label"),
+            )
+            if value
+        )
+        match = re.search(
+            r"ejercicios?\s+((?:19|20)\d{2})(?:\s+y\s+siguientes)?",
+            text_value,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            continue
+        from_year = int(match.group(1))
+        open_ended = "siguientes" in match.group(0).lower()
+        source_url = resource.get("source_index") or resource.get("url")
+        key = (tipo, from_year, None if open_ended else from_year, source_url)
+        if key in seen:
+            continue
+        seen.add(key)
+        label = match.group(0).strip()
+        coverage.append(
+            {
+                "from_year": from_year,
+                "to_year": None if open_ended else from_year,
+                "label": label,
+                "scope": _technical_scope_from_text(text_value),
+                "source_url": source_url,
+                "resource_url": resource.get("url"),
+                "proves_campaign": False,
+                "evidence_role": "technical_exercise_coverage",
+            }
+        )
+    return coverage
 
 
 def _campaign_notice(status: str) -> str:
@@ -252,6 +332,7 @@ def _campaign_assertion_warning(status: str) -> str | None:
 def _build_campana_selection(campana_activa: str | None, resources: list[dict]) -> dict:
     evidence = []
     resource_years: set[str] = set()
+    technical_exercise_coverage = _extract_technical_exercise_coverage(resources)
 
     for resource in resources:
         tipo = resource.get("tipo")
@@ -322,6 +403,7 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         "campana_assertion_warning": _campaign_assertion_warning(resolution_status),
         "campana_user_notice": _campaign_notice(resolution_status),
         "campana_evidence": evidence if resolution_status in {"resolved_strong", "resolved_weak"} else [],
+        "technical_exercise_coverage": technical_exercise_coverage,
         "campana_conflict": conflict,
         "campana_conflict_severity": conflict_severity,
         "campana_conflict_years": conflict_years if conflict else [],
@@ -608,7 +690,8 @@ def list_campaign_recursos(db, campana_id: int):
                 formato,
                 url_recurso,
                 sha256_contenido,
-                fecha_publicacion_recurso
+                fecha_publicacion_recurso,
+                metadata
             FROM modelo_recurso
             WHERE campana_id = :campana_id
               AND COALESCE(activa, true) = true
@@ -617,11 +700,14 @@ def list_campaign_recursos(db, campana_id: int):
         ),
         {"campana_id": campana_id},
     ).mappings()
-    return [
-        row
-        for row in rows
-        if _is_exposable_modelo_recurso(row["tipo_recurso"], row["url_recurso"])
-    ]
+    recursos = []
+    for row in rows:
+        if not _is_exposable_modelo_recurso(row["tipo_recurso"], row["url_recurso"]):
+            continue
+        item = dict(row)
+        item["metadata"] = _parse_metadata(item.get("metadata"))
+        recursos.append(item)
+    return recursos
 
 
 def _campaign_casillas_filters(
@@ -928,10 +1014,10 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
         campaign_evidence_role: str | None = None,
     ):
         if not url:
-            return
+            return False
         key = (tipo, url)
         if key in seen:
-            return
+            return False
         seen.add(key)
         fuentes.append(
             {
@@ -949,6 +1035,7 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                 or ("weak" if tipo in CAMPAIGN_BEARING_RESOURCE_TYPES else "none"),
             }
         )
+        return True
 
     add_source(
         tipo="aeat_modelo",
@@ -991,9 +1078,11 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
         for row in list_campaign_recursos(db, camp_row["id"]):
             url = row["url_recurso"]
             organismo = "BOE" if url and "boe.es" in url else "AEAT"
-            add_source(
+            metadata = row.get("metadata") or {}
+            title = metadata.get("label") or _modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"])
+            added = add_source(
                 tipo=f"modelo_recurso:{row['tipo_recurso']}",
-                titulo=_modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"]),
+                titulo=title,
                 url=url,
                 organismo=organismo,
                 oficial=True,
@@ -1004,6 +1093,9 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
             )
+            if added:
+                fuentes[-1]["label"] = metadata.get("label")
+                fuentes[-1]["source_index"] = metadata.get("source_index")
 
     for row in list_modelo_normativa(db, codigo):
         add_source(
@@ -1068,10 +1160,10 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
         campaign_evidence_role: str | None = None,
     ):
         if not url:
-            return
+            return False
         key = (tipo, url)
         if key in seen:
-            return
+            return False
         seen.add(key)
         artefactos.append(
             {
@@ -1089,6 +1181,7 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                 or ("weak" if tipo in CAMPAIGN_BEARING_RESOURCE_TYPES else "none"),
             }
         )
+        return True
 
     if camp_row:
         add_artefacto(
@@ -1120,9 +1213,11 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
         )
 
         for row in list_campaign_recursos(db, camp_row["id"]):
-            add_artefacto(
+            metadata = row.get("metadata") or {}
+            title = metadata.get("label") or _modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"])
+            added = add_artefacto(
                 tipo=f"modelo_recurso:{row['tipo_recurso']}",
-                titulo=_modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"]),
+                titulo=title,
                 url=row["url_recurso"],
                 oficial=True,
                 campana_value=campana_activa,
@@ -1133,6 +1228,9 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
             )
+            if added:
+                artefactos[-1]["label"] = metadata.get("label")
+                artefactos[-1]["source_index"] = metadata.get("source_index")
 
     for row in list_modelo_normativa(db, codigo):
         url = row["url_boe"]
@@ -1208,6 +1306,7 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
         "campana_safe_to_assert": (fuentes or {}).get("campana_safe_to_assert", False),
         "campana_user_notice": (fuentes or {}).get("campana_user_notice"),
         "campana_evidence": (fuentes or {}).get("campana_evidence", []),
+        "technical_exercise_coverage": (fuentes or {}).get("technical_exercise_coverage", []),
         "campana_conflict": (fuentes or {}).get("campana_conflict", False),
         "campana_conflict_severity": (fuentes or {}).get("campana_conflict_severity", "none"),
         "campana_conflict_years": (fuentes or {}).get("campana_conflict_years", []),

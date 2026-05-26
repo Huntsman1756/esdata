@@ -400,6 +400,17 @@ class ModeloCampana(BaseModel):
     activo: bool = Field(description="Si es la campana persistida internamente")
 
 
+class ModeloTechnicalExerciseCoverage(BaseModel):
+    from_year: int = Field(description="Primer ejercicio cubierto por la fuente tecnica oficial")
+    to_year: int | None = Field(default=None, description="Ultimo ejercicio cubierto; null si la fuente dice 'y siguientes'")
+    label: str = Field(description="Texto oficial o etiqueta de cobertura tecnica")
+    scope: str = Field(description="Alcance tecnico: presentacion_por_lotes, diseno_registro, xsd_wsdl u otro")
+    source_url: str | None = Field(default=None, description="Pagina oficial donde aparece la etiqueta de cobertura")
+    resource_url: str | None = Field(default=None, description="Artefacto tecnico oficial asociado")
+    proves_campaign: bool = Field(default=False, description="Siempre false: no prueba campana activa")
+    evidence_role: str = Field(default="technical_exercise_coverage", description="Rol no afirmativo de la evidencia")
+
+
 class ModeloDetail(BaseModel):
     codigo: str = Field(description="Código del modelo")
     nombre: str = Field(description="Nombre completo")
@@ -449,6 +460,10 @@ class ModeloDetail(BaseModel):
     )
     campana_user_notice: str | None = Field(
         default=None, description="Aviso obligatorio cuando la campana no es afirmable"
+    )
+    technical_exercise_coverage: list[ModeloTechnicalExerciseCoverage] = Field(
+        default_factory=list,
+        description="Cobertura tecnica oficial no afirmativa; nunca prueba campana",
     )
     campanas: list[ModeloCampana] = Field(
         default_factory=list, description="Campañas disponibles"
@@ -791,6 +806,7 @@ class ModeloFuentesOficialesResponse(BaseModel):
     campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
+    technical_exercise_coverage: list[ModeloTechnicalExerciseCoverage] = Field(default_factory=list, description="Cobertura tecnica oficial no afirmativa; nunca prueba campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
     campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
@@ -823,6 +839,7 @@ class ModeloResumenOperativoResponse(BaseModel):
     campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
+    technical_exercise_coverage: list[ModeloTechnicalExerciseCoverage] = Field(default_factory=list, description="Cobertura tecnica oficial no afirmativa; nunca prueba campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
     campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")
@@ -865,6 +882,7 @@ class ModeloArtefactosResponse(BaseModel):
     campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
     campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
+    technical_exercise_coverage: list[ModeloTechnicalExerciseCoverage] = Field(default_factory=list, description="Cobertura tecnica oficial no afirmativa; nunca prueba campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
     campana_conflict_years: list[str] = Field(default_factory=list, description="Anos implicados en el conflicto")

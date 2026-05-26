@@ -31,6 +31,24 @@ claims.
 
 Those fields are context. They are not fiscal truth.
 
+## Technical exercise coverage
+
+`technical_exercise_coverage` is useful documentary context, not campaign
+truth. It may describe official AEAT technical ranges such as "Ejercicios 2020
+y siguientes" for a batch presentation or record design.
+
+Every item must keep:
+
+- `proves_campaign = false`
+- `evidence_role = technical_exercise_coverage`
+
+This field may support `stale_suspected` or conflict review when it contradicts
+an old persisted campaign, but it must never feed:
+
+- `campana_afirmable`
+- `campana_safe_to_assert = true`
+- `campana_assertion_code = ASSERTABLE_DIRECT_OFFICIAL`
+
 ## Required consumer behavior
 
 When the gate is not satisfied, a client must abstain from asserting the

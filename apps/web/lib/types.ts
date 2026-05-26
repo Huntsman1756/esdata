@@ -236,6 +236,17 @@ export interface ModeloCampana {
   activo: boolean;
 }
 
+export interface TechnicalExerciseCoverage {
+  from_year: number;
+  to_year: number | null;
+  label: string;
+  scope: string;
+  source_url: string | null;
+  resource_url: string | null;
+  proves_campaign: false;
+  evidence_role: "technical_exercise_coverage";
+}
+
 export interface ModeloDetail {
   codigo: string;
   nombre: string;
@@ -253,6 +264,7 @@ export interface ModeloDetail {
   campana_assertion_code: string;
   campana_assertion_warning: string | null;
   campana_user_notice: string | null;
+  technical_exercise_coverage: TechnicalExerciseCoverage[];
   campanas: ModeloCampana[];
   articulos: ModeloArticulo[];
   casillas: ModeloCasilla[];

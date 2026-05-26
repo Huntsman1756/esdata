@@ -453,6 +453,24 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
     assert data["campana_conflict"] is True
     assert data["campana_conflict_severity"] == "weak"
     assert data["campana_conflict_years"] == ["2025", "2026"]
+    assert data["technical_exercise_coverage"] == [
+        {
+            "from_year": 2026,
+            "to_year": None,
+            "label": "Ejercicios 2026 y siguientes",
+            "scope": "presentacion_por_lotes",
+            "source_url": (
+                "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
+                "disenos-registro/modelos-100-199.html"
+            ),
+            "resource_url": (
+                "https://sede.agenciatributaria.gob.es/static_files/Sede/"
+                "Disenyo_registro/DR_100_199/archivos_26/dr100_2026.xlsx"
+            ),
+            "proves_campaign": False,
+            "evidence_role": "technical_exercise_coverage",
+        }
+    ]
     assert any(
         "2026" in item["years"]
         for item in data["campana_conflict_evidence"]
@@ -499,6 +517,9 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
     assert data["campana_conflict"] is True
     assert data["campana_conflict_severity"] == "weak"
     assert data["campana_conflict_years"] == ["2025", "2026"]
+    assert data["technical_exercise_coverage"][0]["proves_campaign"] is False
+    assert data["technical_exercise_coverage"][0]["evidence_role"] == "technical_exercise_coverage"
+    assert data["technical_exercise_coverage"][0]["from_year"] == 2026
     assert any(
         "2026" in item["years"]
         for item in data["campana_conflict_evidence"]
@@ -534,6 +555,51 @@ def test_campana_selection_marks_resource_only_conflict_fail_closed():
     assert selection["campana_conflict"] is True
     assert selection["campana_conflict_severity"] == "strong"
     assert selection["campana_conflict_years"] == ["2019", "2026"]
+
+
+def test_technical_exercise_coverage_is_non_assertive_even_when_official():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        "2013",
+        [
+            {
+                "tipo": "modelo_recurso:diseno_registro",
+                "titulo": "Modelo 124. Ejercicios 2020 y siguientes. Presentación por lotes.",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/static_files/Sede/"
+                    "Disenyo_registro/DR_100_199/archivos_20/124v01e2020_v1.07.xlsx"
+                ),
+                "source_index": (
+                    "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
+                    "disenos-registro/modelos-100-199.html"
+                ),
+                "proves_campaign": False,
+            }
+        ],
+    )
+
+    assert selection["technical_exercise_coverage"] == [
+        {
+            "from_year": 2020,
+            "to_year": None,
+            "label": "Ejercicios 2020 y siguientes",
+            "scope": "presentacion_por_lotes",
+            "source_url": (
+                "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
+                "disenos-registro/modelos-100-199.html"
+            ),
+            "resource_url": (
+                "https://sede.agenciatributaria.gob.es/static_files/Sede/"
+                "Disenyo_registro/DR_100_199/archivos_20/124v01e2020_v1.07.xlsx"
+            ),
+            "proves_campaign": False,
+            "evidence_role": "technical_exercise_coverage",
+        }
+    ]
+    assert selection["campana_afirmable"] is None
+    assert selection["campana_safe_to_assert"] is False
+    assert selection["campana_assertion_code"] != "ASSERTABLE_DIRECT_OFFICIAL"
 
 
 def test_campana_selection_marks_non_conflicting_persisted_year_as_weak_not_assertable():

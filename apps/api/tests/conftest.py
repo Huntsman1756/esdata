@@ -2693,8 +2693,8 @@ Dos. Se aplicará un tipo superreducido al pan, leche y libros.', '1993-01-01', 
     WHERE m.codigo = '100' AND mc.campana = '2025'
     """,
     """
-    INSERT INTO modelo_recurso (campana_id, tipo_recurso, formato, url_recurso, sha256_contenido, fecha_publicacion_recurso, activa, first_seen_at, last_seen_at)
-    SELECT mc.id, 'diseno_registro', 'xlsx', 'https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_26/dr100_2026.xlsx', 'hash-modelo100-2026-design-v1', '2025-04-01', 1, '2025-04-01T00:00:00Z', '2025-04-02T00:00:00Z'
+    INSERT INTO modelo_recurso (campana_id, tipo_recurso, formato, url_recurso, sha256_contenido, fecha_publicacion_recurso, activa, first_seen_at, last_seen_at, metadata)
+    SELECT mc.id, 'diseno_registro', 'xlsx', 'https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_26/dr100_2026.xlsx', 'hash-modelo100-2026-design-v1', '2025-04-01', 1, '2025-04-01T00:00:00Z', '2025-04-02T00:00:00Z', '{"label":"Modelo 100. Ejercicios 2026 y siguientes. Presentacion por lotes.","source_index":"https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-100-199.html"}'
     FROM modelo_campana mc JOIN aeat_modelo m ON m.id = mc.modelo_id
     WHERE m.codigo = '100' AND mc.campana = '2025'
     """,

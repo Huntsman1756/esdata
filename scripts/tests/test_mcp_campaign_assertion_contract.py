@@ -50,6 +50,9 @@ def test_web_model_type_exposes_assertion_contract_fields():
     assert "campana_assertion_warning: string | null;" in source
     assert "campana_verification_level: string | null;" in source
     assert "campana_user_notice: string | null;" in source
+    assert "technical_exercise_coverage: TechnicalExerciseCoverage[];" in source
+    assert "proves_campaign: false;" in source
+    assert 'evidence_role: "technical_exercise_coverage";' in source
 
 
 def test_public_schemas_mark_campana_activa_as_deprecated_persisted_only():
@@ -60,6 +63,8 @@ def test_public_schemas_mark_campana_activa_as_deprecated_persisted_only():
     assert source.count("campana_safe_to_assert para afirmaciones fiscales") >= 3
     assert "campana_assertion_code" in source
     assert "campana_assertion_warning" in source
+    assert "ModeloTechnicalExerciseCoverage" in source
+    assert "Siempre false: no prueba campana activa" in source
 
 
 def test_mcp_stdio_labels_campaign_metadata_as_unverified():
@@ -83,6 +88,10 @@ def test_aeat_precision_contract_defines_only_direct_official_assertion_gate():
     assert "`INSUFFICIENT_EVIDENCE`" in source
     assert "`STALE_SUSPECTED`" in source
     assert "Never use `campana_activa`, `campana_persistida` or `campana_candidata`" in source
+    assert "`technical_exercise_coverage` is useful documentary context, not campaign\ntruth" in source
+    assert "`proves_campaign = false`" in source
+    assert "`evidence_role = technical_exercise_coverage`" in source
+    assert "`campana_assertion_code = ASSERTABLE_DIRECT_OFFICIAL`" in source
 
 
 def test_weak_campaign_payload_detector_blocks_affirmative_text():

@@ -732,6 +732,7 @@ async def get_modelo(
             ),
             "campana_assertion_warning": campana_assertion.get("campana_assertion_warning"),
             "campana_user_notice": campana_assertion.get("campana_user_notice"),
+            "technical_exercise_coverage": campana_assertion.get("technical_exercise_coverage", []),
             "campanas": campanas,
             "campanas_total": len(all_camp_rows),
             "articulos": articulos,
