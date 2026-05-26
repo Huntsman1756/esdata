@@ -17,7 +17,7 @@ Superficies revisadas en VPS tras deploy:
 - `/v1/modelos/126/fuentes-oficiales`
 - `/v1/modelos/126/resumen-operativo`
 
-Resultado:
+Resultado antes de `AEAT-TECHNICAL-COVERAGE-INACTIVE-RESOURCES-01`:
 
 ```text
 campana_activa=2013
@@ -32,8 +32,9 @@ campana_conflict_years=[]
 technical_exercise_coverage=[]
 ```
 
-Lectura: MCP no afirma campana. Correcto. Pero todavia no conserva la cobertura
-tecnica oficial `2020+` para el modelo 126, aunque la fuente AEAT la publica.
+Lectura: MCP no afirma campana. Correcto. Pero en ese momento todavia no
+conservaba la cobertura tecnica oficial `2020+` para el modelo 126, aunque la
+fuente AEAT la publica.
 
 ## Fuentes oficiales revisadas
 
@@ -140,6 +141,25 @@ Para el modelo 126:
      de obsolescencia de `2013`;
    - o `conflict`, si los anos de cobertura tecnica se incorporan al detector de
      conflicto.
+
+## Seguimiento tecnico
+
+`AEAT-TECHNICAL-COVERAGE-INACTIVE-RESOURCES-01` corrige la causa tecnica sin
+mutar datos: algunos XLSX oficiales de diseno de registro quedaban en
+`modelo_recurso.activa=false` por la unicidad de recurso activo por tipo, pero
+seguian teniendo metadatos oficiales utiles (`label` y `source_index`). El API
+puede usarlos como evidencia no afirmativa para `technical_exercise_coverage`,
+sin exponerlos como fuente activa ni permitir `campana_afirmable`.
+
+Resultado esperado tras despliegue:
+
+```text
+campana_resolution_status=conflict
+campana_safe_to_assert=false
+campana_assertion_code=NOT_ASSERTABLE_CONFLICT
+technical_exercise_coverage[0].from_year=2020
+technical_exercise_coverage[0].proves_campaign=false
+```
 
 ## No decisiones
 

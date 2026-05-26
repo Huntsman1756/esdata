@@ -710,6 +710,47 @@ def list_campaign_recursos(db, campana_id: int):
     return recursos
 
 
+def list_campaign_technical_coverage_recursos(db, campana_id: int):
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                tipo_recurso,
+                formato,
+                url_recurso,
+                fecha_publicacion_recurso,
+                metadata
+            FROM modelo_recurso
+            WHERE campana_id = :campana_id
+              AND COALESCE(activa, true) = false
+              AND tipo_recurso = 'diseno_registro'
+              AND LOWER(CAST(metadata AS TEXT)) LIKE '%ejercicios%'
+            ORDER BY tipo_recurso, url_recurso
+            """
+        ),
+        {"campana_id": campana_id},
+    ).mappings()
+    recursos = []
+    for row in rows:
+        if not _is_exposable_modelo_recurso(row["tipo_recurso"], row["url_recurso"]):
+            continue
+        metadata = _parse_metadata(row.get("metadata"))
+        label = metadata.get("label")
+        if not label or not re.search(r"ejercicios?\s+(?:19|20)\d{2}", label, flags=re.IGNORECASE):
+            continue
+        recursos.append(
+            {
+                "tipo": f"modelo_recurso:{row['tipo_recurso']}",
+                "titulo": label,
+                "label": label,
+                "url": row["url_recurso"],
+                "fecha": str(row["fecha_publicacion_recurso"]) if row["fecha_publicacion_recurso"] else None,
+                "source_index": metadata.get("source_index"),
+            }
+        )
+    return recursos
+
+
 def _campaign_casillas_filters(
     *,
     campana_id: int,
@@ -1122,10 +1163,14 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
             nota=row["nota"],
         )
 
+    selection_sources = [*fuentes]
+    if camp_row:
+        selection_sources.extend(list_campaign_technical_coverage_recursos(db, camp_row["id"]))
+
     return {
         "codigo": codigo,
         "campana_activa": campana_activa,
-        **_build_campana_selection(campana_activa, fuentes),
+        **_build_campana_selection(campana_activa, selection_sources),
         "criterio_uso": (
             "En esdata, la fuente maestra debe ser siempre oficial y primaria "
             "(AEAT, BOE o equivalente público). Las referencias derivadas solo "
@@ -1246,10 +1291,14 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
             nota=row["resumen"],
         )
 
+    selection_artefactos = [*artefactos]
+    if camp_row:
+        selection_artefactos.extend(list_campaign_technical_coverage_recursos(db, camp_row["id"]))
+
     return {
         "codigo": codigo,
         "campana_activa": campana_activa,
-        **_build_campana_selection(campana_activa, artefactos),
+        **_build_campana_selection(campana_activa, selection_artefactos),
         "criterio_validacion": (
             "Estos artefactos sirven para validacion local, trazabilidad y trabajo tecnico "
             "sobre el modelo. La aceptacion formal del modelo solo puede confirmarse contra "

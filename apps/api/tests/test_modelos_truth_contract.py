@@ -545,6 +545,71 @@ async def test_modelo_resumen_operativo_reuses_campaign_assertion_code():
     assert data["technical_exercise_coverage"][0]["proves_campaign"] is False
 
 
+@pytest.mark.asyncio
+async def test_inactive_technical_design_resource_still_informs_non_assertive_coverage():
+    from db import engine
+
+    with engine.begin() as conn:
+        campana_id = conn.execute(
+            text(
+                """
+                SELECT mc.id
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = '303' AND mc.campana = '2025'
+                """
+            )
+        ).scalar_one()
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_recurso (
+                    campana_id, tipo_recurso, formato, url_recurso, sha256_contenido,
+                    fecha_publicacion_recurso, activa, first_seen_at, last_seen_at, metadata
+                )
+                VALUES (
+                    :campana_id, 'diseno_registro', 'xlsx',
+                    'https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_300_399/archivos_26/dr303_2026.xlsx',
+                    'hash-modelo303-2026-design-inactive-v1',
+                    '2026-01-15', 0, '2026-01-15T00:00:00Z', '2026-01-16T00:00:00Z',
+                    '{"label":"303 - Orden X (Ejercicios 2026 y siguientes) (111 KB - xlsx)","source_index":"https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-300-399.html"}'
+                )
+                """
+            ),
+            {"campana_id": campana_id},
+        )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/303/resumen-operativo")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["campana_safe_to_assert"] is False
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert data["technical_exercise_coverage"] == [
+        {
+            "from_year": 2026,
+            "to_year": None,
+            "label": "Ejercicios 2026 y siguientes",
+            "scope": "technical_resource",
+            "source_url": (
+                "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
+                "disenos-registro/modelos-300-399.html"
+            ),
+            "resource_url": (
+                "https://sede.agenciatributaria.gob.es/static_files/Sede/"
+                "Disenyo_registro/DR_300_399/archivos_26/dr303_2026.xlsx"
+            ),
+            "proves_campaign": False,
+            "evidence_role": "technical_exercise_coverage",
+        }
+    ]
+
+
 def test_campana_selection_marks_resource_only_conflict_fail_closed():
     from services.modelos import _build_campana_selection
 
