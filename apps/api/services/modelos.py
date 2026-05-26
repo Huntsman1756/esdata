@@ -1304,6 +1304,8 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
         "campana_resolution_status": (fuentes or {}).get("campana_resolution_status", "insufficient_evidence"),
         "campana_verification_level": (fuentes or {}).get("campana_verification_level", "insufficient"),
         "campana_safe_to_assert": (fuentes or {}).get("campana_safe_to_assert", False),
+        "campana_assertion_code": (fuentes or {}).get("campana_assertion_code", "INSUFFICIENT_EVIDENCE"),
+        "campana_assertion_warning": (fuentes or {}).get("campana_assertion_warning"),
         "campana_user_notice": (fuentes or {}).get("campana_user_notice"),
         "campana_evidence": (fuentes or {}).get("campana_evidence", []),
         "technical_exercise_coverage": (fuentes or {}).get("technical_exercise_coverage", []),

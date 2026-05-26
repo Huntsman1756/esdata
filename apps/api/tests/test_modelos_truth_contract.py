@@ -526,6 +526,25 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
     ), data["campana_conflict_evidence"]
 
 
+@pytest.mark.asyncio
+async def test_modelo_resumen_operativo_reuses_campaign_assertion_code():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/100/resumen-operativo")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["campana_resolution_status"] == "conflict"
+    assert data["campana_safe_to_assert"] is False
+    assert data["campana_afirmable"] is None
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert "do not treat" in data["campana_assertion_warning"].lower()
+    assert data["technical_exercise_coverage"][0]["proves_campaign"] is False
+
+
 def test_campana_selection_marks_resource_only_conflict_fail_closed():
     from services.modelos import _build_campana_selection
 
