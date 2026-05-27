@@ -154,3 +154,10 @@ def test_prompt_forbids_unprovided_boe_or_legal_sources():
     assert "No introduzcas BOE, articulos legales o normas" in prompt
     assert "si no aparecen explicitamente" in prompt
     assert "get_modelo_fuentes_oficiales" in prompt
+
+
+def test_prompt_forbids_transactional_forms_as_official_claim_sources():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "No uses formularios transaccionales" in prompt
+    assert "www1.agenciatributaria.gob.es/wlpl/OV16" in prompt

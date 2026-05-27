@@ -20,6 +20,7 @@ stamp="$(ts)"
 prompt_file="$(mktemp)"
 raw_file="${RAW_DIR}/modelo-${safe}-${stamp}.txt"
 json_file="${REPORTS}/modelo-${safe}-${stamp}.json"
+json_tmp="${json_file}.tmp"
 md_file="${MD_DIR}/modelo-${safe}-${stamp}.md"
 
 sed "s/{{MODEL_CODE}}/${MODEL_CODE}/g" "$PROMPT_TEMPLATE" > "$prompt_file"
@@ -31,12 +32,14 @@ fi
 rm -f "$prompt_file"
 
 if [ "$status" = "OK" ]; then
-  if ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/extract_aeat_hermes_json.py" "$raw_file" "$json_file"; then
+  if ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/extract_aeat_hermes_json.py" "$raw_file" "$json_tmp"; then
     status="ERROR_EXTRACT"
-  elif ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/validate_aeat_hermes_report.py" "$json_file"; then
+  elif ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/validate_aeat_hermes_report.py" "$json_tmp"; then
     status="ERROR_VALIDATE"
-  elif ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/render_aeat_hermes_report.py" "$json_file" "$md_file"; then
+  elif ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/render_aeat_hermes_report.py" "$json_tmp" "$md_file"; then
     status="ERROR_RENDER"
+  else
+    mv "$json_tmp" "$json_file"
   fi
 fi
 
@@ -45,6 +48,7 @@ case "$status" in
     printf 'OK,%s,%s,%s,%s\n' "$MODEL_CODE" "$json_file" "$md_file" "$raw_file"
     ;;
   *)
+    rm -f "$json_tmp"
     printf '%s,%s,,,%s\n' "$status" "$MODEL_CODE" "$raw_file" >&2
     exit 1
     ;;

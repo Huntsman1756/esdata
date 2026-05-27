@@ -44,6 +44,9 @@ Reglas duras:
   una normativa aplicable o una cobertura tecnica, genera un
   `official_source_claim` no afirmativo con `proves_campaign=false`; no dejes `official_source_claims` vacio salvo que no exista ningun texto oficial literal localizable.
 - No introduzcas BOE, articulos legales o normas como `official_sources` si no aparecen explicitamente en `get_modelo_fuentes_oficiales` o `get_modelo_artefactos` para este modelo.
+- No uses formularios transaccionales como fuente de `official_source_claims`;
+  las URLs `www1.agenciatributaria.gob.es/wlpl/OV16...` no son evidencia
+  documental verificable para este contrato.
 - No uses `cache`, `metadata`, `MCP`, `ESData`, `modelo_recurso`,
   `campana_activa` o `campana_persistida` como evidencia oficial.
 - No afirmes campana salvo que:

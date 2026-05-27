@@ -143,6 +143,18 @@ def test_official_source_excerpt_rejects_internal_terms():
     )
 
 
+def test_official_source_rejects_transactional_aeat_form_urls():
+    module = _load_module()
+    report = _valid_report()
+    report["official_sources"][0][
+        "url"
+    ] = "https://www1.agenciatributaria.gob.es/wlpl/OV16-M113/index.zul"
+
+    errors = module.validate_report(report)
+
+    assert any("transactional AEAT form URLs are not evidence sources" in error for error in errors)
+
+
 def test_assertable_decision_requires_direct_official_gate():
     module = _load_module()
     report = _valid_report()

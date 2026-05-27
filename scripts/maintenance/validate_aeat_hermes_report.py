@@ -82,6 +82,16 @@ def _validate_url(path: str, url: object) -> list[str]:
     return []
 
 
+def _is_transactional_aeat_form_url(url: object) -> bool:
+    if not _is_non_empty_string(url):
+        return False
+    parsed = urlparse(str(url))
+    return (
+        parsed.netloc.lower() in {"www1.agenciatributaria.gob.es", "www2.agenciatributaria.gob.es"}
+        and parsed.path.lower().startswith("/wlpl/ov16-")
+    )
+
+
 def validate_report(payload: dict[str, object]) -> list[str]:
     errors: list[str] = []
     root_required = {
@@ -185,6 +195,13 @@ def validate_report(payload: dict[str, object]) -> list[str]:
             if source.get("authority") not in OFFICIAL_AUTHORITIES:
                 errors.append(_error(f"{path}.authority", "invalid authority"))
             errors.extend(_validate_url(f"{path}.url", source.get("url")))
+            if _is_transactional_aeat_form_url(source.get("url")):
+                errors.append(
+                    _error(
+                        f"{path}.url",
+                        "transactional AEAT form URLs are not evidence sources",
+                    )
+                )
             if not _is_non_empty_string(source.get("locator")):
                 errors.append(_error(f"{path}.locator", "must be non-empty"))
             if not _is_non_empty_string(source.get("excerpt")):

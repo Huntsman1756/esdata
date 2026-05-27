@@ -138,7 +138,7 @@ def test_unreferenced_source_failure_does_not_block_claim_adjudication(tmp_path)
         {
             "source_id": "AEAT_FORM_UNUSED",
             "authority": "AEAT",
-            "url": "https://www1.agenciatributaria.gob.es/wlpl/OV16-M113/index.zul",
+            "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G614.shtml",
             "locator": "Formulario dinamico",
             "excerpt": "Formulario Html del modelo 113",
         }

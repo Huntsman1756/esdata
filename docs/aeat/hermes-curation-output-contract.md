@@ -68,10 +68,12 @@ Hermes must emit structured JSON with these layers:
 8. Technical designs, XSD, WSDL, filenames and endpoints may only prove
    technical coverage when the official source says so. They do not prove
    active campaign, obligation, filing window or general applicability.
-9. `derived_claims` and `system_observed_claims` must keep
+9. Transactional AEAT form URLs such as `www1.agenciatributaria.gob.es/wlpl/OV16-*`
+   are not valid official evidence sources for this contract.
+10. `derived_claims` and `system_observed_claims` must keep
    `may_assert_campaign=false`.
-10. `human_review_required` must always be `true`.
-11. `decision=ASSERTABLE` is valid only when the assertion gate is satisfied:
+11. `human_review_required` must always be `true`.
+12. `decision=ASSERTABLE` is valid only when the assertion gate is satisfied:
    `campana_safe_to_assert=true`, `campana_afirmable!=null` and
    `campana_assertion_code=ASSERTABLE_DIRECT_OFFICIAL`.
 

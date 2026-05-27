@@ -27,3 +27,14 @@ def test_json_daily_summary_ignores_legacy_campaign_summary_as_source():
     assert "IGNORED" in source
     assert "JSON_ERRORS" in source
     assert "validated JSON is the primary artifact" in source
+
+
+def test_single_model_json_runner_publishes_only_validated_json():
+    source = (
+        ROOT / "scripts" / "hermes_curator" / "bin" / "run-aeat-model-json.sh"
+    ).read_text(encoding="utf-8")
+
+    assert 'json_tmp="${json_file}.tmp"' in source
+    assert '"$json_tmp"' in source
+    assert 'mv "$json_tmp" "$json_file"' in source
+    assert 'rm -f "$json_tmp"' in source
