@@ -37,6 +37,17 @@ and must pass:
 python scripts/maintenance/validate_aeat_hermes_report.py <report.json>
 ```
 
+Before any report is considered for repository evidence, run the admission
+audit:
+
+```bash
+python scripts/maintenance/audit_aeat_hermes_integration.py <report.json>
+```
+
+`integrable=true` only means the report can enter human review as traceable
+evidence. It does not allow the agent to promote a campaign or write
+`resolved_strong`.
+
 The schema forces four separate layers:
 
 - `official_source_claims`: claims traceable 1:1 to an official URL, locator

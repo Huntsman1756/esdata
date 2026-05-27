@@ -16,6 +16,12 @@ Validation command:
 python scripts/maintenance/validate_aeat_hermes_report.py <report.json>
 ```
 
+Evidence admission command:
+
+```bash
+python scripts/maintenance/audit_aeat_hermes_integration.py <report.json>
+```
+
 ## Layer Separation
 
 Hermes must emit structured JSON with these layers:
@@ -57,3 +63,19 @@ Hermes must emit structured JSON with these layers:
 A conforming JSON report is still a review artifact, not a production write.
 Promotion to `resolved_strong` remains a human decision governed by
 `docs/aeat/curation-rules.md` and `docs/aeat/precision-contract.md`.
+
+`integrable=true` in `audit_aeat_hermes_integration.py` means only that the
+report contains traceable official-source claims that a human can review. It
+does not authorize writes to production, assertion fields, or campaign
+promotion.
+
+Minimum admission rules:
+
+1. Schema validity is required but is not sufficient.
+2. At least one `official_source_claim` is required.
+3. `ASSERTABLE` reports are not admissible unless the direct official assertion
+   gate is satisfied.
+4. `resolved_strong` is only a recommendation when the direct official gate is
+   satisfied and at least one official claim has `proves_campaign=true`.
+5. `CONFLICT`, `STALE_SUSPECTED`, `INSUFFICIENT_EVIDENCE` and `UNKNOWN` remain
+   non-assertable even when their reports are integrable for human review.
