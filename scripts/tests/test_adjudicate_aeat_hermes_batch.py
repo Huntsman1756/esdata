@@ -242,3 +242,55 @@ def test_latest_per_model_selects_newest_report_name(tmp_path):
         "modelo-128-20260527-072022.json",
         "modelo-210-20260527-152228.json",
     ]
+
+
+def test_summarize_results_reports_operational_metrics():
+    module = _load_module()
+    results = [
+        {
+            "decision": "CONFLICT",
+            "machine_decision": "auto_accept_conflict_evidence",
+            "repository_bucket": "draft/conflict",
+            "recommended_state": "conflict",
+            "automatic_rejection_reasons": [],
+            "source_checks": [
+                {
+                    "suggested_excerpt": "Modelo 210",
+                    "errors": [],
+                    "referenced_by_claim": True,
+                },
+                {
+                    "suggested_excerpt": None,
+                    "errors": ["excerpt_not_found_in_source"],
+                    "referenced_by_claim": False,
+                },
+            ],
+        },
+        {
+            "decision": "ASSERTABLE",
+            "machine_decision": "human_review_assertable_candidate",
+            "repository_bucket": "review/assertable_candidate",
+            "recommended_state": "resolved_strong",
+            "automatic_rejection_reasons": [],
+            "source_checks": [],
+        },
+        {
+            "decision": "UNKNOWN",
+            "machine_decision": "needs_report_rewrite",
+            "repository_bucket": "rewrite/traceability",
+            "recommended_state": "insufficient_evidence",
+            "automatic_rejection_reasons": ["A:error"],
+            "source_checks": [],
+        },
+    ]
+
+    metrics = module.summarize_results(results)
+
+    assert metrics["reports_total"] == 3
+    assert metrics["auto_accepted_total"] == 1
+    assert metrics["human_review_required_total"] == 1
+    assert metrics["rewrite_or_reject_total"] == 1
+    assert metrics["assertable_candidates_total"] == 1
+    assert metrics["repaired_excerpts_total"] == 1
+    assert metrics["unused_source_warnings_total"] == 1
+    assert metrics["blocking_errors_total"] == 1

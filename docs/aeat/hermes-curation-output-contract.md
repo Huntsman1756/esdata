@@ -122,3 +122,17 @@ Human review remains mandatory only for:
 - `human_review_assertable_candidate`;
 - `needs_report_rewrite`;
 - `reject_report`.
+
+The batch output includes `metrics` so the system can be monitored without
+reading every report:
+
+- `auto_accepted_total`;
+- `human_review_required_total`;
+- `rewrite_or_reject_total`;
+- `assertable_candidates_total`;
+- `repaired_excerpts_total`;
+- `unused_source_warnings_total`;
+- `blocking_errors_total`.
+
+`auto_accept_*` means admission to a draft/review bucket. It is not canonical
+evidence, not a database write and not campaign resolution.

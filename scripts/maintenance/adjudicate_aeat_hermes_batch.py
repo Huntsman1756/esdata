@@ -6,6 +6,7 @@ import html
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 from urllib.request import Request, urlopen
@@ -297,6 +298,45 @@ def _latest_per_model(paths: list[Path]) -> list[Path]:
     return [latest[key] for key in sorted(latest)]
 
 
+def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
+    machine = Counter(str(item.get("machine_decision")) for item in results)
+    buckets = Counter(str(item.get("repository_bucket")) for item in results)
+    decisions = Counter(str(item.get("decision")) for item in results)
+    recommended = Counter(str(item.get("recommended_state")) for item in results)
+
+    repaired_excerpts = 0
+    unused_source_warnings = 0
+    blocking_errors = 0
+    for item in results:
+        blocking_errors += len(item.get("automatic_rejection_reasons", []))
+        for source in item.get("source_checks", []):
+            if source.get("suggested_excerpt"):
+                repaired_excerpts += 1
+            if source.get("errors") and source.get("referenced_by_claim") is False:
+                unused_source_warnings += 1
+
+    return {
+        "reports_total": len(results),
+        "by_decision": dict(sorted(decisions.items())),
+        "by_machine_decision": dict(sorted(machine.items())),
+        "by_repository_bucket": dict(sorted(buckets.items())),
+        "by_recommended_state": dict(sorted(recommended.items())),
+        "auto_accepted_total": sum(
+            count for decision, count in machine.items() if decision.startswith("auto_accept_")
+        ),
+        "human_review_required_total": machine.get("human_review_assertable_candidate", 0),
+        "rewrite_or_reject_total": sum(
+            count
+            for decision, count in machine.items()
+            if decision.startswith("needs_") or decision.startswith("reject")
+        ),
+        "assertable_candidates_total": machine.get("human_review_assertable_candidate", 0),
+        "repaired_excerpts_total": repaired_excerpts,
+        "unused_source_warnings_total": unused_source_warnings,
+        "blocking_errors_total": blocking_errors,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Batch-adjudicate AEAT Hermes JSON reports without human per-model review."
@@ -329,7 +369,13 @@ def main() -> int:
         adjudicate_report(path, verify_sources=args.verify_sources, fetcher=fetcher)
         for path in report_paths
     ]
-    print(json.dumps({"reports": results}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"metrics": summarize_results(results), "reports": results},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     if args.fail_on_rewrite and any(
         str(item.get("machine_decision", "")).startswith(("needs_", "reject"))
         for item in results
