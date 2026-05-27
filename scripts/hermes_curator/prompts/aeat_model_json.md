@@ -35,6 +35,11 @@ Reglas duras:
 - Si no tienes texto literal localizable, no incluyas la fuente en
   `official_sources`; mueve la hipotesis a `rejected_claims` o
   `system_observed_claims`.
+- `official_sources debe contener solo fuentes usadas` por al menos un
+  `official_source_claims[].source_id`, salvo que `official_source_claims` sea
+  un array vacio.
+- No incluyas fuentes oficiales auxiliares, formularios, ayudas o recursos
+  descubiertos si no sostienen ningun `official_source_claim`.
 - No uses `cache`, `metadata`, `MCP`, `ESData`, `modelo_recurso`,
   `campana_activa` o `campana_persistida` como evidencia oficial.
 - No afirmes campana salvo que:

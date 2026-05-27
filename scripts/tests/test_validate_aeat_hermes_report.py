@@ -128,6 +128,21 @@ def test_official_claim_rejects_mcp_or_metadata_terms():
     assert any("official claim contains internal/system evidence terms" in error for error in errors)
 
 
+def test_official_source_excerpt_rejects_internal_terms():
+    module = _load_module()
+    report = _valid_report()
+    report["official_sources"][0]["excerpt"] = (
+        "Recurso oficial activo cacheado en modelo_recurso; campana asociada: 2019"
+    )
+
+    errors = module.validate_report(report)
+
+    assert any(
+        "official source excerpt contains internal/system evidence terms" in error
+        for error in errors
+    )
+
+
 def test_assertable_decision_requires_direct_official_gate():
     module = _load_module()
     report = _valid_report()

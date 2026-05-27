@@ -189,6 +189,21 @@ def validate_report(payload: dict[str, object]) -> list[str]:
                 errors.append(_error(f"{path}.locator", "must be non-empty"))
             if not _is_non_empty_string(source.get("excerpt")):
                 errors.append(_error(f"{path}.excerpt", "must be non-empty"))
+            else:
+                excerpt_text = str(source.get("excerpt", "")).lower()
+                forbidden = [
+                    term
+                    for term in FORBIDDEN_OFFICIAL_EVIDENCE_TERMS
+                    if term in excerpt_text
+                ]
+                if forbidden:
+                    errors.append(
+                        _error(
+                            f"{path}.excerpt",
+                            "official source excerpt contains internal/system evidence terms: "
+                            + ", ".join(sorted(set(forbidden))),
+                        )
+                    )
 
     official_claims = payload["official_source_claims"]
     if not isinstance(official_claims, list):

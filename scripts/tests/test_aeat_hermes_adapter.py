@@ -131,3 +131,10 @@ def test_prompt_requires_literal_excerpts_for_html_sources():
     assert "No resumas, no parafrasees" in prompt
     assert "subcadena que pueda" in prompt
     assert "fuentes binarias oficiales" in prompt
+
+
+def test_prompt_forbids_unreferenced_official_sources():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "official_sources debe contener solo fuentes usadas" in prompt
+    assert "No incluyas fuentes oficiales auxiliares" in prompt
