@@ -28,7 +28,7 @@ This file tracks source families requested on 2026-05-17. It is not a claim that
 | TEAC | `implemented_partial` | 10 resoluciones loaded; DYCTEA and doctrina historica need broader ingestion. |
 | AEPD | `implemented_partial` | 25 docs loaded; circulars/normativa/instrucciones/transparency families need separation. |
 | SEPBLAC | `implemented_partial` | Normativa nacional/comunitaria and obligaciones pages loaded. VPS: 6 docs SEPBLAC, 4 `obligacion_sepblac`. |
-| Sanctions / screening | `ready_for_ingestion` | OFAC entries exist; EU sanctions parser/cron is implemented but production rows remain 0 because the current Commission FSF XML endpoint returns HTTP 403 without a session/token. UN/SEPBLAC sanctions remain target. |
+| Sanctions / screening | `implemented_partial` | OFAC and EU sanctions entries exist. EU sanctions parser/cron uses the official Commission FSF XML 1.1 `downloadURL` published by `data.europa.eu` and loaded 5.996 rows on VPS (`actualizada=2026-05-08`). UN/SEPBLAC sanctions remain target/fail-closed. |
 | GIIN / FATCA IRS | `implemented_partial` | GIIN registry and Modelo 290/FATCA rules exist; IRS FATCA source family needs explicit contract. |
 | PGC / ESEF | `implemented_partial` | PGC data and XBRL tables exist; ESMA ESEF taxonomy element/label/mapping tables remain target. |
 
@@ -87,7 +87,7 @@ Each must keep a separate `tipo_documento`/contract. Registers and forms should 
 
 ### Screening / Sanctions
 
-- EU sanctions parser/cron is `ready_for_ingestion`; production rows require a reachable/configured official Commission FSF XML export URL.
+- EU sanctions parser/cron is `implemented_partial`; production uses the official Commission FSF XML 1.1 `downloadURL` with token published by `data.europa.eu`.
 - UN and SEPBLAC sanctions remain pending.
 - OpenOwnership, FollowTheMoney, Memorious, Nomenklatura, OpenSanctions and Yente are tooling/data-model candidates, not official legal sources by themselves.
 

@@ -72,7 +72,7 @@ All rows below have `retry-guard=yes`. Network is `esdata-internal`.
 | `aeat_current_designs.py` | `active-cron` | `cron-aeat-current-daily` | `worker-aeat-current-designs` -> status `cron-aeat-current-daily` | yes: `esdata-aeat-current-daily.timer` | A-05 alias: service writes internal worker name, A-11 maps it for status metrics. |
 | `boe_diario.py` | `active-cron` | `cron-boe-diario-daily` | `cron-boe-diario-daily` | yes: `esdata-boe-diario-daily.timer` | BOE daily non-consolidated documents. |
 | `eurlex_market.py` | `active-cron` | `cron-eurlex-market-monthly` via `worker_eurlex_market.py` wrapper | `worker-eurlex-market` | yes: `esdata-eurlex-market-monthly.timer` | A-05 alias: service writes `worker-eurlex-market`; wrapper file has no DB engine and is outside the 68 count. |
-| `eu_sanctions.py` | `active-cron` | `cron-eu-sanctions-weekly` | `cron-eu-sanctions-weekly` | yes: `esdata-eu-sanctions-weekly.timer` | Writes fresh telemetry but upstream currently returns `HTTP 403`; not a stale-worker problem. |
+| `eu_sanctions.py` | `active-cron` | `cron-eu-sanctions-weekly` | `cron-eu-sanctions-weekly` | yes: `esdata-eu-sanctions-weekly.timer` | EU FSF XML 1.1 worker. Fixed 2026-05-27 to use the official `data.europa.eu` downloadURL token; VPS run loaded 5.996 entries. |
 | `giin.py` | `active-cron` | `cron-giin-monthly` | `cron-giin-monthly` | yes: `esdata-giin-monthly.timer` | IRS GIIN monthly sync. |
 | `mica.py` | `active-cron` | `cron-mica-weekly` | `cron-mica-weekly` | yes: `esdata-mica-weekly.timer` | ESMA MiCA CASP register worker. |
 | `ofac_sdn.py` | `active-cron` | `cron-ofac-sdn-weekly` | `cron-ofac-sdn-weekly` | yes: `esdata-ofac-sdn-weekly.timer` | OFAC SDN sanctions worker. |
