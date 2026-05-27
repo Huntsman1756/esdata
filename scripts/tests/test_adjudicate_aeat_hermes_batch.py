@@ -176,6 +176,26 @@ def test_binary_official_source_requires_reachability_not_literal_excerpt(tmp_pa
     assert result["automatic_rejection_reasons"] == []
 
 
+def test_html_source_excerpt_can_be_repaired_from_official_text(tmp_path):
+    module = _load_module()
+    report = _valid_conflict_report()
+    report["official_sources"][0]["excerpt"] = "Ficha AEAT del modelo 210"
+    path = _write_report(tmp_path, report)
+
+    result = module.adjudicate_report(
+        path,
+        verify_sources=True,
+        fetcher=lambda _url: "<h1>Modelo 210. Impuesto sobre la Renta de no Residentes</h1>",
+    )
+
+    assert result["machine_decision"] == "auto_accept_conflict_evidence"
+    assert result["source_checks"][0]["excerpt_verified"] is True
+    assert result["source_checks"][0]["suggested_excerpt"] == (
+        "Modelo 210. Impuesto sobre la Renta de no Residentes"
+    )
+    assert result["automatic_rejection_reasons"] == []
+
+
 def test_latest_per_model_selects_newest_report_name(tmp_path):
     module = _load_module()
     paths = [

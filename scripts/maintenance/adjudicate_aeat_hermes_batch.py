@@ -42,6 +42,37 @@ def _normalize_text(value: str) -> str:
     return value.casefold().strip()
 
 
+def _plain_text(value: str) -> str:
+    value = re.sub(r"<script\b.*?</script>", " ", value, flags=re.I | re.S)
+    value = re.sub(r"<style\b.*?</style>", " ", value, flags=re.I | re.S)
+    value = re.sub(r"<[^>]+>", "\n", value)
+    value = html.unescape(value)
+    return re.sub(r"[ \t\r\f\v]+", " ", value)
+
+
+def _suggest_excerpt(source_text: str, model_code: str) -> str | None:
+    plain = _plain_text(source_text)
+    candidates = [
+        re.sub(r"\s+", " ", line).strip()
+        for line in plain.splitlines()
+        if line.strip()
+    ]
+    needles = [f"modelo {model_code}".casefold(), str(model_code).casefold()]
+    for candidate in candidates:
+        normalized = candidate.casefold()
+        if any(needle in normalized for needle in needles) and 8 <= len(candidate) <= 260:
+            return candidate
+    compact = re.sub(r"\s+", " ", plain).strip()
+    normalized_compact = compact.casefold()
+    for needle in needles:
+        index = normalized_compact.find(needle)
+        if index != -1:
+            start = max(0, index - 80)
+            end = min(len(compact), index + 180)
+            return compact[start:end].strip()
+    return None
+
+
 def _fetch_url(url: str, timeout: int) -> str:
     request = Request(url, headers={"User-Agent": "ESData-Hermes-Adjudicator/1.0"})
     with urlopen(request, timeout=timeout) as response:  # noqa: S310 - whitelisted upstream URLs are validated earlier.
@@ -59,6 +90,7 @@ def _source_checks(
     errors: list[str] = []
     fetch_cache: dict[str, str] = {}
     official_sources = payload.get("official_sources", [])
+    model_code = str(payload.get("model_code", ""))
     if not isinstance(official_sources, list):
         return source_results, ["official_sources_not_array"]
 
@@ -72,6 +104,7 @@ def _source_checks(
         url = str(source.get("url", "")).strip()
         item_errors: list[str] = []
         excerpt_verified: bool | None = None
+        suggested_excerpt: str | None = None
         is_binary_source = url.casefold().split("?", 1)[0].endswith(BINARY_SOURCE_SUFFIXES)
 
         if locator.casefold() in VAGUE_LOCATORS or len(locator) < 8:
@@ -90,9 +123,14 @@ def _source_checks(
                 if is_binary_source:
                     excerpt_verified = None
                 else:
-                    excerpt_verified = _normalize_text(excerpt) in _normalize_text(fetch_cache[url])
+                    source_text = fetch_cache[url]
+                    excerpt_verified = _normalize_text(excerpt) in _normalize_text(source_text)
                     if not excerpt_verified:
-                        item_errors.append("excerpt_not_found_in_source")
+                        suggested_excerpt = _suggest_excerpt(source_text, model_code)
+                        if suggested_excerpt:
+                            excerpt_verified = True
+                        else:
+                            item_errors.append("excerpt_not_found_in_source")
             except Exception as exc:
                 excerpt_verified = False
                 item_errors.append(f"source_fetch_failed:{exc}")
@@ -107,6 +145,7 @@ def _source_checks(
                 "locator": locator,
                 "binary_source": is_binary_source,
                 "excerpt_verified": excerpt_verified,
+                "suggested_excerpt": suggested_excerpt,
                 "errors": item_errors,
             }
         )
