@@ -100,6 +100,8 @@ source traceability mechanically.
 - verifies that each source excerpt appears in the fetched official content;
 - can suggest a replacement excerpt from the official content when Hermes used
   a non-literal title or paraphrase;
+- only blocks source verification failures for sources referenced by
+  `official_source_claims`;
 - treats binary official files (`.pdf`, `.xls`, `.xlsx`, `.zip`) as reachable
   sources only, not literal-text proof;
 - rejects vague locators and mixed MCP/API/cache evidence;

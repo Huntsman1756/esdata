@@ -131,6 +131,36 @@ def test_vague_locator_blocks_auto_acceptance(tmp_path):
     assert "AEAT_DR_210:vague_locator" in result["automatic_rejection_reasons"]
 
 
+def test_unreferenced_source_failure_does_not_block_claim_adjudication(tmp_path):
+    module = _load_module()
+    report = _valid_conflict_report()
+    report["official_sources"].append(
+        {
+            "source_id": "AEAT_FORM_UNUSED",
+            "authority": "AEAT",
+            "url": "https://www1.agenciatributaria.gob.es/wlpl/OV16-M113/index.zul",
+            "locator": "Formulario dinamico",
+            "excerpt": "Formulario Html del modelo 113",
+        }
+    )
+    path = _write_report(tmp_path, report)
+
+    result = module.adjudicate_report(
+        path,
+        verify_sources=True,
+        fetcher=lambda url: (
+            "Modelo 210. Devengos a partir del 01-01-2026."
+            if "modelos-200-299" in url
+            else "dynamic form without expected excerpt"
+        ),
+    )
+
+    assert result["machine_decision"] == "auto_accept_conflict_evidence"
+    assert result["source_checks"][1]["referenced_by_claim"] is False
+    assert result["source_checks"][1]["errors"] == ["excerpt_not_found_in_source"]
+    assert result["automatic_rejection_reasons"] == []
+
+
 def test_assertable_candidate_is_never_auto_promoted(tmp_path):
     module = _load_module()
     report = copy.deepcopy(_valid_conflict_report())

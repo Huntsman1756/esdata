@@ -91,6 +91,11 @@ def _source_checks(
     fetch_cache: dict[str, str] = {}
     official_sources = payload.get("official_sources", [])
     model_code = str(payload.get("model_code", ""))
+    referenced_source_ids = {
+        str(claim.get("source_id"))
+        for claim in payload.get("official_source_claims", [])
+        if isinstance(claim, dict) and claim.get("source_id") is not None
+    }
     if not isinstance(official_sources, list):
         return source_results, ["official_sources_not_array"]
 
@@ -146,10 +151,12 @@ def _source_checks(
                 "binary_source": is_binary_source,
                 "excerpt_verified": excerpt_verified,
                 "suggested_excerpt": suggested_excerpt,
+                "referenced_by_claim": source_id in referenced_source_ids,
                 "errors": item_errors,
             }
         )
-        errors.extend(f"{source_id}:{error}" for error in item_errors)
+        if source_id in referenced_source_ids:
+            errors.extend(f"{source_id}:{error}" for error in item_errors)
 
     return source_results, errors
 
