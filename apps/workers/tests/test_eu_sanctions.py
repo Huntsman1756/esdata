@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from eu_sanctions import fetch_eu_sanctions_xml, parse_eu_sanctions_xml
+from eu_sanctions import EU_SANCTIONS_XML_URL, fetch_eu_sanctions_xml, parse_eu_sanctions_xml
 
 
 class MockResponse:
@@ -54,5 +54,28 @@ def test_fetch_eu_sanctions_xml_uses_official_source_parser():
     with patch("eu_sanctions.urlopen", return_value=MockResponse(EU_XML)):
         entries, meta = fetch_eu_sanctions_xml("https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content")
 
+    assert len(entries) == 1
+    assert meta["record_count"] == "1"
+
+
+def test_default_eu_sanctions_url_uses_official_data_europa_token():
+    assert EU_SANCTIONS_XML_URL == (
+        "https://webgate.ec.europa.eu/fsd/fsf/public/files/"
+        "xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw"
+    )
+
+
+def test_fetch_eu_sanctions_xml_default_uses_reachable_official_download_url():
+    seen_urls = []
+
+    def fake_urlopen(request, timeout):
+        seen_urls.append(request.full_url)
+        assert timeout == 180
+        return MockResponse(EU_XML)
+
+    with patch("eu_sanctions.urlopen", side_effect=fake_urlopen):
+        entries, meta = fetch_eu_sanctions_xml()
+
+    assert seen_urls == [EU_SANCTIONS_XML_URL]
     assert len(entries) == 1
     assert meta["record_count"] == "1"

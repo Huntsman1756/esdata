@@ -26,7 +26,8 @@ from sqlalchemy import create_engine, text
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 EU_SANCTIONS_XML_URL = os.getenv("EU_SANCTIONS_XML_URL") or (
-    "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content"
+    "https://webgate.ec.europa.eu/fsd/fsf/public/files/"
+    "xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw"
 )
 EU_SANCTIONS_SOURCE_PAGE = (
     "https://finance.ec.europa.eu/eu-and-world/sanctions-restrictive-measures/"
