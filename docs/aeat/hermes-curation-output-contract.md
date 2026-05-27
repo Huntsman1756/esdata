@@ -25,7 +25,7 @@ python scripts/maintenance/audit_aeat_hermes_integration.py <report.json>
 Batch adjudication command:
 
 ```bash
-python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources <reports-dir-or-json>
+python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources --latest-per-model <reports-dir-or-json>
 ```
 
 ## Layer Separation

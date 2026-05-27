@@ -174,3 +174,21 @@ def test_binary_official_source_requires_reachability_not_literal_excerpt(tmp_pa
     assert result["source_checks"][0]["binary_source"] is True
     assert result["source_checks"][0]["excerpt_verified"] is None
     assert result["automatic_rejection_reasons"] == []
+
+
+def test_latest_per_model_selects_newest_report_name(tmp_path):
+    module = _load_module()
+    paths = [
+        tmp_path / "modelo-210-20260527-071917.json",
+        tmp_path / "modelo-128-20260527-072022.json",
+        tmp_path / "modelo-210-20260527-152228.json",
+    ]
+    for path in paths:
+        path.write_text("{}", encoding="utf-8")
+
+    selected = module._latest_per_model(paths)
+
+    assert [path.name for path in selected] == [
+        "modelo-128-20260527-072022.json",
+        "modelo-210-20260527-152228.json",
+    ]

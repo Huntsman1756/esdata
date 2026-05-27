@@ -52,7 +52,7 @@ For batch operation, run automatic adjudication instead of reviewing every
 model manually:
 
 ```bash
-python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources <reports-dir-or-json>
+python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources --latest-per-model <reports-dir-or-json>
 ```
 
 The adjudicator may auto-accept non-assertive conflict/stale/insufficient

@@ -234,6 +234,23 @@ def _iter_reports(inputs: list[Path]) -> list[Path]:
     return reports
 
 
+def _model_code_from_report_name(path: Path) -> str:
+    name = path.name
+    if not name.startswith("modelo-") or not name.endswith(".json"):
+        return name
+    return name.removeprefix("modelo-").removesuffix(".json").split("-", 1)[0]
+
+
+def _latest_per_model(paths: list[Path]) -> list[Path]:
+    latest: dict[str, Path] = {}
+    for path in paths:
+        model_code = _model_code_from_report_name(path)
+        current = latest.get(model_code)
+        if current is None or path.name > current.name:
+            latest[model_code] = path
+    return [latest[key] for key in sorted(latest)]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Batch-adjudicate AEAT Hermes JSON reports without human per-model review."
@@ -244,6 +261,11 @@ def main() -> int:
         action="store_true",
         help="Fetch official URLs and require source excerpts to be present.",
     )
+    parser.add_argument(
+        "--latest-per-model",
+        action="store_true",
+        help="When a directory is provided, adjudicate only the newest modelo-<code>-*.json per model.",
+    )
     parser.add_argument("--timeout", type=int, default=20)
     parser.add_argument(
         "--fail-on-rewrite",
@@ -253,9 +275,13 @@ def main() -> int:
     args = parser.parse_args()
 
     fetcher = (lambda url: _fetch_url(url, args.timeout)) if args.verify_sources else None
+    report_paths = _iter_reports(args.reports)
+    if args.latest_per_model:
+        report_paths = _latest_per_model(report_paths)
+
     results = [
         adjudicate_report(path, verify_sources=args.verify_sources, fetcher=fetcher)
-        for path in _iter_reports(args.reports)
+        for path in report_paths
     ]
     print(json.dumps({"reports": results}, ensure_ascii=False, indent=2))
     if args.fail_on_rewrite and any(

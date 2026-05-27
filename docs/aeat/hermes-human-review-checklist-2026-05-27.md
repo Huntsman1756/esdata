@@ -10,7 +10,7 @@ Human review is not the default path for every model. First run batch
 adjudication:
 
 ```bash
-python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources <reports-dir-or-json>
+python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources --latest-per-model <reports-dir-or-json>
 ```
 
 Use this checklist only for reports routed to `human_review_assertable_candidate`,
