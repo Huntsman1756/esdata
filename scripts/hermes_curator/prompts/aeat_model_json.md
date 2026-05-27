@@ -55,6 +55,9 @@ Reglas duras:
     excerpt, no incluyas esa fuente.
   - No uses locators genericos como "titulo de pagina", "titulo del recurso",
     "pagina de ayuda" o "body text".
+  - No uses locators desnudos como `<title>` a secas, `<h1>` a secas o
+    "anchor link"; incluye el texto visible concreto que identifica la linea,
+    por ejemplo `<title> Agencia Tributaria: Modelo 210...`.
   - No uses excerpts descriptivos/parafraseados como "Ficha AEAT del modelo X",
     "Ayuda del modelo X" o "titulo de recurso oficial".
   - Si una fuente solo confirma navegacion, presencia de pantalla, formulario o

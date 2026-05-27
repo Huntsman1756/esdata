@@ -238,3 +238,11 @@ def test_prompt_requires_strict_html_excerpt_lines():
     assert "titulo de pagina" in prompt
     assert "No uses excerpts descriptivos/parafraseados" in prompt
     assert "Si una fuente solo confirma navegacion" in prompt
+
+
+def test_prompt_requires_specific_locator_text_not_bare_html_tags():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "No uses locators desnudos" in prompt
+    assert "`<title>` a secas" in prompt
+    assert "incluye el texto visible concreto" in prompt
