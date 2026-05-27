@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 ROOT="${HERMES_ESDATA_ROOT:-/srv/esdata/hermes-curator}"
 REPO="${HERMES_ESDATA_REPO:-/srv/esdata}"
+PYTHON_BIN="${HERMES_ESDATA_PYTHON:-python3}"
 PROMPT_TEMPLATE="${REPO}/scripts/hermes_curator/prompts/aeat_model_json.md"
 REPORTS="${ROOT}/reports/aeat-campaign-curation-json"
 RAW_DIR="${ROOT}/reports/aeat-campaign-curation-raw"
@@ -29,11 +30,11 @@ fi
 rm -f "$prompt_file"
 
 if [ "$status" = "OK" ]; then
-  if ! python "${REPO}/scripts/maintenance/extract_aeat_hermes_json.py" "$raw_file" "$json_file"; then
+  if ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/extract_aeat_hermes_json.py" "$raw_file" "$json_file"; then
     status="ERROR_EXTRACT"
-  elif ! python "${REPO}/scripts/maintenance/validate_aeat_hermes_report.py" "$json_file"; then
+  elif ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/validate_aeat_hermes_report.py" "$json_file"; then
     status="ERROR_VALIDATE"
-  elif ! python "${REPO}/scripts/maintenance/render_aeat_hermes_report.py" "$json_file" "$md_file"; then
+  elif ! "$PYTHON_BIN" "${REPO}/scripts/maintenance/render_aeat_hermes_report.py" "$json_file" "$md_file"; then
     status="ERROR_RENDER"
   fi
 fi
