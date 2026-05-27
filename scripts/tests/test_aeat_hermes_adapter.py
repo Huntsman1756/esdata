@@ -227,3 +227,14 @@ def test_prompt_forbids_transactional_forms_as_official_claim_sources():
 
     assert "No uses formularios transaccionales" in prompt
     assert "www1.agenciatributaria.gob.es/wlpl/OV16" in prompt
+
+
+def test_prompt_requires_strict_html_excerpt_lines():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "Regla estricta de excerpt HTML" in prompt
+    assert "Si no puedes señalar exactamente que linea visible del HTML" in prompt
+    assert "No uses locators genericos" in prompt
+    assert "titulo de pagina" in prompt
+    assert "No uses excerpts descriptivos/parafraseados" in prompt
+    assert "Si una fuente solo confirma navegacion" in prompt

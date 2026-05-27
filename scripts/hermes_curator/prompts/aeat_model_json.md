@@ -47,6 +47,21 @@ Reglas duras:
 - No uses formularios transaccionales como fuente de `official_source_claims`;
   las URLs `www1.agenciatributaria.gob.es/wlpl/OV16...` no son evidencia
   documental verificable para este contrato.
+- Regla estricta de excerpt HTML:
+  - Para fuentes HTML, `official_sources[].excerpt` debe ser una frase literal
+    corta copiada del HTML descargable, preferiblemente el `<title>`, `<h1>`,
+    texto visible de enlace o fila de tabla.
+  - Si no puedes señalar exactamente que linea visible del HTML justificaria el
+    excerpt, no incluyas esa fuente.
+  - No uses locators genericos como "titulo de pagina", "titulo del recurso",
+    "pagina de ayuda" o "body text".
+  - No uses excerpts descriptivos/parafraseados como "Ficha AEAT del modelo X",
+    "Ayuda del modelo X" o "titulo de recurso oficial".
+  - Si una fuente solo confirma navegacion, presencia de pantalla, formulario o
+    ayuda operativa, no es `official_sources`; debe ir como
+    `system_observed_claims` o `rejected_claims`.
+  - Si no puedes copiar una frase literal que esperas encontrar exactamente en
+    la fuente normalizada, no incluyas esa fuente como `official_source`.
 - No uses `cache`, `metadata`, `MCP`, `ESData`, `modelo_recurso`,
   `campana_activa` o `campana_persistida` como evidencia oficial.
 - No afirmes campana salvo que:
