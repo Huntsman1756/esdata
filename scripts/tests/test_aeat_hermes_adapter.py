@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+EXTRACTOR_PATH = ROOT / "scripts" / "maintenance" / "extract_aeat_hermes_json.py"
+RENDERER_PATH = ROOT / "scripts" / "maintenance" / "render_aeat_hermes_report.py"
+
+
+def _load(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _report() -> dict:
+    return {
+        "schema_version": "aeat-hermes-curation-output/v1",
+        "model_code": "210",
+        "decision": "CONFLICT",
+        "assertion_gate": {
+            "campana_safe_to_assert": False,
+            "campana_afirmable": None,
+            "campana_assertion_code": "NOT_ASSERTABLE_CONFLICT",
+        },
+        "mcp_observations": [
+            {
+                "endpoint_or_tool": "get_modelo_resumen_operativo",
+                "field": "campana_resolution_status",
+                "value": "conflict",
+                "purpose": "system_state",
+            }
+        ],
+        "official_sources": [
+            {
+                "source_id": "AEAT_GF00",
+                "authority": "AEAT",
+                "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml",
+                "locator": "Gestiones destacadas",
+                "excerpt": "Modelo 210. Devengos 2019 y siguientes. Presentacion",
+            }
+        ],
+        "official_source_claims": [
+            {
+                "claim": "La pagina AEAT contiene una gestion del modelo 210 para devengos 2019 y siguientes.",
+                "source_id": "AEAT_GF00",
+                "evidence_kind": "literal_text",
+                "proves_campaign": False,
+            }
+        ],
+        "derived_claims": [],
+        "system_observed_claims": [
+            {
+                "claim": "ESData marca el modelo 210 como conflictivo.",
+                "mcp_observation_indexes": [0],
+                "may_assert_campaign": False,
+            }
+        ],
+        "rejected_claims": [
+            {
+                "claim": "La campana 2026 esta activa.",
+                "reason": "No hay evidencia oficial directa.",
+                "blocked_by": "no_direct_official_evidence",
+            }
+        ],
+        "human_review_required": True,
+    }
+
+
+def test_extract_json_block_ignores_runtime_noise():
+    module = _load(EXTRACTOR_PATH, "extract_aeat_hermes_json")
+    payload = _report()
+    raw = (
+        "Dropping root privileges\n"
+        "BEGIN_AEAT_HERMES_JSON\n"
+        f"{json.dumps(payload)}\n"
+        "END_AEAT_HERMES_JSON\n"
+        "session_id: abc\n"
+    )
+
+    assert module.extract_json_block(raw) == payload
+
+
+def test_extract_json_block_rejects_missing_markers():
+    module = _load(EXTRACTOR_PATH, "extract_aeat_hermes_json")
+
+    try:
+        module.extract_json_block(json.dumps(_report()))
+    except ValueError as exc:
+        assert "missing BEGIN_AEAT_HERMES_JSON" in str(exc)
+    else:
+        raise AssertionError("expected marker failure")
+
+
+def test_render_markdown_is_view_not_source_of_truth():
+    module = _load(RENDERER_PATH, "render_aeat_hermes_report")
+
+    rendered = module.render_report(_report())
+
+    assert "# Modelo 210 - Hermes AEAT structured curation" in rendered
+    assert "This markdown is a rendered view of validated JSON" in rendered
+    assert "AEAT_GF00" in rendered
+    assert "La campana 2026 esta activa." in rendered
