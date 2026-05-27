@@ -146,3 +146,11 @@ def test_prompt_requires_nonassertive_claims_for_official_model_sources():
     assert "Si una fuente oficial verifica la identidad del modelo" in prompt
     assert "proves_campaign=false" in prompt
     assert "no dejes `official_source_claims` vacio" in prompt
+
+
+def test_prompt_forbids_unprovided_boe_or_legal_sources():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "No introduzcas BOE, articulos legales o normas" in prompt
+    assert "si no aparecen explicitamente" in prompt
+    assert "get_modelo_fuentes_oficiales" in prompt
