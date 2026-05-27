@@ -14,6 +14,10 @@ El objeto JSON debe cumplir:
 
 schema_version = "aeat-hermes-curation-output/v1"
 
+Usa exactamente los nombres de claves indicados. No traduzcas claves al
+castellano. No anadas claves extra. Si no tienes un valor admisible, omite el
+claim o usa un array vacio donde corresponda.
+
 Reglas duras:
 
 - MCP/API solo puede alimentar `mcp_observations` y `system_observed_claims`.
@@ -61,3 +65,67 @@ Produce el JSON siguiendo este shape:
   "rejected_claims": [],
   "human_review_required": true
 }
+
+Shapes exactos para arrays:
+
+`mcp_observations[]`:
+
+{
+  "endpoint_or_tool": "get_modelo_resumen_operativo",
+  "field": "campana_resolution_status",
+  "value": "conflict",
+  "purpose": "system_state"
+}
+
+`official_sources[]`:
+
+{
+  "source_id": "AEAT_GF00",
+  "authority": "AEAT",
+  "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml",
+  "locator": "linea, titulo, seccion o tabla exacta",
+  "excerpt": "texto literal corto de la fuente"
+}
+
+`official_source_claims[]`:
+
+{
+  "claim": "claim documental exacto",
+  "source_id": "AEAT_GF00",
+  "evidence_kind": "literal_text",
+  "proves_campaign": false
+}
+
+`derived_claims[]`:
+
+{
+  "claim": "inferencia explicita no afirmativa",
+  "input_claim_ids": ["AEAT_GF00"],
+  "confidence": "low",
+  "may_assert_campaign": false
+}
+
+`system_observed_claims[]`:
+
+{
+  "claim": "ESData/MCP observa X",
+  "mcp_observation_indexes": [0],
+  "may_assert_campaign": false
+}
+
+`rejected_claims[]`:
+
+{
+  "claim": "La campana 2026 esta activa",
+  "reason": "El diseno tecnico no prueba campana activa",
+  "blocked_by": "technical_resource_only"
+}
+
+Enums obligatorios:
+
+- `authority`: AEAT, BOE, EURLEX, ESMA, CNMV, OTHER_OFFICIAL
+- `purpose`: routing, triage, system_state, hypothesis
+- `evidence_kind`: literal_text, structural_table_entry
+- `confidence`: low, medium, high
+- `blocked_by`: no_direct_official_evidence, mcp_only, technical_resource_only,
+  contradictory_evidence, insufficient_locator

@@ -4,14 +4,15 @@ set -Eeuo pipefail
 ROOT="${HERMES_ESDATA_ROOT:-/srv/esdata/hermes-curator}"
 REPO="${HERMES_ESDATA_REPO:-/srv/esdata}"
 PYTHON_BIN="${HERMES_ESDATA_PYTHON:-python3}"
+
+. "${ROOT}/bin/common.sh"
+
 PROMPT_TEMPLATE="${REPO}/scripts/hermes_curator/prompts/aeat_model_json.md"
 REPORTS="${ROOT}/reports/aeat-campaign-curation-json"
 RAW_DIR="${ROOT}/reports/aeat-campaign-curation-raw"
 MD_DIR="${ROOT}/reports/aeat-campaign-curation-rendered"
 MODEL_CODE="${1:?usage: run-aeat-model-json.sh <modelo>}"
 MAX_TURNS="${MAX_TURNS_AEAT_JSON:-10}"
-
-. "${ROOT}/bin/common.sh"
 
 mkdir -p "$REPORTS" "$RAW_DIR" "$MD_DIR"
 safe="$(slug "$MODEL_CODE")"
