@@ -30,6 +30,7 @@ VAGUE_LOCATORS = {
     "pagina boe",
     "página boe",
 }
+BINARY_SOURCE_SUFFIXES = (".pdf", ".xls", ".xlsx", ".zip")
 
 
 def _normalize_text(value: str) -> str:
@@ -71,6 +72,7 @@ def _source_checks(
         url = str(source.get("url", "")).strip()
         item_errors: list[str] = []
         excerpt_verified: bool | None = None
+        is_binary_source = url.casefold().split("?", 1)[0].endswith(BINARY_SOURCE_SUFFIXES)
 
         if locator.casefold() in VAGUE_LOCATORS or len(locator) < 8:
             item_errors.append("vague_locator")
@@ -85,9 +87,12 @@ def _source_checks(
                     if fetcher is None:
                         raise RuntimeError("fetcher missing")
                     fetch_cache[url] = fetcher(url)
-                excerpt_verified = _normalize_text(excerpt) in _normalize_text(fetch_cache[url])
-                if not excerpt_verified:
-                    item_errors.append("excerpt_not_found_in_source")
+                if is_binary_source:
+                    excerpt_verified = None
+                else:
+                    excerpt_verified = _normalize_text(excerpt) in _normalize_text(fetch_cache[url])
+                    if not excerpt_verified:
+                        item_errors.append("excerpt_not_found_in_source")
             except Exception as exc:
                 excerpt_verified = False
                 item_errors.append(f"source_fetch_failed:{exc}")
@@ -100,6 +105,7 @@ def _source_checks(
                 "source_id": source_id,
                 "url": url,
                 "locator": locator,
+                "binary_source": is_binary_source,
                 "excerpt_verified": excerpt_verified,
                 "errors": item_errors,
             }

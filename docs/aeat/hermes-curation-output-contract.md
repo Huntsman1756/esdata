@@ -98,6 +98,8 @@ source traceability mechanically.
 - runs the evidence admission audit;
 - fetches official source URLs;
 - verifies that each source excerpt appears in the fetched official content;
+- treats binary official files (`.pdf`, `.xls`, `.xlsx`, `.zip`) as reachable
+  sources only, not literal-text proof;
 - rejects vague locators and mixed MCP/API/cache evidence;
 - never writes production data;
 - never promotes `resolved_strong`.

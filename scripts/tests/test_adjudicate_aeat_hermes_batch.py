@@ -153,3 +153,24 @@ def test_assertable_candidate_is_never_auto_promoted(tmp_path):
     assert result["machine_decision"] == "human_review_assertable_candidate"
     assert result["repository_bucket"] == "review/assertable_candidate"
     assert result["recommended_state"] == "resolved_strong"
+
+
+def test_binary_official_source_requires_reachability_not_literal_excerpt(tmp_path):
+    module = _load_module()
+    report = _valid_conflict_report()
+    report["official_sources"][0]["url"] = (
+        "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/"
+        "DR_200_299/archivos_26/dr210_2026.xlsx"
+    )
+    path = _write_report(tmp_path, report)
+
+    result = module.adjudicate_report(
+        path,
+        verify_sources=True,
+        fetcher=lambda _url: "binary bytes decoded without the literal excerpt",
+    )
+
+    assert result["machine_decision"] == "auto_accept_conflict_evidence"
+    assert result["source_checks"][0]["binary_source"] is True
+    assert result["source_checks"][0]["excerpt_verified"] is None
+    assert result["automatic_rejection_reasons"] == []
