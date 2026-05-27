@@ -6,6 +6,17 @@ schema validation and the evidence admission audit.
 Passing `audit_aeat_hermes_integration.py` means the report is reviewable. It
 does not mean the campaign is verified, assertable or writable to production.
 
+Human review is not the default path for every model. First run batch
+adjudication:
+
+```bash
+python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources <reports-dir-or-json>
+```
+
+Use this checklist only for reports routed to `human_review_assertable_candidate`,
+`needs_report_rewrite` or `reject_report`, and for sampled QA of automatically
+accepted non-assertive evidence.
+
 ## Non-negotiable gate
 
 Before accepting any report as documentary evidence:

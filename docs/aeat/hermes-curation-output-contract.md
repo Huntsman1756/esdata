@@ -22,6 +22,12 @@ Evidence admission command:
 python scripts/maintenance/audit_aeat_hermes_integration.py <report.json>
 ```
 
+Batch adjudication command:
+
+```bash
+python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources <reports-dir-or-json>
+```
+
 ## Layer Separation
 
 Hermes must emit structured JSON with these layers:
@@ -79,3 +85,34 @@ Minimum admission rules:
    satisfied and at least one official claim has `proves_campaign=true`.
 5. `CONFLICT`, `STALE_SUSPECTED`, `INSUFFICIENT_EVIDENCE` and `UNKNOWN` remain
    non-assertable even when their reports are integrable for human review.
+
+## Batch Adjudication
+
+Human review is not required model-by-model for non-assertive evidence. The
+batch adjudicator may automatically route validated reports when it can verify
+source traceability mechanically.
+
+`adjudicate_aeat_hermes_batch.py --verify-sources`:
+
+- validates the Hermes JSON contract;
+- runs the evidence admission audit;
+- fetches official source URLs;
+- verifies that each source excerpt appears in the fetched official content;
+- rejects vague locators and mixed MCP/API/cache evidence;
+- never writes production data;
+- never promotes `resolved_strong`.
+
+Allowed automatic outcomes:
+
+- `auto_accept_conflict_evidence`: conflict evidence is traceable and remains
+  non-assertive.
+- `auto_accept_stale_suspected_evidence`: stale evidence is traceable and
+  remains non-assertive.
+- `auto_accept_nonassertable_evidence`: evidence is traceable but does not
+  assert campaign.
+
+Human review remains mandatory only for:
+
+- `human_review_assertable_candidate`;
+- `needs_report_rewrite`;
+- `reject_report`.

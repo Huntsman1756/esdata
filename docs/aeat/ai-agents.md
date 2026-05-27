@@ -48,6 +48,18 @@ python scripts/maintenance/audit_aeat_hermes_integration.py <report.json>
 evidence. It does not allow the agent to promote a campaign or write
 `resolved_strong`.
 
+For batch operation, run automatic adjudication instead of reviewing every
+model manually:
+
+```bash
+python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources <reports-dir-or-json>
+```
+
+The adjudicator may auto-accept non-assertive conflict/stale/insufficient
+evidence when it verifies official URLs, locators and excerpts. It must route
+assertable candidates, missing traceability and rejected reports to human
+review.
+
 Human review of admitted AEAT reports should use the checklist in:
 
 ```text
