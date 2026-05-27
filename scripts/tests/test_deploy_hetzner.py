@@ -448,6 +448,7 @@ def test_maintenance_agent_units_are_safe_by_default():
     assert "User=deploy" in hermes
     assert "AUTO_RESTART_ENABLED=false" in hermes
     assert "RESTART_ALLOWLIST=" in hermes
+    assert "DOCKER_CONFIG=/tmp/esdata-hermes-monitor-docker" in hermes
     assert "NoNewPrivileges=true" in hermes
     assert "ProtectSystem=strict" in hermes
 

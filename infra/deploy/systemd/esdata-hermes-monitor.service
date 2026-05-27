@@ -12,6 +12,7 @@ EnvironmentFile=/etc/esdata/esdata.env
 Environment=AUTO_RESTART_ENABLED=false
 Environment=RESTART_ALLOWLIST=
 Environment=MONITOR_INTERVAL=300
+Environment=DOCKER_CONFIG=/tmp/esdata-hermes-monitor-docker
 ExecStart=/usr/bin/python3 /srv/esdata/scripts/hermes_monitor.py --daemon
 Restart=always
 RestartSec=30

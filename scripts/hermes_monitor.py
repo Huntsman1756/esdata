@@ -20,8 +20,7 @@ import signal
 import subprocess
 import sys
 import threading
-import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -285,6 +284,13 @@ FROM (
 
 def _dlq_query_via_docker_compose() -> list[dict]:
     """Read DLQ through the Postgres container when host DB drivers are missing."""
+    env = os.environ.copy()
+    docker_config = env.setdefault("DOCKER_CONFIG", "/tmp/esdata-hermes-monitor-docker")
+    try:
+        os.makedirs(docker_config, mode=0o700, exist_ok=True)
+    except OSError as exc:
+        logger.warning("DLQ docker fallback could not prepare DOCKER_CONFIG=%s: %s", docker_config, exc)
+
     command = [
         "docker",
         "compose",
@@ -310,6 +316,7 @@ def _dlq_query_via_docker_compose() -> list[dict]:
         capture_output=True,
         text=True,
         timeout=30,
+        env=env,
     )
     if result.returncode != 0:
         logger.warning("DLQ docker fallback failed (rc=%d): %s", result.returncode, result.stderr.strip())
@@ -489,11 +496,23 @@ def run_single_check() -> dict:
                     logger.info("Restart successful for %s", w["name"])
                 else:
                     logger.error("Restart FAILED for %s", w["name"])
-            else:
+            elif not AUTO_RESTART_ENABLED:
                 logger.info(
-                    "Worker %s is unhealthy but within grace period (%.1fh < %.0fh), skipping restart",
+                    "Worker %s is unhealthy; auto-restart disabled, skipping restart",
                     w["name"],
-                    _hours_since(w["finished_at"]) or 0,
+                )
+            elif w.get("name") not in RESTART_ALLOWLIST:
+                logger.info(
+                    "Worker %s is unhealthy; not in restart allowlist, skipping restart",
+                    w["name"],
+                )
+            else:
+                hours = _hours_since(w.get("finished_at"))
+                hours_str = f"{hours:.1f}h" if hours is not None else "unknown"
+                logger.info(
+                    "Worker %s is unhealthy but within grace period (%s < %.0fh), skipping restart",
+                    w["name"],
+                    hours_str,
                     RESTART_GRACE_HOURS,
                 )
     else:

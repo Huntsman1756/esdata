@@ -90,6 +90,7 @@ def test_hermes_monitor_dlq_docker_fallback_parses_json(monkeypatch):
         assert "psql" in command
         assert kwargs["capture_output"] is True
         assert kwargs["text"] is True
+        assert kwargs["env"]["DOCKER_CONFIG"] == "/tmp/esdata-hermes-monitor-docker"
         return subprocess.CompletedProcess(
             command,
             0,
@@ -117,8 +118,10 @@ def test_hermes_monitor_dlq_docker_fallback_failure_is_nonfatal(monkeypatch):
     hermes = _load_hermes(monkeypatch)
 
     def fake_run(command, **kwargs):
+        assert kwargs["env"]["DOCKER_CONFIG"] == "/custom/docker-config"
         return subprocess.CompletedProcess(command, 1, stdout="", stderr="compose failed")
 
+    monkeypatch.setenv("DOCKER_CONFIG", "/custom/docker-config")
     monkeypatch.setattr(hermes.subprocess, "run", fake_run)
 
     assert hermes._dlq_query_via_docker_compose() == []
