@@ -28,6 +28,12 @@ Batch adjudication command:
 python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources --latest-per-model --history-dir <metrics-dir> <reports-dir-or-json>
 ```
 
+Trend summary command:
+
+```bash
+python scripts/maintenance/summarize_aeat_adjudication_history.py <metrics-dir>
+```
+
 ## Layer Separation
 
 Hermes must emit structured JSON with these layers:
@@ -152,6 +158,19 @@ Primary dashboard:
 - `blocking_error_ratio`;
 - `unused_source_warning_ratio`;
 - `assertable_candidate_ratio`.
+
+Trend alerts:
+
+- `blocking_error_ratio > 0`: critical alert. The batch produced blocking
+  errors and must not be treated as healthy.
+- `rewrite_ratio > 0.10`: warning. Prompt, extractor or source traceability may
+  be degrading.
+- `repaired_excerpt_ratio > 1.0`: warning. Hermes still depends heavily on
+  automatic excerpt repair.
+- `unused_source_warning_ratio > 0.20`: warning. Source selection may be noisy
+  or too broad.
+- `assertable_candidate_ratio > 0`: warning. Assertable candidates are not bad
+  by themselves, but they require human review before any promotion.
 
 Drilldown is exposed under `metrics.drilldown` and should only be used when
 aggregate ratios degrade.

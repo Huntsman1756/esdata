@@ -55,10 +55,21 @@ model manually:
 python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources --latest-per-model --history-dir <metrics-dir> <reports-dir-or-json>
 ```
 
+After persisted runs exist, inspect trend health before reading individual
+reports:
+
+```bash
+python scripts/maintenance/summarize_aeat_adjudication_history.py <metrics-dir>
+```
+
 The adjudicator may auto-accept non-assertive conflict/stale/insufficient
 evidence when it verifies official URLs, locators and excerpts. It must route
 assertable candidates, missing traceability and rejected reports to human
 review.
+
+The trend summary is the first dashboard. Drill into individual models only
+when aggregate ratios degrade, especially `blocking_error_ratio`,
+`rewrite_ratio`, `repaired_excerpt_ratio` or `unused_source_warning_ratio`.
 
 Human review of admitted AEAT reports should use the checklist in:
 
