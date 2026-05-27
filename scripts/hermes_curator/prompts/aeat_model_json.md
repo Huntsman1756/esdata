@@ -113,6 +113,10 @@ Shapes exactos para arrays:
   "may_assert_campaign": false
 }
 
+`mcp_observation_indexes` usa indices cero-basados de `mcp_observations`.
+Si `mcp_observations` tiene 8 elementos, los indices validos son 0..7.
+No inventes indices.
+
 `rejected_claims[]`:
 
 {
