@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -11,18 +12,32 @@ END_MARKER = "END_AEAT_HERMES_JSON"
 
 
 def extract_json_block(text: str) -> dict:
-    begin = text.find(BEGIN_MARKER)
-    end = text.find(END_MARKER)
-    if begin == -1 or end == -1:
+    begins = [
+        match.start()
+        for match in re.finditer(re.escape(BEGIN_MARKER), text)
+    ]
+    ends = [
+        match.start()
+        for match in re.finditer(re.escape(END_MARKER), text)
+    ]
+    if not begins or not ends:
         raise ValueError("missing BEGIN_AEAT_HERMES_JSON/END_AEAT_HERMES_JSON markers")
-    if text.find(BEGIN_MARKER, begin + len(BEGIN_MARKER)) != -1:
-        raise ValueError("multiple BEGIN_AEAT_HERMES_JSON markers")
-    if text.find(END_MARKER, end + len(END_MARKER)) != -1:
-        raise ValueError("multiple END_AEAT_HERMES_JSON markers")
-    if end <= begin:
-        raise ValueError("END_AEAT_HERMES_JSON appears before BEGIN_AEAT_HERMES_JSON")
 
-    raw = text[begin + len(BEGIN_MARKER) : end].strip()
+    parse_errors: list[str] = []
+    for begin in reversed(begins):
+        end = next((candidate for candidate in ends if candidate > begin), -1)
+        if end == -1:
+            continue
+        raw = text[begin + len(BEGIN_MARKER) : end].strip()
+        try:
+            return _parse_raw_json(raw)
+        except Exception as exc:
+            parse_errors.append(str(exc))
+
+    raise ValueError("no parseable AEAT Hermes JSON block found: " + "; ".join(parse_errors))
+
+
+def _parse_raw_json(raw: str) -> dict:
     if raw.startswith("```"):
         lines = raw.splitlines()
         if lines and lines[0].strip().startswith("```"):

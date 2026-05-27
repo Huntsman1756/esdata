@@ -97,6 +97,22 @@ def test_extract_json_block_rejects_missing_markers():
         raise AssertionError("expected marker failure")
 
 
+def test_extract_json_block_uses_last_parseable_block_after_diff_noise():
+    module = _load(EXTRACTOR_PATH, "extract_aeat_hermes_json")
+    payload = _report()
+    raw = (
+        "review diff\n"
+        "+BEGIN_AEAT_HERMES_JSON\n"
+        "+{not valid json from diff\n"
+        "The lint error is because the file contains markers.\n"
+        "BEGIN_AEAT_HERMES_JSON\n"
+        f"{json.dumps(payload)}\n"
+        "END_AEAT_HERMES_JSON\n"
+    )
+
+    assert module.extract_json_block(raw) == payload
+
+
 def test_render_markdown_is_view_not_source_of_truth():
     module = _load(RENDERER_PATH, "render_aeat_hermes_report")
 
