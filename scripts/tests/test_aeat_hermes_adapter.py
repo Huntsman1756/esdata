@@ -138,3 +138,11 @@ def test_prompt_forbids_unreferenced_official_sources():
 
     assert "official_sources debe contener solo fuentes usadas" in prompt
     assert "No incluyas fuentes oficiales auxiliares" in prompt
+
+
+def test_prompt_requires_nonassertive_claims_for_official_model_sources():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "Si una fuente oficial verifica la identidad del modelo" in prompt
+    assert "proves_campaign=false" in prompt
+    assert "no dejes `official_source_claims` vacio" in prompt
