@@ -25,6 +25,16 @@ Reglas duras:
 - `official_source_claims` solo puede contener claims trazables 1:1 a una
   entrada de `official_sources`.
 - Cada `official_sources` debe tener URL oficial, localizador y excerpt.
+- `official_sources[].excerpt` debe ser texto literal copiado de la fuente o
+  de la ficha oficial de recurso. No resumas, no parafrasees y no traduzcas.
+- Para paginas HTML/BOE, el excerpt debe ser una subcadena que pueda
+  encontrarse literalmente al descargar la URL oficial y normalizar espacios.
+- Para fuentes binarias oficiales (`.pdf`, `.xls`, `.xlsx`, `.zip`), el
+  excerpt solo puede ser el titulo, etiqueta o descripcion oficial visible del
+  recurso; no lo uses como prueba textual de campana.
+- Si no tienes texto literal localizable, no incluyas la fuente en
+  `official_sources`; mueve la hipotesis a `rejected_claims` o
+  `system_observed_claims`.
 - No uses `cache`, `metadata`, `MCP`, `ESData`, `modelo_recurso`,
   `campana_activa` o `campana_persistida` como evidencia oficial.
 - No afirmes campana salvo que:
@@ -86,6 +96,12 @@ Shapes exactos para arrays:
   "locator": "linea, titulo, seccion o tabla exacta",
   "excerpt": "texto literal corto de la fuente"
 }
+
+Regla de autocontrol para `official_sources[]`: si el `excerpt` no podria
+pasar una busqueda literal contra la URL oficial (salvo fuente binaria
+alcanzable), el JSON sera rechazado. No escribas excerpts narrativos como
+"La pagina AEAT contiene..." o "La normativa es..."; eso pertenece al claim, no
+al excerpt.
 
 `official_source_claims[]`:
 

@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 EXTRACTOR_PATH = ROOT / "scripts" / "maintenance" / "extract_aeat_hermes_json.py"
 RENDERER_PATH = ROOT / "scripts" / "maintenance" / "render_aeat_hermes_report.py"
+PROMPT_PATH = ROOT / "scripts" / "hermes_curator" / "prompts" / "aeat_model_json.md"
 
 
 def _load(path: Path, name: str):
@@ -105,3 +106,12 @@ def test_render_markdown_is_view_not_source_of_truth():
     assert "This markdown is a rendered view of validated JSON" in rendered
     assert "AEAT_GF00" in rendered
     assert "La campana 2026 esta activa." in rendered
+
+
+def test_prompt_requires_literal_excerpts_for_html_sources():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "excerpt` debe ser texto literal" in prompt
+    assert "No resumas, no parafrasees" in prompt
+    assert "subcadena que pueda" in prompt
+    assert "fuentes binarias oficiales" in prompt
