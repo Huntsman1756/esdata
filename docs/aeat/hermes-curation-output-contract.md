@@ -25,7 +25,7 @@ python scripts/maintenance/audit_aeat_hermes_integration.py <report.json>
 Batch adjudication command:
 
 ```bash
-python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources --latest-per-model <reports-dir-or-json>
+python scripts/maintenance/adjudicate_aeat_hermes_batch.py --verify-sources --latest-per-model --history-dir <metrics-dir> <reports-dir-or-json>
 ```
 
 ## Layer Separation
@@ -133,6 +133,28 @@ reading every report:
 - `repaired_excerpts_total`;
 - `unused_source_warnings_total`;
 - `blocking_errors_total`.
+
+It also includes `run_metadata` with:
+
+- execution timestamp;
+- adjudicator version;
+- current Git head when available;
+- selected report count;
+- schema version and SHA-256;
+- prompt SHA-256;
+- adjudicator SHA-256;
+- persisted history path when `--history-dir` is used.
+
+Primary dashboard:
+
+- `repaired_excerpt_ratio`;
+- `rewrite_ratio`;
+- `blocking_error_ratio`;
+- `unused_source_warning_ratio`;
+- `assertable_candidate_ratio`.
+
+Drilldown is exposed under `metrics.drilldown` and should only be used when
+aggregate ratios degrade.
 
 `auto_accept_*` means admission to a draft/review bucket. It is not canonical
 evidence, not a database write and not campaign resolution.

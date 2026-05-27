@@ -294,3 +294,40 @@ def test_summarize_results_reports_operational_metrics():
     assert metrics["repaired_excerpts_total"] == 1
     assert metrics["unused_source_warnings_total"] == 1
     assert metrics["blocking_errors_total"] == 1
+    assert metrics["ratios"]["repaired_excerpt_ratio"] == 0.333333
+    assert metrics["ratios"]["rewrite_ratio"] == 0.333333
+    assert metrics["ratios"]["assertable_candidate_ratio"] == 0.333333
+    assert metrics["ratios"]["unused_source_warning_ratio"] == 0.333333
+    assert metrics["ratios"]["blocking_error_ratio"] == 0.333333
+    assert metrics["drilldown"]["top_models_by_repaired_excerpts"] == [
+        {"model_code": "None", "count": 1}
+    ]
+    assert metrics["drilldown"]["top_models_by_rewrite"] == [
+        {"model_code": "None", "count": 1}
+    ]
+
+
+def test_build_run_output_includes_reproducibility_metadata(tmp_path):
+    module = _load_module()
+    history_path = tmp_path / "history" / "20260527T120000Z.json"
+    output = module.build_run_output(
+        results=[],
+        report_paths=[tmp_path / "modelo-210.json"],
+        verify_sources=True,
+        latest_per_model=True,
+        generated_at="2026-05-27T12:00:00+00:00",
+        history_path=history_path,
+    )
+
+    metadata = output["run_metadata"]
+    assert metadata["generated_at"] == "2026-05-27T12:00:00+00:00"
+    assert metadata["adjudicator_version"] == "aeat-hermes-batch-adjudicator/v1"
+    assert metadata["verify_sources"] is True
+    assert metadata["latest_per_model"] is True
+    assert metadata["history_path"] == str(history_path)
+    assert metadata["reports_input_count"] == 1
+    assert metadata["schema_version"] == "aeat-hermes-curation-output/v1"
+    assert metadata["schema_sha256"]
+    assert metadata["prompt_sha256"]
+    assert metadata["adjudicator_sha256"]
+    assert output["metrics"]["reports_total"] == 0

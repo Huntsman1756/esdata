@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import re
+import subprocess
 import sys
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 from urllib.request import Request, urlopen
@@ -17,10 +20,14 @@ sys.path.insert(0, str(ROOT / "scripts" / "maintenance"))
 from audit_aeat_hermes_integration import audit_report  # noqa: E402
 from validate_aeat_hermes_report import (  # noqa: E402
     FORBIDDEN_OFFICIAL_EVIDENCE_TERMS,
+    SCHEMA_PATH,
+    SCHEMA_VERSION,
     load_report,
 )
 
+ADJUDICATOR_VERSION = "aeat-hermes-batch-adjudicator/v1"
 ASSERTABLE_CODE = "ASSERTABLE_DIRECT_OFFICIAL"
+PROMPT_PATH = ROOT / "scripts" / "hermes_curator" / "prompts" / "aeat_model_json.md"
 VAGUE_LOCATORS = {
     "aeat",
     "aeat page",
@@ -298,6 +305,20 @@ def _latest_per_model(paths: list[Path]) -> list[Path]:
     return [latest[key] for key in sorted(latest)]
 
 
+def _safe_ratio(numerator: int, denominator: int) -> float:
+    return round(numerator / denominator, 6) if denominator else 0.0
+
+
+def _top_model_counts(counter: Counter[str], limit: int = 10) -> list[dict[str, Any]]:
+    return [
+        {"model_code": model_code, "count": count}
+        for model_code, count in sorted(counter.items(), key=lambda item: (-item[1], item[0]))[
+            :limit
+        ]
+        if count > 0
+    ]
+
+
 def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     machine = Counter(str(item.get("machine_decision")) for item in results)
     buckets = Counter(str(item.get("repository_bucket")) for item in results)
@@ -307,34 +328,127 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     repaired_excerpts = 0
     unused_source_warnings = 0
     blocking_errors = 0
+    repaired_by_model: Counter[str] = Counter()
+    rewrites_by_model: Counter[str] = Counter()
+    blocking_by_model: Counter[str] = Counter()
+    unused_warnings_by_model: Counter[str] = Counter()
     for item in results:
-        blocking_errors += len(item.get("automatic_rejection_reasons", []))
+        model_code = str(item.get("model_code"))
+        item_blocking_errors = len(item.get("automatic_rejection_reasons", []))
+        blocking_errors += item_blocking_errors
+        blocking_by_model[model_code] += item_blocking_errors
+        machine_decision = str(item.get("machine_decision", ""))
+        if machine_decision.startswith(("needs_", "reject")):
+            rewrites_by_model[model_code] += 1
         for source in item.get("source_checks", []):
             if source.get("suggested_excerpt"):
                 repaired_excerpts += 1
+                repaired_by_model[model_code] += 1
             if source.get("errors") and source.get("referenced_by_claim") is False:
                 unused_source_warnings += 1
+                unused_warnings_by_model[model_code] += 1
+
+    reports_total = len(results)
+    auto_accepted = sum(
+        count for decision, count in machine.items() if decision.startswith("auto_accept_")
+    )
+    human_review_required = machine.get("human_review_assertable_candidate", 0)
+    rewrite_or_reject = sum(
+        count
+        for decision, count in machine.items()
+        if decision.startswith("needs_") or decision.startswith("reject")
+    )
+    assertable_candidates = machine.get("human_review_assertable_candidate", 0)
 
     return {
-        "reports_total": len(results),
+        "reports_total": reports_total,
         "by_decision": dict(sorted(decisions.items())),
         "by_machine_decision": dict(sorted(machine.items())),
         "by_repository_bucket": dict(sorted(buckets.items())),
         "by_recommended_state": dict(sorted(recommended.items())),
-        "auto_accepted_total": sum(
-            count for decision, count in machine.items() if decision.startswith("auto_accept_")
-        ),
-        "human_review_required_total": machine.get("human_review_assertable_candidate", 0),
-        "rewrite_or_reject_total": sum(
-            count
-            for decision, count in machine.items()
-            if decision.startswith("needs_") or decision.startswith("reject")
-        ),
-        "assertable_candidates_total": machine.get("human_review_assertable_candidate", 0),
+        "auto_accepted_total": auto_accepted,
+        "human_review_required_total": human_review_required,
+        "rewrite_or_reject_total": rewrite_or_reject,
+        "assertable_candidates_total": assertable_candidates,
         "repaired_excerpts_total": repaired_excerpts,
         "unused_source_warnings_total": unused_source_warnings,
         "blocking_errors_total": blocking_errors,
+        "ratios": {
+            "repaired_excerpt_ratio": _safe_ratio(repaired_excerpts, reports_total),
+            "rewrite_ratio": _safe_ratio(rewrite_or_reject, reports_total),
+            "assertable_candidate_ratio": _safe_ratio(assertable_candidates, reports_total),
+            "unused_source_warning_ratio": _safe_ratio(
+                unused_source_warnings, reports_total
+            ),
+            "blocking_error_ratio": _safe_ratio(blocking_errors, reports_total),
+        },
+        "drilldown": {
+            "top_models_by_repaired_excerpts": _top_model_counts(repaired_by_model),
+            "top_models_by_rewrite": _top_model_counts(rewrites_by_model),
+            "top_models_by_blocking_errors": _top_model_counts(blocking_by_model),
+            "top_models_by_unused_source_warnings": _top_model_counts(
+                unused_warnings_by_model
+            ),
+        },
     }
+
+
+def _sha256_file(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _git_head() -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return None
+    return result.stdout.strip() or None
+
+
+def build_run_output(
+    *,
+    results: list[dict[str, Any]],
+    report_paths: list[Path],
+    verify_sources: bool,
+    latest_per_model: bool,
+    generated_at: str | None = None,
+    history_path: Path | None = None,
+) -> dict[str, Any]:
+    generated_at = generated_at or datetime.now(UTC).replace(microsecond=0).isoformat()
+    return {
+        "run_metadata": {
+            "generated_at": generated_at,
+            "adjudicator_version": ADJUDICATOR_VERSION,
+            "git_head": _git_head(),
+            "verify_sources": verify_sources,
+            "latest_per_model": latest_per_model,
+            "history_path": str(history_path) if history_path else None,
+            "reports_input_count": len(report_paths),
+            "schema_version": SCHEMA_VERSION,
+            "schema_path": str(SCHEMA_PATH.relative_to(ROOT)),
+            "schema_sha256": _sha256_file(SCHEMA_PATH),
+            "prompt_path": str(PROMPT_PATH.relative_to(ROOT)),
+            "prompt_sha256": _sha256_file(PROMPT_PATH),
+            "adjudicator_path": str(Path(__file__).resolve().relative_to(ROOT)),
+            "adjudicator_sha256": _sha256_file(Path(__file__).resolve()),
+        },
+        "metrics": summarize_results(results),
+        "reports": results,
+    }
+
+
+def _history_path(history_dir: Path, generated_at: str) -> Path:
+    stamp = generated_at.replace("+00:00", "Z").replace(":", "").replace("-", "")
+    return history_dir / f"{stamp}.json"
 
 
 def main() -> int:
@@ -354,6 +468,11 @@ def main() -> int:
     )
     parser.add_argument("--timeout", type=int, default=20)
     parser.add_argument(
+        "--history-dir",
+        type=Path,
+        help="Write the full run output to a timestamped JSON file in this directory.",
+    )
+    parser.add_argument(
         "--fail-on-rewrite",
         action="store_true",
         help="Exit non-zero when any report needs rewrite or rejection.",
@@ -369,9 +488,26 @@ def main() -> int:
         adjudicate_report(path, verify_sources=args.verify_sources, fetcher=fetcher)
         for path in report_paths
     ]
+    generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
+    output_path = _history_path(args.history_dir, generated_at) if args.history_dir else None
+    output = build_run_output(
+        results=results,
+        report_paths=report_paths,
+        verify_sources=args.verify_sources,
+        latest_per_model=args.latest_per_model,
+        generated_at=generated_at,
+        history_path=output_path,
+    )
+    if output_path:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(output, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
     print(
         json.dumps(
-            {"metrics": summarize_results(results), "reports": results},
+            output,
             ensure_ascii=False,
             indent=2,
         )
