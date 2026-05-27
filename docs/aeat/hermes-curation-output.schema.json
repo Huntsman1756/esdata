@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://esdata.local/schemas/aeat/hermes-curation-output.schema.json",
+  "title": "AEAT Hermes curation output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "model_code",
+    "decision",
+    "assertion_gate",
+    "mcp_observations",
+    "official_sources",
+    "official_source_claims",
+    "derived_claims",
+    "system_observed_claims",
+    "rejected_claims",
+    "human_review_required"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "aeat-hermes-curation-output/v1"
+    },
+    "model_code": {
+      "type": "string",
+      "pattern": "^[0-9A-Z_-]{1,20}$"
+    },
+    "decision": {
+      "enum": [
+        "ASSERTABLE",
+        "UNKNOWN",
+        "CONFLICT",
+        "INSUFFICIENT_EVIDENCE",
+        "STALE_SUSPECTED"
+      ]
+    },
+    "assertion_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "campana_safe_to_assert",
+        "campana_afirmable",
+        "campana_assertion_code"
+      ],
+      "properties": {
+        "campana_safe_to_assert": {
+          "type": "boolean"
+        },
+        "campana_afirmable": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "campana_assertion_code": {
+          "enum": [
+            "ASSERTABLE_DIRECT_OFFICIAL",
+            "NOT_ASSERTABLE_INFERRED_INTERNAL",
+            "NOT_ASSERTABLE_CONFLICT",
+            "INSUFFICIENT_EVIDENCE",
+            "STALE_SUSPECTED"
+          ]
+        }
+      }
+    },
+    "mcp_observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "endpoint_or_tool",
+          "field",
+          "value",
+          "purpose"
+        ],
+        "properties": {
+          "endpoint_or_tool": {
+            "type": "string",
+            "minLength": 1
+          },
+          "field": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {},
+          "purpose": {
+            "enum": [
+              "routing",
+              "triage",
+              "system_state",
+              "hypothesis"
+            ]
+          }
+        }
+      }
+    },
+    "official_sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "authority",
+          "url",
+          "locator",
+          "excerpt"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "authority": {
+            "enum": [
+              "AEAT",
+              "BOE",
+              "EURLEX",
+              "ESMA",
+              "CNMV",
+              "OTHER_OFFICIAL"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "excerpt": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "official_source_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "claim",
+          "source_id",
+          "evidence_kind",
+          "proves_campaign"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_kind": {
+            "enum": [
+              "literal_text",
+              "structural_table_entry"
+            ]
+          },
+          "proves_campaign": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "derived_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "claim",
+          "input_claim_ids",
+          "confidence",
+          "may_assert_campaign"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input_claim_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "confidence": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "may_assert_campaign": {
+            "const": false
+          }
+        }
+      }
+    },
+    "system_observed_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "claim",
+          "mcp_observation_indexes",
+          "may_assert_campaign"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mcp_observation_indexes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "may_assert_campaign": {
+            "const": false
+          }
+        }
+      }
+    },
+    "rejected_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "claim",
+          "reason",
+          "blocked_by"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "blocked_by": {
+            "enum": [
+              "no_direct_official_evidence",
+              "mcp_only",
+              "technical_resource_only",
+              "contradictory_evidence",
+              "insufficient_locator"
+            ]
+          }
+        }
+      }
+    },
+    "human_review_required": {
+      "const": true
+    }
+  }
+}

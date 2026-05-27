@@ -5,6 +5,8 @@ CLI clients and downstream automations.
 
 Campaign data curation rules live in `docs/aeat/curation-rules.md`.
 AI-agent curation limits live in `docs/aeat/ai-agents.md`.
+Hermes structured output rules live in
+`docs/aeat/hermes-curation-output-contract.md`.
 
 ## Campaign assertion gate
 

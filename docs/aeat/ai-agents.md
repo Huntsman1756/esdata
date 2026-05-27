@@ -20,6 +20,35 @@ Agents may:
   `insufficient_evidence` or `stale_suspected` as a draft conclusion;
 - write `UNKNOWN` when direct official evidence is absent or ambiguous.
 
+## Structured output contract
+
+Markdown-only Hermes reports are triage artifacts. They are not integrable
+evidence.
+
+Any agent output intended for review or repository integration must conform to:
+
+```text
+docs/aeat/hermes-curation-output.schema.json
+```
+
+and must pass:
+
+```bash
+python scripts/maintenance/validate_aeat_hermes_report.py <report.json>
+```
+
+The schema forces four separate layers:
+
+- `official_source_claims`: claims traceable 1:1 to an official URL, locator
+  and excerpt;
+- `derived_claims`: explicit inference, never campaign assertion;
+- `system_observed_claims`: MCP/API telemetry, never documentary evidence;
+- `rejected_claims`: plausible claims that must not be made.
+
+MCP output may route the investigation and describe ESData state. It must not
+justify final documentary claims. If a claim exists only in MCP, it is not an
+official-source claim.
+
 ## Forbidden actions
 
 Agents must not:
@@ -32,6 +61,7 @@ Agents must not:
 - promote campaigns in bulk;
 - use BOE publication date, file name, XSD/WSDL version, endpoint, manual
   version or internal resource association as strong evidence by itself.
+- produce integrable evidence as free-form markdown.
 
 ## Local Hermes pilot
 
@@ -86,6 +116,10 @@ Each report must:
 - return `UNKNOWN` when no direct official model-to-exercise evidence is found;
 - avoid phrases such as "la campana activa es X" unless the assertion contract
   is satisfied and a human has accepted the curation.
+
+Pilot markdown reports may be used only to decide whether the agent is worth
+rerunning with the structured JSON contract. They must not be copied into
+canonical curation docs without human rewrite and source verification.
 
 No agent output is allowed to change production state. Human review remains the
 only path to promotion.
