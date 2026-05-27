@@ -113,6 +113,72 @@ def test_extract_json_block_uses_last_parseable_block_after_diff_noise():
     assert module.extract_json_block(raw) == payload
 
 
+def test_extract_json_block_prunes_transactional_sources_and_claims():
+    module = _load(EXTRACTOR_PATH, "extract_aeat_hermes_json")
+    payload = _report()
+    payload["official_sources"].append(
+        {
+            "source_id": "AEAT_OV16_M113",
+            "authority": "AEAT",
+            "url": "https://www1.agenciatributaria.gob.es/wlpl/OV16-M113/index.zul",
+            "locator": "Formulario transaccional",
+            "excerpt": "Formulario Html del modelo 113",
+        }
+    )
+    payload["official_source_claims"].append(
+        {
+            "claim": "El formulario transaccional del modelo 113 esta disponible.",
+            "source_id": "AEAT_OV16_M113",
+            "evidence_kind": "literal_text",
+            "proves_campaign": False,
+        }
+    )
+    raw = (
+        "BEGIN_AEAT_HERMES_JSON\n"
+        f"{json.dumps(payload)}\n"
+        "END_AEAT_HERMES_JSON\n"
+    )
+
+    extracted = module.extract_json_block(raw)
+
+    assert [source["source_id"] for source in extracted["official_sources"]] == [
+        "AEAT_GF00"
+    ]
+    assert [claim["source_id"] for claim in extracted["official_source_claims"]] == [
+        "AEAT_GF00"
+    ]
+    assert extracted["rejected_claims"][-1] == {
+        "claim": "El formulario transaccional del modelo 113 esta disponible.",
+        "reason": "Transactional AEAT form URLs are not documentary evidence sources.",
+        "blocked_by": "insufficient_locator",
+    }
+
+
+def test_extract_json_block_prunes_unreferenced_official_sources():
+    module = _load(EXTRACTOR_PATH, "extract_aeat_hermes_json")
+    payload = _report()
+    payload["official_sources"].append(
+        {
+            "source_id": "AEAT_UNUSED",
+            "authority": "AEAT",
+            "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G614.shtml",
+            "locator": "Fuente no usada",
+            "excerpt": "Modelo 113",
+        }
+    )
+    raw = (
+        "BEGIN_AEAT_HERMES_JSON\n"
+        f"{json.dumps(payload)}\n"
+        "END_AEAT_HERMES_JSON\n"
+    )
+
+    extracted = module.extract_json_block(raw)
+
+    assert [source["source_id"] for source in extracted["official_sources"]] == [
+        "AEAT_GF00"
+    ]
+
+
 def test_render_markdown_is_view_not_source_of_truth():
     module = _load(RENDERER_PATH, "render_aeat_hermes_report")
 
