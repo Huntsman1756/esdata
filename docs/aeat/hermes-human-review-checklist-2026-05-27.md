@@ -36,6 +36,32 @@ Each model review must end in exactly one of these outcomes:
 - `reject_report`: hallucinated, untraceable or mixed-layer claims contaminate
   the report.
 
+## Automatic rejection
+
+Reject the report immediately if any of these conditions is true:
+
+- A retained `official_source_claim` has no primary URL.
+- A retained `official_source_claim` has no locator or only a vague locator
+  such as "AEAT page" or "BOE".
+- A retained `official_source_claim` has no excerpt.
+- A retained `official_source_claim` mentions MCP/API/cache/internal metadata as
+  the basis for an official claim.
+- A retained `official_source_claim` cites a norm, order, regulation or URL
+  that is not present in `official_sources`.
+- A report states or implies active campaign while
+  `campana_safe_to_assert=false`.
+- A report sets or suggests `proves_campaign=true` from a filename, technical
+  design year, XSD/WSDL, endpoint, BOE publication date, cached association or
+  internal ESData field.
+- A `derived_claim` or `system_observed_claim` has
+  `may_assert_campaign=true`.
+- The final outcome is `accept_as_stale_suspected_evidence` without naming the
+  exact accepted claim that proves staleness.
+
+When automatic rejection triggers, do not partially accept the report. Return
+`reject_report` or `needs_report_rewrite`, depending on whether the problem is
+contamination or missing traceability.
+
 ## Shared claim checklist
 
 For each `official_source_claim`:
@@ -186,12 +212,46 @@ reviewer:
 json_report:
 validation_result:
 admission_result:
+automatic_rejection_checked: true|false
+automatic_rejection_reason: none|<reason>
 accepted_official_claims:
+  - claim_id_or_source_id:
+    source_url:
+    locator:
+    excerpt:
+    accepted_scope: campaign|technical_coverage|legal_basis|form_existence|filing_channel|design_fields
+    proves_campaign: true|false
+    acceptance_reason:
 rejected_official_claims:
+  - claim_id_or_source_id:
+    rejection_reason:
+    corrective_action: remove|rewrite_with_primary_source|move_to_derived_claim|move_to_system_observed_claim
+accepted_derived_claims:
+  - claim:
+    input_claim_ids:
+    acceptance_reason:
+rejected_claims_reviewed:
+  - claim:
+    rejection_reason_is_sufficient: true|false
 final_outcome:
 recommended_state:
 campana_safe_to_assert:
 campana_assertion_code:
+proves_campaign_claims_count:
+requires_json_rewrite: true|false
 notes:
 ```
 
+Minimum acceptance requirements:
+
+- `automatic_rejection_checked=true`.
+- `automatic_rejection_reason=none`.
+- `accepted_official_claims` lists every retained official claim.
+- Every accepted official claim has `accepted_scope` and `acceptance_reason`.
+- `proves_campaign_claims_count=0` unless the official excerpt explicitly
+  binds model and exercise/campaign/period.
+- If `final_outcome=accept_as_stale_suspected_evidence`, at least one accepted
+  official claim must have `accepted_scope=technical_coverage` and explain why
+  the persisted campaign is stale but not assertable.
+- If any required field is missing, the only allowed outcome is
+  `needs_report_rewrite`.
