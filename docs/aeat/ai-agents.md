@@ -48,6 +48,12 @@ python scripts/maintenance/audit_aeat_hermes_integration.py <report.json>
 evidence. It does not allow the agent to promote a campaign or write
 `resolved_strong`.
 
+Human review of admitted AEAT reports should use the checklist in:
+
+```text
+docs/aeat/hermes-human-review-checklist-2026-05-27.md
+```
+
 The schema forces four separate layers:
 
 - `official_source_claims`: claims traceable 1:1 to an official URL, locator
