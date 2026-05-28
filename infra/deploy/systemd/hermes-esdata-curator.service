@@ -1,0 +1,24 @@
+[Unit]
+Description=Hermes ESData read-only curator
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=hermescurator
+Group=hermescurator
+SupplementaryGroups=docker
+WorkingDirectory=/srv/esdata/hermes-curator
+Environment=HERMES_ESDATA_ROOT=/srv/esdata/hermes-curator
+Environment=HERMES_ESDATA_MAX_OTHER_HERMES=3
+Environment=HERMES_ESDATA_MAX_ESDATA_HERMES=1
+Environment=HERMES_ESDATA_MIN_DELAY_SECONDS=30
+Environment=HERMES_ESDATA_DELAY_SECONDS=30
+Environment=HERMES_ESDATA_MAX_MODELS_PER_RUN=3
+Environment=HERMES_ESDATA_CALL_TIMEOUT=1800
+ExecStart=/srv/esdata/hermes-curator/bin/run-once.sh
+TimeoutStartSec=21600
+
+[Install]
+WantedBy=multi-user.target

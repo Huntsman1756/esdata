@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Hermes ESData read-only curator daily
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=hermes-esdata-curator.service
+
+[Install]
+WantedBy=timers.target

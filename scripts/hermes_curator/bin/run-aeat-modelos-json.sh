@@ -9,6 +9,12 @@ REPO="${HERMES_ESDATA_REPO:-/srv/esdata}"
 queue="${1:-$ROOT/queues/aeat-priority-modelos.txt}"
 out_dir="$ROOT/reports/aeat-campaign-curation-json"
 summary="$out_dir/_batch-json-$(ts)-summary.csv"
+max_models="${HERMES_ESDATA_MAX_MODELS_PER_RUN:-3}"
+processed=0
+if ! printf '%s' "$max_models" | grep -Eq '^[0-9]+$'; then
+  echo "Invalid HERMES_ESDATA_MAX_MODELS_PER_RUN=$max_models; using 3" >&2
+  max_models=3
+fi
 mkdir -p "$out_dir"
 echo 'modelo,status,json_file,markdown_file,raw_file' > "$summary"
 failures=0
@@ -20,6 +26,10 @@ while IFS= read -r raw || [ -n "$raw" ]; do
   for modelo in "${modelos[@]}"; do
     modelo="$(printf '%s' "$modelo" | xargs)"
     [ -n "$modelo" ] || continue
+    if [ "$processed" -ge "$max_models" ]; then
+      printf 'DAILY_CAP_REACHED,%s,,,\n' "$modelo" >> "$summary"
+      continue
+    fi
     tmp="$(mktemp)"
     if "$REPO/scripts/hermes_curator/bin/run-aeat-model-json.sh" "$modelo" > "$tmp" 2>&1; then
       tail -1 "$tmp" >> "$summary"
@@ -34,7 +44,8 @@ while IFS= read -r raw || [ -n "$raw" ]; do
       cat "$tmp" >&2
     fi
     rm -f "$tmp"
-    sleep "${HERMES_ESDATA_DELAY_SECONDS:-8}"
+    processed=$((processed + 1))
+    sleep "${HERMES_ESDATA_DELAY_SECONDS:-30}"
   done
 done < "$queue"
 

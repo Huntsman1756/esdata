@@ -21,6 +21,33 @@ def test_json_batch_runner_uses_json_adapter_as_only_model_executor():
     assert "Formato markdown" not in source
     assert "failures=0" in source
     assert "exit 1" in source
+    assert "HERMES_ESDATA_MAX_MODELS_PER_RUN:-3" in source
+    assert "DAILY_CAP_REACHED" in source
+
+
+def test_common_runner_enforces_local_rate_and_concurrency_limits():
+    source = (ROOT / "scripts" / "hermes_curator" / "bin" / "common.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "HERMES_ESDATA_MAX_ESDATA_HERMES:-1" in source
+    assert "HERMES_ESDATA_MIN_DELAY_SECONDS:-30" in source
+    assert "hermes-rate-limit.lock" in source
+    assert "hermes-last-call.epoch" in source
+    assert "docker ps --filter label=esdata.hermes.curator=1" in source
+    assert 'if [ "$current" -ge "$MAX_ESDATA_HERMES" ]' in source
+    assert "sleep \"$wait_for\"" in source
+
+
+def test_systemd_curator_unit_uses_conservative_rate_defaults():
+    unit = (
+        ROOT / "infra" / "deploy" / "systemd" / "hermes-esdata-curator.service"
+    ).read_text(encoding="utf-8")
+
+    assert "Environment=HERMES_ESDATA_MAX_ESDATA_HERMES=1" in unit
+    assert "Environment=HERMES_ESDATA_MIN_DELAY_SECONDS=30" in unit
+    assert "Environment=HERMES_ESDATA_DELAY_SECONDS=30" in unit
+    assert "Environment=HERMES_ESDATA_MAX_MODELS_PER_RUN=3" in unit
 
 
 def test_json_daily_summary_ignores_legacy_campaign_summary_as_source():
@@ -64,6 +91,8 @@ def test_daily_run_wrapper_propagates_segment_failures(tmp_path):
         pytest.skip("bash is present but not usable in this environment")
     if probe.returncode != 0:
         pytest.skip("bash is present but not usable in this environment")
+    if "system32" in bash.lower():
+        pytest.skip("Windows WSL bash shim is not usable for this script test")
 
     root = tmp_path / "hermes-curator"
     bin_dir = root / "bin"
