@@ -11,6 +11,7 @@ out_dir="$ROOT/reports/aeat-campaign-curation-json"
 summary="$out_dir/_batch-json-$(ts)-summary.csv"
 mkdir -p "$out_dir"
 echo 'modelo,status,json_file,markdown_file,raw_file' > "$summary"
+failures=0
 
 while IFS= read -r raw || [ -n "$raw" ]; do
   raw="${raw%%#*}"
@@ -23,6 +24,7 @@ while IFS= read -r raw || [ -n "$raw" ]; do
     if "$REPO/scripts/hermes_curator/bin/run-aeat-model-json.sh" "$modelo" > "$tmp" 2>&1; then
       tail -1 "$tmp" >> "$summary"
     else
+      failures=1
       line="$(tail -1 "$tmp" || true)"
       if [ -n "$line" ] && printf '%s' "$line" | grep -qE '^ERROR_[A-Z_]+,'; then
         printf '%s\n' "$line" >> "$summary"
@@ -35,5 +37,10 @@ while IFS= read -r raw || [ -n "$raw" ]; do
     sleep "${HERMES_ESDATA_DELAY_SECONDS:-8}"
   done
 done < "$queue"
+
+if [ "$failures" -ne 0 ]; then
+  echo "ERROR aeat json summary: $summary" >&2
+  exit 1
+fi
 
 echo "DONE aeat json summary: $summary"
