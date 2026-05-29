@@ -453,7 +453,9 @@ def test_maintenance_agent_units_are_safe_by_default():
     assert "ProtectSystem=strict" in hermes
 
     assert "User=deploy" in validation_service
-    assert "mcp_validation_suite.py --read-only --base-url http://127.0.0.1:8000" in validation_service
+    assert "DOCKER_CONFIG=/tmp/esdata-mcp-validation-docker" in validation_service
+    assert "docker compose --env-file /etc/esdata/esdata.env" in validation_service
+    assert "ops python /workspace/mcp_validation_suite.py --read-only --base-url http://api:8000" in validation_service
     assert "NoNewPrivileges=true" in validation_service
     assert "TimeoutStartSec=10m" in validation_service
     assert "Unit=esdata-mcp-validation.service" in validation_timer
