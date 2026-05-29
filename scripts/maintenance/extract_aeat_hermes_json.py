@@ -111,6 +111,8 @@ def _sanitize_payload(payload: dict) -> dict:
             )
         ]
 
+    payload["official_sources"] = _dedupe_sources_by_source_id(payload["official_sources"])
+
     rejected_claims = payload.get("rejected_claims")
     if isinstance(rejected_claims, list):
         for claim in removed_claims:
@@ -136,6 +138,24 @@ def _sanitize_payload(payload: dict) -> dict:
                 item for item in claim["input_claim_ids"] if item not in removed_source_ids
             ]
     return payload
+
+
+def _dedupe_sources_by_source_id(sources: list) -> list:
+    deduped = []
+    seen: set[str] = set()
+    for source in sources:
+        if not isinstance(source, dict):
+            deduped.append(source)
+            continue
+        source_id = source.get("source_id")
+        if not isinstance(source_id, str) or not source_id:
+            deduped.append(source)
+            continue
+        if source_id in seen:
+            continue
+        seen.add(source_id)
+        deduped.append(source)
+    return deduped
 
 
 def main() -> int:

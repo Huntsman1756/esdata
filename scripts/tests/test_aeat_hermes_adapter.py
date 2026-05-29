@@ -179,6 +179,32 @@ def test_extract_json_block_prunes_unreferenced_official_sources():
     ]
 
 
+def test_extract_json_block_dedupes_referenced_official_sources():
+    module = _load(EXTRACTOR_PATH, "extract_aeat_hermes_json")
+    payload = _report()
+    payload["official_sources"].append(
+        {
+            "source_id": "AEAT_GF00",
+            "authority": "AEAT",
+            "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF00.shtml",
+            "locator": "Duplicated locator",
+            "excerpt": "Modelo 210 duplicado",
+        }
+    )
+    raw = (
+        "BEGIN_AEAT_HERMES_JSON\n"
+        f"{json.dumps(payload)}\n"
+        "END_AEAT_HERMES_JSON\n"
+    )
+
+    extracted = module.extract_json_block(raw)
+
+    assert [source["source_id"] for source in extracted["official_sources"]] == [
+        "AEAT_GF00"
+    ]
+    assert extracted["official_sources"][0]["locator"] == "Gestiones destacadas"
+
+
 def test_render_markdown_is_view_not_source_of_truth():
     module = _load(RENDERER_PATH, "render_aeat_hermes_report")
 
