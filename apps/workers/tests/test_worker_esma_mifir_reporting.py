@@ -11,9 +11,22 @@ from worker_esma_mifir_reporting import (
     ESMA_MIFIR_DOCUMENTS,
     ReportingDocument,
     SchemaDownload,
+    _get_esma_url,
     parse_validation_rules_xlsx,
     parse_xsd_fields,
 )
+
+
+class FakeResponse:
+    def __init__(self, status_code, *, headers=None, content=b"ok", url="https://www.esma.europa.eu/doc"):
+        self.status_code = status_code
+        self.headers = headers or {}
+        self.content = content
+        self.url = url
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
 
 
 def test_parse_xsd_fields_extracts_elements_and_lengths():
@@ -124,3 +137,24 @@ def test_mifir_reporting_documents_include_qna_and_isrb_contract():
     assert refs["ESMA-QNA-INDEX"][0] == "QNA_INDEX"
     assert refs["ESMA-QNA-INDEX"][5] is True
     assert refs["ESMA-QNA-INDEX"][6] == "parcial"
+
+
+def test_get_esma_url_retries_429_with_retry_after(monkeypatch):
+    responses = [
+        FakeResponse(429, headers={"Retry-After": "2"}),
+        FakeResponse(200, content=b"retried"),
+    ]
+    sleeps = []
+
+    def fake_get(url, follow_redirects, timeout):
+        assert follow_redirects is True
+        assert timeout == 60.0
+        return responses.pop(0)
+
+    monkeypatch.setattr("worker_esma_mifir_reporting.httpx.get", fake_get)
+    monkeypatch.setattr("worker_esma_mifir_reporting.time.sleep", sleeps.append)
+
+    response = _get_esma_url("https://www.esma.europa.eu/doc")
+
+    assert response.content == b"retried"
+    assert sleeps == [2.0]

@@ -9,11 +9,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import os
 import sys
 import time
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -37,6 +39,8 @@ from runtime import (
 logger = configure_logging("workers.esma_mifir_reporting")
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("ESMA_MIFIR_REPORTING_SYNC_INTERVAL_SECONDS", 604800)
+REQUEST_DELAY_SECONDS = float(os.getenv("ESMA_MIFIR_REPORTING_REQUEST_DELAY_SECONDS", "1.0"))
+REQUEST_MAX_ATTEMPTS = int(os.getenv("ESMA_MIFIR_REPORTING_REQUEST_MAX_ATTEMPTS", "5"))
 
 ESMA_TR_SCHEMA_PAGE = "https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110"
 ESMA_TR_SCHEMA_ZIP_URL = (
@@ -147,9 +151,46 @@ ESMA_MIFIR_DOCUMENTS: tuple[tuple[str, str, str, str, str | None, bool, str], ..
 )
 
 
+def _retry_after_seconds(value: str | None, fallback: float) -> float:
+    if value:
+        try:
+            return max(1.0, float(value))
+        except ValueError:
+            try:
+                parsed = parsedate_to_datetime(value)
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=UTC)
+                return max(1.0, (parsed - datetime.now(UTC)).total_seconds())
+            except (TypeError, ValueError):
+                pass
+    return fallback
+
+
+def _get_esma_url(url: str) -> httpx.Response:
+    for attempt in range(1, REQUEST_MAX_ATTEMPTS + 1):
+        response = httpx.get(url, follow_redirects=True, timeout=60.0)
+        if response.status_code != 429:
+            response.raise_for_status()
+            return response
+        if attempt >= REQUEST_MAX_ATTEMPTS:
+            response.raise_for_status()
+        delay = _retry_after_seconds(
+            response.headers.get("Retry-After"),
+            fallback=min(60.0, 10.0 * attempt),
+        )
+        logger.warning(
+            "ESMA returned 429 for %s; retrying in %.1fs (%s/%s)",
+            url,
+            delay,
+            attempt + 1,
+            REQUEST_MAX_ATTEMPTS,
+        )
+        time.sleep(delay)
+    raise RuntimeError(f"ESMA request failed after retries: {url}")
+
+
 def fetch_schema_zip(url: str = ESMA_TR_SCHEMA_ZIP_URL) -> SchemaDownload:
-    response = httpx.get(url, follow_redirects=True, timeout=60.0)
-    response.raise_for_status()
+    response = _get_esma_url(url)
     zip_hash = hashlib.md5(response.content).hexdigest()
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         files = [
@@ -165,8 +206,9 @@ def fetch_schema_zip(url: str = ESMA_TR_SCHEMA_ZIP_URL) -> SchemaDownload:
 def fetch_reporting_documents() -> list[ReportingDocument]:
     documents: list[ReportingDocument] = []
     for tipo, titulo, referencia, url, fecha_publicacion, verified, completeness in ESMA_MIFIR_DOCUMENTS:
-        response = httpx.get(url, follow_redirects=True, timeout=60.0)
-        response.raise_for_status()
+        if documents and REQUEST_DELAY_SECONDS > 0:
+            time.sleep(REQUEST_DELAY_SECONDS)
+        response = _get_esma_url(url)
         documents.append(
             ReportingDocument(
                 tipo=tipo,
