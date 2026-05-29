@@ -36,7 +36,7 @@ from runtime import (
     sleep_with_heartbeat,
     touch_heartbeat,
 )
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +146,11 @@ def _change_entity_id(change: RegulatoryChange) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _table_exists(conn, table_name: str) -> bool:
+    """Return whether an optional table exists in the current database."""
+    return inspect(conn).has_table(table_name)
+
+
 # ============================================================
 # BOE change detection
 # ============================================================
@@ -246,6 +251,10 @@ def _detect_rate_changes_in_boe(
     changes: list[RegulatoryChange] = []
 
     if codigo != "LIVA":
+        return changes
+
+    if not _table_exists(conn, "iva_rates"):
+        logger.warning("LIVA rate comparison skipped: optional table iva_rates is missing")
         return changes
 
     # Extract percentage rates from BOE text (patterns like "21 por 100", "10 por 100", etc.)

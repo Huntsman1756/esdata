@@ -38,3 +38,17 @@ def test_insert_changes_uses_source_revision_idempotently():
         ).fetchall()
 
     assert rows == [("reg-watch", "regulatory_change", 1)]
+
+
+def test_liva_rate_detection_skips_missing_optional_iva_rates_table():
+    engine = create_engine("sqlite:///:memory:", future=True)
+
+    with engine.begin() as conn:
+        changes = regulatory_watch._detect_rate_changes_in_boe(
+            conn,
+            "LIVA",
+            "El tipo impositivo general sera del 21 por 100.",
+            "2026-05-29T00:00:00+00:00",
+        )
+
+    assert changes == []
