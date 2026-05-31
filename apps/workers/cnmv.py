@@ -1433,7 +1433,7 @@ def _is_unreliable_extracted_text(text_value: str) -> bool:
     if not sample.strip():
         return False
     control_chars = sum(1 for char in sample if ord(char) < 32 and char not in "\n\r\t")
-    return control_chars >= 3 or (control_chars / max(len(sample), 1)) > 0.002
+    return control_chars >= 1
 
 
 def _resolve_boe_document_url(url: str, content: bytes, content_type: str) -> str:
