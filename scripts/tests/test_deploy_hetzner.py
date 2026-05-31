@@ -182,6 +182,18 @@ def test_deploy_script_builds_ops_and_runs_migrations_before_app_services():
     assert script.index(migrate) < script.index(verify) < script.index(app_up)
 
 
+def test_deploy_script_rebuilds_profiled_cron_images_after_app_services():
+    script = _read("scripts/ops/deploy-hetzner.sh")
+    app_up = "up -d --build --remove-orphans"
+    cron_config = "--profile cron config --services"
+    cron_build = '--profile cron build "${CRON_SERVICES[@]}"'
+
+    assert cron_config in script
+    assert "grep '^cron-'" in script
+    assert cron_build in script
+    assert script.index(app_up) < script.index(cron_config) < script.index(cron_build)
+
+
 def test_deploy_workflow_delegates_to_canonical_script_with_migrations_required():
     workflow = _read(".github/workflows/deploy-hetzner.yml")
 

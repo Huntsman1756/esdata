@@ -18,4 +18,11 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm ops alembic upgrade head
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm ops python scripts/maintenance/verify_schema.py
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build --remove-orphans caddy api web worker-boe worker-boe-modelos worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-cdi worker-aepd
+mapfile -t CRON_SERVICES < <(
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" --profile cron config --services |
+    grep '^cron-'
+)
+if ((${#CRON_SERVICES[@]})); then
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" --profile cron build "${CRON_SERVICES[@]}"
+fi
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
