@@ -11,18 +11,18 @@ from middleware.metrics import (
     record_faithfulness_histogram,
     record_query_memory,
 )
+from pydantic import BaseModel, Field
+from request_context import get_request_id, get_user_id
 from schemas import ConsultaFiscalResponse
 from services.ai_disclaimer import get_ai_version
+from services.domain_availability import get_domain_availability
 from services.faithfulness import compute_faithfulness
 from services.grounding import apply_claim_level_abstention, validate_claim_grounding
 from services.human_review import check_review_required
 from services.query_audit import get_query_audit_service
-from request_context import get_request_id, get_user_id
-from services.domain_availability import get_domain_availability
 from services.reranker import normalize_rerank_score, rerank
 from services.search import search_legislacion
 from services.unified_multi_source_search import unified_multi_source_search
-from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
@@ -464,8 +464,6 @@ def _resolve_modelos(keywords: list[str]) -> list[str]:
 
     # Track how many models each keyword contributes
     keyword_models = {}
-    seen = set()
-
     for kw in sorted_keywords:
         if kw.startswith("_subject_"):
             subj = kw.replace("_subject_", "")
@@ -582,7 +580,6 @@ def _compute_confianza(modelos: list, resultados: list, q: str, resolved_modelos
 
     Returns a dict compatible with ConsultaConfianza schema.
     """
-    q_lower = q.lower()
     fuentes = []
     tipos_conteo = {}
 
@@ -805,7 +802,24 @@ def _apply_rerank_scores(resultados: list[dict], ranked_chunks: list) -> list[di
     return rescored
 
 
-def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
+def _citation_metadata_by_chunk(resultados: list[dict]) -> dict[str, dict]:
+    metadata: dict[str, dict] = {}
+    for resultado in resultados:
+        chunk_id = _result_citation_id(resultado)
+        if not chunk_id:
+            continue
+        evidencia = resultado.get("evidencia") or {}
+        source_url = evidencia.get("source_url") or resultado.get("source_url")
+        source_hash = evidencia.get("source_hash") or resultado.get("source_hash")
+        metadata[str(chunk_id)] = {
+            "source_url": source_url,
+            "source_hash": source_hash,
+        }
+    return metadata
+
+
+def _build_cited_chunks(ranked_chunks: list, resultados: list[dict] | None = None) -> list[dict]:
+    metadata_by_chunk = _citation_metadata_by_chunk(resultados or [])
     return [
         {
             "chunk_id": chunk.chunk_id,
@@ -815,6 +829,8 @@ def _build_cited_chunks(ranked_chunks: list) -> list[dict]:
             "relevance_score": normalize_rerank_score(float(chunk.rerank_score)),
             "excerpt": chunk.text[:200],
             "content_preview": chunk.text[:200],
+            "source_url": metadata_by_chunk.get(str(chunk.chunk_id), {}).get("source_url"),
+            "source_hash": metadata_by_chunk.get(str(chunk.chunk_id), {}).get("source_hash"),
         }
         for chunk in ranked_chunks
     ]
@@ -837,6 +853,8 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
             "text": text,
             "source_document": str(source_document),
             "article_number": _result_article_number(resultado),
+            "source_url": (resultado.get("evidencia") or {}).get("source_url") or resultado.get("source_url"),
+            "source_hash": (resultado.get("evidencia") or {}).get("source_hash") or resultado.get("source_hash"),
         })
 
     if not all_chunks or not query:
@@ -865,12 +883,15 @@ def _build_claim_citations(resultados: list[dict], ranked_chunks: list, query: s
         if not claim_text:
             continue
         ranked = semantic_rerank(claim_text, all_chunks, top_k=3)
+        metadata_by_chunk = {str(chunk["chunk_id"]): chunk for chunk in all_chunks}
         citations = [{
             "chunk_id": ch.chunk_id,
             "source_document": ch.source_document,
             "article_number": ch.article_number,
             "rerank_score": float(ch.rerank_score),
             "excerpt": ch.text[:200],
+            "source_url": metadata_by_chunk.get(str(ch.chunk_id), {}).get("source_url"),
+            "source_hash": metadata_by_chunk.get(str(ch.chunk_id), {}).get("source_hash"),
         } for ch in ranked]
         claim_citations.append({
             "claim": {
@@ -891,6 +912,8 @@ def _serialize_cited_chunks_for_response(cited_chunks: list[dict]) -> list[dict]
         rerank_score = float(item.get("rerank_score") or 0.0)
         item["rerank_score"] = rerank_score
         item["relevance_score"] = normalize_rerank_score(rerank_score)
+        item.setdefault("source_url", None)
+        item.setdefault("source_hash", None)
         serialized.append(item)
     return serialized
 
@@ -909,6 +932,33 @@ def _serialize_claim_citations_for_response(claim_citations: list[dict]) -> list
             }
         )
     return serialized
+
+
+def _collect_verifiable_source_urls(
+    resultados: list[dict],
+    cited_chunks: list[dict],
+    claim_citations: list[dict],
+) -> list[str]:
+    urls: list[str] = []
+
+    def add_url(value: object) -> None:
+        if isinstance(value, str) and value.startswith(("https://", "http://")) and value not in urls:
+            urls.append(value)
+
+    for resultado in resultados:
+        evidencia = resultado.get("evidencia") or {}
+        add_url(evidencia.get("source_url"))
+        add_url(resultado.get("source_url"))
+        add_url(resultado.get("url_info"))
+
+    for chunk in cited_chunks:
+        add_url(chunk.get("source_url"))
+
+    for claim_item in claim_citations:
+        for citation in claim_item.get("citations") or []:
+            add_url(citation.get("source_url"))
+
+    return urls
 
 
 def _collect_uncovered_query_terms(query: str, resultados: list[dict]) -> set[str]:
@@ -1401,7 +1451,7 @@ async def consulta_fiscal(
     ranked_chunks = rerank(q, rerank_candidates, top_k=RERANK_TOP_K) if q else []
     scored_results = _apply_rerank_scores(scored_results, ranked_chunks)
     scored_results.sort(key=lambda x: x["_relevancia"]["score"], reverse=True)
-    cited_chunks = _build_cited_chunks(ranked_chunks)
+    cited_chunks = _build_cited_chunks(ranked_chunks, scored_results)
     claim_citations = _build_claim_citations(scored_results, ranked_chunks, q)
 
     #  Grounding hard — per-claim validation
@@ -1448,12 +1498,10 @@ async def consulta_fiscal(
         cited_chunks = []
 
     # Build top-level relevancia
-    total_scored = len(scored_results)
     if final_results:
         avg_score = sum(r["_relevancia"]["score"] for r in final_results) / len(final_results)
         alta_count = sum(1 for r in final_results if r["_relevancia"]["nivel"] == "alta")
         relevancia_nivel = "alta" if avg_score >= 0.6 else ("media" if avg_score >= 0.3 else "baja")
-        relevancia_coins = []
         todos_terminos = set()
         encontrados = set()
         for r in final_results:
@@ -1499,8 +1547,6 @@ async def consulta_fiscal(
 
     #  Observability metrics
     try:
-        import logging
-
         import psutil
 
         # Use module-level logger (line 24); do not reassign here — Python would
@@ -1518,8 +1564,7 @@ async def consulta_fiscal(
 
     record_consulta_metrics("/v1/consulta", confianza)
 
-    #  Build unified search metadata
-    unified_meta = {}
+    #  Keep the extra retrieval side-effect-free for audit/compatibility.
     if sources and q:
         try:
             source_list = [s.strip() for s in sources.split(",") if s.strip()]
@@ -1529,13 +1574,14 @@ async def consulta_fiscal(
                 hybrid_weight=hybrid_weight,
                 limit=20,
             )
-            unified_meta = {
+            result_metadata_unified = {
                 "sources_requested": source_list,
                 "sources_with_results": unified.get("sources_with_results", []),
                 "source_breakdown": unified.get("source_breakdown", {}),
                 "search_mode": unified.get("search_mode", "fulltext"),
                 "weights": unified.get("weights", {}),
             }
+            del result_metadata_unified
             for item in unified.get("resultados", []):
                 results.append(item)
         except Exception:
@@ -1550,15 +1596,26 @@ async def consulta_fiscal(
             seen.add(key)
             deduped.append(r)
 
+    contract_fields = _consulta_contract_fields(
+        total_resultados=len(deduped),
+        confianza=confianza if isinstance(confianza, dict) else None,
+    )
+    verifiable_source_urls = _collect_verifiable_source_urls(deduped, cited_chunks, claim_citations)
+    if contract_fields["safe_to_answer"] and not verifiable_source_urls:
+        confianza = _with_unverified_review_required(confianza if isinstance(confianza, dict) else {})
+        contract_fields = _consulta_contract_fields(total_resultados=len(deduped), confianza=confianza)
+    source_verification_status = (
+        "verifiable" if contract_fields["safe_to_answer"] and verifiable_source_urls
+        else "abstained" if not deduped
+        else "needs_review"
+    )
+
     return ConsultaFiscalResponse(
         consulta=q or "",
         modelos=modelos_detalle if modelos_detalle else [],
         resultados=deduped,
         total_resultados=len(deduped),
-        **_consulta_contract_fields(
-            total_resultados=len(deduped),
-            confianza=confianza if isinstance(confianza, dict) else None,
-        ),
+        **contract_fields,
         result_metadata={
             "returned_count": len(deduped),
             "scored_count": len(scored_results),
@@ -1571,6 +1628,17 @@ async def consulta_fiscal(
                 "rerank_top_k": RERANK_TOP_K,
             },
             "boundary": "Responder solo con evidencia devuelta por ESData; si verified/review_required indican revision, no afirmar obligatoriedad.",
+            "source_verification": {
+                "status": source_verification_status,
+                "required_for_safe_answer": True,
+                "verifiable_source_count": len(verifiable_source_urls),
+                "source_urls": verifiable_source_urls[:20],
+                "rule": (
+                    "Una respuesta accionable debe incluir URL oficial verificable "
+                    "en result_metadata.source_verification.source_urls, cited_chunks "
+                    "o claim_citations[].citations[]. Si falta, safe_to_answer debe ser false."
+                ),
+            },
         },
         relevancia=relevancia,
         confianza=confianza if isinstance(confianza, dict) else None,

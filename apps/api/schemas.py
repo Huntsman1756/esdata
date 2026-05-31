@@ -1474,6 +1474,7 @@ class ChunkCitation(BaseModel):
     excerpt: str = Field(description="Vista previa del contenido del chunk")
     content_preview: str | None = Field(default=None, description="Vista previa estable para clientes MCP/GPT")
     source_url: str | None = Field(default=None, description="URL oficial de la fuente si esta disponible")
+    source_hash: str | None = Field(default=None, description="Hash de captura de la fuente si esta disponible")
 
 
 class ClaimCitation(BaseModel):

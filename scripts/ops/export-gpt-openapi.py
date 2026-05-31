@@ -100,6 +100,8 @@ OPERATION_OVERRIDES = {
         "description": (
             "Run a grounded ESData fiscal/legal retrieval query. Responses must be treated "
             "according to their confidence, relevance, citations, and review_required fields. "
+            "For any actionable answer, verify source locators in result_metadata.source_verification, "
+            "cited_chunks, or claim_citations before relying on the result. "
             "Do not infer mandatory obligations when the response only returns low-relevance "
             "candidates or explicitly requires verification."
         ),

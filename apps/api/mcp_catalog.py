@@ -51,6 +51,13 @@ POLITICA DE SELECCION DE HERRAMIENTAS ESDATA:
 REGLA DE ORO: si obtener_obligaciones_perfil no devuelve un modelo,
 la respuesta correcta es "no consta como obligacion verificada para este perfil",
 no "lo busco en otro sitio".
+
+REGLA DE VERIFICABILIDAD: una respuesta accionable debe citar las fuentes que
+permiten comprobarla dentro del propio JSON devuelto por ESData. Usar
+source_url, source_hash, cited_chunks, claim_citations y
+result_metadata.source_verification. Si no hay fuente verificable, la respuesta
+debe tratarse como evidencia limitada aunque haya resultados, y no debe
+presentarse como conclusion fiscal/legal segura.
 """
 
 DEFAULT_MCP_OUTPUT_SCHEMA: dict[str, Any] = {
@@ -58,7 +65,9 @@ DEFAULT_MCP_OUTPUT_SCHEMA: dict[str, Any] = {
     "additionalProperties": True,
     "description": (
         "JSON object returned by the underlying ESData read-only endpoint. "
-        "Tool calls may serialize this object in text content depending on transport."
+        "Tool calls may serialize this object in text content depending on transport. "
+        "Actionable answers must expose verifiable source URLs or hashes in the "
+        "payload; otherwise safe_to_answer must be false or the client must abstain."
     ),
 }
 
@@ -300,7 +309,9 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
             "description": (
                 "Consulta fiscal/legal grounded sobre fuentes ESData. Usar solo la evidencia, "
                 "citas y metadatos devueltos; si review_required/verified=false, abstenerse "
-                "de afirmar obligatoriedad o certeza. No usar conocimiento externo."
+                "de afirmar obligatoriedad o certeza. Toda conclusion accionable debe poder "
+                "verificarse en source_url, source_hash, cited_chunks, claim_citations o "
+                "result_metadata.source_verification. No usar conocimiento externo."
             ),
             "inputSchema": {
                 "type": "object",
@@ -378,7 +389,8 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
             "description": (
                 "Wrapper stdio para consultas de agente con contexto de entidad regulada; "
                 "mapea tipo_entidad a sujeto y llama a consulta_fiscal. Responder solo con "
-                "evidencia devuelta por ESData y respetar verified/review_required."
+                "evidencia devuelta por ESData, citar las fuentes verificables y respetar "
+                "verified/review_required."
             ),
             "inputSchema": {
                 "type": "object",

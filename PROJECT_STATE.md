@@ -16,6 +16,7 @@ Scheduled maintenance gates:
 Manual release gates:
 
 - `scripts/maintenance/source_assurance_gate.py`: static source-claim gate. No domain is certified as exhaustive; broad source coverage claims fail the gate.
+- `scripts/maintenance/response_verifiability_gate.py`: answer-source gate. Any actionable consulta/MCP answer must expose searchable source locators in the response itself (`source_url`, `source_hash`, `cited_chunks`, `claim_citations`, or `result_metadata.source_verification`) or remain `safe_to_answer=false`.
 
 Allowed maintenance work:
 

@@ -16,6 +16,7 @@ ESData is useful for evidence-backed regulatory consultation, audit trails, and 
 - `mcp_validation_suite` passes.
 - `mcp_deep_contract_audit.py` passes when run from the `ops` container.
 - `source_assurance_gate.py` passes. No active product doc, OpenAPI file, MCP/API description, or final coverage artifact may claim exhaustive coverage of a regulatory domain.
+- `response_verifiability_gate.py` passes. Actionable MCP/API answers must expose verifiable `source_url` or `source_hash` in the response itself, or return `safe_to_answer=false`.
 - `/health` passes. `/status` must either pass or be explicitly documented as unavailable with cause.
 - AEAT models `124`, `126`, and `128` remain documented as `CONFLICT`, `campana_safe_to_assert=false`, and `human_review_required=true` unless new direct official evidence changes the state.
 - No campaign data is promoted from LLM inference. `resolved_strong` requires direct, verifiable official evidence.
@@ -28,4 +29,5 @@ ESData is useful for evidence-backed regulatory consultation, audit trails, and 
 - Any model row is `ERROR_*` without a documented cause.
 - Documentation presents target-state behavior as implemented.
 - Documentation or API metadata claims complete/all/exhaustive coverage for Hacienda, BOE, CNMV, Banco de Espana, EUR-Lex, ESMA, sanctions, or any other source family unless a separate deterministic source certification exists.
+- `/v1/consulta` or MCP metadata can return `safe_to_answer=true` without sources searchable in `result_metadata.source_verification`, `cited_chunks`, or `claim_citations`.
 - `mcp_deep_contract_audit.py` reports missing MCP/OpenAPI operations, DB registry failures, FK orphan failures, or semantic contract failures.
