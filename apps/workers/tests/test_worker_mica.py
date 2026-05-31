@@ -6,7 +6,14 @@ from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mica import discover_esma_casp_csv, fetch_esma_casp, normalize_casp, run_once
+from mica import (
+    discover_esma_casp_csv,
+    discover_esma_mica_register_csvs,
+    fetch_esma_casp,
+    normalize_casp,
+    normalize_mica_register_row,
+    run_once,
+)
 
 
 class MockResponse:
@@ -128,6 +135,31 @@ def _create_mica_tables(conn) -> None:
     conn.execute(
         text(
             """
+            CREATE TABLE mica_register_entry (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                register_type TEXT NOT NULL,
+                register_label TEXT NOT NULL,
+                source_row_id TEXT NOT NULL,
+                name TEXT,
+                entity_identifier TEXT,
+                home_member_state TEXT,
+                status TEXT,
+                raw_data TEXT NOT NULL DEFAULT '{}',
+                source_url TEXT NOT NULL,
+                source_hash TEXT,
+                capture_date DATE,
+                verified BOOLEAN NOT NULL DEFAULT FALSE,
+                completeness TEXT NOT NULL DEFAULT 'parcial',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(register_type, source_row_id)
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
             CREATE TABLE sync_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 worker TEXT NOT NULL,
@@ -158,6 +190,23 @@ def test_discover_esma_casp_csv_from_official_page(monkeypatch):
     )
 
 
+def test_discover_esma_mica_non_casp_register_csvs_from_official_page(monkeypatch):
+    html = (
+        '<a href="/sites/default/files/2024-12/OTHER.csv">Other</a>'
+        '<a href="/sites/default/files/2024-12/ARTZZ.csv">ART</a>'
+        '<a href="/sites/default/files/2024-12/EMTWP.csv">EMT</a>'
+        '<a href="/sites/default/files/2024-12/NCASP.csv">NCASP</a>'
+    )
+    monkeypatch.setattr("mica.httpx.Client", lambda **kwargs: MockClient([MockResponse(text=html)]))
+
+    discovered = discover_esma_mica_register_csvs("https://www.esma.europa.eu/mica")
+
+    assert discovered["white_papers_other"].endswith("/OTHER.csv")
+    assert discovered["art_issuers"].endswith("/ARTZZ.csv")
+    assert discovered["emt_issuers"].endswith("/EMTWP.csv")
+    assert discovered["non_compliant_entities"].endswith("/NCASP.csv")
+
+
 def test_fetch_esma_casp_parses_current_csv(monkeypatch):
     csv_content = (
         "ae_competentAuthority,ae_homeMemberState,ae_lei_name,ae_lei,ae_lei_cou_code,"
@@ -185,6 +234,30 @@ def test_fetch_esma_casp_parses_current_csv(monkeypatch):
     assert normalized["services_offered"] == ["a. custody", "c. exchange"]
 
 
+def test_normalize_mica_register_row_preserves_raw_non_casp_fields():
+    normalized = normalize_mica_register_row(
+        "emt_issuers",
+        {
+            "ae_homeMemberState": "CZ",
+            "ae_lei_name": "Payment Corporation SE",
+            "ae_lei": "315700IJDQF91J9C8B68",
+            "ae_commercial_name": "Stable Labs",
+            "wp_url": "https://stablelabs.co/whitepaper0.pdf",
+            "wp_lastupdate": "30/10/2025",
+            "": "",
+        },
+        0,
+    )
+
+    assert normalized["register_type"] == "emt_issuers"
+    assert normalized["name"] == "Stable Labs"
+    assert normalized["entity_identifier"] == "315700IJDQF91J9C8B68"
+    assert normalized["home_member_state"] == "CZ"
+    assert normalized["status"] == "active"
+    assert normalized["raw_data"]["wp_url"].endswith("whitepaper0.pdf")
+    assert "" not in normalized["raw_data"]
+
+
 def test_run_once_persists_casp_entities(monkeypatch):
     engine = create_engine("sqlite:///:memory:", future=True)
 
@@ -208,6 +281,7 @@ def test_run_once_persists_casp_entities(monkeypatch):
             "sourcehash",
         ),
     )
+    monkeypatch.setattr("mica.discover_esma_mica_register_csvs", lambda: {})
 
     run_once()
 
@@ -222,6 +296,8 @@ def test_run_once_persists_casp_entities(monkeypatch):
         assert custodian_count == 0
         tx_count = conn.execute(text("SELECT COUNT(*) FROM crypto_transaction")).scalar()
         assert tx_count == 0
+        register_count = conn.execute(text("SELECT COUNT(*) FROM mica_register_entry")).scalar()
+        assert register_count == 0
         source_row = conn.execute(
             text("SELECT source_url, source_hash, verified, completeness FROM casp WHERE name = 'Bitso'")
         ).mappings().one()
@@ -254,6 +330,7 @@ def test_services_offered_serialized_as_json(monkeypatch):
             "sourcehash",
         ),
     )
+    monkeypatch.setattr("mica.discover_esma_mica_register_csvs", lambda: {})
 
     run_once()
 
@@ -294,6 +371,27 @@ def test_upsert_idempotent(monkeypatch):
             "sourcehash",
         ),
     )
+    monkeypatch.setattr(
+        "mica.discover_esma_mica_register_csvs",
+        lambda: {
+            "emt_issuers": "https://www.esma.europa.eu/sites/default/files/2024-12/EMTWP.csv",
+        },
+    )
+    monkeypatch.setattr(
+        "mica.fetch_esma_mica_register",
+        lambda register_type, url=None: (
+            [
+                {
+                    "ae_commercial_name": "Stable Labs",
+                    "ae_lei": "315700IJDQF91J9C8B68",
+                    "ae_homeMemberState": "CZ",
+                    "wp_url": "https://stablelabs.co/whitepaper0.pdf",
+                }
+            ],
+            url,
+            "registerhash",
+        ),
+    )
 
     run_once()
     run_once()
@@ -305,3 +403,21 @@ def test_upsert_idempotent(monkeypatch):
         assert asset_count == 0
         tx_count = conn.execute(text("SELECT COUNT(*) FROM crypto_transaction")).scalar()
         assert tx_count == 0
+        register_count = conn.execute(text("SELECT COUNT(*) FROM mica_register_entry")).scalar()
+        assert register_count == 1
+        register_row = conn.execute(
+            text(
+                """
+                SELECT register_type, name, entity_identifier, source_url, source_hash,
+                       verified, completeness
+                FROM mica_register_entry
+                """
+            )
+        ).mappings().one()
+        assert register_row["register_type"] == "emt_issuers"
+        assert register_row["name"] == "Stable Labs"
+        assert register_row["entity_identifier"] == "315700IJDQF91J9C8B68"
+        assert register_row["source_url"].endswith("EMTWP.csv")
+        assert register_row["source_hash"] == "registerhash"
+        assert bool(register_row["verified"]) is True
+        assert register_row["completeness"] == "completa"

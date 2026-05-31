@@ -75,6 +75,26 @@ async def test_casp_search_alias_returns_quality_contract(client):
 
 
 @pytest.mark.asyncio
+async def test_mica_registers_list_returns_quality_contract(client):
+    resp = await client.get("/v1/mica/registers", headers={"x-api-key": "test-secret-key"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+    assert "total" in data
+    if data["total"] == 0:
+        assert data["availability_status"] in {
+            "workflow_empty",
+            "configured_but_unavailable",
+        }
+        assert data["safe_to_answer"] is False
+    else:
+        assert data["quality_signal"] == "official_esma_register"
+        assert data["availability_status"] == "populated"
+        assert data["safe_to_answer"] is True
+        assert "esma" in data["source_url"].lower()
+
+
+@pytest.mark.asyncio
 async def test_crypto_assets_list_status_200(client):
     resp = await client.get("/v1/mica/crypto-assets", headers={"x-api-key": "test-secret-key"})
     assert resp.status_code == 200

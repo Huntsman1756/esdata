@@ -509,7 +509,16 @@ def audit_eurlex_esma_market_contracts(base_url: str) -> CheckResult:
         "esma_checks": {},
     }
     with httpx.Client(base_url=base_url, timeout=60) as client:
-        for celex in ("32014R0600", "32023R1114", "32022R0858"):
+        for celex in (
+            "32014R0600",
+            "32024R0791",
+            "32024L0790",
+            "32014R0596",
+            "32017R0587",
+            "32017R0583",
+            "32023R1114",
+            "32022R0858",
+        ):
             status_code, payload, text_preview = _get_json(client, f"/v1/eurlex/market/{celex}/articulos/1")
             record = {
                 "celex": celex,
@@ -620,6 +629,23 @@ def audit_eurlex_esma_market_contracts(base_url: str) -> CheckResult:
                     and payload.get("quality_signal") == "official_esma_register"
                     and payload.get("availability_status") == "populated"
                     and payload.get("safe_to_answer") is True
+                ),
+            ),
+            (
+                "esma_mica_non_casp_register",
+                "/v1/mica/registers",
+                {"register_type": "emt_issuers", "limit": 5, "offset": 0},
+                lambda payload: (
+                    payload.get("total", 0) > 0
+                    and payload.get("quality_signal") == "official_esma_register"
+                    and payload.get("availability_status") == "populated"
+                    and payload.get("safe_to_answer") is True
+                    and all(
+                        item.get("source_url")
+                        and item.get("source_hash")
+                        and item.get("verified") is True
+                        for item in payload.get("items") or []
+                    )
                 ),
             ),
         ]

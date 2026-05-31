@@ -2056,6 +2056,37 @@ def _validate_casp_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, An
     return ok, details
 
 
+def _validate_mica_register_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    items = payload.get("items") or []
+    register_types = {
+        item.get("register_type")
+        for item in items
+        if isinstance(item, dict) and item.get("register_type")
+    }
+    details = {
+        "total": payload.get("total"),
+        "returned": len(items),
+        "register_types": sorted(register_types),
+        "quality_signal": payload.get("quality_signal"),
+        "availability_status": payload.get("availability_status"),
+        "safe_to_answer": payload.get("safe_to_answer"),
+        "source_url": payload.get("source_url"),
+    }
+    ok = (
+        payload.get("total", 0) > 0
+        and payload.get("quality_signal") == "official_esma_register"
+        and payload.get("availability_status") == "populated"
+        and payload.get("safe_to_answer") is True
+        and bool(payload.get("source_url"))
+        and all(
+            item.get("source_url") and item.get("source_hash") and item.get("verified") is True
+            for item in items
+            if isinstance(item, dict)
+        )
+    )
+    return ok, details
+
+
 def _validate_cnmv_coverage_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     families = payload.get("source_families") or []
     family_by_id = {
@@ -2514,6 +2545,11 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         )
         for celex, name in [
             ("32014R0600", "eurlex_mifir_article_1_official_text"),
+            ("32024R0791", "eurlex_mifir_review_2024_article_1_official_text"),
+            ("32024L0790", "eurlex_mifid_review_2024_article_1_official_text"),
+            ("32014R0596", "eurlex_mar_article_1_official_text"),
+            ("32017R0587", "eurlex_rts1_article_1_official_text"),
+            ("32017R0583", "eurlex_rts2_article_1_official_text"),
             ("32023R1114", "eurlex_mica_article_1_official_text"),
             ("32022R0858", "eurlex_dlt_pilot_article_1_official_text"),
         ]:
@@ -2578,6 +2614,15 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 {"q": "crypto", "limit": 5, "offset": 0},
                 _validate_casp_contract,
                 "esma_casp_register_official_contract",
+            )
+        )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/mica/registers",
+                {"register_type": "emt_issuers", "limit": 5, "offset": 0},
+                _validate_mica_register_contract,
+                "esma_mica_non_casp_register_official_contract",
             )
         )
         checks.append(

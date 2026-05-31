@@ -39,7 +39,6 @@ from runtime import (
     init_sentry,
 )
 
-
 logger = configure_logging("workers.eurlex_market")
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("EURLEX_MARKET_SYNC_INTERVAL_SECONDS", 2592000)
@@ -75,6 +74,36 @@ MARKET_ACTS: dict[str, MarketAct] = {
         titulo="Reglamento (UE) n.o 600/2014 sobre los mercados de instrumentos financieros (MiFIR)",
         tipo="REGULATION",
         fecha_publicacion="2014-06-12",
+    ),
+    "32024R0791": MarketAct(
+        celex="32024R0791",
+        titulo="Reglamento (UE) 2024/791 por el que se modifica MiFIR",
+        tipo="REGULATION",
+        fecha_publicacion="2024-03-08",
+    ),
+    "32024L0790": MarketAct(
+        celex="32024L0790",
+        titulo="Directiva (UE) 2024/790 por la que se modifica MiFID II",
+        tipo="DIRECTIVE",
+        fecha_publicacion="2024-03-08",
+    ),
+    "32014R0596": MarketAct(
+        celex="32014R0596",
+        titulo="Reglamento (UE) n.o 596/2014 sobre el abuso de mercado (MAR)",
+        tipo="REGULATION",
+        fecha_publicacion="2014-06-12",
+    ),
+    "32017R0587": MarketAct(
+        celex="32017R0587",
+        titulo="Reglamento Delegado (UE) 2017/587 sobre requisitos de transparencia (RTS 1)",
+        tipo="REGULATION",
+        fecha_publicacion="2017-03-31",
+    ),
+    "32017R0583": MarketAct(
+        celex="32017R0583",
+        titulo="Reglamento Delegado (UE) 2017/583 sobre requisitos de transparencia (RTS 2)",
+        tipo="REGULATION",
+        fecha_publicacion="2017-03-31",
     ),
     "32023R1114": MarketAct(
         celex="32023R1114",

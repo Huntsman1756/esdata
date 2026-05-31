@@ -199,6 +199,15 @@ DEFAULT_CHECKS = [
         source_url_hosts=("esma.europa.eu", "europa.eu"),
     ),
     CanonicalCheck(
+        "mica_non_casp_registers",
+        "MiCA/ESMA",
+        "/v1/mica/registers",
+        params={"register_type": "emt_issuers", "limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("esma.europa.eu", "europa.eu"),
+    ),
+    CanonicalCheck(
         "screening_entries",
         "Screening",
         "/v1/screening/entries",

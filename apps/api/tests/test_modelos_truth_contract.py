@@ -714,6 +714,37 @@ def test_technical_exercise_coverage_is_non_assertive_even_when_official():
     assert selection["campana_assertion_code"] != "ASSERTABLE_DIRECT_OFFICIAL"
 
 
+def test_model_128_technical_exercise_coverage_stays_non_assertive():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        "2013",
+        [
+            {
+                "tipo": "modelo_recurso:diseno_registro",
+                "titulo": "Modelo 128. Ejercicios 2020 y siguientes. Presentacion por lotes.",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/static_files/Sede/"
+                    "Disenyo_registro/DR_100_199/archivos_20/128v01e2020_v1.07.xlsx"
+                ),
+                "source_index": (
+                    "https://sede.agenciatributaria.gob.es/Sede/ayuda/"
+                    "disenos-registro/modelos-100-199.html"
+                ),
+                "proves_campaign": False,
+            }
+        ],
+    )
+
+    assert selection["campana_resolution_status"] == "conflict"
+    assert selection["campana_conflict_years"] == ["2013", "2020"]
+    assert selection["technical_exercise_coverage"][0]["from_year"] == 2020
+    assert selection["technical_exercise_coverage"][0]["proves_campaign"] is False
+    assert selection["campana_afirmable"] is None
+    assert selection["campana_safe_to_assert"] is False
+    assert selection["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+
+
 def test_campana_selection_marks_non_conflicting_persisted_year_as_weak_not_assertable():
     from services.modelos import _build_campana_selection
 

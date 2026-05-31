@@ -19,6 +19,7 @@ from schemas import (
     CASPListResponse,
     CryptoAssetListResponse,
     CryptoTransactionListResponse,
+    MiCARegisterEntryListResponse,
     TokenizedAssetListResponse,
     WalletCustodianListResponse,
 )
@@ -52,10 +53,10 @@ from schemas import (
 from schemas import (
     WalletCustodianDetail as WalletCustodianDetailSchema,
 )
+from services.domain_availability import availability_envelope, check_domain
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from services.domain_availability import availability_envelope, check_domain
 from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/mica", tags=["mica"])
@@ -111,6 +112,104 @@ def _casp_quality(total: int) -> dict:
 # ===================================================================
 # CASP — Crypto-Asset Service Providers
 # ===================================================================
+
+
+def _mica_register_quality(total: int) -> dict:
+    if total <= 0:
+        return {
+            "quality_signal": "configured_but_unavailable",
+            "availability_status": "configured_but_unavailable",
+            "safe_to_answer": False,
+            "source_url": ESMA_CASP_REGISTER_URL,
+        }
+    return {
+        "quality_signal": "official_esma_register",
+        "availability_status": "populated",
+        "safe_to_answer": True,
+        "source_url": ESMA_CASP_REGISTER_URL,
+    }
+
+
+@router.get(
+    "/registers",
+    operation_id="list_mica_register_entries",
+    response_model=MiCARegisterEntryListResponse,
+)
+async def list_mica_register_entries(
+    request: Request,
+    register_type: str | None = Query(
+        default=None,
+        description="white_papers_other, art_issuers, emt_issuers, non_compliant_entities",
+    ),
+    home_member_state: str | None = Query(default=None, description="Estado miembro"),
+    q: str | None = Query(default=None, description="Busqueda por nombre o identificador"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+):
+    """Listar filas oficiales ESMA MiCA no-CASP con trazabilidad por CSV."""
+
+    conditions = []
+    params = {}
+    if register_type:
+        conditions.append("register_type = :register_type")
+        params["register_type"] = register_type
+    if home_member_state:
+        conditions.append("home_member_state = :home_member_state")
+        params["home_member_state"] = home_member_state
+    if q:
+        conditions.append("(name ILIKE :q OR entity_identifier ILIKE :q)")
+        params["q"] = f"%{q}%"
+
+    with db_session() as db:
+        availability = check_domain(db, "mica_register_entry", "MiCA ESMA registers")
+        if availability is not None:
+            record_retrieval_query_audit(
+                request,
+                path="/v1/mica/registers",
+                query_text=q or register_type or "",
+                tool_name="list_mica_register_entries",
+                items=[],
+                total=0,
+                verified=False,
+                response_summary="availability_status=configured_but_unavailable",
+            )
+            return availability
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
+        try:
+            rows = db.execute(
+                text(
+                    f"""
+                    SELECT id, register_type, register_label, source_row_id, name,
+                           entity_identifier, home_member_state, status, source_url,
+                           source_hash, capture_date, verified, completeness
+                    FROM mica_register_entry
+                    {where}
+                    ORDER BY register_type, name NULLS LAST, id
+                    LIMIT :limit OFFSET :offset
+                    """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            ).mappings()
+            items = [dict(row) for row in rows]
+            total = db.execute(
+                text(f"SELECT COUNT(*) FROM mica_register_entry {where}"),
+                params,
+            ).scalar_one()
+        except OperationalError as exc:
+            return _empty_list_on_missing_table(exc, "mica_register_entry", "MiCA ESMA registers")
+
+    response = {"items": items, "total": total, **_mica_register_quality(total)}
+    record_retrieval_query_audit(
+        request,
+        path="/v1/mica/registers",
+        query_text=q or register_type or "",
+        tool_name="list_mica_register_entries",
+        items=items,
+        total=int(total or 0),
+        verified=bool(items),
+        response_summary=f"total={total}; returned={len(items)}; quality_signal={response['quality_signal']}",
+    )
+    return response
 
 
 @router.get(

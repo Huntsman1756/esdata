@@ -264,6 +264,8 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "listar_registros_giin"
     if path.startswith("/v1/irs-fiscal"):
         return "listar_normas_irs"
+    if path.startswith("/v1/mica/registers"):
+        return "list_mica_register_entries"
     if path.startswith("/v1/mica/casp/buscar"):
         return "buscar_casp"
     if path.startswith("/v1/mica/casp"):

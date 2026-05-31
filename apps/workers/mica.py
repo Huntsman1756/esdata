@@ -33,6 +33,24 @@ logger = configure_logging("workers.mica")
 
 ESMA_MICA_PAGE = "https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica"
 ESMA_CASP_CSV_FALLBACK = "https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv"
+MICA_REGISTER_CSV_FALLBACKS = {
+    "white_papers_other": "https://www.esma.europa.eu/sites/default/files/2024-12/OTHER.csv",
+    "art_issuers": "https://www.esma.europa.eu/sites/default/files/2024-12/ARTZZ.csv",
+    "emt_issuers": "https://www.esma.europa.eu/sites/default/files/2024-12/EMTWP.csv",
+    "non_compliant_entities": "https://www.esma.europa.eu/sites/default/files/2024-12/NCASP.csv",
+}
+MICA_REGISTER_LABELS = {
+    "white_papers_other": "White papers for crypto-assets other than ART and EMT",
+    "art_issuers": "Issuers of ART",
+    "emt_issuers": "Issuers of EMT",
+    "non_compliant_entities": "Non-compliant entities",
+}
+MICA_REGISTER_FILENAMES = {
+    "white_papers_other": "OTHER.csv",
+    "art_issuers": "ARTZZ.csv",
+    "emt_issuers": "EMTWP.csv",
+    "non_compliant_entities": "NCASP.csv",
+}
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("MICA_SYNC_INTERVAL_SECONDS", 604800)
 
@@ -49,6 +67,23 @@ def discover_esma_casp_csv(page_url: str = ESMA_MICA_PAGE) -> str:
     return urljoin(page_url, match.group(1))
 
 
+def discover_esma_mica_register_csvs(page_url: str = ESMA_MICA_PAGE) -> dict[str, str]:
+    """Discover official ESMA MiCA non-CASP register CSV links."""
+
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        response = client.get(page_url)
+        response.raise_for_status()
+    discovered: dict[str, str] = {}
+    for register_type, filename in MICA_REGISTER_FILENAMES.items():
+        match = re.search(rf'href="([^"]*{re.escape(filename)})"', response.text, re.IGNORECASE)
+        if match:
+            discovered[register_type] = urljoin(page_url, match.group(1))
+    return {
+        register_type: discovered.get(register_type, fallback_url)
+        for register_type, fallback_url in MICA_REGISTER_CSV_FALLBACKS.items()
+    }
+
+
 def _csv_text_to_rows(content: bytes) -> list[dict]:
     text = content.decode("utf-8-sig", errors="replace")
     dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t")
@@ -57,6 +92,13 @@ def _csv_text_to_rows(content: bytes) -> list[dict]:
     if not rows:
         raise RuntimeError("ESMA CASP CSV produced zero rows")
     return rows
+
+
+def _csv_text_to_rows_allow_empty(content: bytes) -> list[dict]:
+    text = content.decode("utf-8-sig", errors="replace")
+    dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t")
+    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
+    return [dict(row) for row in reader]
 
 
 def fetch_esma_casp(url: str | None = None) -> tuple[list[dict], str, str]:
@@ -83,6 +125,25 @@ def fetch_esma_casp(url: str | None = None) -> tuple[list[dict], str, str]:
     return rows, source_url, source_hash
 
 
+def fetch_esma_mica_register(
+    register_type: str,
+    url: str | None = None,
+) -> tuple[list[dict], str, str]:
+    """Fetch one official ESMA MiCA non-CASP register CSV."""
+
+    if register_type not in MICA_REGISTER_CSV_FALLBACKS:
+        raise ValueError(f"Unsupported MiCA register type: {register_type}")
+    source_url = url or discover_esma_mica_register_csvs()[register_type]
+    with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+        response = client.get(source_url)
+        response.raise_for_status()
+    rows = _csv_text_to_rows_allow_empty(response.content)
+    source_hash = hashlib.md5(response.content).hexdigest()
+    source_url = str(response.url)
+    logger.info("ESMA returned %d %s rows from %s", len(rows), register_type, source_url)
+    return rows, source_url, source_hash
+
+
 def normalize_casp(raw: dict) -> dict:
     """Normalize an ESMA CASP CSV row to the local DB schema."""
 
@@ -102,6 +163,56 @@ def normalize_casp(raw: dict) -> dict:
         "passport_active": bool(passport_countries),
         "services_offered": services,
         "status": "revoked" if end_date else "active",
+    }
+
+
+def _first_present(raw: dict, *keys: str) -> str:
+    for key in keys:
+        value = (raw.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _clean_raw_row(raw: dict) -> dict:
+    return {
+        str(key): value
+        for key, value in raw.items()
+        if key and str(key).strip() and value not in (None, "")
+    }
+
+
+def normalize_mica_register_row(register_type: str, raw: dict, index: int) -> dict:
+    """Normalize a non-CASP ESMA MiCA register row without losing raw fields."""
+
+    clean_raw = _clean_raw_row(raw)
+    lei = _first_present(raw, "ae_lei")
+    website = _first_present(raw, "wp_url", "ae_website")
+    name = _first_present(raw, "ae_commercial_name", "ae_lei_name")
+    entity_identifier = lei or website or name
+    row_key_payload = {
+        "register_type": register_type,
+        "entity_identifier": entity_identifier,
+        "home_member_state": _first_present(raw, "ae_homeMemberState"),
+        "website": website,
+        "index": index,
+    }
+    source_row_id = hashlib.sha256(
+        json.dumps(row_key_payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()[:32]
+    status = "non_compliant" if register_type == "non_compliant_entities" else "active"
+    if _first_present(raw, "ac_authorisationEndDate"):
+        status = "revoked"
+
+    return {
+        "register_type": register_type,
+        "register_label": MICA_REGISTER_LABELS[register_type],
+        "source_row_id": source_row_id,
+        "name": name,
+        "entity_identifier": entity_identifier,
+        "home_member_state": _first_present(raw, "ae_homeMemberState"),
+        "status": status,
+        "raw_data": clean_raw,
     }
 
 
@@ -200,17 +311,87 @@ def upsert_casp(db, casp: dict, source_url: str, source_hash: str) -> None:
         )
 
 
-def run_once() -> None:
-    """Execute one ESMA CASP sync."""
+def upsert_mica_register_entry(db, entry: dict, source_url: str, source_hash: str) -> None:
+    """Insert or update a traced ESMA MiCA non-CASP register row."""
 
-    logger.info("Starting MiCA CASP sync from ESMA")
+    raw_data_json = json.dumps(entry["raw_data"], ensure_ascii=False)
+    raw_value_sql = "CAST(:raw_data AS JSONB)" if db.dialect.name == "postgresql" else ":raw_data"
+    existing = db.execute(
+        text(
+            """
+            SELECT id FROM mica_register_entry
+            WHERE register_type = :register_type AND source_row_id = :source_row_id
+            """
+        ),
+        {
+            "register_type": entry["register_type"],
+            "source_row_id": entry["source_row_id"],
+        },
+    ).mappings().first()
+
+    params = {
+        **entry,
+        "raw_data": raw_data_json,
+        "source_url": source_url,
+        "source_hash": source_hash,
+        "capture_date": date.today().isoformat(),
+    }
+    if existing:
+        db.execute(
+            text(
+                f"""
+                UPDATE mica_register_entry SET
+                    register_label = :register_label,
+                    name = :name,
+                    entity_identifier = :entity_identifier,
+                    home_member_state = :home_member_state,
+                    status = :status,
+                    raw_data = {raw_value_sql},
+                    source_url = :source_url,
+                    source_hash = :source_hash,
+                    capture_date = :capture_date,
+                    verified = true,
+                    completeness = 'completa',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id
+                """
+            ),
+            {**params, "id": existing["id"]},
+        )
+        return
+
+    db.execute(
+        text(
+            f"""
+            INSERT INTO mica_register_entry (
+                register_type, register_label, source_row_id, name, entity_identifier,
+                home_member_state, status, raw_data, source_url, source_hash,
+                capture_date, verified, completeness
+            )
+            VALUES (
+                :register_type, :register_label, :source_row_id, :name, :entity_identifier,
+                :home_member_state, :status, {raw_value_sql}, :source_url, :source_hash,
+                :capture_date, true, 'completa'
+            )
+            """
+        ),
+        params,
+    )
+
+
+def run_once() -> None:
+    """Execute one ESMA MiCA sync."""
+
+    logger.info("Starting MiCA sync from ESMA")
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine, logger=logger)
     sync_start = datetime.now(UTC).isoformat()
     synced = 0
+    register_synced = 0
 
     try:
         casps_raw, source_url, source_hash = fetch_esma_casp()
+        register_urls = discover_esma_mica_register_csvs()
         with engine.begin() as conn:
             for raw in casps_raw:
                 normalized = normalize_casp(raw)
@@ -219,13 +400,30 @@ def run_once() -> None:
                     continue
                 upsert_casp(conn, normalized, source_url, source_hash)
                 synced += 1
+            for register_type, register_url in register_urls.items():
+                rows, register_source_url, register_source_hash = fetch_esma_mica_register(
+                    register_type,
+                    register_url,
+                )
+                for index, raw in enumerate(rows):
+                    normalized_entry = normalize_mica_register_row(register_type, raw, index)
+                    if not normalized_entry["name"] and not normalized_entry["entity_identifier"]:
+                        logger.warning("Skipping MiCA register entry with empty identity: %s", raw)
+                        continue
+                    upsert_mica_register_entry(
+                        conn,
+                        normalized_entry,
+                        register_source_url,
+                        register_source_hash,
+                    )
+                    register_synced += 1
             _ensure_sync_log_table(conn)
             log_sync(
                 conn,
                 "cron-mica-weekly",
                 "ok",
-                documentos_processed=len(casps_raw),
-                documentos_upserted=synced,
+                documentos_processed=len(casps_raw) + register_synced,
+                documentos_upserted=synced + register_synced,
                 started_at=sync_start,
             )
     except Exception as exc:
@@ -245,7 +443,11 @@ def run_once() -> None:
             logger.warning("Failed to write MiCA sync error log: %s", log_exc)
         raise
 
-    logger.info("MiCA CASP sync complete: %d CASPs synced from %s", synced, source_url)
+    logger.info(
+        "MiCA sync complete: %d CASPs and %d non-CASP register rows synced from ESMA",
+        synced,
+        register_synced,
+    )
 
 
 def main() -> None:

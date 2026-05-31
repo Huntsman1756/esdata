@@ -55,6 +55,21 @@ REQUIRED_SCHEMA = {
         "row_completeness",
         "row_provenance",
     },
+    "mica_register_entry": {
+        "register_type",
+        "register_label",
+        "source_row_id",
+        "name",
+        "entity_identifier",
+        "home_member_state",
+        "status",
+        "raw_data",
+        "source_url",
+        "source_hash",
+        "capture_date",
+        "verified",
+        "completeness",
+    },
 }
 
 
@@ -126,7 +141,7 @@ def main() -> int:
 
     print(
         "Schema OK: modelo_campana_operativa, query_audit_log, dgt_queue, "
-        "documento_interpretativo runtime columns present and dgt_queue "
+        "documento_interpretativo, mica_register_entry runtime columns present and dgt_queue "
         "uniqueness enforced"
     )
     return 0

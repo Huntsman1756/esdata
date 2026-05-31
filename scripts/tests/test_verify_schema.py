@@ -36,6 +36,21 @@ DOCUMENTO_INTERPRETATIVO_REQUIRED_COLUMNS = {
     "row_completeness",
     "row_provenance",
 }
+MICA_REGISTER_ENTRY_REQUIRED_COLUMNS = {
+    "register_type",
+    "register_label",
+    "source_row_id",
+    "name",
+    "entity_identifier",
+    "home_member_state",
+    "status",
+    "raw_data",
+    "source_url",
+    "source_hash",
+    "capture_date",
+    "verified",
+    "completeness",
+}
 
 
 def _load_module():
@@ -106,6 +121,24 @@ def _create_runtime_schema(engine) -> None:
             id INTEGER PRIMARY KEY,
             row_completeness TEXT,
             row_provenance TEXT
+        )
+        """,
+        """
+        CREATE TABLE mica_register_entry (
+            id INTEGER PRIMARY KEY,
+            register_type TEXT,
+            register_label TEXT,
+            source_row_id TEXT,
+            name TEXT,
+            entity_identifier TEXT,
+            home_member_state TEXT,
+            status TEXT,
+            raw_data TEXT,
+            source_url TEXT,
+            source_hash TEXT,
+            capture_date TEXT,
+            verified INTEGER,
+            completeness TEXT
         )
         """,
     ]
@@ -448,6 +481,39 @@ def test_find_schema_issues_reports_full_missing_documento_interpretativo_runtim
     }
 
 
+def test_find_schema_issues_reports_missing_mica_register_entry_source_url():
+    module = _load_module()
+    engine = create_engine("sqlite:///:memory:", future=True)
+    _create_runtime_schema(engine)
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE mica_register_entry"))
+        conn.execute(
+            text(
+                """
+                CREATE TABLE mica_register_entry (
+                    id INTEGER PRIMARY KEY,
+                    register_type TEXT,
+                    register_label TEXT,
+                    source_row_id TEXT,
+                    name TEXT,
+                    entity_identifier TEXT,
+                    home_member_state TEXT,
+                    status TEXT,
+                    raw_data TEXT,
+                    source_hash TEXT,
+                    capture_date TEXT,
+                    verified INTEGER,
+                    completeness TEXT
+                )
+                """
+            )
+        )
+
+    issues = module.find_schema_issues(inspect(engine))
+
+    assert issues == ["missing column: mica_register_entry.source_url"]
+
+
 def test_find_schema_issues_reports_missing_runtime_tables():
     module = _load_module()
     engine = create_engine("sqlite:///:memory:", future=True)
@@ -481,4 +547,5 @@ def test_find_schema_issues_reports_missing_runtime_tables():
         "missing table: query_audit_log",
         "missing table: dgt_queue",
         "missing table: documento_interpretativo",
+        "missing table: mica_register_entry",
     }

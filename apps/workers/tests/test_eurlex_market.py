@@ -6,8 +6,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from eurlex_market import (
-    DownloadedAct,
     MARKET_ACTS,
+    DownloadedAct,
     _candidate_belongs_to_act,
     _extract_spanish_oj_expression_urls,
     _parse_official_oj_html,
@@ -20,6 +20,22 @@ def test_market_acts_include_emir():
     assert emir.tipo == "REGULATION"
     assert emir.fecha_publicacion == "2012-07-27"
     assert "EMIR" in emir.titulo
+
+
+def test_market_acts_include_current_market_expansion_targets():
+    expected = {
+        "32024R0791": ("REGULATION", "2024-03-08", "MiFIR"),
+        "32024L0790": ("DIRECTIVE", "2024-03-08", "MiFID"),
+        "32014R0596": ("REGULATION", "2014-06-12", "MAR"),
+        "32017R0587": ("REGULATION", "2017-03-31", "RTS 1"),
+        "32017R0583": ("REGULATION", "2017-03-31", "RTS 2"),
+    }
+
+    for celex, (tipo, fecha_publicacion, title_marker) in expected.items():
+        act = MARKET_ACTS[celex]
+        assert act.tipo == tipo
+        assert act.fecha_publicacion == fecha_publicacion
+        assert title_marker in act.titulo
 
 
 def test_candidate_belongs_to_requested_celex_only():

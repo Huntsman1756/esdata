@@ -1631,6 +1631,31 @@ class CASPListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class MiCARegisterEntrySummary(BaseModel):
+    id: int = Field(description="ID interno de la fila de registro MiCA")
+    register_type: str = Field(description="Tipo de registro ESMA MiCA")
+    register_label: str = Field(description="Etiqueta oficial del registro")
+    source_row_id: str = Field(description="Identificador estable derivado de la fila oficial")
+    name: str | None = Field(default=None, description="Nombre de entidad o emisor si existe")
+    entity_identifier: str | None = Field(default=None, description="LEI, URL o identificador oficial disponible")
+    home_member_state: str | None = Field(default=None, description="Estado miembro origen")
+    status: str | None = Field(default=None, description="Estado normalizado")
+    source_url: str = Field(description="CSV oficial ESMA de procedencia")
+    source_hash: str | None = Field(default=None, description="Hash del CSV oficial")
+    capture_date: str | None = Field(default=None, description="Fecha de captura")
+    verified: bool = Field(description="Si la fila procede de CSV oficial cargado")
+    completeness: str = Field(description="Estado de completitud")
+
+
+class MiCARegisterEntryListResponse(BaseModel):
+    items: list[MiCARegisterEntrySummary]
+    total: int
+    quality_signal: str | None = Field(default=None, description="official_esma_register | configured_but_unavailable")
+    availability_status: str | None = Field(default=None, description="populated | configured_but_unavailable")
+    safe_to_answer: bool | None = Field(default=None, description="Whether this list is backed by real populated data")
+    source_url: str | None = Field(default=None, description="Official ESMA MiCA page")
+
+
 class CryptoAssetCreate(BaseModel):
     asset_type: str = Field(description="asset-referenced, e-money, utility, other")
     reference_uid: str | None = Field(default=None, description="Identificador único del emisor")
