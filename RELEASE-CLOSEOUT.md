@@ -6,6 +6,18 @@ This file defines the pass/fail contract for closing the current useful v1 relea
 
 ESData is useful for evidence-backed regulatory consultation, audit trails, and human review acceleration. It is fail-closed and does not act as an automatic fiscal decision engine.
 
+## Current closeout snapshot
+
+Administrative closeout tag: `v1.15.3`.
+
+This closeout includes the BDNS/BORME structured-ingestion rollout and the post-deploy validation fixes needed to keep the VPS gates green:
+
+- BDNS official structured rows are ingested as bounded, traceable subsidy data, with fail-closed API semantics.
+- BORME official BOE summary/PDF rows are ingested with explicit best-effort extraction metadata.
+- MCP validation, deep audit scheduling, source-assurance gates, answer-verifiability gates, and operational health checks remain part of the release contract.
+
+Offsite backup configuration and restore drill are explicitly not part of this snapshot. They remain a separate operations block and must not be represented as completed disaster-recovery readiness.
+
 ## Pass criteria
 
 - `systemctl --failed` returns `0 loaded units listed`.
@@ -31,3 +43,7 @@ ESData is useful for evidence-backed regulatory consultation, audit trails, and 
 - Documentation or API metadata claims complete/all/exhaustive coverage for Hacienda, BOE, CNMV, Banco de Espana, EUR-Lex, ESMA, sanctions, or any other source family unless a separate deterministic source certification exists.
 - `/v1/consulta` or MCP metadata can return `safe_to_answer=true` without sources searchable in `result_metadata.source_verification`, `cited_chunks`, or `claim_citations`.
 - `mcp_deep_contract_audit.py` reports missing MCP/OpenAPI operations, DB registry failures, FK orphan failures, or semantic contract failures.
+
+## Deferred operations
+
+- `BACKUP-OFFSITE-RESTORE-01`: configure a real offsite backup target, run the backup from production, restore into an isolated environment, verify schema/data accessibility, and record evidence in the roadmap before claiming disaster-recovery readiness.
