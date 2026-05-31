@@ -19,6 +19,7 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `operations/runbooks/` — runbooks repetibles
 - `integrations/README.md` — matriz activa de integraciones LLM/clientes
 - `manual-usuario/README.md` — manual vivo de uso e integracion
+- `final-product-acceptance-plan.md` — contrato de cierre transversal del producto MCP regulatorio
 - `fiscal-regulatory-coverage-matrix.md` — matriz de cobertura fiscal-regulatoria por dominio y subdominio
 - `aeat-priority-model-closeout.md` — cierre auditable de modelos AEAT prioritarios por estado
 - `aeat-precision-policy.md` — regla de maxima exactitud para afirmar campanas AEAT en API/MCP/UI
