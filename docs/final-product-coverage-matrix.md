@@ -2,7 +2,7 @@
 
 Status: `FUNCTIONAL_CLOSEOUT_BACKUP_DEFERRED`
 
-Last verified: 2026-05-31 on VPS commit `1873445`.
+Last verified: 2026-05-31 on VPS commit `60e8c51` plus `SOURCE-CLOSEOUT-AUDIT-01`.
 
 This document is the final user-facing coverage matrix for the current ESData product. It describes what can be used now, what must remain partial, and what must not be claimed.
 
@@ -36,6 +36,8 @@ Backup/offsite restore is intentionally deferred. That means functional product 
 - `very_limited`: small corpus or narrow workflow only.
 - `workflow_empty`: flow exists but returns explicit fail-closed output.
 - `not_exposed`: data or worker may exist, but no accepted user surface is exposed.
+- `internal_support`: operational/governance surface, not a product source claim.
+- `out_of_scope`: mounted or historical code exists, but it is not part of the accepted product claim.
 
 ## Final Matrix
 
@@ -48,9 +50,14 @@ Backup/offsite restore is intentionally deferred. That means functional product 
 | AEAT models | `partial` | Inspect model metadata, sources, casillas and operational summaries. | Automatic filing obligations or campaign assertions without direct official evidence. | `/v1/modelos/124/resumen-operativo` |
 | DGT/TEAC doctrine | `partial_traceable` | Search and review doctrinal lines with explicit completeness/safety fields. | Complete doctrine or binding answer without `safe_to_answer=true`. | `/v1/doctrina/lineas/coverage` |
 | CNMV | `partial` | Review loaded CNMV families and distinguish loaded vs unavailable families. | Complete CNMV universe, registers, Q&A, or all supervisory material. | `/v1/cnmv/coverage` |
-| EUR-Lex / ESMA markets | `usable` | Query loaded market acts, articles and ESMA-related regulatory artifacts. | Complete EU regulatory corpus. | `/v1/eurlex/market/acts` |
-| MiCA / CASP | `usable` | Query loaded CASP register and MiCA-related obligations where present. | Full crypto-asset regulatory coverage. | `/v1/mica/casp` |
-| Screening / sanctions | `usable` | Query loaded official screening entries by list/source. | That no match means no sanctions risk unless the source contract explicitly supports that conclusion. | `/v1/screening/entries?codigo=EU_SANCTIONS&limit=1` |
+| EUR-Lex market acts | `usable` | Query loaded market acts/articles where ESData exposes article/source metadata. | Complete EU regulatory corpus. | `/v1/eurlex/market/acts` |
+| ESMA MiFIR schemas/reporting | `partial` | Review loaded schema fields, reporting documents and validation rules. | Complete ESMA reporting coverage, FIRDS/FITRS/full datasets. | Broader source audit; not all ESMA subfamilies are final-gate product claims. |
+| ESMA FIRDS/FITRS | `very_limited` | Treat FIRDS/FITRS as pilot or unavailable depending endpoint response. | Full instruments universe. | Broader source audit only. |
+| MiCA CASP register | `usable` | Query loaded CASP register entries. | Full MiCA or crypto-asset regulatory coverage. | `/v1/mica/casp` |
+| MiCA issuer / ART / EMT workflows | `partial` | Use only where obligations are explicitly sourced. | Complete issuer-token applicability. | Broader inventory; not a CASP-register claim. |
+| Screening OFAC SDN | `usable` | Query loaded OFAC entries by official list. | EU/UN/SEPBLAC sanctions or PEP coverage. | `/v1/screening/entries?codigo=OFAC_SDN&limit=1` |
+| Screening EU sanctions | `usable` | Query loaded EU restrictive-measures entries. | That no match means no sanctions risk across all sources. | `/v1/screening/entries?codigo=EU_SANCTIONS&limit=1` |
+| Screening UN / SEPBLAC / PEP | `not_exposed` | Do not use as product coverage today. | Any screening conclusion for unloaded sources. | Explicitly outside accepted loaded screening sources. |
 | AEPD | `partial` | Review loaded AEPD official documents with partial coverage metadata. | Full data-protection compliance answer. | `/v1/aepd` |
 | SEPBLAC | `partial` | Review loaded SEPBLAC documents with partial coverage metadata. | Full PBC/FT decisioning by subject/profile. | `/v1/sepblac` |
 | BDE | `partial` | Review loaded Banco de Espana documents with partial coverage metadata. | Complete banking-supervision coverage. | `/v1/bde` |
@@ -58,6 +65,14 @@ Backup/offsite restore is intentionally deferred. That means functional product 
 | BOE diario | `partial` | Review loaded non-consolidated BOE daily documents. | Consolidated law status or complete BOE daily universe. | Covered by broader corpus inventory, not final gate smoke. |
 | BDNS | `very_limited` | Narrow subsidy-document checks only. | Broad subsidy coverage. | Covered by broader corpus inventory, not final gate smoke. |
 | CENDOJ | `very_limited` | Narrow loaded-document checks only. | Broad jurisprudence coverage. | Covered by broader corpus inventory, not final gate smoke. |
+| CDI / DTA convenios | `partial` | Explore loaded double-tax conventions and treaty metadata. | Definitive withholding result by country/article/income type without dedicated evidence. | Broader inventory and PRD; product still partial. |
+| CRS / DAC2 / FATCA / GIIN | `partial` | Review loaded IRS/GIIN/FATCA/CRS references and model metadata. | Complete CRS/DAC2 or FATCA procedure coverage. | Broader inventory and PRDs; not a finished subproduct. |
+| PSD2 / SEPA | `partial` | Review loaded PSD2/SEPA reference records. | Complete payment-regulatory coverage. | Broader inventory; not a final product claim. |
+| PGC / XBRL / ESEF | `partial` | Use loaded PGC/XBRL surfaces for narrow checks. | Complete accounting/reporting engine. | Broader inventory; not a final product claim. |
+| DORA / SFDR / CSRD / AIFMD / UCITS / CRD / EMIR / MiFID / MAR / PRIIPs / PBC / fraud | `out_of_scope` | Treat mounted endpoints as development or narrow operational surfaces unless a specific contract says otherwise. | Final accepted source coverage. | Not in accepted final product gate. |
+| Source manifest / freshness | `internal_support` | Inspect freshness for Wave 1 sources. | Complete source inventory of all workers. | `/v1/sources/manifest` covers only Wave 1 manifest rows. |
+| Regulatory watch / source_revision | `internal_support` | Operational change detection and telemetry. | User-facing legal-change corpus unless exposed by a specific endpoint. | No direct final product source surface. |
+| AI governance / human review / query audit / observability | `internal_support` | Audit and governance operations. | External legal/regulatory source coverage. | Operational support only. |
 
 ## Response Interpretation
 

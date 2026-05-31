@@ -21,6 +21,7 @@ Mantener una unica capa de documentacion viva, coherente con el codigo y lista p
 - `manual-usuario/README.md` — manual vivo de uso e integracion
 - `final-product-acceptance-plan.md` — contrato de cierre transversal del producto MCP regulatorio
 - `final-product-coverage-matrix.md` — matriz final de cobertura real del producto tras el gate transversal
+- `source-closeout-audit-20260531.md` — auditoria exhaustiva de fuentes, superficies y gaps de cierre
 - `fiscal-regulatory-coverage-matrix.md` — matriz de cobertura fiscal-regulatoria por dominio y subdominio
 - `aeat-priority-model-closeout.md` — cierre auditable de modelos AEAT prioritarios por estado
 - `aeat-precision-policy.md` — regla de maxima exactitud para afirmar campanas AEAT en API/MCP/UI

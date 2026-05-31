@@ -34,6 +34,43 @@ def test_affirmative_payload_without_source_fails():
     assert "missing source" in result.reason
 
 
+def test_official_source_host_is_checked_when_configured():
+    gate = _load_gate()
+    check = gate.CanonicalCheck(
+        name="boe_norm",
+        domain="BOE",
+        path="/v1/legislacion/LIVA",
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("boe.es",),
+    )
+    payload = {
+        "source_url": "https://example.invalid/not-official",
+        "verified": True,
+    }
+
+    result = gate.evaluate_payload(check, payload)
+
+    assert not result.ok
+    assert "missing official source host" in result.reason
+
+
+def test_final_gate_has_broad_source_coverage():
+    gate = _load_gate()
+    names = {check.name for check in gate.DEFAULT_CHECKS}
+
+    assert len(gate.DEFAULT_CHECKS) >= 30
+    assert {
+        "borme_partial",
+        "boe_diario_partial",
+        "bdns_very_limited",
+        "cendoj_very_limited",
+        "cdi_partial",
+        "psd2_partial",
+        "giin_partial",
+    }.issubset(names)
+
+
 def test_empty_payload_with_explicit_fail_closed_status_passes():
     gate = _load_gate()
     check = gate.CanonicalCheck(

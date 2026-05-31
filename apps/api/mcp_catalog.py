@@ -119,6 +119,12 @@ HTTP_MCP_OPERATIONS = [
     "listar_aepd",
     "buscar_aepd",
     "get_aepd",
+    "listar_bde",
+    "get_bde",
+    "listar_bdns",
+    "get_bdns",
+    "listar_cendoj",
+    "get_cendoj",
     "listar_cnmv",
     "buscar_cnmv",
     "obtener_documentos_cnmv_perfil",
@@ -128,6 +134,8 @@ HTTP_MCP_OPERATIONS = [
     "get_cnmv_obligation_links",
     "listar_eurlex",
     "get_eurlex",
+    "listar_sepblac",
+    "get_sepblac",
     "listar_obligaciones_internacionales",
     "detalle_obligacion_internacional",
     "listar_registros_giin",
@@ -219,12 +227,28 @@ def infer_query_audit_tool_name(path: str) -> str:
         return "get_aepd"
     if path.startswith("/v1/aepd"):
         return "listar_aepd"
+    if path.startswith("/v1/bde/"):
+        return "get_bde"
+    if path.startswith("/v1/bde"):
+        return "listar_bde"
+    if path.startswith("/v1/bdns/"):
+        return "get_bdns"
+    if path.startswith("/v1/bdns"):
+        return "listar_bdns"
+    if path.startswith("/v1/cendoj/"):
+        return "get_cendoj"
+    if path.startswith("/v1/cendoj"):
+        return "listar_cendoj"
     if path.startswith("/v1/cnmv/perfil"):
         return "obtener_documentos_cnmv_perfil"
     if path.startswith("/v1/cnmv"):
         return "listar_cnmv"
     if path.startswith("/v1/eurlex"):
         return "listar_eurlex"
+    if path.startswith("/v1/sepblac/"):
+        return "get_sepblac"
+    if path.startswith("/v1/sepblac"):
+        return "listar_sepblac"
     if path.startswith("/v1/internacional/obligaciones"):
         return "listar_obligaciones_internacionales"
     if path.startswith("/v1/irs-fiscal/giin"):

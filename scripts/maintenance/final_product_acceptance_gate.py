@@ -29,12 +29,17 @@ EVIDENCE_STATUS_KEYS = {
     "coverage_status",
     "estado_cobertura",
     "availability_status",
+    "last_status",
+    "stale",
     "evidence_limited",
     "evidence_status",
     "review_required",
+    "quality_signal",
+    "regulatory_status",
+    "estado",
+    "estado_fatca",
     "campana_safe_to_assert",
     "campana_assertion_code",
-    "status",
 }
 FAIL_CLOSED_STATUSES = {
     "workflow_empty",
@@ -58,6 +63,7 @@ class CanonicalCheck:
     requires_evidence_status: bool = False
     allow_fail_closed_empty: bool = False
     status_check: bool = False
+    source_url_hosts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -85,11 +91,50 @@ DEFAULT_CHECKS = [
         "/v1/legislacion/LIVA",
         requires_source=True,
         requires_evidence_status=True,
+        source_url_hosts=("boe.es",),
+    ),
+    CanonicalCheck(
+        "boe_article_liva_1",
+        "BOE",
+        "/v1/legislacion/LIVA/articulos/1",
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("boe.es",),
+    ),
+    CanonicalCheck(
+        "boe_search_iva",
+        "BOE",
+        "/v1/buscar",
+        params={"q": "IVA", "norma": "LIVA"},
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("boe.es",),
+    ),
+    CanonicalCheck(
+        "source_manifest",
+        "sources",
+        "/v1/sources/manifest",
+        requires_evidence_status=True,
     ),
     CanonicalCheck(
         "aeat_model_124_summary",
         "AEAT",
         "/v1/modelos/124/resumen-operativo",
+        requires_evidence_status=True,
+    ),
+    CanonicalCheck(
+        "aeat_model_124",
+        "AEAT",
+        "/v1/modelos/124",
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("agenciatributaria.gob.es", "aeat.es", "boe.es"),
+    ),
+    CanonicalCheck(
+        "aeat_model_124_casillas",
+        "AEAT",
+        "/v1/modelos/124/casillas",
+        params={"limit": "1"},
         requires_evidence_status=True,
     ),
     CanonicalCheck(
@@ -99,10 +144,35 @@ DEFAULT_CHECKS = [
         requires_evidence_status=True,
     ),
     CanonicalCheck(
+        "doctrina_lineas",
+        "DGT/TEAC",
+        "/v1/doctrina/lineas",
+        requires_evidence_status=True,
+    ),
+    CanonicalCheck(
+        "doctrina_search",
+        "DGT/TEAC",
+        "/v1/doctrina",
+        params={"q": "IVA", "limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("hacienda.gob.es", "agenciatributaria.gob.es"),
+    ),
+    CanonicalCheck(
         "cnmv_coverage",
         "CNMV",
         "/v1/cnmv/coverage",
         requires_evidence_status=True,
+    ),
+    CanonicalCheck(
+        "cnmv_list",
+        "CNMV",
+        "/v1/cnmv",
+        params={"limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("cnmv.es", "boe.es"),
+        allow_fail_closed_empty=True,
     ),
     CanonicalCheck(
         "eurlex_market_acts",
@@ -110,6 +180,16 @@ DEFAULT_CHECKS = [
         "/v1/eurlex/market/acts",
         requires_source=True,
         requires_evidence_status=True,
+        source_url_hosts=("eur-lex.europa.eu", "esma.europa.eu", "europa.eu"),
+    ),
+    CanonicalCheck(
+        "eurlex_list",
+        "EUR-Lex",
+        "/v1/eurlex",
+        params={"limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("eur-lex.europa.eu",),
     ),
     CanonicalCheck(
         "mica_casp",
@@ -117,6 +197,7 @@ DEFAULT_CHECKS = [
         "/v1/mica/casp",
         requires_source=True,
         requires_evidence_status=True,
+        source_url_hosts=("esma.europa.eu", "europa.eu"),
     ),
     CanonicalCheck(
         "screening_entries",
@@ -125,6 +206,16 @@ DEFAULT_CHECKS = [
         params={"codigo": "EU_SANCTIONS", "limit": "1"},
         requires_source=True,
         requires_evidence_status=True,
+        source_url_hosts=("europa.eu", "ec.europa.eu"),
+    ),
+    CanonicalCheck(
+        "screening_ofac_entries",
+        "Screening",
+        "/v1/screening/entries",
+        params={"codigo": "OFAC_SDN", "limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        source_url_hosts=("treasury.gov", "sanctionslistservice.ofac.treas.gov"),
     ),
     CanonicalCheck(
         "aepd_partial",
@@ -133,6 +224,7 @@ DEFAULT_CHECKS = [
         requires_source=True,
         requires_evidence_status=True,
         allow_fail_closed_empty=True,
+        source_url_hosts=("aepd.es",),
     ),
     CanonicalCheck(
         "sepblac_partial",
@@ -141,12 +233,78 @@ DEFAULT_CHECKS = [
         requires_source=True,
         requires_evidence_status=True,
         allow_fail_closed_empty=True,
+        source_url_hosts=("sepblac.es", "boe.es"),
     ),
     CanonicalCheck(
         "bde_partial",
         "BDE",
         "/v1/bde",
         requires_source=True,
+        requires_evidence_status=True,
+        allow_fail_closed_empty=True,
+        source_url_hosts=("bde.es", "boe.es"),
+    ),
+    CanonicalCheck(
+        "borme_partial",
+        "BORME",
+        "/v1/borme",
+        params={"limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        allow_fail_closed_empty=True,
+        source_url_hosts=("boe.es",),
+    ),
+    CanonicalCheck(
+        "boe_diario_partial",
+        "BOE diario",
+        "/v1/boe-diario",
+        params={"limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        allow_fail_closed_empty=True,
+        source_url_hosts=("boe.es",),
+    ),
+    CanonicalCheck(
+        "bdns_very_limited",
+        "BDNS",
+        "/v1/bdns",
+        params={"limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        allow_fail_closed_empty=True,
+        source_url_hosts=("infosubvenciones.es", "pap.hacienda.gob.es"),
+    ),
+    CanonicalCheck(
+        "cendoj_very_limited",
+        "CENDOJ",
+        "/v1/cendoj",
+        params={"limit": "1"},
+        requires_source=True,
+        requires_evidence_status=True,
+        allow_fail_closed_empty=True,
+        source_url_hosts=("poderjudicial.es",),
+    ),
+    CanonicalCheck(
+        "cdi_partial",
+        "CDI",
+        "/v1/internacional/convenios",
+        params={"limit": "1"},
+        requires_evidence_status=True,
+        allow_fail_closed_empty=True,
+    ),
+    CanonicalCheck(
+        "psd2_partial",
+        "PSD2",
+        "/v1/psd2/aspsp",
+        params={"limit": "1"},
+        requires_evidence_status=True,
+        allow_fail_closed_empty=True,
+    ),
+    CanonicalCheck(
+        "giin_partial",
+        "GIIN/FATCA",
+        "/v1/irs-fiscal/giin",
+        params={"limit": "1"},
         requires_evidence_status=True,
         allow_fail_closed_empty=True,
     ),
@@ -177,6 +335,22 @@ def has_source_reference(payload: Any) -> bool:
     return _has_key_with_value(payload, SOURCE_KEYS)
 
 
+def _source_url_values(payload: Any) -> list[str]:
+    urls: list[str] = []
+    for item in _walk(payload):
+        if not isinstance(item, dict):
+            continue
+        for key, value in item.items():
+            if key in SOURCE_KEYS and isinstance(value, str) and value.startswith(("http://", "https://")):
+                urls.append(value.lower())
+    return urls
+
+
+def has_source_url_host(payload: Any, hosts: tuple[str, ...]) -> bool:
+    urls = _source_url_values(payload)
+    return any(host.lower() in url for host in hosts for url in urls)
+
+
 def has_evidence_status(payload: Any) -> bool:
     return _has_key_with_value(payload, EVIDENCE_STATUS_KEYS)
 
@@ -188,6 +362,10 @@ def is_empty_response(payload: Any) -> bool:
         for key in (
             "items",
             "documentos",
+            "actos",
+            "convocatorias",
+            "convenios",
+            "registros",
             "entries",
             "resultados",
             "results",
@@ -200,7 +378,7 @@ def is_empty_response(payload: Any) -> bool:
                 return False
         if payload.get("total") == 0:
             return True
-        for key in ("items", "resultados", "results", "data", "sources"):
+        for key in ("items", "documentos", "actos", "convocatorias", "entries", "resultados", "results", "data", "sources"):
             if key in payload and payload.get(key) == []:
                 return True
     return False
@@ -235,6 +413,15 @@ def evaluate_payload(check: CanonicalCheck, payload: Any) -> CheckResult:
 
     if check.requires_source and not has_source_reference(payload):
         return CheckResult(check.name, check.domain, False, "missing source", check.path)
+
+    if check.source_url_hosts and not has_source_url_host(payload, check.source_url_hosts):
+        return CheckResult(
+            check.name,
+            check.domain,
+            False,
+            f"missing official source host: {check.source_url_hosts}",
+            check.path,
+        )
 
     if check.requires_evidence_status and not has_evidence_status(payload):
         return CheckResult(

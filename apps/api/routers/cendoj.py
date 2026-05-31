@@ -72,6 +72,8 @@ async def listar_cendoj(
                 "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
                 "url_fuente": row["url_fuente"],
                 "organismo_emisor": row.get("organismo_emisor"),
+                "row_completeness": "partial",
+                "row_provenance": "official_best_effort",
             }
             for row in rows
         ]
@@ -85,7 +87,17 @@ async def listar_cendoj(
             verified=bool(documentos),
             completeness="parcial",
         )
-        return {"documentos": documentos}
+        return {
+            "documentos": documentos,
+            "items": documentos,
+            "total": len(documentos),
+            "coverage_status": "very_limited" if documentos else "workflow_empty",
+            "safe_to_answer": False,
+            "coverage_note": (
+                "CENDOJ expone un corpus minimo cargado; no implica cobertura amplia "
+                "de jurisprudencia tributaria."
+            ),
+        }
 
 
 @router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_cendoj")
@@ -120,6 +132,8 @@ async def get_cendoj(referencia: str, request: Request):
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
             "organismo_emisor": row.get("organismo_emisor"),
+            "row_completeness": "partial",
+            "row_provenance": "official_best_effort",
         }
         record_retrieval_query_audit(
             request,

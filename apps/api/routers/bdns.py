@@ -46,6 +46,8 @@ async def listar_bdns(
                 "titulo": row["titulo"],
                 "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
                 "url_fuente": row["url_fuente"],
+                "row_completeness": "partial",
+                "row_provenance": "official_best_effort",
             }
             for row in rows
         ]
@@ -59,7 +61,17 @@ async def listar_bdns(
             verified=bool(convocatorias),
             completeness="parcial",
         )
-        return {"convocatorias": convocatorias}
+        return {
+            "convocatorias": convocatorias,
+            "items": convocatorias,
+            "total": len(convocatorias),
+            "coverage_status": "very_limited" if convocatorias else "workflow_empty",
+            "safe_to_answer": False,
+            "coverage_note": (
+                "BDNS expone un corpus muy limitado de convocatorias cargadas; "
+                "no implica cobertura amplia de subvenciones."
+            ),
+        }
 
 
 @router.get("/{referencia:path}", response_model=BDNSDetail, operation_id="get_bdns")
@@ -92,6 +104,8 @@ async def get_bdns(referencia: str, request: Request):
             "titulo": row["titulo"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
+            "row_completeness": "partial",
+            "row_provenance": "official_best_effort",
         }
         record_retrieval_query_audit(
             request,

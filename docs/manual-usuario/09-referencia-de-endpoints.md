@@ -229,8 +229,11 @@ Uso recomendado:
 - `ai/models` para verificar version y configuracion del modelo en uso
 - `data/lineage` y `data/quality` para auditoria de origen y calidad de datos
 
-Nota de estado: routers para `/v1/bdns`, `/v1/borme`, `/v1/sepblac`,
-`/v1/modelos/calendario`, `/v1/chunks`, `/v1/connectivity`, `/v1/irs/modelos`,
+Nota de estado: `/v1/bdns`, `/v1/borme` y `/v1/sepblac` estan montados en runtime
+actual y deben tratarse como fuentes parciales o muy limitadas segun
+`../final-product-coverage-matrix.md`.
+
+Routers para `/v1/modelos/calendario`, `/v1/chunks`, `/v1/connectivity`, `/v1/irs/modelos`,
 `/v1/ai/risk`, `/v1/ai/safety`, `/v1/ai/fairness-report`, `/v1/gdpr` y
 `/v1/ai/xai` existen en el repositorio, pero no estan montados en la app runtime
 v1.0. Tratar esos bloques como `configured_but_unavailable` o backlog hasta que
