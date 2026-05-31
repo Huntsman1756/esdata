@@ -8,22 +8,20 @@ Endpoints:
 
 import json
 import unicodedata
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse
-from sqlalchemy import text
 
 from db import db_session
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from schemas import (
     ScreeningCheckRequest,
     ScreeningCheckResponse,
     ScreeningEntriesResponse,
     ScreeningEntry,
     ScreeningList,
-    ScreeningMatchesResponse,
     ScreeningMatch,
+    ScreeningMatchesResponse,
 )
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/screening", tags=["screening"])
 
@@ -116,7 +114,6 @@ async def screening_check(req: ScreeningCheckRequest):
     """Evaluate an entity against screening lists and return matches with scoring."""
     nombre_evaluado = (req.nombre or "").strip()
     nif_evaluado = (req.nif or "").strip().upper()
-    tipo_entidad = req.tipo_entidad or None
 
     if not nombre_evaluado and not nif_evaluado and not req.empresa_id:
         raise HTTPException(
@@ -450,6 +447,8 @@ async def screening_entries(
         total=total,
         limit=limit,
         entries=entries,
+        coverage_status="official_list_loaded" if entries else "workflow_empty",
+        safe_to_answer=bool(entries),
     )
 
 

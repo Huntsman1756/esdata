@@ -3834,6 +3834,11 @@ class ScreeningEntriesResponse(BaseModel):
     total: int
     limit: int
     entries: list[ScreeningEntry] = Field(default_factory=list)
+    coverage_status: str | None = Field(default=None, description="official_list_loaded | workflow_empty")
+    safe_to_answer: bool = Field(
+        default=False,
+        description="True only for positive list entries from an official loaded source; false for empty/no-match claims",
+    )
 
 
 class ScreeningMatchesResponse(BaseModel):
@@ -4301,6 +4306,11 @@ class DocInterpretativoListResponse(BaseModel):
         description="Estados de vigencia incluidos cuando el filtro no es all",
     )
     coverage_note: str | None = Field(default=None, description="Nota de cobertura del corpus")
+    coverage_status: str | None = Field(default=None, description="partial_loaded | workflow_empty")
+    safe_to_answer: bool = Field(
+        default=False,
+        description="False for interpretative partial corpora; consumers must not treat a list as a legal conclusion",
+    )
 
 
 class DocInterpretativoDetail(BaseModel):
@@ -4381,10 +4391,20 @@ class SEPBLACListItem(BaseModel):
     ambito: str
     fragmento: str
     url_fuente: str | None = None
+    row_completeness: str | None = Field(default=None, description="complete | partial")
+    row_provenance: str | None = Field(default=None, description="official_exact | official_best_effort")
 
 
 class SEPBLACListResponse(BaseModel):
     documentos: list[SEPBLACListItem]
+    items: list[SEPBLACListItem] = Field(default_factory=list, description="Alias paginado para consumidores MCP/GPT")
+    total: int | None = None
+    coverage_status: str | None = Field(default=None, description="partial_loaded | workflow_empty")
+    safe_to_answer: bool = Field(
+        default=False,
+        description="False for interpretative partial corpora; consumers must not treat a list as a legal conclusion",
+    )
+    coverage_note: str | None = None
 
 
 class SEPBLACDetail(BaseModel):
@@ -4395,6 +4415,8 @@ class SEPBLACDetail(BaseModel):
     ambito: str
     texto: str
     url_fuente: str | None = None
+    row_completeness: str | None = Field(default=None, description="complete | partial")
+    row_provenance: str | None = Field(default=None, description="official_exact | official_best_effort")
 
 
 # --- BOE diario non-consolidated documents ---------------------------------

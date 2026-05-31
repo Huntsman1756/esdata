@@ -53,6 +53,8 @@ async def listar_sepblac(
                 "ambito": row["ambito"],
                 "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
                 "url_fuente": row["url_fuente"],
+                "row_completeness": "partial",
+                "row_provenance": "official_best_effort",
             }
             for row in rows
         ]
@@ -66,7 +68,17 @@ async def listar_sepblac(
             verified=bool(documentos),
             completeness="parcial",
         )
-        return {"documentos": documentos}
+        return {
+            "documentos": documentos,
+            "items": documentos,
+            "total": len(documentos),
+            "coverage_status": "partial_loaded" if documentos else "workflow_empty",
+            "safe_to_answer": False,
+            "coverage_note": (
+                "SEPBLAC expone documentos oficiales cargados de forma parcial; "
+                "no implica cobertura exhaustiva ni conclusion PBC/FT automatica."
+            ),
+        }
 
 
 @router.get("/{referencia:path}", response_model=SEPBLACDetail, operation_id="get_sepblac")
@@ -101,6 +113,8 @@ async def get_sepblac(referencia: str, request: Request):
             "ambito": row["ambito"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
+            "row_completeness": "partial",
+            "row_provenance": "official_best_effort",
         }
         record_retrieval_query_audit(
             request,

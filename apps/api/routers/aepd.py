@@ -3,9 +3,10 @@ import unicodedata
 
 from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
-from routers.retrieval_audit import record_retrieval_query_audit
 from schemas import DocInterpretativoDetail, DocInterpretativoListResponse
 from sqlalchemy import text
+
+from routers.retrieval_audit import record_retrieval_query_audit
 
 router = APIRouter(prefix="/v1/aepd", tags=["aepd"])
 
@@ -129,10 +130,13 @@ async def _listar_aepd_response(
             "fragmento": _fragment(row["texto"]),
             "url_fuente": row["url_fuente"],
             "url_aepd": row["url_fuente"],
+            "row_completeness": "partial",
+            "row_provenance": "official_best_effort",
         }
         for row in rows
     ]
     has_more = offset + len(documentos) < total
+    coverage_status = "partial_loaded" if documentos else "workflow_empty"
     return {
         "documentos": documentos,
         "items": documentos,
@@ -142,6 +146,12 @@ async def _listar_aepd_response(
         "skip": offset,
         "has_more": has_more,
         "next_offset": offset + limit if has_more else None,
+        "coverage_status": coverage_status,
+        "safe_to_answer": False,
+        "coverage_note": (
+            "AEPD expone documentos oficiales cargados de forma parcial; "
+            "no implica cobertura exhaustiva ni conclusion legal automatica."
+        ),
     }
 
 
@@ -221,4 +231,6 @@ async def get_aepd(referencia: str):
         "texto": row["texto"],
         "url_fuente": row["url_fuente"],
         "url_aepd": row["url_fuente"],
+        "row_completeness": "partial",
+        "row_provenance": "official_best_effort",
     }

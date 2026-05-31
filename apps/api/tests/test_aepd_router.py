@@ -26,9 +26,13 @@ async def test_aepd_list_exposes_traceable_pagination_contract():
     assert payload["limit"] == 2
     assert payload["offset"] == 0
     assert isinstance(payload["total"], int)
+    assert payload["coverage_status"] in {"partial_loaded", "workflow_empty"}
+    assert payload["safe_to_answer"] is False
     if payload["items"]:
         first = payload["items"][0]
         assert first["url_aepd"] == first["url_fuente"]
+        assert first["row_completeness"] == "partial"
+        assert first["row_provenance"] == "official_best_effort"
 
 
 @pytest.mark.asyncio

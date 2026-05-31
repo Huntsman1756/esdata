@@ -25,6 +25,7 @@ EVIDENCE_STATUS_KEYS = {
     "safe_to_answer",
     "verified",
     "completeness",
+    "row_completeness",
     "coverage_status",
     "estado_cobertura",
     "availability_status",

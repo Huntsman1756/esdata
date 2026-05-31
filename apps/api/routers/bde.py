@@ -57,6 +57,8 @@ async def listar_bde(
                 "ambito": row["ambito"],
                 "fragmento": row["texto"][:220] + ("..." if len(row["texto"]) > 220 else ""),
                 "url_fuente": row["url_fuente"],
+                "row_completeness": "partial",
+                "row_provenance": "official_best_effort",
             }
             for row in rows
         ]
@@ -70,7 +72,17 @@ async def listar_bde(
             verified=bool(documentos),
             completeness="parcial",
         )
-        return {"documentos": documentos}
+        return {
+            "documentos": documentos,
+            "items": documentos,
+            "total": len(documentos),
+            "coverage_status": "partial_loaded" if documentos else "workflow_empty",
+            "safe_to_answer": False,
+            "coverage_note": (
+                "BDE expone documentos oficiales cargados de forma parcial; "
+                "no implica cobertura exhaustiva ni conclusion regulatoria automatica."
+            ),
+        }
 
 
 @router.get("/{referencia:path}", response_model=DocInterpretativoDetail, operation_id="get_bde")
@@ -104,6 +116,8 @@ async def get_bde(referencia: str, request: Request):
             "ambito": row["ambito"],
             "texto": row["texto"],
             "url_fuente": row["url_fuente"],
+            "row_completeness": "partial",
+            "row_provenance": "official_best_effort",
         }
         record_retrieval_query_audit(
             request,

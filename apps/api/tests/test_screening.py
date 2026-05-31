@@ -13,7 +13,6 @@ sys.path.insert(0, str(API_DIR))
 
 from main import app
 
-
 # ---------------------------------------------------------------------------
 # Helpers — _normalize_name
 # ---------------------------------------------------------------------------
@@ -119,7 +118,7 @@ class TestScreeningSchemas:
         assert entry.activo is True  # default
 
     def test_screening_match_schema(self):
-        from schemas import ScreeningMatch, ScreeningEntry, ScreeningList
+        from schemas import ScreeningEntry, ScreeningList, ScreeningMatch
         lista = ScreeningList(
             id=1, codigo="OFAC_SDN", nombre="OFAC SDN", tipo="sanctions",
             organismo="OFAC", activo=True,
@@ -267,6 +266,8 @@ async def test_screening_entries_list(client):
     assert data["total"] >= 14
     assert len(data["entries"]) >= 14
     assert "limit" in data
+    assert data["coverage_status"] == "official_list_loaded"
+    assert data["safe_to_answer"] is True
 
 
 @pytest.mark.asyncio
