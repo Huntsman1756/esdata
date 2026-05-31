@@ -634,6 +634,7 @@ def run_sync(
                     response.content,
                 )
                 stored += 1
+                touch_heartbeat()
                 time.sleep(request_delay)
 
             log_sync(

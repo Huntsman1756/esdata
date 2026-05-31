@@ -43,7 +43,7 @@ from vocabulary import (
 
 def test_total_value_count():
     """Vocabulary should cover all known values."""
-    assert TOTAL_VALUES == 222, f"Expected 222 total values, got {TOTAL_VALUES}"
+    assert TOTAL_VALUES == 223, f"Expected 223 total values, got {TOTAL_VALUES}"
 
 
 def test_vocabulary_has_all_fields():
@@ -68,7 +68,7 @@ def test_tipo_fuente_count():
 
 
 def test_tipo_documento_count():
-    assert len(TIPOS_DOCUMENTO) == 65
+    assert len(TIPOS_DOCUMENTO) == 66
 
 
 def test_ambitos_count():

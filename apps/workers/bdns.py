@@ -5,6 +5,7 @@ import os
 import re
 import time
 from datetime import datetime
+from hashlib import sha256
 from io import BytesIO
 from urllib.parse import urlparse
 
@@ -199,7 +200,12 @@ def normalize_bdns_api_item(raw: dict, endpoint: str) -> dict[str, object]:
             else f"{BDNS_API_BASE_URL}/convocatorias?id={natural_id}"
         )
     elif endpoint == "concesion":
-        codigo_concesion = _first_text(raw.get("codConcesion"), raw.get("id")) or "unknown"
+        codigo_concesion = _first_text(raw.get("codConcesion"), raw.get("id"))
+        if not codigo_concesion:
+            raw_digest = sha256(
+                json.dumps(raw, ensure_ascii=False, sort_keys=True).encode()
+            ).hexdigest()[:16]
+            codigo_concesion = f"{endpoint}-{raw_digest}"
         referencia = f"BDNS-CONCESION-{codigo_concesion}"
         tipo_documento = "concesion_bdns"
         titulo = _first_text(raw.get("convocatoria"), raw.get("descripcionCooficial"), referencia)
@@ -464,6 +470,7 @@ def run_sync(
                         content,
                     )
                     stored += 1
+                    touch_heartbeat()
                     time.sleep(request_delay)
 
             for url in urls:
@@ -500,6 +507,7 @@ def run_sync(
                     response.content,
                 )
                 stored += 1
+                touch_heartbeat()
                 time.sleep(request_delay)
 
             log_sync(

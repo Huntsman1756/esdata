@@ -119,6 +119,7 @@ TIPOS_DOCUMENTO_BORME: frozenset[str] = frozenset({
 
 TIPOS_DOCUMENTO_OTROS: frozenset[str] = frozenset({
     "convocatoria_bdns",
+    "concesion_bdns",
     "convocatoria_subvencion",
 })
 

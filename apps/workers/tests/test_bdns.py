@@ -168,6 +168,20 @@ def test_normalize_bdns_api_item_maps_concesion_summary_with_amount_and_benefici
     assert "Beneficiario: B57250185 IDEAL SERVICES PROPERTY MANAGEMENT SL" in text_payload
 
 
+def test_normalize_bdns_api_item_uses_stable_digest_when_concesion_lacks_identifier():
+    item = normalize_bdns_api_item(
+        {
+            "beneficiario": "BENEFICIARIO SIN CODIGO",
+            "importe": 100,
+            "convocatoria": "Ayuda sin codigo de concesion",
+        },
+        "concesion",
+    )
+
+    assert item["referencia"].startswith("BDNS-CONCESION-concesion-")
+    assert item["referencia"] != "BDNS-CONCESION-unknown"
+
+
 def test_build_structured_payload_preserves_metadata_and_exact_provenance():
     item = normalize_bdns_api_item(
         {
