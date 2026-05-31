@@ -14,6 +14,7 @@ ESData is useful for evidence-backed regulatory consultation, audit trails, and 
 - `legal-sources` rows include explicit statuses or reasons. Bare `SKIPPED` is not acceptable.
 - The latest ops report has no known permission warnings, including `infra/deploy/secrets/alertmanager`.
 - `mcp_validation_suite` passes.
+- `mcp_deep_contract_audit.py` passes when run from the `ops` container.
 - `/health` passes. `/status` must either pass or be explicitly documented as unavailable with cause.
 - AEAT models `124`, `126`, and `128` remain documented as `CONFLICT`, `campana_safe_to_assert=false`, and `human_review_required=true` unless new direct official evidence changes the state.
 - No campaign data is promoted from LLM inference. `resolved_strong` requires direct, verifiable official evidence.
@@ -25,3 +26,4 @@ ESData is useful for evidence-backed regulatory consultation, audit trails, and 
 - Known permission warnings are mixed into the final ops report.
 - Any model row is `ERROR_*` without a documented cause.
 - Documentation presents target-state behavior as implemented.
+- `mcp_deep_contract_audit.py` reports missing MCP/OpenAPI operations, DB registry failures, FK orphan failures, or semantic contract failures.

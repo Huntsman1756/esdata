@@ -4,6 +4,13 @@ Current state source: `docs/master-execution-roadmap.md`.
 
 Operationally, the project is closed as a useful v1 and is now in maintenance-only mode. The honest claim is regulatory consultation with traceability and fail-closed behavior, not automatic fiscal truth.
 
+Functional closeout release tag: `v1.15.0`.
+
+Scheduled maintenance gates:
+
+- `esdata-mcp-validation.timer`: hourly read-only smoke via `mcp_validation_suite.py`.
+- `esdata-mcp-deep-audit.timer`: daily read-only deep audit via `mcp_deep_contract_audit.py`.
+
 Allowed maintenance work:
 
 - operational failures

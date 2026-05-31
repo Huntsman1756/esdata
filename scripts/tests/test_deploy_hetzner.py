@@ -444,6 +444,8 @@ def test_maintenance_agent_units_are_safe_by_default():
     hermes = _read("infra/deploy/systemd/esdata-hermes-monitor.service")
     validation_service = _read("infra/deploy/systemd/esdata-mcp-validation.service")
     validation_timer = _read("infra/deploy/systemd/esdata-mcp-validation.timer")
+    deep_audit_service = _read("infra/deploy/systemd/esdata-mcp-deep-audit.service")
+    deep_audit_timer = _read("infra/deploy/systemd/esdata-mcp-deep-audit.timer")
 
     assert "User=deploy" in hermes
     assert "AUTO_RESTART_ENABLED=false" in hermes
@@ -459,6 +461,14 @@ def test_maintenance_agent_units_are_safe_by_default():
     assert "NoNewPrivileges=true" in validation_service
     assert "TimeoutStartSec=10m" in validation_service
     assert "Unit=esdata-mcp-validation.service" in validation_timer
+
+    assert "User=deploy" in deep_audit_service
+    assert "DOCKER_CONFIG=/tmp/esdata-mcp-deep-audit-docker" in deep_audit_service
+    assert "docker compose --env-file /etc/esdata/esdata.env" in deep_audit_service
+    assert "ops python /workspace/mcp_deep_contract_audit.py --base-url http://api:8000" in deep_audit_service
+    assert "NoNewPrivileges=true" in deep_audit_service
+    assert "TimeoutStartSec=30m" in deep_audit_service
+    assert "Unit=esdata-mcp-deep-audit.service" in deep_audit_timer
 
 
 def test_scheduled_jobs_have_overlap_locks_and_start_timeout_caps():

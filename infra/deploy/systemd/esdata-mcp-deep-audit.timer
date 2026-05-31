@@ -1,0 +1,10 @@
+[Unit]
+Description=Run esdata deep MCP/API/database contract audit daily
+
+[Timer]
+OnCalendar=*-*-* 08:45:00 Europe/Madrid
+Persistent=true
+Unit=esdata-mcp-deep-audit.service
+
+[Install]
+WantedBy=timers.target

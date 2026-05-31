@@ -54,7 +54,7 @@ docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.
 sudo cp infra/deploy/systemd/*.service /etc/systemd/system/
 sudo cp infra/deploy/systemd/*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now esdata-boe-daily.timer esdata-boe-modelos-daily.timer esdata-modelos-daily.timer esdata-aeat-current-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer esdata-cdi-weekly.timer esdata-reg-watch-daily.timer esdata-psd2-weekly.timer esdata-mcp-validation.timer
+sudo systemctl enable --now esdata-boe-daily.timer esdata-boe-modelos-daily.timer esdata-modelos-daily.timer esdata-aeat-current-daily.timer esdata-dgt-weekly.timer esdata-teac-weekly.timer esdata-bdns-weekly.timer esdata-borme-weekly.timer esdata-cnmv-weekly.timer esdata-sepblac-weekly.timer esdata-bde-weekly.timer esdata-cendoj-weekly.timer esdata-aepd-weekly.timer esdata-eurlex-weekly.timer esdata-cdi-weekly.timer esdata-reg-watch-daily.timer esdata-psd2-weekly.timer esdata-mcp-validation.timer esdata-mcp-deep-audit.timer
 python scripts/ops/worker_scheduler_guard.py check --repo-root /srv/esdata --installed-unit /etc/systemd/system/esdata-job@.service
 ```
 
@@ -63,5 +63,7 @@ python scripts/ops/worker_scheduler_guard.py check --repo-root /srv/esdata --ins
 `esdata-hermes-monitor.service` queda read-only por defecto (`AUTO_RESTART_ENABLED=false`). Si se habilita reinicio automatico, debe fijarse `RESTART_ALLOWLIST` con servicios concretos y nunca dar permisos de escritura a datos fiscales o legales.
 
 `esdata-mcp-validation.timer` ejecuta `scripts/maintenance/mcp_validation_suite.py --read-only` cada hora.
+
+`esdata-mcp-deep-audit.timer` ejecuta `scripts/maintenance/mcp_deep_contract_audit.py` cada dia a las 08:45 Europe/Madrid desde el contenedor `ops`. Este gate es mas caro que la validacion horaria y comprueba tablas, FK, domain availability, HTTP MCP, GPT Actions OpenAPI y contratos semanticos.
 
 Alertmanager usa `/srv/esdata/infra/observability/alertmanager.yml` como ruta operativa y monta secretos desde `/srv/esdata/infra/deploy/secrets/alertmanager`. Para Telegram debe existir `telegram_bot_token` y `TELEGRAM_CHAT_ID` debe estar definido en `/etc/esdata/esdata.env` antes de levantar el perfil `prod`.
