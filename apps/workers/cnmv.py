@@ -74,6 +74,8 @@ CNMV_CONSULTAS_CNMV_URL = "https://www.cnmv.es/portal/publicaciones/Documentos-F
 CNMV_NORMATIVA_ESI_URL = "https://www.cnmv.es/portal/menu/legislacion-esi?lang=es"
 CNMV_MODELOS_ESI_URL = "https://www.cnmv.es/Portal/Legislacion/ModelosN/ModelosN.aspx?id=ESI&lang=es"
 CNMV_LEGISLACION_ESI_URL = "https://www.cnmv.es/portal/legislacion/legislacion/tematico?id=6&lang=es"
+CNMV_SANCIONES_URL = "https://www.cnmv.es/Portal/Consultas/RegistroSanciones/verRegSanciones?lang=es"
+DEFAULT_CNMV_SANCIONES_MAX_PAGES = 1
 CNMV_CIRCULARES_PATTERN = re.compile(
     r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE
 )
@@ -89,6 +91,9 @@ CNMV_FAMILY_ALIASES = {
     "legislacion_esi": "normativa_esi",
     "modelos_esi": "modelos_esi",
     "modelos_normalizados_esi": "modelos_esi",
+    "sanciones": "sanciones_cnmv",
+    "sanciones_cnmv": "sanciones_cnmv",
+    "registro_sanciones": "sanciones_cnmv",
 }
 
 CNMV_SUBJECT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -127,6 +132,17 @@ CNMV_FAMILY_SUBJECTS: dict[str, list[str]] = {
     "modelos_esi": ["sociedad_valores"],
     "normativa_esi": ["sociedad_valores"],
 }
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r; using %s", name, value, default)
+        return default
 
 
 def _detect_sujeto_obligado(metadata: dict, text_value: str) -> list[str]:
@@ -653,6 +669,66 @@ def _parse_cnmv_modelos_esi(html: str, source_index_url: str) -> list[dict]:
     )
 
 
+def _parse_sanction_severity(value: str) -> str | None:
+    lowered = _normalize_whitespace(_ascii_fold(value)).lower()
+    if "muy grave" in lowered or "muy graves" in lowered:
+        return "muy_grave"
+    if "grave" in lowered or "graves" in lowered:
+        return "grave"
+    return None
+
+
+def _parse_cnmv_sanctions(html: str, source_index_url: str) -> list[dict]:
+    """Parse the official CNMV public sanctions register.
+
+    The register is a monitoring source, not a normative source. Rows are kept
+    as official traceable documents with the linked CNMV/BOE resolution as
+    source and a partial/complete contract determined later by document parsing.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    candidates: list[dict] = []
+    seen_refs: set[str] = set()
+
+    for row in soup.find_all("tr"):
+        cells = row.find_all(["td", "th"])
+        if len(cells) < 2:
+            continue
+
+        date_value = _parse_cnmv_date(cells[0].get_text(" ", strip=True))
+        title = _normalize_title(cells[1].get_text(" ", strip=True))
+        if not date_value or not title or "resolucion" not in _ascii_fold(title).lower():
+            continue
+
+        link = row.find("a", href=True)
+        url = _absolute_cnmv_url(source_index_url, link["href"]) if link else source_index_url
+        severity = _parse_sanction_severity(title)
+        boe_reference = _extract_boe_reference(title, url)
+        reference_suffix = boe_reference or f"{date_value}-{_slug(title, 72)}"
+        referencia = f"CNMV-SANCION-{reference_suffix}"
+        if referencia in seen_refs:
+            continue
+        seen_refs.add(referencia)
+
+        candidates.append(
+            {
+                "url": url,
+                "referencia": referencia,
+                "titulo": title,
+                "fecha": date_value,
+                "fecha_publicacion": date_value,
+                "tipo_documento": "sancion_cnmv",
+                "ambito": "sanciones_cnmv",
+                "estado_vigencia": "vigente",
+                "family_id": "sanciones_cnmv",
+                "source_index_url": source_index_url,
+                "infraccion_gravedad": severity,
+                "referencia_boe": boe_reference,
+            }
+        )
+
+    return candidates
+
+
 def _discover_source_family_documents() -> list[dict]:
     candidates: list[dict] = []
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
@@ -670,6 +746,17 @@ def _discover_source_family_documents() -> list[dict]:
             except Exception:
                 logger.warning("Failed to scrape CNMV source family: %s", source_url)
                 continue
+        if os.getenv("CNMV_DISCOVER_SANCIONES", "true").lower() == "true":
+            max_pages = _env_int("CNMV_SANCIONES_MAX_PAGES", DEFAULT_CNMV_SANCIONES_MAX_PAGES)
+            for page in range(max(max_pages, 0)):
+                source_url = CNMV_SANCIONES_URL if page == 0 else f"{CNMV_SANCIONES_URL}&page={page}"
+                try:
+                    response = client.get(source_url)
+                    if response.status_code == 200:
+                        candidates.extend(_parse_cnmv_sanctions(response.text, source_url))
+                except Exception:
+                    logger.warning("Failed to scrape CNMV sanctions register: %s", source_url)
+                    continue
     return candidates
 
 
@@ -851,6 +938,20 @@ def _detect_document_type(text_value: str) -> str:
         return "manual_cnmv"
     if re.search(r"\bGu[ií]a\s+\d+/\d{4}\b", text_value, flags=re.IGNORECASE):
         return "guia_cnmv"
+    if any(
+        token in lowered
+        for token in (
+            "registro publico de sanciones",
+            "registro público de sanciones",
+            "sancion",
+            "sanción",
+            "infraccion grave",
+            "infracción grave",
+            "infraccion muy grave",
+            "infracción muy grave",
+        )
+    ):
+        return "sancion_cnmv"
     if re.search(r"\bResolución?\s+\d+/\d{4}\b", text_value, flags=re.IGNORECASE):
         return "resolucion_cnmv"
     if re.search(r"\bCódigo\b.*\bde\s+(Buen\s+)?Gobierno|codigo_autoregulacion|código.*conducta|conducta\s+profesional", lowered):
@@ -1404,6 +1505,7 @@ def build_document_payload(
         "source_index_url": metadata.get("source_index_url"),
         "estado_consulta": metadata.get("estado_consulta"),
         "documentos_asociados": metadata.get("documentos_asociados"),
+        "infraccion_gravedad": metadata.get("infraccion_gravedad"),
     }
     sujeto_obligado = _detect_sujeto_obligado(metadata, text_value)
     if sujeto_obligado:
@@ -1417,10 +1519,10 @@ def build_document_payload(
         "texto": text_value,
         "url_fuente": url,
         "tipo_documento": tipo_documento,
-        "ambito": _detect_ambito(text_value),
+        "ambito": metadata.get("ambito") or _detect_ambito(text_value),
         "numero_circular": _extract_circular_number(text_value),
         "fecha_publicacion": fecha_publicacion,
-        "referencia_boe": _extract_boe_reference(text_value, url),
+        "referencia_boe": metadata.get("referencia_boe") or _extract_boe_reference(text_value, url),
         "estado_vigencia": estado_vigencia,
         "regulacion_relacionada": _detect_regulacion_relacionada(text_value),
         "row_completeness": row_completeness,

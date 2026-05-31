@@ -73,6 +73,7 @@ TIPOS_DOCUMENTO_CNMV: frozenset[str] = frozenset({
     "circular_cnmv",
     "manual_cnmv",
     "guia_cnmv",
+    "sancion_cnmv",
     "documento_cnmv",
 })
 

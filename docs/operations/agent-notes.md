@@ -54,6 +54,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-05-31 - CNMV sanciones: no dejar que `sancionadora` active DORA
+
+- Scope: `apps/workers/cnmv.py`, `apps/workers/tests/test_cnmv.py`.
+- Hallazgo: la heuristica de ambito detecta tokens por subcadena; el texto "resolucion sancionadora" contiene `dora` y puede clasificar una sancion CNMV como DORA si no hay metadata de familia.
+- Impacto: las filas del registro publico de sanciones quedarian con `ambito='dora'`, contaminando filtros regulatorios y consultas por dominio.
+- Regla practica: para familias CNMV descubiertas desde indices oficiales, pasar `ambito` explicito en metadata y hacer que `build_document_payload()` lo respete antes de aplicar `_detect_ambito()`.
+
 ### 2026-05-24 - `modelo_instruccion`: texto resumen legacy no hereda evidencia del modelo
 
 - Scope: `modelo_instruccion` en modelos AEAT `100`, `111`, `036`, `347`, `349`.

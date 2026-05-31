@@ -24,7 +24,9 @@ from cnmv import (
     _parse_cnmv_consultation_documents,
     _parse_cnmv_modelos_esi,
     _parse_cnmv_normativa_esi,
+    _parse_cnmv_sanctions,
     _parse_cnmv_technical_guides,
+    _parse_sanction_severity,
     _record_version,
     _upsert_obligation_links,
     _upsert_regulation_links,
@@ -132,6 +134,36 @@ CNMV_MODELOS_ESI_HTML = """
     <a href="/Portal/Legislacion/ModelosN/modelosn.aspx?id=IM">Modelos IM</a>
     <a href="/Portal/Legislacion/ModelosN/DetalleModelo.aspx?id=ESI-01">Estado reservado ESI 01</a>
   </main>
+</body></html>
+"""
+
+CNMV_SANCIONES_HTML = """
+<html><body>
+  <table id="ctl00_ContentPrincipal_grdRegSanciones">
+    <tr>
+      <th>Fecha de incorporación al registro</th>
+      <th>Resolución</th>
+      <th></th>
+    </tr>
+    <tr>
+      <td><a href="https://www.cnmv.es/webservices/verdocumento/ver?e=abc">22/04/2026</a></td>
+      <td>
+        Resolución de 22 de abril de 2026, de la Comisión Nacional del Mercado de Valores,
+        por la que se publican las sanciones por infracciones muy graves a Example Capital, SA
+        (BOE de 11 de mayo de 2026).
+      </td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="/webservices/verdocumento/ver?e=def">07/04/2026</a></td>
+      <td>
+        Resolución de 7 de abril de 2026, de la Comisión Nacional del Mercado de Valores,
+        por la que se publica la sanción por infracción grave impuesta a Example Gestión
+        de Activos, SA, SGIIC (BOE de 20 de abril de 2026).
+      </td>
+      <td></td>
+    </tr>
+  </table>
 </body></html>
 """
 
@@ -389,6 +421,35 @@ def test_parse_cnmv_modelos_esi_uses_form_family_contract():
     ]
 
 
+def test_parse_sanction_severity_detects_grave_and_muy_grave():
+    assert _parse_sanction_severity("infracción muy grave impuesta") == "muy_grave"
+    assert _parse_sanction_severity("infraccion grave impuesta") == "grave"
+    assert _parse_sanction_severity("sin graduacion") is None
+
+
+def test_parse_cnmv_sanctions_uses_official_register_contract():
+    candidates = _parse_cnmv_sanctions(
+        CNMV_SANCIONES_HTML,
+        "https://www.cnmv.es/Portal/Consultas/RegistroSanciones/verRegSanciones?lang=es",
+    )
+
+    assert len(candidates) == 2
+    first = candidates[0]
+    assert first["url"] == "https://www.cnmv.es/webservices/verdocumento/ver?e=abc"
+    assert first["referencia"].startswith("CNMV-SANCION-2026-04-22-")
+    assert first["fecha"] == "2026-04-22"
+    assert first["fecha_publicacion"] == "2026-04-22"
+    assert first["tipo_documento"] == "sancion_cnmv"
+    assert first["ambito"] == "sanciones_cnmv"
+    assert first["family_id"] == "sanciones_cnmv"
+    assert first["infraccion_gravedad"] == "muy_grave"
+    assert first["source_index_url"].endswith("verRegSanciones?lang=es")
+
+    second = candidates[1]
+    assert second["url"] == "https://www.cnmv.es/webservices/verdocumento/ver?e=def"
+    assert second["infraccion_gravedad"] == "grave"
+
+
 def test_build_document_payload_applies_family_metadata_and_partial_contract():
     payload = build_document_payload(
         "https://www.cnmv.es/DocPortal/DocFaseConsulta/CNMV/GT_ControlInterno.pdf",
@@ -413,6 +474,36 @@ def test_build_document_payload_applies_family_metadata_and_partial_contract():
     assert payload["sujeto_obligado"] == ["sgiic", "sociedad_valores"]
     assert '"verified": false' in payload["metadata"]
     assert '"sujeto_obligado": ["sgiic", "sociedad_valores"]' in payload["metadata"]
+
+
+def test_build_document_payload_keeps_sanction_metadata_when_pdf_is_unparseable():
+    payload = build_document_payload(
+        "https://www.cnmv.es/webservices/verdocumento/ver?e=abc",
+        b"",
+        "application/pdf",
+        metadata={
+            "referencia": "CNMV-SANCION-2026-04-22-example",
+            "titulo": "Resolucion sancionadora por infraccion muy grave",
+            "fecha": "2026-04-22",
+            "fecha_publicacion": "2026-04-22",
+            "tipo_documento": "sancion_cnmv",
+            "ambito": "sanciones_cnmv",
+            "estado_vigencia": "vigente",
+            "family_id": "sanciones_cnmv",
+            "source_index_url": (
+                "https://www.cnmv.es/Portal/Consultas/RegistroSanciones/verRegSanciones?lang=es"
+            ),
+            "infraccion_gravedad": "muy_grave",
+        },
+    )
+
+    assert payload["referencia"] == "CNMV-SANCION-2026-04-22-example"
+    assert payload["tipo_documento"] == "sancion_cnmv"
+    assert payload["ambito"] == "sanciones_cnmv"
+    assert payload["row_completeness"] == "partial"
+    assert payload["row_provenance"] == "official_best_effort"
+    assert '"family_id": "sanciones_cnmv"' in payload["metadata"]
+    assert '"infraccion_gravedad": "muy_grave"' in payload["metadata"]
 
 
 def test_build_document_payload_treats_legacy_doc_as_partial_metadata():
@@ -495,6 +586,23 @@ def test_discover_new_documents_accepts_consultation_family_alias(monkeypatch):
             "url": "https://example.invalid/consulta.pdf",
             "family_id": "documentos_consulta_cnmv",
         }
+    ]
+
+
+def test_discover_new_documents_accepts_sanctions_family_alias(monkeypatch):
+    monkeypatch.setattr("cnmv._discover_cnmv_circulares", lambda: [])
+    monkeypatch.setattr(
+        "cnmv._discover_source_family_documents",
+        lambda: [
+            {"url": "https://example.invalid/sancion.pdf", "family_id": "sanciones_cnmv"},
+            {"url": "https://example.invalid/gt.pdf", "family_id": "guias_tecnicas"},
+        ],
+    )
+
+    docs = _discover_new_documents(familia="sanciones")
+
+    assert docs == [
+        {"url": "https://example.invalid/sancion.pdf", "family_id": "sanciones_cnmv"}
     ]
 
 

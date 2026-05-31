@@ -64,6 +64,18 @@ CNMV_SOURCE_FAMILIES = [
         "contract_note": "Familia oficial identificada en el menu CNMV; sin ingestion dedicada.",
     },
     {
+        "family_id": "sanciones_cnmv",
+        "nombre": "Registro publico de sanciones CNMV",
+        "source_url": "https://www.cnmv.es/Portal/Consultas/RegistroSanciones/verRegSanciones?lang=es",
+        "loaded_tipo_documentos": ["sancion_cnmv"],
+        "coverage_status": "partial_loaded",
+        "contract_note": (
+            "Ingestion dedicada del registro publico oficial de sanciones. "
+            "La informacion se mantiene como monitor parcial y trazable; "
+            "no sustituye al BOE ni afirma universo historico completo."
+        ),
+    },
+    {
         "family_id": "documentos_consulta_cnmv",
         "nombre": "Documentos a consulta de la CNMV",
         "source_url": "https://www.cnmv.es/portal/publicaciones/Documentos-Fase-Consulta?tDoc=1",
