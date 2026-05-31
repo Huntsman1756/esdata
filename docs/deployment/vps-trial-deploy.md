@@ -55,8 +55,6 @@ Variables minimas para este corte:
 - `WEB_DOMAIN`
 - `TEAC_SEED_URLS`
 - `CENDOJ_SEED_URLS`
-- `BDE_SEED_URLS`
-- `AEPD_SEED_URLS`
 - `BDNS_SEED_URLS`
 - `BORME_SEED_URLS`
 - `CNMV_SEED_URLS`
@@ -69,6 +67,8 @@ Variables utiles adicionales:
 - `BOE_LEGISLACION_NORMAS`
 - `DGT_SSL_VERIFY`
 - `MODELOS_SYNC_INTERVAL`
+- `BDE_SEED_URLS` si se quiere fijar una semilla ademas del discovery oficial de circulares
+- `AEPD_SEED_URLS` si se quiere fijar una semilla ademas del discovery oficial de guias/resoluciones
 
 ## Paso a paso
 

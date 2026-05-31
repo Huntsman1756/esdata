@@ -72,13 +72,24 @@
 | `EURLEX_SEED_URLS` | No | vacio | `runtime deploy` | Worker EUR-Lex |
 | `EURLEX_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker EUR-Lex |
 | `SPARQL_BASE` | No | `https://data.europa.eu/sparql` | `runtime deploy` | Worker EUR-Lex |
-| `BDE_SEED_URLS` | Si | | `runtime deploy` | Worker BDE + cron |
+| `BDE_SEED_URLS` | No | vacio | `runtime deploy` | Worker BDE + cron; opcional si discovery de circulares esta activo |
+| `BDE_DISCOVERY_ENABLED` | No | `true` | `runtime deploy` | Descubrimiento BDE desde listado oficial de circulares |
+| `BDE_DISCOVERY_MAX_URLS` | No | `10` | `runtime deploy` | Maximo de URLs BDE descubiertas por ejecucion |
+| `BDE_CIRCULARES_URL` | No | `https://www.bde.es/wbe/es/areas-actuacion/normativa/circulares-banco-de-espana/circulares-banco-espana-indice-cronologico/` | `runtime deploy` | Listado oficial de circulares y normativa BdE |
 | `BDE_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BDE |
-| `AEPD_SEED_URLS` | Si | | `runtime deploy` | Worker AEPD |
+| `AEPD_SEED_URLS` | No | vacio | `runtime deploy` | Worker AEPD; opcional si discovery AEPD esta activo |
 | `AEPD_DISCOVER_FROM_INDEX` | No | `true` | `runtime deploy` | Descubrimiento AEPD desde indice oficial de guias |
+| `AEPD_DISCOVER_RESOLUTIONS` | No | `true` | `runtime deploy` | Descubrimiento AEPD desde RSS oficial de resoluciones |
+| `AEPD_ENUMERATE_RESOLUTIONS` | No | `false` | `runtime deploy` | Enumeracion acotada de PDFs de resoluciones AEPD por patron oficial |
 | `AEPD_GUIDES_INDEX_URL` | No | `https://www.aepd.es/guias-y-herramientas/guias` | `runtime deploy` | Indice oficial de guias AEPD |
+| `AEPD_RESOLUTIONS_RSS_URL` | No | `https://www.aepd.es/informes-y-resoluciones/resoluciones/feed.xml` | `runtime deploy` | RSS oficial de resoluciones AEPD |
 | `AEPD_MAX_URLS_PER_RUN` | No | `25` | `runtime deploy` | Maximo de URLs AEPD por ejecucion |
+| `AEPD_MAX_GUIDE_URLS_PER_RUN` | No | `15` | `runtime deploy` | Maximo de URLs de guias AEPD por ejecucion |
+| `AEPD_MAX_RESOLUTION_URLS_PER_RUN` | No | `10` | `runtime deploy` | Maximo de URLs de resoluciones AEPD por ejecucion |
 | `AEPD_DISCOVERY_PAGES` | No | `3` | `runtime deploy` | Paginas de indice AEPD a recorrer |
+| `AEPD_RESOLUTION_START_YEAR` | No | `2024` | `runtime deploy` | Ano inicial para enumeracion acotada AEPD cuando se habilita |
+| `AEPD_RESOLUTION_MAX_PER_TYPE_YEAR` | No | `25` | `runtime deploy` | Limite de candidatos por tipo/ano en enumeracion AEPD |
+| `AEPD_RESOLUTION_MAX_CONSECUTIVE_MISSES` | No | `20` | `runtime deploy` | Corte por fallos consecutivos en enumeracion AEPD |
 | `AEPD_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker AEPD |
 | `DGT_SSL_VERIFY` | No | `false` en `compose.env.example` | `runtime deploy` | Worker DGT + cron |
 | `DGT_DISCOVERY` | No | `true` | `runtime deploy` | Worker DGT |

@@ -8,8 +8,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from aepd import (
     _extract_aepd_document_urls_from_index,
+    _parse_aepd_resolution_rss_urls,
     build_document_payload,
     discover_aepd_document_urls,
+    discover_aepd_resolution_urls,
+    discover_aepd_urls,
     run_sync,
     upsert_documento_interpretativo,
 )
@@ -49,6 +52,25 @@ AEPD_INDEX_HTML = b"""
 </html>
 """
 
+AEPD_RESOLUTIONS_RSS = b"""
+<rss>
+  <channel>
+    <item>
+      <title>PS-00001-2026</title>
+      <link>https://www.aepd.es/documento/ps-00001-2026.pdf</link>
+    </item>
+    <item>
+      <title>AI-00002-2026</title>
+      <guid>/documento/ai-00002-2026.pdf</guid>
+    </item>
+    <item>
+      <title>External</title>
+      <link>https://example.com/documento/ps-99999-2026.pdf</link>
+    </item>
+  </channel>
+</rss>
+"""
+
 
 def test_build_document_payload_from_pdf():
     payload = build_document_payload(
@@ -75,6 +97,16 @@ def test_build_document_payload_from_html():
     assert payload["organismo_emisor"] == "AEPD"
     assert payload["ambito"] == "proteccion_datos"
     assert payload["referencia"] == "AEPD-cookies"
+
+
+def test_build_document_payload_classifies_resolution_url():
+    payload = build_document_payload(
+        "https://www.aepd.es/documento/ps-00001-2026.pdf",
+        MINIMAL_AEPD_PDF,
+    )
+
+    assert payload["referencia"] == "AEPD-ps-00001-2026"
+    assert payload["tipo_documento"] == "resolucion_aepd"
 
 
 def test_extract_aepd_document_urls_from_index_filters_official_documents_only():
@@ -106,6 +138,86 @@ def test_discover_aepd_document_urls_reads_index_pages():
 
     assert urls == [
         "https://www.aepd.es/documento/declaracion-institucional-autoridades-aniversario-RGPD.pdf"
+    ]
+
+
+def test_parse_aepd_resolution_rss_urls_filters_official_pdfs():
+    urls = _parse_aepd_resolution_rss_urls(
+        AEPD_RESOLUTIONS_RSS,
+        base_url="https://www.aepd.es/informes-y-resoluciones/resoluciones/feed.xml",
+    )
+
+    assert urls == [
+        "https://www.aepd.es/documento/ps-00001-2026.pdf",
+        "https://www.aepd.es/documento/ai-00002-2026.pdf",
+    ]
+
+
+def test_discover_aepd_resolution_urls_reads_rss_before_enumeration():
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://www.aepd.es/informes-y-resoluciones/resoluciones/feed.xml"
+        return httpx.Response(200, content=AEPD_RESOLUTIONS_RSS)
+
+    with original_client(transport=httpx.MockTransport(handler)) as client:
+        urls = discover_aepd_resolution_urls(
+            client,
+            max_urls=1,
+            start_year=2026,
+            current_year=2026,
+            enumerate_direct=True,
+        )
+
+    assert urls == ["https://www.aepd.es/documento/ps-00001-2026.pdf"]
+
+
+def test_discover_aepd_resolution_urls_can_enumerate_bounded_pdf_candidates():
+    original_client = httpx.Client
+    requested_urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested_urls.append(str(request.url))
+        if str(request.url).endswith("/feed.xml"):
+            return httpx.Response(404)
+        if str(request.url) == "https://www.aepd.es/documento/ps-00002-2026.pdf":
+            return httpx.Response(200, content=b"%PDF-1.4\n", headers={"content-type": "application/pdf"})
+        return httpx.Response(404)
+
+    with original_client(transport=httpx.MockTransport(handler)) as client:
+        urls = discover_aepd_resolution_urls(
+            client,
+            max_urls=1,
+            start_year=2026,
+            current_year=2026,
+            max_per_type_year=3,
+            max_consecutive_misses=3,
+            enumerate_direct=True,
+            resolution_types=("PS",),
+        )
+
+    assert urls == ["https://www.aepd.es/documento/ps-00002-2026.pdf"]
+    assert "https://www.aepd.es/documento/ps-00001-2026.pdf" in requested_urls
+
+
+def test_discover_aepd_urls_combines_guides_and_resolutions(monkeypatch):
+    original_client = httpx.Client
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == "https://www.aepd.es/guias-y-herramientas/guias":
+            return httpx.Response(200, content=AEPD_INDEX_HTML)
+        if str(request.url) == "https://www.aepd.es/informes-y-resoluciones/resoluciones/feed.xml":
+            return httpx.Response(200, content=AEPD_RESOLUTIONS_RSS)
+        return httpx.Response(404)
+
+    monkeypatch.setenv("AEPD_MAX_GUIDE_URLS_PER_RUN", "1")
+    monkeypatch.setenv("AEPD_MAX_RESOLUTION_URLS_PER_RUN", "1")
+    with original_client(transport=httpx.MockTransport(handler)) as client:
+        urls = discover_aepd_urls(client, max_urls=2)
+
+    assert urls == [
+        "https://www.aepd.es/documento/declaracion-institucional-autoridades-aniversario-RGPD.pdf",
+        "https://www.aepd.es/documento/ps-00001-2026.pdf",
     ]
 
 

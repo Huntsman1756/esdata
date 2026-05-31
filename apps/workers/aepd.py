@@ -16,6 +16,7 @@ import logging
 import os
 import re
 import time
+import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from html import unescape
 from io import BytesIO
@@ -57,8 +58,18 @@ SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 604800)
 AEPD_GUIDES_INDEX_URL = os.getenv(
     "AEPD_GUIDES_INDEX_URL", "https://www.aepd.es/guias-y-herramientas/guias"
 )
+AEPD_RESOLUTIONS_RSS_URL = os.getenv(
+    "AEPD_RESOLUTIONS_RSS_URL",
+    "https://www.aepd.es/informes-y-resoluciones/resoluciones/feed.xml",
+)
 DEFAULT_AEPD_MAX_URLS_PER_RUN = 25
+DEFAULT_AEPD_MAX_GUIDE_URLS_PER_RUN = 15
+DEFAULT_AEPD_MAX_RESOLUTION_URLS_PER_RUN = 10
 DEFAULT_AEPD_DISCOVERY_PAGES = 3
+DEFAULT_AEPD_RESOLUTION_START_YEAR = 2024
+DEFAULT_AEPD_RESOLUTION_MAX_PER_TYPE_YEAR = 25
+DEFAULT_AEPD_RESOLUTION_MAX_CONSECUTIVE_MISSES = 20
+AEPD_RESOLUTION_TYPES = ("PS", "AI", "PD", "PA", "TD")
 
 
 def _normalize_whitespace(value: str) -> str:
@@ -97,7 +108,18 @@ def _extract_reference(url: str, text_value: str) -> str:
     return f"AEPD-{datetime.now(UTC).date().isoformat().replace('-', '')}"
 
 
-def _detect_document_type(text_value: str) -> str:
+def _is_aepd_resolution_url(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    filename = path.rsplit("/", 1)[-1]
+    return bool(
+        path.startswith(("/documento/", "/es/documento/"))
+        and re.match(r"(reposicion-)?(ps|ai|pd|pa|td)-\d{5}-\d{4}\.pdf$", filename)
+    )
+
+
+def _detect_document_type(text_value: str, url: str = "") -> str:
+    if _is_aepd_resolution_url(url):
+        return "resolucion_aepd"
     lowered = text_value.lower()
     if "guía" in lowered or "guia" in lowered:
         return "guia_aepd"
@@ -155,7 +177,7 @@ def _is_official_aepd_document_url(value: str) -> bool:
         return False
 
     path = parsed.path
-    if path.endswith(".pdf") and path.startswith(("/documento/", "/guias/")):
+    if path.endswith(".pdf") and path.startswith(("/documento/", "/es/documento/", "/guias/")):
         return True
 
     return (
@@ -193,9 +215,7 @@ def discover_aepd_document_urls(
 
     discovered: list[str] = []
     seen: set[str] = set()
-    page_urls = [index_url]
-    for page in range(1, max_pages):
-        page_urls.append(urljoin(index_url, f"?page={page}"))
+    page_urls = [index_url, *(urljoin(index_url, f"?page={page}") for page in range(1, max_pages))]
 
     for page_url in page_urls:
         try:
@@ -218,6 +238,150 @@ def discover_aepd_document_urls(
     return discovered
 
 
+def _resolution_pdf_url(resolution_type: str, number: int, year: int) -> str:
+    return f"https://www.aepd.es/documento/{resolution_type.lower()}-{number:05d}-{year}.pdf"
+
+
+def _parse_aepd_resolution_rss_urls(xml_content: bytes, *, base_url: str) -> list[str]:
+    try:
+        root = ET.fromstring(xml_content)  # noqa: S314 - official AEPD RSS, no entity expansion needed.
+    except ET.ParseError as exc:
+        logger.warning("AEPD resolution RSS parse failed: %s", exc)
+        return []
+
+    urls: list[str] = []
+    seen: set[str] = set()
+    for item in root.findall(".//item"):
+        candidates: list[str] = []
+        for tag_name in ("link", "guid"):
+            element = item.find(tag_name)
+            if element is not None and element.text:
+                candidates.append(element.text.strip())
+        for candidate in candidates:
+            absolute_url = urljoin(base_url, candidate)
+            if not _is_official_aepd_document_url(absolute_url):
+                continue
+            if absolute_url in seen:
+                continue
+            seen.add(absolute_url)
+            urls.append(absolute_url)
+    return urls
+
+
+def discover_aepd_resolution_urls(  # noqa: C901 - RSS plus bounded candidate enumeration share one contract.
+    client: httpx.Client,
+    *,
+    rss_url: str = AEPD_RESOLUTIONS_RSS_URL,
+    max_urls: int,
+    start_year: int,
+    current_year: int | None = None,
+    max_per_type_year: int = DEFAULT_AEPD_RESOLUTION_MAX_PER_TYPE_YEAR,
+    max_consecutive_misses: int = DEFAULT_AEPD_RESOLUTION_MAX_CONSECUTIVE_MISSES,
+    enumerate_direct: bool = False,
+    resolution_types: tuple[str, ...] = AEPD_RESOLUTION_TYPES,
+) -> list[str]:
+    """Discover official AEPD resolution PDFs from RSS and optional bounded enumeration."""
+    if max_urls <= 0:
+        return []
+
+    discovered: list[str] = []
+    seen: set[str] = set()
+
+    try:
+        response = client.get(rss_url)
+        response.raise_for_status()
+        for url in _parse_aepd_resolution_rss_urls(response.content, base_url=rss_url):
+            if url in seen:
+                continue
+            seen.add(url)
+            discovered.append(url)
+            if len(discovered) >= max_urls:
+                return discovered
+    except Exception as exc:
+        logger.warning("AEPD resolution RSS discovery skipped %s: %s", rss_url, exc)
+
+    if not enumerate_direct:
+        return discovered
+
+    current = current_year or datetime.now(UTC).year
+    first_year = min(start_year, current)
+    for year in range(current, first_year - 1, -1):
+        for resolution_type in resolution_types:
+            misses = 0
+            for number in range(1, max_per_type_year + 1):
+                candidate = _resolution_pdf_url(resolution_type, number, year)
+                if candidate in seen:
+                    continue
+                try:
+                    response = client.get(candidate)
+                    exists = response.status_code == 200 and (
+                        response.content[:5] == b"%PDF-"
+                        or "pdf" in response.headers.get("content-type", "").lower()
+                    )
+                except Exception as exc:
+                    logger.debug("AEPD resolution candidate skipped %s: %s", candidate, exc)
+                    exists = False
+
+                if exists:
+                    misses = 0
+                    seen.add(candidate)
+                    discovered.append(candidate)
+                    if len(discovered) >= max_urls:
+                        return discovered
+                else:
+                    misses += 1
+                    if misses >= max_consecutive_misses:
+                        break
+
+    return discovered
+
+
+def discover_aepd_urls(client: httpx.Client, *, max_urls: int) -> list[str]:
+    """Discover AEPD documents from enabled official channels with per-channel limits."""
+    if max_urls <= 0:
+        return []
+
+    urls: list[str] = []
+    if _env_bool("AEPD_DISCOVER_FROM_INDEX", True):
+        urls.extend(
+            discover_aepd_document_urls(
+                client,
+                index_url=os.getenv("AEPD_GUIDES_INDEX_URL", AEPD_GUIDES_INDEX_URL),
+                max_urls=_env_int(
+                    "AEPD_MAX_GUIDE_URLS_PER_RUN",
+                    min(DEFAULT_AEPD_MAX_GUIDE_URLS_PER_RUN, max_urls),
+                ),
+                max_pages=_env_int("AEPD_DISCOVERY_PAGES", DEFAULT_AEPD_DISCOVERY_PAGES),
+            )
+        )
+
+    if _env_bool("AEPD_DISCOVER_RESOLUTIONS", True):
+        urls.extend(
+            discover_aepd_resolution_urls(
+                client,
+                rss_url=os.getenv("AEPD_RESOLUTIONS_RSS_URL", AEPD_RESOLUTIONS_RSS_URL),
+                max_urls=_env_int(
+                    "AEPD_MAX_RESOLUTION_URLS_PER_RUN",
+                    min(DEFAULT_AEPD_MAX_RESOLUTION_URLS_PER_RUN, max_urls),
+                ),
+                start_year=_env_int(
+                    "AEPD_RESOLUTION_START_YEAR", DEFAULT_AEPD_RESOLUTION_START_YEAR
+                ),
+                max_per_type_year=_env_int(
+                    "AEPD_RESOLUTION_MAX_PER_TYPE_YEAR",
+                    DEFAULT_AEPD_RESOLUTION_MAX_PER_TYPE_YEAR,
+                ),
+                max_consecutive_misses=_env_int(
+                    "AEPD_RESOLUTION_MAX_CONSECUTIVE_MISSES",
+                    DEFAULT_AEPD_RESOLUTION_MAX_CONSECUTIVE_MISSES,
+                ),
+                enumerate_direct=_env_bool("AEPD_ENUMERATE_RESOLUTIONS", False),
+            )
+        )
+
+    return list(dict.fromkeys(urls))[:max_urls]
+
+
 def build_document_payload(url: str, content: bytes) -> dict[str, str]:
     if _is_pdf(content):
         text_value = extract_pdf_text(content)
@@ -237,7 +401,7 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
         "titulo": first_line or referencia,
         "texto": text_value,
         "url_fuente": url,
-        "tipo_documento": _detect_document_type(text_value),
+        "tipo_documento": _detect_document_type(text_value, url),
         "tipo_fuente": "aepd",
         "organismo_emisor": "AEPD",
         "ambito": _detect_ambito(text_value),
@@ -317,12 +481,10 @@ def run_sync(
             _ensure_sync_log_table(conn)
             ensure_source_revision_table(conn)
             urls = list(seed_urls) if seed_urls is not None else list(SEED_URLS)
-            if seed_urls is None and _env_bool("AEPD_DISCOVER_FROM_INDEX", True):
-                discovered = discover_aepd_document_urls(
+            if seed_urls is None:
+                discovered = discover_aepd_urls(
                     client,
-                    index_url=os.getenv("AEPD_GUIDES_INDEX_URL", AEPD_GUIDES_INDEX_URL),
                     max_urls=_env_int("AEPD_MAX_URLS_PER_RUN", DEFAULT_AEPD_MAX_URLS_PER_RUN),
-                    max_pages=_env_int("AEPD_DISCOVERY_PAGES", DEFAULT_AEPD_DISCOVERY_PAGES),
                 )
                 if discovered:
                     urls = discovered

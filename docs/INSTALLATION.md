@@ -36,6 +36,9 @@ Editar como minimo:
 - `TEAC_SEED_URLS`
 - `CNMV_SEED_URLS`
 - `SEPBLAC_SEED_URLS`
+
+Opcionalmente, fijar seeds documentales ademas del discovery oficial:
+
 - `BDE_SEED_URLS`
 - `AEPD_SEED_URLS`
 
