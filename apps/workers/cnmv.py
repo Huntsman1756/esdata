@@ -122,6 +122,12 @@ CNMV_SUBJECT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ),
 )
 
+CNMV_FAMILY_SUBJECTS: dict[str, list[str]] = {
+    "documentos_consulta_cnmv": ["sociedad_valores", "sgiic"],
+    "modelos_esi": ["sociedad_valores"],
+    "normativa_esi": ["sociedad_valores"],
+}
+
 
 def _detect_sujeto_obligado(metadata: dict, text_value: str) -> list[str]:
     haystack = " ".join(
@@ -140,8 +146,8 @@ def _detect_sujeto_obligado(metadata: dict, text_value: str) -> list[str]:
         for subject, keywords in CNMV_SUBJECT_KEYWORDS
         if any(keyword in haystack for keyword in keywords)
     ]
-    if not subjects and metadata.get("family_id") == "documentos_consulta_cnmv":
-        subjects = ["sociedad_valores", "sgiic"]
+    if not subjects:
+        subjects = CNMV_FAMILY_SUBJECTS.get(str(metadata.get("family_id")), [])
     return sorted(set(subjects))
 
 

@@ -437,6 +437,25 @@ def test_build_document_payload_treats_legacy_doc_as_partial_metadata():
     assert payload["texto"].startswith("[PARTIAL]")
 
 
+def test_build_document_payload_tags_modelos_esi_subject_from_family():
+    payload = build_document_payload(
+        "https://www.cnmv.es/docPortal/Legislacion/ModelosNormalizados/ESI/modelo.pdf",
+        b"",
+        "application/pdf",
+        metadata={
+            "referencia": "CNMV-MODELO-ESI-subject",
+            "titulo": "Modelo normalizado",
+            "fecha": "2026-05-31",
+            "tipo_documento": "modelo_esi_cnmv",
+            "estado_vigencia": "vigente",
+            "family_id": "modelos_esi",
+        },
+    )
+
+    assert payload["sujeto_obligado"] == ["sociedad_valores"]
+    assert '"sujeto_obligado": ["sociedad_valores"]' in payload["metadata"]
+
+
 def test_discover_new_documents_filters_source_family_and_limits(monkeypatch):
     monkeypatch.setattr("cnmv._discover_cnmv_circulares", lambda: ["https://example.invalid/circular.pdf"])
     monkeypatch.setattr(
