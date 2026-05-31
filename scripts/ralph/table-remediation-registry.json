@@ -9,8 +9,8 @@
                   "local_only":  true
               },
     "summary":  {
-                    "total_tables":  181,
-                    "populated":  90,
+                    "total_tables":  182,
+                    "populated":  91,
                     "blocker":  0,
                     "derived_blocker":  0,
                     "workflow_empty":  53,
@@ -161,6 +161,17 @@
                        "action":  "Verify provenance and freshness from official ESMA Interim MiCA Register CASPS.csv; CSV rows are upserted by LEI/home member state.",
                        "rls_enabled":  true,
                        "verification_sql":  "SELECT count(*) FROM public.\"casp\";"
+                   },
+                   {
+                       "table":  "mica_register_entry",
+                       "row_count":  0,
+                       "classification":  "populated",
+                       "domain":  "DAC / Crypto / MiCA",
+                       "official_source_family":  "ESMA Interim MiCA Register official OTHER/ARTZZ/EMTWP/NCASP CSV sources",
+                       "target_path":  "apps/workers/mica.py",
+                       "action":  "Verify provenance and freshness from official ESMA Interim MiCA Register non-CASP CSV files; rows are kept separate from CASP and include source_url/source_hash/capture_date.",
+                       "rls_enabled":  true,
+                       "verification_sql":  "SELECT count(*) FROM public.\"mica_register_entry\";"
                    },
                    {
                        "table":  "cnmv_obligation_link",
