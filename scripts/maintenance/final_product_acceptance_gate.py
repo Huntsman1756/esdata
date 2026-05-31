@@ -25,6 +25,8 @@ EVIDENCE_STATUS_KEYS = {
     "safe_to_answer",
     "verified",
     "completeness",
+    "coverage_status",
+    "estado_cobertura",
     "availability_status",
     "evidence_limited",
     "evidence_status",
@@ -182,6 +184,19 @@ def is_empty_response(payload: Any) -> bool:
     if payload in (None, [], {}):
         return True
     if isinstance(payload, dict):
+        for key in (
+            "items",
+            "documentos",
+            "entries",
+            "resultados",
+            "results",
+            "data",
+            "sources",
+            "source_families",
+        ):
+            value = payload.get(key)
+            if isinstance(value, list) and value:
+                return False
         if payload.get("total") == 0:
             return True
         for key in ("items", "resultados", "results", "data", "sources"):

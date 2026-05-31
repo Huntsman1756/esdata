@@ -73,6 +73,32 @@ def test_empty_payload_without_fail_closed_status_fails():
     assert "empty response without fail-closed status" in result.reason
 
 
+def test_non_empty_secondary_collection_is_not_treated_as_empty():
+    gate = _load_gate()
+    check = gate.CanonicalCheck(
+        name="partial_domain",
+        domain="partial",
+        path="/v1/partial",
+        requires_source=True,
+        requires_evidence_status=True,
+    )
+    payload = {
+        "items": [],
+        "documentos": [
+            {
+                "titulo": "Documento oficial",
+                "url_fuente": "https://example.invalid/source",
+                "coverage_status": "partial_loaded",
+            }
+        ],
+    }
+
+    result = gate.evaluate_payload(check, payload)
+
+    assert result.ok
+    assert result.reason == "ok"
+
+
 def test_status_payload_with_stale_worker_fails():
     gate = _load_gate()
     payload = {
