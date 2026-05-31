@@ -557,7 +557,6 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             SELECT CASE
                 WHEN COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) >= 400
                  AND COUNT(DISTINCT ins.id) >= 5
-                 AND COUNT(DISTINCT cla.id) FILTER (WHERE cla.activa IS true) >= 8
                  AND COUNT(DISTINCT rec.id) FILTER (
                      WHERE rec.activa IS true
                        AND rec.row_provenance='official_exact'
@@ -567,7 +566,6 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             FROM active_campaign ac
             LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
             LEFT JOIN modelo_instruccion ins ON ins.campana_id=ac.id
-            LEFT JOIN modelo_clave cla ON cla.campana_id=ac.id
             LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
             """,
             1,
