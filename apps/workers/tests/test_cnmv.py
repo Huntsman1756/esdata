@@ -620,6 +620,34 @@ def test_build_document_payload_downgrades_unreliable_pdf_text(monkeypatch):
     assert '"verified": false' in payload["metadata"]
 
 
+def test_build_document_payload_downgrades_symbol_dense_pdf_text(monkeypatch):
+    bad_text = (
+        ",,,\\x11\\x03275$6\\x03',6326,&,21(6 &20,6,1\\x031$&,21$/\\x03"
+        "'(/\\x030(5&$'2\\x03'(\\x039$/25(6 " * 4
+    )
+    monkeypatch.setattr("cnmv.extract_pdf_text", lambda content: bad_text)
+
+    payload = build_document_payload(
+        "https://www.cnmv.es/webservices/verdocumento/ver?e=badpdf-escaped",
+        b"%PDF-1.4 broken extraction",
+        "application/pdf",
+        metadata={
+            "referencia": "CNMV-SANCION-badpdf-escaped",
+            "titulo": "Resolucion sancionadora con PDF de extraccion defectuosa",
+            "fecha": "2025-07-07",
+            "tipo_documento": "sancion_cnmv",
+            "ambito": "sanciones_cnmv",
+            "estado_vigencia": "vigente",
+            "family_id": "sanciones_cnmv",
+        },
+    )
+
+    assert payload["row_completeness"] == "partial"
+    assert payload["row_provenance"] == "official_best_effort"
+    assert payload["texto"].startswith("[PARTIAL] Metadata oficial CNMV")
+    assert '"verified": false' in payload["metadata"]
+
+
 def test_build_document_payload_treats_legacy_doc_as_partial_metadata():
     payload = build_document_payload(
         "https://www.cnmv.es/docPortal/Legislacion/ModelosNormalizados/ESI/modelo.doc",

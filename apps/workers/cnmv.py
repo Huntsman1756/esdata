@@ -1433,7 +1433,31 @@ def _is_unreliable_extracted_text(text_value: str) -> bool:
     if not sample.strip():
         return False
     control_chars = sum(1 for char in sample if ord(char) < 32 and char not in "\n\r\t")
-    return control_chars >= 1
+    if control_chars >= 1:
+        return True
+
+    if re.search(r"\\x[0-9a-fA-F]{2}", sample):
+        return True
+
+    if len(sample) < 120:
+        return False
+
+    letters = sum(1 for char in sample if char.isalpha())
+    alnum = sum(1 for char in sample if char.isalnum())
+    suspicious = sum(
+        1
+        for char in sample
+        if not char.isalnum()
+        and not char.isspace()
+        and char not in ".,;:()[]/%-_'\"¿?¡!€"
+    )
+    sample_len = len(sample)
+    letter_ratio = letters / sample_len
+    alnum_ratio = alnum / sample_len
+    suspicious_ratio = suspicious / sample_len
+    return (letter_ratio < 0.25 and alnum_ratio < 0.45) or (
+        suspicious_ratio > 0.12 and letter_ratio < 0.45
+    )
 
 
 def _resolve_boe_document_url(url: str, content: bytes, content_type: str) -> str:
