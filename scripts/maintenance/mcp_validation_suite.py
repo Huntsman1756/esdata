@@ -543,6 +543,113 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             """,
             6,
         ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_303_iva_traceable_partial_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='303'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) >= 400
+                 AND COUNT(DISTINCT ins.id) >= 5
+                 AND COUNT(DISTINCT cla.id) FILTER (WHERE cla.activa IS true) >= 8
+                 AND COUNT(DISTINCT rec.id) FILTER (
+                     WHERE rec.activa IS true
+                       AND rec.row_provenance='official_exact'
+                       AND rec.sha256_contenido IS NOT NULL
+                 ) >= 5
+                THEN 1 ELSE 0 END
+            FROM active_campaign ac
+            LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
+            LEFT JOIN modelo_instruccion ins ON ins.campana_id=ac.id
+            LEFT JOIN modelo_clave cla ON cla.campana_id=ac.id
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_202_is_payment_traceable_partial_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='202'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) >= 100
+                 AND COUNT(DISTINCT rec.id) FILTER (
+                     WHERE rec.activa IS true
+                       AND rec.row_provenance='official_exact'
+                       AND rec.sha256_contenido IS NOT NULL
+                 ) >= 5
+                THEN 1 ELSE 0 END
+            FROM active_campaign ac
+            LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_190_withholding_traceable_partial_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='190'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) >= 70
+                 AND COUNT(DISTINCT cla.id) FILTER (WHERE cla.activa IS true) >= 4
+                 AND COUNT(DISTINCT rec.id) FILTER (
+                     WHERE rec.activa IS true
+                       AND rec.row_provenance='official_exact'
+                       AND rec.sha256_contenido IS NOT NULL
+                 ) >= 5
+                THEN 1 ELSE 0 END
+            FROM active_campaign ac
+            LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
+            LEFT JOIN modelo_clave cla ON cla.campana_id=ac.id
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_priority_target_models_have_traceable_partial_evidence_7",
+            """
+            WITH model_evidence AS (
+                SELECT m.codigo,
+                       COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) AS casillas,
+                       COUNT(DISTINCT rec.id) FILTER (
+                           WHERE rec.activa IS true
+                             AND rec.row_provenance='official_exact'
+                             AND rec.sha256_contenido IS NOT NULL
+                       ) AS recursos_exactos_hash
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id AND mc.activo IS true
+                LEFT JOIN modelo_casilla cas ON cas.campana_id=mc.id
+                LEFT JOIN modelo_recurso rec ON rec.campana_id=mc.id
+                WHERE m.codigo IN ('180','184','190','232','347','349','390')
+                GROUP BY m.codigo
+            )
+            SELECT COUNT(*)
+            FROM model_evidence
+            WHERE casillas > 0
+              AND recursos_exactos_hash > 0
+            """,
+            7,
+        ),
         _check_db_zero(
             database_url,
             "trimestral_obligations_have_plazo",

@@ -453,6 +453,17 @@ def test_mcp_validation_suite_rejects_modelo_202_verified_without_hash():
     assert details["modelo_202_accepted_states"] == ["invalid"]
 
 
+def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
+    source = (ROOT / "scripts" / "maintenance" / "mcp_validation_suite.py").read_text(encoding="utf-8")
+
+    assert "aeat_modelo_303_iva_traceable_partial_contract" in source
+    assert "aeat_modelo_202_is_payment_traceable_partial_contract" in source
+    assert "aeat_modelo_190_withholding_traceable_partial_contract" in source
+    assert "aeat_priority_target_models_have_traceable_partial_evidence_7" in source
+    assert "row_provenance='official_exact'" in source
+    assert "sha256_contenido IS NOT NULL" in source
+
+
 def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
     suite = _load_validation_suite()
 
