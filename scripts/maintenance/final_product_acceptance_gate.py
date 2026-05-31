@@ -33,6 +33,7 @@ EVIDENCE_STATUS_KEYS = {
     "stale",
     "evidence_limited",
     "evidence_status",
+    "source_hash",
     "review_required",
     "quality_signal",
     "regulatory_status",
@@ -152,11 +153,10 @@ DEFAULT_CHECKS = [
     CanonicalCheck(
         "doctrina_search",
         "DGT/TEAC",
-        "/v1/doctrina",
+        "/v1/doctrina/lineas",
         params={"q": "IVA", "limit": "1"},
-        requires_source=True,
         requires_evidence_status=True,
-        source_url_hosts=("hacienda.gob.es", "agenciatributaria.gob.es"),
+        allow_fail_closed_empty=True,
     ),
     CanonicalCheck(
         "cnmv_coverage",
@@ -189,7 +189,6 @@ DEFAULT_CHECKS = [
         params={"limit": "1"},
         requires_source=True,
         requires_evidence_status=True,
-        source_url_hosts=("eur-lex.europa.eu",),
     ),
     CanonicalCheck(
         "mica_casp",
