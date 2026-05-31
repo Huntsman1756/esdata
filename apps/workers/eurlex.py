@@ -86,9 +86,9 @@ EURLEX_NORMAS: list[dict] = [
      "titulo": "Reglamento (UE) n. o 1286/2014 sobre los documentos de datos esenciales sobre productos PRIIPs",
      "vigente_desde": "2014-08-01", "ambito": "productos_inversion"},
     # --- DORA (Digital Operational Resilience Act) ---
-    {"codigo": "DORA_2022_2535", "boe_id": "EUR-CELEX-32022R2535", "tipo_documento": "reglamento",
-     "titulo": "Reglamento (UE) 2022/2535 sobre la resiliencia operacional digital (DORA)",
-     "vigente_desde": "2022-01-25", "ambito": "resiliencia_digital"},
+    {"codigo": "32022R2554", "boe_id": "EUR-CELEX-32022R2554", "tipo_documento": "reglamento",
+     "titulo": "Reglamento (UE) 2022/2554 sobre la resiliencia operacional digital (DORA)",
+     "vigente_desde": "2023-01-16", "ambito": "resiliencia_digital"},
     # --- CSRD (Corporate Sustainability Reporting Directive) ---
     {"codigo": "CSRD_2022_2467", "boe_id": "EUR-CELEX-32022R2467", "tipo_documento": "directiva",
      "titulo": "Directiva 2022/2464 sobre informacion de sostenibilidad empresarial (CSRD)",
@@ -178,7 +178,7 @@ EURLEX_NORMAS: list[dict] = [
      "titulo": "Reglamento (UE) 2023/2854 sobre la comparticion de datos y la utilizacion de datos (Data Act)",
      "vigente_desde": "2023-12-11", "ambito": "tecnologia"},
     # --- MiCA (Markets in Crypto-Assets) ---
-    {"codigo": "MICA_2023_1114", "boe_id": "EUR-CELEX-32023R1114", "tipo_documento": "reglamento",
+    {"codigo": "32023R1114", "boe_id": "EUR-CELEX-32023R1114", "tipo_documento": "reglamento",
      "titulo": "Reglamento (UE) 2023/1114 relativo a los mercados de criptoactivos (MiCA)",
      "vigente_desde": "2023-06-09", "ambito": "criptoactivos"},
     # --- Taxonomia (base CSRD + SFDR) ---

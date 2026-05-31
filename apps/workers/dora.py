@@ -8,6 +8,7 @@ Tabla: dora_third_party_provider (provider_name, provider_type, criticality_asse
 """
 
 import argparse
+import logging
 import os
 import re
 import time
@@ -19,15 +20,17 @@ from change_detection import (
     ensure_source_revision_table,
     invalidate_old_embeddings,
 )
-from runtime import get_database_url, get_interval_seconds, handle_worker_failure, ensure_database_connection
+from runtime import ensure_database_connection, get_database_url, get_interval_seconds, handle_worker_failure
 from sqlalchemy import create_engine, text
+
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = get_database_url()
 SYNC_INTERVAL_SECONDS = get_interval_seconds("SYNC_INTERVAL_SECONDS", 2592000)
 EURLEX_BASE = os.getenv("EURLEX_BASE", "https://eur-lex.europa.eu")
 
 DORA_NORMAS = [
-    {"codigo": "DORA_2022_2535", "boe_id": "EUR-CELEX-32022R2535", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) 2022/2535 sobre la resiliencia operacional digital en el sector financiero", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2022/2535/oj", "vigente_desde": "2022-01-25", "ambito": "resiliencia_digital", "regulacion": "dora"},
+    {"codigo": "32022R2554", "boe_id": "EUR-CELEX-32022R2554", "tipo_documento": "reglamento", "titulo": "Reglamento (UE) 2022/2554 sobre la resiliencia operacional digital en el sector financiero", "eli_uri": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj", "vigente_desde": "2023-01-16", "ambito": "resiliencia_digital", "regulacion": "dora"},
 ]
 
 SEED_DORA_PROVIDERS = [

@@ -2,10 +2,9 @@ import hashlib
 import re
 import unicodedata
 
+from db import db_session
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
-
-from db import db_session
 
 
 def _build_source_hash(*parts: object) -> str:
@@ -363,8 +362,8 @@ _NORMA_ALIASES = {
     "IIEE": "IIEE",
     "DAC6": "DAC6", "DAC6RD": "DAC6RD", "DAC6EU": "DAC6EU",
     # Added for audit-apto cycle — map common acronyms to full DB codes.
-    "MICA": "MICA_2023_1114", "MICA2023": "MICA_2023_1114",
-    "DORA": "DORA_2022_2535",
+    "MICA": "32023R1114", "MICA2023": "32023R1114",
+    "DORA": "32022R2554",
     "AMLR": "AMLR_2024_1624", "AMLR2024": "AMLR_2024_1624",
     "AMLD6": "AMLD6_2024_1640",
     "AMLD5": "AMLD_2018_843", "AMLD": "AMLD_2018_843",
@@ -501,7 +500,7 @@ def _search_legislacion_pg(db, q, norma, fuente, ambito, tipo, vigente_en):
     """Postgres branch: search over documento_fragmento chunks with ts_rank."""
     # Auto-detect norma code from query words if not explicitly provided.
     # Also capture the matched query word so we can strip it from tsquery —
-    # the DB code (e.g. 'MICA_2023_1114') is never in chunks; only the
+    # the DB code (e.g. '32023R1114') is never in chunks; only the
     # acronym 'MiCA' is in the query.
     auto_detected_word: str | None = None
     if norma is None:

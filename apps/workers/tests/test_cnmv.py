@@ -410,7 +410,9 @@ def test_build_document_payload_applies_family_metadata_and_partial_contract():
     assert payload["estado_vigencia"] == "consulta_cerrada"
     assert payload["row_completeness"] == "partial"
     assert payload["row_provenance"] == "official_best_effort"
+    assert payload["sujeto_obligado"] == ["sgiic", "sociedad_valores"]
     assert '"verified": false' in payload["metadata"]
+    assert '"sujeto_obligado": ["sgiic", "sociedad_valores"]' in payload["metadata"]
 
 
 def test_discover_new_documents_filters_source_family_and_limits(monkeypatch):

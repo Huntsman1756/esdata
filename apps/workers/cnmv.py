@@ -91,6 +91,59 @@ CNMV_FAMILY_ALIASES = {
     "modelos_normalizados_esi": "modelos_esi",
 }
 
+CNMV_SUBJECT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "sgiic",
+        (
+            " iic",
+            "iic ",
+            "instituciones de inversion colectiva",
+            "gestora",
+            "gestoras",
+            "vehiculos cerrados",
+            "vehículos cerrados",
+            "folleto de las iic",
+        ),
+    ),
+    (
+        "sociedad_valores",
+        (
+            "empresa de servicios de inversion",
+            "empresas de servicios de inversion",
+            "empresa de servicios de inversión",
+            "empresas de servicios de inversión",
+            " sociedad de valores",
+            " sociedades de valores",
+            "agencia de valores",
+            "agencias de valores",
+            " esi",
+            "esi ",
+        ),
+    ),
+)
+
+
+def _detect_sujeto_obligado(metadata: dict, text_value: str) -> list[str]:
+    haystack = " ".join(
+        str(value)
+        for value in (
+            metadata.get("titulo"),
+            metadata.get("referencia"),
+            metadata.get("url"),
+            metadata.get("source_index_url"),
+            text_value[:4000],
+        )
+        if value
+    ).lower()
+    subjects = [
+        subject
+        for subject, keywords in CNMV_SUBJECT_KEYWORDS
+        if any(keyword in haystack for keyword in keywords)
+    ]
+    if not subjects and metadata.get("family_id") == "documentos_consulta_cnmv":
+        subjects = ["sociedad_valores", "sgiic"]
+    return sorted(set(subjects))
+
 
 # ---------------------------------------------------------------------------
 # Regulation mapping (23.7)
@@ -1333,9 +1386,12 @@ def build_document_payload(
         "estado_consulta": metadata.get("estado_consulta"),
         "documentos_asociados": metadata.get("documentos_asociados"),
     }
+    sujeto_obligado = _detect_sujeto_obligado(metadata, text_value)
+    if sujeto_obligado:
+        metadata_payload["sujeto_obligado"] = sujeto_obligado
     metadata_payload = {key: value for key, value in metadata_payload.items() if value is not None}
 
-    return {
+    payload = {
         "referencia": referencia,
         "fecha": fecha,
         "titulo": titulo,
@@ -1352,6 +1408,9 @@ def build_document_payload(
         "row_provenance": row_provenance,
         "metadata": _metadata_json(metadata_payload) if metadata_payload else None,
     }
+    if sujeto_obligado:
+        payload["sujeto_obligado"] = sujeto_obligado
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -1421,6 +1480,7 @@ def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
         "referencia_boe",
         "estado_vigencia",
         "metadata",
+        "sujeto_obligado",
         "row_completeness",
         "row_provenance",
     )
