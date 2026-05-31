@@ -198,8 +198,9 @@ OPERATION_OVERRIDES = {
     "list_modelos": {
         "summary": "List AEAT tax models",
         "description": (
-            "List all AEAT tax form models (100, 303, 111, etc.) with their "
-            "linked article counts and active campaign box counts."
+            "List AEAT tax form models currently loaded in ESData, with their "
+            "linked article counts and active campaign box counts. This is not "
+            "a claim of complete AEAT model coverage or filing applicability."
         ),
     },
     "get_modelo": {

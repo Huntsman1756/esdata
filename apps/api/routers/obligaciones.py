@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
-
 from applicability import build_sociedad_valores_profile, obligation_applies
 from db import db_session
+from fastapi import APIRouter, HTTPException, Query
 from obligaciones_metadata import enrich_obligacion_metadata
-from schemas import ObligacionDetail, ObligacionesAplicablesResponse, ObligacionesListResponse
+from schemas import (
+    ObligacionDetail,
+    ObligacionesAplicablesResponse,
+    ObligacionesListResponse,
+)
+from sqlalchemy import text
 
 router = APIRouter(prefix="/v1/obligaciones", tags=["obligaciones"])
 
@@ -121,7 +124,7 @@ async def listar_obligaciones_operativas(
     con_sancion: bool = Query(True, description="Solo obligaciones con sanciones definidas"),
     limite: int = Query(50, ge=1, le=200, description="Número máximo de resultados"),
 ):
-    """Listar obligaciones con datos operativos completos (plazos, sanciones, triggers).
+    """Listar obligaciones con datos operativos disponibles (plazos, sanciones, triggers).
     
     Diseñado para que el LLM consumidor del MCP pueda responder preguntas de
     cumplimiento con datos estructurados en lugar de texto libre.

@@ -2,7 +2,7 @@
 
 Status: `COMPLETED_WITH_REMEDIATIONS`
 
-Scope: exhaustive source audit requested before continuing the project. Backup/offsite restore is explicitly out of scope for this block.
+Scope: broad source closeout audit requested before continuing the project. Backup/offsite restore is explicitly out of scope for this block.
 
 ## Executive Result
 

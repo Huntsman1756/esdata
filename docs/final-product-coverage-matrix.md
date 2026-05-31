@@ -67,10 +67,10 @@ Backup/offsite restore is intentionally deferred. That means functional product 
 | BOE diario | `partial` | Review loaded non-consolidated BOE daily documents. | Consolidated law status or complete BOE daily universe. | `/v1/boe-diario` |
 | BDNS | `very_limited` | Narrow subsidy-document checks only. | Broad subsidy coverage. | `/v1/bdns` |
 | CENDOJ | `very_limited` | Narrow loaded-document checks only. | Broad jurisprudence coverage. | `/v1/cendoj` |
-| CDI / DTA convenios | `partial` | Explore loaded double-tax conventions and treaty metadata. | Definitive withholding result by country/article/income type without dedicated evidence. | `/v1/cdi/convenios` |
-| CRS / DAC2 / FATCA / GIIN | `partial` | Review loaded IRS/GIIN/FATCA/CRS references and model metadata. | Complete CRS/DAC2 or FATCA procedure coverage. | `/v1/irs-fiscal/giin` |
-| PSD2 / SEPA | `partial` | Review loaded PSD2/SEPA reference records. | Complete payment-regulatory coverage. | `/v1/psd2/sepa-rules` |
-| PGC / XBRL / ESEF | `partial` | Use loaded PGC/XBRL surfaces for narrow checks. | Complete accounting/reporting engine. | Broader inventory; not a final product claim. |
+| CDI / DTA convenios | `partial` | Explore loaded double-tax conventions and treaty metadata as inventory. | Definitive withholding result by country/article/income type without dedicated evidence. | `/v1/internacional/convenios`; inventory-only until source provenance fields are added. |
+| CRS / DAC2 / FATCA / GIIN | `partial` | Review loaded IRS/GIIN/FATCA/CRS references and model metadata as inventory. | Complete CRS/DAC2 or FATCA procedure coverage. | `/v1/irs-fiscal/giin`; inventory-only until source provenance fields are added. |
+| PSD2 / SEPA | `partial` | Review loaded PSD2/SEPA reference records as inventory. | Complete payment-regulatory coverage. | `/v1/psd2/sepa-rules`; inventory-only until source provenance fields are added. |
+| PGC / XBRL / ESEF | `partial` | Use loaded PGC/XBRL surfaces for narrow inventory checks. | Complete accounting/reporting engine. | Broader inventory; source assurance not certified for final answers. |
 | DORA / SFDR / CSRD / AIFMD / UCITS / CRD / EMIR / MiFID / MAR / PRIIPs / PBC / fraud | `out_of_scope` | Treat mounted endpoints as development or narrow operational surfaces unless a specific contract says otherwise. | Final accepted source coverage. | Not in accepted final product gate. |
 | Source manifest / freshness | `internal_support` | Inspect freshness for Wave 1 sources. | Complete source inventory of all workers. | `/v1/sources/manifest` covers only Wave 1 manifest rows. |
 | Regulatory watch / source_revision | `internal_support` | Operational change detection and telemetry. | User-facing legal-change corpus unless exposed by a specific endpoint. | No direct final product source surface. |

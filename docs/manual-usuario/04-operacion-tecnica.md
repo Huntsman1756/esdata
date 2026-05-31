@@ -62,7 +62,7 @@ docker compose -f infra/deploy/docker-compose.prod.yml run --rm worker-boe pytho
 
 ## Variables clave
 
-El detalle completo esta en `../environment-variables.md`, pero operativamente destacan:
+El detalle ampliado esta en `../environment-variables.md`, pero operativamente destacan:
 
 - `DATABASE_URL`
 - `POSTGRES_PASSWORD`

@@ -136,7 +136,7 @@ curl -G -s http://127.0.0.1:8000/v1/modelos \
 
 La respuesta incluye `total`, `limit`, `offset`, `has_more` y `next_offset`.
 
-Detalle completo de un modelo:
+Detalle cargado de un modelo:
 
 ```bash
 curl -G -s http://127.0.0.1:8000/v1/modelos/303 \

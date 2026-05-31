@@ -28,27 +28,31 @@ La superficie principal hoy esta construida sobre:
 - superficies de consumo por `API` y `MCP`
 - documentacion tecnica y operativa en `docs/`
 
-## Fuentes y dominios ya incluidos
+## Fuentes y dominios con cobertura cargada
 
-Segun el estado actual del repo, `esdata` ya incluye capas operativas o documentales sobre:
+Segun el estado actual del repo, `esdata` incluye capas operativas o documentales
+con estos limites:
 
-- legislacion consolidada
-- doctrina administrativa y criterios
-- modelos AEAT
-- obligaciones regulatorias
-- cambios regulatorios
-- workflow de compliance
-- empresas y entidades
-- BORME
-- BDNS
-- CNMV
-- SEPBLAC
-- CENDOJ
-- EUR-Lex
-- Banco de Espana
-- AEPD
-- PGC
-- screening
+- legislacion BOE consolidada: `usable` para normas/articulos cargados, no todo BOE
+- doctrina administrativa y criterios: `partial_traceable`
+- modelos AEAT: `partial`, no decision automatica de obligaciones
+- obligaciones regulatorias: `partial`, solo cuando hay evidencia explicita
+- cambios regulatorios: `internal_support`
+- workflow de compliance: `internal_support`
+- empresas y entidades: superficie auxiliar, no fuente regulatoria certificada
+- BORME: `partial`
+- BDNS: `very_limited`
+- CNMV: `partial`
+- SEPBLAC: `partial`
+- CENDOJ: `very_limited`
+- EUR-Lex: `partial` salvo subfamilias verificadas por canary
+- Banco de Espana: `partial`
+- AEPD: `partial`
+- PGC: `partial`
+- screening: `usable` solo para listas OFAC SDN y EU sanctions cargadas
+
+Ningun dominio se debe interpretar como cobertura exhaustiva. La matriz activa
+de alcance esta en `../final-product-coverage-matrix.md`.
 
 ## Perfil regulado prioritario actual
 

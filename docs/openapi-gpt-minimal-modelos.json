@@ -73,7 +73,7 @@
       "get": {
         "operationId": "get_modelo",
         "summary": "Get AEAT model details",
-        "description": "Get full details for a specific AEAT model, including campaigns, boxes, keys, instructions, and regulation.",
+        "description": "Get loaded details for a specific AEAT model, including campaigns, boxes, keys, instructions, and regulation.",
         "parameters": [
           {
             "name": "codigo",

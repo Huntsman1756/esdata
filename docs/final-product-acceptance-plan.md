@@ -95,7 +95,7 @@ Allowed:
 Not allowed:
 
 - Automatic fiscal/legal decisioning.
-- Complete coverage of Hacienda, CNMV, BOE, ESMA, or any broad regulatory universe.
+- Broad claims that ESData covers Hacienda, CNMV, BOE, ESMA, or any broad regulatory universe end to end.
 - AEAT campaign promotion without direct official evidence.
 - `resolved_strong` from LLM inference, internal persisted state, filenames, version labels, BOE dates, or technical endpoints alone.
 - Treating empty results as proof that no obligation/source exists unless the domain contract explicitly supports that conclusion.

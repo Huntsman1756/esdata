@@ -218,7 +218,7 @@ async def listar_convenios_dta(
     response_model=IrsDttaConventionDetail,
     operation_id="detalle_convenio_dta_internacional",
     summary="Detalle convenio DTA",
-    description="Detalle completo de un convenio de doble tributacion.",
+    description="Detalle disponible de un convenio de doble tributacion.",
 )
 async def detalle_convenio_dta(codigo: str):
     with db_session() as db:

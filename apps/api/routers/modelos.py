@@ -413,7 +413,7 @@ async def list_modelos(
     limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
     offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
-    """Lista todos los modelos AEAT disponibles."""
+    """Lista los modelos AEAT cargados en ESData."""
     with db_session() as db:
         all_rows = list(list_modelos_summary(db))
         rows = all_rows[offset : offset + limit]
@@ -1032,7 +1032,7 @@ async def get_modelo_claves(
     limit: int = Query(200, ge=1, le=500, description="Tamano de pagina aplicado"),
     offset: int = Query(0, ge=0, description="Offset de resultados"),
 ):
-    """Lista todas las claves de un modelo para una campaña."""
+    """Lista las claves cargadas de un modelo para una campaña."""
     with db_session() as db:
         model_row = get_model_row(db, codigo)
         if not model_row:

@@ -366,7 +366,7 @@ def get_stdio_tool_definitions() -> list[dict[str, Any]]:
         },
         {
             "name": "get_obligacion_completa",
-            "description": "Obtiene detalle completo de una obligacion.",
+            "description": "Obtiene el detalle disponible de una obligacion.",
             "inputSchema": {
                 "type": "object",
                 "properties": {"codigo": {"type": "string"}},

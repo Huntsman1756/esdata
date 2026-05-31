@@ -81,7 +81,7 @@ Uso recomendado:
 - `GET /v1/modelos` — listado resumido
 - `GET /v1/modelos/campanas-operativas` — vista agregada de varios modelos
 - `GET /v1/modelos/por-supuesto` — clasifica modelos AEAT candidatos para un supuesto fiscal; no marca modelos como obligatorios sin evidencia explicita
-- `GET /v1/modelos/{codigo}` — detalle completo del modelo
+- `GET /v1/modelos/{codigo}` — detalle cargado del modelo
 - `GET /v1/modelos/{codigo}/articulos`
 - `GET /v1/modelos/{codigo}/casillas` — pagina por defecto `limit=200`, maximo `500`; soporta `offset`, `q`, `tipo_casilla` y `pagina`
 - `GET /v1/modelos/{codigo}/claves`
@@ -94,7 +94,7 @@ Uso recomendado:
 
 Uso recomendado:
 
-- usa `/{codigo}` cuando quieras una vista completa
+- usa `/{codigo}` cuando quieras una vista agregada de los datos cargados
 - usa `/por-supuesto` cuando el agente pregunte por modelos aplicables a un perfil, por ejemplo `sociedad_valores` con clientes residentes/no residentes; tratar `candidato` como no obligatorio hasta verificacion humana/oficial
 - usa endpoints especializados cuando necesites payload mas pequeno o UI mas focalizada
 - para listas grandes, pide `limit` y continua solo si `has_more=true` usando `next_offset`; no trates una pagina como listado completo
@@ -212,7 +212,7 @@ Uso recomendado:
 - `GET /v1/ai/config/history` — historial de configuraciones
 - `GET /v1/data/lineage` — lineage y calidad de datos por tabla/campo
 - `GET /v1/data/quality` — score de calidad por tabla
-- `GET /v1/data/catalog` — catalogo completo de fuentes y tablas trazadas
+- `GET /v1/data/catalog` — catalogo de fuentes y tablas trazadas en la instancia
 - `GET /v1/data/catalog/{tabla}` — catalogo de una tabla concreta
 - `GET /v1/ai/human-review/pending` — revisiones humanas pendientes
 - `GET /v1/ai/human-review/stats` — estadisticas de revision humana
