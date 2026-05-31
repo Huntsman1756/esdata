@@ -191,6 +191,10 @@ async def list_mica_register_entries(
                 {**params, "limit": limit, "offset": offset},
             ).mappings()
             items = [dict(row) for row in rows]
+            for item in items:
+                capture_date = item.get("capture_date")
+                if capture_date is not None:
+                    item["capture_date"] = str(capture_date)
             total = db.execute(
                 text(f"SELECT COUNT(*) FROM mica_register_entry {where}"),
                 params,
