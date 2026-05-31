@@ -1,10 +1,17 @@
 # ESData final product acceptance plan
 
-Status: `DEFINED_NOT_STARTED`
+Status: `EXECUTED_FUNCTIONAL_CLOSEOUT_BACKUP_DEFERRED`
 
 Purpose: close ESData as a transversal regulatory MCP product, not as an incremental AEAT curation sprint.
 
 This plan does not open new product work by itself. It defines the acceptance gate for declaring ESData finished as a useful, honest, operable product.
+
+Execution note 2026-05-31:
+
+- The transversal product gate was opened explicitly with commit `feat(final): open product acceptance gate`.
+- The VPS gate passed with `13/13` canonical checks OK on commit `1873445`.
+- The final product coverage matrix is `docs/final-product-coverage-matrix.md`.
+- Offsite backup/restore remains deliberately deferred and is not claimed as closed.
 
 ## 1. Objective
 
@@ -215,4 +222,3 @@ ESData can be declared finished as a product when:
 - the user manual explains actual API/MCP usage and limits
 - the v1 fail-closed gate remains clean
 - backup/restore risk is either closed or explicitly accepted
-

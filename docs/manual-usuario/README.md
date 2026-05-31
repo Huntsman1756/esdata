@@ -37,6 +37,7 @@ Este manual explica:
 - `11-ui-interna.md`
 - `12-onboarding-rapido.md`
 - `13-gobierno-editorial.md`
+- `../final-product-coverage-matrix.md`
 - `../integrations/README.md`
 - `curacion-lineas-criterio.md`
 
@@ -56,3 +57,4 @@ Este manual explica:
 - Para entender la UI interna actual: leer `11-ui-interna.md`
 - Para arrancar rapido: leer `12-onboarding-rapido.md`
 - Para reglas documentales y archivo historico: volver a `../README.md`
+- Para la matriz final de cobertura real tras el gate transversal: leer `../final-product-coverage-matrix.md`

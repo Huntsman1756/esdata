@@ -54,6 +54,26 @@ Obligaciones aplicables:
 curl -G -s http://127.0.0.1:8000/v1/obligaciones/aplicables --data-urlencode "tipo_entidad=sociedad_valores"
 ```
 
+## Comprobacion transversal de producto
+
+Para validar que una instancia mantiene la superficie funcional minima:
+
+```bash
+python scripts/maintenance/final_product_acceptance_gate.py \
+  --base-url http://127.0.0.1:8000 \
+  --api-key "$ESDATA_API_KEY" \
+  --json-out /tmp/final-product-gate.json \
+  --md-out /tmp/final-product-gate.md
+```
+
+Resultado esperado para cierre funcional:
+
+- `ok=true`
+- todos los checks canonicos en `OK`
+- `/status` sin workers stale ni errores
+
+Si falla un dominio parcial, no completar la respuesta por inferencia: revisar `../final-product-coverage-matrix.md` y corregir el contrato o documentar el limite.
+
 ## Si vas a usar la UI
 
 Abre:

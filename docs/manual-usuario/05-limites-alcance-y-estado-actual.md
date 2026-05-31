@@ -22,6 +22,21 @@ Segun el roadmap activo del repo, el sistema ya tiene operativas capas de:
 
 Esto no significa que todos los dominios esten completos al mismo nivel de profundidad. Significa que existen slices funcionales ya implementados y consultables.
 
+## Cierre funcional 2026-05-31
+
+El cierre funcional actual se apoya en el gate transversal `scripts/maintenance/final_product_acceptance_gate.py`, ejecutado en VPS contra la API productiva.
+
+Estado verificado:
+
+- infraestructura: `/health` OK
+- operacion: `/status` OK, sin workers stale ni errores
+- dominios con check canonico OK: BOE, AEAT, DGT/TEAC, CNMV, EUR-Lex/ESMA, MiCA/CASP, screening, AEPD, SEPBLAC y BDE
+- matriz final de cobertura: `../final-product-coverage-matrix.md`
+
+Este cierre no afirma cobertura completa. Afirma que existe una superficie transversal util, trazable y fail-closed para consulta y revision humana.
+
+Backup/offsite restore queda aplazado: el producto funcional esta cerrado, pero no se declara cerrado el disaster recovery offsite.
+
 ## Fuera de alcance inicial
 
 - legal horizontal generalista
@@ -45,6 +60,8 @@ En CNMV, el corpus actual es parcial. La instancia productiva puede devolver dec
 ## Regla sobre cobertura
 
 No asumir que cualquier tema legal o financiero esta soportado por el producto solo porque exista infraestructura generica. La cobertura real depende de las fases implementadas y de la documentacion permanente del repo.
+
+Para saber si un dominio es `usable`, `partial`, `partial_traceable` o `very_limited`, usar `../final-product-coverage-matrix.md` antes de prometer una respuesta de producto.
 
 ## Donde ver el estado vivo
 

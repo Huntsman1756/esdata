@@ -37,6 +37,21 @@ Capacidades principales hoy:
 - doctrina: `buscar_doctrina`, `get_doctrina`, `listar_lineas_criterio`, `detalle_linea_criterio`, `buscar_lineas_criterio`, `detalle_linea_criterio_doctrina`, `criterio_relacionado_con_modelo`, `doctrina_coverage`
 - modelos AEAT: operaciones del catalogo HTTP para listar y consultar modelos y sus fuentes oficiales
 
+Dominios validados por el gate transversal en VPS:
+
+- BOE legislacion
+- AEAT modelos
+- DGT/TEAC doctrina
+- CNMV
+- EUR-Lex/ESMA
+- MiCA/CASP
+- screening/sanciones
+- AEPD
+- SEPBLAC
+- Banco de Espana
+
+La matriz de cobertura real esta en `../final-product-coverage-matrix.md`. Si un dominio figura como `partial`, `partial_traceable` o `very_limited`, el cliente debe presentar la respuesta como ayuda a revision, no como conclusion final.
+
 ## Recorrido stdio MCP
 
 El servidor `stdio` esta pensado para clientes locales o integraciones que prefieren lanzar un proceso hijo en lugar de consumir un endpoint HTTP.
@@ -127,6 +142,25 @@ Glosario operativo:
 - `confirmado`: ESData devuelve evidencia explicita suficiente para la aplicabilidad indicada, o existencia oficial del recurso consultado
 - `candidato`: ESData encuentra una relacion plausible, pero no confirma obligatoriedad ni aplicabilidad completa
 - `requiere_verificacion`: ESData no tiene evidencia suficiente; requiere fuente oficial/humano antes de usarlo en un flujo compliance
+- `coverage_status=partial_loaded`: existe corpus cargado, pero no cobertura completa del dominio
+- `row_completeness=partial`: la fila es trazable, pero no basta por si sola para una respuesta cerrada
+- `safe_to_answer=false`: el cliente debe abstenerse de afirmar y devolver una respuesta de revision/limitacion
+- `availability_status=configured_but_unavailable`: la fuente o flujo esta identificado, pero no hay datos suficientes para responder
+
+## Ejemplos de interpretacion fail-closed
+
+Respuesta utilizable como evidencia de existencia:
+
+- articulo BOE con `source_url`, `boe_reference` o `eli_uri`
+- entrada de screening con lista oficial y `coverage_status=official_list_loaded`
+- documento CNMV/AEPD/SEPBLAC/BDE con `url_fuente`, sabiendo que el dominio sigue parcial
+
+Respuesta que no debe convertirse en afirmacion automatica:
+
+- modelo AEAT con `campana_safe_to_assert=false`
+- doctrina con `safe_to_answer=false`
+- dominio con `coverage_status=partial_loaded` y sin coincidencia exacta
+- lista vacia sin `availability_status` o sin estado fail-closed explicito
 
 ## Casos de uso recomendados
 
