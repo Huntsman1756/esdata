@@ -105,3 +105,5 @@ The main risk is that models `124`, `126`, and `128` cannot progress because fre
 ## Open only by explicit decision
 
 This PRD defines v2 scope but does not start implementation by itself. Execution starts only when the roadmap opens a concrete v2 sprint with files, acceptance criteria, and verification commands.
+
+v2 execution requires: PRD merged into `main`, PRD deployed to the VPS, roadmap updated with a `v2-sprint-1` section including acceptance criteria and verification commands, and an explicit commit message `feat(v2): open sprint 1`.
