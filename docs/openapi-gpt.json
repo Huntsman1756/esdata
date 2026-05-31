@@ -1143,10 +1143,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa.",
+              "description": "Campana especifica (ej: 2025). Si no se indica, usa la campana persistida internamente.",
               "title": "Campana"
             },
-            "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa."
+            "description": "Campana especifica (ej: 2025). Si no se indica, usa la campana persistida internamente."
           },
           {
             "name": "casillas_limit",
@@ -4515,6 +4515,160 @@
         }
       }
     },
+    "/v1/bde": {
+      "get": {
+        "tags": [
+          "bde"
+        ],
+        "summary": "Listar Bde",
+        "operationId": "listar_bde",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o título",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o título"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo (informe_bde, comunicacion_bde, publicacion_bde)",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo (informe_bde, comunicacion_bde, publicacion_bde)"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ámbito (estabilidad_financiera, politica_monetaria, supervision_bancaria)",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ámbito (estabilidad_financiera, politica_monetaria, supervision_bancaria)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bde/{referencia}": {
+      "get": {
+        "tags": [
+          "bde"
+        ],
+        "summary": "Get Bde",
+        "operationId": "get_bde",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bdns": {
+      "get": {
+        "tags": [
+          "bdns"
+        ],
+        "summary": "Listar Bdns",
+        "operationId": "listar_bdns",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o título",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o título"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BDNSListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bdns/{referencia}": {
+      "get": {
+        "tags": [
+          "bdns"
+        ],
+        "summary": "Get Bdns",
+        "operationId": "get_bdns",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BDNSDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/aepd": {
       "get": {
         "tags": [
@@ -4716,6 +4870,182 @@
         },
         "description": "Return full text and official AEPD source URL for a loaded AEPD document."
       }
+    },
+    "/v1/cendoj": {
+      "get": {
+        "tags": [
+          "cendoj"
+        ],
+        "summary": "Listar Cendoj",
+        "operationId": "listar_cendoj",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o título",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o título"
+          },
+          {
+            "name": "tribunal",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tribunal (tribunal_supremo, audiencia_nacional, tsj)",
+              "title": "Tribunal"
+            },
+            "description": "Filtrar por tribunal (tribunal_supremo, audiencia_nacional, tsj)"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo de documento (sentencia, auto, providencia)",
+              "title": "Tipo"
+            },
+            "description": "Filtrar por tipo de documento (sentencia, auto, providencia)"
+          },
+          {
+            "name": "organismo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por organismo emisor",
+              "title": "Organismo"
+            },
+            "description": "Filtrar por organismo emisor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cendoj/{referencia}": {
+      "get": {
+        "tags": [
+          "cendoj"
+        ],
+        "summary": "Get Cendoj",
+        "operationId": "get_cendoj",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocInterpretativoDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sepblac": {
+      "get": {
+        "tags": [
+          "sepblac"
+        ],
+        "summary": "Listar Sepblac",
+        "operationId": "listar_sepblac",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por texto o título",
+              "title": "Q"
+            },
+            "description": "Filtrar por texto o título"
+          },
+          {
+            "name": "ambito",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por ámbito operativo",
+              "title": "Ambito"
+            },
+            "description": "Filtrar por ámbito operativo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SEPBLACListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sepblac/{referencia}": {
+      "get": {
+        "tags": [
+          "sepblac"
+        ],
+        "summary": "Get Sepblac",
+        "operationId": "get_sepblac",
+        "parameters": [
+          {
+            "name": "referencia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Referencia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SEPBLACDetail"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [
@@ -4868,6 +5198,129 @@
           "articulos"
         ],
         "title": "ArticulosListResponse"
+      },
+      "BDNSDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "texto"
+        ],
+        "title": "BDNSDetail"
+      },
+      "BDNSListItem": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "fragmento"
+        ],
+        "title": "BDNSListItem"
+      },
+      "BDNSListResponse": {
+        "properties": {
+          "convocatorias": {
+            "items": {
+              "$ref": "#/components/schemas/BDNSListItem"
+            },
+            "type": "array",
+            "title": "Convocatorias"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BDNSListItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Alias paginado para consumidores MCP/GPT"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "coverage_status": {
+            "type": "string",
+            "title": "Coverage Status",
+            "description": "very_limited | workflow_empty"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "False for very limited BDNS corpus; consumers must not infer subsidy coverage from this list",
+            "default": false
+          },
+          "coverage_note": {
+            "type": "string",
+            "title": "Coverage Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "convocatorias"
+        ],
+        "title": "BDNSListResponse"
       },
       "BOEDiarioDetail": {
         "properties": {
@@ -6031,6 +6484,17 @@
             "type": "string",
             "title": "Coverage Note",
             "description": "Nota de cobertura del corpus"
+          },
+          "coverage_status": {
+            "type": "string",
+            "title": "Coverage Status",
+            "description": "partial_loaded | workflow_empty"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "False for interpretative partial corpora; consumers must not treat a list as a legal conclusion",
+            "default": false
           }
         },
         "type": "object",
@@ -7703,6 +8167,18 @@
             "type": "string",
             "title": "Nota",
             "description": "Nota descriptiva"
+          },
+          "proves_campaign": {
+            "type": "boolean",
+            "title": "Proves Campaign",
+            "description": "Si este artefacto prueba directamente la campana",
+            "default": false
+          },
+          "campaign_evidence_role": {
+            "type": "string",
+            "title": "Campaign Evidence Role",
+            "description": "Rol probatorio de campana: none, weak, strong o conflict",
+            "default": "none"
           }
         },
         "type": "object",
@@ -7724,12 +8200,110 @@
           "campana_activa": {
             "type": "string",
             "title": "Campana Activa",
-            "description": "Campaña activa"
+            "description": "DEPRECATED: campana persistida; use campana_afirmable and campana_safe_to_assert para afirmaciones fiscales"
           },
           "criterio_validacion": {
             "type": "string",
             "title": "Criterio Validacion",
             "description": "Criterio de validación"
+          },
+          "campana_persistida": {
+            "type": "string",
+            "title": "Campana Persistida",
+            "description": "Campana persistida internamente; no afirmable por si sola"
+          },
+          "campana_afirmable": {
+            "type": "string",
+            "title": "Campana Afirmable",
+            "description": "Campana que MCP puede afirmar; null salvo resolved_strong"
+          },
+          "campana_candidata": {
+            "type": "string",
+            "title": "Campana Candidata",
+            "description": "Campana candidata si no hay conflicto semantico"
+          },
+          "campana_resolution_status": {
+            "type": "string",
+            "title": "Campana Resolution Status",
+            "description": "Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected",
+            "default": "insufficient_evidence"
+          },
+          "campana_verification_level": {
+            "type": "string",
+            "title": "Campana Verification Level",
+            "description": "Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale",
+            "default": "insufficient"
+          },
+          "campana_safe_to_assert": {
+            "type": "boolean",
+            "title": "Campana Safe To Assert",
+            "description": "True solo cuando la campana es afirmable por MCP",
+            "default": false
+          },
+          "campana_assertion_code": {
+            "type": "string",
+            "title": "Campana Assertion Code",
+            "description": "Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*",
+            "default": "INSUFFICIENT_EVIDENCE"
+          },
+          "campana_assertion_warning": {
+            "type": "string",
+            "title": "Campana Assertion Warning",
+            "description": "Advertencia estructurada obligatoria cuando campana_safe_to_assert=false"
+          },
+          "campana_user_notice": {
+            "type": "string",
+            "title": "Campana User Notice",
+            "description": "Aviso obligatorio cuando la campana no es afirmable"
+          },
+          "campana_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
+            },
+            "type": "array",
+            "title": "Campana Evidence",
+            "description": "Evidencia usada para el estado de campana"
+          },
+          "technical_exercise_coverage": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloTechnicalExerciseCoverage"
+            },
+            "type": "array",
+            "title": "Technical Exercise Coverage",
+            "description": "Cobertura tecnica oficial no afirmativa; nunca prueba campana"
+          },
+          "campana_conflict": {
+            "type": "boolean",
+            "title": "Campana Conflict",
+            "description": "Indica conflicto entre campana persistida y recursos tecnicos/anuales",
+            "default": false
+          },
+          "campana_conflict_severity": {
+            "type": "string",
+            "title": "Campana Conflict Severity",
+            "description": "Intensidad derivada del conflicto: none, weak o strong",
+            "default": "none"
+          },
+          "campana_conflict_years": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Campana Conflict Years",
+            "description": "Anos implicados en el conflicto"
+          },
+          "campana_conflict_notice": {
+            "type": "string",
+            "title": "Campana Conflict Notice",
+            "description": "Aviso fail-closed sobre el conflicto"
+          },
+          "campana_conflict_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
+            },
+            "type": "array",
+            "title": "Campana Conflict Evidence",
+            "description": "Recursos que explican el conflicto"
           },
           "artefactos": {
             "items": {
@@ -7803,7 +8377,7 @@
           "activo": {
             "type": "boolean",
             "title": "Activo",
-            "description": "Si es la campaña activa"
+            "description": "Si es la campana persistida internamente"
           }
         },
         "type": "object",
@@ -7812,6 +8386,39 @@
           "activo"
         ],
         "title": "ModeloCampana"
+      },
+      "ModeloCampanaConflictEvidence": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "Tipo de fuente o artefacto que aporta el ano"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL donde aparece el ano"
+          },
+          "years": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Years",
+            "description": "Anos detectados en el recurso"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Regla que hizo relevante esta evidencia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "reason"
+        ],
+        "title": "ModeloCampanaConflictEvidence"
       },
       "ModeloCampanaOperativaResponse": {
         "properties": {
@@ -7828,7 +8435,7 @@
           "campana": {
             "type": "string",
             "title": "Campana",
-            "description": "Campaña activa"
+            "description": "Campana persistida internamente"
           },
           "impuesto": {
             "type": "string",
@@ -7991,7 +8598,7 @@
           "campana_activa": {
             "type": "string",
             "title": "Campana Activa",
-            "description": "Campana marcada como activa para el modelo"
+            "description": "DEPRECATED: campana persistida; use campana_afirmable and campana_safe_to_assert para afirmaciones fiscales"
           },
           "selection_notice": {
             "type": "string",
@@ -8180,7 +8787,64 @@
           "campana_activa": {
             "type": "string",
             "title": "Campana Activa",
-            "description": "Campaña activa (año)"
+            "description": "DEPRECATED: campana persistida; use campana_afirmable and campana_safe_to_assert para afirmaciones fiscales"
+          },
+          "campana_persistida": {
+            "type": "string",
+            "title": "Campana Persistida",
+            "description": "Campana persistida internamente; no afirmable por si sola"
+          },
+          "campana_afirmable": {
+            "type": "string",
+            "title": "Campana Afirmable",
+            "description": "Campana que se puede afirmar; null salvo resolved_strong"
+          },
+          "campana_candidata": {
+            "type": "string",
+            "title": "Campana Candidata",
+            "description": "Campana candidata no afirmable si no hay evidencia fuerte"
+          },
+          "campana_resolution_status": {
+            "type": "string",
+            "title": "Campana Resolution Status",
+            "description": "Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected",
+            "default": "insufficient_evidence"
+          },
+          "campana_verification_level": {
+            "type": "string",
+            "title": "Campana Verification Level",
+            "description": "Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale",
+            "default": "insufficient"
+          },
+          "campana_safe_to_assert": {
+            "type": "boolean",
+            "title": "Campana Safe To Assert",
+            "description": "True solo cuando campana_afirmable puede exponerse como verdad fiscal",
+            "default": false
+          },
+          "campana_assertion_code": {
+            "type": "string",
+            "title": "Campana Assertion Code",
+            "description": "Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*",
+            "default": "INSUFFICIENT_EVIDENCE"
+          },
+          "campana_assertion_warning": {
+            "type": "string",
+            "title": "Campana Assertion Warning",
+            "description": "Advertencia estructurada obligatoria cuando campana_safe_to_assert=false"
+          },
+          "campana_user_notice": {
+            "type": "string",
+            "title": "Campana User Notice",
+            "description": "Aviso obligatorio cuando la campana no es afirmable"
+          },
+          "technical_exercise_coverage": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloTechnicalExerciseCoverage"
+            },
+            "type": "array",
+            "title": "Technical Exercise Coverage",
+            "description": "Cobertura tecnica oficial no afirmativa; nunca prueba campana"
           },
           "campanas": {
             "items": {
@@ -8429,6 +9093,18 @@
             "type": "string",
             "title": "Nota",
             "description": "Nota descriptiva"
+          },
+          "proves_campaign": {
+            "type": "boolean",
+            "title": "Proves Campaign",
+            "description": "Si esta fuente prueba directamente la campana",
+            "default": false
+          },
+          "campaign_evidence_role": {
+            "type": "string",
+            "title": "Campaign Evidence Role",
+            "description": "Rol probatorio de campana: none, weak, strong o conflict",
+            "default": "none"
           }
         },
         "type": "object",
@@ -8456,7 +9132,105 @@
           "campana_activa": {
             "type": "string",
             "title": "Campana Activa",
-            "description": "Campaña activa"
+            "description": "DEPRECATED: campana persistida; use campana_afirmable and campana_safe_to_assert para afirmaciones fiscales"
+          },
+          "campana_persistida": {
+            "type": "string",
+            "title": "Campana Persistida",
+            "description": "Campana persistida internamente; no afirmable por si sola"
+          },
+          "campana_afirmable": {
+            "type": "string",
+            "title": "Campana Afirmable",
+            "description": "Campana que MCP puede afirmar; null salvo resolved_strong"
+          },
+          "campana_candidata": {
+            "type": "string",
+            "title": "Campana Candidata",
+            "description": "Campana candidata si no hay conflicto semantico"
+          },
+          "campana_resolution_status": {
+            "type": "string",
+            "title": "Campana Resolution Status",
+            "description": "Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected",
+            "default": "insufficient_evidence"
+          },
+          "campana_verification_level": {
+            "type": "string",
+            "title": "Campana Verification Level",
+            "description": "Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale",
+            "default": "insufficient"
+          },
+          "campana_safe_to_assert": {
+            "type": "boolean",
+            "title": "Campana Safe To Assert",
+            "description": "True solo cuando la campana es afirmable por MCP",
+            "default": false
+          },
+          "campana_assertion_code": {
+            "type": "string",
+            "title": "Campana Assertion Code",
+            "description": "Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*",
+            "default": "INSUFFICIENT_EVIDENCE"
+          },
+          "campana_assertion_warning": {
+            "type": "string",
+            "title": "Campana Assertion Warning",
+            "description": "Advertencia estructurada obligatoria cuando campana_safe_to_assert=false"
+          },
+          "campana_user_notice": {
+            "type": "string",
+            "title": "Campana User Notice",
+            "description": "Aviso obligatorio cuando la campana no es afirmable"
+          },
+          "campana_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
+            },
+            "type": "array",
+            "title": "Campana Evidence",
+            "description": "Evidencia usada para el estado de campana"
+          },
+          "technical_exercise_coverage": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloTechnicalExerciseCoverage"
+            },
+            "type": "array",
+            "title": "Technical Exercise Coverage",
+            "description": "Cobertura tecnica oficial no afirmativa; nunca prueba campana"
+          },
+          "campana_conflict": {
+            "type": "boolean",
+            "title": "Campana Conflict",
+            "description": "Indica conflicto entre campana persistida y recursos tecnicos/anuales",
+            "default": false
+          },
+          "campana_conflict_severity": {
+            "type": "string",
+            "title": "Campana Conflict Severity",
+            "description": "Intensidad derivada del conflicto: none, weak o strong",
+            "default": "none"
+          },
+          "campana_conflict_years": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Campana Conflict Years",
+            "description": "Anos implicados en el conflicto"
+          },
+          "campana_conflict_notice": {
+            "type": "string",
+            "title": "Campana Conflict Notice",
+            "description": "Aviso fail-closed sobre el conflicto"
+          },
+          "campana_conflict_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
+            },
+            "type": "array",
+            "title": "Campana Conflict Evidence",
+            "description": "Recursos que explican el conflicto"
           },
           "fuentes_oficiales": {
             "items": {
@@ -8640,7 +9414,7 @@
           "campana_activa": {
             "type": "string",
             "title": "Campana Activa",
-            "description": "Campaña activa"
+            "description": "DEPRECATED: campana persistida; use campana_afirmable and campana_safe_to_assert para afirmaciones fiscales"
           },
           "quien_debe_presentarlo": {
             "type": "string",
@@ -8651,6 +9425,104 @@
             "type": "string",
             "title": "Plazo Presentacion",
             "description": "Plazo de presentación"
+          },
+          "campana_persistida": {
+            "type": "string",
+            "title": "Campana Persistida",
+            "description": "Campana persistida internamente; no afirmable por si sola"
+          },
+          "campana_afirmable": {
+            "type": "string",
+            "title": "Campana Afirmable",
+            "description": "Campana que MCP puede afirmar; null salvo resolved_strong"
+          },
+          "campana_candidata": {
+            "type": "string",
+            "title": "Campana Candidata",
+            "description": "Campana candidata si no hay conflicto semantico"
+          },
+          "campana_resolution_status": {
+            "type": "string",
+            "title": "Campana Resolution Status",
+            "description": "Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected",
+            "default": "insufficient_evidence"
+          },
+          "campana_verification_level": {
+            "type": "string",
+            "title": "Campana Verification Level",
+            "description": "Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale",
+            "default": "insufficient"
+          },
+          "campana_safe_to_assert": {
+            "type": "boolean",
+            "title": "Campana Safe To Assert",
+            "description": "True solo cuando la campana es afirmable por MCP",
+            "default": false
+          },
+          "campana_assertion_code": {
+            "type": "string",
+            "title": "Campana Assertion Code",
+            "description": "Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*",
+            "default": "INSUFFICIENT_EVIDENCE"
+          },
+          "campana_assertion_warning": {
+            "type": "string",
+            "title": "Campana Assertion Warning",
+            "description": "Advertencia estructurada obligatoria cuando campana_safe_to_assert=false"
+          },
+          "campana_user_notice": {
+            "type": "string",
+            "title": "Campana User Notice",
+            "description": "Aviso obligatorio cuando la campana no es afirmable"
+          },
+          "campana_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
+            },
+            "type": "array",
+            "title": "Campana Evidence",
+            "description": "Evidencia usada para el estado de campana"
+          },
+          "technical_exercise_coverage": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloTechnicalExerciseCoverage"
+            },
+            "type": "array",
+            "title": "Technical Exercise Coverage",
+            "description": "Cobertura tecnica oficial no afirmativa; nunca prueba campana"
+          },
+          "campana_conflict": {
+            "type": "boolean",
+            "title": "Campana Conflict",
+            "description": "Indica conflicto entre campana persistida y recursos tecnicos/anuales",
+            "default": false
+          },
+          "campana_conflict_severity": {
+            "type": "string",
+            "title": "Campana Conflict Severity",
+            "description": "Intensidad derivada del conflicto: none, weak o strong",
+            "default": "none"
+          },
+          "campana_conflict_years": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Campana Conflict Years",
+            "description": "Anos implicados en el conflicto"
+          },
+          "campana_conflict_notice": {
+            "type": "string",
+            "title": "Campana Conflict Notice",
+            "description": "Aviso fail-closed sobre el conflicto"
+          },
+          "campana_conflict_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
+            },
+            "type": "array",
+            "title": "Campana Conflict Evidence",
+            "description": "Recursos que explican el conflicto"
           },
           "fuentes_recomendadas": {
             "items": {
@@ -8871,6 +9743,59 @@
           "reason"
         ],
         "title": "ModeloSupuestoExcluded"
+      },
+      "ModeloTechnicalExerciseCoverage": {
+        "properties": {
+          "from_year": {
+            "type": "integer",
+            "title": "From Year",
+            "description": "Primer ejercicio cubierto por la fuente tecnica oficial"
+          },
+          "to_year": {
+            "type": "integer",
+            "title": "To Year",
+            "description": "Ultimo ejercicio cubierto; null si la fuente dice 'y siguientes'"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Texto oficial o etiqueta de cobertura tecnica"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "Alcance tecnico: presentacion_por_lotes, diseno_registro, xsd_wsdl u otro"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Pagina oficial donde aparece la etiqueta de cobertura"
+          },
+          "resource_url": {
+            "type": "string",
+            "title": "Resource Url",
+            "description": "Artefacto tecnico oficial asociado"
+          },
+          "proves_campaign": {
+            "type": "boolean",
+            "title": "Proves Campaign",
+            "description": "Siempre false: no prueba campana activa",
+            "default": false
+          },
+          "evidence_role": {
+            "type": "string",
+            "title": "Evidence Role",
+            "description": "Rol no afirmativo de la evidencia",
+            "default": "technical_exercise_coverage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_year",
+          "label",
+          "scope"
+        ],
+        "title": "ModeloTechnicalExerciseCoverage"
       },
       "ModelosCampanasOperativasResponse": {
         "properties": {
@@ -9474,6 +10399,149 @@
         ],
         "title": "ObligacionesAplicablesResponse"
       },
+      "SEPBLACDetail": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "ambito",
+          "texto"
+        ],
+        "title": "SEPBLACDetail"
+      },
+      "SEPBLACListItem": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "title": "Referencia"
+          },
+          "fecha": {
+            "type": "string",
+            "title": "Fecha"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
+          "ambito": {
+            "type": "string",
+            "title": "Ambito"
+          },
+          "fragmento": {
+            "type": "string",
+            "title": "Fragmento"
+          },
+          "url_fuente": {
+            "type": "string",
+            "title": "Url Fuente"
+          },
+          "row_completeness": {
+            "type": "string",
+            "title": "Row Completeness",
+            "description": "complete | partial"
+          },
+          "row_provenance": {
+            "type": "string",
+            "title": "Row Provenance",
+            "description": "official_exact | official_best_effort"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "tipo_documento",
+          "ambito",
+          "fragmento"
+        ],
+        "title": "SEPBLACListItem"
+      },
+      "SEPBLACListResponse": {
+        "properties": {
+          "documentos": {
+            "items": {
+              "$ref": "#/components/schemas/SEPBLACListItem"
+            },
+            "type": "array",
+            "title": "Documentos"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SEPBLACListItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Alias paginado para consumidores MCP/GPT"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "coverage_status": {
+            "type": "string",
+            "title": "Coverage Status",
+            "description": "partial_loaded | workflow_empty"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "False for interpretative partial corpora; consumers must not treat a list as a legal conclusion",
+            "default": false
+          },
+          "coverage_note": {
+            "type": "string",
+            "title": "Coverage Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documentos"
+        ],
+        "title": "SEPBLACListResponse"
+      },
       "ScreeningEntriesResponse": {
         "properties": {
           "total": {
@@ -9490,6 +10558,17 @@
             },
             "type": "array",
             "title": "Entries"
+          },
+          "coverage_status": {
+            "type": "string",
+            "title": "Coverage Status",
+            "description": "official_list_loaded | workflow_empty"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "True only for positive list entries from an official loaded source; false for empty/no-match claims",
+            "default": false
           }
         },
         "type": "object",

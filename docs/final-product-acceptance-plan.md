@@ -9,7 +9,8 @@ This plan does not open new product work by itself. It defines the acceptance ga
 Execution note 2026-05-31:
 
 - The transversal product gate was opened explicitly with commit `feat(final): open product acceptance gate`.
-- The VPS gate passed with `13/13` canonical checks OK on commit `1873445`.
+- The first VPS gate passed with `13/13` canonical checks OK on commit `1873445`.
+- `SOURCE-CLOSEOUT-AUDIT-01` then expanded the source gate to `30/30` canonical checks and aligned HTTP MCP/GPT Actions artifacts after adding BDE, BDNS, CENDOJ and SEPBLAC to `HTTP_MCP_OPERATIONS`.
 - The final product coverage matrix is `docs/final-product-coverage-matrix.md`.
 - Offsite backup/restore remains deliberately deferred and is not claimed as closed.
 
@@ -45,7 +46,8 @@ Observed snapshot on 2026-05-31:
 
 - `/status`: `41` workers, `0` stale, `0` error
 - OpenAPI: `413` paths
-- HTTP MCP: `83` operations
+- HTTP MCP: `91` operations
+- GPT Actions reduced OpenAPI: `93` operations in the full profile
 - Core populated data includes AEAT, BOE legislation, DGT/TEAC, CNMV, BORME, BOE diario, AEPD, SEPBLAC, BDE, BDNS, CENDOJ, EUR-Lex/ESMA, CASP, PSD2, screening, and source revisions
 
 ## 3. Domain Classification

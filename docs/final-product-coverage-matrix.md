@@ -2,7 +2,7 @@
 
 Status: `FUNCTIONAL_CLOSEOUT_BACKUP_DEFERRED`
 
-Last verified: 2026-05-31 on VPS commit `60e8c51` plus `SOURCE-CLOSEOUT-AUDIT-01`.
+Last verified: 2026-05-31 on the VPS during `SOURCE-CLOSEOUT-AUDIT-01`.
 
 This document is the final user-facing coverage matrix for the current ESData product. It describes what can be used now, what must remain partial, and what must not be claimed.
 
@@ -24,7 +24,9 @@ The final product acceptance gate passed on the VPS:
 - stale workers: `0`
 - worker errors: `0`
 - `systemctl --failed`: `0 loaded units listed`
-- `scripts/maintenance/final_product_acceptance_gate.py`: `ok=true`, `13/13` canonical checks OK
+- `scripts/maintenance/final_product_acceptance_gate.py`: `ok=true`, `30/30` canonical checks OK
+- `mcp_validation_suite.py --read-only`: `ok=true`, `tool_count=91`
+- `mcp_deep_contract_audit.py`: `ok=true`, with GPT Actions OpenAPI regenerated from `HTTP_MCP_OPERATIONS`
 
 Backup/offsite restore is intentionally deferred. That means functional product closeout is accepted, but disaster-recovery closeout is not claimed.
 
@@ -61,13 +63,13 @@ Backup/offsite restore is intentionally deferred. That means functional product 
 | AEPD | `partial` | Review loaded AEPD official documents with partial coverage metadata. | Full data-protection compliance answer. | `/v1/aepd` |
 | SEPBLAC | `partial` | Review loaded SEPBLAC documents with partial coverage metadata. | Full PBC/FT decisioning by subject/profile. | `/v1/sepblac` |
 | BDE | `partial` | Review loaded Banco de Espana documents with partial coverage metadata. | Complete banking-supervision coverage. | `/v1/bde` |
-| BORME | `partial` | Use only where specific endpoints/data are exposed and traceable. | Complete corporate registry coverage. | Covered by broader corpus inventory, not final gate smoke. |
-| BOE diario | `partial` | Review loaded non-consolidated BOE daily documents. | Consolidated law status or complete BOE daily universe. | Covered by broader corpus inventory, not final gate smoke. |
-| BDNS | `very_limited` | Narrow subsidy-document checks only. | Broad subsidy coverage. | Covered by broader corpus inventory, not final gate smoke. |
-| CENDOJ | `very_limited` | Narrow loaded-document checks only. | Broad jurisprudence coverage. | Covered by broader corpus inventory, not final gate smoke. |
-| CDI / DTA convenios | `partial` | Explore loaded double-tax conventions and treaty metadata. | Definitive withholding result by country/article/income type without dedicated evidence. | Broader inventory and PRD; product still partial. |
-| CRS / DAC2 / FATCA / GIIN | `partial` | Review loaded IRS/GIIN/FATCA/CRS references and model metadata. | Complete CRS/DAC2 or FATCA procedure coverage. | Broader inventory and PRDs; not a finished subproduct. |
-| PSD2 / SEPA | `partial` | Review loaded PSD2/SEPA reference records. | Complete payment-regulatory coverage. | Broader inventory; not a final product claim. |
+| BORME | `partial` | Use only where specific endpoints/data are exposed and traceable. | Complete corporate registry coverage. | `/v1/borme` |
+| BOE diario | `partial` | Review loaded non-consolidated BOE daily documents. | Consolidated law status or complete BOE daily universe. | `/v1/boe-diario` |
+| BDNS | `very_limited` | Narrow subsidy-document checks only. | Broad subsidy coverage. | `/v1/bdns` |
+| CENDOJ | `very_limited` | Narrow loaded-document checks only. | Broad jurisprudence coverage. | `/v1/cendoj` |
+| CDI / DTA convenios | `partial` | Explore loaded double-tax conventions and treaty metadata. | Definitive withholding result by country/article/income type without dedicated evidence. | `/v1/cdi/convenios` |
+| CRS / DAC2 / FATCA / GIIN | `partial` | Review loaded IRS/GIIN/FATCA/CRS references and model metadata. | Complete CRS/DAC2 or FATCA procedure coverage. | `/v1/irs-fiscal/giin` |
+| PSD2 / SEPA | `partial` | Review loaded PSD2/SEPA reference records. | Complete payment-regulatory coverage. | `/v1/psd2/sepa-rules` |
 | PGC / XBRL / ESEF | `partial` | Use loaded PGC/XBRL surfaces for narrow checks. | Complete accounting/reporting engine. | Broader inventory; not a final product claim. |
 | DORA / SFDR / CSRD / AIFMD / UCITS / CRD / EMIR / MiFID / MAR / PRIIPs / PBC / fraud | `out_of_scope` | Treat mounted endpoints as development or narrow operational surfaces unless a specific contract says otherwise. | Final accepted source coverage. | Not in accepted final product gate. |
 | Source manifest / freshness | `internal_support` | Inspect freshness for Wave 1 sources. | Complete source inventory of all workers. | `/v1/sources/manifest` covers only Wave 1 manifest rows. |

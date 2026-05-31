@@ -23,6 +23,9 @@ Observed on 2026-05-31:
 - `/status`: `41` workers, `0` stale, `0` errors
 - current deployed commit before remediation: `60e8c51`
 - final gate before remediation: `ok=true`, `13/13` checks OK
+- final gate after remediation: `ok=true`, `30/30` checks OK
+- `mcp_validation_suite.py --read-only`: `ok=true`, `tool_count=91`
+- `mcp_deep_contract_audit.py`: `ok=true`; catalog/OpenAPI parity was restored by regenerating `docs/openapi-gpt.json` and `docs/openapi-gpt-3.0.json`
 
 Key populated tables:
 
@@ -99,7 +102,7 @@ Finding: `final_product_acceptance_gate.py` covered 13 checks, while the plan re
 
 Impact: BORME, BOE diario, BDNS, CENDOJ, CDI, PSD2 and GIIN were classified from inventory but not tested by the final gate.
 
-Remediation: Gate expanded to more than 30 canonical checks, including BORME, BOE diario, BDNS, CENDOJ, CDI, PSD2, GIIN, BOE article/search, AEAT model/detail/casillas, doctrine search/list, CNMV list, EUR-Lex list, OFAC/EU screening and source manifest.
+Remediation: Gate expanded to 30 canonical checks, including BORME, BOE diario, BDNS, CENDOJ, CDI, PSD2, GIIN, BOE article/search, AEAT model/detail/casillas, doctrine search/list, CNMV list, EUR-Lex list, OFAC/EU screening and source manifest.
 
 ### F-05 Generic Source/Evidence Checks Were Too Weak
 
@@ -123,7 +126,7 @@ Finding: BDE, BDNS, CENDOJ and SEPBLAC were mounted as REST routers but absent f
 
 Impact: final matrix described a transversal MCP/API product, but several final-source corpora were REST-only.
 
-Remediation: added `listar/get` HTTP MCP operation ids for BDE, BDNS, CENDOJ and SEPBLAC.
+Remediation: added `listar/get` HTTP MCP operation ids for BDE, BDNS, CENDOJ and SEPBLAC, and regenerated the GPT Actions OpenAPI artifacts so the served reduced spec remains aligned with `HTTP_MCP_OPERATIONS`.
 
 ### F-08 Source Manifest Is Not Full Source Inventory
 

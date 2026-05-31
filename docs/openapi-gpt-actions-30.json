@@ -480,10 +480,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa.",
+              "description": "Campana especifica (ej: 2025). Si no se indica, usa la campana persistida internamente.",
               "title": "Campana"
             },
-            "description": "Campana especifica (ej: 2025). Si no se indica, usa la activa."
+            "description": "Campana especifica (ej: 2025). Si no se indica, usa la campana persistida internamente."
           },
           {
             "name": "casillas_limit",
@@ -1794,6 +1794,7 @@
       "ClaimCitation": {
         "properties": {
           "claim": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Claim",
             "description": "Afirmacion factual estructurada"
@@ -1855,6 +1856,7 @@
           },
           "modelos": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -1863,6 +1865,7 @@
           },
           "resultados": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -1890,16 +1893,19 @@
             "description": "Aviso de evidencia limitada o abstencion cuando safe_to_answer=false"
           },
           "result_metadata": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Result Metadata",
             "description": "Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos."
           },
           "relevancia": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Relevancia",
             "description": "Información de relevancia de los resultados"
           },
           "confianza": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Confianza",
             "description": "Información de confianza (faithfulness, grounding)"
@@ -2255,6 +2261,17 @@
             "type": "string",
             "title": "Coverage Note",
             "description": "Nota de cobertura del corpus"
+          },
+          "coverage_status": {
+            "type": "string",
+            "title": "Coverage Status",
+            "description": "partial_loaded | workflow_empty"
+          },
+          "safe_to_answer": {
+            "type": "boolean",
+            "title": "Safe To Answer",
+            "description": "False for interpretative partial corpora; consumers must not treat a list as a legal conclusion",
+            "default": false
           }
         },
         "type": "object",
@@ -2557,7 +2574,7 @@
           "activo": {
             "type": "boolean",
             "title": "Activo",
-            "description": "Si es la campaña activa"
+            "description": "Si es la campana persistida internamente"
           }
         },
         "type": "object",
@@ -2622,7 +2639,7 @@
           "campana_activa": {
             "type": "string",
             "title": "Campana Activa",
-            "description": "Campana marcada como activa para el modelo"
+            "description": "DEPRECATED: campana persistida; use campana_afirmable and campana_safe_to_assert para afirmaciones fiscales"
           },
           "selection_notice": {
             "type": "string",
@@ -2663,6 +2680,7 @@
             "description": "Offset para continuar, si hay mas"
           },
           "filters": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Filters",
             "description": "Filtros aplicados"
@@ -2698,6 +2716,7 @@
             "description": "Aviso operativo sobre limites de evidencia"
           },
           "confidence": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza y revision requerida"
@@ -2809,7 +2828,64 @@
           "campana_activa": {
             "type": "string",
             "title": "Campana Activa",
-            "description": "Campaña activa (año)"
+            "description": "DEPRECATED: campana persistida; use campana_afirmable and campana_safe_to_assert para afirmaciones fiscales"
+          },
+          "campana_persistida": {
+            "type": "string",
+            "title": "Campana Persistida",
+            "description": "Campana persistida internamente; no afirmable por si sola"
+          },
+          "campana_afirmable": {
+            "type": "string",
+            "title": "Campana Afirmable",
+            "description": "Campana que se puede afirmar; null salvo resolved_strong"
+          },
+          "campana_candidata": {
+            "type": "string",
+            "title": "Campana Candidata",
+            "description": "Campana candidata no afirmable si no hay evidencia fuerte"
+          },
+          "campana_resolution_status": {
+            "type": "string",
+            "title": "Campana Resolution Status",
+            "description": "Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected",
+            "default": "insufficient_evidence"
+          },
+          "campana_verification_level": {
+            "type": "string",
+            "title": "Campana Verification Level",
+            "description": "Nivel de verificacion: direct_official, inferred_internal, contradictory, insufficient o stale",
+            "default": "insufficient"
+          },
+          "campana_safe_to_assert": {
+            "type": "boolean",
+            "title": "Campana Safe To Assert",
+            "description": "True solo cuando campana_afirmable puede exponerse como verdad fiscal",
+            "default": false
+          },
+          "campana_assertion_code": {
+            "type": "string",
+            "title": "Campana Assertion Code",
+            "description": "Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*",
+            "default": "INSUFFICIENT_EVIDENCE"
+          },
+          "campana_assertion_warning": {
+            "type": "string",
+            "title": "Campana Assertion Warning",
+            "description": "Advertencia estructurada obligatoria cuando campana_safe_to_assert=false"
+          },
+          "campana_user_notice": {
+            "type": "string",
+            "title": "Campana User Notice",
+            "description": "Aviso obligatorio cuando la campana no es afirmable"
+          },
+          "technical_exercise_coverage": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloTechnicalExerciseCoverage"
+            },
+            "type": "array",
+            "title": "Technical Exercise Coverage",
+            "description": "Cobertura tecnica oficial no afirmativa; nunca prueba campana"
           },
           "campanas": {
             "items": {
@@ -3308,6 +3384,16 @@
             "title": "Source Url",
             "description": "URL oficial o trazable"
           },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "Hash o equivalente de la fuente cargada"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date",
+            "description": "Fecha de captura de la fuente"
+          },
           "excerpt": {
             "type": "string",
             "title": "Excerpt",
@@ -3346,6 +3432,59 @@
           "reason"
         ],
         "title": "ModeloSupuestoExcluded"
+      },
+      "ModeloTechnicalExerciseCoverage": {
+        "properties": {
+          "from_year": {
+            "type": "integer",
+            "title": "From Year",
+            "description": "Primer ejercicio cubierto por la fuente tecnica oficial"
+          },
+          "to_year": {
+            "type": "integer",
+            "title": "To Year",
+            "description": "Ultimo ejercicio cubierto; null si la fuente dice 'y siguientes'"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Texto oficial o etiqueta de cobertura tecnica"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "Alcance tecnico: presentacion_por_lotes, diseno_registro, xsd_wsdl u otro"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Pagina oficial donde aparece la etiqueta de cobertura"
+          },
+          "resource_url": {
+            "type": "string",
+            "title": "Resource Url",
+            "description": "Artefacto tecnico oficial asociado"
+          },
+          "proves_campaign": {
+            "type": "boolean",
+            "title": "Proves Campaign",
+            "description": "Siempre false: no prueba campana activa",
+            "default": false
+          },
+          "evidence_role": {
+            "type": "string",
+            "title": "Evidence Role",
+            "description": "Rol no afirmativo de la evidencia",
+            "default": "technical_exercise_coverage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_year",
+          "label",
+          "scope"
+        ],
+        "title": "ModeloTechnicalExerciseCoverage"
       },
       "ModelosListResponse": {
         "properties": {
@@ -3396,6 +3535,7 @@
             "description": "Si la aplicabilidad esta verificada con evidencia explicita"
           },
           "scenario_inputs": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Scenario Inputs",
             "description": "Parametros del supuesto usados"
@@ -3425,6 +3565,7 @@
             "description": "Advertencias de no invencion"
           },
           "confidence": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza operacional"
