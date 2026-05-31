@@ -6,7 +6,7 @@ Operationally, the project is closed as a useful v1 and is now in maintenance-on
 
 Functional closeout release tag: `v1.15.0`.
 
-Current hardened closeout tag: `v1.15.1` for source assurance. This adds a deterministic gate that prevents broad source/exhaustiveness claims from entering active docs, OpenAPI, MCP/API descriptions, or final coverage artifacts.
+Current hardened closeout tag: `v1.15.2` for answer verifiability. This preserves the `v1.15.1` source-assurance gate and adds a deterministic response gate so actionable consulta/MCP answers must expose searchable source locators in the response itself.
 
 Scheduled maintenance gates:
 
