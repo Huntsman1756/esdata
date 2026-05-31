@@ -4321,10 +4321,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Filtrar por texto o título",
+              "description": "Filtrar por texto o titulo",
               "title": "Q"
             },
-            "description": "Filtrar por texto o título"
+            "description": "Filtrar por texto o titulo"
           },
           {
             "name": "tipo",
@@ -4336,6 +4336,17 @@
               "title": "Tipo"
             },
             "description": "Filtrar por tipo de acto detectado"
+          },
+          {
+            "name": "empresa",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por empresa relacionada",
+              "title": "Empresa"
+            },
+            "description": "Filtrar por empresa relacionada"
           },
           {
             "name": "limit",
@@ -4617,10 +4628,103 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Filtrar por texto o título",
+              "description": "Filtrar por texto o titulo",
               "title": "Q"
             },
-            "description": "Filtrar por texto o título"
+            "description": "Filtrar por texto o titulo"
+          },
+          {
+            "name": "tipo_documento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por tipo documental BDNS",
+              "title": "Tipo Documento"
+            },
+            "description": "Filtrar por tipo documental BDNS"
+          },
+          {
+            "name": "beneficiario",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por beneficiario en metadatos BDNS",
+              "title": "Beneficiario"
+            },
+            "description": "Filtrar por beneficiario en metadatos BDNS"
+          },
+          {
+            "name": "numero_convocatoria",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filtrar por numero de convocatoria BDNS",
+              "title": "Numero Convocatoria"
+            },
+            "description": "Filtrar por numero de convocatoria BDNS"
+          },
+          {
+            "name": "importe_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "description": "Importe minimo de concesion",
+              "title": "Importe Min"
+            },
+            "description": "Importe minimo de concesion"
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fecha minima YYYY-MM-DD",
+              "title": "Fecha Desde"
+            },
+            "description": "Fecha minima YYYY-MM-DD"
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Fecha maxima YYYY-MM-DD",
+              "title": "Fecha Hasta"
+            },
+            "description": "Fecha maxima YYYY-MM-DD"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Limite de documentos devueltos",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Limite de documentos devueltos"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Offset de paginacion",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Offset de paginacion"
           }
         ],
         "responses": {
@@ -5213,6 +5317,10 @@
             "type": "string",
             "title": "Titulo"
           },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
+          },
           "texto": {
             "type": "string",
             "title": "Texto"
@@ -5252,6 +5360,10 @@
           "titulo": {
             "type": "string",
             "title": "Titulo"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "title": "Tipo Documento"
           },
           "fragmento": {
             "type": "string",
@@ -5300,10 +5412,26 @@
             "type": "integer",
             "title": "Total"
           },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "type": "integer",
+            "title": "Next Offset"
+          },
           "coverage_status": {
             "type": "string",
             "title": "Coverage Status",
-            "description": "very_limited | workflow_empty"
+            "description": "partial_loaded | very_limited | workflow_empty"
           },
           "safe_to_answer": {
             "type": "boolean",

@@ -52,9 +52,15 @@
 | `BOE_API_BASE` | No | `https://www.boe.es/datosabiertos/api/legislacion-consolidada` | `runtime deploy` | Worker BOE + cron |
 | `BOE_LEGISLACION_NORMAS` | No | `LIVA,LIRPF,LIS,LGT,ITPAJD,TRLIRNR,LEY10_2010,RDL19_2018,LIVMC,RD_1082_2012,RD_813_2023,IRNR,IIEE,HL,DAC6,DAC6RD,DAC6EU` | `runtime deploy` | Worker BOE + cron |
 | `BOE_SYNC_INTERVAL_SECONDS` | No | `3600` | `runtime deploy` | Worker BOE |
-| `BDNS_SEED_URLS` | Si | | `runtime deploy` | Worker BDNS + cron |
+| `BDNS_SEED_URLS` | No | vacio | `runtime deploy` | PDFs/documentos BDNS semilla; opcional si `BDNS_STRUCTURED_ENDPOINTS` esta configurado |
+| `BDNS_STRUCTURED_ENDPOINTS` | No | `convocatoria,concesion,minimis,ayudas_estado,grandes_beneficiarios,partidos_politicos` | `runtime deploy` | Endpoints oficiales estructurados BDNS a paginar |
+| `BDNS_MAX_PAGES` | No | `1` | `runtime deploy` | Paginas maximas por endpoint estructurado BDNS y ejecucion |
+| `BDNS_PAGE_SIZE` | No | `100` | `runtime deploy` | Tamano de pagina por endpoint estructurado BDNS |
 | `BDNS_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BDNS |
 | `BORME_SEED_URLS` | Si | | `runtime deploy` | Worker BORME + cron |
+| `BORME_DISCOVER_FROM_SUMMARY` | No | `true` | `runtime deploy` | Descubrimiento BORME desde sumarios oficiales BOE |
+| `BORME_DAYS_BACK` | No | `7` | `runtime deploy` | Dias hacia atras para descubrir sumarios BORME |
+| `BORME_MAX_URLS_PER_RUN` | No | `50` | `runtime deploy` | Maximo de PDFs/URLs BORME por ejecucion |
 | `BORME_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BORME |
 | `CNMV_SEED_URLS` | Si | | `runtime deploy` | Worker CNMV + cron |
 | `CNMV_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker CNMV |
@@ -69,6 +75,10 @@
 | `BDE_SEED_URLS` | Si | | `runtime deploy` | Worker BDE + cron |
 | `BDE_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BDE |
 | `AEPD_SEED_URLS` | Si | | `runtime deploy` | Worker AEPD |
+| `AEPD_DISCOVER_FROM_INDEX` | No | `true` | `runtime deploy` | Descubrimiento AEPD desde indice oficial de guias |
+| `AEPD_GUIDES_INDEX_URL` | No | `https://www.aepd.es/guias-y-herramientas/guias` | `runtime deploy` | Indice oficial de guias AEPD |
+| `AEPD_MAX_URLS_PER_RUN` | No | `25` | `runtime deploy` | Maximo de URLs AEPD por ejecucion |
+| `AEPD_DISCOVERY_PAGES` | No | `3` | `runtime deploy` | Paginas de indice AEPD a recorrer |
 | `AEPD_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker AEPD |
 | `DGT_SSL_VERIFY` | No | `false` en `compose.env.example` | `runtime deploy` | Worker DGT + cron |
 | `DGT_DISCOVERY` | No | `true` | `runtime deploy` | Worker DGT |
@@ -97,6 +107,11 @@
 | `HC_PING_URL_CRON_CNMV_WEEKLY` | No | vacio | `runtime deploy` | `cron-cnmv-weekly` |
 | `HC_PING_URL_CRON_SEPBLAC_WEEKLY` | No | vacio | `runtime deploy` | `cron-sepblac-weekly` |
 | `HC_PING_URL_CRON_BDE_WEEKLY` | No | vacio | `runtime deploy` | `cron-bde-weekly` |
+| `HC_PING_URL_CRON_EURLEX_MARKET_MONTHLY` | No | vacio | `runtime deploy` | `cron-eurlex-market-monthly` |
+| `HC_PING_URL_CRON_ESMA_MIFIR_REPORTING_WEEKLY` | No | vacio | `runtime deploy` | `cron-esma-mifir-reporting-weekly` |
+| `HC_PING_URL_CRON_ESMA_FIRDS_DAILY` | No | vacio | `runtime deploy` | `cron-esma-firds-daily` |
+| `HC_PING_URL_CRON_ESMA_DLT_WEEKLY` | No | vacio | `runtime deploy` | `cron-esma-dlt-weekly` |
+| `HC_PING_URL_OFFICIAL_REGULATORY_REFERENCES` | No | vacio | `runtime deploy` | `cron-official-regulatory-references` |
 | `HC_PING_URL_CRON_EU_SANCTIONS_WEEKLY` | No | vacio | `runtime deploy` | `cron-eu-sanctions-weekly` |
 | `GRAFANA_ADMIN_PASSWORD` | No | vacio | `runtime deploy` | Perfil `prod` de Grafana |
 | `GRAFANA_ROOT_URL` | No | `https://tudominio.com/grafana/` | `runtime deploy` | Perfil `prod` de Grafana |

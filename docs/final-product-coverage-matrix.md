@@ -63,9 +63,9 @@ Backup/offsite restore is intentionally deferred. That means functional product 
 | AEPD | `partial` | Review loaded AEPD official documents with partial coverage metadata. | Full data-protection compliance answer. | `/v1/aepd` |
 | SEPBLAC | `partial` | Review loaded SEPBLAC documents with partial coverage metadata. | Full PBC/FT decisioning by subject/profile. | `/v1/sepblac` |
 | BDE | `partial` | Review loaded Banco de Espana documents with partial coverage metadata. | Complete banking-supervision coverage. | `/v1/bde` |
-| BORME | `partial` | Use only where specific endpoints/data are exposed and traceable. | Complete corporate registry coverage. | `/v1/borme` |
+| BORME | `partial` | Use loaded BORME acts with official BOE URL, related-company links and heuristic appointment metadata. | Complete corporate registry coverage or certified company/officer state. | `/v1/borme` |
 | BOE diario | `partial` | Review loaded non-consolidated BOE daily documents. | Consolidated law status or complete BOE daily universe. | `/v1/boe-diario` |
-| BDNS | `very_limited` | Narrow subsidy-document checks only. | Broad subsidy coverage. | `/v1/bdns` |
+| BDNS | `partial_loaded` | Use structured official rows when loaded (`convocatorias`, `concesiones` and related endpoint families) with fail-closed response contract. | Broad or exhaustive subsidy coverage. | `/v1/bdns` |
 | CENDOJ | `very_limited` | Narrow loaded-document checks only. | Broad jurisprudence coverage. | `/v1/cendoj` |
 | CDI / DTA convenios | `partial` | Explore loaded double-tax conventions and treaty metadata as inventory. | Definitive withholding result by country/article/income type without dedicated evidence. | `/v1/internacional/convenios`; inventory-only until source provenance fields are added. |
 | CRS / DAC2 / FATCA / GIIN | `partial` | Review loaded IRS/GIIN/FATCA/CRS references and model metadata as inventory. | Complete CRS/DAC2 or FATCA procedure coverage. | `/v1/irs-fiscal/giin`; inventory-only until source provenance fields are added. |

@@ -12,6 +12,7 @@ Limitaciones conocidas:
 """
 
 import argparse
+import json
 import logging
 import os
 import re
@@ -38,7 +39,7 @@ from runtime import (
     sleep_with_heartbeat,
     touch_heartbeat,
 )
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,15 @@ ROLE_PATTERNS = [
     ("absorbida", r"\(([Ss]ociedad absorbida)\)"),
     ("beneficiaria", r"\(([Ss]ociedades? beneficiarias?)\)"),
     ("escindida", r"\(([Ss]ociedad totalmente escindida)\)"),
+]
+APPOINTMENT_ROLE_PATTERNS = [
+    ("administrador_unico", r"\bAdm\.\s*Unico:\s*([^\.]+)"),
+    ("administrador_solidario", r"\bAdm\.\s*Solid\.\s*:\s*([^\.]+)"),
+    ("administrador_mancomunado", r"\bAdm\.\s*Mancom\.\s*:\s*([^\.]+)"),
+    ("consejero", r"\bConsejero:\s*([^\.]+)"),
+    ("presidente", r"\bPresidente:\s*([^\.]+)"),
+    ("secretario", r"\bSecretario:\s*([^\.]+)"),
+    ("apoderado", r"\bApoderad[oa]:\s*([^\.]+)"),
 ]
 
 
@@ -271,6 +281,31 @@ def _extract_related_companies(text_value: str) -> list[dict[str, str | float | 
     return _dedupe_company_entries(entries)
 
 
+def _extract_person_appointments(text_value: str) -> list[dict[str, str | float | None]]:
+    appointments: list[dict[str, str | float | None]] = []
+    seen: set[tuple[str, str]] = set()
+    for cargo, pattern in APPOINTMENT_ROLE_PATTERNS:
+        for match in re.finditer(pattern, text_value, flags=re.IGNORECASE):
+            raw_names = match.group(1)
+            for raw_name in re.split(r"\s*;\s*|\s*,\s*(?=[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ ]{3,})", raw_names):
+                nombre = _normalize_whitespace(raw_name).strip(" .,:;")
+                if not nombre:
+                    continue
+                key = (nombre.upper(), cargo)
+                if key in seen:
+                    continue
+                seen.add(key)
+                appointments.append(
+                    {
+                        "nombre": nombre,
+                        "cargo": cargo,
+                        "confianza_extraccion": 0.72,
+                        "nota": "Extraccion heuristica desde BORME",
+                    }
+                )
+    return appointments
+
+
 def _extract_domicilio(text_value: str) -> str | None:
     match = re.search(r"\bDomicilio:\s*([^\.]+)", text_value, flags=re.IGNORECASE)
     if not match:
@@ -297,6 +332,8 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
     referencia = _extract_pdf_code(url)
     first_line = next((line.strip() for line in text_value.splitlines() if line.strip()), "")
     event_type = _detect_event_type(text_value)
+    empresas = _extract_related_companies(text_value)
+    appointments = _extract_person_appointments(text_value)
     title_bits = [bit for bit in [referencia, first_line] if bit]
 
     return {
@@ -308,47 +345,94 @@ def build_document_payload(url: str, content: bytes) -> dict[str, str]:
         "tipo_documento": event_type,
         "empresa_nombre": _extract_company_name(text_value),
         "empresa_domicilio": _extract_domicilio(text_value),
-        "empresas": _extract_related_companies(text_value),
+        "empresas": empresas,
+        "metadata": {
+            "source_kind": "official_borme_pdf",
+            "parser": "esdata_borme_pdf_heuristic",
+            "companies_extracted": len(empresas),
+            "appointments": appointments,
+        },
+        "row_completeness": "partial",
+        "row_provenance": "official_best_effort",
     }
 
 
-def upsert_documento_interpretativo(conn, payload: dict[str, str]) -> None:
+def _table_columns(conn, table_name: str) -> set[str]:
+    return {column["name"] for column in inspect(conn).get_columns(table_name)}
+
+
+def upsert_documento_interpretativo(conn, payload: dict[str, object]) -> None:
+    record = {
+        "tipo_documento": payload["tipo_documento"],
+        "referencia": payload["referencia"],
+        "fecha": payload["fecha"],
+        "titulo": payload["titulo"],
+        "texto": payload["texto"],
+        "url_fuente": payload["url_fuente"],
+        "metadata": json.dumps(payload.get("metadata", {}), ensure_ascii=False, sort_keys=True),
+        "row_completeness": payload.get("row_completeness", "partial"),
+        "row_provenance": payload.get("row_provenance", "official_best_effort"),
+    }
+    existing_columns = _table_columns(conn, "documento_interpretativo")
+    columns = [
+        column
+        for column in (
+            "tipo_documento",
+            "organismo_emisor",
+            "jurisdiccion",
+            "tipo_fuente",
+            "ambito",
+            "referencia",
+            "fecha",
+            "titulo",
+            "texto",
+            "url_fuente",
+            "metadata",
+            "row_completeness",
+            "row_provenance",
+        )
+        if column in existing_columns
+    ]
+    values = {
+        **record,
+        "organismo_emisor": "BORME",
+        "jurisdiccion": "es",
+        "tipo_fuente": "borme",
+        "ambito": "mercantil",
+    }
+    update_columns = [
+        column
+        for column in (
+            "tipo_documento",
+            "fecha",
+            "titulo",
+            "texto",
+            "url_fuente",
+            "metadata",
+            "row_completeness",
+            "row_provenance",
+        )
+        if column in existing_columns
+    ]
+    column_sql = ",\n                ".join(columns)
+    values_sql = ",\n                ".join(f":{column}" for column in columns)
+    update_sql = ",\n                ".join(
+        f"{column} = excluded.{column}" for column in update_columns
+    )
     conn.execute(
         text(
-            """
+            f"""
             INSERT INTO documento_interpretativo (
-                tipo_documento,
-                organismo_emisor,
-                jurisdiccion,
-                tipo_fuente,
-                ambito,
-                referencia,
-                fecha,
-                titulo,
-                texto,
-                url_fuente
+                {column_sql}
             )
             VALUES (
-                :tipo_documento,
-                'BORME',
-                'es',
-                'borme',
-                'mercantil',
-                :referencia,
-                :fecha,
-                :titulo,
-                :texto,
-                :url_fuente
+                {values_sql}
             )
             ON CONFLICT (referencia) DO UPDATE SET
-                tipo_documento = excluded.tipo_documento,
-                fecha = excluded.fecha,
-                titulo = excluded.titulo,
-                texto = excluded.texto,
-                url_fuente = excluded.url_fuente
+                {update_sql}
             """
         ),
-        payload,
+        {column: values[column] for column in columns},
     )
 
 

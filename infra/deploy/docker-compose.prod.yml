@@ -271,7 +271,10 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
+      BDNS_SEED_URLS: ${BDNS_SEED_URLS:-}
+      BDNS_STRUCTURED_ENDPOINTS: ${BDNS_STRUCTURED_ENDPOINTS:-convocatoria,concesion,minimis,ayudas_estado,grandes_beneficiarios,partidos_politicos}
+      BDNS_MAX_PAGES: ${BDNS_MAX_PAGES:-1}
+      BDNS_PAGE_SIZE: ${BDNS_PAGE_SIZE:-100}
       SYNC_INTERVAL_SECONDS: ${BDNS_SYNC_INTERVAL_SECONDS:-604800}
       WORKER_CMD: python bdns.py
       WORKER_REQUEST_DELAY: ${WORKER_REQUEST_DELAY:-1.0}
@@ -655,7 +658,10 @@ services:
     profiles: ["cron"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      BDNS_SEED_URLS: ${BDNS_SEED_URLS:?BDNS_SEED_URLS is required}
+      BDNS_SEED_URLS: ${BDNS_SEED_URLS:-}
+      BDNS_STRUCTURED_ENDPOINTS: ${BDNS_STRUCTURED_ENDPOINTS:-convocatoria,concesion,minimis,ayudas_estado,grandes_beneficiarios,partidos_politicos}
+      BDNS_MAX_PAGES: ${BDNS_MAX_PAGES:-1}
+      BDNS_PAGE_SIZE: ${BDNS_PAGE_SIZE:-100}
       HEALTHCHECKS_PING_URL: ${HC_PING_URL_CRON_BDNS_WEEKLY:-}
       WORKER_CMD: python bdns.py --run-once
     depends_on:

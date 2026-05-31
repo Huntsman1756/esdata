@@ -4368,6 +4368,7 @@ class BDNSListItem(BaseModel):
     referencia: str
     fecha: str | None = None
     titulo: str | None = None
+    tipo_documento: str | None = None
     fragmento: str
     url_fuente: str | None = None
     row_completeness: str | None = Field(default=None, description="complete | partial")
@@ -4378,7 +4379,11 @@ class BDNSListResponse(BaseModel):
     convocatorias: list[BDNSListItem]
     items: list[BDNSListItem] = Field(default_factory=list, description="Alias paginado para consumidores MCP/GPT")
     total: int | None = None
-    coverage_status: str | None = Field(default=None, description="very_limited | workflow_empty")
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
+    next_offset: int | None = None
+    coverage_status: str | None = Field(default=None, description="partial_loaded | very_limited | workflow_empty")
     safe_to_answer: bool = Field(
         default=False,
         description="False for very limited BDNS corpus; consumers must not infer subsidy coverage from this list",
@@ -4390,6 +4395,7 @@ class BDNSDetail(BaseModel):
     referencia: str
     fecha: str | None = None
     titulo: str | None = None
+    tipo_documento: str | None = None
     texto: str
     url_fuente: str | None = None
     row_completeness: str | None = Field(default=None, description="complete | partial")

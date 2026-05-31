@@ -1,9 +1,9 @@
+from db import db_session
 from fastapi import APIRouter, HTTPException, Query, Request
+from schemas import BORMEDetail, BORMEListResponse
 from sqlalchemy import text
 
-from db import db_session
 from routers.retrieval_audit import record_retrieval_query_audit
-from schemas import BORMEDetail, BORMEListResponse
 
 router = APIRouter(prefix="/v1/borme", tags=["borme"])
 
@@ -17,8 +17,9 @@ def _quality_signal(row_completeness: str | None, row_provenance: str | None) ->
 @router.get("", response_model=BORMEListResponse, operation_id="listar_borme")
 async def listar_borme(
     request: Request,
-    q: str | None = Query(None, description="Filtrar por texto o título"),
+    q: str | None = Query(None, description="Filtrar por texto o titulo"),
     tipo: str | None = Query(None, description="Filtrar por tipo de acto detectado"),
+    empresa: str | None = Query(None, description="Filtrar por empresa relacionada"),
     limit: int = Query(20, ge=1, le=100, description="Limite de actos devueltos"),
     offset: int = Query(0, ge=0, description="Offset de paginacion"),
 ):
@@ -37,6 +38,19 @@ async def listar_borme(
     if tipo:
         filters.append("d.tipo_documento = :tipo")
         params["tipo"] = tipo
+    if empresa:
+        filters.append(
+            """
+            EXISTS (
+                SELECT 1
+                FROM documento_empresa de
+                JOIN empresa e ON e.id = de.empresa_id
+                WHERE de.documento_id = d.id
+                  AND LOWER(e.nombre) LIKE LOWER(:empresa)
+            )
+            """
+        )
+        params["empresa"] = f"%{empresa}%"
 
     with db_session() as db:
         rows = db.execute(

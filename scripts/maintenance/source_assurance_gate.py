@@ -82,7 +82,7 @@ MANDATORY_MATRIX_STATES = {
     "BDE": "partial",
     "BORME": "partial",
     "BOE diario": "partial",
-    "BDNS": "very_limited",
+    "BDNS": "partial_loaded",
     "CENDOJ": "very_limited",
     "CDI / DTA convenios": "partial",
     "CRS / DAC2 / FATCA / GIIN": "partial",

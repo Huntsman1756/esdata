@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from borme import (
     build_document_payload,
     discover_borme_pdf_urls,
+    _extract_person_appointments,
     _extract_borme_pdf_urls_from_summary,
     link_documento_empresas,
     run_sync,
@@ -169,6 +170,34 @@ def test_build_document_payload_extracts_reference_event_and_text():
     assert any(item["rol"] == "absorbida" for item in payload["empresas"])
 
 
+def test_extract_person_appointments_detects_cargo_and_person_from_official_text():
+    appointments = _extract_person_appointments(
+        "Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA. "
+        "Datos registrales. T 100, F 20."
+    )
+
+    assert appointments == [
+        {
+            "nombre": "ALVAREZ GARCIA JOSE MARIA",
+            "cargo": "administrador_unico",
+            "confianza_extraccion": 0.72,
+            "nota": "Extraccion heuristica desde BORME",
+        }
+    ]
+
+
+def test_build_document_payload_includes_borme_structured_metadata():
+    payload = build_document_payload(
+        "https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf",
+        MINIMAL_BORME_PDF,
+    )
+
+    assert payload["row_completeness"] == "partial"
+    assert payload["row_provenance"] == "official_best_effort"
+    assert payload["metadata"]["source_kind"] == "official_borme_pdf"
+    assert payload["metadata"]["companies_extracted"] >= 2
+
+
 def test_upsert_documento_interpretativo_stores_borme_fields_once():
     engine = create_engine("sqlite:///:memory:", future=True)
 
@@ -187,7 +216,10 @@ def test_upsert_documento_interpretativo_stores_borme_fields_once():
                     fecha TEXT NOT NULL,
                     titulo TEXT,
                     texto TEXT NOT NULL,
-                    url_fuente TEXT
+                    url_fuente TEXT,
+                    metadata TEXT,
+                    row_completeness TEXT,
+                    row_provenance TEXT
                 )
                 """
             )
@@ -200,6 +232,17 @@ def test_upsert_documento_interpretativo_stores_borme_fields_once():
             "tipo_documento": "nombramiento",
             "texto": "Nombramientos. Adm. Unico: ALVAREZ GARCIA JOSE MARIA.",
             "url_fuente": "https://www.boe.es/borme/dias/2025/03/20/pdfs/BORME-A-2025-55-37.pdf",
+            "metadata": {
+                "source_kind": "official_borme_pdf",
+                "appointments": [
+                    {
+                        "nombre": "ALVAREZ GARCIA JOSE MARIA",
+                        "cargo": "administrador_unico",
+                    }
+                ],
+            },
+            "row_completeness": "partial",
+            "row_provenance": "official_best_effort",
         }
 
         upsert_documento_interpretativo(conn, payload)
@@ -207,7 +250,7 @@ def test_upsert_documento_interpretativo_stores_borme_fields_once():
 
         row = conn.execute(
             text(
-                "SELECT referencia, tipo_documento, organismo_emisor, tipo_fuente, ambito, COUNT(*) FROM documento_interpretativo GROUP BY referencia, tipo_documento, organismo_emisor, tipo_fuente, ambito"
+                "SELECT referencia, tipo_documento, organismo_emisor, tipo_fuente, ambito, metadata, row_completeness, row_provenance, COUNT(*) FROM documento_interpretativo GROUP BY referencia, tipo_documento, organismo_emisor, tipo_fuente, ambito, metadata, row_completeness, row_provenance"
             )
         ).fetchone()
 
@@ -217,6 +260,9 @@ def test_upsert_documento_interpretativo_stores_borme_fields_once():
         "BORME",
         "borme",
         "mercantil",
+        '{"appointments": [{"cargo": "administrador_unico", "nombre": "ALVAREZ GARCIA JOSE MARIA"}], "source_kind": "official_borme_pdf"}',
+        "partial",
+        "official_best_effort",
         1,
     )
 
