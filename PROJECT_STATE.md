@@ -6,7 +6,7 @@ Operationally, the project is closed as a useful v1 and is now in maintenance-on
 
 Functional closeout release tag: `v1.15.0`.
 
-Current administrative closeout tag: `v1.15.3`. This preserves `v1.15.2` answer verifiability and records the final BDNS/BORME structured-ingestion rollout, MCP validation recovery, and VPS health evidence.
+Current operational review tag: `v1.15.4`. This preserves `v1.15.3` administrative closeout and records the live sources/jobs review, CNMV ingestion hardening, and green MCP validation/deep-audit evidence.
 
 Latest runtime evidence:
 
@@ -15,7 +15,9 @@ Latest runtime evidence:
 - `/health` is OK on the VPS.
 - `systemctl --failed` is clean on the VPS.
 - `esdata-mcp-validation.service` passes with `ok=true`.
+- `esdata-mcp-deep-audit.service` passes with `ok=true`.
 - Weak DORA/MiCA duplicate rows, CNMV missing `sujeto_obligado`, and legacy `BDNS-CONCESION-unknown` artifacts are at `0`.
+- `/status` reports `41` workers, `0` stale, `0` errors, and `worker-cnmv` as partial only because 20 externally hosted CNMV documents fail fetch; this is not a semantic gate failure after the subject-tag remediation.
 
 Explicitly deferred:
 

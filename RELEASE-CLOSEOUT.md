@@ -8,12 +8,13 @@ ESData is useful for evidence-backed regulatory consultation, audit trails, and 
 
 ## Current closeout snapshot
 
-Administrative closeout tag: `v1.15.3`.
+Operational review tag: `v1.15.4`.
 
 This closeout includes the BDNS/BORME structured-ingestion rollout and the post-deploy validation fixes needed to keep the VPS gates green:
 
 - BDNS official structured rows are ingested as bounded, traceable subsidy data, with fail-closed API semantics.
 - BORME official BOE summary/PDF rows are ingested with explicit best-effort extraction metadata.
+- CNMV legacy Office binary documents are stored as official partial metadata instead of being parsed as HTML, and ESI model rows are tagged with `sujeto_obligado`.
 - MCP validation, deep audit scheduling, source-assurance gates, answer-verifiability gates, and operational health checks remain part of the release contract.
 
 Offsite backup configuration and restore drill are explicitly not part of this snapshot. They remain a separate operations block and must not be represented as completed disaster-recovery readiness.
