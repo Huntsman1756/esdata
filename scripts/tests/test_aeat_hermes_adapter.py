@@ -205,6 +205,27 @@ def test_extract_json_block_dedupes_referenced_official_sources():
     assert extracted["official_sources"][0]["locator"] == "Gestiones destacadas"
 
 
+def test_extract_json_block_normalizes_boe_http_to_https():
+    module = _load(EXTRACTOR_PATH, "extract_aeat_hermes_json")
+    payload = _report()
+    payload["official_sources"][0]["source_id"] = "BOE_IRNR"
+    payload["official_sources"][0]["authority"] = "BOE"
+    payload["official_sources"][0]["url"] = "http://www.boe.es/buscar/act.php?id=BOE-A-2013-12385"
+    payload["official_source_claims"][0]["source_id"] = "BOE_IRNR"
+    raw = (
+        "BEGIN_AEAT_HERMES_JSON\n"
+        f"{json.dumps(payload)}\n"
+        "END_AEAT_HERMES_JSON\n"
+    )
+
+    extracted = module.extract_json_block(raw)
+
+    assert (
+        extracted["official_sources"][0]["url"]
+        == "https://www.boe.es/buscar/act.php?id=BOE-A-2013-12385"
+    )
+
+
 def test_render_markdown_is_view_not_source_of_truth():
     module = _load(RENDERER_PATH, "render_aeat_hermes_report")
 

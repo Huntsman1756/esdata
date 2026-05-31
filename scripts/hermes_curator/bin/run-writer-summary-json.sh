@@ -18,6 +18,7 @@ latest_run="$(find "$REPORTS/daily-summary" -maxdepth 1 -name 'run-*.log' -type 
 
 decision="NEEDS_HUMAN_REVIEW"
 campaign_status="MISSING"
+legal_status="MISSING"
 if [ -z "$latest_campaign_json" ]; then
   decision="BLOCKED"
   campaign_status="MISSING_JSON_SUMMARY"
@@ -29,6 +30,18 @@ else
 fi
 if [ -n "$latest_qa" ] && grep -q '^BLOCKER$' "$latest_qa"; then
   decision="BLOCKED"
+fi
+if [ -z "$latest_legal" ]; then
+  decision="BLOCKED"
+  legal_status="MISSING_LEGAL_SUMMARY"
+elif grep -q '"SKIPPED",' "$latest_legal"; then
+  decision="BLOCKED"
+  legal_status="AMBIGUOUS_SKIPPED"
+elif grep -q '"ERROR"' "$latest_legal"; then
+  decision="BLOCKED"
+  legal_status="LEGAL_ERRORS"
+else
+  legal_status="EXPLICIT"
 fi
 
 {
@@ -64,6 +77,20 @@ fi
       ;;
   esac
   echo "- Human review is still required before data changes."
+  case "$legal_status" in
+    EXPLICIT)
+      echo "- Legal source audit statuses include explicit reasons."
+      ;;
+    MISSING_LEGAL_SUMMARY)
+      echo "- BLOCKER: missing legal source audit summary."
+      ;;
+    AMBIGUOUS_SKIPPED)
+      echo "- BLOCKER: legal source audit contains ambiguous SKIPPED rows."
+      ;;
+    LEGAL_ERRORS)
+      echo "- BLOCKER: legal source audit contains ERROR rows."
+      ;;
+  esac
   echo
   echo "## AEAT JSON Summary"
   [ -n "$latest_campaign_json" ] && cat "$latest_campaign_json"

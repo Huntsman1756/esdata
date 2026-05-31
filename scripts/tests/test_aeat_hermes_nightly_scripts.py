@@ -61,6 +61,28 @@ def test_json_daily_summary_ignores_legacy_campaign_summary_as_source():
     assert "IGNORED" in source
     assert "JSON_ERRORS" in source
     assert "validated JSON is the primary artifact" in source
+    assert "AMBIGUOUS_SKIPPED" in source
+    assert "legal source audit contains ambiguous SKIPPED rows" in source
+
+
+def test_legal_source_runner_explains_skipped_rows():
+    source = (
+        ROOT / "scripts" / "hermes_curator" / "bin" / "run-legal-sources.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "source_id,status,reason,output_file" in source
+    assert "SKIPPED_EXISTING_REPORT" in source
+    assert "existing report reused" in source
+    assert "FORCE_LEGAL=1" in source
+
+
+def test_ops_health_avoids_untracked_secret_tree_scan():
+    source = (
+        ROOT / "scripts" / "hermes_curator" / "bin" / "run-ops-health.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "git status --short --branch --untracked-files=no" in source
+    assert "Permission denied" in source
 
 
 def test_single_model_json_runner_publishes_only_validated_json():

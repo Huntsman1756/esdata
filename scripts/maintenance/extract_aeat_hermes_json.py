@@ -62,11 +62,24 @@ def _is_transactional_aeat_form_url(url: object) -> bool:
     )
 
 
+def _normalize_official_source_url(url: object) -> object:
+    if not isinstance(url, str):
+        return url
+    parsed = urlparse(url)
+    if parsed.scheme.lower() == "http" and parsed.netloc.lower() == "www.boe.es":
+        return "https://" + url[len("http://") :]
+    return url
+
+
 def _sanitize_payload(payload: dict) -> dict:
     sources = payload.get("official_sources")
     claims = payload.get("official_source_claims")
     if not isinstance(sources, list) or not isinstance(claims, list):
         return payload
+
+    for source in sources:
+        if isinstance(source, dict) and "url" in source:
+            source["url"] = _normalize_official_source_url(source.get("url"))
 
     transactional_source_ids = {
         source.get("source_id")
