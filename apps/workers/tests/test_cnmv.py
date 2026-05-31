@@ -415,6 +415,28 @@ def test_build_document_payload_applies_family_metadata_and_partial_contract():
     assert '"sujeto_obligado": ["sgiic", "sociedad_valores"]' in payload["metadata"]
 
 
+def test_build_document_payload_treats_legacy_doc_as_partial_metadata():
+    payload = build_document_payload(
+        "https://www.cnmv.es/docPortal/Legislacion/ModelosNormalizados/ESI/modelo.doc",
+        b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1\x00\x00binary-word",
+        "application/msword",
+        metadata={
+            "referencia": "CNMV-MODELO-ESI-legacy-doc",
+            "titulo": "Modelo normalizado ESI legacy",
+            "fecha": "2026-05-31",
+            "tipo_documento": "modelo_esi_cnmv",
+            "estado_vigencia": "vigente",
+            "family_id": "modelos_esi",
+        },
+    )
+
+    assert payload["referencia"] == "CNMV-MODELO-ESI-legacy-doc"
+    assert payload["row_completeness"] == "partial"
+    assert payload["row_provenance"] == "official_best_effort"
+    assert "\x00" not in payload["texto"]
+    assert payload["texto"].startswith("[PARTIAL]")
+
+
 def test_discover_new_documents_filters_source_family_and_limits(monkeypatch):
     monkeypatch.setattr("cnmv._discover_cnmv_circulares", lambda: ["https://example.invalid/circular.pdf"])
     monkeypatch.setattr(

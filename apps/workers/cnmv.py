@@ -1303,7 +1303,18 @@ def extract_pdf_text(content: bytes) -> str:
 
 def extract_html_text(content: bytes) -> str:
     soup = BeautifulSoup(content.decode("utf-8", errors="ignore"), "html.parser")
-    return _normalize_whitespace(soup.get_text(" ", strip=True))
+    return _normalize_whitespace(soup.get_text(" ", strip=True).replace("\x00", " "))
+
+
+def _is_unsupported_binary_document(url: str, content: bytes, content_type: str) -> bool:
+    lowered_url = url.lower()
+    lowered_type = content_type.lower()
+    return (
+        lowered_url.endswith((".doc", ".xls", ".ppt"))
+        or "msword" in lowered_type
+        or "vnd.ms-" in lowered_type
+        or content.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1")
+    )
 
 
 def _resolve_boe_document_url(url: str, content: bytes, content_type: str) -> str:
@@ -1338,7 +1349,9 @@ def build_document_payload(
     metadata = dict(metadata or {})
     text_value = ""
     try:
-        if "pdf" in content_type.lower() or content.startswith(b"%PDF-"):
+        if _is_unsupported_binary_document(url, content, content_type):
+            text_value = ""
+        elif "pdf" in content_type.lower() or content.startswith(b"%PDF-"):
             text_value = extract_pdf_text(content)
         else:
             text_value = extract_html_text(content)
