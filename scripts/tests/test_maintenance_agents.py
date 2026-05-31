@@ -216,6 +216,13 @@ def test_mcp_validation_suite_requires_cnmv_expanded_families_loaded():
     assert details["family_count"] == 3
 
 
+def test_mcp_validation_suite_excludes_cnmv_sanctions_from_subject_gate():
+    source = (ROOT / "scripts" / "maintenance" / "mcp_validation_suite.py").read_text(encoding="utf-8")
+
+    assert "cnmv_rows_missing_sujeto_obligado" in source
+    assert "tipo_documento <> 'sancion_cnmv'" in source
+
+
 def test_mcp_validation_suite_requires_fail_closed_empty_domain_response():
     suite = _load_validation_suite()
 

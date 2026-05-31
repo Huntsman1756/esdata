@@ -1119,6 +1119,7 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             FROM documento_interpretativo
             WHERE organismo_emisor='CNMV'
               AND tipo_fuente='cnmv'
+              AND tipo_documento <> 'sancion_cnmv'
               AND (
                   sujeto_obligado IS NULL
                   OR cardinality(sujeto_obligado) = 0
