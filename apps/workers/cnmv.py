@@ -75,7 +75,7 @@ CNMV_NORMATIVA_ESI_URL = "https://www.cnmv.es/portal/menu/legislacion-esi?lang=e
 CNMV_MODELOS_ESI_URL = "https://www.cnmv.es/Portal/Legislacion/ModelosN/ModelosN.aspx?id=ESI&lang=es"
 CNMV_LEGISLACION_ESI_URL = "https://www.cnmv.es/portal/legislacion/legislacion/tematico?id=6&lang=es"
 CNMV_SANCIONES_URL = "https://www.cnmv.es/Portal/Consultas/RegistroSanciones/verRegSanciones?lang=es"
-DEFAULT_CNMV_SANCIONES_MAX_PAGES = 1
+DEFAULT_CNMV_SANCIONES_MAX_PAGES = 25
 CNMV_CIRCULARES_PATTERN = re.compile(
     r"/Portal/Legislacion/Circulares-(\d{4})-(\d{4})\.aspx", re.IGNORECASE
 )
@@ -752,8 +752,12 @@ def _discover_source_family_documents() -> list[dict]:
                 source_url = CNMV_SANCIONES_URL if page == 0 else f"{CNMV_SANCIONES_URL}&page={page}"
                 try:
                     response = client.get(source_url)
-                    if response.status_code == 200:
-                        candidates.extend(_parse_cnmv_sanctions(response.text, source_url))
+                    if response.status_code != 200:
+                        break
+                    page_candidates = _parse_cnmv_sanctions(response.text, source_url)
+                    if not page_candidates:
+                        break
+                    candidates.extend(page_candidates)
                 except Exception:
                     logger.warning("Failed to scrape CNMV sanctions register: %s", source_url)
                     continue

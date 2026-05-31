@@ -64,7 +64,7 @@
 | `BORME_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker BORME |
 | `CNMV_SEED_URLS` | Si | | `runtime deploy` | Worker CNMV + cron |
 | `CNMV_DISCOVER_SANCIONES` | No | `true` | `runtime deploy` | Descubrimiento CNMV desde registro publico oficial de sanciones |
-| `CNMV_SANCIONES_MAX_PAGES` | No | `1` | `runtime deploy` | Paginas maximas del registro de sanciones CNMV por ejecucion |
+| `CNMV_SANCIONES_MAX_PAGES` | No | `25` | `runtime deploy` | Paginas maximas del registro de sanciones CNMV por ejecucion; corta antes si una pagina oficial ya no devuelve filas |
 | `CNMV_SYNC_INTERVAL_SECONDS` | No | `604800` | `runtime deploy` | Worker CNMV |
 | `SEPBLAC_SEED_URLS` | Si | | `runtime deploy` | Worker SEPBLAC + cron |
 | `EU_SANCTIONS_XML_URL` | No | oficial FSF XML | `runtime deploy` | `cron-eu-sanctions-weekly` |

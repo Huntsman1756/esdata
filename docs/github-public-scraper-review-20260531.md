@@ -25,6 +25,8 @@ Fuentes parciales o mejorables segun la matriz viva:
 | CENDOJ | `vitamina-k/es-acc` (`tribunal_supremo.py`) | Sin licencia declarada | Intenta CENDOJ, pero incluye lista hardcoded de sentencias/casos con IDs aparentemente no verificables y fechas futuras. | Descartar para ingesta. Solo confirma que CENDOJ es friccionado. |
 | CNMV | `worldwidelaw/legal-sources` (`sources/ES/CNMV/bootstrap.py`) | AGPL-3.0 | Scraper de registro de sanciones CNMV, pagina `Portal/Consultas/RegistroSanciones/verRegSanciones`, PDFs y metadata de sancion. | No copiar codigo AGPL. Reimplementar discovery propio si se abre sprint `cnmv_sanciones`, con revision legal de reuso. |
 | CNMV | `vitamina-k/es-acc` (`etl/src/esacc_etl/pipelines/cnmv.py`) | Sin licencia declarada | Usa CSV oficial `https://www.cnmv.es/DocPortal/Publicaciones/Sanciones/Sanciones_abiertos.csv`. | Alto valor si el CSV sigue vivo. Verificar endpoint oficial y anadir familia separada `sanciones_cnmv` si procede. |
+| CNMV/BDE | `Ansvar-Systems/spanish-financial-regulation-mcp` (`scripts/ingest-cnmv.ts`) | Apache-2.0 | MCP sectorial que scrapea circulares CNMV por paginas historicas, guias tecnicas y registro de sanciones con paginacion acotada. Declara que no redistribuye DB preconstruida por restricciones de fuentes. | Util como comparativa de cobertura/paginacion. ESData ya tiene parser propio equivalente; se adopta solo el patron operativo de paginar sanciones con tope amplio y corte por pagina vacia. |
+| CNMV registros | `BquantFinance/cnmv` (`cnmv_entities_complete.csv`, `all_entities_detailed.csv`) | Sin licencia declarada | Snapshot CSV de entidades, fondos, administradores, socios, servicios, gestoras y depositarias CNMV con datos extraidos en agosto de 2025. No contiene scraper ni procedencia oficial por fila suficiente para ingestion autoritativa. | No ingerir el corpus. Puede servir para disenar un futuro worker de registros oficiales CNMV, pero debe reconsultar URLs oficiales y guardar `source_url`/`source_hash` por fila. |
 | AEPD | `worldwidelaw/legal-sources` (`sources/ES/AEPD/bootstrap.py`) | AGPL-3.0 | Estrategia fuerte: RSS `resoluciones/feed.xml` + enumeracion directa de PDFs `https://www.aepd.es/documento/<tipo>-<numero>-<ano>.pdf` para `PS`, `AI`, `PD`, `PA`, `TD`. | No copiar codigo. Reimplementar discovery propio: es el candidato mas claro para mejorar AEPD. |
 | AEPD | `ibernale/ai-lawyer` (`packages/ingest/.../sources/aepd.py`) | Sin licencia declarada | Scraping HTML de listado `resoluciones-y-actuaciones/resoluciones`, patron `PS/00001/2024`, rate limit 1 req/3s. | Util como referencia secundaria. No copiar. |
 | BDE | `ibernale/ai-lawyer` (`packages/ingest/.../sources/bde.py`) | Sin licencia declarada | Fallback RSS/listado HTML para circulares, detectando `Circular N/YYYY`. El endpoint actual verificado para ESData es el indice cronologico oficial de circulares BdE. | Candidato claro para mejorar discovery BDE con implementacion propia. |
@@ -70,7 +72,7 @@ Implementacion propuesta:
 
 ### 3. CNMV sanciones
 
-Prioridad: media.
+Prioridad: media/alta.
 
 Razon: podria enriquecer CNMV con un subdominio relevante, pero tiene mas sensibilidad legal/producto que AEPD/BDE.
 
@@ -80,6 +82,8 @@ Implementacion propuesta:
 - Si existe y es oficial, crear familia separada `sanciones_cnmv` con contrato `partial_loaded`.
 - No mezclar sanciones con circulares/modelos/normativa ya cargados.
 - Revisar PII/reuso antes de exponer busqueda amplia.
+- Tras revisar `Ansvar-Systems/spanish-financial-regulation-mcp`, ampliar el paginado HTML oficial con un tope conservador (`CNMV_SANCIONES_MAX_PAGES=25`) y corte al detectar pagina sin filas.
+- No reutilizar snapshots `BquantFinance/cnmv`; usarlos solo como mapa de campos para un futuro worker de registros oficiales CNMV.
 
 ### 4. CENDOJ probe, no bulk
 

@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cnmv import (
+    DEFAULT_CNMV_SANCIONES_MAX_PAGES,
     _detect_ambito,
     _detect_document_type,
     _detect_obligaciones,
@@ -16,6 +17,7 @@ from cnmv import (
     _discover_cnmv_circulares,
     _discover_new_documents,
     _discover_new_urls,
+    _discover_source_family_documents,
     _extract_boe_reference,
     _extract_circular_number,
     _extract_publication_date,
@@ -448,6 +450,91 @@ def test_parse_cnmv_sanctions_uses_official_register_contract():
     second = candidates[1]
     assert second["url"] == "https://www.cnmv.es/webservices/verdocumento/ver?e=def"
     assert second["infraccion_gravedad"] == "grave"
+
+
+def test_discover_source_family_documents_paginates_sanctions_until_empty(monkeypatch):
+    original_client = httpx.Client
+    requested_urls: list[str] = []
+
+    def sanctions_row(page: int) -> bytes:
+        return f"""
+        <html><body><table>
+        <tr>
+          <td>0{page + 1}/05/2026</td>
+          <td>
+            <a href="/webservices/verdocumento/ver?e=sancion-{page}">
+              Resolucion por la que se publican sanciones por infraccion grave a Entidad {page}
+            </a>
+          </td>
+        </tr>
+        </table></body></html>
+        """.encode()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        requested_urls.append(url)
+        if "RegistroSanciones" not in url:
+            return httpx.Response(200, content=b"<html><body></body></html>")
+        if "page=2" in url:
+            return httpx.Response(200, content=b"<html><body><table></table></body></html>")
+        if "page=1" in url:
+            return httpx.Response(200, content=sanctions_row(1))
+        return httpx.Response(200, content=sanctions_row(0))
+
+    monkeypatch.setenv("CNMV_SANCIONES_MAX_PAGES", "25")
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    docs = _discover_source_family_documents()
+    sanctions = [doc for doc in docs if doc.get("family_id") == "sanciones_cnmv"]
+
+    assert DEFAULT_CNMV_SANCIONES_MAX_PAGES == 25
+    assert len(sanctions) == 2
+    assert any("page=2" in url for url in requested_urls)
+    assert not any("page=3" in url for url in requested_urls)
+
+
+def test_discover_source_family_documents_stops_sanctions_on_non_200(monkeypatch):
+    original_client = httpx.Client
+    requested_urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        requested_urls.append(url)
+        if "RegistroSanciones" not in url:
+            return httpx.Response(200, content=b"<html><body></body></html>")
+        if "page=1" in url:
+            return httpx.Response(400, content=b"out of range")
+        return httpx.Response(
+            200,
+            content=b"""
+            <html><body><table>
+            <tr>
+              <td>01/05/2026</td>
+              <td>
+                <a href="/webservices/verdocumento/ver?e=sancion-0">
+                  Resolucion por la que se publican sanciones por infraccion grave a Entidad 0
+                </a>
+              </td>
+            </tr>
+            </table></body></html>
+            """,
+        )
+
+    monkeypatch.setenv("CNMV_SANCIONES_MAX_PAGES", "25")
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+
+    docs = _discover_source_family_documents()
+    sanctions = [doc for doc in docs if doc.get("family_id") == "sanciones_cnmv"]
+
+    assert len(sanctions) == 1
+    assert any("page=1" in url for url in requested_urls)
+    assert not any("page=2" in url for url in requested_urls)
 
 
 def test_build_document_payload_applies_family_metadata_and_partial_contract():

@@ -19,7 +19,7 @@ This file tracks source families requested on 2026-05-17. It is not a claim that
 | AEAT GI42 / CRS Modelo 289 | `target` | Procedure source identified; useful for CRS/FATCA workflow expansion. |
 | BOE consolidated legislation | `implemented_partial` | Core tax laws loaded; RD 813/2023 (`RD_813_2023`) loaded on VPS with 163 articles. |
 | BOE diario | `implemented_partial` | Daily non-consolidated notices go to `documento_interpretativo` with `tipo_fuente='boe_diario'`; not automatically committed to repo, loaded by cron/DB. |
-| CNMV | `implemented_partial` | Circulares, guias tecnicas, documentos a consulta, normativa ESI and modelos ESI are separated by document type. 2026-05-31 local expansion adds the official sanctions register as `sancion_cnmv` / `sanciones_cnmv`; production load pending until `CNMV-SANCIONES-EXPANSION-01` closes. |
+| CNMV | `implemented_partial` | Circulares, guias tecnicas, documentos a consulta, normativa ESI and modelos ESI are separated by document type. 2026-05-31 expansion adds the official sanctions register as `sancion_cnmv` / `sanciones_cnmv`; follow-up repo review uses Ansvar's pagination pattern to raise the sanctions page cap to 25 while keeping the family partial. |
 | EUR-Lex | `implemented_partial` | Curated CELEX seed exists, including EMIR `32012R0648`; full ISRB/Q&A coverage is pending. |
 | ESMA markets | `implemented_partial` | MiFIR/MiCA/DLT and selected reporting schemas/rules loaded; MiFIR reporting hub, ISRB Article 26 and Q&A index are loaded as reporting documents. VPS: `esma_reporting_document` MIFIR = 7. |
 | Banco de Espana | `implemented_partial` | Small current corpus loaded; circulars and financial-system regulation index need expansion. |
@@ -58,7 +58,7 @@ This file tracks source families requested on 2026-05-17. It is not a claim that
 - Circulares CNMV.
 - Legislacion CNMV / ESI (`normativa_esi_cnmv`, implemented_partial).
 - Guias tecnicas.
-- Registro publico oficial de sanciones (`sancion_cnmv`, local implementation 2026-05-31): keep as monitoring/evidence source, `partial_loaded`, with BOE/CNMV link per row and no claim of historical universe.
+- Registro publico oficial de sanciones (`sancion_cnmv`, implementation 2026-05-31): keep as monitoring/evidence source, `partial_loaded`, with BOE/CNMV link per row and no claim of historical universe. `CNMV_SANCIONES_MAX_PAGES` defaults to `25` after reviewing public MCP/scraper practice; the worker stops before the cap if the official page returns no rows.
 - FAQ normas/recomendaciones.
 - Modelos normalizados ESI (`modelo_esi_cnmv`, implemented_partial) and IM (target).
 - Libro jurisprudencia, arboles 1 and 2.
