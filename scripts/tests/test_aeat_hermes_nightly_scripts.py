@@ -81,7 +81,9 @@ def test_ops_health_avoids_untracked_secret_tree_scan():
         ROOT / "scripts" / "hermes_curator" / "bin" / "run-ops-health.sh"
     ).read_text(encoding="utf-8")
 
-    assert "git status --short --branch --untracked-files=no" in source
+    assert "git status" not in source
+    assert "git diff --quiet --ignore-submodules --" in source
+    assert "tracked_changes=none" in source
     assert "Permission denied" in source
 
 

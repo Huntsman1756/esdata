@@ -20,7 +20,14 @@ out="$out_dir/ops-$stamp.md"
   docker system df || true
   echo
   echo "## esdata repo"
-  cd /srv/esdata && git rev-parse --short HEAD && git status --short --branch --untracked-files=no || true
+  cd /srv/esdata
+  git rev-parse --short HEAD || true
+  printf 'branch=%s\n' "$(git branch --show-current 2>/dev/null || true)"
+  if git diff --quiet --ignore-submodules -- 2>/dev/null; then
+    echo "tracked_changes=none"
+  else
+    echo "tracked_changes=present"
+  fi
   echo
   echo "## hermes curator files"
   find "$REPORTS" -maxdepth 2 -type f -printf '%TY-%Tm-%Td %TH:%TM %s %p\n' 2>/dev/null | sort -r | head -80 || true
