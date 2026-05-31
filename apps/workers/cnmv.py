@@ -1428,6 +1428,14 @@ def _is_unsupported_binary_document(url: str, content: bytes, content_type: str)
     )
 
 
+def _is_unreliable_extracted_text(text_value: str) -> bool:
+    sample = text_value[:4000]
+    if not sample.strip():
+        return False
+    control_chars = sum(1 for char in sample if ord(char) < 32 and char not in "\n\r\t")
+    return control_chars >= 3 or (control_chars / max(len(sample), 1)) > 0.002
+
+
 def _resolve_boe_document_url(url: str, content: bytes, content_type: str) -> str:
     if "boe.es" not in url:
         return url
@@ -1467,6 +1475,8 @@ def build_document_payload(
         else:
             text_value = extract_html_text(content)
     except Exception:
+        text_value = ""
+    if text_value and _is_unreliable_extracted_text(text_value):
         text_value = ""
 
     row_completeness = "complete"

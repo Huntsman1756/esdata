@@ -593,6 +593,33 @@ def test_build_document_payload_keeps_sanction_metadata_when_pdf_is_unparseable(
     assert '"infraccion_gravedad": "muy_grave"' in payload["metadata"]
 
 
+def test_build_document_payload_downgrades_unreliable_pdf_text(monkeypatch):
+    monkeypatch.setattr(
+        "cnmv.extract_pdf_text",
+        lambda content: "CNMV\x03\x11,,, \x03'(/\x030(5&$'2 incomplete control text",
+    )
+
+    payload = build_document_payload(
+        "https://www.cnmv.es/webservices/verdocumento/ver?e=badpdf",
+        b"%PDF-1.4 broken extraction",
+        "application/pdf",
+        metadata={
+            "referencia": "CNMV-SANCION-badpdf",
+            "titulo": "Resolucion sancionadora con PDF de extraccion defectuosa",
+            "fecha": "2025-07-07",
+            "tipo_documento": "sancion_cnmv",
+            "ambito": "sanciones_cnmv",
+            "estado_vigencia": "vigente",
+            "family_id": "sanciones_cnmv",
+        },
+    )
+
+    assert payload["row_completeness"] == "partial"
+    assert payload["row_provenance"] == "official_best_effort"
+    assert payload["texto"].startswith("[PARTIAL] Metadata oficial CNMV")
+    assert '"verified": false' in payload["metadata"]
+
+
 def test_build_document_payload_treats_legacy_doc_as_partial_metadata():
     payload = build_document_payload(
         "https://www.cnmv.es/docPortal/Legislacion/ModelosNormalizados/ESI/modelo.doc",
