@@ -150,6 +150,7 @@ AMBITOS_MERCADOS: frozenset[str] = frozenset({
     "reporting_financiero",
     "mercados",
     "infraestructuras_mercado",
+    "sanciones_cnmv",
 })
 
 AMBITOS_AML_CFT: frozenset[str] = frozenset({

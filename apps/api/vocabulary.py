@@ -80,6 +80,7 @@ TIPOS_DOCUMENTO_CNMV: frozenset[str] = frozenset({
     "documento_consulta_cnmv",
     "normativa_esi_cnmv",
     "modelo_esi_cnmv",
+    "sancion_cnmv",
     "resolucion_cnmv",
     "codigo_autoregulacion_cnmv",
     "informe_anual_cnmv",

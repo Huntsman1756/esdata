@@ -78,6 +78,7 @@ TIPOS_DOCUMENTO_CNMV: frozenset[str] = frozenset({
     "documento_consulta_cnmv",
     "normativa_esi_cnmv",
     "modelo_esi_cnmv",
+    "sancion_cnmv",
 })
 
 TIPOS_DOCUMENTO_SEPBLAC: frozenset[str] = frozenset({
@@ -155,6 +156,7 @@ AMBITOS_MERCADOS: frozenset[str] = frozenset({
     "reporting_financiero",
     "mercados",
     "infraestructuras_mercado",
+    "sanciones_cnmv",
 })
 
 AMBITOS_AML_CFT: frozenset[str] = frozenset({

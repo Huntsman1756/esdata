@@ -43,7 +43,7 @@ from vocabulary import (
 
 def test_total_value_count():
     """Vocabulary should cover all known values."""
-    assert TOTAL_VALUES == 223, f"Expected 223 total values, got {TOTAL_VALUES}"
+    assert TOTAL_VALUES == 224, f"Expected 224 total values, got {TOTAL_VALUES}"
 
 
 def test_vocabulary_has_all_fields():
@@ -68,7 +68,7 @@ def test_tipo_fuente_count():
 
 
 def test_tipo_documento_count():
-    assert len(TIPOS_DOCUMENTO) == 66
+    assert len(TIPOS_DOCUMENTO) == 67
 
 
 def test_ambitos_count():
@@ -123,6 +123,7 @@ def test_all_tipo_documento_seed_values_covered():
         "sentencia", "auto", "providencia", "resolucion",
         "circular_cnmv", "manual_cnmv", "guia_cnmv", "guia_tecnica_cnmv",
         "documento_cnmv", "documento_consulta_cnmv", "normativa_esi_cnmv", "modelo_esi_cnmv",
+        "sancion_cnmv",
         "formulario_sepblac", "manual_sepblac", "guia_operativa_sepblac", "obligacion_sepblac", "normativa_sepblac", "documento_sepblac",
         "resolucion_aepd", "guia_aepd", "informe_aepd", "instruccion_aepd", "acuerdo_aepd", "documento_aepd",
         "informe_bde", "comunicacion_bde", "publicacion_bde", "guia_bde", "documento_bde",
@@ -139,6 +140,7 @@ def test_all_ambito_seed_values_covered():
     values = {
         "tributario", "tributario_local", "tributario_internacional", "tributario_ue", "tributario_canarias", "fiscal",
         "reporting_regulatorio", "reporting_financiero", "mercados", "infraestructuras_mercado",
+        "sanciones_cnmv",
         "aml_cft", "aml_cft_reporting", "supervision_sepblac",
         "jurisprudencia", "jurisprudencia_tributaria", "jurisprudencia_pbcft", "jurisprudencia_mercantil_regulatoria",
         "fiscal_ue", "mercados_financieros_ue", "abuso_mercado_ue", "disclosure_ue", "resiliencia_digital_ue",

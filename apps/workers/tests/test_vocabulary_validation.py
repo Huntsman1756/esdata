@@ -20,7 +20,9 @@ class TestSafePayloadValue:
     def test_valid_value_unchanged(self):
         assert safe_payload_value("tipo_fuente", "boe") == "boe"
         assert safe_payload_value("tipo_documento", "ley") == "ley"
+        assert safe_payload_value("tipo_documento", "sancion_cnmv") == "sancion_cnmv"
         assert safe_payload_value("ambito", "tributario") == "tributario"
+        assert safe_payload_value("ambito", "sanciones_cnmv") == "sanciones_cnmv"
         assert safe_payload_value("estado_vigencia", "vigente") == "vigente"
         assert safe_payload_value("tipo_obligacion", "presentacion_modelo") == "presentacion_modelo"
         assert safe_payload_value("organismo_emisor", "DGT") == "DGT"
