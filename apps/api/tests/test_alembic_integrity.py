@@ -407,6 +407,42 @@ def test_aeat_190_campaign_evidence_revision_is_scoped_in_0108():
         assert forbidden not in contents
 
 
+def test_aeat_190_internal_evidence_revision_is_scoped_in_0109():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260601_0109_aeat_190_internal_evidence.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '190'",
+        "campana = '2025'",
+        "DISENOS_LOGICOS_190_2025.pdf",
+        "a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d",
+        "INSERT INTO modelo_clave",
+        "INSERT INTO modelo_instruccion",
+        "INSERT INTO modelo_regla_inclusion",
+        "CLAVE_PERCEPCION",
+        "Rendimientos del trabajo: Empleados por cuenta ajena en general",
+        "Pensionistas y perceptores de haberes",
+        "Rendimientos del trabajo: Prestaciones o subsidios por desempleo",
+        "Prestaciones por desempleo abonadas en",
+        "capture_date",
+        "CONDICIONAL",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

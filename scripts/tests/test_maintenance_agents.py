@@ -547,6 +547,7 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_modelo_303_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_202_is_payment_traceable_partial_contract" in source
     assert "aeat_modelo_190_withholding_traceable_partial_contract" in source
+    assert "aeat_modelo_190_internal_keys_rules_traceable_contract" in source
     assert "aeat_modelo_190_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_123_design_traceable_partial_contract" in source
     assert "aeat_modelo_124_design_traceable_partial_contract" in source

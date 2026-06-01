@@ -624,6 +624,65 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
+            "aeat_modelo_190_internal_keys_rules_traceable_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='190'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            ),
+            key_contract AS (
+                SELECT CASE
+                    WHEN COUNT(*) = 4
+                     AND COUNT(*) FILTER (
+                         WHERE codigo IN ('A','B','C','D')
+                           AND COALESCE(tipo, tipo_clave)='CLAVE_PERCEPCION'
+                           AND source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
+                           AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
+                           AND capture_date IS NOT NULL
+                     ) = 4
+                    THEN 1 ELSE 0 END AS ok
+                FROM modelo_clave
+                WHERE campana_id IN (SELECT id FROM active_campaign)
+            ),
+            instruction_contract AS (
+                SELECT CASE
+                    WHEN COUNT(*) >= 3
+                     AND COUNT(*) FILTER (
+                         WHERE source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
+                           AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
+                           AND capture_date IS NOT NULL
+                     ) >= 3
+                    THEN 1 ELSE 0 END AS ok
+                FROM modelo_instruccion
+                WHERE campana_id IN (SELECT id FROM active_campaign)
+            ),
+            rule_contract AS (
+                SELECT CASE
+                    WHEN COUNT(*) >= 4
+                     AND COUNT(*) FILTER (
+                         WHERE decision='CONDICIONAL'
+                           AND source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
+                           AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
+                           AND capture_date IS NOT NULL
+                     ) >= 4
+                    THEN 1 ELSE 0 END AS ok
+                FROM modelo_regla_inclusion
+                WHERE campana_id IN (SELECT id FROM active_campaign)
+            )
+            SELECT CASE
+                WHEN (SELECT ok FROM key_contract) = 1
+                 AND (SELECT ok FROM instruction_contract) = 1
+                 AND (SELECT ok FROM rule_contract) = 1
+                THEN 1 ELSE 0 END
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
             "aeat_modelo_123_design_traceable_partial_contract",
             """
             WITH active_campaign AS (
