@@ -151,6 +151,44 @@ def _modelo_recurso_title(codigo: str, tipo_recurso: str, formato: str | None = 
     return f"{label} del modelo {codigo}"
 
 
+def _metadata_title(metadata: dict, codigo: str, tipo_recurso: str, formato: str | None = None) -> str:
+    return (
+        metadata.get("label")
+        or metadata.get("anchor_text")
+        or _modelo_recurso_title(codigo, tipo_recurso, formato)
+    )
+
+
+def _modelo_recurso_proves_campaign(
+    *,
+    codigo: str,
+    campana: str | None,
+    tipo_recurso: str | None,
+    url_recurso: str | None,
+    sha256_contenido: str | None,
+    metadata: dict,
+) -> bool:
+    if not campana or not campana.isdigit():
+        return False
+    if not sha256_contenido or not url_recurso:
+        return False
+    if not url_recurso.startswith("https://sede.agenciatributaria.gob.es/"):
+        return False
+    if tipo_recurso not in {"instrucciones", "formulario_html", "formulario_pdf"}:
+        return False
+
+    explicit_text = " ".join(
+        str(value)
+        for value in (metadata.get("label"), metadata.get("anchor_text"))
+        if value
+    )
+    if not explicit_text or campana not in explicit_text:
+        return False
+
+    normalized = _fold_accents(f"{explicit_text} {url_recurso}").lower()
+    return f"modelo-{codigo}" in normalized or f"modelo {codigo}" in normalized
+
+
 GENERIC_MODELO_RECURSO_URL_FRAGMENTS = (
     "/Sede/condiciones-uso-sede-electronica/",
     "/Sede/inicio.html",
@@ -1130,7 +1168,15 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
             url = row["url_recurso"]
             organismo = "BOE" if url and "boe.es" in url else "AEAT"
             metadata = row.get("metadata") or {}
-            title = metadata.get("label") or _modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"])
+            title = _metadata_title(metadata, codigo, row["tipo_recurso"], row["formato"])
+            proves_campaign = _modelo_recurso_proves_campaign(
+                codigo=codigo,
+                campana=campana_activa,
+                tipo_recurso=row["tipo_recurso"],
+                url_recurso=url,
+                sha256_contenido=row["sha256_contenido"],
+                metadata=metadata,
+            )
             added = add_source(
                 tipo=f"modelo_recurso:{row['tipo_recurso']}",
                 titulo=title,
@@ -1143,6 +1189,8 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                     "Recurso oficial activo cacheado en modelo_recurso; "
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
+                proves_campaign=proves_campaign,
+                campaign_evidence_role="direct_official" if proves_campaign else None,
             )
             if added:
                 fuentes[-1]["label"] = metadata.get("label")
@@ -1268,12 +1316,21 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
         )
 
         for row in list_campaign_recursos(db, camp_row["id"]):
+            url = row["url_recurso"]
             metadata = row.get("metadata") or {}
-            title = metadata.get("label") or _modelo_recurso_title(codigo, row["tipo_recurso"], row["formato"])
+            title = _metadata_title(metadata, codigo, row["tipo_recurso"], row["formato"])
+            proves_campaign = _modelo_recurso_proves_campaign(
+                codigo=codigo,
+                campana=campana_activa,
+                tipo_recurso=row["tipo_recurso"],
+                url_recurso=url,
+                sha256_contenido=row["sha256_contenido"],
+                metadata=metadata,
+            )
             added = add_artefacto(
                 tipo=f"modelo_recurso:{row['tipo_recurso']}",
                 titulo=title,
-                url=row["url_recurso"],
+                url=url,
                 oficial=True,
                 campana_value=campana_activa,
                 fecha=str(row["fecha_publicacion_recurso"]) if row["fecha_publicacion_recurso"] else None,
@@ -1282,6 +1339,8 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                     "Recurso oficial activo cacheado en modelo_recurso; "
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
+                proves_campaign=proves_campaign,
+                campaign_evidence_role="direct_official" if proves_campaign else None,
             )
             if added:
                 artefactos[-1]["label"] = metadata.get("label")

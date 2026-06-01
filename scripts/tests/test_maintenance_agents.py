@@ -457,6 +457,7 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     source = (ROOT / "scripts" / "maintenance" / "mcp_validation_suite.py").read_text(encoding="utf-8")
 
     assert "aeat_modelo_303_iva_traceable_partial_contract" in source
+    assert "aeat_modelo_303_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_202_is_payment_traceable_partial_contract" in source
     assert "aeat_modelo_190_withholding_traceable_partial_contract" in source
     assert "aeat_priority_target_models_have_traceable_partial_evidence_7" in source

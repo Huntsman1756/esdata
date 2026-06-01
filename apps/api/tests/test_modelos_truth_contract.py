@@ -310,6 +310,63 @@ async def test_modelo_campana_operativa_marks_partial_when_runtime_is_inferred()
 
 
 @pytest.mark.asyncio
+async def test_modelo_303_resumen_operativo_asserts_campaign_from_direct_official_instruction():
+    from db import engine
+
+    with engine.begin() as conn:
+        campana_id = conn.execute(
+            text(
+                """
+                SELECT mc.id
+                FROM modelo_campana mc
+                JOIN aeat_modelo m ON m.id = mc.modelo_id
+                WHERE m.codigo = '303' AND mc.campana = '2025'
+                """
+            )
+        ).scalar_one()
+        conn.execute(
+            text(
+                """
+                INSERT INTO modelo_recurso (
+                    campana_id, tipo_recurso, formato, url_recurso, sha256_contenido,
+                    fecha_publicacion_recurso, activa, first_seen_at, last_seen_at, metadata
+                )
+                VALUES (
+                    :campana_id, 'instrucciones', 'html',
+                    'https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2025.html',
+                    'hash-modelo303-instrucciones-2025-direct-v1',
+                    '2025-01-15', 1, '2025-01-15T00:00:00Z', '2025-01-16T00:00:00Z',
+                    '{"anchor_text":"Instrucciones 2025","url_recurso":"https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2025.html"}'
+                )
+                """
+            ),
+            {"campana_id": campana_id},
+        )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"x-api-key": "test-secret-key"},
+    ) as client:
+        response = await client.get("/v1/modelos/303/resumen-operativo")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["campana_activa"] == "2025"
+    assert data["campana_afirmable"] == "2025"
+    assert data["campana_resolution_status"] == "resolved_strong"
+    assert data["campana_verification_level"] == "direct_official"
+    assert data["campana_safe_to_assert"] is True
+    assert data["campana_assertion_code"] == "ASSERTABLE_DIRECT_OFFICIAL"
+    assert any(
+        item["tipo"] == "modelo_recurso:instrucciones"
+        and item["proves_campaign"] is True
+        and item["campaign_evidence_role"] == "direct_official"
+        for item in data["fuentes_recomendadas"]
+    )
+
+
+@pytest.mark.asyncio
 async def test_modelo_detail_keeps_strong_article_visible_for_model_100():
     async with AsyncClient(
         transport=ASGITransport(app=app),
