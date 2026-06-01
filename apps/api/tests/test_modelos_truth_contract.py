@@ -1024,6 +1024,59 @@ def test_strong_campaign_lane_prefers_hashed_direct_evidence_over_weak_same_url(
     assert selection["campana_evidence"]["operational"]["capture_date"] == "2026-06-01"
 
 
+def test_model_289_legal_lane_requires_explicit_direct_legal_evidence():
+    from services.modelos import _build_campana_selection
+
+    generic_boe_url = "https://www.boe.es/buscar/doc.php?id=BOE-A-2016-9834"
+    legal_campaign_url = "https://www.boe.es/buscar/doc.php?id=BOE-A-2024-27528"
+
+    selection = _build_campana_selection(
+        "2025",
+        [
+            {
+                "tipo": "modelo_recurso:normativa_hap_1695",
+                "url": generic_boe_url,
+                "titulo": "Orden HAP/1695/2016 - aprobacion del modelo 289",
+                "source_hash": "hash-generic-legal",
+                "capture_date": "2026-05-24",
+                "campaign_evidence_role": "none",
+            },
+            {
+                "tipo": "modelo_recurso:normativa_hac_1504_2024",
+                "url": legal_campaign_url,
+                "titulo": "Orden HAC/1504/2024 - actualizacion anexos I y II modelo 289",
+                "years": ["2025"],
+                "source_hash": "hash-legal-2025",
+                "capture_date": "2026-06-01",
+                "campaign_evidence_role": "direct_legal",
+            },
+            {
+                "tipo": "modelo_recurso:instrucciones",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/Sede/"
+                    "declaraciones-informativas-otros-impuestos-tasas/"
+                    "campana-declaraciones-informativas-2025/normativa/modelo-289.html"
+                ),
+                "titulo": "Modelo 289 - normativa campana declaraciones informativas 2025",
+                "source_hash": "hash-operational-2025",
+                "capture_date": "2026-06-01",
+                "proves_campaign": True,
+            },
+        ],
+        ejercicio_declarado=2025,
+        anio_presentacion=2026,
+    )
+
+    assert selection["campana_resolution_status"] == "resolved_strong"
+    assert selection["campana_evidence"]["legal"]["status"] == "resolved_strong_legal"
+    assert selection["campana_evidence"]["legal"]["source_url"] == legal_campaign_url
+    assert selection["campana_evidence"]["legal"]["source_hash"] == "hash-legal-2025"
+    assert selection["campana_evidence"]["legal"]["capture_date"] == "2026-06-01"
+    assert selection["campana_evidence"]["legal"]["safe_to_assert"] is True
+    assert selection["campana_evidence"]["operational"]["status"] == "resolved_strong_operational"
+    assert selection["campana_assertion_basis"] == ["legal", "operational"]
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("path", "tool_name"),

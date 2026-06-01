@@ -444,6 +444,79 @@ def test_aeat_190_internal_evidence_revision_is_scoped_in_0109():
         assert forbidden not in contents
 
 
+def test_aeat_289_legal_campaign_revision_is_scoped_in_0110():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260601_0110_aeat_289_legal_campaign_evidence.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '289'",
+        "campana = '2025'",
+        "BOE-A-2024-27528",
+        "Orden HAC/1504/2024",
+        "2025 y siguientes",
+        "normativa_hac_1504_2024",
+        "91c443efff4b5cca5403d5573be18061effa495cdd9769c6dfc305b3c9110c3c",
+        "legal_campaign_evidence",
+        "direct_legal",
+        "capture_date",
+        "row_completeness = 'complete'",
+        "row_provenance = 'official_exact'",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+        "UPDATE obligacion_perfil",
+        "INSERT INTO modelo_clave",
+        "INSERT INTO modelo_instruccion",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+    ):
+        assert forbidden not in contents
+
+
+def test_aeat_190_perception_keys_expansion_revision_is_scoped_in_0111():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260601_0111_aeat_190_perception_keys_expansion.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '190'",
+        "campana = '2025'",
+        "DISENOS_LOGICOS_190_2025.pdf",
+        "a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d",
+        "'codigo': 'A'",
+        "'codigo': 'L'",
+        "Rendimientos de actividades economicas: Actividades profesionales",
+        "Premios y ganancias patrimoniales",
+        "Rentas exentas y dietas exceptuadas de gravamen",
+        "COUNT(*) = 12",
+        "INSERT INTO modelo_clave",
+        "INSERT INTO modelo_regla_inclusion",
+        "CLAVE_PERCEPCION",
+        "capture_date",
+        "CONDICIONAL",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

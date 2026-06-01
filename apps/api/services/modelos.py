@@ -299,6 +299,29 @@ def _resource_proves_campaign(resource: dict, candidate: str | None) -> bool:
     return candidate in years or resource.get("campana") == candidate
 
 
+def _resource_proves_legal_campaign(resource: dict, candidate: str | None) -> bool:
+    if not candidate:
+        return False
+    if resource.get("campaign_evidence_role") != "direct_legal":
+        return False
+    if "boe.es" not in str(resource.get("url") or ""):
+        return False
+    if not resource.get("source_hash") or not resource.get("capture_date"):
+        return False
+    years = [
+        str(year)
+        for year in (resource.get("years") or [])
+        if str(year).isdigit()
+    ] or _extract_campaign_candidate_years(
+        resource.get("url"),
+        resource.get("titulo"),
+        resource.get("label"),
+        resource.get("nota"),
+        resource.get("fecha"),
+    )
+    return candidate in years or resource.get("campana") == candidate
+
+
 def _fold_accents(value: str) -> str:
     return "".join(
         char
@@ -399,7 +422,9 @@ def _campana_evidence_lanes(
     resolution_status: str,
     safe_to_assert: bool,
     evidence: list[dict],
+    resources: list[dict],
     technical_exercise_coverage: list[dict],
+    candidate: str | None,
 ) -> dict:
     operational_status = "none"
     if resolution_status == "resolved_strong":
@@ -421,15 +446,33 @@ def _campana_evidence_lanes(
         reverse=True,
     )
     operational_source = operational_candidates[0] if operational_candidates else None
+    legal_candidates = [
+        item
+        for item in resources
+        if _resource_proves_legal_campaign(item, candidate)
+    ]
+    legal_candidates.sort(
+        key=lambda item: (
+            bool(item.get("source_hash")),
+            bool(item.get("capture_date")),
+            str(item.get("url") or ""),
+        ),
+        reverse=True,
+    )
+    legal_source = legal_candidates[0] if legal_candidates else None
     design_item = technical_exercise_coverage[0] if technical_exercise_coverage else None
     lanes = {
         "legal": {
-            "status": "none",
-            "source_url": None,
-            "source_hash": None,
-            "capture_date": None,
-            "safe_to_assert": False,
-            "note": "Sin fuente BOE normalizada como prueba directa de campana legal.",
+            "status": "resolved_strong_legal" if legal_source else "none",
+            "source_url": legal_source.get("url") if legal_source else None,
+            "source_hash": legal_source.get("source_hash") if legal_source else None,
+            "capture_date": legal_source.get("capture_date") if legal_source else None,
+            "safe_to_assert": bool(safe_to_assert and legal_source),
+            "note": (
+                "Campana legal afirmable por fuente BOE directa."
+                if legal_source
+                else "Sin fuente BOE normalizada como prueba directa de campana legal."
+            ),
         },
         "operational": {
             "status": operational_status,
@@ -612,7 +655,9 @@ def _build_campana_selection(
         resolution_status=resolution_status,
         safe_to_assert=safe_to_assert,
         evidence=evidence,
+        resources=resources,
         technical_exercise_coverage=technical_exercise_coverage,
+        candidate=candidate,
     )
 
     return {
@@ -1379,6 +1424,9 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
             url = row["url_recurso"]
             organismo = "BOE" if url and "boe.es" in url else "AEAT"
             metadata = row.get("metadata") or {}
+            metadata_campaign_role = metadata.get("campaign_evidence_role")
+            if not metadata_campaign_role and metadata.get("source_kind") == "legal_campaign_evidence":
+                metadata_campaign_role = "direct_legal"
             title = _metadata_title(metadata, codigo, row["tipo_recurso"], row["formato"])
             proves_campaign = _modelo_recurso_proves_campaign(
                 codigo=codigo,
@@ -1403,7 +1451,8 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                 source_hash=row["sha256_contenido"],
                 capture_date=metadata.get("capture_date"),
                 proves_campaign=proves_campaign,
-                campaign_evidence_role="direct_official" if proves_campaign else None,
+                campaign_evidence_role=metadata_campaign_role
+                or ("direct_official" if proves_campaign else None),
             )
             if added:
                 fuentes[-1]["label"] = metadata.get("label")
@@ -1576,6 +1625,9 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
         for row in list_campaign_recursos(db, camp_row["id"]):
             url = row["url_recurso"]
             metadata = row.get("metadata") or {}
+            metadata_campaign_role = metadata.get("campaign_evidence_role")
+            if not metadata_campaign_role and metadata.get("source_kind") == "legal_campaign_evidence":
+                metadata_campaign_role = "direct_legal"
             title = _metadata_title(metadata, codigo, row["tipo_recurso"], row["formato"])
             proves_campaign = _modelo_recurso_proves_campaign(
                 codigo=codigo,
@@ -1600,7 +1652,8 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                 source_hash=row["sha256_contenido"],
                 capture_date=metadata.get("capture_date"),
                 proves_campaign=proves_campaign,
-                campaign_evidence_role="direct_official" if proves_campaign else None,
+                campaign_evidence_role=metadata_campaign_role
+                or ("direct_official" if proves_campaign else None),
             )
             if added:
                 artefactos[-1]["label"] = metadata.get("label")
@@ -1740,7 +1793,9 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
                 resolution_status="insufficient_evidence",
                 safe_to_assert=False,
                 evidence=[],
+                resources=[],
                 technical_exercise_coverage=[],
+                candidate=None,
             ),
         ),
         "campana_evidence_items": (fuentes or {}).get("campana_evidence_items", []),

@@ -636,14 +636,14 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             ),
             key_contract AS (
                 SELECT CASE
-                    WHEN COUNT(*) = 4
+                    WHEN COUNT(*) = 12
                      AND COUNT(*) FILTER (
-                         WHERE codigo IN ('A','B','C','D')
+                         WHERE codigo IN ('A','B','C','D','E','F','G','H','I','J','K','L')
                            AND COALESCE(tipo, tipo_clave)='CLAVE_PERCEPCION'
                            AND source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
                            AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
                            AND capture_date IS NOT NULL
-                     ) = 4
+                     ) = 12
                     THEN 1 ELSE 0 END AS ok
                 FROM modelo_clave
                 WHERE campana_id IN (SELECT id FROM active_campaign)
@@ -662,13 +662,13 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             ),
             rule_contract AS (
                 SELECT CASE
-                    WHEN COUNT(*) >= 4
+                    WHEN COUNT(*) >= 12
                      AND COUNT(*) FILTER (
                          WHERE decision='CONDICIONAL'
                            AND source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
                            AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
                            AND capture_date IS NOT NULL
-                     ) >= 4
+                     ) >= 12
                     THEN 1 ELSE 0 END AS ok
                 FROM modelo_regla_inclusion
                 WHERE campana_id IN (SELECT id FROM active_campaign)
@@ -678,6 +678,33 @@ def _check_database_contracts() -> list[dict[str, Any]]:
                  AND (SELECT ok FROM instruction_contract) = 1
                  AND (SELECT ok FROM rule_contract) = 1
                 THEN 1 ELSE 0 END
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_190_perception_keys_a_l_traceable_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='190'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(*) = 12
+                 AND COUNT(*) FILTER (
+                     WHERE codigo IN ('A','B','C','D','E','F','G','H','I','J','K','L')
+                       AND COALESCE(tipo, tipo_clave)='CLAVE_PERCEPCION'
+                       AND source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
+                       AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
+                       AND capture_date IS NOT NULL
+                 ) = 12
+                THEN 1 ELSE 0 END
+            FROM modelo_clave
+            WHERE campana_id IN (SELECT id FROM active_campaign)
             """,
             1,
         ),
@@ -731,6 +758,38 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             FROM active_campaign ac
             LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
             LEFT JOIN modelo_regla_inclusion reg ON reg.campana_id=ac.id
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_289_legal_campaign_traceable_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='289'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(*) FILTER (
+                    WHERE rec.activa IS true
+                      AND rec.tipo_recurso='normativa_hac_1504_2024'
+                      AND rec.url_recurso LIKE '%BOE-A-2024-27528%'
+                      AND rec.sha256_contenido='91c443efff4b5cca5403d5573be18061effa495cdd9769c6dfc305b3c9110c3c'
+                      AND rec.content_length=152551
+                      AND rec.row_provenance='official_exact'
+                      AND rec.row_completeness='complete'
+                      AND rec.metadata->>'capture_date'='2026-06-01'
+                      AND rec.metadata->>'campaign_evidence_role'='direct_legal'
+                      AND rec.metadata->>'source_kind'='legal_campaign_evidence'
+                      AND rec.metadata->>'label' ILIKE '%2025 y siguientes%'
+                ) = 1
+                THEN 1 ELSE 0 END
+            FROM active_campaign ac
             LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
             """,
             1,
