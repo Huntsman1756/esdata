@@ -624,6 +624,113 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
+            "aeat_modelo_123_design_traceable_partial_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='123'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) >= 40
+                 AND COUNT(DISTINCT reg.id) >= 2
+                 AND COUNT(DISTINCT rec.id) FILTER (
+                     WHERE rec.activa IS true
+                       AND rec.row_provenance='official_exact'
+                       AND rec.sha256_contenido IS NOT NULL
+                 ) >= 5
+                THEN 1 ELSE 0 END
+            FROM active_campaign ac
+            LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
+            LEFT JOIN modelo_regla_inclusion reg ON reg.campana_id=ac.id
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_124_design_traceable_partial_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='124'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) >= 35
+                 AND COUNT(DISTINCT reg.id) >= 2
+                 AND COUNT(DISTINCT rec.id) FILTER (
+                     WHERE rec.activa IS true
+                       AND rec.row_provenance='official_exact'
+                       AND rec.sha256_contenido IS NOT NULL
+                 ) >= 5
+                THEN 1 ELSE 0 END
+            FROM active_campaign ac
+            LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
+            LEFT JOIN modelo_regla_inclusion reg ON reg.campana_id=ac.id
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_289_documental_traceable_fail_closed_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='289'
+                  AND mc.activo IS true
+            ),
+            model_evidence AS (
+                SELECT CASE
+                    WHEN COUNT(DISTINCT cas.id) FILTER (WHERE cas.activa IS true) >= 100
+                     AND COUNT(DISTINCT ins.id) >= 5
+                     AND COUNT(DISTINCT reg.id) >= 6
+                     AND COUNT(DISTINCT rec.id) FILTER (
+                         WHERE rec.activa IS true
+                           AND rec.row_provenance='official_exact'
+                           AND rec.sha256_contenido IS NOT NULL
+                     ) >= 10
+                    THEN 1 ELSE 0 END AS ok
+                FROM active_campaign ac
+                LEFT JOIN modelo_casilla cas ON cas.campana_id=ac.id
+                LEFT JOIN modelo_instruccion ins ON ins.campana_id=ac.id
+                LEFT JOIN modelo_regla_inclusion reg ON reg.campana_id=ac.id
+                LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            ),
+            profile_contract AS (
+                SELECT CASE
+                    WHEN COUNT(DISTINCT perfil_codigo) = 4
+                    THEN 1 ELSE 0 END AS ok
+                FROM obligacion_perfil
+                WHERE modelo_aeat='289'
+                  AND perfil_codigo IN (
+                      'sociedad_valores',
+                      'agencia_valores',
+                      'eaf',
+                      'entidad_credito'
+                  )
+                  AND verified IS NOT true
+                  AND safe_to_answer IS NOT true
+                  AND source_hash IS NULL
+                  AND capture_date IS NOT NULL
+                  AND notas ILIKE '%fail-closed until source_hash and capture_date are loaded%'
+            )
+            SELECT CASE
+                WHEN (SELECT ok FROM model_evidence) = 1
+                 AND (SELECT ok FROM profile_contract) = 1
+                THEN 1 ELSE 0 END
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
             "aeat_priority_target_models_have_traceable_partial_evidence_7",
             """
             WITH model_evidence AS (
@@ -1899,6 +2006,78 @@ def _validate_aeat_catalogo_289_crs(payload: Any) -> tuple[bool, dict[str, Any]]
     return ok, details
 
 
+def _validate_aeat_campaign_assertion_safe_state(
+    payload: dict[str, Any],
+    codigo: str,
+    accepted_non_assertable_statuses: set[str],
+) -> tuple[bool, dict[str, Any]]:
+    sources = [
+        item
+        for item in (payload.get("fuentes_recomendadas") or [])
+        if isinstance(item, dict)
+    ]
+    direct_sources = [
+        item
+        for item in sources
+        if item.get("proves_campaign") is True
+        and item.get("campaign_evidence_role") == "direct_official"
+    ]
+    claimed_sources = [item for item in sources if item.get("proves_campaign") is True]
+    status = payload.get("campana_resolution_status")
+    assertion_code = str(payload.get("campana_assertion_code") or "")
+    safe_to_assert = payload.get("campana_safe_to_assert") is True
+    details = {
+        "codigo": payload.get("codigo"),
+        "campana_activa": payload.get("campana_activa"),
+        "campana_afirmable": payload.get("campana_afirmable"),
+        "campana_resolution_status": status,
+        "campana_safe_to_assert": payload.get("campana_safe_to_assert"),
+        "campana_assertion_code": payload.get("campana_assertion_code"),
+        "direct_campaign_sources": [
+            item.get("titulo") for item in direct_sources
+        ],
+        "claimed_campaign_sources": [
+            item.get("titulo") for item in claimed_sources
+        ],
+    }
+
+    if payload.get("codigo") != codigo:
+        details["accepted_state"] = "invalid"
+        return False, details
+    if safe_to_assert:
+        ok = (
+            payload.get("campana_afirmable") is not None
+            and status == "resolved_strong"
+            and assertion_code == "ASSERTABLE_DIRECT_OFFICIAL"
+            and bool(direct_sources)
+        )
+        details["accepted_state"] = "assertable_direct_official" if ok else "invalid"
+        return ok, details
+
+    ok = (
+        payload.get("campana_afirmable") is None
+        and status in accepted_non_assertable_statuses
+        and assertion_code.startswith("NOT_ASSERTABLE")
+        and not claimed_sources
+    )
+    details["accepted_state"] = "not_assertable" if ok else "invalid"
+    return ok, details
+
+
+def _validate_aeat_campaign_assertion_safe_state_model(
+    codigo: str,
+    accepted_non_assertable_statuses: set[str],
+):
+    def validator(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        return _validate_aeat_campaign_assertion_safe_state(
+            payload,
+            codigo,
+            accepted_non_assertable_statuses,
+        )
+
+    return validator
+
+
 def _validate_calendar_q3_structured(payload: Any) -> tuple[bool, dict[str, Any]]:
     items = payload if isinstance(payload, list) else []
     modelos = {
@@ -2515,6 +2694,24 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 "aeat_modelo_303_direct_instruction_asserts_campaign",
             )
         )
+        for modelo_codigo, accepted_statuses, check_name in (
+            ("190", {"resolved_weak"}, "aeat_modelo_190_campaign_not_overclaimed_contract"),
+            ("123", {"resolved_weak"}, "aeat_modelo_123_campaign_not_overclaimed_contract"),
+            ("124", {"conflict"}, "aeat_modelo_124_campaign_not_overclaimed_contract"),
+            ("289", {"conflict"}, "aeat_modelo_289_campaign_not_overclaimed_contract"),
+        ):
+            checks.append(
+                _check_json_contract(
+                    client,
+                    f"/v1/modelos/{modelo_codigo}/resumen-operativo",
+                    {},
+                    _validate_aeat_campaign_assertion_safe_state_model(
+                        modelo_codigo,
+                        accepted_statuses,
+                    ),
+                    check_name,
+                )
+            )
         checks.append(
             _check_json_contract(
                 client,

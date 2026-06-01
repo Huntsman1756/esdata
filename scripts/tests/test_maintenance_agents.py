@@ -301,6 +301,62 @@ def test_mcp_validation_suite_rejects_modelo_289_unsafe_context_without_hash():
     assert details["accepted_state"] == "invalid"
 
 
+def test_mcp_validation_suite_accepts_not_assertable_campaign_state():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_aeat_campaign_assertion_safe_state(
+        {
+            "codigo": "124",
+            "campana_activa": "2013",
+            "campana_afirmable": None,
+            "campana_safe_to_assert": False,
+            "campana_resolution_status": "conflict",
+            "campana_assertion_code": "NOT_ASSERTABLE_CONFLICT",
+            "fuentes_recomendadas": [
+                {
+                    "tipo": "modelo_recurso:diseno_registro",
+                    "titulo": "Diseno de registro oficial",
+                    "proves_campaign": False,
+                    "campaign_evidence_role": "weak",
+                }
+            ],
+        },
+        "124",
+        {"conflict"},
+    )
+
+    assert ok is True
+    assert details["accepted_state"] == "not_assertable"
+
+
+def test_mcp_validation_suite_rejects_assertable_campaign_without_direct_source():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_aeat_campaign_assertion_safe_state(
+        {
+            "codigo": "190",
+            "campana_activa": "2025",
+            "campana_afirmable": "2025",
+            "campana_safe_to_assert": True,
+            "campana_resolution_status": "resolved_strong",
+            "campana_assertion_code": "ASSERTABLE_DIRECT_OFFICIAL",
+            "fuentes_recomendadas": [
+                {
+                    "tipo": "modelo_recurso:formulario_html",
+                    "titulo": "Plazos de presentacion",
+                    "proves_campaign": False,
+                    "campaign_evidence_role": "weak",
+                }
+            ],
+        },
+        "190",
+        {"resolved_weak"},
+    )
+
+    assert ok is False
+    assert details["accepted_state"] == "invalid"
+
+
 def test_deep_contract_audit_accepts_verified_or_fail_closed_obligation_items():
     audit = _load_deep_contract_audit()
 
@@ -460,6 +516,13 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_modelo_303_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_202_is_payment_traceable_partial_contract" in source
     assert "aeat_modelo_190_withholding_traceable_partial_contract" in source
+    assert "aeat_modelo_123_design_traceable_partial_contract" in source
+    assert "aeat_modelo_124_design_traceable_partial_contract" in source
+    assert "aeat_modelo_289_documental_traceable_fail_closed_contract" in source
+    assert "aeat_modelo_190_campaign_not_overclaimed_contract" in source
+    assert "aeat_modelo_123_campaign_not_overclaimed_contract" in source
+    assert "aeat_modelo_124_campaign_not_overclaimed_contract" in source
+    assert "aeat_modelo_289_campaign_not_overclaimed_contract" in source
     assert "aeat_priority_target_models_have_traceable_partial_evidence_7" in source
     assert "row_provenance='official_exact'" in source
     assert "sha256_contenido IS NOT NULL" in source
