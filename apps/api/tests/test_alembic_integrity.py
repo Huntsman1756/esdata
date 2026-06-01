@@ -387,7 +387,6 @@ def test_aeat_190_campaign_evidence_revision_is_scoped_in_0108():
         "b154ea65d4a7679774842767de2e643f76c194e037237052647f43962073f205",
         "capture_date",
         "aeat_campaign_operational_evidence",
-        "deactivate_existing_instruction",
         "SET activa = false",
         "mr.url_recurso <> :url_instrucciones",
         "row_completeness = 'complete'",

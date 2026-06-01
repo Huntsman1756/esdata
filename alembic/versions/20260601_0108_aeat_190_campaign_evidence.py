@@ -50,6 +50,12 @@ def upgrade() -> None:
         }
     )
     bind = op.get_bind()
+    params = {
+        "url_instrucciones": AEAT_190_OPERATIONAL_URL,
+        "sha256_contenido": AEAT_190_OPERATIONAL_HASH,
+        "content_length": AEAT_190_OPERATIONAL_LENGTH,
+        "metadata": metadata,
+    }
     bind.execute(
         sa.text(
             """
@@ -63,17 +69,29 @@ def upgrade() -> None:
                   AND mc.campana = '2025'
                   AND mc.activo = true
                 RETURNING mc.id AS campana_id
-            ),
-            deactivate_existing_instruction AS (
-                UPDATE modelo_recurso mr
-                SET activa = false,
-                    last_seen_at = now()
-                FROM target_campaign tc
-                WHERE mr.campana_id = tc.campana_id
-                  AND mr.tipo_recurso = 'instrucciones'
-                  AND mr.url_recurso <> :url_instrucciones
-                  AND COALESCE(mr.activa, true) = true
-                RETURNING mr.id
+            )
+            UPDATE modelo_recurso mr
+            SET activa = false,
+                last_seen_at = now()
+            FROM target_campaign tc
+            WHERE mr.campana_id = tc.campana_id
+              AND mr.tipo_recurso = 'instrucciones'
+              AND mr.url_recurso <> :url_instrucciones
+              AND COALESCE(mr.activa, true) = true
+            """
+        ),
+        params,
+    )
+    bind.execute(
+        sa.text(
+            """
+            WITH target_campaign AS (
+                SELECT mc.id AS campana_id
+                FROM modelo_campana mc
+                JOIN aeat_modelo am ON am.id = mc.modelo_id
+                WHERE am.codigo = '190'
+                  AND mc.campana = '2025'
+                  AND mc.activo = true
             ),
             existing AS (
                 UPDATE modelo_recurso mr
@@ -123,12 +141,7 @@ def upgrade() -> None:
             WHERE NOT EXISTS (SELECT 1 FROM existing);
             """
         ),
-        {
-            "url_instrucciones": AEAT_190_OPERATIONAL_URL,
-            "sha256_contenido": AEAT_190_OPERATIONAL_HASH,
-            "content_length": AEAT_190_OPERATIONAL_LENGTH,
-            "metadata": metadata,
-        },
+        params,
     )
 
 
