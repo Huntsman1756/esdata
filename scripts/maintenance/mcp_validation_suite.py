@@ -1586,6 +1586,41 @@ def _validate_modelo_303_direct_instruction_campaign(payload: dict[str, Any]) ->
     return ok, details
 
 
+def _validate_modelo_190_direct_instruction_campaign(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    fuentes = payload.get("fuentes_recomendadas") or []
+    direct_instruction_sources = [
+        item
+        for item in fuentes
+        if item.get("tipo") == "modelo_recurso:instrucciones"
+        and item.get("proves_campaign") is True
+        and item.get("campaign_evidence_role") == "direct_official"
+    ]
+    details = {
+        "codigo": payload.get("codigo"),
+        "campana_activa": payload.get("campana_activa"),
+        "campana_afirmable": payload.get("campana_afirmable"),
+        "campana_resolution_status": payload.get("campana_resolution_status"),
+        "campana_safe_to_assert": payload.get("campana_safe_to_assert"),
+        "campana_assertion_code": payload.get("campana_assertion_code"),
+        "direct_instruction_sources": [
+            {
+                "titulo": item.get("titulo"),
+                "url": item.get("url"),
+            }
+            for item in direct_instruction_sources
+        ],
+    }
+    ok = (
+        payload.get("codigo") == "190"
+        and payload.get("campana_activa") == payload.get("campana_afirmable")
+        and payload.get("campana_resolution_status") == "resolved_strong"
+        and payload.get("campana_safe_to_assert") is True
+        and payload.get("campana_assertion_code") == "ASSERTABLE_DIRECT_OFFICIAL"
+        and bool(direct_instruction_sources)
+    )
+    return ok, details
+
+
 def _validate_modelo_290_fatca_contract(payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     claves = payload.get("claves") or []
     instrucciones = payload.get("instrucciones") or []
@@ -2694,8 +2729,16 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 "aeat_modelo_303_direct_instruction_asserts_campaign",
             )
         )
+        checks.append(
+            _check_json_contract(
+                client,
+                "/v1/modelos/190/resumen-operativo",
+                {},
+                _validate_modelo_190_direct_instruction_campaign,
+                "aeat_modelo_190_direct_instruction_asserts_campaign",
+            )
+        )
         for modelo_codigo, accepted_statuses, check_name in (
-            ("190", {"resolved_weak"}, "aeat_modelo_190_campaign_not_overclaimed_contract"),
             ("123", {"resolved_weak"}, "aeat_modelo_123_campaign_not_overclaimed_contract"),
             ("124", {"resolved_weak", "conflict"}, "aeat_modelo_124_campaign_not_overclaimed_contract"),
             ("289", {"resolved_weak", "conflict"}, "aeat_modelo_289_campaign_not_overclaimed_contract"),

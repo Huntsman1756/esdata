@@ -357,6 +357,37 @@ def test_mcp_validation_suite_rejects_assertable_campaign_without_direct_source(
     assert details["accepted_state"] == "invalid"
 
 
+def test_mcp_validation_suite_accepts_modelo_190_direct_instruction_campaign():
+    suite = _load_validation_suite()
+
+    ok, details = suite._validate_modelo_190_direct_instruction_campaign(
+        {
+            "codigo": "190",
+            "campana_activa": "2025",
+            "campana_afirmable": "2025",
+            "campana_safe_to_assert": True,
+            "campana_resolution_status": "resolved_strong",
+            "campana_assertion_code": "ASSERTABLE_DIRECT_OFFICIAL",
+            "fuentes_recomendadas": [
+                {
+                    "tipo": "modelo_recurso:instrucciones",
+                    "titulo": "Modelo 190. Ejercicio 2025. Gestiones activas en AEAT Sede.",
+                    "url": (
+                        "https://sede.agenciatributaria.gob.es/Sede/irpf/"
+                        "retenciones-ingresos-cuenta-pagos-fraccionados/"
+                        "retenciones-ingresos-cuenta/modelo-190.html"
+                    ),
+                    "proves_campaign": True,
+                    "campaign_evidence_role": "direct_official",
+                }
+            ],
+        }
+    )
+
+    assert ok is True
+    assert details["direct_instruction_sources"][0]["titulo"].startswith("Modelo 190")
+
+
 def test_deep_contract_audit_accepts_verified_or_fail_closed_obligation_items():
     audit = _load_deep_contract_audit()
 
@@ -516,10 +547,10 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_modelo_303_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_202_is_payment_traceable_partial_contract" in source
     assert "aeat_modelo_190_withholding_traceable_partial_contract" in source
+    assert "aeat_modelo_190_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_123_design_traceable_partial_contract" in source
     assert "aeat_modelo_124_design_traceable_partial_contract" in source
     assert "aeat_modelo_289_documental_traceable_fail_closed_contract" in source
-    assert "aeat_modelo_190_campaign_not_overclaimed_contract" in source
     assert "aeat_modelo_123_campaign_not_overclaimed_contract" in source
     assert "aeat_modelo_124_campaign_not_overclaimed_contract" in source
     assert "aeat_modelo_289_campaign_not_overclaimed_contract" in source

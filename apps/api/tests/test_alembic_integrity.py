@@ -371,6 +371,40 @@ def test_aeat_289_campaign_duality_revision_is_scoped_in_0106():
         assert forbidden not in contents
 
 
+def test_aeat_190_campaign_evidence_revision_is_scoped_in_0108():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260601_0108_aeat_190_campaign_evidence.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "codigo = '190'",
+        "campana = '2025'",
+        "tipo_recurso = 'instrucciones'",
+        "modelo-190.html",
+        "Modelo 190. Ejercicio 2025. Gestiones activas en AEAT Sede.",
+        "b154ea65d4a7679774842767de2e643f76c194e037237052647f43962073f205",
+        "capture_date",
+        "aeat_campaign_operational_evidence",
+        "row_completeness = 'complete'",
+        "row_provenance = 'official_exact'",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+        "UPDATE obligacion_perfil",
+        "INSERT INTO modelo_clave",
+        "INSERT INTO modelo_instruccion",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS
