@@ -380,13 +380,18 @@ def _campaign_assertion_warning(status: str) -> str | None:
 def _build_campana_selection(campana_activa: str | None, resources: list[dict]) -> dict:
     evidence = []
     resource_years: set[str] = set()
+    direct_proof_years: set[str] = set()
     technical_exercise_coverage = _extract_technical_exercise_coverage(resources)
 
     for resource in resources:
         tipo = resource.get("tipo")
         if tipo not in CAMPAIGN_BEARING_RESOURCE_TYPES:
             continue
-        years = _extract_campaign_candidate_years(
+        years = [
+            str(year)
+            for year in (resource.get("years") or [])
+            if str(year).isdigit()
+        ] or _extract_campaign_candidate_years(
             resource.get("url"),
             resource.get("titulo"),
             resource.get("fecha"),
@@ -394,6 +399,8 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         if not years:
             continue
         resource_years.update(years)
+        if resource.get("proves_campaign") is True:
+            direct_proof_years.update(years)
         evidence.append(
             {
                 "tipo": tipo,
@@ -404,8 +411,14 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         )
 
     active_year = campana_activa if campana_activa and campana_activa.isdigit() else None
-    evidence_years = ({active_year} if active_year else set()) | resource_years
-    conflict = len(evidence_years) > 1
+    direct_conflict = len(direct_proof_years) > 1 or bool(
+        active_year and direct_proof_years and active_year not in direct_proof_years
+    )
+    if direct_proof_years and not direct_conflict:
+        evidence_years = ({active_year} if active_year else set()) | direct_proof_years
+    else:
+        evidence_years = ({active_year} if active_year else set()) | resource_years
+    conflict = direct_conflict or (not direct_proof_years and len(evidence_years) > 1)
     conflict_years = sorted(evidence_years)
     conflict_span = (
         max(int(year) for year in conflict_years) - min(int(year) for year in conflict_years)
@@ -415,6 +428,10 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
     conflict_severity = "strong" if conflict_span >= 3 else "weak" if conflict else "none"
     if conflict:
         resolution_status = "conflict"
+        candidate = None
+    elif direct_proof_years:
+        candidate = campana_activa or next(iter(sorted(direct_proof_years)), None)
+        resolution_status = "resolved_strong"
     elif active_year or resource_years:
         candidate = campana_activa or next(iter(sorted(resource_years)), None)
         resolution_status = (
@@ -424,7 +441,7 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         )
     else:
         resolution_status = "insufficient_evidence"
-    candidate = None if conflict else campana_activa or next(iter(sorted(resource_years)), None)
+        candidate = None
     safe_to_assert = resolution_status == "resolved_strong"
     verification_level = {
         "resolved_strong": "direct_official",
@@ -796,6 +813,46 @@ def list_campaign_technical_coverage_recursos(db, campana_id: int):
                 "source_index": metadata.get("source_index"),
             }
         )
+    return recursos
+
+
+def list_campaign_direct_campaign_recursos(db, campana_id: int, codigo: str, campana: str | None):
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                tipo_recurso,
+                formato,
+                url_recurso,
+                sha256_contenido,
+                fecha_publicacion_recurso,
+                metadata
+            FROM modelo_recurso
+            WHERE campana_id = :campana_id
+              AND COALESCE(activa, true) = false
+              AND tipo_recurso IN ('instrucciones', 'formulario_html', 'formulario_pdf')
+            ORDER BY tipo_recurso, url_recurso
+            """
+        ),
+        {"campana_id": campana_id},
+    ).mappings()
+    recursos = []
+    for row in rows:
+        if not _is_exposable_modelo_recurso(row["tipo_recurso"], row["url_recurso"]):
+            continue
+        item = dict(row)
+        metadata = _parse_metadata(item.get("metadata"))
+        if not _modelo_recurso_proves_campaign(
+            codigo=codigo,
+            campana=campana,
+            tipo_recurso=item["tipo_recurso"],
+            url_recurso=item["url_recurso"],
+            sha256_contenido=item["sha256_contenido"],
+            metadata=metadata,
+        ):
+            continue
+        item["metadata"] = metadata
+        recursos.append(item)
     return recursos
 
 
@@ -1196,6 +1253,40 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                 fuentes[-1]["label"] = metadata.get("label")
                 fuentes[-1]["source_index"] = metadata.get("source_index")
 
+        for row in list_campaign_direct_campaign_recursos(
+            db, camp_row["id"], codigo, campana_activa
+        ):
+            url = row["url_recurso"]
+            metadata = row.get("metadata") or {}
+            title = _metadata_title(metadata, codigo, row["tipo_recurso"], row["formato"])
+            proves_campaign = _modelo_recurso_proves_campaign(
+                codigo=codigo,
+                campana=campana_activa,
+                tipo_recurso=row["tipo_recurso"],
+                url_recurso=url,
+                sha256_contenido=row["sha256_contenido"],
+                metadata=metadata,
+            )
+            added = add_source(
+                tipo=f"modelo_recurso:{row['tipo_recurso']}",
+                titulo=title,
+                url=url,
+                organismo="AEAT",
+                oficial=True,
+                campana_value=campana_activa,
+                fecha=str(row["fecha_publicacion_recurso"]) if row["fecha_publicacion_recurso"] else None,
+                nota=(
+                    "Recurso oficial historico cacheado en modelo_recurso; "
+                    "se usa como evidencia directa de campana por metadato explicito; "
+                    f"sha256={str(row['sha256_contenido'])[:12]}..."
+                ),
+                proves_campaign=proves_campaign,
+                campaign_evidence_role="direct_official",
+            )
+            if added:
+                fuentes[-1]["label"] = metadata.get("label")
+                fuentes[-1]["source_index"] = metadata.get("source_index")
+
     for row in list_modelo_normativa(db, codigo):
         add_source(
             tipo="boe",
@@ -1341,6 +1432,40 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                 ),
                 proves_campaign=proves_campaign,
                 campaign_evidence_role="direct_official" if proves_campaign else None,
+            )
+            if added:
+                artefactos[-1]["label"] = metadata.get("label")
+                artefactos[-1]["source_index"] = metadata.get("source_index")
+
+        for row in list_campaign_direct_campaign_recursos(
+            db, camp_row["id"], codigo, campana_activa
+        ):
+            url = row["url_recurso"]
+            metadata = row.get("metadata") or {}
+            title = _metadata_title(metadata, codigo, row["tipo_recurso"], row["formato"])
+            proves_campaign = _modelo_recurso_proves_campaign(
+                codigo=codigo,
+                campana=campana_activa,
+                tipo_recurso=row["tipo_recurso"],
+                url_recurso=url,
+                sha256_contenido=row["sha256_contenido"],
+                metadata=metadata,
+            )
+            added = add_artefacto(
+                tipo=f"modelo_recurso:{row['tipo_recurso']}",
+                titulo=title,
+                url=url,
+                oficial=True,
+                campana_value=campana_activa,
+                fecha=str(row["fecha_publicacion_recurso"]) if row["fecha_publicacion_recurso"] else None,
+                formato=row["formato"],
+                nota=(
+                    "Recurso oficial historico cacheado en modelo_recurso; "
+                    "se usa como evidencia directa de campana por metadato explicito; "
+                    f"sha256={str(row['sha256_contenido'])[:12]}..."
+                ),
+                proves_campaign=proves_campaign,
+                campaign_evidence_role="direct_official",
             )
             if added:
                 artefactos[-1]["label"] = metadata.get("label")

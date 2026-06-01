@@ -335,7 +335,7 @@ async def test_modelo_303_resumen_operativo_asserts_campaign_from_direct_officia
                     :campana_id, 'instrucciones', 'html',
                     'https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2025.html',
                     'hash-modelo303-instrucciones-2025-direct-v1',
-                    '2025-01-15', 1, '2025-01-15T00:00:00Z', '2025-01-16T00:00:00Z',
+                    '2025-01-15', 0, '2025-01-15T00:00:00Z', '2025-01-16T00:00:00Z',
                     '{"anchor_text":"Instrucciones 2025","url_recurso":"https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2025.html"}'
                 )
                 """
@@ -343,27 +343,38 @@ async def test_modelo_303_resumen_operativo_asserts_campaign_from_direct_officia
             {"campana_id": campana_id},
         )
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers={"x-api-key": "test-secret-key"},
-    ) as client:
-        response = await client.get("/v1/modelos/303/resumen-operativo")
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"x-api-key": "test-secret-key"},
+        ) as client:
+            response = await client.get("/v1/modelos/303/resumen-operativo")
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["campana_activa"] == "2025"
-    assert data["campana_afirmable"] == "2025"
-    assert data["campana_resolution_status"] == "resolved_strong"
-    assert data["campana_verification_level"] == "direct_official"
-    assert data["campana_safe_to_assert"] is True
-    assert data["campana_assertion_code"] == "ASSERTABLE_DIRECT_OFFICIAL"
-    assert any(
-        item["tipo"] == "modelo_recurso:instrucciones"
-        and item["proves_campaign"] is True
-        and item["campaign_evidence_role"] == "direct_official"
-        for item in data["fuentes_recomendadas"]
-    )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["campana_activa"] == "2025"
+        assert data["campana_afirmable"] == "2025"
+        assert data["campana_resolution_status"] == "resolved_strong"
+        assert data["campana_verification_level"] == "direct_official"
+        assert data["campana_safe_to_assert"] is True
+        assert data["campana_assertion_code"] == "ASSERTABLE_DIRECT_OFFICIAL"
+        assert any(
+            item["tipo"] == "modelo_recurso:instrucciones"
+            and item["proves_campaign"] is True
+            and item["campaign_evidence_role"] == "direct_official"
+            for item in data["fuentes_recomendadas"]
+        )
+    finally:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    DELETE FROM modelo_recurso
+                    WHERE sha256_contenido = 'hash-modelo303-instrucciones-2025-direct-v1'
+                    """
+                )
+            )
 
 
 @pytest.mark.asyncio
@@ -840,6 +851,41 @@ def test_campana_selection_only_asserts_when_resource_explicitly_proves_campaign
     assert selection["campana_safe_to_assert"] is True
     assert selection["campana_assertion_code"] == "ASSERTABLE_DIRECT_OFFICIAL"
     assert selection["campana_assertion_warning"] is None
+
+
+def test_direct_campaign_evidence_overrides_weak_stale_resource_years():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        "2026",
+        [
+            {
+                "tipo": "modelo_recurso:instrucciones",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/"
+                    "impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones.html"
+                ),
+                "titulo": "Instrucciones 2024",
+                "proves_campaign": False,
+            },
+            {
+                "tipo": "modelo_recurso:instrucciones",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/"
+                    "impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2026.html"
+                ),
+                "titulo": "Instrucciones 2026",
+                "years": ["2026"],
+                "proves_campaign": True,
+            },
+        ],
+    )
+
+    assert selection["campana_afirmable"] == "2026"
+    assert selection["campana_resolution_status"] == "resolved_strong"
+    assert selection["campana_safe_to_assert"] is True
+    assert selection["campana_assertion_code"] == "ASSERTABLE_DIRECT_OFFICIAL"
+    assert selection["campana_conflict"] is False
 
 
 @pytest.mark.asyncio
