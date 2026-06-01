@@ -910,6 +910,36 @@ def test_direct_campaign_evidence_overrides_weak_stale_resource_years():
     assert selection["campana_conflict"] is False
 
 
+def test_model_289_campaign_duality_keeps_exercise_and_presentation_years_separate():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        "2025",
+        [
+            {
+                "tipo": "aeat_instrucciones",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/Sede/"
+                    "declaraciones-informativas-otros-impuestos-tasas/"
+                    "campana-declaraciones-informativas-2025/normativa/modelo-289.html"
+                ),
+                "campana": "2025",
+                "proves_campaign": False,
+            }
+        ],
+        ejercicio_declarado=2025,
+        anio_presentacion=2026,
+    )
+
+    assert selection["campana_persistida"] == "2025"
+    assert selection["ejercicio_declarado"] == 2025
+    assert selection["anio_presentacion"] == 2026
+    assert selection["campana_conflict"] is False
+    assert selection["campana_conflict_evidence"] == []
+    assert selection["campana_resolution_status"] == "resolved_weak"
+    assert selection["campana_safe_to_assert"] is False
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("path", "tool_name"),

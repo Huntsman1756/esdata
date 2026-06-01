@@ -148,7 +148,7 @@ CAMPAÑAS = [
 
     # --- INFORMATIVO ---
     ("289",
-     "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html",
+     "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2025/normativa/modelo-289.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2024-24098",
      None),
     ("290",

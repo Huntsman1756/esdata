@@ -344,6 +344,33 @@ def test_aeat_289_documental_source_refresh_is_scoped_in_0098():
         assert forbidden not in contents
 
 
+def test_aeat_289_campaign_duality_revision_is_scoped_in_0106():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260601_0106_aeat_289_campaign_duality.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "ejercicio_declarado",
+        "anio_presentacion",
+        "campana-declaraciones-informativas-2025/normativa/modelo-289.html",
+        "codigo = '289'",
+        "campana = '2025'",
+        "url_instrucciones",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

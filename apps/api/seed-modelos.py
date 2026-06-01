@@ -223,7 +223,7 @@ MODELOS = [
         "nombre": "Cuentas financieras asistencia mutua (DAC2/CRS)",
         "periodo": "anual",
         "impuesto": "INFORMATIVO",
-        "url_info": "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html",
+        "url_info": "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2025/normativa/modelo-289.html",
     },
     {
         "codigo": "290",
@@ -719,7 +719,7 @@ MODELO_ARTICULO_DATA = [
         "289", "LGT", "109",
         None, "Obligaciones de información — intercambio DAC2/CRS",
         "Instrucciones Modelo 289 2025",
-        "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html",
+        "https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2025/normativa/modelo-289.html",
     ),
 
     # ------------------------------------------------------------------

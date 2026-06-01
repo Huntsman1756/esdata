@@ -103,7 +103,7 @@ INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa
 SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/guia-practica-cumplimentacion-modelo-censal-036/index.shtml', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-25303', NULL, true
 FROM aeat_modelo m WHERE m.codigo = '036';
 INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato, activo)
-SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2024/modelo-289.html', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-24098', NULL, true
+SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/declaraciones-informativas-otros-impuestos-tasas/campana-declaraciones-informativas-2025/normativa/modelo-289.html', 'https://www.boe.es/buscar/act.php?id=BOE-A-2024-24098', NULL, true
 FROM aeat_modelo m WHERE m.codigo = '289';
 INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato, activo)
 SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-290-decla_____s-determinadas-personas-fatca_/index.shtml', 'https://www.boe.es/buscar/act.php?id=BOE-A-2014-6922', NULL, true

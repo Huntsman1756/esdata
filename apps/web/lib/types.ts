@@ -256,6 +256,8 @@ export interface ModeloDetail {
   // Persisted-only compatibility field. Do not present as verified campaign.
   campana_activa: string | null;
   campana_persistida: string | null;
+  ejercicio_declarado: number | null;
+  anio_presentacion: number | null;
   campana_afirmable: string | null;
   campana_candidata: string | null;
   campana_resolution_status: string | null;

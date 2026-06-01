@@ -208,6 +208,33 @@ CAMPAIGN_BEARING_RESOURCE_TYPES = {
 }
 
 
+def _campaign_duality_select(db) -> str:
+    try:
+        bind = db.get_bind()
+        dialect = bind.dialect.name
+        if dialect == "sqlite":
+            rows = db.execute(text("PRAGMA table_info(modelo_campana)")).mappings().all()
+            columns = {row["name"] for row in rows}
+        else:
+            rows = db.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'modelo_campana'
+                      AND column_name IN ('ejercicio_declarado', 'anio_presentacion')
+                    """
+                )
+            ).mappings().all()
+            columns = {row["column_name"] for row in rows}
+    except Exception:
+        columns = set()
+    if {"ejercicio_declarado", "anio_presentacion"}.issubset(columns):
+        return "ejercicio_declarado, anio_presentacion"
+    return "NULL AS ejercicio_declarado, NULL AS anio_presentacion"
+
+
 CAMPAIGN_NOT_ASSERTABLE_NOTICE = (
     "Campana no afirmable con maxima exactitud fiscal: el valor disponible es "
     "persistido o inferido internamente, pero no esta verificado por evidencia "
@@ -476,7 +503,13 @@ def _campaign_assertion_warning(status: str) -> str | None:
     )
 
 
-def _build_campana_selection(campana_activa: str | None, resources: list[dict]) -> dict:
+def _build_campana_selection(
+    campana_activa: str | None,
+    resources: list[dict],
+    *,
+    ejercicio_declarado: int | None = None,
+    anio_presentacion: int | None = None,
+) -> dict:
     evidence = []
     resource_years: set[str] = set()
     direct_proof_years: set[str] = set()
@@ -572,6 +605,8 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
 
     return {
         "campana_persistida": campana_activa,
+        "ejercicio_declarado": ejercicio_declarado,
+        "anio_presentacion": anio_presentacion,
         "campana_afirmable": candidate if safe_to_assert else None,
         "campana_candidata": candidate,
         "campana_resolution_status": resolution_status,
@@ -691,11 +726,13 @@ def get_model_row(db, codigo: str):
 
 
 def get_active_campaign(db, codigo: str, campana: str | None = None):
+    duality_columns = _campaign_duality_select(db)
     if campana:
         return db.execute(
             text(
-                """
-                SELECT id, campana, url_instrucciones, url_normativa, url_formato
+                f"""
+                SELECT id, campana, url_instrucciones, url_normativa, url_formato,
+                       {duality_columns}
                 FROM modelo_campana
                 WHERE modelo_id = (
                     SELECT id
@@ -710,40 +747,25 @@ def get_active_campaign(db, codigo: str, campana: str | None = None):
             {"codigo": codigo, "campana": campana},
         ).mappings().first()
 
-    try:
-        return db.execute(
-            text(
-                """
-                SELECT id, campana, url_instrucciones, url_normativa, url_formato
-                FROM modelo_campana_activa((
-                    SELECT id
-                    FROM aeat_modelo
-                    WHERE codigo = :codigo
-                      AND COALESCE(activo, true) = true
-                ))
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
-    except Exception:
-        return db.execute(
-            text(
-                """
-                SELECT id, campana, url_instrucciones, url_normativa, url_formato
-                FROM modelo_campana
-                WHERE modelo_id = (
-                    SELECT id
-                    FROM aeat_modelo
-                    WHERE codigo = :codigo
-                      AND COALESCE(activo, true) = true
-                )
-                  AND activo = true
-                ORDER BY campana DESC
-                LIMIT 1
-                """
-            ),
-            {"codigo": codigo},
-        ).mappings().first()
+    return db.execute(
+        text(
+            f"""
+            SELECT id, campana, url_instrucciones, url_normativa, url_formato,
+                   {duality_columns}
+            FROM modelo_campana
+            WHERE modelo_id = (
+                SELECT id
+                FROM aeat_modelo
+                WHERE codigo = :codigo
+                  AND COALESCE(activo, true) = true
+            )
+              AND activo = true
+            ORDER BY campana DESC
+            LIMIT 1
+            """
+        ),
+        {"codigo": codigo},
+    ).mappings().first()
 
 
 def list_modelos_summary(db):
@@ -834,10 +856,11 @@ def list_modelo_articulos(db, codigo: str):
 
 
 def list_modelo_campanas(db, codigo: str):
+    duality_columns = _campaign_duality_select(db)
     return db.execute(
         text(
-            """
-            SELECT campana, activo
+            f"""
+            SELECT campana, activo, {duality_columns}
             FROM modelo_campana
             WHERE modelo_id = (SELECT id FROM aeat_modelo WHERE codigo = :codigo)
             ORDER BY campana DESC
@@ -1271,6 +1294,8 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
         boe_id: str | None = None,
         fecha: str | None = None,
         nota: str | None = None,
+        source_hash: str | None = None,
+        capture_date: str | None = None,
         proves_campaign: bool = False,
         campaign_evidence_role: str | None = None,
     ):
@@ -1291,6 +1316,8 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                 "fecha": fecha,
                 "oficial": oficial,
                 "nota": nota,
+                "source_hash": source_hash,
+                "capture_date": capture_date,
                 "proves_campaign": proves_campaign,
                 "campaign_evidence_role": campaign_evidence_role
                 or ("weak" if tipo in CAMPAIGN_BEARING_RESOURCE_TYPES else "none"),
@@ -1361,6 +1388,8 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                     "Recurso oficial activo cacheado en modelo_recurso; "
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
+                source_hash=row["sha256_contenido"],
+                capture_date=metadata.get("capture_date"),
                 proves_campaign=proves_campaign,
                 campaign_evidence_role="direct_official" if proves_campaign else None,
             )
@@ -1395,6 +1424,8 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
                     "se usa como evidencia directa de campana por metadato explicito; "
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
+                source_hash=row["sha256_contenido"],
+                capture_date=metadata.get("capture_date"),
                 proves_campaign=proves_campaign,
                 campaign_evidence_role="direct_official",
             )
@@ -1434,7 +1465,12 @@ def list_modelo_fuentes_oficiales(db, codigo: str, campana: str | None = None):
     return {
         "codigo": codigo,
         "campana_activa": campana_activa,
-        **_build_campana_selection(campana_activa, selection_sources),
+        **_build_campana_selection(
+            campana_activa,
+            selection_sources,
+            ejercicio_declarado=camp_row["ejercicio_declarado"] if camp_row else None,
+            anio_presentacion=camp_row["anio_presentacion"] if camp_row else None,
+        ),
         "criterio_uso": (
             "En esdata, la fuente maestra debe ser siempre oficial y primaria "
             "(AEAT, BOE o equivalente público). Las referencias derivadas solo "
@@ -1465,6 +1501,8 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
         fecha: str | None = None,
         formato: str | None = None,
         nota: str | None = None,
+        source_hash: str | None = None,
+        capture_date: str | None = None,
         proves_campaign: bool = False,
         campaign_evidence_role: str | None = None,
     ):
@@ -1485,6 +1523,8 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                 "formato": formato,
                 "oficial": oficial,
                 "nota": nota,
+                "source_hash": source_hash,
+                "capture_date": capture_date,
                 "proves_campaign": proves_campaign,
                 "campaign_evidence_role": campaign_evidence_role
                 or ("weak" if tipo in CAMPAIGN_BEARING_RESOURCE_TYPES else "none"),
@@ -1545,6 +1585,8 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                     "Recurso oficial activo cacheado en modelo_recurso; "
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
+                source_hash=row["sha256_contenido"],
+                capture_date=metadata.get("capture_date"),
                 proves_campaign=proves_campaign,
                 campaign_evidence_role="direct_official" if proves_campaign else None,
             )
@@ -1579,6 +1621,8 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
                     "se usa como evidencia directa de campana por metadato explicito; "
                     f"sha256={str(row['sha256_contenido'])[:12]}..."
                 ),
+                source_hash=row["sha256_contenido"],
+                capture_date=metadata.get("capture_date"),
                 proves_campaign=proves_campaign,
                 campaign_evidence_role="direct_official",
             )
@@ -1607,7 +1651,12 @@ def list_modelo_artefactos(db, codigo: str, campana: str | None = None):
     return {
         "codigo": codigo,
         "campana_activa": campana_activa,
-        **_build_campana_selection(campana_activa, selection_artefactos),
+        **_build_campana_selection(
+            campana_activa,
+            selection_artefactos,
+            ejercicio_declarado=camp_row["ejercicio_declarado"] if camp_row else None,
+            anio_presentacion=camp_row["anio_presentacion"] if camp_row else None,
+        ),
         "criterio_validacion": (
             "Estos artefactos sirven para validacion local, trazabilidad y trabajo tecnico "
             "sobre el modelo. La aceptacion formal del modelo solo puede confirmarse contra "
@@ -1657,6 +1706,14 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
         "periodo": model_row["periodo"],
         "campana_activa": campana_activa,
         "campana_persistida": (fuentes or {}).get("campana_persistida", campana_activa),
+        "ejercicio_declarado": (fuentes or {}).get(
+            "ejercicio_declarado",
+            camp_row["ejercicio_declarado"] if camp_row else None,
+        ),
+        "anio_presentacion": (fuentes or {}).get(
+            "anio_presentacion",
+            camp_row["anio_presentacion"] if camp_row else None,
+        ),
         "campana_afirmable": (fuentes or {}).get("campana_afirmable"),
         "campana_candidata": (fuentes or {}).get("campana_candidata"),
         "campana_resolution_status": (fuentes or {}).get("campana_resolution_status", "insufficient_evidence"),

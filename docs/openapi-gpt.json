@@ -8336,6 +8336,16 @@
             "title": "Campana Persistida",
             "description": "Campana persistida internamente; no afirmable por si sola"
           },
+          "ejercicio_declarado": {
+            "type": "integer",
+            "title": "Ejercicio Declarado",
+            "description": "Ejercicio fiscal/de datos declarado por la campana AEAT"
+          },
+          "anio_presentacion": {
+            "type": "integer",
+            "title": "Anio Presentacion",
+            "description": "Ano calendario en que se presenta la declaracion"
+          },
           "campana_afirmable": {
             "type": "string",
             "title": "Campana Afirmable",
@@ -8514,6 +8524,16 @@
             "type": "boolean",
             "title": "Activo",
             "description": "Si es la campana persistida internamente"
+          },
+          "ejercicio_declarado": {
+            "type": "integer",
+            "title": "Ejercicio Declarado",
+            "description": "Ejercicio fiscal/de datos declarado"
+          },
+          "anio_presentacion": {
+            "type": "integer",
+            "title": "Anio Presentacion",
+            "description": "Ano calendario de presentacion"
           }
         },
         "type": "object",
@@ -9046,6 +9066,16 @@
             "title": "Campana Persistida",
             "description": "Campana persistida internamente; no afirmable por si sola"
           },
+          "ejercicio_declarado": {
+            "type": "integer",
+            "title": "Ejercicio Declarado",
+            "description": "Ejercicio fiscal/de datos declarado por la campana AEAT"
+          },
+          "anio_presentacion": {
+            "type": "integer",
+            "title": "Anio Presentacion",
+            "description": "Ano calendario en que se presenta la declaracion"
+          },
           "campana_afirmable": {
             "type": "string",
             "title": "Campana Afirmable",
@@ -9391,6 +9421,16 @@
             "title": "Campana Persistida",
             "description": "Campana persistida internamente; no afirmable por si sola"
           },
+          "ejercicio_declarado": {
+            "type": "integer",
+            "title": "Ejercicio Declarado",
+            "description": "Ejercicio fiscal/de datos declarado por la campana AEAT"
+          },
+          "anio_presentacion": {
+            "type": "integer",
+            "title": "Anio Presentacion",
+            "description": "Ano calendario en que se presenta la declaracion"
+          },
           "campana_afirmable": {
             "type": "string",
             "title": "Campana Afirmable",
@@ -9694,6 +9734,16 @@
             "type": "string",
             "title": "Campana Persistida",
             "description": "Campana persistida internamente; no afirmable por si sola"
+          },
+          "ejercicio_declarado": {
+            "type": "integer",
+            "title": "Ejercicio Declarado",
+            "description": "Ejercicio fiscal/de datos declarado por la campana AEAT"
+          },
+          "anio_presentacion": {
+            "type": "integer",
+            "title": "Anio Presentacion",
+            "description": "Ano calendario en que se presenta la declaracion"
           },
           "campana_afirmable": {
             "type": "string",

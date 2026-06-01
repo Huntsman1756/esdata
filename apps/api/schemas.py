@@ -398,6 +398,8 @@ class ModeloCampanaOperativaResponse(BaseModel):
 class ModeloCampana(BaseModel):
     campana: str = Field(description="Año/campaña (2025, 2024, etc.)")
     activo: bool = Field(description="Si es la campana persistida internamente")
+    ejercicio_declarado: int | None = Field(default=None, description="Ejercicio fiscal/de datos declarado")
+    anio_presentacion: int | None = Field(default=None, description="Ano calendario de presentacion")
 
 
 class ModeloTechnicalExerciseCoverage(BaseModel):
@@ -426,6 +428,12 @@ class ModeloDetail(BaseModel):
     )
     campana_persistida: str | None = Field(
         default=None, description="Campana persistida internamente; no afirmable por si sola"
+    )
+    ejercicio_declarado: int | None = Field(
+        default=None, description="Ejercicio fiscal/de datos declarado por la campana AEAT"
+    )
+    anio_presentacion: int | None = Field(
+        default=None, description="Ano calendario en que se presenta la declaracion"
     )
     campana_afirmable: str | None = Field(
         default=None, description="Campana que se puede afirmar; null salvo resolved_strong"
@@ -828,6 +836,8 @@ class ModeloFuentesOficialesResponse(BaseModel):
         ),
     )
     campana_persistida: str | None = Field(default=None, description="Campana persistida internamente; no afirmable por si sola")
+    ejercicio_declarado: int | None = Field(default=None, description="Ejercicio fiscal/de datos declarado por la campana AEAT")
+    anio_presentacion: int | None = Field(default=None, description="Ano calendario en que se presenta la declaracion")
     campana_afirmable: str | None = Field(default=None, description="Campana que MCP puede afirmar; null salvo resolved_strong")
     campana_candidata: str | None = Field(default=None, description="Campana candidata si no hay conflicto semantico")
     campana_resolution_status: str = Field(default="insufficient_evidence", description="Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected")
@@ -863,6 +873,8 @@ class ModeloResumenOperativoResponse(BaseModel):
     quien_debe_presentarlo: str | None = Field(default=None, description="Quién debe presentarlo")
     plazo_presentacion: str | None = Field(default=None, description="Plazo de presentación")
     campana_persistida: str | None = Field(default=None, description="Campana persistida internamente; no afirmable por si sola")
+    ejercicio_declarado: int | None = Field(default=None, description="Ejercicio fiscal/de datos declarado por la campana AEAT")
+    anio_presentacion: int | None = Field(default=None, description="Ano calendario en que se presenta la declaracion")
     campana_afirmable: str | None = Field(default=None, description="Campana que MCP puede afirmar; null salvo resolved_strong")
     campana_candidata: str | None = Field(default=None, description="Campana candidata si no hay conflicto semantico")
     campana_resolution_status: str = Field(default="insufficient_evidence", description="Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected")
@@ -908,6 +920,8 @@ class ModeloArtefactosResponse(BaseModel):
     )
     criterio_validacion: str = Field(description="Criterio de validación")
     campana_persistida: str | None = Field(default=None, description="Campana persistida internamente; no afirmable por si sola")
+    ejercicio_declarado: int | None = Field(default=None, description="Ejercicio fiscal/de datos declarado por la campana AEAT")
+    anio_presentacion: int | None = Field(default=None, description="Ano calendario en que se presenta la declaracion")
     campana_afirmable: str | None = Field(default=None, description="Campana que MCP puede afirmar; null salvo resolved_strong")
     campana_candidata: str | None = Field(default=None, description="Campana candidata si no hay conflicto semantico")
     campana_resolution_status: str = Field(default="insufficient_evidence", description="Estado derivado: resolved_strong, resolved_weak, conflict, insufficient_evidence o stale_suspected")

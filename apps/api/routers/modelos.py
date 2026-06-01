@@ -718,6 +718,14 @@ async def get_modelo(
             "url_info": model_row["url_info"],
             "campana_activa": campana_activa,
             "campana_persistida": campana_assertion.get("campana_persistida", campana_activa),
+            "ejercicio_declarado": campana_assertion.get(
+                "ejercicio_declarado",
+                camp_row["ejercicio_declarado"] if camp_row else None,
+            ),
+            "anio_presentacion": campana_assertion.get(
+                "anio_presentacion",
+                camp_row["anio_presentacion"] if camp_row else None,
+            ),
             "campana_afirmable": campana_assertion.get("campana_afirmable"),
             "campana_candidata": campana_assertion.get("campana_candidata"),
             "campana_resolution_status": campana_assertion.get(

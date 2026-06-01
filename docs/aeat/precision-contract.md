@@ -47,6 +47,12 @@ claims.
 
 Those fields are context. They are not fiscal truth.
 
+For annual informative declarations, `ejercicio_declarado` and
+`anio_presentacion` must stay separate. Example: model `289` campaign `2025`
+can mean declared exercise `2025` presented in calendar year `2026`; this
+duality must not be collapsed into a conflict with AEAT pages that name the
+campaign by exercise.
+
 ## Technical exercise coverage
 
 `technical_exercise_coverage` is useful documentary context, not campaign
