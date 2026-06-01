@@ -875,6 +875,24 @@ def test_campana_selection_only_asserts_when_resource_explicitly_proves_campaign
     assert selection["campana_assertion_warning"] is None
 
 
+def test_aeat_presentation_help_can_prove_campaign_when_model_and_year_are_explicit():
+    from services.modelos import _modelo_recurso_proves_campaign
+
+    proves_campaign = _modelo_recurso_proves_campaign(
+        codigo="123",
+        campana="2024",
+        tipo_recurso="ayuda_tecnica_presentacion",
+        url_recurso=(
+            "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/"
+            "presentacion-declaraciones-ayuda-tecnica/modelo-123.html"
+        ),
+        sha256_contenido="a" * 64,
+        metadata={"label": "Presentacion del modelo 123. Ejercicio 2024 y siguientes"},
+    )
+
+    assert proves_campaign is True
+
+
 def test_direct_campaign_evidence_overrides_weak_stale_resource_years():
     from services.modelos import _build_campana_selection
 

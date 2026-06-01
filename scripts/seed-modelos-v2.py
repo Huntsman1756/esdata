@@ -28,9 +28,9 @@ Usage:
     python scripts/seed-modelos-v2.py [--db-url URL] [--dry-run] [--campana 2025]
 """
 
+import argparse
 import os
 import sys
-import argparse
 from pathlib import Path
 
 try:
@@ -69,7 +69,7 @@ CAMPAÑAS = [
      "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
      None),
     ("123",
-     "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html",
+     "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/presentacion-declaraciones-ayuda-tecnica/modelo-123.html",
      "https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948",
      None),
     ("130",
@@ -944,7 +944,7 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
             print(f"  Upserted {len(CAMPAÑAS)} campaigns.")
 
         # --- 2. Insert casillas ---
-        print(f"\n=== Casillas ===")
+        print("\n=== Casillas ===")
         total_cas = 0
         for modelo_codigo, casillas in CASILLAS.items():
             # Get campana_id
@@ -988,7 +988,7 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
             print(f"  Upserted {total_cas} casillas.")
 
         # --- 3. Insert claves ---
-        print(f"\n=== Claves ===")
+        print("\n=== Claves ===")
         total_claves = 0
         for modelo_codigo, claves in CLAVES.items():
             cur.execute(
@@ -1029,7 +1029,7 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
             print(f"  Upserted {total_claves} claves.")
 
         # --- 4. Insert instrucciones ---
-        print(f"\n=== Instrucciones ===")
+        print("\n=== Instrucciones ===")
         total_instr = 0
         for modelo_codigo, instrs in INSTRUCCIONES.items():
             cur.execute(
@@ -1069,7 +1069,7 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
             print(f"  Upserted {total_instr} instrucciones.")
 
         # --- 5. Insert normativa ---
-        print(f"\n=== Normativa ===")
+        print("\n=== Normativa ===")
         total_norm = 0
         for modelo_codigo, boe_id, titulo, fecha, url_boe, resumen in NORMATIVA:
             cur.execute(
@@ -1108,7 +1108,7 @@ def seed_v2(conn, dry_run=False, campana=CAMPANA_DEFAULT):
             print(f"  Upserted {total_norm} normativa entries.")
 
         # --- 6. Insert campaign operational metadata ---
-        print(f"\n=== Operativa de campana ===")
+        print("\n=== Operativa de campana ===")
         total_operativa = 0
         for modelo_codigo, payload in OPERATIVA_CAMPANA.items():
             payload.setdefault("origen_metadato", "seed_curado")

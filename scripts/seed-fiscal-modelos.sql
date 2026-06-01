@@ -49,7 +49,7 @@ INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa
 SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-115/instrucciones/index.shtml', 'https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948', NULL, true
 FROM aeat_modelo m WHERE m.codigo = '115';
 INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato, activo)
-SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-123.html', 'https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948', NULL, true
+SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/presentacion-declaraciones-ayuda-tecnica/modelo-123.html', 'https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948', NULL, true
 FROM aeat_modelo m WHERE m.codigo = '123';
 INSERT INTO modelo_campana (modelo_id, campana, url_instrucciones, url_normativa, url_formato, activo)
 SELECT m.id, '2025', 'https://sede.agenciatributaria.gob.es/Sede/ayuda/impuesto-renta-personas-fisicas-irpf/modelo-130/instrucciones/index.shtml', 'https://www.boe.es/buscar/act.php?id=BOE-A-2011-4948', NULL, true

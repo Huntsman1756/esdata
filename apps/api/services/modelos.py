@@ -174,7 +174,12 @@ def _modelo_recurso_proves_campaign(
         return False
     if not url_recurso.startswith("https://sede.agenciatributaria.gob.es/"):
         return False
-    if tipo_recurso not in {"instrucciones", "formulario_html", "formulario_pdf"}:
+    if tipo_recurso not in {
+        "ayuda_tecnica_presentacion",
+        "instrucciones",
+        "formulario_html",
+        "formulario_pdf",
+    }:
         return False
 
     explicit_text = " ".join(
