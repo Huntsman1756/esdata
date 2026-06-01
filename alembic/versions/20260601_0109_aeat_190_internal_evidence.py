@@ -191,7 +191,7 @@ def upgrade() -> None:
             SET content_length = COALESCE(content_length, :content_length),
                 metadata = COALESCE(metadata, '{}'::jsonb)
                     || jsonb_build_object(
-                        'capture_date', :capture_date,
+                        'capture_date', CAST(:capture_date AS text),
                         'evidence_scope', 'modelo_190_internal_keys_rules'
                     )
             WHERE campana_id = :campana_id

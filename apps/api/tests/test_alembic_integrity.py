@@ -428,6 +428,7 @@ def test_aeat_190_internal_evidence_revision_is_scoped_in_0109():
         "Rendimientos del trabajo: Prestaciones o subsidios por desempleo",
         "Prestaciones por desempleo abonadas en",
         "capture_date",
+        "CAST(:capture_date AS text)",
         "CONDICIONAL",
     ):
         assert fragment in contents
