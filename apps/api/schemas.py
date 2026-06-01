@@ -786,6 +786,37 @@ class ModeloCampanaConflictEvidence(BaseModel):
     reason: str = Field(description="Regla que hizo relevante esta evidencia")
 
 
+class ModeloCampanaLegalEvidence(BaseModel):
+    status: str = Field(default="none", description="Estado legal: resolved_strong_legal, resolved_weak o none")
+    source_url: str | None = Field(default=None, description="URL canonica BOE/ELI si prueba campana legal")
+    source_hash: str | None = Field(default=None, description="SHA-256 de la fuente BOE si existe")
+    capture_date: str | None = Field(default=None, description="Fecha de captura/verificacion")
+    safe_to_assert: bool = Field(default=False, description="True solo si status=resolved_strong_legal")
+    note: str | None = Field(default=None, description="Nota de uso del carril legal")
+
+
+class ModeloCampanaOperationalEvidence(BaseModel):
+    status: str = Field(default="none", description="Estado operativo: resolved_strong_operational, resolved_weak o none")
+    source_url: str | None = Field(default=None, description="URL AEAT Sede si prueba campana operativa")
+    source_hash: str | None = Field(default=None, description="SHA-256 de la fuente AEAT si existe")
+    capture_date: str | None = Field(default=None, description="Fecha de captura/verificacion")
+    safe_to_assert: bool = Field(default=False, description="True solo si status=resolved_strong_operational")
+    note: str | None = Field(default=None, description="Nota de uso del carril operativo")
+
+
+class ModeloCampanaDesignEvidence(BaseModel):
+    status: str = Field(default="unknown", description="Estado de diseno tecnico: technical_design_current o unknown")
+    since: str | None = Field(default=None, description="Ejercicio desde el que aplica el diseno tecnico")
+    source_url: str | None = Field(default=None, description="URL oficial de cobertura tecnica")
+    note: str | None = Field(default=None, description="Nota de uso del carril de diseno")
+
+
+class ModeloCampanaEvidence(BaseModel):
+    legal: ModeloCampanaLegalEvidence = Field(default_factory=ModeloCampanaLegalEvidence)
+    operational: ModeloCampanaOperationalEvidence = Field(default_factory=ModeloCampanaOperationalEvidence)
+    design: ModeloCampanaDesignEvidence = Field(default_factory=ModeloCampanaDesignEvidence)
+
+
 class ModeloFuentesOficialesResponse(BaseModel):
     codigo: str = Field(description="Código del modelo")
     nombre: str | None = Field(default=None, description="Nombre completo")
@@ -805,7 +836,9 @@ class ModeloFuentesOficialesResponse(BaseModel):
     campana_assertion_code: str = Field(default="INSUFFICIENT_EVIDENCE", description="Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*")
     campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
-    campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
+    campana_evidence: ModeloCampanaEvidence = Field(default_factory=ModeloCampanaEvidence, description="Evidencia de campana separada por carril legal, operativo y diseno")
+    campana_evidence_items: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia plana legacy/debug usada por el algoritmo de resolucion")
+    campana_assertion_basis: list[str] = Field(default_factory=list, description="Carriles que sustentan la afirmacion: legal, operational o technical_design")
     technical_exercise_coverage: list[ModeloTechnicalExerciseCoverage] = Field(default_factory=list, description="Cobertura tecnica oficial no afirmativa; nunca prueba campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
@@ -838,7 +871,9 @@ class ModeloResumenOperativoResponse(BaseModel):
     campana_assertion_code: str = Field(default="INSUFFICIENT_EVIDENCE", description="Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*")
     campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
-    campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
+    campana_evidence: ModeloCampanaEvidence = Field(default_factory=ModeloCampanaEvidence, description="Evidencia de campana separada por carril legal, operativo y diseno")
+    campana_evidence_items: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia plana legacy/debug usada por el algoritmo de resolucion")
+    campana_assertion_basis: list[str] = Field(default_factory=list, description="Carriles que sustentan la afirmacion: legal, operational o technical_design")
     technical_exercise_coverage: list[ModeloTechnicalExerciseCoverage] = Field(default_factory=list, description="Cobertura tecnica oficial no afirmativa; nunca prueba campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")
@@ -881,7 +916,9 @@ class ModeloArtefactosResponse(BaseModel):
     campana_assertion_code: str = Field(default="INSUFFICIENT_EVIDENCE", description="Codigo estructurado para consumidores: ASSERTABLE_* o NOT_ASSERTABLE_*")
     campana_assertion_warning: str | None = Field(default=None, description="Advertencia estructurada obligatoria cuando campana_safe_to_assert=false")
     campana_user_notice: str | None = Field(default=None, description="Aviso obligatorio cuando la campana no es afirmable")
-    campana_evidence: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia usada para el estado de campana")
+    campana_evidence: ModeloCampanaEvidence = Field(default_factory=ModeloCampanaEvidence, description="Evidencia de campana separada por carril legal, operativo y diseno")
+    campana_evidence_items: list[ModeloCampanaConflictEvidence] = Field(default_factory=list, description="Evidencia plana legacy/debug usada por el algoritmo de resolucion")
+    campana_assertion_basis: list[str] = Field(default_factory=list, description="Carriles que sustentan la afirmacion: legal, operational o technical_design")
     technical_exercise_coverage: list[ModeloTechnicalExerciseCoverage] = Field(default_factory=list, description="Cobertura tecnica oficial no afirmativa; nunca prueba campana")
     campana_conflict: bool = Field(default=False, description="Indica conflicto entre campana persistida y recursos tecnicos/anuales")
     campana_conflict_severity: str = Field(default="none", description="Intensidad derivada del conflicto: none, weak o strong")

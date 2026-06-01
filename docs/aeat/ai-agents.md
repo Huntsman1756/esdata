@@ -150,9 +150,12 @@ The first pilot should review `124` and `210`.
 Each report must:
 
 - cite the ESData fields used (`campana_safe_to_assert`,
-  `campana_assertion_code`, `campana_afirmable`, `campana_resolution_status`);
+  `campana_assertion_code`, `campana_afirmable`, `campana_resolution_status`,
+  `campana_evidence`, `campana_assertion_basis`);
 - cite official-source URLs returned by ESData;
 - distinguish official evidence from internal inference;
+- distinguish legal approval, AEAT operational deployment and technical design
+  coverage when `campana_evidence` exposes separate lanes;
 - return `UNKNOWN` when no direct official model-to-exercise evidence is found;
 - avoid phrases such as "la campana activa es X" unless the assertion contract
   is satisfied and a human has accepted the curation.

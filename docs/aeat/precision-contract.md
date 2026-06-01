@@ -18,6 +18,20 @@ Only assert a fiscal campaign as current when all three conditions are true:
 
 Every other state is non-assertable, even when the year looks plausible.
 
+`campana_safe_to_assert` is derived from `campana_evidence`, which separates
+three independent lanes:
+
+- `campana_evidence.legal`: BOE/legal approval evidence. It can become
+  `resolved_strong_legal` only with normalized official BOE evidence.
+- `campana_evidence.operational`: AEAT Sede operational evidence. It can become
+  `resolved_strong_operational` only with direct official AEAT evidence.
+- `campana_evidence.design`: technical design coverage. It may become
+  `technical_design_current`, but it never makes `campana_safe_to_assert=true`.
+
+`campana_assertion_basis` lists the lanes that support the response. A basis of
+`technical_design` alone means design context only, not an active fiscal
+campaign.
+
 Non-assertable codes:
 
 - `NOT_ASSERTABLE_INFERRED_INTERNAL`
@@ -50,6 +64,9 @@ an old persisted campaign, but it must never feed:
 - `campana_afirmable`
 - `campana_safe_to_assert = true`
 - `campana_assertion_code = ASSERTABLE_DIRECT_OFFICIAL`
+
+When the only fresh evidence is technical coverage, clients should say
+"diseño técnico vigente/cubierto" rather than "campaña activa".
 
 ## Required consumer behavior
 

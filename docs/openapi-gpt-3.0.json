@@ -3738,8 +3738,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "type": "object"
                   },
                   "title": "Response Listar Obligaciones Operativas"
                 }
@@ -3792,8 +3791,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "type": "object"
                   },
                   "title": "Response Listar Deadlines"
                 }
@@ -4165,8 +4163,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "type": "object"
                   },
                   "title": "Response Obtener Documentos Cnmv Perfil"
                 }
@@ -6150,7 +6147,6 @@
       "ClaimCitation": {
         "properties": {
           "claim": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Claim",
             "description": "Afirmacion factual estructurada"
@@ -6212,7 +6208,6 @@
           },
           "modelos": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -6221,7 +6216,6 @@
           },
           "resultados": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -6249,19 +6243,16 @@
             "description": "Aviso de evidencia limitada o abstencion cuando safe_to_answer=false"
           },
           "result_metadata": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Result Metadata",
             "description": "Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos."
           },
           "relevancia": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Relevancia",
             "description": "Información de relevancia de los resultados"
           },
           "confianza": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Confianza",
             "description": "Información de confianza (faithfulness, grounding)"
@@ -8390,12 +8381,24 @@
             "description": "Aviso obligatorio cuando la campana no es afirmable"
           },
           "campana_evidence": {
+            "$ref": "#/components/schemas/ModeloCampanaEvidence",
+            "description": "Evidencia de campana separada por carril legal, operativo y diseno"
+          },
+          "campana_evidence_items": {
             "items": {
               "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
             },
             "type": "array",
-            "title": "Campana Evidence",
-            "description": "Evidencia usada para el estado de campana"
+            "title": "Campana Evidence Items",
+            "description": "Evidencia plana legacy/debug usada por el algoritmo de resolucion"
+          },
+          "campana_assertion_basis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Campana Assertion Basis",
+            "description": "Carriles que sustentan la afirmacion: legal, operational o technical_design"
           },
           "technical_exercise_coverage": {
             "items": {
@@ -8552,6 +8555,124 @@
           "reason"
         ],
         "title": "ModeloCampanaConflictEvidence"
+      },
+      "ModeloCampanaDesignEvidence": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Estado de diseno tecnico: technical_design_current o unknown",
+            "default": "unknown"
+          },
+          "since": {
+            "type": "string",
+            "title": "Since",
+            "description": "Ejercicio desde el que aplica el diseno tecnico"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL oficial de cobertura tecnica"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "Nota de uso del carril de diseno"
+          }
+        },
+        "type": "object",
+        "title": "ModeloCampanaDesignEvidence"
+      },
+      "ModeloCampanaEvidence": {
+        "properties": {
+          "legal": {
+            "$ref": "#/components/schemas/ModeloCampanaLegalEvidence"
+          },
+          "operational": {
+            "$ref": "#/components/schemas/ModeloCampanaOperationalEvidence"
+          },
+          "design": {
+            "$ref": "#/components/schemas/ModeloCampanaDesignEvidence"
+          }
+        },
+        "type": "object",
+        "title": "ModeloCampanaEvidence"
+      },
+      "ModeloCampanaLegalEvidence": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Estado legal: resolved_strong_legal, resolved_weak o none",
+            "default": "none"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL canonica BOE/ELI si prueba campana legal"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "SHA-256 de la fuente BOE si existe"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date",
+            "description": "Fecha de captura/verificacion"
+          },
+          "safe_to_assert": {
+            "type": "boolean",
+            "title": "Safe To Assert",
+            "description": "True solo si status=resolved_strong_legal",
+            "default": false
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "Nota de uso del carril legal"
+          }
+        },
+        "type": "object",
+        "title": "ModeloCampanaLegalEvidence"
+      },
+      "ModeloCampanaOperationalEvidence": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Estado operativo: resolved_strong_operational, resolved_weak o none",
+            "default": "none"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "URL AEAT Sede si prueba campana operativa"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash",
+            "description": "SHA-256 de la fuente AEAT si existe"
+          },
+          "capture_date": {
+            "type": "string",
+            "title": "Capture Date",
+            "description": "Fecha de captura/verificacion"
+          },
+          "safe_to_assert": {
+            "type": "boolean",
+            "title": "Safe To Assert",
+            "description": "True solo si status=resolved_strong_operational",
+            "default": false
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "Nota de uso del carril operativo"
+          }
+        },
+        "type": "object",
+        "title": "ModeloCampanaOperationalEvidence"
       },
       "ModeloCampanaOperativaResponse": {
         "properties": {
@@ -8772,7 +8893,6 @@
             "description": "Offset para continuar, si hay mas"
           },
           "filters": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Filters",
             "description": "Filtros aplicados"
@@ -8808,7 +8928,6 @@
             "description": "Aviso operativo sobre limites de evidencia"
           },
           "confidence": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza y revision requerida"
@@ -9317,12 +9436,24 @@
             "description": "Aviso obligatorio cuando la campana no es afirmable"
           },
           "campana_evidence": {
+            "$ref": "#/components/schemas/ModeloCampanaEvidence",
+            "description": "Evidencia de campana separada por carril legal, operativo y diseno"
+          },
+          "campana_evidence_items": {
             "items": {
               "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
             },
             "type": "array",
-            "title": "Campana Evidence",
-            "description": "Evidencia usada para el estado de campana"
+            "title": "Campana Evidence Items",
+            "description": "Evidencia plana legacy/debug usada por el algoritmo de resolucion"
+          },
+          "campana_assertion_basis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Campana Assertion Basis",
+            "description": "Carriles que sustentan la afirmacion: legal, operational o technical_design"
           },
           "technical_exercise_coverage": {
             "items": {
@@ -9609,12 +9740,24 @@
             "description": "Aviso obligatorio cuando la campana no es afirmable"
           },
           "campana_evidence": {
+            "$ref": "#/components/schemas/ModeloCampanaEvidence",
+            "description": "Evidencia de campana separada por carril legal, operativo y diseno"
+          },
+          "campana_evidence_items": {
             "items": {
               "$ref": "#/components/schemas/ModeloCampanaConflictEvidence"
             },
             "type": "array",
-            "title": "Campana Evidence",
-            "description": "Evidencia usada para el estado de campana"
+            "title": "Campana Evidence Items",
+            "description": "Evidencia plana legacy/debug usada por el algoritmo de resolucion"
+          },
+          "campana_assertion_basis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Campana Assertion Basis",
+            "description": "Carriles que sustentan la afirmacion: legal, operational o technical_design"
           },
           "technical_exercise_coverage": {
             "items": {
@@ -10009,7 +10152,6 @@
             "description": "Si la aplicabilidad esta verificada con evidencia explicita"
           },
           "scenario_inputs": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Scenario Inputs",
             "description": "Parametros del supuesto usados"
@@ -10039,7 +10181,6 @@
             "description": "Advertencias de no invencion"
           },
           "confidence": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza operacional"
@@ -10256,7 +10397,6 @@
           },
           "documentos": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -10481,7 +10621,6 @@
       "ObligacionesAplicablesResponse": {
         "properties": {
           "perfil": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Perfil"
           },
@@ -10501,7 +10640,6 @@
             "title": "Verified"
           },
           "confidence": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Confidence"
           },

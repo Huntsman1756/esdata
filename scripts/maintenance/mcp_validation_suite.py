@@ -2697,8 +2697,8 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
         for modelo_codigo, accepted_statuses, check_name in (
             ("190", {"resolved_weak"}, "aeat_modelo_190_campaign_not_overclaimed_contract"),
             ("123", {"resolved_weak"}, "aeat_modelo_123_campaign_not_overclaimed_contract"),
-            ("124", {"conflict"}, "aeat_modelo_124_campaign_not_overclaimed_contract"),
-            ("289", {"conflict"}, "aeat_modelo_289_campaign_not_overclaimed_contract"),
+            ("124", {"resolved_weak", "conflict"}, "aeat_modelo_124_campaign_not_overclaimed_contract"),
+            ("289", {"resolved_weak", "conflict"}, "aeat_modelo_289_campaign_not_overclaimed_contract"),
         ):
             checks.append(
                 _check_json_contract(

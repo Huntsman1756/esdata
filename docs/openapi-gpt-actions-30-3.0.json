@@ -1799,7 +1799,6 @@
       "ClaimCitation": {
         "properties": {
           "claim": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Claim",
             "description": "Afirmacion factual estructurada"
@@ -1861,7 +1860,6 @@
           },
           "modelos": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -1870,7 +1868,6 @@
           },
           "resultados": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -1898,19 +1895,16 @@
             "description": "Aviso de evidencia limitada o abstencion cuando safe_to_answer=false"
           },
           "result_metadata": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Result Metadata",
             "description": "Metadatos de resultados para agentes: returned_count, truncated/partial y limites internos."
           },
           "relevancia": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Relevancia",
             "description": "Información de relevancia de los resultados"
           },
           "confianza": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Confianza",
             "description": "Información de confianza (faithfulness, grounding)"
@@ -2685,7 +2679,6 @@
             "description": "Offset para continuar, si hay mas"
           },
           "filters": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Filters",
             "description": "Filtros aplicados"
@@ -2721,7 +2714,6 @@
             "description": "Aviso operativo sobre limites de evidencia"
           },
           "confidence": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza y revision requerida"
@@ -3540,7 +3532,6 @@
             "description": "Si la aplicabilidad esta verificada con evidencia explicita"
           },
           "scenario_inputs": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Scenario Inputs",
             "description": "Parametros del supuesto usados"
@@ -3570,7 +3561,6 @@
             "description": "Advertencias de no invencion"
           },
           "confidence": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Confidence",
             "description": "Confianza operacional"

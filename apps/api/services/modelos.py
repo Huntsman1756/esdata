@@ -331,6 +331,98 @@ def _extract_technical_exercise_coverage(resources: list[dict]) -> list[dict]:
     return coverage
 
 
+def _is_technical_exercise_resource(resource: dict) -> bool:
+    text_value = " ".join(
+        str(value)
+        for value in (
+            resource.get("titulo"),
+            resource.get("label"),
+        )
+        if value
+    )
+    if not text_value:
+        return False
+    return bool(
+        re.search(
+            r"ejercicios?\s+((?:19|20)\d{2})(?:\s+y\s+siguientes)?",
+            text_value,
+            flags=re.IGNORECASE,
+        )
+    ) and _technical_scope_from_text(text_value) in {
+        "presentacion_por_lotes",
+        "diseno_registro",
+        "xsd_wsdl",
+    }
+
+
+def _campana_evidence_lanes(
+    *,
+    resolution_status: str,
+    safe_to_assert: bool,
+    evidence: list[dict],
+    technical_exercise_coverage: list[dict],
+) -> dict:
+    operational_status = "none"
+    if resolution_status == "resolved_strong":
+        operational_status = "resolved_strong_operational"
+    elif resolution_status == "resolved_weak":
+        operational_status = "resolved_weak"
+    operational_source = next(
+        (
+            item
+            for item in evidence
+            if item.get("tipo") in CAMPAIGN_BEARING_RESOURCE_TYPES
+            and item.get("url")
+        ),
+        None,
+    )
+    design_item = technical_exercise_coverage[0] if technical_exercise_coverage else None
+    lanes = {
+        "legal": {
+            "status": "none",
+            "source_url": None,
+            "source_hash": None,
+            "capture_date": None,
+            "safe_to_assert": False,
+            "note": "Sin fuente BOE normalizada como prueba directa de campana legal.",
+        },
+        "operational": {
+            "status": operational_status,
+            "source_url": operational_source.get("url") if operational_source else None,
+            "source_hash": operational_source.get("source_hash") if operational_source else None,
+            "capture_date": operational_source.get("capture_date") if operational_source else None,
+            "safe_to_assert": safe_to_assert and operational_status == "resolved_strong_operational",
+            "note": (
+                "Campana operativa afirmable por fuente directa AEAT."
+                if operational_status == "resolved_strong_operational"
+                else "No hay fuente directa AEAT suficiente para afirmar campana operativa."
+            ),
+        },
+        "design": {
+            "status": "technical_design_current" if design_item else "unknown",
+            "since": str(design_item.get("from_year")) if design_item else None,
+            "source_url": design_item.get("source_url") if design_item else None,
+            "note": (
+                "Cobertura tecnica de diseno; no prueba campana fiscal activa."
+                if design_item
+                else None
+            ),
+        },
+    }
+    return lanes
+
+
+def _campana_assertion_basis(campana_evidence: dict) -> list[str]:
+    basis: list[str] = []
+    if campana_evidence.get("legal", {}).get("safe_to_assert") is True:
+        basis.append("legal")
+    if campana_evidence.get("operational", {}).get("safe_to_assert") is True:
+        basis.append("operational")
+    if campana_evidence.get("design", {}).get("status") == "technical_design_current":
+        basis.append("technical_design")
+    return basis
+
+
 def _campaign_notice(status: str) -> str:
     if status == "resolved_strong":
         return "Campana afirmable: existe evidencia oficial directa o vinculo documental inequivoco."
@@ -387,6 +479,10 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         tipo = resource.get("tipo")
         if tipo not in CAMPAIGN_BEARING_RESOURCE_TYPES:
             continue
+        technical_only = (
+            resource.get("proves_campaign") is not True
+            and _is_technical_exercise_resource(resource)
+        )
         years = [
             str(year)
             for year in (resource.get("years") or [])
@@ -398,17 +494,21 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         )
         if not years:
             continue
-        resource_years.update(years)
+        if not technical_only:
+            resource_years.update(years)
         if resource.get("proves_campaign") is True:
             direct_proof_years.update(years)
-        evidence.append(
-            {
-                "tipo": tipo,
-                "url": resource.get("url"),
-                "years": years,
-                "reason": "campaign_bearing_resource_year",
-            }
-        )
+        if not technical_only:
+            evidence.append(
+                {
+                    "tipo": tipo,
+                    "url": resource.get("url"),
+                    "years": years,
+                    "reason": "campaign_bearing_resource_year",
+                    "source_hash": resource.get("source_hash"),
+                    "capture_date": resource.get("capture_date"),
+                }
+            )
 
     active_year = campana_activa if campana_activa and campana_activa.isdigit() else None
     direct_conflict = len(direct_proof_years) > 1 or bool(
@@ -456,6 +556,12 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
             "de campana_activa. No seleccionar automaticamente una campana como verdad "
             "definitiva sin revision documental."
         )
+    campana_evidence = _campana_evidence_lanes(
+        resolution_status=resolution_status,
+        safe_to_assert=safe_to_assert,
+        evidence=evidence,
+        technical_exercise_coverage=technical_exercise_coverage,
+    )
 
     return {
         "campana_persistida": campana_activa,
@@ -467,7 +573,9 @@ def _build_campana_selection(campana_activa: str | None, resources: list[dict]) 
         "campana_assertion_code": _campaign_assertion_code(resolution_status),
         "campana_assertion_warning": _campaign_assertion_warning(resolution_status),
         "campana_user_notice": _campaign_notice(resolution_status),
-        "campana_evidence": evidence if resolution_status in {"resolved_strong", "resolved_weak"} else [],
+        "campana_evidence": campana_evidence,
+        "campana_evidence_items": evidence if resolution_status in {"resolved_strong", "resolved_weak"} else [],
+        "campana_assertion_basis": _campana_assertion_basis(campana_evidence),
         "technical_exercise_coverage": technical_exercise_coverage,
         "campana_conflict": conflict,
         "campana_conflict_severity": conflict_severity,
@@ -1550,7 +1658,17 @@ def get_modelo_resumen_operativo(db, codigo: str, campana: str | None = None):
         "campana_assertion_code": (fuentes or {}).get("campana_assertion_code", "INSUFFICIENT_EVIDENCE"),
         "campana_assertion_warning": (fuentes or {}).get("campana_assertion_warning"),
         "campana_user_notice": (fuentes or {}).get("campana_user_notice"),
-        "campana_evidence": (fuentes or {}).get("campana_evidence", []),
+        "campana_evidence": (fuentes or {}).get(
+            "campana_evidence",
+            _campana_evidence_lanes(
+                resolution_status="insufficient_evidence",
+                safe_to_assert=False,
+                evidence=[],
+                technical_exercise_coverage=[],
+            ),
+        ),
+        "campana_evidence_items": (fuentes or {}).get("campana_evidence_items", []),
+        "campana_assertion_basis": (fuentes or {}).get("campana_assertion_basis", []),
         "technical_exercise_coverage": (fuentes or {}).get("technical_exercise_coverage", []),
         "campana_conflict": (fuentes or {}).get("campana_conflict", False),
         "campana_conflict_severity": (fuentes or {}).get("campana_conflict_severity", "none"),

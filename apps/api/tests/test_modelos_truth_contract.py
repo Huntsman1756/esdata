@@ -511,16 +511,20 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
     assert data["campana_activa"] == "2025"
     assert data["campana_persistida"] == "2025"
     assert data["campana_afirmable"] is None
-    assert data["campana_candidata"] is None
-    assert data["campana_resolution_status"] == "conflict"
-    assert data["campana_verification_level"] == "contradictory"
+    assert data["campana_candidata"] == "2025"
+    assert data["campana_resolution_status"] == "resolved_weak"
+    assert data["campana_verification_level"] == "inferred_internal"
     assert data["campana_safe_to_assert"] is False
-    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
     assert "do not treat" in data["campana_assertion_warning"].lower()
     assert "no afirmable" in data["campana_user_notice"].lower()
-    assert data["campana_conflict"] is True
-    assert data["campana_conflict_severity"] == "weak"
-    assert data["campana_conflict_years"] == ["2025", "2026"]
+    assert data["campana_conflict"] is False
+    assert data["campana_conflict_severity"] == "none"
+    assert data["campana_conflict_years"] == []
+    assert data["campana_evidence"]["operational"]["status"] == "resolved_weak"
+    assert data["campana_evidence"]["design"]["status"] == "technical_design_current"
+    assert data["campana_evidence"]["design"]["since"] == "2026"
+    assert data["campana_assertion_basis"] == ["technical_design"]
     assert data["technical_exercise_coverage"] == [
         {
             "from_year": 2026,
@@ -539,10 +543,7 @@ async def test_modelo_fuentes_oficiales_exposes_active_modelo_recurso_urls():
             "evidence_role": "technical_exercise_coverage",
         }
     ]
-    assert any(
-        "2026" in item["years"]
-        for item in data["campana_conflict_evidence"]
-    ), data["campana_conflict_evidence"]
+    assert data["campana_conflict_evidence"] == []
 
 
 @pytest.mark.asyncio
@@ -575,23 +576,23 @@ async def test_modelo_artefactos_exposes_active_modelo_recurso_urls():
     assert data["campana_activa"] == "2025"
     assert data["campana_persistida"] == "2025"
     assert data["campana_afirmable"] is None
-    assert data["campana_candidata"] is None
-    assert data["campana_resolution_status"] == "conflict"
-    assert data["campana_verification_level"] == "contradictory"
+    assert data["campana_candidata"] == "2025"
+    assert data["campana_resolution_status"] == "resolved_weak"
+    assert data["campana_verification_level"] == "inferred_internal"
     assert data["campana_safe_to_assert"] is False
-    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
     assert "do not treat" in data["campana_assertion_warning"].lower()
     assert "no afirmable" in data["campana_user_notice"].lower()
-    assert data["campana_conflict"] is True
-    assert data["campana_conflict_severity"] == "weak"
-    assert data["campana_conflict_years"] == ["2025", "2026"]
+    assert data["campana_conflict"] is False
+    assert data["campana_conflict_severity"] == "none"
+    assert data["campana_conflict_years"] == []
+    assert data["campana_evidence"]["operational"]["status"] == "resolved_weak"
+    assert data["campana_evidence"]["design"]["status"] == "technical_design_current"
+    assert data["campana_assertion_basis"] == ["technical_design"]
     assert data["technical_exercise_coverage"][0]["proves_campaign"] is False
     assert data["technical_exercise_coverage"][0]["evidence_role"] == "technical_exercise_coverage"
     assert data["technical_exercise_coverage"][0]["from_year"] == 2026
-    assert any(
-        "2026" in item["years"]
-        for item in data["campana_conflict_evidence"]
-    ), data["campana_conflict_evidence"]
+    assert data["campana_conflict_evidence"] == []
 
 
 @pytest.mark.asyncio
@@ -605,12 +606,14 @@ async def test_modelo_resumen_operativo_reuses_campaign_assertion_code():
 
     assert response.status_code == 200
     data = response.json()
-    assert data["campana_resolution_status"] == "conflict"
+    assert data["campana_resolution_status"] == "resolved_weak"
     assert data["campana_safe_to_assert"] is False
     assert data["campana_afirmable"] is None
-    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
     assert "do not treat" in data["campana_assertion_warning"].lower()
     assert data["technical_exercise_coverage"][0]["proves_campaign"] is False
+    assert data["campana_evidence"]["design"]["status"] == "technical_design_current"
+    assert data["campana_assertion_basis"] == ["technical_design"]
 
 
 @pytest.mark.asyncio
@@ -804,13 +807,19 @@ def test_model_128_technical_exercise_coverage_stays_non_assertive():
         ],
     )
 
-    assert selection["campana_resolution_status"] == "conflict"
-    assert selection["campana_conflict_years"] == ["2013", "2020"]
+    assert selection["campana_resolution_status"] == "resolved_weak"
+    assert selection["campana_conflict_years"] == []
     assert selection["technical_exercise_coverage"][0]["from_year"] == 2020
     assert selection["technical_exercise_coverage"][0]["proves_campaign"] is False
+    assert selection["campana_evidence"]["legal"]["status"] == "none"
+    assert selection["campana_evidence"]["operational"]["status"] == "resolved_weak"
+    assert selection["campana_evidence"]["operational"]["safe_to_assert"] is False
+    assert selection["campana_evidence"]["design"]["status"] == "technical_design_current"
+    assert selection["campana_evidence"]["design"]["since"] == "2020"
+    assert selection["campana_assertion_basis"] == ["technical_design"]
     assert selection["campana_afirmable"] is None
     assert selection["campana_safe_to_assert"] is False
-    assert selection["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert selection["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
 
 
 def test_campana_selection_marks_non_conflicting_persisted_year_as_weak_not_assertable():
@@ -823,6 +832,11 @@ def test_campana_selection_marks_non_conflicting_persisted_year_as_weak_not_asse
     assert selection["campana_afirmable"] is None
     assert selection["campana_resolution_status"] == "resolved_weak"
     assert selection["campana_verification_level"] == "inferred_internal"
+    assert selection["campana_evidence"]["legal"]["status"] == "none"
+    assert selection["campana_evidence"]["operational"]["status"] == "resolved_weak"
+    assert selection["campana_evidence"]["operational"]["safe_to_assert"] is False
+    assert selection["campana_evidence"]["design"]["status"] == "unknown"
+    assert selection["campana_assertion_basis"] == []
     assert selection["campana_safe_to_assert"] is False
     assert selection["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
     assert "do not treat" in selection["campana_assertion_warning"].lower()
@@ -848,6 +862,10 @@ def test_campana_selection_only_asserts_when_resource_explicitly_proves_campaign
     assert selection["campana_afirmable"] == "2025"
     assert selection["campana_resolution_status"] == "resolved_strong"
     assert selection["campana_verification_level"] == "direct_official"
+    assert selection["campana_evidence"]["legal"]["status"] == "none"
+    assert selection["campana_evidence"]["operational"]["status"] == "resolved_strong_operational"
+    assert selection["campana_evidence"]["operational"]["safe_to_assert"] is True
+    assert selection["campana_assertion_basis"] == ["operational"]
     assert selection["campana_safe_to_assert"] is True
     assert selection["campana_assertion_code"] == "ASSERTABLE_DIRECT_OFFICIAL"
     assert selection["campana_assertion_warning"] is None
