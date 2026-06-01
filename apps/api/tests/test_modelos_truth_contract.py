@@ -940,6 +940,43 @@ def test_model_289_campaign_duality_keeps_exercise_and_presentation_years_separa
     assert selection["campana_safe_to_assert"] is False
 
 
+def test_strong_campaign_lane_prefers_hashed_direct_evidence_over_weak_same_url():
+    from services.modelos import _build_campana_selection
+
+    url = (
+        "https://sede.agenciatributaria.gob.es/Sede/"
+        "declaraciones-informativas-otros-impuestos-tasas/"
+        "campana-declaraciones-informativas-2025/normativa/modelo-289.html"
+    )
+
+    selection = _build_campana_selection(
+        "2025",
+        [
+            {
+                "tipo": "aeat_instrucciones",
+                "url": url,
+                "campana": "2025",
+                "proves_campaign": False,
+            },
+            {
+                "tipo": "modelo_recurso:instrucciones",
+                "url": url,
+                "titulo": "Modelo 289 - normativa campana declaraciones informativas 2025",
+                "source_hash": "hash-289-2025",
+                "capture_date": "2026-06-01",
+                "proves_campaign": True,
+            },
+        ],
+        ejercicio_declarado=2025,
+        anio_presentacion=2026,
+    )
+
+    assert selection["campana_resolution_status"] == "resolved_strong"
+    assert selection["campana_evidence"]["operational"]["status"] == "resolved_strong_operational"
+    assert selection["campana_evidence"]["operational"]["source_hash"] == "hash-289-2025"
+    assert selection["campana_evidence"]["operational"]["capture_date"] == "2026-06-01"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("path", "tool_name"),

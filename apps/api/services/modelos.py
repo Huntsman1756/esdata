@@ -401,15 +401,21 @@ def _campana_evidence_lanes(
         operational_status = "resolved_strong_operational"
     elif resolution_status == "resolved_weak":
         operational_status = "resolved_weak"
-    operational_source = next(
-        (
-            item
-            for item in evidence
-            if item.get("tipo") in CAMPAIGN_BEARING_RESOURCE_TYPES
-            and item.get("url")
+    operational_candidates = [
+        item
+        for item in evidence
+        if item.get("tipo") in CAMPAIGN_BEARING_RESOURCE_TYPES
+        and item.get("url")
+    ]
+    operational_candidates.sort(
+        key=lambda item: (
+            item.get("proves_campaign") is True,
+            bool(item.get("source_hash")),
+            bool(item.get("capture_date")),
         ),
-        None,
+        reverse=True,
     )
+    operational_source = operational_candidates[0] if operational_candidates else None
     design_item = technical_exercise_coverage[0] if technical_exercise_coverage else None
     lanes = {
         "legal": {
@@ -547,6 +553,7 @@ def _build_campana_selection(
                     "reason": "campaign_bearing_resource_year",
                     "source_hash": resource.get("source_hash"),
                     "capture_date": resource.get("capture_date"),
+                    "proves_campaign": resource.get("proves_campaign") is True,
                 }
             )
 
