@@ -463,7 +463,7 @@ def _campana_assertion_basis(campana_evidence: dict) -> list[str]:
         basis.append("legal")
     if campana_evidence.get("operational", {}).get("safe_to_assert") is True:
         basis.append("operational")
-    if campana_evidence.get("design", {}).get("status") == "technical_design_current":
+    if not basis and campana_evidence.get("design", {}).get("status") == "technical_design_current":
         basis.append("technical_design")
     return basis
 

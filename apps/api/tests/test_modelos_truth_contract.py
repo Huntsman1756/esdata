@@ -875,6 +875,35 @@ def test_campana_selection_only_asserts_when_resource_explicitly_proves_campaign
     assert selection["campana_assertion_warning"] is None
 
 
+def test_strong_operational_campaign_basis_does_not_mix_technical_design():
+    from services.modelos import _build_campana_selection
+
+    selection = _build_campana_selection(
+        "2025",
+        [
+            {
+                "tipo": "modelo_recurso:instrucciones",
+                "url": "https://sede.agenciatributaria.gob.es/Sede/irpf/modelo-190.html",
+                "titulo": "Modelo 190. Ejercicio 2025. Gestiones activas en AEAT Sede.",
+                "years": ["2025"],
+                "proves_campaign": True,
+                "source_hash": "hash-190-2025",
+                "capture_date": "2026-06-01",
+            },
+            {
+                "tipo": "modelo_recurso:diseno_registro",
+                "titulo": "Modelo 190. Ejercicios 2025 y siguientes. Presentacion por lotes.",
+                "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/disenos-registro/modelos-100-199.html",
+                "proves_campaign": False,
+            },
+        ],
+    )
+
+    assert selection["campana_resolution_status"] == "resolved_strong"
+    assert selection["campana_evidence"]["design"]["status"] == "technical_design_current"
+    assert selection["campana_assertion_basis"] == ["operational"]
+
+
 def test_aeat_presentation_help_can_prove_campaign_when_model_and_year_are_explicit():
     from services.modelos import _modelo_recurso_proves_campaign
 
