@@ -64,6 +64,17 @@ def upgrade() -> None:
                   AND mc.activo = true
                 RETURNING mc.id AS campana_id
             ),
+            deactivate_existing_instruction AS (
+                UPDATE modelo_recurso mr
+                SET activa = false,
+                    last_seen_at = now()
+                FROM target_campaign tc
+                WHERE mr.campana_id = tc.campana_id
+                  AND mr.tipo_recurso = 'instrucciones'
+                  AND mr.url_recurso <> :url_instrucciones
+                  AND COALESCE(mr.activa, true) = true
+                RETURNING mr.id
+            ),
             existing AS (
                 UPDATE modelo_recurso mr
                 SET formato = 'html',
