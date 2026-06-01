@@ -332,6 +332,13 @@ def _extract_technical_exercise_coverage(resources: list[dict]) -> list[dict]:
 
 
 def _is_technical_exercise_resource(resource: dict) -> bool:
+    if resource.get("tipo") in {
+        "aeat_formato",
+        "modelo_recurso:diseno_registro",
+        "modelo_recurso:diseno_registro_xsd",
+        "modelo_recurso:xsd_wsdl",
+    }:
+        return True
     text_value = " ".join(
         str(value)
         for value in (

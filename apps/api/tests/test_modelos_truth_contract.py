@@ -660,7 +660,9 @@ async def test_inactive_technical_design_resource_still_informs_non_assertive_co
     assert response.status_code == 200
     data = response.json()
     assert data["campana_safe_to_assert"] is False
-    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert data["campana_assertion_code"] == "NOT_ASSERTABLE_INFERRED_INTERNAL"
+    assert data["campana_conflict"] is False
+    assert data["campana_evidence"]["design"]["status"] == "technical_design_current"
     assert data["technical_exercise_coverage"] == [
         {
             "from_year": 2026,
@@ -701,15 +703,16 @@ def test_campana_selection_marks_resource_only_conflict_fail_closed():
     )
 
     assert selection["campana_candidata"] is None
-    assert selection["campana_resolution_status"] == "conflict"
+    assert selection["campana_resolution_status"] == "insufficient_evidence"
     assert selection["campana_afirmable"] is None
     assert selection["campana_safe_to_assert"] is False
-    assert selection["campana_verification_level"] == "contradictory"
-    assert selection["campana_assertion_code"] == "NOT_ASSERTABLE_CONFLICT"
+    assert selection["campana_verification_level"] == "insufficient"
+    assert selection["campana_assertion_code"] == "INSUFFICIENT_EVIDENCE"
     assert "do not treat" in selection["campana_assertion_warning"].lower()
-    assert selection["campana_conflict"] is True
-    assert selection["campana_conflict_severity"] == "strong"
-    assert selection["campana_conflict_years"] == ["2019", "2026"]
+    assert selection["campana_conflict"] is False
+    assert selection["campana_conflict_severity"] == "none"
+    assert selection["campana_conflict_years"] == []
+    assert selection["campana_evidence"]["design"]["status"] == "unknown"
 
 
 def test_campaign_year_extraction_prefers_exercise_year_over_order_year():
@@ -734,10 +737,11 @@ def test_campaign_year_extraction_prefers_exercise_year_over_order_year():
         ],
     )
 
-    assert selection["campana_resolution_status"] == "conflict"
-    assert selection["campana_conflict_years"] == ["2013", "2020"]
-    assert "2007" not in selection["campana_conflict_years"]
+    assert selection["campana_resolution_status"] == "resolved_weak"
+    assert selection["campana_conflict_years"] == []
     assert selection["technical_exercise_coverage"][0]["from_year"] == 2020
+    assert selection["campana_evidence"]["design"]["status"] == "technical_design_current"
+    assert selection["campana_assertion_basis"] == ["technical_design"]
 
 
 def test_technical_exercise_coverage_is_non_assertive_even_when_official():
