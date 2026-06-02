@@ -647,6 +647,8 @@ def _check_database_contracts() -> list[dict[str, Any]]:
                     THEN 1 ELSE 0 END AS ok
                 FROM modelo_clave
                 WHERE campana_id IN (SELECT id FROM active_campaign)
+                  AND parent_id IS NULL
+                  AND nivel=1
             ),
             instruction_contract AS (
                 SELECT CASE
@@ -705,6 +707,8 @@ def _check_database_contracts() -> list[dict[str, Any]]:
                 THEN 1 ELSE 0 END
             FROM modelo_clave
             WHERE campana_id IN (SELECT id FROM active_campaign)
+              AND parent_id IS NULL
+              AND nivel=1
             """,
             1,
         ),

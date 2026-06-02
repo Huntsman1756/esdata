@@ -564,6 +564,8 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "COUNT(*) = 12" in source
     assert "COUNT(*) = 77" in source
     assert "SUBCLAVE_PERCEPCION" in source
+    assert "parent_id IS NULL" in source
+    assert "nivel=1" in source
     assert "ux_modelo_clave_subclave" in source
     assert "row_provenance='official_exact'" in source
     assert "sha256_contenido IS NOT NULL" in source
