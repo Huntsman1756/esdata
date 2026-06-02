@@ -549,6 +549,7 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_modelo_190_withholding_traceable_partial_contract" in source
     assert "aeat_modelo_190_internal_keys_rules_traceable_contract" in source
     assert "aeat_modelo_190_perception_keys_a_l_traceable_contract" in source
+    assert "modelo_clave_hierarchy_schema_contract" in source
     assert "aeat_modelo_190_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_123_design_traceable_partial_contract" in source
     assert "aeat_modelo_124_design_traceable_partial_contract" in source
@@ -560,6 +561,7 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_priority_target_models_have_traceable_partial_evidence_7" in source
     assert "BOE-A-2024-27528" in source
     assert "COUNT(*) = 12" in source
+    assert "ux_modelo_clave_subclave" in source
     assert "row_provenance='official_exact'" in source
     assert "sha256_contenido IS NOT NULL" in source
 

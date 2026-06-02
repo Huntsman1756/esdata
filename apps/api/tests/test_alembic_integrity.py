@@ -517,6 +517,42 @@ def test_aeat_190_perception_keys_expansion_revision_is_scoped_in_0111():
         assert forbidden not in contents
 
 
+def test_modelo_clave_hierarchy_schema_revision_is_scoped_in_0112():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260602_0112_modelo_clave_hierarchy_schema.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "down_revision = \"20260601_0111_aeat_190_perception_keys_expansion\"",
+        "sa.Column(\"parent_id\", sa.Integer(), nullable=True)",
+        "sa.Column(\"nivel\", sa.SmallInteger(), nullable=False, server_default=\"1\")",
+        "modelo_clave_parent_id_fkey",
+        "ix_modelo_clave_parent_id",
+        "modelo_clave_campana_id_codigo_key",
+        "ux_modelo_clave_campana_tipo_codigo",
+        "CREATE UNIQUE INDEX ux_modelo_clave_principal",
+        "WHERE parent_id IS NULL",
+        "CREATE UNIQUE INDEX ux_modelo_clave_subclave",
+        "WHERE parent_id IS NOT NULL",
+        "DROP INDEX IF EXISTS ux_modelo_clave_principal",
+        "DROP INDEX IF EXISTS ux_modelo_clave_subclave",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "INSERT INTO modelo_clave",
+        "UPDATE obligacion_perfil",
+        "SUBCLAVE_PERCEPCION",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

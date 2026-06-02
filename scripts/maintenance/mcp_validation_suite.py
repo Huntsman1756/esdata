@@ -710,6 +710,77 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
+            "modelo_clave_hierarchy_schema_contract",
+            """
+            WITH columns_ok AS (
+                SELECT CASE
+                    WHEN COUNT(*) FILTER (
+                        WHERE column_name='parent_id'
+                          AND data_type='integer'
+                          AND is_nullable='YES'
+                    ) = 1
+                     AND COUNT(*) FILTER (
+                        WHERE column_name='nivel'
+                          AND data_type='smallint'
+                          AND is_nullable='NO'
+                          AND column_default LIKE '%1%'
+                    ) = 1
+                    THEN 1 ELSE 0 END AS ok
+                FROM information_schema.columns
+                WHERE table_schema='public'
+                  AND table_name='modelo_clave'
+                  AND column_name IN ('parent_id','nivel')
+            ),
+            constraints_ok AS (
+                SELECT CASE
+                    WHEN COUNT(*) FILTER (
+                        WHERE conname='modelo_clave_parent_id_fkey'
+                          AND contype='f'
+                          AND pg_get_constraintdef(oid) ILIKE '%REFERENCES modelo_clave(id)%'
+                    ) = 1
+                     AND COUNT(*) FILTER (
+                        WHERE conname='modelo_clave_campana_id_codigo_key'
+                    ) = 0
+                    THEN 1 ELSE 0 END AS ok
+                FROM pg_constraint
+                WHERE conrelid='modelo_clave'::regclass
+            ),
+            indexes_ok AS (
+                SELECT CASE
+                    WHEN COUNT(*) FILTER (
+                        WHERE indexname='ix_modelo_clave_parent_id'
+                          AND indexdef ILIKE '%(parent_id)%'
+                    ) = 1
+                     AND COUNT(*) FILTER (
+                        WHERE indexname='ux_modelo_clave_principal'
+                          AND indexdef ILIKE '%UNIQUE%'
+                          AND indexdef ILIKE '%(campana_id, tipo, codigo)%'
+                          AND indexdef ILIKE '%WHERE (parent_id IS NULL)%'
+                    ) = 1
+                     AND COUNT(*) FILTER (
+                        WHERE indexname='ux_modelo_clave_subclave'
+                          AND indexdef ILIKE '%UNIQUE%'
+                          AND indexdef ILIKE '%(campana_id, parent_id, tipo, codigo)%'
+                          AND indexdef ILIKE '%WHERE (parent_id IS NOT NULL)%'
+                    ) = 1
+                     AND COUNT(*) FILTER (
+                        WHERE indexname='ux_modelo_clave_campana_tipo_codigo'
+                    ) = 0
+                    THEN 1 ELSE 0 END AS ok
+                FROM pg_indexes
+                WHERE schemaname='public'
+                  AND tablename='modelo_clave'
+            )
+            SELECT CASE
+                WHEN (SELECT ok FROM columns_ok) = 1
+                 AND (SELECT ok FROM constraints_ok) = 1
+                 AND (SELECT ok FROM indexes_ok) = 1
+                THEN 1 ELSE 0 END
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
             "aeat_modelo_123_design_traceable_partial_contract",
             """
             WITH active_campaign AS (
