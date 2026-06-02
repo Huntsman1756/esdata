@@ -11,19 +11,22 @@ cd /srv/esdata
 bash scripts/ops/deploy-hetzner.sh
 ```
 
-El script valida Compose, ejecuta `alembic upgrade head`, ejecuta `python scripts/maintenance/verify_schema.py` y levanta el runtime.
+El script valida Compose, reconstruye `ops`, ejecuta `alembic upgrade head`, ejecuta `python scripts/maintenance/verify_schema.py` y levanta el runtime con `--build`.
 
 ## Comandos manuales equivalentes
 
 ```bash
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml config
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml build ops
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d postgres
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
-docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d api web caddy worker-boe worker-boe-modelos worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-cdi worker-aepd
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d --build api web caddy worker-boe worker-boe-modelos worker-dgt worker-teac worker-modelos worker-bdns worker-borme worker-cnmv worker-sepblac worker-cendoj worker-eurlex worker-bde worker-cdi worker-aepd
 curl http://127.0.0.1:8000/health
 curl -H "X-API-Key: $ESDATA_API_KEY" http://127.0.0.1:8000/status
 ```
+
+Si el despliegue es manual y el commit toca `alembic/versions/`, no sustituyas el ultimo paso por `restart api`: la base puede quedar en una revision que la imagen antigua de `api` no conoce y el contenedor abortara durante `alembic upgrade heads`. Reconstruir `ops` antes de migrar y recrear `api` con `--build` despues de migrar es parte del contrato operativo.
 
 ## Cron jobs
 

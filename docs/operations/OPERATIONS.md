@@ -61,10 +61,14 @@ docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.
 
 ```bash
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d postgres
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml build ops
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic current
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops alembic upgrade head
 docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml --profile ops run --rm ops python scripts/maintenance/verify_schema.py
+docker compose --env-file /etc/esdata/esdata.env -f infra/deploy/docker-compose.prod.yml up -d --build api
 ```
+
+Si el commit cambia `alembic/`, `scripts/maintenance/` empaquetado en `ops` o codigo copiado a la imagen `api`, no uses solo `restart api`. Reconstruye `ops` antes de ejecutar Alembic y recrea `api` con `up -d --build api` despues de migrar. Una imagen `api` antigua puede entrar en restart loop si la base queda en una revision Alembic que la imagen no contiene.
 
 ## Backup minimo
 
