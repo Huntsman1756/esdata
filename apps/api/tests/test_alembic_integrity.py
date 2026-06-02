@@ -589,6 +589,45 @@ def test_aeat_190_subclaves_revision_is_scoped_in_0113():
         assert forbidden not in contents
 
 
+def test_aeat_190_field_rules_revision_is_scoped_in_0114():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260602_0114_aeat_190_field_rules_key_subclave.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "down_revision = \"20260602_0113_aeat_190_subclaves_percepcion\"",
+        "FIELD_RULES = [",
+        "posicion 78",
+        "posiciones 79-80",
+        "clave_percepcion_pos_78_obligatoria",
+        "subclave_pos_79_80_obligatoria_b_c_e_f_g_h_i_k_l",
+        "subclave_pos_79_80_no_cumplimentar_a_d_j",
+        "B, C, E, F, G, H, I, K y L",
+        "A, D y J",
+        "DISENOS_LOGICOS_190_2025.pdf",
+        "a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d",
+        "COUNT(*) = 3",
+        "INSERT INTO modelo_regla_inclusion",
+        "casilla_referencia",
+        "capture_date",
+        "CONDICIONAL",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "INSERT INTO modelo_clave",
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

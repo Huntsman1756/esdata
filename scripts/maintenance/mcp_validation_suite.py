@@ -847,6 +847,75 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
+            "aeat_modelo_190_field_rules_key_subclave_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='190'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            ),
+            field_instructions AS (
+                SELECT seccion, casilla_referencia, source_url, source_hash, capture_date
+                FROM modelo_instruccion
+                WHERE campana_id IN (SELECT id FROM active_campaign)
+                  AND seccion IN (
+                    'campo_190_clave_pos_78',
+                    'campo_190_subclave_pos_79_80_obligatoria',
+                    'campo_190_subclave_pos_79_80_no_cumplimentar'
+                  )
+            ),
+            field_rules AS (
+                SELECT supuesto, decision, condicion, source_url, source_hash, capture_date
+                FROM modelo_regla_inclusion
+                WHERE campana_id IN (SELECT id FROM active_campaign)
+                  AND (
+                    supuesto LIKE '%clave_percepcion_pos_78_obligatoria%'
+                    OR supuesto LIKE '%subclave_pos_79_80_obligatoria_b_c_e_f_g_h_i_k_l%'
+                    OR supuesto LIKE '%subclave_pos_79_80_no_cumplimentar_a_d_j%'
+                  )
+            )
+            SELECT CASE
+                WHEN (SELECT COUNT(*) = 3 FROM field_instructions)
+                 AND (
+                    SELECT COUNT(*) = 3
+                    FROM field_instructions
+                    WHERE source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
+                      AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
+                      AND capture_date IS NOT NULL
+                      AND casilla_referencia IN ('78', '79-80')
+                 )
+                 AND (SELECT COUNT(*) = 3 FROM field_rules)
+                 AND (
+                    SELECT COUNT(*) = 3
+                    FROM field_rules
+                    WHERE source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
+                      AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
+                      AND capture_date IS NOT NULL
+                      AND (
+                        (supuesto LIKE '%clave_percepcion_pos_78_obligatoria%' AND decision='INCLUIR')
+                        OR (
+                            supuesto LIKE '%subclave_pos_79_80_obligatoria_b_c_e_f_g_h_i_k_l%'
+                            AND decision='CONDICIONAL'
+                            AND condicion LIKE '%posiciones 79-80%'
+                            AND condicion LIKE '%B, C, E, F, G, H, I, K y L%'
+                        )
+                        OR (
+                            supuesto LIKE '%subclave_pos_79_80_no_cumplimentar_a_d_j%'
+                            AND decision='EXCLUIR'
+                            AND condicion LIKE '%posiciones 79-80%'
+                            AND condicion LIKE '%A, D y J%'
+                        )
+                      )
+                 )
+                THEN 1 ELSE 0 END
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
             "aeat_modelo_123_design_traceable_partial_contract",
             """
             WITH active_campaign AS (

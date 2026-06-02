@@ -551,6 +551,7 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_modelo_190_perception_keys_a_l_traceable_contract" in source
     assert "modelo_clave_hierarchy_schema_contract" in source
     assert "aeat_modelo_190_subclaves_77_hierarchical_contract" in source
+    assert "aeat_modelo_190_field_rules_key_subclave_contract" in source
     assert "aeat_modelo_190_direct_instruction_asserts_campaign" in source
     assert "aeat_modelo_123_design_traceable_partial_contract" in source
     assert "aeat_modelo_124_design_traceable_partial_contract" in source
@@ -563,6 +564,8 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "BOE-A-2024-27528" in source
     assert "COUNT(*) = 12" in source
     assert "COUNT(*) = 77" in source
+    assert "posiciones 79-80" in source
+    assert "subclave_pos_79_80_no_cumplimentar_a_d_j" in source
     assert "SUBCLAVE_PERCEPCION" in source
     assert "parent_id IS NULL" in source
     assert "nivel=1" in source
