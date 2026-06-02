@@ -781,6 +781,68 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
+            "aeat_modelo_190_subclaves_77_hierarchical_contract",
+            """
+            WITH active_campaign AS (
+                SELECT mc.id
+                FROM aeat_modelo m
+                JOIN modelo_campana mc ON mc.modelo_id=m.id
+                WHERE m.codigo='190'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            ),
+            subclaves AS (
+                SELECT
+                    p.codigo AS clave,
+                    c.codigo,
+                    c.descripcion,
+                    c.source_url,
+                    c.source_hash,
+                    c.capture_date
+                FROM modelo_clave c
+                JOIN modelo_clave p ON p.id=c.parent_id
+                WHERE c.campana_id IN (SELECT id FROM active_campaign)
+                  AND c.nivel=2
+                  AND p.nivel=1
+                  AND COALESCE(c.tipo, c.tipo_clave)='SUBCLAVE_PERCEPCION'
+                  AND COALESCE(p.tipo, p.tipo_clave)='CLAVE_PERCEPCION'
+            ),
+            grouped AS (
+                SELECT clave, COUNT(*) AS total, array_agg(codigo::text ORDER BY codigo::text) AS codes
+                FROM subclaves
+                GROUP BY clave
+            )
+            SELECT CASE
+                WHEN (SELECT COUNT(*) = 77 FROM subclaves)
+                 AND (
+                    SELECT COUNT(*) = 77
+                    FROM subclaves
+                    WHERE source_url LIKE '%DISENOS_LOGICOS_190_2025.pdf'
+                      AND source_hash='a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d'
+                      AND capture_date IS NOT NULL
+                      AND descripcion IS NOT NULL
+                      AND btrim(descripcion) <> ''
+                      AND descripcion !~ '(Modelo 190|Declaracion Informativa|Agencia Tributaria|Resumen anual|POSICION|Ejercicio 2025)'
+                 )
+                 AND (
+                    SELECT COUNT(*) = 9
+                       AND COUNT(*) FILTER (WHERE clave='B' AND total=5 AND codes=ARRAY['01','02','03','04','99']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='C' AND total=9 AND codes=ARRAY['01','02','03','04','05','06','07','08','09']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='E' AND total=4 AND codes=ARRAY['01','02','03','04']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='F' AND total=7 AND codes=ARRAY['01','02','03','04','05','06','07']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='G' AND total=8 AND codes=ARRAY['01','02','03','04','05','06','07','08']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='H' AND total=4 AND codes=ARRAY['01','02','03','04']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='I' AND total=3 AND codes=ARRAY['01','02','03']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='K' AND total=5 AND codes=ARRAY['01','02','03','04','05']) = 1
+                       AND COUNT(*) FILTER (WHERE clave='L' AND total=32 AND codes=ARRAY['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','99']) = 1
+                    FROM grouped
+                 )
+                THEN 1 ELSE 0 END
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
             "aeat_modelo_123_design_traceable_partial_contract",
             """
             WITH active_campaign AS (

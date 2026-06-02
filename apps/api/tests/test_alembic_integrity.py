@@ -553,6 +553,42 @@ def test_modelo_clave_hierarchy_schema_revision_is_scoped_in_0112():
         assert forbidden not in contents
 
 
+def test_aeat_190_subclaves_revision_is_scoped_in_0113():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260602_0113_aeat_190_subclaves_percepcion.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "down_revision = \"20260602_0112_modelo_clave_hierarchy_schema\"",
+        "SUBCLAVES = [",
+        "SUBCLAVE_COUNTS = {",
+        "\"B\": 5",
+        "\"L\": 32",
+        "\"codigo\": \"99\"",
+        "SUBCLAVE_PERCEPCION",
+        "parent_id",
+        "nivel",
+        "DISENOS_LOGICOS_190_2025.pdf",
+        "a7d1092f78620431812354e560a5146a3ae244e0aed69d9d58c353370ba0134d",
+        "COUNT(*) = 77",
+        "array_agg(codigo::text ORDER BY codigo::text)",
+        "jsonb_build_object",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "UPDATE obligacion_perfil",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS
