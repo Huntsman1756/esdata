@@ -628,6 +628,45 @@ def test_aeat_190_field_rules_revision_is_scoped_in_0114():
         assert forbidden not in contents
 
 
+def test_aeat_289_hac_1430_legal_campaign_revision_is_scoped_in_0115():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260603_0115_aeat_289_hac_1430_legal_campaign_evidence.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "down_revision = \"20260602_0114_aeat_190_field_rules_key_subclave\"",
+        "codigo = '289'",
+        "campana = '2025'",
+        "BOE-A-2025-25389",
+        "Orden HAC/1430/2025",
+        "aplicable, por primera vez",
+        "correspondientes al ejercicio 2025",
+        "normativa_hac_1430_2025",
+        "45522b6eed4eca77673bffd87d7a4d744b9195e00ec4594a9fb9ae591b32421a",
+        "legal_campaign_evidence",
+        "direct_legal",
+        "capture_date",
+        "row_completeness = 'complete'",
+        "row_provenance = 'official_exact'",
+        "modelo_normativa",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+        "UPDATE obligacion_perfil",
+        "INSERT INTO modelo_clave",
+        "INSERT INTO modelo_instruccion",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

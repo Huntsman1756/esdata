@@ -561,7 +561,8 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_modelo_124_campaign_not_overclaimed_contract" in source
     assert "aeat_modelo_289_campaign_not_overclaimed_contract" in source
     assert "aeat_priority_target_models_have_traceable_partial_evidence_7" in source
-    assert "BOE-A-2024-27528" in source
+    assert "BOE-A-2025-25389" in source
+    assert "normativa_hac_1430_2025" in source
     assert "COUNT(*) = 12" in source
     assert "COUNT(*) = 77" in source
     assert "posiciones 79-80" in source

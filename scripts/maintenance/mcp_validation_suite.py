@@ -983,20 +983,29 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             SELECT CASE
                 WHEN COUNT(*) FILTER (
                     WHERE rec.activa IS true
-                      AND rec.tipo_recurso='normativa_hac_1504_2024'
-                      AND rec.url_recurso LIKE '%BOE-A-2024-27528%'
-                      AND rec.sha256_contenido='91c443efff4b5cca5403d5573be18061effa495cdd9769c6dfc305b3c9110c3c'
-                      AND rec.content_length=152551
+                      AND rec.tipo_recurso='normativa_hac_1430_2025'
+                      AND rec.url_recurso LIKE '%BOE-A-2025-25389%'
+                      AND rec.sha256_contenido='45522b6eed4eca77673bffd87d7a4d744b9195e00ec4594a9fb9ae591b32421a'
+                      AND rec.content_length=110846
                       AND rec.row_provenance='official_exact'
                       AND rec.row_completeness='complete'
-                      AND rec.metadata->>'capture_date'='2026-06-01'
+                      AND rec.metadata->>'capture_date'='2026-06-03'
                       AND rec.metadata->>'campaign_evidence_role'='direct_legal'
                       AND rec.metadata->>'source_kind'='legal_campaign_evidence'
-                      AND rec.metadata->>'label' ILIKE '%2025 y siguientes%'
+                      AND rec.metadata->>'label' ILIKE '%Orden HAC/1430/2025%'
+                      AND rec.metadata->>'legal_effect_text' ILIKE '%ejercicio 2025%'
+                ) = 1
+                AND COUNT(DISTINCT mn.boe_id) FILTER (
+                    WHERE mn.boe_id='BOE-A-2025-25389'
+                      AND mn.url_boe LIKE '%BOE-A-2025-25389%'
+                      AND mn.titulo ILIKE '%Orden HAC/1430/2025%'
                 ) = 1
                 THEN 1 ELSE 0 END
             FROM active_campaign ac
             LEFT JOIN modelo_recurso rec ON rec.campana_id=ac.id
+            LEFT JOIN modelo_normativa mn ON mn.modelo_id=(
+                SELECT id FROM aeat_modelo WHERE codigo='289'
+            )
             """,
             1,
         ),
