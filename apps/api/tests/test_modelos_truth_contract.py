@@ -1019,7 +1019,7 @@ def test_strong_campaign_lane_prefers_hashed_direct_evidence_over_weak_same_url(
     )
 
     assert selection["campana_resolution_status"] == "resolved_strong"
-    assert selection["campana_evidence"]["operational"]["status"] == "resolved_strong_operational"
+    assert selection["campana_evidence"]["operational"]["status"] == "none"
     assert selection["campana_evidence"]["operational"]["source_hash"] == "hash-289-2025"
     assert selection["campana_evidence"]["operational"]["capture_date"] == "2026-06-01"
 
@@ -1075,6 +1075,36 @@ def test_model_289_legal_lane_requires_explicit_direct_legal_evidence():
     assert selection["campana_evidence"]["legal"]["safe_to_assert"] is True
     assert selection["campana_evidence"]["operational"]["status"] == "resolved_strong_operational"
     assert selection["campana_assertion_basis"] == ["legal", "operational"]
+
+
+def test_direct_legal_boe_evidence_can_assert_campaign_without_operational_lane():
+    from services.modelos import _build_campana_selection
+
+    legal_campaign_url = "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25389"
+
+    selection = _build_campana_selection(
+        "2025",
+        [
+            {
+                "tipo": "modelo_recurso:normativa_hac_1430_2025",
+                "url": legal_campaign_url,
+                "titulo": "Orden HAC/1430/2025 - actualizacion modelos informativos",
+                "label": "Orden HAC/1430/2025. Modelos 182, 184, 195, 199, 282 y 345; ejercicio 2025.",
+                "years": ["2025"],
+                "source_hash": "hash-legal-2025",
+                "capture_date": "2026-06-03",
+                "campaign_evidence_role": "direct_legal",
+            }
+        ],
+    )
+
+    assert selection["campana_resolution_status"] == "resolved_strong"
+    assert selection["campana_afirmable"] == "2025"
+    assert selection["campana_evidence"]["legal"]["status"] == "resolved_strong_legal"
+    assert selection["campana_evidence"]["legal"]["safe_to_assert"] is True
+    assert selection["campana_evidence"]["operational"]["status"] == "none"
+    assert selection["campana_evidence"]["operational"]["source_url"] is None
+    assert selection["campana_assertion_basis"] == ["legal"]
 
 
 @pytest.mark.asyncio

@@ -556,13 +556,17 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "aeat_modelo_123_design_traceable_partial_contract" in source
     assert "aeat_modelo_124_design_traceable_partial_contract" in source
     assert "aeat_modelo_289_legal_campaign_traceable_contract" in source
+    assert "aeat_modelos_182_184_195_199_282_345_boe_25389_legal_contract" in source
+    assert "aeat_modelos_270_347_boe_25390_legal_contract" in source
     assert "aeat_modelo_289_documental_traceable_fail_closed_contract" in source
     assert "aeat_modelo_123_campaign_not_overclaimed_contract" in source
     assert "aeat_modelo_124_campaign_not_overclaimed_contract" in source
     assert "aeat_modelo_289_campaign_not_overclaimed_contract" in source
     assert "aeat_priority_target_models_have_traceable_partial_evidence_7" in source
     assert "BOE-A-2025-25389" in source
+    assert "BOE-A-2025-25390" in source
     assert "normativa_hac_1430_2025" in source
+    assert "normativa_hac_1431_2025" in source
     assert "COUNT(DISTINCT rec.id) FILTER" in source
     assert "COUNT(*) = 12" in source
     assert "COUNT(*) = 77" in source

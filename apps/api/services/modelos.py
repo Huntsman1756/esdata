@@ -322,6 +322,29 @@ def _resource_proves_legal_campaign(resource: dict, candidate: str | None) -> bo
     return candidate in years or resource.get("campana") == candidate
 
 
+def _resource_legal_campaign_years(resource: dict) -> list[str]:
+    if resource.get("campaign_evidence_role") != "direct_legal":
+        return []
+    if "boe.es" not in str(resource.get("url") or ""):
+        return []
+    if not resource.get("source_hash") or not resource.get("capture_date"):
+        return []
+    years = [
+        str(year)
+        for year in (resource.get("years") or [])
+        if str(year).isdigit()
+    ] or _extract_campaign_candidate_years(
+        resource.get("url"),
+        resource.get("titulo"),
+        resource.get("label"),
+        resource.get("nota"),
+        resource.get("fecha"),
+    )
+    if str(resource.get("campana") or "").isdigit():
+        years.append(str(resource["campana"]))
+    return sorted(set(years))
+
+
 def _fold_accents(value: str) -> str:
     return "".join(
         char
@@ -426,11 +449,6 @@ def _campana_evidence_lanes(
     technical_exercise_coverage: list[dict],
     candidate: str | None,
 ) -> dict:
-    operational_status = "none"
-    if resolution_status == "resolved_strong":
-        operational_status = "resolved_strong_operational"
-    elif resolution_status == "resolved_weak":
-        operational_status = "resolved_weak"
     operational_candidates = [
         item
         for item in evidence
@@ -460,6 +478,11 @@ def _campana_evidence_lanes(
         reverse=True,
     )
     legal_source = legal_candidates[0] if legal_candidates else None
+    operational_status = "none"
+    if resolution_status == "resolved_strong" and (operational_source or not legal_source):
+        operational_status = "resolved_strong_operational"
+    elif resolution_status == "resolved_weak":
+        operational_status = "resolved_weak"
     design_item = technical_exercise_coverage[0] if technical_exercise_coverage else None
     lanes = {
         "legal": {
@@ -568,8 +591,12 @@ def _build_campana_selection(
     resource_years: set[str] = set()
     direct_proof_years: set[str] = set()
     technical_exercise_coverage = _extract_technical_exercise_coverage(resources)
+    active_year = campana_activa if campana_activa and campana_activa.isdigit() else None
 
     for resource in resources:
+        legal_years = _resource_legal_campaign_years(resource)
+        if active_year and active_year in legal_years:
+            direct_proof_years.add(active_year)
         tipo = resource.get("tipo")
         if tipo not in CAMPAIGN_BEARING_RESOURCE_TYPES:
             continue
@@ -605,7 +632,6 @@ def _build_campana_selection(
                 }
             )
 
-    active_year = campana_activa if campana_activa and campana_activa.isdigit() else None
     direct_conflict = len(direct_proof_years) > 1 or bool(
         active_year and direct_proof_years and active_year not in direct_proof_years
     )

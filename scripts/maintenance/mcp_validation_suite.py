@@ -1011,6 +1011,112 @@ def _check_database_contracts() -> list[dict[str, Any]]:
         ),
         _check_db_scalar(
             database_url,
+            "aeat_modelos_182_184_195_199_282_345_boe_25389_legal_contract",
+            """
+            WITH target_models AS (
+                SELECT am.id AS modelo_id, mc.id AS campana_id
+                FROM aeat_modelo am
+                JOIN modelo_campana mc ON mc.modelo_id=am.id
+                WHERE am.codigo IN ('182','184','195','199','282','345')
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            ),
+            excluded_models AS (
+                SELECT am.id AS modelo_id, mc.id AS campana_id
+                FROM aeat_modelo am
+                JOIN modelo_campana mc ON mc.modelo_id=am.id
+                WHERE am.codigo='193'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT rec.id) FILTER (
+                    WHERE rec.activa IS true
+                      AND rec.tipo_recurso='normativa_hac_1430_2025'
+                      AND rec.url_recurso='https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25389'
+                      AND rec.sha256_contenido='45522b6eed4eca77673bffd87d7a4d744b9195e00ec4594a9fb9ae591b32421a'
+                      AND rec.content_length=110846
+                      AND rec.row_provenance='official_exact'
+                      AND rec.row_completeness='complete'
+                      AND rec.metadata->>'capture_date'='2026-06-03'
+                      AND rec.metadata->>'campaign_evidence_role'='direct_legal'
+                      AND rec.metadata->>'source_kind'='legal_campaign_evidence'
+                      AND rec.metadata->>'hash_lineage'='stable_doc_php_recapture'
+                ) = 6
+                AND COUNT(DISTINCT mn.id) FILTER (
+                    WHERE mn.boe_id='BOE-A-2025-25389'
+                      AND mn.url_boe='https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25389'
+                      AND mn.titulo ILIKE '%Orden HAC/1430/2025%'
+                ) = 6
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM modelo_recurso rec193
+                    JOIN excluded_models em ON em.campana_id=rec193.campana_id
+                    WHERE rec193.tipo_recurso='normativa_hac_1430_2025'
+                      AND rec193.url_recurso LIKE '%BOE-A-2025-25389%'
+                )
+                THEN 1 ELSE 0 END
+            FROM target_models tm
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=tm.campana_id
+            LEFT JOIN modelo_normativa mn ON mn.modelo_id=tm.modelo_id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelos_270_347_boe_25390_legal_contract",
+            """
+            WITH target_models AS (
+                SELECT am.id AS modelo_id, mc.id AS campana_id
+                FROM aeat_modelo am
+                JOIN modelo_campana mc ON mc.modelo_id=am.id
+                WHERE am.codigo IN ('270','347')
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            ),
+            excluded_models AS (
+                SELECT am.id AS modelo_id, mc.id AS campana_id
+                FROM aeat_modelo am
+                JOIN modelo_campana mc ON mc.modelo_id=am.id
+                WHERE am.codigo='190'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT rec.id) FILTER (
+                    WHERE rec.activa IS true
+                      AND rec.tipo_recurso='normativa_hac_1431_2025'
+                      AND rec.url_recurso='https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25390'
+                      AND rec.sha256_contenido='800f599e6c90760e13c2b5482328339ad0e9c39a33e5b0e098594c57f52c2f79'
+                      AND rec.content_length=60343
+                      AND rec.row_provenance='official_exact'
+                      AND rec.row_completeness='complete'
+                      AND rec.metadata->>'capture_date'='2026-06-03'
+                      AND rec.metadata->>'campaign_evidence_role'='direct_legal'
+                      AND rec.metadata->>'source_kind'='legal_campaign_evidence'
+                      AND rec.metadata->>'hash_lineage'='stable_doc_php_recapture'
+                ) = 2
+                AND COUNT(DISTINCT mn.id) FILTER (
+                    WHERE mn.boe_id='BOE-A-2025-25390'
+                      AND mn.url_boe='https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25390'
+                      AND mn.titulo ILIKE '%Orden HAC/1431/2025%'
+                ) = 2
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM modelo_recurso rec190
+                    JOIN excluded_models em ON em.campana_id=rec190.campana_id
+                    WHERE rec190.tipo_recurso='normativa_hac_1431_2025'
+                      AND rec190.url_recurso LIKE '%BOE-A-2025-25390%'
+                )
+                THEN 1 ELSE 0 END
+            FROM target_models tm
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=tm.campana_id
+            LEFT JOIN modelo_normativa mn ON mn.modelo_id=tm.modelo_id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
             "aeat_modelo_289_documental_traceable_fail_closed_contract",
             """
             WITH active_campaign AS (
