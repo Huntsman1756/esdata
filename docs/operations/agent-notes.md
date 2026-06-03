@@ -54,6 +54,13 @@ Usar notas cortas con este esquema:
 
 ## Notas actuales
 
+### 2026-06-03 - AEAT BOE `normativa` inactiva no implica irrelevancia legal
+
+- Scope: `modelo_recurso`, `modelo_normativa`, `scripts/maintenance/mcp_validation_suite.py`, carriles de campana AEAT.
+- Hallazgo: el worker puede capturar una Orden BOE como `modelo_recurso: normativa` generica e inactiva por unicidad de recurso activo por tipo, aunque la fuente sea una actualizacion legal vigente del modelo. Paso con `BOE-A-2025-25389` / `Orden HAC/1430/2025` para `289/2025`.
+- Impacto: si el agente solo mira recursos activos o `modelo_normativa`, puede dejar fuera una fuente legal actual; si simplemente activa la fila generica, puede mezclar normativa no semantica con prueba de campana.
+- Regla practica: para promover una fuente BOE a carril legal, crear un `tipo_recurso` semantico especifico, metadata `source_kind='legal_campaign_evidence'` + `campaign_evidence_role='direct_legal'`, hash y `capture_date`, y fila `modelo_normativa`. En gates con join a `modelo_normativa`, contar `COUNT(DISTINCT rec.id)` para evitar multiplicacion por filas normativas.
+
 ### 2026-05-31 - CNMV sanciones: no dejar que `sancionadora` active DORA
 
 - Scope: `apps/workers/cnmv.py`, `apps/workers/tests/test_cnmv.py`.
