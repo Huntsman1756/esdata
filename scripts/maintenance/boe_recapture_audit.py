@@ -142,7 +142,7 @@ def get_candidates_from_db(dsn: str) -> list[dict[str, Any]]:
         ORDER BY br.boe_id, br.url_recurso, br.existing_hash
     """
 
-    with psycopg.connect(dsn) as connection:
+    with psycopg.connect(normalize_psycopg_dsn(dsn)) as connection:
         with connection.cursor() as cursor:
             cursor.execute(sql)
             columns = [description.name for description in cursor.description or []]
@@ -151,6 +151,11 @@ def get_candidates_from_db(dsn: str) -> list[dict[str, Any]]:
     for row in rows:
         row["fetch_url"] = canonical_boe_doc_url(row["url"], row["boe_id"])
     return rows
+
+
+def normalize_psycopg_dsn(dsn: str) -> str:
+    """Accept SQLAlchemy-style postgres URLs used by ESData env files."""
+    return dsn.replace("postgresql+psycopg://", "postgresql://", 1)
 
 
 def get_candidates_dry_run() -> list[dict[str, Any]]:
