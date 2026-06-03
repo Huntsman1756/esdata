@@ -576,6 +576,27 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "sha256_contenido IS NOT NULL" in source
 
 
+def test_boe_recapture_audit_uses_current_modelo_recurso_schema():
+    source = (ROOT / "scripts" / "maintenance" / "boe_recapture_audit.py").read_text(encoding="utf-8")
+
+    assert "mr.tipo_recurso = 'normativa'" in source
+    assert "mr.sha256_contenido AS existing_hash" in source
+    assert "JOIN modelo_campana mc ON mc.id = mr.campana_id" in source
+    assert "JOIN aeat_modelo am ON am.id = mc.modelo_id" in source
+    assert "modelo_normativa" in source
+    assert "mr.content_length IS NULL" in source
+    assert "psycopg.connect" in source
+
+    for legacy_fragment in (
+        "tipo_recurso = 'normativa_hac'",
+        "mr.modelo_id",
+        "mr.nombre",
+        "mr.hash_sha256",
+        "import psycopg2",
+    ):
+        assert legacy_fragment not in source
+
+
 def test_mcp_validation_suite_checks_real_mcp_transport_tools_list(monkeypatch):
     suite = _load_validation_suite()
 
