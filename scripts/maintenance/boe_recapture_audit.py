@@ -291,6 +291,7 @@ def main() -> int:
     parser.add_argument("--dsn", help="PostgreSQL DSN")
     parser.add_argument("--output", default=".", help="Output directory")
     parser.add_argument("--dry-run", action="store_true", help="Use deterministic fake candidates")
+    parser.add_argument("--limit", type=int, help="Limit candidates for smoke testing")
     args = parser.parse_args()
 
     if not args.dry_run and not args.dsn:
@@ -303,6 +304,10 @@ def main() -> int:
     print(f"Output: {output_dir.resolve()}\n")
 
     candidates = get_candidates_dry_run() if args.dry_run else get_candidates_from_db(args.dsn)
+    if args.limit is not None:
+        if args.limit < 1:
+            parser.error("--limit must be a positive integer")
+        candidates = candidates[: args.limit]
     print(f"Unique candidates: {len(candidates)}\n")
 
     results = audit_candidates(candidates, dry_run=args.dry_run)

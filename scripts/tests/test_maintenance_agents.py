@@ -586,6 +586,7 @@ def test_boe_recapture_audit_uses_current_modelo_recurso_schema():
     assert "modelo_normativa" in source
     assert "mr.content_length IS NULL" in source
     assert "psycopg.connect" in source
+    assert 'parser.add_argument("--limit"' in source
 
     for legacy_fragment in (
         "tipo_recurso = 'normativa_hac'",
