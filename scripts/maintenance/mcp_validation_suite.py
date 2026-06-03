@@ -981,7 +981,7 @@ def _check_database_contracts() -> list[dict[str, Any]]:
                   AND mc.activo IS true
             )
             SELECT CASE
-                WHEN COUNT(*) FILTER (
+                WHEN COUNT(DISTINCT rec.id) FILTER (
                     WHERE rec.activa IS true
                       AND rec.tipo_recurso='normativa_hac_1430_2025'
                       AND rec.url_recurso LIKE '%BOE-A-2025-25389%'
