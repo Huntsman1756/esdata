@@ -318,7 +318,7 @@ WORKER_CADENCE_CONFIG: dict[str, WorkerCadence] = {
         "expected_cadence_hours": 24,
         "stale_threshold_hours": 36,
         "cron_expression": "*-*-* 04:20:00 Europe/Madrid",
-        "notes": "ESMA FIRDS DLTINS file metadata and bounded pilot sample refresh.",
+        "notes": "ESMA FIRDS DLTINS file metadata refresh only; instrument-level ISIN payloads are intentionally not loaded.",
     },
     # real schedule: systemd weekly Monday 04:35 Europe/Madrid = 168 hours
     "worker-esma-dlt": {

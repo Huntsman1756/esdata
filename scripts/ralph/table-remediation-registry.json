@@ -659,12 +659,12 @@
                    },
                    {
                        "table":  "esma_firds_instrument",
-                       "row_count":  1000,
-                       "classification":  "populated",
+                       "row_count":  0,
+                       "classification":  "configured_but_unavailable",
                        "domain":  "EUR-Lex / ESMA Markets",
                        "official_source_family":  "ESMA FIRDS official register files",
                        "target_path":  "apps/workers/worker_esma_firds.py",
-                       "action":  "Bounded DLTINS pilot sample loaded; API must expose evidence_limited and never treat absence as authoritative.",
+                       "action":  "Instrument-level FIRDS/ISIN rows are intentionally not loaded; MCP uses ESMA schemas, manuals, reporting documents and FIRDS file metadata instead.",
                        "rls_enabled":  true,
                        "verification_sql":  "SELECT count(*) FROM public.\"esma_firds_instrument\";"
                    },

@@ -582,6 +582,26 @@ def test_mcp_validation_suite_tracks_aeat_priority_partial_model_evidence():
     assert "sha256_contenido IS NOT NULL" in source
 
 
+def test_esma_firds_contracts_are_metadata_only_and_instrument_fail_closed():
+    validation_source = (ROOT / "scripts" / "maintenance" / "mcp_validation_suite.py").read_text(encoding="utf-8")
+    deep_source = (ROOT / "scripts" / "maintenance" / "mcp_deep_contract_audit.py").read_text(encoding="utf-8")
+    worker_source = (ROOT / "apps" / "workers" / "worker_esma_firds.py").read_text(encoding="utf-8")
+    router_source = (ROOT / "apps" / "api" / "routers" / "esma_firds.py").read_text(encoding="utf-8")
+
+    for source in (validation_source, deep_source):
+        assert "official_esma_file_metadata" in source
+        assert "firds_instruments_not_loaded" in source
+        assert "intentionally not loaded" in source
+
+    assert "esma_firds_instrument_rows_intentionally_zero" in validation_source
+    assert "metadata_only" in worker_source
+    assert "articulos=0" in worker_source
+    assert "download_zip" not in worker_source
+    assert "parse_dltins_instruments" not in worker_source
+    assert "response.content" not in worker_source
+    assert "FROM esma_firds_instrument" not in router_source
+
+
 def test_boe_recapture_audit_uses_current_modelo_recurso_schema():
     source = (ROOT / "scripts" / "maintenance" / "boe_recapture_audit.py").read_text(encoding="utf-8")
 

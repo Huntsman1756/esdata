@@ -710,6 +710,31 @@ def test_aeat_193_boe_25389_legal_conflict_revision_is_scoped_in_0118():
         assert forbidden not in contents
 
 
+def test_esma_firds_metadata_only_revision_is_scoped_in_0119():
+    revision_path = ALEMBIC_VERSIONS / "20260604_0119_firds_metadata_only.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "down_revision = \"20260604_0118_promote_193_boe_25389_normativa\"",
+        "DELETE FROM esma_firds_instrument",
+        "UPDATE esma_firds_file",
+        "downloaded = false",
+        "processed = false",
+        "Instrument-level FIRDS rows cannot be reconstructed safely from a purge",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "DROP TABLE",
+        "esma_schema",
+        "esma_schema_field",
+        "esma_reporting_document",
+        "modelo_",
+        "obligacion_perfil",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

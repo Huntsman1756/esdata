@@ -580,18 +580,20 @@ def audit_eurlex_esma_market_contracts(base_url: str) -> CheckResult:
                 ),
             ),
             (
-                "esma_firds_files_partial",
+                "esma_firds_files_metadata_only",
                 "/v1/esma/firds/files",
                 {"limit": 5, "offset": 0},
                 lambda payload: (
                     payload.get("total", 0) > 0
                     and payload.get("verified") is False
                     and payload.get("completeness") == "parcial"
-                    and payload.get("quality_signal") == "evidence_limited_firds_pilot"
+                    and payload.get("quality_signal") == "official_esma_file_metadata"
+                    and "Instrument-level ISIN data is intentionally not loaded"
+                    in (payload.get("evidence_notice") or "")
                 ),
             ),
             (
-                "esma_firds_unknown_isin_fail_closed",
+                "esma_firds_instruments_intentionally_not_loaded",
                 "/v1/esma/firds/instruments",
                 {"isin": "ZZZZZZZZZZZZ", "limit": 5, "offset": 0},
                 lambda payload: (
@@ -599,7 +601,8 @@ def audit_eurlex_esma_market_contracts(base_url: str) -> CheckResult:
                     and payload.get("items") == []
                     and payload.get("verified") is False
                     and payload.get("safe_to_answer") is False
-                    and "absence is not authoritative" in (payload.get("evidence_notice") or "")
+                    and payload.get("quality_signal") == "firds_instruments_not_loaded"
+                    and "intentionally not loaded" in (payload.get("evidence_notice") or "")
                 ),
             ),
             (

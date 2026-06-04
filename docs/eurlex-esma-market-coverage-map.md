@@ -27,7 +27,7 @@ Se toma como referencia el cierre AEAT en `docs/aeat-documentation-coverage-repo
 | MiFIR | Hay referencias/vocabulario y worker CNMV clasifica documentos como `mifir`. | Falta articulado completo `32014R0600` en tabla dedicada y endpoints especificos. |
 | MiCA | CASP ESMA esta cargado desde CSV oficial; tablas `crypto_asset`, `tokenized_asset`, `wallet_custodian`, `crypto_transaction` quedan fail-closed si no hay datos reales. | Falta articulado completo `32023R1114`; falta mapa de fuentes oficiales para emisores/tokens si ESMA/EBA publican datasets. |
 | DLT Pilot | Hay referencias documentales, pero no tabla especifica de infraestructuras DLT autorizadas. | Falta articulado `32022R0858` y parser/listado ESMA de infraestructuras autorizadas. |
-| FIRDS/FITRS | No se observan tablas `esma_firds_*` ni `esma_fitrs_result`. | Falta ingestion de metadata, esquemas y piloto de ficheros. |
+| FIRDS/FITRS | Tablas `esma_firds_*` y `esma_fitrs_result` existen. | Mantener solo metadata oficial de ficheros FIRDS; no cargar payloads ISIN reales. |
 | MiFIR transaction reporting | Hay vocabulario/micro-obligaciones, no `esma_schema` ni `esma_schema_field`. | Falta parsear XSD oficial ESMA y validaciones. |
 
 ## EUR-Lex Sources
@@ -48,7 +48,7 @@ Se toma como referencia el cierre AEAT en `docs/aeat-documentation-coverage-repo
 | MiFIR Transaction Reporting XSD 1.1.0 | https://www.esma.europa.eu/document/transaction-reporting-xml-schema-110 | ESMA document page with ZIP of ISO 20022 XML schemas | Stable since 2019 but must be hash checked. | STATUS-A | ZIP/XSD is deterministic; parse `xs:element`, types and documentation only. |
 | MiFIR Transaction Reporting instructions | https://www.esma.europa.eu/data-reporting/mifir-reporting | PDF/doc links from reporting hub | Updated when ESMA changes reporting instructions. Weekly discovery, manual parser classification. | STATUS-E | Metadata can be loaded safely; rule extraction only if structured. |
 | MiFIR Transaction Reporting validation rules | https://www.esma.europa.eu/data-reporting/mifir-reporting | Linked document, likely XLS/PDF depending version | Updated periodically. Weekly discovery. | STATUS-E | If XLS/structured, load rule codes; if PDF prose, metadata only and `parcial`. |
-| FIRDS reference data | https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds | ESMA register UI/API, FULINS/DLTINS XML/ZIP files | Daily files; full files can be very large. Daily metadata check. | STATUS-E | Load file metadata and one pilot delta only. Full FULINS requires capacity decision. |
+| FIRDS reference data | https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds | ESMA register UI/API, FULINS/DLTINS XML/ZIP files | Daily files; full files can be very large. Daily metadata check. | STATUS-E | Load file metadata only. Do not download DLTINS/FULINS instrument payloads or expose ISIN-level rows. |
 | FITRS transparency data | https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_fitrs | ESMA register UI/API, transparency result files | File availability changes with transparency calculations and MiFIR review. Weekly/daily depending file type. | STATUS-E | Needs register-file discovery and schema-specific parser. |
 | DLT Pilot Regime page | https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/dlt-pilot-regime | ESMA HTML page + linked documents/list | Low volume; check monthly. | STATUS-E | Page is official and includes/links authorised DLT infrastructure list; parser must inspect if list is structured. |
 | Authorised DLT Market Infrastructures | https://www.esma.europa.eu/document/list-authorised-dlt-market-infrastructures | ESMA document/list page | Low volume; may be empty or sparse. Monthly check. | STATUS-E | If structured list exists, load infrastructure rows; if list is empty, publish `configured_but_unavailable` with source evidence. |
@@ -65,7 +65,7 @@ Se toma como referencia el cierre AEAT en `docs/aeat-documentation-coverage-repo
 | MAR articulado | Not in immediate E-02 to E-04 sequence, but source is STATUS-A. | Add follow-up if E-00 map is expanded or include in E-13 backlog. |
 | ESMA transaction reporting schema | Not loaded as `esma_schema/esma_schema_field`. | E-05 parse XSD ZIP. |
 | ESMA validation rules | Not loaded as structured rules. | E-06 metadata first; structured extraction only if safe. |
-| FIRDS/FITRS | No dedicated tables in current schema. | E-07 pilot and later FITRS story. |
+| FIRDS/FITRS | Dedicated tables exist, but instrument table is intentionally empty. | Metadata-only FIRDS plus later FITRS metadata/story if needed. |
 | DLT authorised infrastructures | No dedicated table. | E-08 load list or document zero-authorisation state. |
 | CASP | Existing official ESMA CASP load, 192 unique records in prior audits. | E-09 verify and refresh. |
 
@@ -74,7 +74,7 @@ Se toma como referencia el cierre AEAT en `docs/aeat-documentation-coverage-repo
 - E-01 must create schema before any loader work.
 - EUR-Lex article loading should prefer XML/HTML from EUR-Lex and store the exact response hash.
 - ESMA XSD is the authoritative source for transaction reporting fields; reporting instructions are secondary context.
-- FIRDS full-load is explicitly out of scope for E-07. Only metadata and a bounded delta pilot are acceptable.
+- FIRDS full-load and bounded DLTINS instrument samples are explicitly out of scope. Only metadata is acceptable.
 - DLT zero-authorisation is a valid outcome if ESMA source says no authorised infrastructures; it must be exposed as `configured_but_unavailable` or equivalent, not as failure.
 - Non-CASP MiCA tables stay fail-closed until official structured source is mapped and loaded.
 

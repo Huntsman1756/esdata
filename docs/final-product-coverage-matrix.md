@@ -54,7 +54,7 @@ Backup/offsite restore is intentionally deferred. That means functional product 
 | CNMV | `partial` | Review loaded CNMV families and distinguish loaded vs unavailable families. | Complete CNMV universe, registers, Q&A, or all supervisory material. | `/v1/cnmv/coverage` |
 | EUR-Lex market acts | `usable` | Query loaded market acts/articles where ESData exposes article/source metadata. | Complete EU regulatory corpus. | `/v1/eurlex/market/acts` |
 | ESMA MiFIR schemas/reporting | `partial` | Review loaded schema fields, reporting documents and validation rules. | Complete ESMA reporting coverage, FIRDS/FITRS/full datasets. | Broader source audit; not all ESMA subfamilies are final-gate product claims. |
-| ESMA FIRDS/FITRS | `very_limited` | Treat FIRDS/FITRS as pilot or unavailable depending endpoint response. | Full instruments universe. | Broader source audit only. |
+| ESMA FIRDS/FITRS | `very_limited` | FIRDS file metadata only; instrument-level ISIN payloads intentionally unavailable. | Full or sampled instruments universe. | Broader source audit only. |
 | MiCA CASP register | `usable` | Query loaded CASP register entries. | Full MiCA or crypto-asset regulatory coverage. | `/v1/mica/casp` |
 | MiCA issuer / ART / EMT workflows | `partial` | Use only where obligations are explicitly sourced. | Complete issuer-token applicability. | Broader inventory; not a CASP-register claim. |
 | Screening OFAC SDN | `usable` | Query loaded OFAC entries by official list. | EU/UN/SEPBLAC sanctions or PEP coverage. | `/v1/screening/entries?codigo=OFAC_SDN&limit=1` |

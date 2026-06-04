@@ -39,7 +39,7 @@ corpus.
 | BDNS / CENDOJ | `very_limited_declared` | Narrow loaded-record checks only. | Broad subsidy or jurisprudence coverage. |
 | EUR-Lex market acts | `scoped_verified` | Loaded CELEX/market-act records can be cited where article/source metadata is present. | Complete EU regulatory corpus. |
 | ESMA MiFIR / DLT | `partial_declared` | Loaded schema/reporting/DLT records can support review. | Complete ESMA reporting or all ESMA datasets. |
-| ESMA FIRDS/FITRS | `very_limited_declared` | Pilot or explicit fail-closed behavior only. | Full instrument universe or absence/presence conclusions. |
+| ESMA FIRDS/FITRS | `very_limited_declared` | Metadata-only file register and explicit fail-closed instrument endpoint. | Full or sampled instrument universe, ISIN answers, or absence/presence conclusions. |
 | MiCA CASP | `scoped_verified` | Loaded ESMA CASP register entries can be queried. | Complete MiCA or crypto-asset regulatory coverage. |
 | OFAC / EU sanctions | `scoped_verified` | Loaded OFAC SDN and EU sanctions entries can be queried by list. | UN, SEPBLAC, PEP or all sanctions-risk coverage. |
 | CDI / FATCA / GIIN / PSD2 / PGC / XBRL | `partial_declared` | Narrow loaded references can support inventory review only until row-level source provenance is exposed. | Complete international tax, payments, accounting or reporting engine. |

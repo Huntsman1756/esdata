@@ -77,7 +77,7 @@ Each must keep a separate `tipo_documento`/contract. Registers and forms should 
 - ESMA Q&A.
 - ISRB acts: MiFIR, EMIR, SFTR, SECR, Benchmarks, CRAR, MiCA, Prospectus, MiFID II, UCITS, Transparency Directive, DORA, SSR, CSDR.
 - ESMA MiCA non-CASP registers: target white papers, ART issuers, EMT issuers and non-compliant entities. This is separate from existing CASP rows.
-- ESMA reference data: keep FIRDS/FITRS scoped. Do not download full FIRDS universe by default; use current metadata/register freshness and small DLTINS pilot samples only when needed.
+- ESMA reference data: keep FIRDS/FITRS scoped. Do not download FIRDS instrument payloads by default; use current metadata/register freshness plus schemas/manuals/reporting documents, not DLTINS/FULINS ISIN rows.
 - `Ansvar-Systems/EU_compliance_MCP` can be reviewed as implementation inspiration only; official EUR-Lex/ESMA remain source of truth.
 
 ### Banco de Espana

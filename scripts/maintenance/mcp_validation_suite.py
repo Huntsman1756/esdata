@@ -1630,6 +1630,11 @@ def _check_database_contracts() -> list[dict[str, Any]]:
             """,
             3,
         ),
+        _check_db_zero(
+            database_url,
+            "esma_firds_instrument_rows_intentionally_zero",
+            "SELECT COUNT(*) FROM esma_firds_instrument",
+        ),
         _check_db_scalar(
             database_url,
             "obligacion_perfil_total_ge_190",
@@ -2796,9 +2801,11 @@ def _validate_esma_firds_files_contract(payload: dict[str, Any]) -> tuple[bool, 
         and payload.get("total", 0) > 0
         and payload.get("verified") is False
         and payload.get("completeness") == "parcial"
-        and payload.get("quality_signal") == "evidence_limited_firds_pilot"
+        and payload.get("quality_signal") == "official_esma_file_metadata"
         and payload.get("safe_to_answer") is True
         and all(item.get("source_url") and item.get("source_hash") for item in items)
+        and "Instrument-level ISIN data is intentionally not loaded"
+        in (payload.get("evidence_notice") or "")
     )
     return ok, details
 
@@ -2818,9 +2825,9 @@ def _validate_esma_firds_unknown_isin_contract(payload: dict[str, Any]) -> tuple
         and payload.get("items") == []
         and payload.get("verified") is False
         and payload.get("completeness") == "parcial"
-        and payload.get("quality_signal") == "evidence_limited_firds_pilot"
+        and payload.get("quality_signal") == "firds_instruments_not_loaded"
         and payload.get("safe_to_answer") is False
-        and "absence is not authoritative" in (payload.get("evidence_notice") or "")
+        and "intentionally not loaded" in (payload.get("evidence_notice") or "")
     )
     return ok, details
 
@@ -3438,7 +3445,7 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 "/v1/esma/firds/files",
                 {"limit": 5, "offset": 0},
                 _validate_esma_firds_files_contract,
-                "esma_firds_files_evidence_limited_contract",
+                "esma_firds_files_metadata_only_contract",
             )
         )
         checks.append(
@@ -3447,7 +3454,7 @@ def run_read_only_suite(base_url: str) -> dict[str, Any]:
                 "/v1/esma/firds/instruments",
                 {"isin": "ZZZZZZZZZZZZ", "limit": 5, "offset": 0},
                 _validate_esma_firds_unknown_isin_contract,
-                "esma_firds_unknown_isin_fail_closed_contract",
+                "esma_firds_instruments_intentionally_not_loaded_contract",
             )
         )
         checks.append(
