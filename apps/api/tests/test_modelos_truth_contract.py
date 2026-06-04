@@ -1019,9 +1019,10 @@ def test_strong_campaign_lane_prefers_hashed_direct_evidence_over_weak_same_url(
     )
 
     assert selection["campana_resolution_status"] == "resolved_strong"
-    assert selection["campana_evidence"]["operational"]["status"] == "none"
+    assert selection["campana_evidence"]["operational"]["status"] == "resolved_strong_operational"
     assert selection["campana_evidence"]["operational"]["source_hash"] == "hash-289-2025"
     assert selection["campana_evidence"]["operational"]["capture_date"] == "2026-06-01"
+    assert selection["campana_assertion_basis"] == ["operational"]
 
 
 def test_model_289_legal_lane_requires_explicit_direct_legal_evidence():
@@ -1104,6 +1105,59 @@ def test_direct_legal_boe_evidence_can_assert_campaign_without_operational_lane(
     assert selection["campana_evidence"]["legal"]["safe_to_assert"] is True
     assert selection["campana_evidence"]["operational"]["status"] == "none"
     assert selection["campana_evidence"]["operational"]["source_url"] is None
+    assert selection["campana_assertion_basis"] == ["legal"]
+
+
+def test_direct_legal_boe_evidence_overrides_weak_mixed_year_conflict():
+    from services.modelos import _build_campana_selection
+
+    legal_campaign_url = "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25389"
+
+    selection = _build_campana_selection(
+        "2025",
+        [
+            {
+                "tipo": "aeat_instrucciones",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/Sede/irpf/"
+                    "retenciones-ingresos-cuenta-pagos-fraccionados/"
+                    "retenciones-ingresos-cuenta/modelo-193.html"
+                ),
+                "campana": "2025",
+                "proves_campaign": False,
+            },
+            {
+                "tipo": "modelo_recurso:formulario_pdf",
+                "url": (
+                    "https://sede.agenciatributaria.gob.es/static_files/Sede/"
+                    "Tema/Declaraciones_informativas/2024/Notas_informartivas/"
+                    "Nota_informativa_193-296.pdf"
+                ),
+                "titulo": "Nota informativa modelo 193/296 ejercicio 2025",
+                "years": ["2024", "2025"],
+                "proves_campaign": False,
+            },
+            {
+                "tipo": "modelo_recurso:normativa_hac_1430_2025",
+                "url": legal_campaign_url,
+                "titulo": "Orden HAC/1430/2025 - actualizacion modelo 193",
+                "label": "Orden HAC/1430/2025. Modelo 193.",
+                "years": ["2025"],
+                "source_hash": "hash-legal-193-2025",
+                "capture_date": "2026-06-03",
+                "campaign_evidence_role": "direct_legal",
+            },
+        ],
+    )
+
+    assert selection["campana_resolution_status"] == "resolved_strong"
+    assert selection["campana_afirmable"] == "2025"
+    assert selection["campana_conflict"] is False
+    assert selection["campana_conflict_years"] == []
+    assert selection["campana_evidence"]["legal"]["status"] == "resolved_strong_legal"
+    assert selection["campana_evidence"]["legal"]["source_url"] == legal_campaign_url
+    assert selection["campana_evidence"]["legal"]["source_hash"] == "hash-legal-193-2025"
+    assert selection["campana_evidence"]["operational"]["status"] == "none"
     assert selection["campana_assertion_basis"] == ["legal"]
 
 

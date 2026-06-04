@@ -454,6 +454,7 @@ def _campana_evidence_lanes(
         for item in evidence
         if item.get("tipo") in CAMPAIGN_BEARING_RESOURCE_TYPES
         and item.get("url")
+        and item.get("proves_campaign") is True
     ]
     operational_candidates.sort(
         key=lambda item: (

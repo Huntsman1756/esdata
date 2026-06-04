@@ -667,6 +667,49 @@ def test_aeat_289_hac_1430_legal_campaign_revision_is_scoped_in_0115():
         assert forbidden not in contents
 
 
+def test_aeat_193_boe_25389_legal_conflict_revision_is_scoped_in_0118():
+    revision_path = (
+        ALEMBIC_VERSIONS
+        / "20260604_0118_promote_193_boe_25389_normativa.py"
+    )
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "down_revision = \"20260603_0117_promote_boe_25390_normativa\"",
+        "am.codigo = '193'",
+        "mc.campana = '2025'",
+        "BOE-A-2025-25389",
+        "Orden HAC/1430/2025",
+        "normativa_hac_1430_2025",
+        "45522b6eed4eca77673bffd87d7a4d744b9195e00ec4594a9fb9ae591b32421a",
+        "110846",
+        "legal_campaign_evidence",
+        "direct_legal",
+        "stable_doc_php_recapture",
+        "direct_legal_precedence_over_weak_campaign_years",
+        "capture_date",
+        "row_completeness = 'complete'",
+        "row_provenance = 'official_exact'",
+        "modelo_normativa",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "codigo IN",
+        "CAMPAIGN_BEARING_RESOURCE_TYPES",
+        "UPDATE obligacion_perfil",
+        "INSERT INTO modelo_clave",
+        "INSERT INTO modelo_instruccion",
+        "INSERT INTO modelo_regla_inclusion",
+        "safe_to_answer = true",
+        "verified = true",
+        "completeness = 'completa'",
+        "completeness_estado = 'completa'",
+        "BOE-A-2024-23244",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

@@ -1020,14 +1020,6 @@ def _check_database_contracts() -> list[dict[str, Any]]:
                 WHERE am.codigo IN ('182','184','195','199','282','345')
                   AND mc.campana='2025'
                   AND mc.activo IS true
-            ),
-            excluded_models AS (
-                SELECT am.id AS modelo_id, mc.id AS campana_id
-                FROM aeat_modelo am
-                JOIN modelo_campana mc ON mc.modelo_id=am.id
-                WHERE am.codigo='193'
-                  AND mc.campana='2025'
-                  AND mc.activo IS true
             )
             SELECT CASE
                 WHEN COUNT(DISTINCT rec.id) FILTER (
@@ -1048,15 +1040,47 @@ def _check_database_contracts() -> list[dict[str, Any]]:
                       AND mn.url_boe='https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25389'
                       AND mn.titulo ILIKE '%Orden HAC/1430/2025%'
                 ) = 6
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM modelo_recurso rec193
-                    JOIN excluded_models em ON em.campana_id=rec193.campana_id
-                    WHERE rec193.tipo_recurso='normativa_hac_1430_2025'
-                      AND rec193.url_recurso LIKE '%BOE-A-2025-25389%'
-                )
                 THEN 1 ELSE 0 END
             FROM target_models tm
+            LEFT JOIN modelo_recurso rec ON rec.campana_id=tm.campana_id
+            LEFT JOIN modelo_normativa mn ON mn.modelo_id=tm.modelo_id
+            """,
+            1,
+        ),
+        _check_db_scalar(
+            database_url,
+            "aeat_modelo_193_boe_25389_legal_conflict_resolution_contract",
+            """
+            WITH target_model AS (
+                SELECT am.id AS modelo_id, mc.id AS campana_id
+                FROM aeat_modelo am
+                JOIN modelo_campana mc ON mc.modelo_id=am.id
+                WHERE am.codigo='193'
+                  AND mc.campana='2025'
+                  AND mc.activo IS true
+            )
+            SELECT CASE
+                WHEN COUNT(DISTINCT rec.id) FILTER (
+                    WHERE rec.activa IS true
+                      AND rec.tipo_recurso='normativa_hac_1430_2025'
+                      AND rec.url_recurso='https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25389'
+                      AND rec.sha256_contenido='45522b6eed4eca77673bffd87d7a4d744b9195e00ec4594a9fb9ae591b32421a'
+                      AND rec.content_length=110846
+                      AND rec.row_provenance='official_exact'
+                      AND rec.row_completeness='complete'
+                      AND rec.metadata->>'capture_date'='2026-06-03'
+                      AND rec.metadata->>'campaign_evidence_role'='direct_legal'
+                      AND rec.metadata->>'source_kind'='legal_campaign_evidence'
+                      AND rec.metadata->>'hash_lineage'='stable_doc_php_recapture'
+                      AND rec.metadata->>'conflict_resolution'='direct_legal_precedence_over_weak_campaign_years'
+                ) = 1
+                AND COUNT(DISTINCT mn.id) FILTER (
+                    WHERE mn.boe_id='BOE-A-2025-25389'
+                      AND mn.url_boe='https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25389'
+                      AND mn.titulo ILIKE '%Orden HAC/1430/2025%'
+                ) = 1
+                THEN 1 ELSE 0 END
+            FROM target_model tm
             LEFT JOIN modelo_recurso rec ON rec.campana_id=tm.campana_id
             LEFT JOIN modelo_normativa mn ON mn.modelo_id=tm.modelo_id
             """,
