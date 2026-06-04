@@ -3574,6 +3574,80 @@
         }
       }
     },
+    "/v1/esma/mifir/schemas": {
+      "get": {
+        "tags": [
+          "esma-mifir"
+        ],
+        "summary": "List Mifir Schemas",
+        "operationId": "list_esma_mifir_schemas",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/esma/mifir/transaction-reporting/fields": {
+      "get": {
+        "tags": [
+          "esma-mifir"
+        ],
+        "summary": "List Transaction Reporting Fields",
+        "operationId": "list_esma_mifir_transaction_reporting_fields",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter by field name or description",
+              "title": "Q"
+            },
+            "description": "Filter by field name or description"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/obligaciones/aplicables": {
       "get": {
         "tags": [

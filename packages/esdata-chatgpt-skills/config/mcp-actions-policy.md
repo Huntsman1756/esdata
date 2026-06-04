@@ -40,6 +40,8 @@ Abstain or answer as evidence-limited when:
 - FATCA: route passive/active NFFE questions to Modelo 290 rules first.
 - IRNR: use TRLIRNR/IRNR article endpoints for legal citations.
 - ESMA: use schema endpoints for transaction-reporting structure; do not treat FIRDS pilot data as complete instrument coverage.
+- FCR/AIF/SGIIC: do not infer MiFIR transaction reporting from fund status alone. Treat TR as conditional on a MiFID investment firm/top-up permission or an executing/transmitting investment firm, plus a reportable instrument under MiFIR Article 26.
+- NAV-priced instruments: under current RTS 22, use the returned TR field evidence for price/quantity and mark pending NAV price analysis as review-required when the price is unavailable at execution. Treat ESMA RTS 22/24 review material as pending until ESData exposes an adopted updated RTS contract.
 
 ## Human Review Gates
 

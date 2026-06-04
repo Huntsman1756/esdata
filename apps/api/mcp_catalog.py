@@ -143,6 +143,8 @@ HTTP_MCP_OPERATIONS = [
     "get_cnmv_obligation_links",
     "listar_eurlex",
     "get_eurlex",
+    "list_esma_mifir_schemas",
+    "list_esma_mifir_transaction_reporting_fields",
     "listar_sepblac",
     "get_sepblac",
     "listar_obligaciones_internacionales",

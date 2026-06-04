@@ -168,6 +168,8 @@ async def test_mcp_catalog_exposes_expected_core_http_operations():
         "list_casp",
         "list_psd2_aspsp",
         "screening_entries",
+        "list_esma_mifir_schemas",
+        "list_esma_mifir_transaction_reporting_fields",
     } <= operation_names
 
 

@@ -25,6 +25,8 @@ ESData MCP answers are retrieval results with explicit confidence contracts.
 - TRLIRNR is loaded as BOE-A-2004-4527 and reachable through `TRLIRNR` and `IRNR` aliases.
 - EUR-Lex market acts for MiFIR, MiCA and DLT Pilot can return full articles when loaded; still inspect `verified`, `completeness`, `source_url`, `source_hash`, and `capture_date`.
 - ESMA transaction-reporting schema endpoints are authoritative for loaded XSD fields; FIRDS remains pilot/metadata unless ESData says otherwise.
+- FCR/AIF or SGIIC status alone is not evidence of a direct MiFIR transaction-reporting obligation. Require an investment-firm/MiFID top-up or executing/transmitting firm fact pattern plus a MiFIR Article 26 reportable instrument before stating TR applies.
+- ESMA RTS 22/24 review documents are monitoring material until ESData exposes an adopted updated RTS contract; distinguish the current RTS 22 fields from pending review changes, especially for NAV-priced instruments.
 - CNMV coverage is partial: circulares, technical guides, consultation documents and generic documents are loaded as distinct families; modelos normalizados, Q&A and official registers may still be `configured_but_unavailable`.
 - CNMV technical guides are interpretive/supervisory criteria, not primary legislation.
 - CNMV consultation documents are proposals or consultation-stage materials for monitoring, not current obligations.
