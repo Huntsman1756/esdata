@@ -14,6 +14,7 @@ Limitaciones conocidas:
 """
 
 import argparse
+import json
 import logging
 import os
 import re
@@ -142,6 +143,7 @@ def _ensure_sync_log_table(conn) -> None:
                     documentos_processed INTEGER,
                     documentos_upserted INTEGER,
                     doctrina_links_created INTEGER,
+                    diagnostic_details TEXT,
                     error_msg TEXT
                 )
                 """
@@ -808,6 +810,7 @@ def log_sync(
     documentos_upserted: int = 0,
     doctrina_links_created: int = 0,
     error_msg: str | None = None,
+    diagnostic_details: dict | list | None = None,
     started_at: str | None = None,
 ) -> None:
     if conn is None:
@@ -816,47 +819,66 @@ def log_sync(
     now = datetime.now(timezone.utc).isoformat()
     effective_started_at = started_at or now
     _ensure_sync_log_table(conn)
+    columns = [
+        "worker",
+        "started_at",
+        "finished_at",
+        "status",
+        "bloques_processed",
+        "articulos_upserted",
+        "documentos_processed",
+        "documentos_upserted",
+        "doctrina_links_created",
+        "error_msg",
+    ]
+    values = [
+        ":worker",
+        ":started_at",
+        ":finished_at",
+        ":status",
+        ":bloques_processed",
+        ":articulos_upserted",
+        ":documentos_processed",
+        ":documentos_upserted",
+        ":doctrina_links_created",
+        ":error_msg",
+    ]
+    params = {
+        "worker": worker,
+        "started_at": effective_started_at,
+        "finished_at": now,
+        "status": status,
+        "bloques_processed": bloques,
+        "articulos_upserted": articulos,
+        "documentos_processed": documentos_processed,
+        "documentos_upserted": documentos_upserted,
+        "doctrina_links_created": doctrina_links_created,
+        "error_msg": error_msg,
+    }
+    if diagnostic_details is not None:
+        columns.append("diagnostic_details")
+        params["diagnostic_details"] = json.dumps(
+            diagnostic_details,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        if conn.engine.dialect.name == "postgresql":
+            values.append("CAST(:diagnostic_details AS JSONB)")
+        else:
+            values.append(":diagnostic_details")
+
     conn.execute(
         text(
-            """
+            f"""
             INSERT INTO sync_log (
-                worker,
-                started_at,
-                finished_at,
-                status,
-                bloques_processed,
-                articulos_upserted,
-                documentos_processed,
-                documentos_upserted,
-                doctrina_links_created,
-                error_msg
+                {", ".join(columns)}
             )
             VALUES (
-                :worker,
-                :started_at,
-                :finished_at,
-                :status,
-                :bloques_processed,
-                :articulos_upserted,
-                :documentos_processed,
-                :documentos_upserted,
-                :doctrina_links_created,
-                :error_msg
+                {", ".join(values)}
             )
             """
         ),
-        {
-            "worker": worker,
-            "started_at": effective_started_at,
-            "finished_at": now,
-            "status": status,
-            "bloques_processed": bloques,
-            "articulos_upserted": articulos,
-            "documentos_processed": documentos_processed,
-            "documentos_upserted": documentos_upserted,
-            "doctrina_links_created": doctrina_links_created,
-            "error_msg": error_msg,
-        },
+        params,
     )
 
 
@@ -1115,7 +1137,7 @@ def run_sync(
                     log_sync(
                         conn,
                         worker_name,
-                        "partial",
+                        "skipped",
                         bloques=0,
                         articulos=0,
                         error_msg="BOE sync already in progress",

@@ -602,7 +602,7 @@ def test_run_sync_skips_when_boe_lock_is_unavailable(monkeypatch):
             text("SELECT status, bloques_processed, articulos_upserted, error_msg FROM sync_log ORDER BY id DESC LIMIT 1")
         ).fetchone()
 
-    assert row == ("partial", 0, 0, "BOE sync already in progress")
+    assert row == ("skipped", 0, 0, "BOE sync already in progress")
 
 
 def test_hold_sync_lock_uses_autocommit_connection_for_postgres():
