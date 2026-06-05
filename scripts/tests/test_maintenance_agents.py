@@ -73,6 +73,41 @@ def test_hermes_monitor_restart_requires_explicit_allowlist(monkeypatch):
     assert hermes.should_restart(disallowed) is False
 
 
+def test_hermes_monitor_logs_restart_disabled_before_grace(monkeypatch, caplog):
+    hermes = _load_hermes(monkeypatch)
+    worker = {
+        "name": "worker-cnmv",
+        "reason": "status=partial",
+        "stale": False,
+        "finished_at": "2026-01-01T00:00:00+00:00",
+    }
+
+    monkeypatch.setattr(hermes, "check_health", lambda: {"status": "ok"})
+    monkeypatch.setattr(
+        hermes,
+        "check_domain_availability",
+        lambda: {
+            "ok": True,
+            "total_empty_tables": 0,
+            "workflow_empty": 0,
+            "allowed_empty": 0,
+            "configured_but_unavailable": 0,
+            "unknown": 0,
+        },
+    )
+    monkeypatch.setattr(hermes, "get_status", lambda: {"workers": {"worker-cnmv": worker}})
+    monkeypatch.setattr(hermes, "analyze_workers", lambda _status: [worker])
+    monkeypatch.setattr(hermes, "check_dead_letter_queue", lambda: [])
+
+    caplog.set_level("INFO", logger="hermes-monitor")
+
+    summary = hermes.run_single_check()
+
+    assert summary["workers_unhealthy"] == 1
+    assert "auto-restart disabled" in caplog.text
+    assert "within grace period" not in caplog.text
+
+
 def test_hermes_monitor_dlq_driver_failure_is_nonfatal(monkeypatch):
     hermes = _load_hermes(monkeypatch)
     hermes.DB_URL = "postgresql+missingdriver://example"
