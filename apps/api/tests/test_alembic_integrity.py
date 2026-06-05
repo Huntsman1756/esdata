@@ -735,6 +735,26 @@ def test_esma_firds_metadata_only_revision_is_scoped_in_0119():
         assert forbidden not in contents
 
 
+def test_sync_log_diagnostic_details_revision_is_scoped_in_0120():
+    revision_path = ALEMBIC_VERSIONS / "20260605_0120_sync_log_diagnostic_details.py"
+    contents = revision_path.read_text(encoding="utf-8")
+
+    for fragment in (
+        "down_revision = \"20260604_0119_firds_metadata_only\"",
+        "ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS diagnostic_details JSONB",
+        "op.drop_column(\"sync_log\", \"diagnostic_details\")",
+    ):
+        assert fragment in contents
+
+    for forbidden in (
+        "CREATE TABLE",
+        "documento_interpretativo",
+        "modelo_",
+        "obligacion_perfil",
+    ):
+        assert forbidden not in contents
+
+
 def test_obligacion_perfil_200_recovery_uses_unique_source_revision_in_0099():
     revision_path = (
         ALEMBIC_VERSIONS

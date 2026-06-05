@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -1008,6 +1009,116 @@ def test_run_sync_persists_cnmv_document_and_metrics(monkeypatch):
         "circular_cnmv",
     )
     assert sync == ("worker-cnmv", "ok", 1, 1)
+
+
+def test_run_sync_records_failed_candidate_url_diagnostics(monkeypatch):
+    import tempfile
+
+    db_file = tempfile.mktemp(suffix=".db")
+    db_url = f"sqlite:///{db_file}"
+    engine = create_engine(db_url, future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE documento_interpretativo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo_documento TEXT NOT NULL,
+                    organismo_emisor TEXT NOT NULL,
+                    jurisdiccion TEXT NOT NULL,
+                    tipo_fuente TEXT NOT NULL,
+                    ambito TEXT NOT NULL,
+                    referencia TEXT UNIQUE NOT NULL,
+                    fecha TEXT NOT NULL,
+                    titulo TEXT,
+                    texto TEXT NOT NULL,
+                    url_fuente TEXT,
+                    numero_circular TEXT,
+                    fecha_publicacion TEXT,
+                    referencia_boe TEXT,
+                    estado_vigencia TEXT,
+                    embedding_model_name TEXT,
+                    content_hash TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE source_revision (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    source_hash TEXT NOT NULL,
+                    source_url TEXT,
+                    first_seen_at TEXT,
+                    last_seen_at TEXT,
+                    UNIQUE(worker, entity_type, entity_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE sync_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worker TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    bloques_processed INTEGER,
+                    articulos_upserted INTEGER,
+                    documentos_processed INTEGER,
+                    documentos_upserted INTEGER,
+                    doctrina_links_created INTEGER,
+                    error_msg TEXT,
+                    diagnostic_details TEXT,
+                    rows_processed INTEGER,
+                    errors INTEGER,
+                    duration_ms INTEGER
+                )
+                """
+            )
+        )
+
+    original_client = httpx.Client
+    missing_url = "https://www.cnmv.es/docPortal/missing.docx"
+    valid_url = "https://www.boe.es/buscar/doc.php?id=BOE-A-2009-133"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == missing_url:
+            return httpx.Response(404, content=b"not found")
+        return httpx.Response(200, content=MINIMAL_CNMV_PDF)
+
+    monkeypatch.setattr("cnmv.create_engine", lambda *args, **kwargs: engine)
+    monkeypatch.setattr(
+        "cnmv.httpx.Client",
+        lambda *args, **kwargs: original_client(transport=httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr("cnmv._discover_new_urls", lambda seed_urls=None: seed_urls or [])
+
+    result = run_sync(seed_urls=[missing_url, valid_url])
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                "SELECT status, documentos_processed, documentos_upserted, error_msg, diagnostic_details "
+                "FROM sync_log ORDER BY id DESC LIMIT 1"
+            )
+        ).mappings().one()
+
+    details = json.loads(row["diagnostic_details"])
+    assert result["processed"] == 1
+    assert row["status"] == "partial"
+    assert row["documentos_processed"] == 1
+    assert row["documentos_upserted"] == 1
+    assert row["error_msg"] == "Skipped 1 CNMV candidate URLs after fetch failures"
+    assert details["failed_candidates"] == [
+        {"url": missing_url, "status_code": 404, "error_type": "HTTPStatusError"}
+    ]
 
 
 # ---------------------------------------------------------------------------

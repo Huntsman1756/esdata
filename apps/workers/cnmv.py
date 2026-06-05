@@ -1839,6 +1839,7 @@ def run_sync(
     stored = 0
     discovered = len(candidates)
     missing_document_failures = 0
+    failed_candidates: list[dict[str, str | int | None]] = []
     engine = create_engine(DATABASE_URL, future=True)
     ensure_database_connection(engine, logger=logger)
 
@@ -1866,8 +1867,20 @@ def run_sync(
                             response = client.get(resolved_url)
                             response.raise_for_status()
                             url = resolved_url
-                    except httpx.HTTPError:
+                    except httpx.HTTPError as exc:
                         missing_document_failures += 1
+                        status_code = (
+                            exc.response.status_code
+                            if isinstance(exc, httpx.HTTPStatusError)
+                            else None
+                        )
+                        failed_candidates.append(
+                            {
+                                "url": url,
+                                "status_code": status_code,
+                                "error_type": type(exc).__name__,
+                            }
+                        )
                         continue
 
                     if metadata:
@@ -1927,7 +1940,12 @@ def run_sync(
             final_status, final_error_msg = finalize_partial_sync_status(
                 base_status="ok",
                 missing_count=missing_document_failures,
-                source_label="CNMV documents",
+                source_label="CNMV candidate URLs",
+            )
+            diagnostic_details = (
+                {"failed_candidates": failed_candidates}
+                if failed_candidates
+                else None
             )
 
             log_sync(
@@ -1937,6 +1955,7 @@ def run_sync(
                 documentos_processed=processed,
                 documentos_upserted=stored,
                 error_msg=final_error_msg,
+                diagnostic_details=diagnostic_details,
             )
 
         return {"processed": processed, "stored": stored, "discovered": discovered}
